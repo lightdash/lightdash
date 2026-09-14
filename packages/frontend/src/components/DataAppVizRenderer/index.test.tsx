@@ -429,6 +429,7 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: false,
                 savedChartUuid: 'saved-chart-uuid',
             },
+            7,
         );
         expect(mocks.iframePreview).toHaveBeenLastCalledWith(
             expect.objectContaining({

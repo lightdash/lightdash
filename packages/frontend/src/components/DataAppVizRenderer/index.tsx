@@ -159,12 +159,15 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         }),
         [embedToken, renderSavedChartUuid, chartVersionUuid],
     );
+    const renderPinnedVersion = renderSavedChartUuid
+        ? config?.dataAppVizVersion
+        : undefined;
     const { data: renderMetadata, error: renderMetadataError } =
         useDataAppVizRenderMetadata(
             projectUuid,
             dataAppVizUuid,
             renderTarget,
-            renderSavedChartUuid ? config?.dataAppVizVersion : undefined,
+            renderPinnedVersion,
         );
     const readyMetadata =
         renderMetadata?.state === 'ready' ? renderMetadata : undefined;
@@ -193,6 +196,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         dataAppVizUuid,
         readyMetadata?.version,
         renderTarget,
+        renderPinnedVersion,
     );
     const configOptions = readyMetadata?.schema.configOptions;
     const fields = readyMetadata?.schema.fields;

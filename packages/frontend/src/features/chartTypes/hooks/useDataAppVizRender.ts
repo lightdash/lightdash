@@ -70,6 +70,7 @@ const getRenderMetadataQueryKey = (
     projectUuid: string | undefined,
     dataAppVizUuid: string | null,
     target: DataAppVizRenderTarget,
+    pinnedVersion: number | undefined,
 ) => [
     'data-app-viz-render-metadata',
     projectUuid,
@@ -77,6 +78,7 @@ const getRenderMetadataQueryKey = (
     target.isEmbedded ? 'embed' : 'registered',
     target.savedChartUuid,
     target.chartVersionUuid,
+    pinnedVersion,
 ];
 
 export const useDataAppVizRenderMetadata = (
@@ -86,10 +88,12 @@ export const useDataAppVizRenderMetadata = (
     pinnedVersion?: number,
 ) =>
     useQuery<DataAppVizRenderMetadata, ApiError>({
-        queryKey: [
-            ...getRenderMetadataQueryKey(projectUuid, dataAppVizUuid, target),
+        queryKey: getRenderMetadataQueryKey(
+            projectUuid,
+            dataAppVizUuid,
+            target,
             pinnedVersion,
-        ],
+        ),
         queryFn: () =>
             lightdashApi<ApiDataAppVizRenderMetadataResponse['results']>({
                 method: 'GET',
@@ -112,6 +116,7 @@ export const useDataAppVizPreviewToken = (
     dataAppVizUuid: string | null,
     version: number | undefined,
     target: DataAppVizRenderTarget,
+    pinnedVersion?: number,
 ) => {
     const queryClient = useQueryClient();
     return useQuery<string, ApiError>({
@@ -155,7 +160,9 @@ export const useDataAppVizPreviewToken = (
                             projectUuid,
                             dataAppVizUuid,
                             target,
+                            pinnedVersion,
                         ),
+                        exact: true,
                     },
                     { cancelRefetch: false },
                 );

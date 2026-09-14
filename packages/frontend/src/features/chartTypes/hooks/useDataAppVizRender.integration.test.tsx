@@ -49,7 +49,10 @@ describe('custom chart version refresh', () => {
         });
     });
 
-    const renderChart = (isEmbedded: boolean) => {
+    const renderChart = (
+        isEmbedded: boolean,
+        pinnedVersion: number | undefined,
+    ) => {
         const queryClient = new QueryClient({
             defaultOptions: {
                 queries: {
@@ -68,7 +71,7 @@ describe('custom chart version refresh', () => {
         return {
             queryClient,
             ...renderHook(
-                ({ pinnedVersion }: { pinnedVersion: number }) => {
+                ({ pinnedVersion }: { pinnedVersion: number | undefined }) => {
                     const renderMetadata = useDataAppVizRenderMetadata(
                         'project-1',
                         'viz-1',
@@ -82,10 +85,11 @@ describe('custom chart version refresh', () => {
                             ? renderMetadata.data.version
                             : undefined,
                         target,
+                        pinnedVersion,
                     );
                     return { renderMetadata, token };
                 },
-                { wrapper, initialProps: { pinnedVersion: 1 } },
+                { wrapper, initialProps: { pinnedVersion } },
             ),
         };
     };
@@ -93,7 +97,7 @@ describe('custom chart version refresh', () => {
     it.each([false, true])(
         'fetches the new version when a mounted chart is repinned (embedded: %s)',
         async (isEmbedded) => {
-            const { result, rerender } = renderChart(isEmbedded);
+            const { result, rerender } = renderChart(isEmbedded, 1);
             await waitFor(() =>
                 expect(result.current.token.data).toBe('token-1'),
             );
@@ -109,10 +113,18 @@ describe('custom chart version refresh', () => {
         },
     );
 
-    it.each([false, true])(
-        'recovers a stale version after a token refresh without reloading (embedded: %s)',
-        async (isEmbedded) => {
-            const { result, queryClient } = renderChart(isEmbedded);
+    it.each([
+        { isEmbedded: false, pinnedVersion: 1 },
+        { isEmbedded: true, pinnedVersion: 1 },
+        { isEmbedded: false, pinnedVersion: undefined },
+        { isEmbedded: true, pinnedVersion: undefined },
+    ])(
+        'recovers only the active metadata entry (embedded: $isEmbedded, pin: $pinnedVersion)',
+        async ({ isEmbedded, pinnedVersion }) => {
+            const { result, queryClient } = renderChart(
+                isEmbedded,
+                pinnedVersion,
+            );
             const otherChartKey = [
                 'data-app-viz-render-metadata',
                 'project-1',
@@ -122,7 +134,17 @@ describe('custom chart version refresh', () => {
                 undefined,
                 1,
             ];
+            const otherPinKey = [
+                'data-app-viz-render-metadata',
+                'project-1',
+                'viz-1',
+                isEmbedded ? 'embed' : 'registered',
+                'chart-1',
+                undefined,
+                2,
+            ];
             queryClient.setQueryData(otherChartKey, metadata(1));
+            queryClient.setQueryData(otherPinKey, metadata(2));
             await waitFor(() =>
                 expect(result.current.token.data).toBe('token-1'),
             );
@@ -141,11 +163,14 @@ describe('custom chart version refresh', () => {
             expect(
                 queryClient.getQueryState(otherChartKey)?.isInvalidated,
             ).toBe(false);
+            expect(queryClient.getQueryState(otherPinKey)?.isInvalidated).toBe(
+                false,
+            );
         },
     );
 
     it('preserves a genuine access error without repeatedly refreshing', async () => {
-        const { result } = renderChart(false);
+        const { result } = renderChart(false, 1);
         await waitFor(() => expect(result.current.token.data).toBe('token-1'));
 
         denyToken = true;
