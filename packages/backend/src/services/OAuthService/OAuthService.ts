@@ -3,6 +3,8 @@ import {
     ForbiddenError,
     getClientName,
     isSafeRedirectScheme,
+    MOBILE_SETUP_CODE_GRANT_TYPE,
+    MobileSetupCodeError,
     NotFoundError,
     ParameterError,
     TOKEN_EXCHANGE_GRANT_TYPE,
@@ -15,8 +17,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+import type { MobileSetupService } from '../MobileSetupService/MobileSetupService';
 import type { ManagedSignInService } from './managedSignIn/ManagedSignInService';
 import { createMicrosoftTokenExchangeGrantType } from './managedSignIn/microsoftTokenExchangeGrantType';
+import { createMobileSetupCodeGrantType } from './mobileSetupCodeGrantType';
 
 export enum OAuthScope {
     READ = 'read',
@@ -36,6 +40,7 @@ type OAuthServiceArguments = {
     lightdashConfig: LightdashConfig;
     onGrantRevoked?: OAuthGrantRevokedHandler;
     getManagedSignInService?: () => ManagedSignInService;
+    getMobileSetupService?: () => MobileSetupService;
 };
 
 export class OAuthService extends BaseService {
@@ -51,12 +56,15 @@ export class OAuthService extends BaseService {
 
     private getManagedSignInService: (() => ManagedSignInService) | undefined;
 
+    private getMobileSetupService: (() => MobileSetupService) | undefined;
+
     constructor({
         userModel,
         oauthModel,
         lightdashConfig,
         onGrantRevoked,
         getManagedSignInService,
+        getMobileSetupService,
     }: OAuthServiceArguments) {
         super();
         this.userModel = userModel;
@@ -64,21 +72,33 @@ export class OAuthService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.onGrantRevoked = onGrantRevoked;
         this.getManagedSignInService = getManagedSignInService;
+        this.getMobileSetupService = getMobileSetupService;
         this.initializeOAuthServer();
     }
 
     private initializeOAuthServer(): void {
-        const { getManagedSignInService } = this;
+        const { getManagedSignInService, getMobileSetupService } = this;
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
-            extendedGrantTypes: getManagedSignInService
-                ? {
-                      [TOKEN_EXCHANGE_GRANT_TYPE]:
-                          createMicrosoftTokenExchangeGrantType(
-                              getManagedSignInService,
-                          ),
-                  }
-                : undefined,
+            extendedGrantTypes: {
+                ...(getManagedSignInService
+                    ? {
+                          [TOKEN_EXCHANGE_GRANT_TYPE]:
+                              createMicrosoftTokenExchangeGrantType(
+                                  getManagedSignInService,
+                              ),
+                      }
+                    : {}),
+                ...(getMobileSetupService
+                    ? {
+                          [MOBILE_SETUP_CODE_GRANT_TYPE]:
+                              createMobileSetupCodeGrantType(
+                                  getMobileSetupService,
+                              ),
+                      }
+                    : {}),
+            },
+            allowExtendedTokenAttributes: true,
             allowBearerTokensInQueryString: true,
             allowEmptyState: true, // Make state parameter optional for MCP compatibility
             accessTokenLifetime:
@@ -89,6 +109,7 @@ export class OAuthService extends BaseService {
             requireClientAuthentication: {
                 refresh_token: false, // Don't require for refresh token (public client)
                 [TOKEN_EXCHANGE_GRANT_TYPE]: false,
+                [MOBILE_SETUP_CODE_GRANT_TYPE]: false,
             },
         });
     }
@@ -124,7 +145,20 @@ export class OAuthService extends BaseService {
         request: OAuth2Server.Request,
         response: OAuth2Server.Response,
     ): Promise<OAuth2Server.Token> {
-        return this.oauthServer.token(request, response);
+        try {
+            return await this.oauthServer.token(request, response);
+        } catch (error) {
+            if (
+                request.body.grant_type === MOBILE_SETUP_CODE_GRANT_TYPE &&
+                (error instanceof OAuth2Server.InvalidClientError ||
+                    error instanceof OAuth2Server.UnauthorizedClientError)
+            ) {
+                throw new OAuth2Server.InvalidGrantError(
+                    MobileSetupCodeError.UNKNOWN,
+                );
+            }
+            throw error;
+        }
     }
 
     public async authenticate(

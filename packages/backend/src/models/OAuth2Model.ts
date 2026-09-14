@@ -1,6 +1,7 @@
 /* eslint-disable class-methods-use-this */
 import {
     AuthTokenPrefix,
+    MOBILE_SETUP_CODE_GRANT_TYPE,
     TOKEN_EXCHANGE_GRANT_TYPE,
     UserWithOrganizationUuid,
     type OAuthClientSummary,
@@ -50,13 +51,14 @@ export class OAuth2Model implements AuthorizationCodeModel {
         redirectUris: string[] | string | null | undefined,
     ): string[] {
         const existing = grants ?? [];
-        if (
-            !isMobileOAuthClient(redirectUris) ||
-            existing.includes(TOKEN_EXCHANGE_GRANT_TYPE)
-        ) {
-            return existing;
-        }
-        return [...existing, TOKEN_EXCHANGE_GRANT_TYPE];
+        if (!isMobileOAuthClient(redirectUris)) return existing;
+        return [
+            ...new Set([
+                ...existing,
+                TOKEN_EXCHANGE_GRANT_TYPE,
+                MOBILE_SETUP_CODE_GRANT_TYPE,
+            ]),
+        ];
     }
 
     private getRotationGraceMs(): number {
@@ -85,6 +87,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         }
 
         return {
+            isPublicClient: client.organization_uuid === null,
             clientId: client.client_id,
             id: client.client_id,
             redirectUris: client.redirect_uris,
