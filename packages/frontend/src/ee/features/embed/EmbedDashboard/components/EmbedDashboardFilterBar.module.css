@@ -1,0 +1,7 @@
+.filterParameterDivider {
+    display: none;
+}
+
+.filterBar:has([data-dashboard-filter-control]) .filterParameterDivider {
+    display: block;
+}

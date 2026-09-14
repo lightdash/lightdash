@@ -1,7 +1,5 @@
-// Every path that snapshots an app version into a new one must carry the
-// version's viz_schema — it exists only in the database (generation structured
-// output), so a copy that drops it produces a data app viz that never appears
-// in the viz picker.
+// Version metadata stored outside S3 must move with source snapshots so copied
+// versions preserve viz contracts and extracted data references.
 import { type AppVersionDependencies } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
@@ -14,7 +12,10 @@ vi.mock('ai', () => ({
     generateObject: vi.fn(),
 }));
 vi.mock('./appAuthz', () => ({
-    assertCanViewApp: vi.fn().mockResolvedValue(undefined),
+    assertCanViewApp: vi.fn().mockResolvedValue({ directOnly: false }),
+    getAppViewAuthorizationContext: vi
+        .fn()
+        .mockResolvedValue({ directOnly: false }),
 }));
 
 const PROJECT_UUID = 'proj-uuid-1';
@@ -55,6 +56,7 @@ const sourceApp = {
     name: 'My Viz',
     slug: 'my-viz',
     description: 'A viz',
+    icon: 'gauge',
     created_by_user_uuid: USER_UUID,
     deleted_at: null,
     deleted_by_user_uuid: null,
@@ -63,6 +65,17 @@ const sourceApp = {
 const DEPENDENCIES: AppVersionDependencies = {
     custom: [{ name: 'recharts', version: '2.12.0' }],
     lockfileHash: 'a'.repeat(64),
+};
+
+const DATA_REFERENCES = {
+    references: [],
+    parseErrors: [],
+    stats: {
+        callSites: 0,
+        fullyResolved: 0,
+        partiallyResolved: 0,
+        unresolved: 0,
+    },
 };
 
 const sourceVersion = {
@@ -75,6 +88,7 @@ const sourceVersion = {
     resources: null,
     dependencies: null,
     viz_schema: VIZ_SCHEMA,
+    data_references: DATA_REFERENCES,
 };
 
 const makeUser = () =>
@@ -89,7 +103,7 @@ function buildService() {
         getLatestReadyVersion: vi.fn().mockResolvedValue(sourceVersion),
         getLatestVersion: vi.fn().mockResolvedValue({ version: 6 }),
         createWithVersion: vi.fn().mockResolvedValue({
-            app: { app_id: 'new-app-uuid' },
+            app: { app_id: 'new-app-uuid', slug: 'duplicated-chart-type' },
             version: { version: 1 },
         }),
         createVersion: vi.fn().mockResolvedValue({ version: 7 }),
@@ -97,9 +111,11 @@ function buildService() {
         setUpstreamAppUuid: vi.fn().mockResolvedValue(undefined),
         syncPromotedApp: vi.fn().mockResolvedValue(undefined),
         updateStatusMessage: vi.fn().mockResolvedValue(undefined),
+        updateVersionDataReferences: vi.fn().mockResolvedValue(undefined),
         recordBuildNarration: vi.fn().mockResolvedValue(undefined),
         listAppsByProject: vi.fn().mockResolvedValue([sourceApp]),
         remapPreviewDashboardTileApps: vi.fn().mockResolvedValue(undefined),
+        remapPreviewChartVizBindings: vi.fn().mockResolvedValue(undefined),
     };
 
     const externalConnectionModel = {
@@ -132,6 +148,7 @@ function buildService() {
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: organizationDesignModel as never,
@@ -139,17 +156,29 @@ function buildService() {
         projectModel: projectModel as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
+        savedChartModel: {} as never,
         schedulerClient: {} as never,
         savedChartService: {} as never,
         spacePermissionService: {
-            getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+            resolveAccess: vi.fn().mockResolvedValue({
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                inheritsFromOrgOrProject: false,
+                access: [],
+                admins: [],
+                directOnly: false,
+            }),
         } as never,
+        coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
         externalConnectionModel: externalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
 
     vi.spyOn(
@@ -168,7 +197,7 @@ function buildService() {
     return { service, appModel, externalConnectionModel };
 }
 
-describe('viz_schema propagation on app copy paths', () => {
+describe('version metadata propagation on app copy paths', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.spyOn(
@@ -185,12 +214,22 @@ describe('viz_schema propagation on app copy paths', () => {
         await service.duplicateApp(makeUser(), PROJECT_UUID, SOURCE_APP_UUID);
 
         expect(appModel.createWithVersion).toHaveBeenCalledWith(
-            expect.objectContaining({ template: 'data_app_viz' }),
+            expect.objectContaining({
+                template: 'data_app_viz',
+                icon: 'gauge',
+            }),
             expect.anything(),
             'ready',
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+        );
+        const duplicatedAppUuid =
+            appModel.createWithVersion.mock.calls[0][0].app_id;
+        expect(appModel.updateVersionDataReferences).toHaveBeenCalledWith(
+            duplicatedAppUuid,
+            1,
+            DATA_REFERENCES,
         );
     });
 
@@ -220,6 +259,7 @@ describe('viz_schema propagation on app copy paths', () => {
             expect.objectContaining({
                 project_uuid: UPSTREAM_PROJECT_UUID,
                 template: 'data_app_viz',
+                icon: 'gauge',
             }),
             expect.anything(),
             'ready',
@@ -250,6 +290,7 @@ describe('viz_schema propagation on app copy paths', () => {
         ).mockResolvedValue({
             app_id: UPSTREAM_APP_UUID,
             project_uuid: UPSTREAM_PROJECT_UUID,
+            registry_slug: null,
         });
 
         await service.promoteApp(makeUser(), PROJECT_UUID, SOURCE_APP_UUID);
@@ -262,6 +303,10 @@ describe('viz_schema propagation on app copy paths', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+        );
+        expect(appModel.syncPromotedApp).toHaveBeenCalledWith(
+            UPSTREAM_APP_UUID,
+            expect.objectContaining({ icon: 'gauge' }),
         );
     });
 
@@ -286,6 +331,7 @@ describe('viz_schema propagation on app copy paths', () => {
         ).mockResolvedValue({
             app_id: UPSTREAM_APP_UUID,
             project_uuid: UPSTREAM_PROJECT_UUID,
+            registry_slug: null,
         });
 
         externalConnectionModel.listAppLinks.mockResolvedValue([
@@ -329,11 +375,15 @@ describe('viz_schema propagation on app copy paths', () => {
         );
     });
 
-    it('restoreVersion carries the source viz_schema and dependencies onto the new version', async () => {
+    it('restoreVersion carries build state without copying generation experience', async () => {
         const { service, appModel } = buildService();
         appModel.getVersion.mockResolvedValue({
             ...sourceVersion,
             dependencies: DEPENDENCIES,
+            resources: {
+                images: [],
+                creationExperience: 'explorer_chart_config',
+            },
         });
 
         await service.restoreVersion(
@@ -348,9 +398,10 @@ describe('viz_schema propagation on app copy paths', () => {
             { version: 7, prompt: 'Restore version 3' },
             'ready',
             USER_UUID,
-            undefined, // source has no resources
+            { images: [] },
             DEPENDENCIES,
             VIZ_SCHEMA,
+            { registryVersion: undefined },
         );
     });
 
@@ -368,12 +419,25 @@ describe('viz_schema propagation on app copy paths', () => {
                 project_uuid: PREVIEW_PROJECT_UUID,
                 template: 'data_app_viz',
                 slug: 'my-viz',
+                icon: 'gauge',
             }),
             expect.anything(),
             'ready',
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+        );
+        const previewAppUuid =
+            appModel.createWithVersion.mock.calls[0][0].app_id;
+        expect(appModel.remapPreviewChartVizBindings).toHaveBeenCalledWith(
+            PREVIEW_PROJECT_UUID,
+            [
+                {
+                    sourceAppUuid: SOURCE_APP_UUID,
+                    previewAppUuid,
+                    previewAppVersion: 1,
+                },
+            ],
         );
     });
 });

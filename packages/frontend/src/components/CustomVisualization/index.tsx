@@ -1,4 +1,4 @@
-import { Anchor, Text, useMantineColorScheme } from '@mantine-8/core';
+import { Anchor, Text, useMantineColorScheme } from '@mantine/core';
 import { IconGraphOff } from '@tabler/icons-react';
 import {
     lazy,

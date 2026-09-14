@@ -3,6 +3,8 @@ import {
     AbilityAction,
     AnyType,
     FilterOperator,
+    ForbiddenError,
+    OrganizationMemberRole,
     TableCalculationTemplateType,
     TableSelectionType,
     ValidationErrorType,
@@ -12,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { validateWarehouseColumnReferences } from '@lightdash/warehouses';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -80,6 +83,12 @@ const validationModel = {
     create: vi.fn(async () => {}),
     get: vi.fn(async () => []),
 };
+const appModel = {
+    findAppsForValidation: vi.fn(
+        async (): ReturnType<AppModel['findAppsForValidation']> => [],
+    ),
+    listAppsByProject: vi.fn(async (): Promise<AnyType[]> => []),
+};
 const dashboardModel = {
     findDashboardsForValidation: vi.fn(async () => [dashboardForValidation]),
     getByIdOrSlug: vi.fn(async () => ({
@@ -90,21 +99,31 @@ const dashboardModel = {
         projectUuid: 'projectUuid',
     })),
 };
+const spaceModel = {
+    find: vi.fn(async () => []),
+};
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async () => ({
+    resolveAccess: vi.fn(async () => ({
+        organizationUuid: 'orgUuid',
+        projectUuid: 'projectUuid',
         inheritsFromOrgOrProject: false,
         access: [],
+        admins: [],
+        directOnly: false,
     })),
+    resolveAccessBatch: vi.fn(async () => []),
+    getAccessibleSpaceUuids: vi.fn(async () => []),
 };
 describe('validation', () => {
     const validationService = new ValidationService({
         analytics: analyticsMock,
         validationModel: validationModel as unknown as ValidationModel,
         projectModel: projectModel as unknown as ProjectModel,
+        appModel: appModel as unknown as AppModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         lightdashConfig: config,
-        spaceModel: {} as SpaceModel,
+        spaceModel: spaceModel as unknown as SpaceModel,
         schedulerClient: {} as SchedulerClient,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
@@ -163,6 +182,116 @@ describe('validation', () => {
             await validationService.generateValidation('projectUuid'),
         ).toEqual([]);
     });
+    it('Should report a split explore for a chart using the original name', async () => {
+        const sourceAExplore = {
+            ...explore,
+            name: 'sourceA__orders',
+            label: 'sourceA__orders',
+            baseTable: 'sourceA__orders',
+            tables: {
+                sourceA__orders: {
+                    ...explore.tables.table,
+                    name: 'sourceA__orders',
+                    originalName: 'orders',
+                },
+            },
+        };
+        const sourceBExplore = {
+            ...sourceAExplore,
+            name: 'sourceB__orders',
+            label: 'sourceB__orders',
+            baseTable: 'sourceB__orders',
+            tables: {
+                sourceB__orders: {
+                    ...sourceAExplore.tables.sourceA__orders,
+                    name: 'sourceB__orders',
+                },
+            },
+        };
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce({
+            [sourceAExplore.name]: sourceAExplore,
+            [sourceBExplore.name]: sourceBExplore,
+        });
+        vi.mocked(
+            savedChartModel.findChartsForValidation,
+        ).mockResolvedValueOnce([
+            {
+                ...chartForValidation,
+                tableName: 'orders',
+                filters: {},
+                dimensions: ['orders_amount'],
+                metrics: [],
+                sorts: [],
+                customMetrics: [],
+                tableCalculations: [],
+                customMetricsBaseDimensions: [],
+                customMetricsFilters: [],
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                chartUuid: 'chartUuid',
+                error: 'Explore "orders" was split into "sourceA__orders" and "sourceB__orders". Pick one.',
+                errorType: 'explore split',
+                source: ValidationSourceType.Chart,
+            }),
+        ]);
+    });
+
+    it('keeps a missing-model error when an original name has one match', async () => {
+        const sourceAExplore = {
+            ...explore,
+            name: 'sourceA__orders',
+            label: 'sourceA__orders',
+            baseTable: 'sourceA__orders',
+            tables: {
+                sourceA__orders: {
+                    ...explore.tables.table,
+                    name: 'sourceA__orders',
+                    originalName: 'orders',
+                },
+            },
+        };
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce({
+            [sourceAExplore.name]: sourceAExplore,
+        });
+        vi.mocked(
+            savedChartModel.findChartsForValidation,
+        ).mockResolvedValueOnce([
+            {
+                ...chartForValidation,
+                tableName: 'orders',
+                filters: {},
+                dimensions: ['orders_amount'],
+                metrics: [],
+                sorts: [],
+                customMetrics: [],
+                tableCalculations: [],
+                customMetricsBaseDimensions: [],
+                customMetricsFilters: [],
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                error: "Model error: the model 'orders' no longer exists",
+                errorType: ValidationErrorType.Model,
+            }),
+        ]);
+    });
     it('Should validate project with dimension errors', async () => {
         (
             projectModel.findExploresFromCache as import('vitest').Mock
@@ -176,6 +305,7 @@ describe('validation', () => {
             error: "Dimension error: the field 'table_dimension' no longer exists",
             errorType: 'dimension',
             fieldName: 'table_dimension',
+            tableName: 'table',
             name: 'Test chart',
             projectUuid: 'projectUuid',
             chartUuid: 'chartUuid',
@@ -207,6 +337,7 @@ describe('validation', () => {
             error: "Metric error: the field 'table_metric' no longer exists",
             errorType: 'metric',
             fieldName: 'table_metric',
+            tableName: 'table',
             name: 'Test chart',
             projectUuid: 'projectUuid',
             chartUuid: 'chartUuid',
@@ -220,6 +351,57 @@ describe('validation', () => {
             "The chart 'Test chart' is broken on this dashboard.",
         ];
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+    });
+
+    it('Should collapse chart field errors into a single model error when the explore was deleted', async () => {
+        (
+            projectModel.findExploresFromCache as import('vitest').Mock
+        ).mockImplementationOnce(async () => []);
+
+        const errors =
+            await validationService.generateValidation('projectUuid');
+        const chartErrors = errors.filter(
+            (e) => e.source === ValidationSourceType.Chart,
+        );
+
+        expect(chartErrors).toHaveLength(1);
+        expect({ ...chartErrors[0], createdAt: undefined }).toEqual({
+            createdAt: undefined,
+            error: "Model error: the model 'table' no longer exists",
+            errorType: ValidationErrorType.Model,
+            tableName: 'table',
+            name: 'Test chart',
+            projectUuid: 'projectUuid',
+            chartUuid: 'chartUuid',
+            source: ValidationSourceType.Chart,
+            chartName: 'Test chart',
+        });
+
+        // The model error is blocking, so dashboards still flag the broken chart
+        expect(
+            errors
+                .filter((e) => e.source === ValidationSourceType.Dashboard)
+                .map((e) => e.error),
+        ).toContain("The chart 'Test chart' is broken on this dashboard.");
+    });
+
+    it('Should report a compile failure when the chart explore failed to compile', async () => {
+        (
+            projectModel.findExploresFromCache as import('vitest').Mock
+        ).mockImplementationOnce(async () => [exploreError]);
+
+        const errors =
+            await validationService.generateValidation('projectUuid');
+        const chartErrors = errors.filter(
+            (e) => e.source === ValidationSourceType.Chart,
+        );
+
+        expect(chartErrors).toHaveLength(1);
+        expect(chartErrors[0]).toMatchObject({
+            error: "Model error: the model 'table' failed to compile",
+            errorType: ValidationErrorType.Model,
+            tableName: 'table',
+        });
     });
 
     it('Should create table validation errors from CLI warehouse diagnostics without probing the warehouse', async () => {
@@ -371,6 +553,273 @@ describe('validation', () => {
         ];
 
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+    });
+
+    it('validates definite data app reference errors and ignores unavailable extraction data', async () => {
+        appModel.findAppsForValidation.mockResolvedValueOnce([
+            {
+                app_id: 'broken-app-uuid',
+                name: 'Broken app',
+                data_references: {
+                    references: [
+                        {
+                            kind: 'query',
+                            explore: 'missing_explore',
+                            dimensions: [],
+                            metrics: [],
+                            dimensionFilterFields: [],
+                            metricFilterFields: [],
+                            sortFields: [],
+                            parameterKeys: [],
+                            localFields: [],
+                            unresolved: [],
+                            location: {
+                                path: 'src/App.tsx',
+                                line: 10,
+                                column: 5,
+                            },
+                        },
+                        {
+                            kind: 'query',
+                            explore: 'unavailable_explore',
+                            dimensions: [],
+                            metrics: [],
+                            dimensionFilterFields: [],
+                            metricFilterFields: [],
+                            sortFields: [],
+                            parameterKeys: [],
+                            localFields: [],
+                            unresolved: [],
+                            location: {
+                                path: 'src/App.tsx',
+                                line: 20,
+                                column: 5,
+                            },
+                        },
+                    ],
+                    parseErrors: [],
+                    stats: {
+                        callSites: 2,
+                        fullyResolved: 2,
+                        partiallyResolved: 0,
+                        unresolved: 0,
+                    },
+                },
+            },
+            {
+                app_id: 'legacy-app-uuid',
+                name: 'Legacy app',
+                data_references: null,
+            },
+            {
+                app_id: 'parse-warning-app-uuid',
+                name: 'Parse warning app',
+                data_references: {
+                    references: [],
+                    parseErrors: [
+                        {
+                            path: 'src/App.tsx',
+                            message: 'Could not parse source',
+                        },
+                    ],
+                    stats: {
+                        callSites: 0,
+                        fullyResolved: 0,
+                        partiallyResolved: 0,
+                        unresolved: 0,
+                    },
+                },
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            [
+                explore,
+                {
+                    ...exploreError,
+                    name: 'unavailable_explore',
+                },
+            ],
+            new Set([ValidationTarget.APPS]),
+        );
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                appUuid: 'broken-app-uuid',
+                name: 'Broken app',
+                source: ValidationSourceType.DataApp,
+                errorType: ValidationErrorType.Model,
+                error: "Explore 'missing_explore' does not exist",
+                modelName: 'missing_explore',
+            }),
+        ]);
+    });
+
+    it.each([
+        {
+            scenario: 'accepts valid references to selected models',
+            compiledExplores: [explore],
+            expectedErrors: [],
+        },
+        {
+            scenario: 'reports removed fields in selected models',
+            compiledExplores: [exploreWithoutDimension],
+            expectedErrors: [
+                expect.objectContaining({
+                    source: ValidationSourceType.DataApp,
+                    errorType: ValidationErrorType.Dimension,
+                    modelName: explore.name,
+                    fieldName: 'table.dimension',
+                }),
+            ],
+        },
+        {
+            scenario:
+                'reports unselected models even when they exist in the cache',
+            compiledExplores: [{ ...explore, name: 'selected_explore' }],
+            expectedErrors: [
+                expect.objectContaining({
+                    source: ValidationSourceType.DataApp,
+                    errorType: ValidationErrorType.Model,
+                    modelName: explore.name,
+                }),
+            ],
+        },
+    ])(
+        '$scenario for data apps',
+        async ({ compiledExplores, expectedErrors }) => {
+            appModel.findAppsForValidation.mockResolvedValueOnce([
+                {
+                    app_id: 'app-uuid',
+                    name: 'App using a selected model',
+                    data_references: {
+                        references: [
+                            {
+                                kind: 'query',
+                                explore: explore.name,
+                                dimensions: ['table.dimension'],
+                                metrics: [],
+                                dimensionFilterFields: [],
+                                metricFilterFields: [],
+                                sortFields: [],
+                                parameterKeys: [],
+                                localFields: [],
+                                unresolved: [],
+                                location: {
+                                    path: 'src/App.tsx',
+                                    line: 10,
+                                    column: 5,
+                                },
+                            },
+                        ],
+                        parseErrors: [],
+                        stats: {
+                            callSites: 1,
+                            fullyResolved: 1,
+                            partiallyResolved: 0,
+                            unresolved: 0,
+                        },
+                    },
+                },
+            ]);
+
+            const errors = await validationService.generateValidation(
+                'projectUuid',
+                compiledExplores,
+                new Set([ValidationTarget.APPS]),
+            );
+
+            expect(errors).toEqual(expectedErrors);
+            expect(projectModel.findExploresFromCache).not.toHaveBeenCalled();
+        },
+    );
+
+    it('reveals only owned personal data app validations to non-admins', async () => {
+        appModel.listAppsByProject.mockResolvedValueOnce([
+            {
+                app_id: 'owned-app-uuid',
+                space_uuid: null,
+                created_by_user_uuid: user.userUuid,
+            },
+            {
+                app_id: 'private-app-uuid',
+                space_uuid: null,
+                created_by_user_uuid: 'another-user-uuid',
+            },
+        ]);
+        const nonAdminUser = {
+            ...user,
+            role: OrganizationMemberRole.DEVELOPER,
+            ability: new Ability<[AbilityAction, AnyType]>([
+                {
+                    subject: 'DataApp',
+                    action: ['view'],
+                    conditions: {
+                        projectUuid: 'projectUuid',
+                        createdByUserUuid: user.userUuid,
+                    },
+                },
+            ]),
+        };
+        const validationBase = {
+            validationId: null,
+            createdAt: new Date(),
+            projectUuid: 'projectUuid',
+            error: "Explore 'missing_explore' does not exist",
+            errorType: ValidationErrorType.Model,
+            source: ValidationSourceType.DataApp,
+        } as const;
+
+        const result = await validationService.hidePrivateContent(
+            nonAdminUser,
+            'projectUuid',
+            [
+                {
+                    ...validationBase,
+                    validationUuid: 'owned-validation-uuid',
+                    appUuid: 'owned-app-uuid',
+                    name: 'Owned app',
+                },
+                {
+                    ...validationBase,
+                    validationUuid: 'private-validation-uuid',
+                    appUuid: 'private-app-uuid',
+                    name: 'Private app',
+                },
+            ],
+        );
+
+        expect(result).toEqual([
+            expect.objectContaining({
+                appUuid: 'owned-app-uuid',
+                name: 'Owned app',
+            }),
+            expect.objectContaining({
+                appUuid: undefined,
+                name: 'Private content',
+            }),
+        ]);
+    });
+
+    it('does not validate data apps against an explore-scoped compilation', async () => {
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            [explore],
+            new Set([ValidationTarget.APPS]),
+            true,
+        );
+
+        expect(errors).toEqual([]);
+        expect(appModel.findAppsForValidation).not.toHaveBeenCalled();
+    });
+
+    it('includes data apps in default project validation runs', async () => {
+        await validationService.generateValidation('projectUuid', [explore]);
+
+        expect(appModel.findAppsForValidation).toHaveBeenCalledWith(
+            'projectUuid',
+        );
     });
 
     it('Should validate only charts in project', async () => {
@@ -900,5 +1349,279 @@ describe('ValidationService - Table Calculation Templates', () => {
     it('Should handle empty table calculations array', () => {
         const result = ValidationService.getTableCalculationFieldIds([]);
         expect(result).toEqual([]);
+    });
+});
+
+describe('ValidationService.groupValidationsByRootCause', () => {
+    const baseChartError = {
+        validationId: null,
+        createdAt: new Date(),
+        projectUuid: 'projectUuid',
+        source: ValidationSourceType.Chart as const,
+    };
+
+    const chartModelError = (
+        chartUuid: string | undefined,
+        name: string,
+        views: number,
+    ) => ({
+        ...baseChartError,
+        validationUuid: `validation-${chartUuid ?? name}`,
+        name,
+        error: "Model error: the model 'orders' no longer exists",
+        errorType: ValidationErrorType.Model,
+        chartUuid,
+        chartViews: views,
+        tableName: 'orders',
+    });
+
+    it('groups chart model errors from the same deleted model together', () => {
+        const summary = ValidationService.groupValidationsByRootCause([
+            chartModelError('chart-1', 'Chart one', 5),
+            chartModelError('chart-2', 'Chart two', 10),
+            {
+                ...baseChartError,
+                validationUuid: 'validation-3',
+                name: 'Chart three',
+                error: "Dimension error: the field 'customers_id' no longer exists",
+                errorType: ValidationErrorType.Dimension,
+                fieldName: 'customers_id',
+                tableName: 'customers',
+                chartUuid: 'chart-3',
+                chartViews: 1,
+            },
+        ]);
+
+        expect(summary.totalErrors).toBe(3);
+        expect(summary.totalAffectedItems).toBe(3);
+        expect(summary.groups).toHaveLength(2);
+
+        const [modelGroup, fieldGroup] = summary.groups;
+        expect(modelGroup).toMatchObject({
+            errorType: ValidationErrorType.Model,
+            tableName: 'orders',
+            fieldName: null,
+            errorCount: 2,
+            affectedCharts: 2,
+            hasMoreAffectedContent: false,
+        });
+        // Content sorted by views desc
+        expect(modelGroup!.affectedContent.map((c) => c.uuid)).toEqual([
+            'chart-2',
+            'chart-1',
+        ]);
+        expect(fieldGroup).toMatchObject({
+            errorType: ValidationErrorType.Dimension,
+            tableName: 'customers',
+            fieldName: 'customers_id',
+            errorCount: 1,
+        });
+    });
+
+    it('dedupes content within a group and counts errors per content', () => {
+        const duplicatedError = {
+            ...baseChartError,
+            name: 'Chart one',
+            error: "Dimension error: the field 'orders_status' no longer exists",
+            errorType: ValidationErrorType.Dimension,
+            fieldName: 'orders_status',
+            tableName: 'orders',
+            chartUuid: 'chart-1',
+            chartViews: 3,
+        };
+        const summary = ValidationService.groupValidationsByRootCause([
+            { ...duplicatedError, validationUuid: 'validation-a' },
+            { ...duplicatedError, validationUuid: 'validation-b' },
+        ]);
+
+        expect(summary.groups).toHaveLength(1);
+        expect(summary.groups[0]!.errorCount).toBe(2);
+        expect(summary.groups[0]!.affectedCharts).toBe(1);
+        expect(summary.groups[0]!.affectedContent).toHaveLength(1);
+        expect(summary.groups[0]!.affectedContent[0]!.errorCount).toBe(2);
+        expect(summary.totalAffectedItems).toBe(1);
+    });
+
+    it('excludes chart configuration warnings and keeps content without a uuid in counts', () => {
+        const summary = ValidationService.groupValidationsByRootCause([
+            chartModelError('chart-1', 'Chart one', 0),
+            chartModelError(undefined, 'Private content', 0),
+            {
+                ...baseChartError,
+                validationUuid: 'validation-warning',
+                name: 'Chart one',
+                error: 'dimension is not used in the chart configuration',
+                errorType: ValidationErrorType.ChartConfiguration,
+                fieldName: 'orders_status',
+                chartUuid: 'chart-1',
+                chartViews: 0,
+            },
+        ]);
+
+        expect(summary.totalErrors).toBe(2);
+        expect(summary.groups).toHaveLength(1);
+        expect(summary.groups[0]!.affectedCharts).toBe(2);
+        expect(summary.groups[0]!.affectedContent.map((c) => c.uuid)).toContain(
+            null,
+        );
+    });
+
+    it('groups table and dashboard errors by their model', () => {
+        const summary = ValidationService.groupValidationsByRootCause([
+            {
+                validationId: null,
+                createdAt: new Date(),
+                projectUuid: 'projectUuid',
+                validationUuid: 'validation-table',
+                source: ValidationSourceType.Table,
+                name: 'orders',
+                error: 'Compile error',
+                errorType: ValidationErrorType.Model,
+            },
+            {
+                validationId: null,
+                createdAt: new Date(),
+                projectUuid: 'projectUuid',
+                validationUuid: 'validation-dashboard',
+                source: ValidationSourceType.Dashboard,
+                name: 'My dashboard',
+                error: "Table 'orders' no longer exists",
+                errorType: ValidationErrorType.Filter,
+                fieldName: 'orders_status',
+                tableName: 'orders',
+                dashboardUuid: 'dashboard-1',
+                dashboardViews: 7,
+            },
+        ]);
+
+        expect(summary.groups).toHaveLength(2);
+        expect(summary.groups[0]).toMatchObject({
+            errorType: ValidationErrorType.Model,
+            tableName: 'orders',
+            affectedTables: 1,
+        });
+        expect(summary.groups[1]).toMatchObject({
+            errorType: ValidationErrorType.Filter,
+            tableName: 'orders',
+            fieldName: 'orders_status',
+            affectedDashboards: 1,
+        });
+    });
+});
+
+describe('ValidationService.getValidationSummary', () => {
+    const validationService = new ValidationService({
+        analytics: analyticsMock,
+        validationModel: validationModel as unknown as ValidationModel,
+        projectModel: projectModel as unknown as ProjectModel,
+        appModel: appModel as unknown as AppModel,
+        savedChartModel: savedChartModel as unknown as SavedChartModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
+        lightdashConfig: config,
+        spaceModel: spaceModel as unknown as SpaceModel,
+        schedulerClient: {} as SchedulerClient,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
+        featureFlagModel: {} as FeatureFlagModel,
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('returns grouped summary from stored validations', async () => {
+        (validationModel.get as import('vitest').Mock).mockImplementationOnce(
+            async () => [
+                {
+                    validationId: null,
+                    createdAt: new Date(),
+                    projectUuid: 'projectUuid',
+                    validationUuid: 'validation-1',
+                    source: ValidationSourceType.Chart,
+                    name: 'Chart one',
+                    error: "Model error: the model 'orders' no longer exists",
+                    errorType: ValidationErrorType.Model,
+                    chartUuid: 'chart-1',
+                    chartViews: 2,
+                    tableName: 'orders',
+                },
+            ],
+        );
+
+        const summary = await validationService.getValidationSummary(
+            user,
+            'projectUuid',
+        );
+
+        expect(summary.totalErrors).toBe(1);
+        expect(summary.groups).toHaveLength(1);
+        expect(summary.groups[0]).toMatchObject({
+            tableName: 'orders',
+            errorType: ValidationErrorType.Model,
+            affectedCharts: 1,
+        });
+    });
+
+    it('throws ForbiddenError without manage Validation ability', async () => {
+        const restrictedUser = {
+            ...user,
+            ability: new Ability<[AbilityAction, AnyType]>([]),
+        };
+
+        await expect(
+            validationService.getValidationSummary(
+                restrictedUser,
+                'projectUuid',
+            ),
+        ).rejects.toThrowError(ForbiddenError);
+    });
+
+    it('excludes content in spaces the user cannot see, so chip counts match the table', async () => {
+        const chartError = (
+            chartUuid: string,
+            name: string,
+            spaceUuid: string,
+        ) => ({
+            validationId: null,
+            createdAt: new Date(),
+            projectUuid: 'projectUuid',
+            validationUuid: `validation-${chartUuid}`,
+            source: ValidationSourceType.Chart,
+            name,
+            error: "Model error: the model 'orders' no longer exists",
+            errorType: ValidationErrorType.Model,
+            chartUuid,
+            chartViews: 0,
+            tableName: 'orders',
+            spaceUuid,
+        });
+        (validationModel.get as import('vitest').Mock).mockImplementationOnce(
+            async () => [
+                chartError('chart-public', 'Public chart', 'public-space'),
+                chartError('chart-private', 'Private chart', 'private-space'),
+            ],
+        );
+        spaceModel.find.mockResolvedValueOnce([
+            { uuid: 'public-space' },
+            { uuid: 'private-space' },
+        ] as AnyType);
+        spacePermissionService.getAccessibleSpaceUuids.mockResolvedValueOnce([
+            'public-space',
+        ] as AnyType);
+
+        const summary = await validationService.getValidationSummary(
+            { ...user, role: OrganizationMemberRole.DEVELOPER },
+            'projectUuid',
+        );
+
+        expect(summary.totalErrors).toBe(1);
+        expect(summary.totalAffectedItems).toBe(1);
+        expect(summary.groups[0]).toMatchObject({
+            errorCount: 1,
+            affectedCharts: 1,
+        });
+        expect(
+            summary.groups[0]!.affectedContent.map((content) => content.uuid),
+        ).toEqual(['chart-public']);
     });
 });

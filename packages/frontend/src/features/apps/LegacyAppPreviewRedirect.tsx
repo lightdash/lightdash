@@ -1,8 +1,10 @@
 import { Navigate, useLocation, useParams } from 'react-router';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 
 // The app viewer used to live at `/preview`; old bookmarked links must keep working.
 const LegacyAppPreviewRedirect = () => {
-    const { projectUuid, appUuid, version } = useParams();
+    const { appUuid, version } = useParams();
+    const projectUuid = useProjectUuid();
     const location = useLocation();
     const basePath = `/projects/${projectUuid}/apps/${appUuid}`;
 

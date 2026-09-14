@@ -1,4 +1,4 @@
-import { useMantineColorScheme } from '@mantine-8/core';
+import { useMantineColorScheme } from '@mantine/core';
 
 export const useRjvTheme = () => {
     const { colorScheme } = useMantineColorScheme();

@@ -3,7 +3,7 @@ import {
     QueryExecutionContext,
     SCREENSHOT_READY_INDICATOR_ID,
 } from '@lightdash/common';
-import type * as MantineHooks from '@mantine-8/hooks';
+import type * as MantineHooks from '@mantine/hooks';
 import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as DeliveryCaptureAccumulatorModule from '../features/apps/deliveryCapture/deliveryCaptureAccumulator';
@@ -18,6 +18,7 @@ type IframePreviewProps = {
     deliveryCapture?: DeliveryCaptureAccumulator;
     invalidateCache?: boolean;
     queryContextOverride?: string;
+    captureRender?: boolean;
 };
 
 const mocks = vi.hoisted(() => ({
@@ -30,6 +31,9 @@ vi.mock('react-router', () => ({
     Navigate: () => null,
     useParams: () => ({ projectUuid: 'project-uuid', appUuid: 'app-uuid' }),
     useSearchParams: () => [mocks.searchParams, vi.fn()],
+}));
+vi.mock('../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-uuid',
 }));
 
 vi.mock('../features/apps/AppIframePreview', () => ({
@@ -87,7 +91,7 @@ vi.mock(
 
 // Bypasses the 1.5s app-quiet debounce so `isReady` tracks the underlying
 // signal synchronously — the debounce itself isn't what these tests cover.
-vi.mock('@mantine-8/hooks', async (importOriginal) => {
+vi.mock('@mantine/hooks', async (importOriginal) => {
     const actual = await importOriginal<typeof MantineHooks>();
     return { ...actual, useDebouncedValue: (value: unknown) => [value] };
 });
@@ -106,6 +110,14 @@ const latestIframeProps = (): IframePreviewProps => {
 const markSdkReady = () => {
     act(() => {
         latestIframeProps().onScreenshotAvailabilityChange?.(true);
+    });
+};
+
+/** Fires the iframe load event. In reality load precedes any app query, and
+ *  it resets the capture accumulator — call it before initiating queries. */
+const markIframeLoaded = () => {
+    act(() => {
+        latestIframeProps().onIframeLoad?.();
     });
 };
 
@@ -161,6 +173,26 @@ describe('MinimalApp capture modes', () => {
         ];
     });
 
+    // The SDK bundle boots (and announces) before the iframe load event that
+    // carries the deliveryRender flag. Publishing in that window would hand
+    // the worker an empty manifest before the app could start delivery-only
+    // queries on a data-less entry screen.
+    it('does not publish the manifest before the iframe load event in capture mode', async () => {
+        mocks.searchParams.set('captureMode', 'delivery');
+        const { container } = renderWithProviders(<MinimalApp />);
+
+        markSdkReady();
+        await flushMicrotasks();
+        expect(readGlobal()).toBeUndefined();
+        expect(container.querySelector(readyIndicatorSelector)).toBeNull();
+
+        markIframeLoaded();
+        await waitFor(() => {
+            expect(readGlobal()).toBeDefined();
+        });
+        expect(container.querySelector(readyIndicatorSelector)).not.toBeNull();
+    });
+
     it('stamps invalidateCache + scheduledDelivery context in delivery mode', () => {
         mocks.searchParams.set('captureMode', 'delivery');
         renderWithProviders(<MinimalApp />);
@@ -170,11 +202,12 @@ describe('MinimalApp capture modes', () => {
                 invalidateCache: true,
                 queryContextOverride: QueryExecutionContext.SCHEDULED_DELIVERY,
                 deliveryCapture: expect.anything(),
+                captureRender: true,
             }),
         );
     });
 
-    it('passes the accumulator without stamps in preview mode', () => {
+    it('passes the accumulator without stamps in preview mode, but still sets captureRender', () => {
         mocks.searchParams.set('captureMode', 'preview');
         renderWithProviders(<MinimalApp />);
 
@@ -183,7 +216,19 @@ describe('MinimalApp capture modes', () => {
                 invalidateCache: undefined,
                 queryContextOverride: undefined,
                 deliveryCapture: expect.anything(),
+                // Preview must see the same query coverage a delivery would
+                // produce, so it gets captureRender too, unlike invalidateCache
+                // and queryContextOverride which stay delivery-only.
+                captureRender: true,
             }),
+        );
+    });
+
+    it('leaves captureRender unset outside capture modes', () => {
+        renderWithProviders(<MinimalApp />);
+
+        expect(latestIframeProps()).toEqual(
+            expect.objectContaining({ captureRender: undefined }),
         );
     });
 
@@ -214,6 +259,8 @@ describe('MinimalApp capture modes', () => {
         mocks.searchParams.set('captureMode', 'preview');
         const { container } = renderWithProviders(<MinimalApp />);
 
+        markIframeLoaded();
+
         markSdkReady();
         // The publish resolves a microtask later, so right after the ready
         // signal flips the indicator must not be mounted yet.
@@ -237,6 +284,8 @@ describe('MinimalApp capture modes', () => {
             .mockImplementation(() => {});
         const { container } = renderWithProviders(<MinimalApp />);
 
+        markIframeLoaded();
+
         markSdkReady();
 
         await waitFor(() => {
@@ -258,6 +307,8 @@ describe('MinimalApp capture modes', () => {
     it('withholds the manifest while a chart-query POST is pending in the accumulator', async () => {
         mocks.searchParams.set('captureMode', 'delivery');
         const { container } = renderWithProviders(<MinimalApp />);
+
+        markIframeLoaded();
 
         act(() => {
             latestCapture().onInitiation({
@@ -306,6 +357,8 @@ describe('MinimalApp capture modes', () => {
     it('still gates on the QueryEvent in-flight set for metric queries', async () => {
         mocks.searchParams.set('captureMode', 'delivery');
         const { container } = renderWithProviders(<MinimalApp />);
+
+        markIframeLoaded();
 
         act(() => {
             latestCapture().onInitiation({
@@ -358,6 +411,8 @@ describe('MinimalApp capture modes', () => {
     it('clears the stale manifest and republishes after an iframe reload', async () => {
         mocks.searchParams.set('captureMode', 'preview');
         const { container } = renderWithProviders(<MinimalApp />);
+
+        markIframeLoaded();
 
         markSdkReady();
         await waitFor(() => {

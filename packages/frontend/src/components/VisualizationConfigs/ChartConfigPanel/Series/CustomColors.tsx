@@ -16,7 +16,7 @@ import {
     Stack,
     Text,
     SegmentedControl,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import ColorSelector from '../../ColorSelector';
 import { ChartConditionalFormatting } from './ChartConditionalFormatting';

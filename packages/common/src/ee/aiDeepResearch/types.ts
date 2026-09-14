@@ -2,6 +2,9 @@ import { type ApiSuccess } from '../../types/api/success';
 import { type ItemsMap } from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
 
+export const AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS = 30;
+export const AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS = 32;
+
 export const AI_DEEP_RESEARCH_RUN_STATUSES = [
     'queued',
     'running',
@@ -35,12 +38,26 @@ export const AI_DEEP_RESEARCH_TERMINAL_REASONS = [
     'tool_limit',
     'query_limit',
     'token_limit',
+    'time_limit',
+    'no_relevant_data',
     'provider_error',
     'internal_error',
 ] as const;
 
 export type AiDeepResearchTerminalReason =
     (typeof AI_DEEP_RESEARCH_TERMINAL_REASONS)[number];
+
+export const AI_DEEP_RESEARCH_FAILURE_STAGES = [
+    'enqueue',
+    'authorization',
+    'investigation',
+    'finalization',
+    'persistence',
+    'recovery',
+] as const;
+
+export type AiDeepResearchFailureStage =
+    (typeof AI_DEEP_RESEARCH_FAILURE_STAGES)[number];
 
 export const isAiDeepResearchRunTerminal = (
     status: AiDeepResearchRunStatus,
@@ -55,39 +72,49 @@ export type AiDeepResearchBudget = AiDeepResearchLimits & {
 
 export type AiDeepResearchLimits = {
     maxTokens: number;
+    /** Model steps the coordinator may take before it must finish. */
+    maxSteps: number;
     maxToolCalls: number;
     maxWarehouseQueries: number;
-    maxHypotheses: number;
+    /** Wall-clock ceiling for the research loop. */
+    deadlineMs: number;
 };
 
 export const AI_DEEP_RESEARCH_DEFAULT_LIMITS: AiDeepResearchLimits = {
     maxTokens: 10_000_000,
-    maxToolCalls: 1_000,
-    maxWarehouseQueries: 100,
-    maxHypotheses: 5,
+    maxSteps: 16,
+    maxToolCalls: 24,
+    maxWarehouseQueries: 15,
+    deadlineMs: 600_000,
 };
 
-export type AiDeepResearchHypothesis = {
+/**
+ * Fraction of a limit at which the run stops expanding — it stops delegating
+ * and starts finalizing — so it lands a report instead of hitting the ceiling.
+ */
+export const AI_DEEP_RESEARCH_SOFT_STOP_RATIO = 0.75;
+
+/**
+ * Rows of a query result written into model context. The query still returns
+ * (and the server still keeps) every row up to the run's row limit — this only
+ * bounds what is replayed through the conversation on every later step.
+ */
+export const AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS = 50;
+
+/**
+ * The hard ceiling on data workers a coordinator may delegate to in one run.
+ * Delegation is the coordinator's choice; this cap is enforced server-side.
+ */
+export const AI_DEEP_RESEARCH_MAX_WORKERS = 2;
+
+/** One narrow, self-contained task the coordinator hands to a data worker. */
+export type AiDeepResearchWorkerTask = {
     id: string;
-    claim: string;
-    /** Why the claim is plausible given what is already known. */
-    rationale: string;
-    /** Evidence that would support the claim if found. */
-    supportingEvidence: string;
-    /** Evidence that would falsify the claim if found. */
-    falsifyingEvidence: string;
+    question: string;
+    focus: string;
 };
 
-export const AI_DEEP_RESEARCH_HYPOTHESIS_VERDICTS = [
-    'supported',
-    'refuted',
-    'inconclusive',
-] as const;
-
-export type AiDeepResearchHypothesisVerdict =
-    (typeof AI_DEEP_RESEARCH_HYPOTHESIS_VERDICTS)[number];
-
-export type AiDeepResearchInvestigationEvidence = {
+export type AiDeepResearchWorkerEvidence = {
     finding: string;
     /** Warehouse query executions this finding is grounded in. */
     queryUuids: string[];
@@ -95,21 +122,20 @@ export type AiDeepResearchInvestigationEvidence = {
     sources: string[];
 };
 
-export type AiDeepResearchInvestigationReport = {
-    verdict: AiDeepResearchHypothesisVerdict;
+/** The bounded packet a worker returns; never the raw warehouse results. */
+export type AiDeepResearchWorkerFindings = {
     summary: string;
-    evidence: AiDeepResearchInvestigationEvidence[];
-    alternativeExplanations: string[];
-    /** Why the evidence does or does not establish causation. */
-    causalLimitations: string[];
+    evidence: AiDeepResearchWorkerEvidence[];
+    /** What the evidence does not establish, including causal limits. */
+    limitations: string[];
     confidence: AiDeepResearchConfidence;
 };
 
-/** One hypothesis and what its isolated investigation produced. */
-export type AiDeepResearchInvestigation = {
-    hypothesis: AiDeepResearchHypothesis;
-    report: AiDeepResearchInvestigationReport | null;
-    /** Set when the investigator failed; the judge treats it as a gap. */
+/** One delegated task and what its isolated worker produced. */
+export type AiDeepResearchWorkerResult = {
+    task: AiDeepResearchWorkerTask;
+    findings: AiDeepResearchWorkerFindings | null;
+    /** Set when the worker failed; the coordinator treats it as a gap. */
     failureReason: string | null;
 };
 
@@ -180,6 +206,8 @@ export type AiDeepResearchRequestBody = {
     promptUuid: string;
     /** Product surface that accepted the run. */
     entryPoint: AiDeepResearchEntryPoint;
+    /** Resume unfinished work from a terminal run with preserved evidence. */
+    resumeFromRunUuid?: string;
 };
 
 export const AI_DEEP_RESEARCH_CONFIDENCE_LEVELS = [
@@ -213,49 +241,27 @@ export type AiDeepResearchChartConfig = {
     secondaryYAxisLabel: string | null;
 };
 
-export type AiDeepResearchChartSnapshotValue = string | number | boolean | null;
-
-/** The rendered dataset of a report chart, frozen at publish time. */
-export type AiDeepResearchChartSnapshot = {
-    takenAt: string;
-    rowCount: number;
-    truncated: boolean;
-    /** Field ids ordering the values in each row. */
-    columnOrder: string[];
-    /** Raw row values ordered by `columnOrder`; formatted client-side. */
-    rows: AiDeepResearchChartSnapshotValue[][];
-};
-
 /**
- * Everything the UI needs to render one report chart, keyed by chart key in
- * `AiDeepResearchRun.resultChartData`. Written entirely by the backend at
- * publish time; the markdown only carries compact <chart> references.
+ * Everything the UI needs to render one report chart. Derived on demand from
+ * the execution the chart references; the markdown only carries compact
+ * <chart> references.
  */
 export type AiDeepResearchChartData = {
-    source: 'warehouse' | 'inline';
+    source: 'warehouse';
     title: string;
     chartConfig: AiDeepResearchChartConfig;
-    /** Warehouse charts: the verified execution this chart is evidence of. */
-    queryUuid: string | null;
-    /** Inline charts: verified executions the data was derived from. */
-    derivedFrom: string[] | null;
-    /** Real for warehouse charts, synthesized for inline ones. */
+    /** The verified execution this chart is evidence of. */
+    queryUuid: string;
     metricQuery: MetricQuery;
     /** Selected + filter fields; drives labels and value formatting. */
     fields: ItemsMap;
-    /** Null only for reports persisted before snapshots existed. */
-    snapshot: AiDeepResearchChartSnapshot | null;
 };
-
-export type AiDeepResearchChartDataMap = Record<
-    string,
-    AiDeepResearchChartData
->;
 
 export const AI_DEEP_RESEARCH_EVENT_TYPES = [
     'status_changed',
     'cancellation_requested',
     'progress',
+    'report_adjusted',
 ] as const;
 
 export type AiDeepResearchEventType =
@@ -292,12 +298,24 @@ export type AiDeepResearchEventPayloadMap = {
     status_changed: { status: AiDeepResearchRunStatus };
     cancellation_requested: Record<string, never>;
     progress: { progress: AiDeepResearchProgress };
+    report_adjusted: {
+        repaired: string[];
+        dropped: Array<{
+            key: string;
+            reason:
+                | 'malformed'
+                | 'unknown_chart'
+                | 'duplicate'
+                | 'unverifiable';
+        }>;
+    };
 };
 
 export type AiDeepResearchEventPayload =
     | { status: AiDeepResearchRunStatus }
     | Record<string, never>
-    | { progress: AiDeepResearchProgress };
+    | { progress: AiDeepResearchProgress }
+    | AiDeepResearchEventPayloadMap['report_adjusted'];
 
 // TSOA cannot resolve the equivalent mapped/indexed discriminated union.
 export type AiDeepResearchEvent =
@@ -320,6 +338,13 @@ export type AiDeepResearchEvent =
           aiDeepResearchRunUuid: string;
           eventType: 'progress';
           payload: { progress: AiDeepResearchProgress };
+          createdAt: string;
+      }
+    | {
+          aiDeepResearchEventUuid: string;
+          aiDeepResearchRunUuid: string;
+          eventType: 'report_adjusted';
+          payload: AiDeepResearchEventPayloadMap['report_adjusted'];
           createdAt: string;
       };
 
@@ -345,13 +370,13 @@ export type AiDeepResearchRun = {
     agentUuid: string;
     aiThreadUuid: string;
     promptUuid: string;
+    resumedFromRunUuid: string | null;
     entryPoint: AiDeepResearchEntryPoint;
     prompt: string;
     status: AiDeepResearchRunStatus;
+    terminalReason: AiDeepResearchTerminalReason | null;
     /** The report narrative with compact <chart> references. */
     resultMarkdown: string | null;
-    /** Render data for each referenced chart, keyed by chart key. */
-    resultChartData: AiDeepResearchChartDataMap | null;
     reportExpiresAt: string | null;
     reportExpiredAt: string | null;
     isReportExpired: boolean;
@@ -374,6 +399,9 @@ export type AiDeepResearchEventsPage = {
 export type ApiAiDeepResearchRunResponse = ApiSuccess<AiDeepResearchRun>;
 
 export type ApiAiDeepResearchRunListResponse = ApiSuccess<AiDeepResearchRun[]>;
+
+export type ApiAiDeepResearchChartResponse =
+    ApiSuccess<AiDeepResearchChartData>;
 
 export type ApiAiDeepResearchEventsResponse =
     ApiSuccess<AiDeepResearchEventsPage>;

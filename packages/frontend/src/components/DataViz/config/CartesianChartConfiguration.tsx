@@ -1,5 +1,5 @@
 import { ChartKind, type VizColumn } from '@lightdash/common';
-import { Stack, Tabs } from '@mantine-8/core';
+import { Stack, Tabs } from '@mantine/core';
 import { barChartConfigSlice } from '../store/barChartSlice';
 import { lineChartConfigSlice } from '../store/lineChartSlice';
 import { CartesianChartDisplayConfig } from './CartesianChartDisplayConfig';

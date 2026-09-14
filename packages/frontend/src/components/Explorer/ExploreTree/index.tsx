@@ -3,13 +3,14 @@ import {
     isCustomDimension,
     isDimension,
     type AdditionalMetric,
+    type CustomDimension,
     type CompiledTable,
     type Dimension,
     type Explore,
     type Metric,
 } from '@lightdash/common';
-import { TextInput, Loader, ActionIcon } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { TextInput, Loader, ActionIcon } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import {
     memo,
@@ -30,6 +31,7 @@ import {
     selectMissingFieldIds,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useModalHostedDashboardMetricIds } from '../../../providers/Explorer/useIsModalHosted';
 import MantineIcon from '../../common/MantineIcon';
 import SelectedFieldsSection, {
     type SelectedField,
@@ -42,31 +44,81 @@ import {
 } from './TableTree/Virtualization/flattenTree';
 import VirtualizedTreeList from './TableTree/Virtualization/VirtualizedTreeList';
 
+/**
+ * Which fields read as selected, and which extra fields the query defines.
+ *
+ * Supplied when the tree edits a query other than the explorer's own — a
+ * merge's second query. Without it the tree reads the explorer's state, which
+ * is the only query most of the app has.
+ */
+export type ExploreTreeSelection = {
+    activeFields: Set<string>;
+    selectedDimensions: string[];
+};
+
 type ExploreTreeProps = {
     explore: Explore;
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
+    selection?: ExploreTreeSelection;
+    selectedFieldsOverride?: SelectedField[];
+    hideSelectedFields?: boolean;
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
 
+// Stable empties, so a tree editing another query does not rebuild every render.
+const EMPTY_METRICS: AdditionalMetric[] = [];
+const EMPTY_DIMENSIONS: CustomDimension[] = [];
+const EMPTY_IDS: string[] = [];
+
 const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     explore,
     onSelectedFieldChange,
+    selection,
+    selectedFieldsOverride,
+    hideSelectedFields = false,
 }) => {
-    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
-    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const explorerAdditionalMetrics = useExplorerSelector(
+        selectAdditionalMetrics,
+    );
+    const explorerCustomDimensions = useExplorerSelector(
+        selectCustomDimensions,
+    );
 
-    const missingCustomMetrics = useExplorerSelector((state) =>
+    const explorerMissingCustomMetrics = useExplorerSelector((state) =>
         selectMissingCustomMetrics(state, explore),
     );
-    const missingCustomDimensions = useExplorerSelector((state) =>
+    const explorerMissingCustomDimensions = useExplorerSelector((state) =>
         selectMissingCustomDimensions(state, explore),
     );
-    const missingFieldIds = useExplorerSelector((state) =>
+    const explorerMissingFieldIds = useExplorerSelector((state) =>
         selectMissingFieldIds(state, explore),
     );
-    const activeFields = useExplorerSelector(selectActiveFields);
-    const selectedDimensions = useExplorerSelector(selectDimensions);
+    const explorerActiveFields = useExplorerSelector(selectActiveFields);
+    const explorerSelectedDimensions = useExplorerSelector(selectDimensions);
+
+    // Custom fields and "missing field" warnings describe the explorer's own
+    // query. Against another query's explore they would report that query's
+    // fields as missing, so they are empty whenever the selection is supplied.
+    const additionalMetrics = selection
+        ? EMPTY_METRICS
+        : explorerAdditionalMetrics;
+    const customDimensions = selection
+        ? EMPTY_DIMENSIONS
+        : explorerCustomDimensions;
+    const missingCustomMetrics = selection
+        ? EMPTY_METRICS
+        : explorerMissingCustomMetrics;
+    // Registry metrics are badged and frozen only in the dashboard host.
+    const hostDashboardMetricIds = useModalHostedDashboardMetricIds();
+    const dashboardMetricIds = selection ? undefined : hostDashboardMetricIds;
+    const missingCustomDimensions = selection
+        ? EMPTY_DIMENSIONS
+        : explorerMissingCustomDimensions;
+    const missingFieldIds = selection ? EMPTY_IDS : explorerMissingFieldIds;
+    const activeFields = selection?.activeFields ?? explorerActiveFields;
+    const selectedDimensions =
+        selection?.selectedDimensions ?? explorerSelectedDimensions;
 
     const [search, setSearch] = useState<string>('');
     const [isPending, startTransition] = useTransition();
@@ -232,6 +284,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             customDimensions: customDimensions ?? [],
             missingCustomMetrics,
             missingCustomDimensions,
+            dashboardMetricIds,
             missingFieldIds,
             selectedDimensions,
             activeFields,
@@ -247,6 +300,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         isSearching,
         missingCustomDimensions,
         missingCustomMetrics,
+        dashboardMetricIds,
         missingFieldIds,
         searchResultsMap,
         sectionNodeMaps,
@@ -259,7 +313,6 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             <TextInput
                 leftSection={<MantineIcon icon={IconSearch} />}
                 rightSectionPointerEvents={isPending ? 'none' : 'all'}
-                radius="md"
                 rightSection={
                     isPending ? (
                         <Loader
@@ -270,8 +323,6 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                         <ActionIcon
                             aria-label="Clear search"
                             onMouseDown={(event) => event.preventDefault()}
-                            variant="subtle"
-                            color="gray"
                             onClick={handleClearSearch}
                         >
                             <MantineIcon icon={IconX} />
@@ -284,10 +335,12 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 data-testid="ExploreTree/SearchInput"
             />
 
-            <SelectedFieldsSection
-                fields={selectedFields}
-                onDeselect={onSelectedFieldChange}
-            />
+            {!hideSelectedFields && (
+                <SelectedFieldsSection
+                    fields={selectedFieldsOverride ?? selectedFields}
+                    onDeselect={onSelectedFieldChange}
+                />
+            )}
 
             <VirtualizedTreeList
                 data={virtualizedTreeData}

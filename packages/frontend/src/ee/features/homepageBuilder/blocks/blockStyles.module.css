@@ -8,6 +8,10 @@
     justify-content: center;
 }
 
+.sectionHeaderActions {
+    margin-left: auto;
+}
+
 .sectionTitle {
     font-size: 13px;
     font-weight: 500;
@@ -89,7 +93,7 @@
 
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 10px;
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    background: var(--mantine-color-body);
     box-shadow: var(--mantine-shadow-subtle);
     transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -103,9 +107,232 @@ a .hoverCard:hover,
 .listCard {
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 10px;
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    background: var(--mantine-color-body);
     box-shadow: var(--mantine-shadow-subtle);
     overflow: hidden;
+}
+
+/* ---- CTA banner ----
+ * The page's one loud moment. Paint arrives as CSS vars resolved from the
+ * org's brand (see CtaBlock): solid hex or avatar-mesh gradient layers, on
+ * the banner or just the button. The [data-theme] attribute doubles as a
+ * specificity bump over the generic link/row helpers later in this file. */
+.ctaBanner[data-theme] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 24px 28px;
+    border-radius: 14px;
+    position: relative;
+    overflow: hidden;
+    background-color: var(--cta-bg, transparent);
+    color: var(--cta-fg, inherit);
+    box-shadow: var(--mantine-shadow-subtle);
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Sheen sits top-right, where the button lives. */
+.ctaBanner[data-theme]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+        120% 200% at 100% 0%,
+        rgb(255 255 255 / 12%),
+        transparent 55%
+    );
+}
+
+.ctaBanner[data-bg='card'] {
+    background-color: var(--mantine-color-body);
+    background-image: none;
+    color: var(--mantine-color-text);
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.ctaBanner[data-bg='card']::after {
+    background: radial-gradient(
+        120% 200% at 100% 0%,
+        light-dark(rgb(0 0 0 / 3%), rgb(255 255 255 / 5%)),
+        transparent 55%
+    );
+}
+
+/* No background at all: the button (and any text) sits directly on the page.
+ * The container keeps only its row layout. */
+.ctaBanner[data-bg='none'] {
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+    padding: 4px 0;
+    color: var(--mantine-color-text);
+}
+
+.ctaBanner[data-bg='none']::after {
+    content: none;
+}
+
+/* A button-only CTA is a slimmer band; the admin picks where the button sits. */
+.ctaBanner[data-buttononly='true'] {
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.ctaBanner[data-buttononly='true'][data-bg='none'] {
+    padding: 4px 0;
+}
+
+.ctaBanner[data-buttononly='true'][data-align='left'] {
+    justify-content: flex-start;
+}
+
+.ctaBanner[data-buttononly='true'][data-align='center'] {
+    justify-content: center;
+}
+
+.ctaBanner[data-buttononly='true'][data-align='right'] {
+    justify-content: flex-end;
+}
+
+.ctaBanner[data-theme].clickable:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.ctaBanner[data-bg='none'].clickable:hover {
+    box-shadow: none;
+    transform: none;
+}
+
+.ctaBody {
+    min-width: 0;
+    position: relative;
+}
+
+.ctaTitle {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    line-height: 1.25;
+}
+
+.ctaDesc {
+    margin-top: 3px;
+    font-size: 13.5px;
+    opacity: 0.82;
+}
+
+/* The button is a styled span — the whole banner is the link. On a painted
+ * banner it inverts the banner's colors; with fill=button it carries the
+ * paint itself on a neutral banner. */
+.ctaButton {
+    position: relative;
+    flex-shrink: 0;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    background-color: var(--cta-fg, var(--mantine-color-text));
+    color: var(--cta-bg, light-dark(#fff, var(--mantine-color-ldGray-9)));
+    box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ctaButton[data-fill='button'] {
+    background-color: var(--cta-btn-bg, var(--mantine-color-text));
+    background-image: var(--cta-btn-bg-image, none);
+    background-blend-mode: var(--cta-btn-bg-blend, normal);
+    background-size: var(--cta-btn-bg-size, auto);
+    color: var(--cta-btn-fg, light-dark(#fff, var(--mantine-color-ldGray-9)));
+}
+
+.ctaBanner[data-theme].clickable:hover .ctaButton {
+    transform: scale(1.03);
+}
+
+/* Theme picker swatches in the build panel — same paint vars as the banner. */
+.ctaSwatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background-color: var(--cta-bg, transparent);
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.12s ease-in-out;
+}
+
+.ctaSwatch[data-neutral='true'] {
+    background-color: var(--mantine-color-body);
+}
+
+.ctaSwatch[data-selected='true'] {
+    outline: 2px solid var(--mantine-color-blue-5);
+    outline-offset: 1px;
+}
+
+/* Compact mode's geometry resolves itself: as many tile columns as the
+ * block's width affords, collapsing to a single column of rows when narrow.
+ * The admin picks the density; the grid picks the arrangement. */
+.resTileGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 8px;
+}
+
+/* ---- Resources: compact tiles ----
+ * The same horizontal card language native content uses (ContentCard):
+ * glyph square + name + one supporting line. For blocks where resources are
+ * destinations to reach, not media to showcase. */
+.resTile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 8px 12px;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-subtle);
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.resTile.clickable:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-1px);
+    text-decoration: none;
+    color: inherit;
+}
+
+.resTileBody {
+    flex: 1;
+    min-width: 0;
+}
+
+/* A small live glimpse of a data app on the trailing edge: apps get opened
+ * like dashboards, so their tile earns a preview of the real thing. Absent
+ * (no affordance lost) when there is no thumbnail to show. */
+.tilePeek {
+    width: 64px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.tilePeek img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
 }
 
 .listRow {
@@ -140,9 +367,30 @@ a .hoverCard:hover,
     min-height: 0;
 }
 
-.actionRow {
-    border: 1px solid var(--mantine-color-ldGray-3);
-    border-radius: 8px;
+/* Builder chips: rendered like the published row so admins see the real
+ * layout; the edit controls float above the hovered chip. */
+.editableChipRow {
+    /* room for the floating actions so the first row is not clipped */
+    padding-top: 28px;
+}
+
+.editableChip {
+    position: relative;
+}
+
+.editableChipActions {
+    display: none;
+    position: absolute;
+    /* Overlaps the chip's top edge so the two read as one piece. */
+    bottom: calc(100% - 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+}
+
+.editableChip:hover .editableChipActions,
+.editableChip:focus-within .editableChipActions {
+    display: block;
 }
 
 .plainLink {
@@ -161,12 +409,6 @@ a .hoverCard:hover,
     flex-shrink: 0;
 }
 
-.iconSquareLg {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-}
-
 .dashedEmpty {
     font-size: 12.5px;
     color: var(--mantine-color-ldGray-5);
@@ -180,7 +422,7 @@ a .hoverCard:hover,
     align-items: center;
     gap: 8px;
     max-width: 240px;
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    background: var(--mantine-color-body);
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 8px;
     padding: 7px 11px;
@@ -202,13 +444,6 @@ a .hoverCard:hover,
     box-shadow: var(--mantine-shadow-heavy);
     transform: translateY(-1px);
     text-decoration: none;
-}
-
-.favPillName {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 /* Icons are flex children, so a long name squeezed them instead of itself —
@@ -274,35 +509,9 @@ a .hoverCard:hover,
     white-space: nowrap;
 }
 
-.announcementDot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--mantine-color-ldGray-4);
-    margin-top: 6px;
-    flex-shrink: 0;
-}
-
-.listRowTop {
-    align-items: flex-start;
-}
-
 .flexFill {
     flex: 1;
     min-width: 0;
-}
-
-.announcementText {
-    font-size: 13.5px;
-    line-height: 1.45;
-}
-
-.rowAsideSpaced {
-    margin-top: 2px;
-}
-
-.listCardSpaced {
-    margin-bottom: 8px;
 }
 
 /* KPI cards stack top-down with their comparison line pinned to the bottom.
@@ -390,7 +599,7 @@ a .hoverCard:hover,
 .addContentTile:hover {
     border-color: var(--mantine-color-ldGray-5);
     color: var(--mantine-color-ldGray-7);
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    background: var(--mantine-color-body);
 }
 
 /* A lone quick-actions row is a CTA band: give it extra vertical air. When
@@ -409,17 +618,30 @@ a .hoverCard:hover,
     font-weight: 500;
     color: inherit;
     text-decoration: none;
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    background: var(--mantine-color-body);
     border: 1px solid var(--mantine-color-ldGray-2);
     transition:
         background 0.15s ease,
         border-color 0.15s ease;
 }
 
+.quickActionChip[data-placeholder] {
+    cursor: default;
+    border-style: dashed;
+    opacity: 0.7;
+}
+
+.quickActionChip:hover {
+    text-decoration: none;
+    color: inherit;
+    background: var(--mantine-color-ldGray-0);
+    border-color: var(--mantine-color-ldGray-3);
+}
+
 /* Primary quick action: same box, inverted. Colours only — no size change, so
- * it can't introduce a height difference next to its siblings. */
-.quickActionChipPrimary,
-.quickActionChipPrimary:hover {
+ * it can't introduce a height difference next to its siblings. Doubled class
+ * so it outranks the base hover rule. */
+.quickActionChip.quickActionChipPrimary {
     background: light-dark(
         var(--mantine-color-dark-9),
         var(--mantine-color-gray-0)
@@ -431,11 +653,16 @@ a .hoverCard:hover,
     color: light-dark(#fff, var(--mantine-color-dark-9));
 }
 
-.quickActionChip:hover {
-    text-decoration: none;
-    color: inherit;
-    background: var(--mantine-color-ldGray-0);
-    border-color: var(--mantine-color-ldGray-3);
+.quickActionChip.quickActionChipPrimary:hover {
+    background: light-dark(
+        var(--mantine-color-dark-7),
+        var(--mantine-color-gray-2)
+    );
+    border-color: light-dark(
+        var(--mantine-color-dark-7),
+        var(--mantine-color-gray-2)
+    );
+    color: light-dark(#fff, var(--mantine-color-dark-9));
 }
 
 /* --- Resource cards ---------------------------------------------------- */
@@ -455,7 +682,7 @@ a .hoverCard:hover,
     overflow: hidden;
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 10px;
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    background: var(--mantine-color-body);
     box-shadow: var(--mantine-shadow-subtle);
     color: inherit;
     text-decoration: none;
@@ -583,8 +810,6 @@ a .hoverCard:hover,
     color: light-dark(#b0453a, #dd8a80);
 }
 
-/* Data apps use the brand orange, tinted into a quiet backdrop for the
- * icon fallback when an app has no thumbnail. */
 /* External-link affordance: quiet corner mark, revealed on hover. */
 .resExternal {
     position: absolute;
@@ -598,15 +823,6 @@ a .hoverCard:hover,
 
 .mediaCard:hover .resExternal {
     opacity: 1;
-}
-
-.mediaIcon {
-    /* Stands in for the image band, so an icon-only card is exactly as tall as
-     * one with a screenshot and a mixed grid keeps a single baseline. */
-    flex: 1;
-    min-height: 56px;
-    display: grid;
-    place-items: center;
 }
 
 .mediaBody {

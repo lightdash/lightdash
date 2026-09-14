@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Box, Button, Stack, Text } from '@mantine-8/core';
+import { Box, Button, Stack, Text } from '@mantine/core';
 import { IconDatabase } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, Navigate } from 'react-router';

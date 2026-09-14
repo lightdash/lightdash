@@ -7,7 +7,7 @@ import {
     Switch,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronRight,
@@ -203,6 +203,10 @@ const AppInspectorPanel: FC<Props> = ({
 
     return (
         <Box
+            data-tour-scope="view:DataApp"
+            data-tour-result="1"
+            data-tour-label="Read the network activity"
+            data-tour-docs="data-apps.mdx#network-inspector:p2:1"
             className={
                 collapsed
                     ? `${classes.container} ${classes.containerCollapsed}`
@@ -245,10 +249,8 @@ const AppInspectorPanel: FC<Props> = ({
                                           ? 'Inspect data: on'
                                           : 'Inspect data'
                                 }
-                                withArrow
                                 position="top"
                                 maw={260}
-                                multiline
                             >
                                 {/* data-disabled (not disabled): a truly
                                     disabled button swallows the hover events
@@ -277,11 +279,9 @@ const AppInspectorPanel: FC<Props> = ({
                                 </ActionIcon>
                             </Tooltip>
                         )}
-                        <Tooltip label={clearLabel} withArrow position="top">
+                        <Tooltip label={clearLabel} position="top">
                             <ActionIcon
-                                variant="subtle"
                                 size="xs"
-                                color="gray"
                                 onClick={handleClear}
                                 aria-label={clearLabel}
                             >
@@ -291,7 +291,6 @@ const AppInspectorPanel: FC<Props> = ({
                         {onPersistLogsChange && (
                             <Tooltip
                                 label="Preserve logs across iframe refreshes and new app versions"
-                                withArrow
                                 position="top"
                             >
                                 <Box onClick={(e) => e.stopPropagation()}>
@@ -310,7 +309,7 @@ const AppInspectorPanel: FC<Props> = ({
                         )}
                     </>
                 )}
-                <ActionIcon variant="subtle" size="xs" color="gray">
+                <ActionIcon size="xs">
                     {collapsed ? (
                         <MantineIcon icon={IconChevronRight} size={12} />
                     ) : (
@@ -318,16 +317,14 @@ const AppInspectorPanel: FC<Props> = ({
                     )}
                 </ActionIcon>
                 <ActionIcon
-                    variant="subtle"
                     size="xs"
-                    color="gray"
                     onClick={handleDismiss}
                     aria-label="Close inspector panel"
                 >
                     <MantineIcon icon={IconX} size={12} />
                 </ActionIcon>
             </Group>
-            <Collapse in={!collapsed}>
+            <Collapse expanded={!collapsed}>
                 <Box
                     className={classes.resizeHandle}
                     onPointerDown={handleResizeStart}

@@ -51,8 +51,18 @@ if [ -z "$RUNNING_SECRET" ]; then
 fi
 [ -n "$RUNNING_SECRET" ] || { echo "FAIL: reconcile -- could not determine LIGHTDASH_SECRET" >&2; exit 1; }
 
-GITHUB_APP_ID="$(grep '^GITHUB_APP_ID=' "$ENV_FILE" | head -1 | cut -d= -f2-)"
-GITHUB_PRIVATE_KEY="$(grep '^GITHUB_PRIVATE_KEY=' "$ENV_FILE" | head -1 | cut -d= -f2-)"
+# Dequote for the same reason as LIGHTDASH_SECRET above: dotenv strips surrounding
+# quotes at load, and 1Password pulls may write quoted values. A quoted app id ends up
+# in the JWT 'iss' claim verbatim and GitHub rejects every call with
+# 401 "'Issuer' claim ('iss') must be an Integer".
+dequote() {
+    local v="$1"
+    v="${v%\"}"; v="${v#\"}"
+    v="${v%\'}"; v="${v#\'}"
+    printf '%s' "$v"
+}
+GITHUB_APP_ID="$(dequote "$(grep '^GITHUB_APP_ID=' "$ENV_FILE" | head -1 | cut -d= -f2-)")"
+GITHUB_PRIVATE_KEY="$(dequote "$(grep '^GITHUB_PRIVATE_KEY=' "$ENV_FILE" | head -1 | cut -d= -f2-)")"
 
 # The dev GitHub App is shared and has many installations, so the reconcile must
 # target YOUR account. Resolve from $GH_ACCOUNT, then the per-engineer local config.
@@ -68,6 +78,7 @@ run_cjs() {
     RUNNING_SECRET="$RUNNING_SECRET" \
     GITHUB_APP_ID="$GITHUB_APP_ID" GITHUB_PRIVATE_KEY="$GITHUB_PRIVATE_KEY" \
     GH_ACCOUNT="${GH_ACCOUNT:-}" \
+    DBT_DEMO_DIR="${DBT_DEMO_DIR:-$REPO_ROOT/examples/full-jaffle-shop-demo}" \
     PGHOST=localhost PGPORT="$LD_PG_PORT" PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
     NODE_PATH="$REPO_ROOT/packages/backend/node_modules" \
     node "$REPO_ROOT/scripts/dev-github-reconcile.cjs" "$@"

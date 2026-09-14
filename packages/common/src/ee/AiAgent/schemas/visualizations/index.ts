@@ -1,24 +1,14 @@
 import { z } from 'zod';
 
-export * from './tableViz';
-export * from './timeSeriesViz';
-export * from './verticalBarViz';
-
-const VisualizationTools = [
-    'generateBarVizConfig',
-    'generateTableVizConfig',
-    'generateTimeSeriesVizConfig',
-] as const;
-
 // define tool names
 export const ToolNameSchema = z.enum([
-    ...VisualizationTools,
     'generateDashboard',
     'generateHashes',
     'generateUuids',
     'findContent',
     'listContent',
     'findExplores',
+    'findCustomChartTypes',
     'findFields',
     'searchSemanticLayer',
     'analyzeFieldImpact',
@@ -36,11 +26,13 @@ export const ToolNameSchema = z.enum([
     'createScheduledDelivery',
     'updateUserName',
     'runContentQuery',
-    'improveContext',
     'listProjects',
     'getProjectInfo',
     'loadSkill',
     'loadProjectContext',
+    'loadMcpTools',
+    'generateDataApp',
+    'iterateDataApp',
     'editDbtProject',
     'editProjectContext',
     'editRepo',
@@ -55,14 +47,15 @@ export const ToolNameSchema = z.enum([
     'runQuery',
     'runSavedChart',
     'runSql',
+    'runComposerQueries',
     'listWarehouseTables',
     'describeWarehouseTable',
     'listKnowledgeDocuments',
     'getKnowledgeDocumentContent',
     'readPinnedThread',
     'submitResearchReport',
-    'submitResearchHypotheses',
-    'submitInvestigationReport',
+    'delegateResearchTask',
+    'submitWorkerFindings',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -71,10 +64,14 @@ export const isToolName = (toolName: string): toolName is ToolName =>
     ToolNameSchema.safeParse(toolName).success;
 
 // display messages schema
-export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
+export const ToolDisplayMessagesSchema = z.partialRecord(
+    ToolNameSchema,
+    z.string(),
+);
 
 export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     findExplores: 'Finding relevant explores',
+    findCustomChartTypes: 'Browsing custom chart types',
     findDashboards: 'Finding relevant dashboards',
     findContent: 'Finding relevant content',
     listContent: 'Listing content',
@@ -85,9 +82,6 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     grepFields: 'Searching fields',
     getMetadata: 'Reading metadata',
     searchFieldValues: 'Searching field values',
-    generateBarVizConfig: 'Generating a bar chart',
-    generateTableVizConfig: 'Generating a table',
-    generateTimeSeriesVizConfig: 'Generating a line chart',
     generateDashboard: 'Generating a dashboard',
     generateHashes: 'Generating hashes',
     generateUuids: 'Generating UUIDs',
@@ -100,11 +94,13 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     createScheduledDelivery: 'Creating scheduled delivery',
     updateUserName: 'Saving your name',
     runContentQuery: 'Running content query',
-    improveContext: 'Improving context',
     listProjects: 'Listing projects',
     getProjectInfo: 'Getting project details',
     loadSkill: 'Loading built-in skill',
     loadProjectContext: 'Loading project context',
+    loadMcpTools: 'Loading MCP tools',
+    generateDataApp: 'Starting a data app build',
+    iterateDataApp: 'Iterating on a data app',
     editDbtProject: 'Editing semantic layer',
     editRepo: 'Editing repository',
     syncDbtProject: 'Syncing dbt project',
@@ -118,20 +114,22 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     runQuery: 'Generating visualization',
     runSavedChart: 'Running saved chart',
     runSql: 'Running SQL query',
+    runComposerQueries: 'Running composer queries',
     listWarehouseTables: 'Listing warehouse tables',
     describeWarehouseTable: 'Describing warehouse table',
     listKnowledgeDocuments: 'Listing knowledge documents',
     getKnowledgeDocumentContent: 'Reading knowledge document',
     readPinnedThread: 'Reading pinned conversation',
     submitResearchReport: 'Saving research report',
-    submitResearchHypotheses: 'Planning research hypotheses',
-    submitInvestigationReport: 'Saving investigation findings',
+    delegateResearchTask: 'Delegating a research task',
+    submitWorkerFindings: 'Saving task findings',
 });
 
 // after-tool-call messages
 export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
     ToolDisplayMessagesSchema.parse({
         findExplores: 'Found relevant explores',
+        findCustomChartTypes: 'Browsed custom chart types',
         findDashboards: 'Found relevant dashboards',
         findFields: 'Found relevant fields',
         searchSemanticLayer: 'Searched the semantic layer',
@@ -140,9 +138,6 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         findContent: 'Found relevant content',
         listContent: 'Listed content',
         searchFieldValues: 'Found field values',
-        generateBarVizConfig: 'Generated a bar chart',
-        generateTableVizConfig: 'Generated a table',
-        generateTimeSeriesVizConfig: 'Generated a line chart',
         generateDashboard: 'Generated a dashboard',
         generateHashes: 'Generated hashes',
         generateUuids: 'Generated UUIDs',
@@ -157,11 +152,13 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         createScheduledDelivery: 'Created scheduled delivery',
         updateUserName: 'Saved your name',
         runContentQuery: 'Ran content query',
-        improveContext: 'Improved context',
         listProjects: 'Listed projects',
         getProjectInfo: 'Got project details',
         loadSkill: 'Loaded built-in skill',
         loadProjectContext: 'Loaded project context',
+        loadMcpTools: 'Loaded MCP tools',
+        generateDataApp: 'Started a data app build',
+        iterateDataApp: 'Started a data app build',
         editDbtProject: 'Edited semantic layer',
         editRepo: 'Edited repository',
         syncDbtProject: 'Synced dbt project',
@@ -175,14 +172,13 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         runQuery: 'Generated visualization',
         runSavedChart: 'Ran saved chart',
         runSql: 'Ran SQL query',
+        runComposerQueries: 'Ran composer queries',
         listWarehouseTables: 'Listed warehouse tables',
         describeWarehouseTable: 'Described warehouse table',
         listKnowledgeDocuments: 'Listed knowledge documents',
         getKnowledgeDocumentContent: 'Read knowledge document',
         readPinnedThread: 'Read pinned conversation',
         submitResearchReport: 'Saved research report',
-        submitResearchHypotheses: 'Planned research hypotheses',
-        submitInvestigationReport: 'Saved investigation findings',
+        delegateResearchTask: 'Delegated a research task',
+        submitWorkerFindings: 'Saved task findings',
     });
-
-export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;

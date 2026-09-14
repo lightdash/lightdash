@@ -1,6 +1,7 @@
 .paper {
     border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: var(--mantine-radius-sm);
+    /* rem(12) — radius has no 12px step, so this comes from the spacing scale */
+    border-radius: var(--mantine-spacing-sm);
     box-shadow: var(--mantine-shadow-subtle);
     display: flex;
     flex-direction: column;
@@ -14,6 +15,8 @@
     flex: 0 0 auto;
 }
 
+/* Overlays the container's top edge instead of taking a row of layout, so
+   toggling it between fetches never shifts the table. */
 .progress {
     background: linear-gradient(
         90deg,
@@ -22,8 +25,10 @@
         transparent
     );
     height: 1px;
+    margin-bottom: -1px;
     overflow: hidden;
     position: relative;
+    z-index: 3;
 }
 
 .progress::before {
@@ -208,8 +213,13 @@
     border-bottom: 0;
 }
 
+/* Neutral selection: one step over the hover grey, with an ink bar. */
 .rowSelected .bodyCell {
-    background: var(--mantine-color-blue-0);
+    background: var(--mantine-color-ldGray-1);
+}
+
+.rowSelected .bodyCell:first-child {
+    box-shadow: inset 2px 0 0 var(--mantine-color-text);
 }
 
 .headCellContent {
@@ -218,6 +228,16 @@
     gap: var(--mantine-spacing-xs);
     justify-content: inherit;
     min-width: 0;
+}
+
+.headCell[data-align='right'] .headCellContent,
+.headCell[data-align='right'] .sortButton {
+    justify-content: flex-end;
+}
+
+.headCell[data-align='center'] .headCellContent,
+.headCell[data-align='center'] .sortButton {
+    justify-content: center;
 }
 
 .headerLabel {
@@ -279,13 +299,30 @@
     padding: 0;
 }
 
+/* Let the empty state absorb the leftover height instead of leaving a void
+   under it. Flex rather than height:100% so it also works when the container's
+   height comes from min-height rather than a definite height. */
+.containerEmpty {
+    display: flex;
+    flex-direction: column;
+}
+
+.containerEmpty .tableEmpty {
+    flex: 1 1 auto;
+}
+
+.tableEmpty .emptyCell,
+.tableEmpty .emptyState {
+    height: 100%;
+}
+
 .emptyState {
     align-items: center;
     color: var(--mantine-color-ldGray-6);
     display: flex;
     flex-direction: column;
     font-size: var(--mantine-font-size-sm);
-    gap: var(--mantine-spacing-sm);
+    gap: var(--mantine-spacing-md);
     justify-content: center;
     min-height: 160px;
     padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
@@ -293,12 +330,11 @@
 }
 
 .emptyStateIcon {
-    opacity: 0.42;
-    transition: opacity 180ms ease;
-}
-
-.emptyState:hover .emptyStateIcon {
-    opacity: 0.62;
+    background: var(--mantine-color-ldGray-0);
+    border-radius: var(--mantine-radius-xl);
+    box-sizing: content-box;
+    opacity: 0.9;
+    padding: var(--mantine-spacing-sm);
 }
 
 .searchInput {
@@ -363,10 +399,6 @@
         background: var(--mantine-color-ldDark-3);
     }
 
-    .rowSelected .bodyCell {
-        background: var(--mantine-color-blue-9);
-    }
-
     .progress {
         background: linear-gradient(
             90deg,
@@ -374,6 +406,10 @@
             var(--mantine-color-ldDark-4),
             transparent
         );
+    }
+
+    .emptyStateIcon {
+        background: var(--mantine-color-ldDark-3);
     }
 
     .searchInput {

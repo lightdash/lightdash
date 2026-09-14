@@ -5,7 +5,7 @@ import {
     ManagedAgentRunStatus,
     type ManagedAgentRun,
 } from '@lightdash/common';
-import { Button, HoverCard } from '@mantine-8/core';
+import { Button, HoverCard } from '@mantine/core';
 import {
     IconArrowRight,
     IconChartBar,
@@ -23,6 +23,7 @@ import { ManagedAgentSetupModal } from '../../ee/features/managedAgent/ManagedAg
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
+import AppColorSchemeScope from './AppColorSchemeScope';
 import classes from './AutopilotNavButton.module.css';
 
 const resumeSettings = async (projectUuid: string, schedule: string) =>
@@ -132,12 +133,10 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
         return (
             <HoverCard
                 width={280}
-                shadow="xl"
                 position="bottom-start"
                 offset={8}
                 openDelay={120}
                 closeDelay={80}
-                withinPortal
                 portalProps={{ target: '#navbar-header' }}
             >
                 <HoverCard.Target>
@@ -201,15 +200,17 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
                         </button>
                     </div>
                 </HoverCard.Dropdown>
-                <ManagedAgentSetupModal
-                    projectUuid={projectUuid}
-                    opened={setupOpen}
-                    onClose={() => setSetupOpen(false)}
-                    onEnabled={() => {
-                        setSetupOpen(false);
-                        goToAutopilot();
-                    }}
-                />
+                <AppColorSchemeScope>
+                    <ManagedAgentSetupModal
+                        projectUuid={projectUuid}
+                        opened={setupOpen}
+                        onClose={() => setSetupOpen(false)}
+                        onEnabled={() => {
+                            setSetupOpen(false);
+                            goToAutopilot();
+                        }}
+                    />
+                </AppColorSchemeScope>
             </HoverCard>
         );
     }
@@ -237,12 +238,10 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
     return (
         <HoverCard
             width={240}
-            shadow="xl"
             position="bottom-start"
             offset={8}
             openDelay={120}
             closeDelay={80}
-            withinPortal
             portalProps={{ target: '#navbar-header' }}
         >
             <HoverCard.Target>

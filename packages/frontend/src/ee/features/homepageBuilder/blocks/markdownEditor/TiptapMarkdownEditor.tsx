@@ -1,6 +1,5 @@
 import { type ContentType } from '@lightdash/common';
 import Image from '@tiptap/extension-image';
-import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor, type Extensions } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -17,6 +16,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { usePortalTarget } from '../../../../../providers/PortalTarget/usePortalTarget';
 import {
     createMentionMarkdownExtension,
     hydrateContentMentions,
@@ -25,6 +25,12 @@ import {
 import { SlashCommand } from './SlashCommandExtension';
 import { createSlashCommandItems } from './slashCommandItems';
 import classes from './TiptapMarkdownEditor.module.css';
+
+declare module '@tiptap/core' {
+    interface Storage {
+        markdown: MarkdownStorage;
+    }
+}
 
 const SCROLL_LOCK_CLASS = 'tiptap-lightbox-scroll-lock';
 
@@ -37,6 +43,7 @@ const ImageLightbox: FC<{ src: string; alt: string; onClose: () => void }> = ({
 }) => {
     const closeRef = useRef<HTMLButtonElement>(null);
 
+    const portalTarget = usePortalTarget();
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape') onClose();
@@ -67,7 +74,7 @@ const ImageLightbox: FC<{ src: string; alt: string; onClose: () => void }> = ({
             <img className={classes.lightboxImage} src={src} alt={alt} />
             {alt ? <div className={classes.lightboxCaption}>{alt}</div> : null}
         </div>,
-        document.body,
+        portalTarget,
     );
 };
 
@@ -111,8 +118,9 @@ export const TiptapMarkdownEditor: FC<Props> = ({
     // Read mode skips the authoring-only extensions (placeholder, slash menu):
     // every feed item mounts one of these editors.
     const extensions: Extensions = [
-        StarterKit,
-        Link.configure({ openOnClick: !editable, autolink: false }),
+        StarterKit.configure({
+            link: { openOnClick: !editable, autolink: false },
+        }),
         Image,
         Markdown.configure({
             html: false,
@@ -147,10 +155,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
         extensions,
         content,
         onUpdate: ({ editor: updatedEditor }) => {
-            const { markdown } = updatedEditor.storage as {
-                markdown: MarkdownStorage;
-            };
-            onChange(markdown.getMarkdown());
+            onChange(updatedEditor.storage.markdown.getMarkdown());
         },
     });
 

@@ -953,11 +953,15 @@ const escapeStringValuesOnFilterRule = (
     escapeString: (string: string) => string,
 ): FilterRule<FilterOperator, unknown> => ({
     ...filterRule,
-    values: filterRule.values?.map((v) =>
-        typeof v === 'string'
+    values: filterRule.values?.map((v) => {
+        if (Array.isArray(v)) {
+            throw new CompileError('Arrays are not permitted as filter values');
+        }
+
+        return typeof v === 'string'
             ? escapeString(v) // escape the string quote char
-            : v,
-    ),
+            : v;
+    }),
 });
 
 export const renderTableCalculationFilterRuleSql = (

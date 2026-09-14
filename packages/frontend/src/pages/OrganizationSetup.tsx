@@ -19,9 +19,9 @@ import {
     Text,
     TextInput,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { zodResolver } from 'mantine-form-zod-resolver';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC, type FormEvent, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
@@ -150,7 +150,12 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         validate: zodResolver(
             canEnterOrganizationName
                 ? CompleteUserSchema
-                : CompleteUserSchema.omit({ organizationName: true }),
+                : // Invited members join an existing org: no org name to set,
+                  // and we only ask the org creator how they heard about us.
+                  CompleteUserSchema.omit({
+                      organizationName: true,
+                      howDidYouHearAboutUs: true,
+                  }),
         ),
     });
 
@@ -262,7 +267,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
             // rights to change), so don't attempt to save it.
             completeMutation.mutate({
                 jobTitle: values.jobTitle,
-                howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
                 enableEmailDomainAccess: values.enableEmailDomainAccess,
                 isMarketingOptedIn: values.isMarketingOptedIn,
                 isTrackingAnonymized: values.isTrackingAnonymized,
@@ -375,8 +379,8 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                     />
                                                 ) : (
                                                     <Text
-                                                        fw={700}
-                                                        fz={20}
+                                                        fw={600}
+                                                        fz="xl"
                                                         c="white"
                                                     >
                                                         {logoTileInitial}
@@ -414,7 +418,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 <Group>
                                     <Button
                                         type="submit"
-                                        color="dark"
                                         size="md"
                                         disabled={
                                             !form.values.organizationName.trim()
@@ -452,15 +455,17 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     {...form.getInputProps('jobTitle')}
                                 />
 
-                                <TextInput
-                                    label="How did you hear about us?"
-                                    placeholder="Google, a colleague, a podcast..."
-                                    size="md"
-                                    required
-                                    {...form.getInputProps(
-                                        'howDidYouHearAboutUs',
-                                    )}
-                                />
+                                {canEnterOrganizationName && (
+                                    <TextInput
+                                        label="How did you hear about us?"
+                                        placeholder="Google, a colleague, a podcast..."
+                                        size="md"
+                                        required
+                                        {...form.getInputProps(
+                                            'howDidYouHearAboutUs',
+                                        )}
+                                    />
+                                )}
 
                                 <Stack gap="xs">
                                     {canEnableEmailDomainAccess && (
@@ -506,7 +511,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     )}
                                     <Button
                                         type="submit"
-                                        color="dark"
                                         size="md"
                                         loading={completeMutation.isLoading}
                                         disabled={!form.values.jobTitle}

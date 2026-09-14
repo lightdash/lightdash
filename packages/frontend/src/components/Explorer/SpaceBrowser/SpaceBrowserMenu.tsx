@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { ContentType } from '@lightdash/common';
-import { Box, Menu, ActionIcon } from '@mantine-8/core';
+import { Box, Menu, ActionIcon } from '@mantine/core';
 import {
     IconEdit,
     IconFolderSymlink,
@@ -45,19 +45,15 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <Menu
-            withinPortal
             position="bottom-end"
             withArrow
             arrowPosition="center"
-            shadow="md"
             closeOnItemClick
             closeOnClickOutside
         >
             <Menu.Target>
                 <Box>
-                    <ActionIcon variant="subtle" color="gray">
-                        {children}
-                    </ActionIcon>
+                    <ActionIcon>{children}</ActionIcon>
                 </Box>
             </Menu.Target>
             <Menu.Dropdown>
@@ -139,6 +135,9 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                     role="menuitem"
                     leftSection={<IconUsers size={18} />}
                     onClick={onShare}
+                    // Anchor for scope walkthroughs (data-tour-via)
+                    data-tour-anchor="space-share"
+                    data-tour-hint="Click Share"
                 >
                     Share
                 </Menu.Item>

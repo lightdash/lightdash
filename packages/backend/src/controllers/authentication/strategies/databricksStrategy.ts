@@ -20,6 +20,22 @@ type DatabricksStrategyConfig = {
     clientSecret?: string;
 };
 
+const VALID_DATABRICKS_DOMAIN_SUFFIXES = [
+    '.cloud.databricks.com',
+    '.dev.databricks.com',
+    '.gcp.databricks.com',
+    '.azuredatabricks.net',
+    '.databricks.azure.cn',
+    '.databricks.azure.us',
+    '.cloud.databricks.us',
+    '.cloud.databricks.mil',
+];
+
+const isValidDatabricksHost = (host: string): boolean =>
+    VALID_DATABRICKS_DOMAIN_SUFFIXES.some((domainSuffix) =>
+        host.toLowerCase().endsWith(domainSuffix),
+    );
+
 export const normalizeDatabricksHost = (serverHostName: string): string => {
     const trimmed = serverHostName.trim();
     const parsed = new URL(
@@ -57,6 +73,11 @@ export const normalizeDatabricksHostLenient = (
 
 export const getDatabricksOidcEndpointsFromHost = (serverHostName: string) => {
     const host = normalizeDatabricksHost(serverHostName);
+    if (!isValidDatabricksHost(host)) {
+        throw new ParameterError(
+            'Databricks serverHostName must use a valid Databricks domain',
+        );
+    }
     const issuer = `https://${host}`;
     return {
         host,

@@ -10,7 +10,7 @@ import {
     Switch,
     Text,
     Textarea,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useEffect, type FC } from 'react';
 import { AiAgentIcon } from '../../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
@@ -134,7 +134,7 @@ export const SchedulerFormAiInput: FC<Props> = ({
             </Group>
             <Text
                 fz="xs"
-                c="ldGray.6"
+                c="dimmed"
                 mt={2}
                 className={bare ? undefined : classes.subtitle}
             >

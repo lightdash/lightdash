@@ -2,17 +2,16 @@ import { subject } from '@casl/ability';
 import { DbtProjectType } from '@lightdash/common';
 import {
     Group,
-    Paper,
     Stack,
     Text,
     Button,
     ActionIcon,
     Menu,
     Tooltip,
-} from '@mantine-8/core';
-import { useClipboard } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import {
-    IconBrandGithub,
+    IconGitPullRequest,
     IconChevronDown,
     IconDeviceFloppy,
     IconLink,
@@ -20,6 +19,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import PageHeader from '../../../../components/common/Page/PageHeader';
 import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
 import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegration';
@@ -37,15 +37,27 @@ import {
     toggleModal,
     updateName,
 } from '../../store/sqlRunnerSlice';
+import { isBitbucketCloudConnection } from '../../utils/isBitbucketCloudConnection';
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
-import headerStyles from './HeaderPaper.module.css';
+import classes from './HeaderCreate.module.css';
 
 type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 
 const DEFAULT_SQL_NAME = 'Untitled SQL query';
 const DEFAULT_NAME_VIRTUAL_VIEW = 'Untitled virtual view';
+
+/** Anchor for scope walkthroughs (data-tour-via): the Save chart button. */
+const saveChartAnchor = {
+    'data-tour-anchor': 'sql-save-chart',
+    'data-tour-hint': 'Click Save chart',
+};
+/** The same button once Create virtual view is the chosen action. */
+const virtualViewAnchor = {
+    'data-tour-anchor': 'sql-create-virtual-view',
+    'data-tour-hint': 'Click Create virtual view',
+};
 
 export const HeaderCreate: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -94,6 +106,23 @@ export const HeaderCreate: FC = () => {
                 undefined,
             ];
         }
+        if (
+            project?.dbtConnection.type === DbtProjectType.GITHUB &&
+            project.dbtConnection.semanticLayer === 'lightdash'
+        ) {
+            return [
+                'SQL Runner model creation is only supported for dbt projects.',
+                undefined,
+            ];
+        }
+        if (project?.dbtConnection.type === DbtProjectType.BITBUCKET) {
+            return isBitbucketCloudConnection(project.dbtConnection)
+                ? [undefined, undefined]
+                : [
+                      'SQL writeback supports Bitbucket Cloud only. Update the project connection.',
+                      `${health?.data?.siteUrl}/generalSettings/projectManagement/${projectUuid}/settings`,
+                  ];
+        }
         const hasGithubEnabled = gitIntegration?.enabled;
         const hasGitProject = [
             DbtProjectType.GITHUB,
@@ -120,8 +149,8 @@ export const HeaderCreate: FC = () => {
                     <Text span fw={600}>
                         {project?.name}
                     </Text>{' '}
-                    is not connected to a GitHub or GitLab repository, click
-                    here to open project settings page
+                    is not connected to a GitHub, GitLab or Bitbucket Cloud
+                    repository, click here to open project settings page
                 </Text>,
                 `${health?.data?.siteUrl}/generalSettings/projectManagement/${projectUuid}/settings`,
             ];
@@ -132,7 +161,7 @@ export const HeaderCreate: FC = () => {
         gitIntegration?.enabled,
         health?.data?.hasGithub,
         health?.data?.siteUrl,
-        project?.dbtConnection.type,
+        project?.dbtConnection,
         project?.name,
         projectUuid,
     ]);
@@ -232,7 +261,7 @@ export const HeaderCreate: FC = () => {
             case 'createVirtualView':
                 return <MantineIcon icon={IconTableAlias} />;
             case 'writeBackToDbt':
-                return <MantineIcon icon={IconBrandGithub} />;
+                return <MantineIcon icon={IconGitPullRequest} />;
         }
     }, []);
 
@@ -257,25 +286,20 @@ export const HeaderCreate: FC = () => {
         !loadedColumns ||
         (ctaAction === 'save' && !canSaveChart) ||
         (ctaAction === 'createVirtualView' && !canCreateVirtualView) ||
-        (ctaAction === 'writeBackToDbt' && !canWriteBackToDbt);
+        (ctaAction === 'writeBackToDbt' &&
+            (!canWriteBackToDbt || writeBackDisabledMessage !== undefined));
 
     const hasAnyAction =
         canSaveChart || canCreateVirtualView || canWriteBackToDbt;
 
     return (
         <>
-            <Paper
-                shadow="none"
-                radius={0}
-                withBorder={false}
-                px="md"
-                py="xs"
-                className={headerStyles.paper}
-            >
-                <Group justify="space-between">
+            <PageHeader cardProps={{ py: 'xs' }}>
+                <Group justify="space-between" flex={1} wrap="nowrap">
                     <Group gap="two">
                         {hasAnyAction && (
                             <EditableText
+                                heading
                                 size="md"
                                 w={400}
                                 placeholder={untitledName}
@@ -296,15 +320,18 @@ export const HeaderCreate: FC = () => {
                                     leftSection={getCtaIcon(ctaAction)}
                                     disabled={isCtaDisabled}
                                     onClick={handleCtaClick}
+                                    {...(ctaAction === 'save'
+                                        ? saveChartAnchor
+                                        : ctaAction === 'createVirtualView'
+                                          ? virtualViewAnchor
+                                          : {})}
                                 >
                                     {getCtaLabels(ctaAction).label}
                                 </Button>
                                 <Menu
-                                    withinPortal
                                     disabled={!loadedColumns || !hasAnyAction}
                                     position="bottom-end"
                                     withArrow
-                                    shadow="md"
                                     offset={2}
                                     arrowOffset={10}
                                 >
@@ -316,6 +343,9 @@ export const HeaderCreate: FC = () => {
                                                 !loadedColumns || !hasAnyAction
                                             }
                                             variant="default"
+                                            // Anchor for scope walkthroughs (data-tour-via)
+                                            data-tour-anchor="sql-cta-menu"
+                                            data-tour-hint="Open the save options"
                                         >
                                             <MantineIcon
                                                 icon={IconChevronDown}
@@ -327,17 +357,12 @@ export const HeaderCreate: FC = () => {
                                     <Menu.Dropdown>
                                         <Tooltip
                                             label="You don't have permission to save SQL charts in this project."
-                                            multiline
                                             maw={400}
                                             position="top"
-                                            withArrow
-                                            withinPortal
                                             disabled={canSaveChart}
                                         >
                                             <Group
-                                                style={{
-                                                    cursor: 'pointer',
-                                                }}
+                                                className={classes.menuOption}
                                             >
                                                 <Menu.Item
                                                     disabled={!canSaveChart}
@@ -366,8 +391,8 @@ export const HeaderCreate: FC = () => {
                                                             }
                                                         </Text>
                                                         <Text
-                                                            fz={10}
-                                                            c="ldGray.6"
+                                                            fz="xs"
+                                                            c="dimmed"
                                                         >
                                                             {
                                                                 getCtaLabels(
@@ -382,17 +407,12 @@ export const HeaderCreate: FC = () => {
 
                                         <Tooltip
                                             label="You don't have permission to create virtual views in this project."
-                                            multiline
                                             maw={400}
                                             position="top"
-                                            withArrow
-                                            withinPortal
                                             disabled={canCreateVirtualView}
                                         >
                                             <Group
-                                                style={{
-                                                    cursor: 'pointer',
-                                                }}
+                                                className={classes.menuOption}
                                             >
                                                 <Menu.Item
                                                     disabled={
@@ -403,6 +423,9 @@ export const HeaderCreate: FC = () => {
                                                             'createVirtualView',
                                                         );
                                                     }}
+                                                    // Anchor for scope walkthroughs (data-tour-via)
+                                                    data-tour-anchor="sql-cta-virtual-view"
+                                                    data-tour-hint="Choose Create virtual view"
                                                 >
                                                     <Stack gap="two">
                                                         <Text
@@ -423,8 +446,8 @@ export const HeaderCreate: FC = () => {
                                                             }
                                                         </Text>
                                                         <Text
-                                                            fz={10}
-                                                            c="ldGray.6"
+                                                            fz="xs"
+                                                            c="dimmed"
                                                         >
                                                             {
                                                                 getCtaLabels(
@@ -439,11 +462,8 @@ export const HeaderCreate: FC = () => {
 
                                         <Tooltip
                                             label={writeBackDisabledMessage}
-                                            multiline
                                             maw={400}
                                             position="top"
-                                            withArrow
-                                            withinPortal
                                             disabled={
                                                 writeBackDisabledMessage ===
                                                 undefined
@@ -453,13 +473,12 @@ export const HeaderCreate: FC = () => {
                                                     window.open(
                                                         writeBackOpenUrl,
                                                         '_blank',
+                                                        'noopener,noreferrer',
                                                     );
                                             }}
                                         >
                                             <Group
-                                                style={{
-                                                    cursor: 'pointer',
-                                                }}
+                                                className={classes.menuOption}
                                             >
                                                 <Menu.Item
                                                     disabled={
@@ -491,8 +510,8 @@ export const HeaderCreate: FC = () => {
                                                             }
                                                         </Text>
                                                         <Text
-                                                            fz={10}
-                                                            c="ldGray.6"
+                                                            fz="xs"
+                                                            c="dimmed"
                                                         >
                                                             {
                                                                 getCtaLabels(
@@ -516,7 +535,7 @@ export const HeaderCreate: FC = () => {
                         </ActionIcon>
                     </Group>
                 </Group>
-            </Paper>
+            </PageHeader>
             <SaveSqlChartModal
                 key={`${isSaveModalOpen}-saveChartModal`}
                 opened={isSaveModalOpen}

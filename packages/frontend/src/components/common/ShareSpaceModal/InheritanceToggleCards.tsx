@@ -1,4 +1,4 @@
-import { Group, Paper, Stack, Text } from '@mantine-8/core';
+import { Group, Paper, Stack, Text } from '@mantine/core';
 import { IconLock, IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -35,7 +35,6 @@ const InheritanceToggleCards: FC<InheritanceToggleCardsProps> = ({
     return (
         <Group grow align="stretch">
             <Paper
-                withBorder
                 p="md"
                 radius="md"
                 style={{
@@ -69,7 +68,6 @@ const InheritanceToggleCards: FC<InheritanceToggleCardsProps> = ({
             </Paper>
 
             <Paper
-                withBorder
                 p="md"
                 radius="md"
                 style={{

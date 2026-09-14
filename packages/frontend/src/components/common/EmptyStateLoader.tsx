@@ -1,4 +1,4 @@
-import { type StackProps } from '@mantine-8/core';
+import { type StackProps } from '@mantine/core';
 import { type FC } from 'react';
 import SuboptimalState from './SuboptimalState/SuboptimalState';
 

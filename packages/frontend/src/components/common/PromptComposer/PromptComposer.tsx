@@ -1,5 +1,5 @@
-import { Box, Text } from '@mantine-8/core';
-import { RichTextEditor } from '@mantine-8/tiptap';
+import { Box, Text } from '@mantine/core';
+import { RichTextEditor } from '@mantine/tiptap';
 import Placeholder from '@tiptap/extension-placeholder';
 import {
     useEditor,
@@ -126,6 +126,9 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                     blockquote: false,
                     codeBlock: false,
                     horizontalRule: false,
+                    link: false,
+                    underline: false,
+                    trailingNode: false,
                 }),
                 // Inline mode paints its own ellipsised placeholder overlay,
                 // so the editor must not also emit one — a CSS-only override
@@ -225,27 +228,39 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 data-variant={variant}
                 data-size={size}
                 data-accent={accent}
+                data-disabled={disabled || undefined}
                 onMouseDown={onMouseDown}
             >
                 {header && <Box className={classes.header}>{header}</Box>}
 
+                {isInline && toolbarLeft && (
+                    <Box className={classes.inlineActions}>{toolbarLeft}</Box>
+                )}
+
                 {isInline ? (
-                    <Box className={classes.inlineEditorWrap}>
-                        {editorSurface}
-                        {isEmpty && placeholder && (
-                            <Text
-                                aria-hidden
-                                className={classes.inlinePlaceholder}
-                            >
-                                {placeholder}
-                            </Text>
+                    <Box className={classes.inlineMain}>
+                        <Box className={classes.inlineEditorWrap}>
+                            {editorSurface}
+                            {isEmpty && placeholder && (
+                                <Text
+                                    aria-hidden
+                                    className={classes.inlinePlaceholder}
+                                >
+                                    {placeholder}
+                                </Text>
+                            )}
+                        </Box>
+                        {attachments && (
+                            <Box className={classes.attachments}>
+                                {attachments}
+                            </Box>
                         )}
                     </Box>
                 ) : (
                     editorSurface
                 )}
 
-                {attachments && (
+                {!isInline && attachments && (
                     <Box className={classes.attachments}>{attachments}</Box>
                 )}
 

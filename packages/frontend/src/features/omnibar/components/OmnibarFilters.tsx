@@ -4,9 +4,8 @@ import {
     type OrganizationMemberProfile,
     type SearchFilters,
 } from '@lightdash/common';
-import { Box, Button, Flex, Group, Menu, Select } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
-import { DatePicker } from '@mantine/dates';
+import { Box, Button, Flex, Group, Menu, Select } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustments,
     IconAppWindow,
@@ -14,6 +13,7 @@ import {
     IconCalendar,
     IconChartBar,
     IconChevronDown,
+    IconCircleCheck,
     IconCodeCircle,
     IconFolder,
     IconLayoutDashboard,
@@ -25,6 +25,8 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import CalendarRangePicker from '../../../components/common/DatePickers/CalendarRangePicker';
+import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { allSearchItemTypes } from '../types/searchItem';
@@ -32,6 +34,8 @@ import { getDateFilterLabel } from '../utils/getDateFilterLabel';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import classes from './OmnibarFilters.module.css';
 import { getOmnibarItemColor } from './utils';
+
+const VERIFIED_FILTER_COLOR = 'green.6';
 
 const getOmnibarItemIcon = (itemType: SearchItemType) => {
     switch (itemType) {
@@ -127,14 +131,23 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
         }
     }, [isCreatedByExpanded]);
 
+    const hasItemTypeFilter = !!filters?.type || filters?.verifiedOnly === true;
+
     const canClearFilters = useMemo(() => {
         return (
             filters?.type ||
+            filters?.verifiedOnly ||
             filters?.fromDate ||
             filters?.toDate ||
             filters?.createdByUuid
         );
     }, [filters]);
+
+    const itemTypeButtonLabel = filters?.verifiedOnly
+        ? 'Verified'
+        : filters?.type
+          ? getSearchItemLabel(filters.type as SearchItemType)
+          : 'Item type';
 
     const userOptions = useMemo(
         () =>
@@ -154,18 +167,18 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             wrap="nowrap"
             className={classes.filtersRow}
         >
-            <Menu
-                position="bottom-start"
-                withArrow
-                shadow="md"
-                arrowOffset={11}
-                offset={2}
-            >
+            <Menu position="bottom-start" withArrow arrowOffset={11} offset={2}>
                 <Menu.Target>
                     <Button
                         size="compact-xs"
                         leftSection={
-                            filters?.type ? (
+                            filters?.verifiedOnly ? (
+                                <MantineIcon
+                                    icon={IconCircleCheck}
+                                    color={VERIFIED_FILTER_COLOR}
+                                    strokeWidth={1.5}
+                                />
+                            ) : filters?.type ? (
                                 <MantineIcon
                                     icon={getOmnibarItemIcon(
                                         filters.type as SearchItemType,
@@ -184,24 +197,50 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                         }
                         rightSection={
                             <FilterRightSection
-                                isActive={!!filters?.type}
+                                isActive={hasItemTypeFilter}
                                 onClear={() =>
                                     onSearchFilterChange({
                                         ...filters,
                                         type: undefined,
+                                        verifiedOnly: undefined,
                                     })
                                 }
                             />
                         }
-                        {...getFilterButtonProps(!!filters?.type)}
+                        {...getFilterButtonProps(hasItemTypeFilter)}
                     >
-                        {filters?.type
-                            ? getSearchItemLabel(filters.type as SearchItemType)
-                            : 'Item type'}
+                        {itemTypeButtonLabel}
                     </Button>
                 </Menu.Target>
 
                 <Menu.Dropdown>
+                    <Menu.Item
+                        leftSection={
+                            <MantineIcon
+                                icon={IconCircleCheck}
+                                color={VERIFIED_FILTER_COLOR}
+                            />
+                        }
+                        bg={
+                            filters?.verifiedOnly === true
+                                ? 'ldGray.1'
+                                : undefined
+                        }
+                        onClick={() => {
+                            onSearchFilterChange({
+                                ...filters,
+                                // Verified is a cross-cutting attribute, not a
+                                // SearchItemType — clear type when selecting it.
+                                type: undefined,
+                                verifiedOnly:
+                                    filters?.verifiedOnly === true
+                                        ? undefined
+                                        : true,
+                            });
+                        }}
+                    >
+                        Verified
+                    </Menu.Item>
                     {allSearchItemTypes.map((type) => (
                         <Menu.Item
                             key={type}
@@ -215,6 +254,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                             onClick={() => {
                                 onSearchFilterChange({
                                     ...filters,
+                                    verifiedOnly: undefined,
                                     type:
                                         type === filters?.type
                                             ? undefined
@@ -230,7 +270,6 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             <Menu
                 position="bottom-start"
                 withArrow
-                shadow="md"
                 arrowOffset={11}
                 offset={2}
                 opened={isDateMenuOpen}
@@ -269,8 +308,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 </Menu.Target>
                 <Menu.Dropdown>
                     <Flex direction="column" align="flex-end">
-                        <DatePicker
-                            type="range"
+                        <CalendarRangePicker
                             allowSingleDateInRange
                             maxDate={new Date()}
                             value={[
@@ -281,16 +319,15 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                                     ? new Date(filters.toDate)
                                     : null,
                             ]}
-                            onChange={(value) => {
-                                const [fromDate, toDate] = value;
-
+                            onChange={(value: CalendarDateRange) => {
+                                // Persisting calendar dates as ISO instants is search-filter policy
                                 onSearchFilterChange({
                                     ...filters,
-                                    fromDate: fromDate?.toISOString(),
-                                    toDate: toDate?.toISOString(),
+                                    fromDate: value[0]?.toISOString(),
+                                    toDate: value[1]?.toISOString(),
                                 });
 
-                                if (fromDate && toDate) {
+                                if (value[0] && value[1]) {
                                     dateMenuHandlers.close();
                                 }
                             }}
@@ -316,7 +353,6 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 <Select
                     ref={createdByInputRef}
                     size="xs"
-                    radius="md"
                     w={200}
                     classNames={{ input: classes.createdByInput }}
                     placeholder="Search a user..."

@@ -1,5 +1,5 @@
 import {
-    GITHUB_MCP_SERVER_URL,
+    isGithubMcpServerUrl,
     type AiMcpCredentialScope,
     type AiMcpServer,
     type AiMcpServerAuthType,
@@ -8,10 +8,10 @@ import {
 import {
     ActionIcon,
     Alert,
+    Anchor,
     Badge,
     Box,
     Button,
-    Center,
     Checkbox,
     Collapse,
     Divider,
@@ -21,14 +21,14 @@ import {
     Paper,
     PasswordInput,
     SegmentedControl,
+    Skeleton,
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
-import { useForm, zodResolver } from '@mantine/form';
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconBrandGithub,
@@ -36,13 +36,15 @@ import {
     IconChevronRight,
     IconDots,
     IconEye,
+    IconHelpCircle,
     IconKey,
     IconPlug,
     IconPlugConnected,
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { BetaBadge } from '../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -50,6 +52,7 @@ import MantineModal from '../../../../components/common/MantineModal';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
+    useConnectGithubMcpServerAppMutation,
     useConnectGithubMcpServerMutation,
     useDisconnectMcpOAuthConnectionMutation,
     useGithubMcpAvailability,
@@ -60,9 +63,17 @@ import {
     useStartMcpOAuthConnectionMutation,
     useUpdateAiMcpServerCredentialMutation,
 } from '../hooks/useProjectAiMcpServers';
+import {
+    estimateEnabledMcpToolDefinitionTokens,
+    formatTokenEstimate,
+    MCP_TOOL_TOKEN_WARNING_THRESHOLD,
+} from '../utils/mcpToolTokenEstimates';
+import { AgentSettingsSubsection } from './AgentSettingsSubsection';
+import classes from './AiAgentMcpServersInput.module.css';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
 import { GithubMcpConnectModal } from './GithubMcpConnectModal';
+import tokenStyles from './McpToolTokenEstimate.module.css';
 
 const CREATE_NEW_MCP_OPTION_VALUE = '__create_new_mcp__';
 
@@ -82,7 +93,7 @@ const createMcpServerFormSchema = z
             values.bearerToken.trim().length === 0
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Bearer token is required',
                 path: ['bearerToken'],
             });
@@ -93,7 +104,7 @@ const createMcpServerFormSchema = z
             values.clientSecret.trim().length === 0
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Client secret is required',
                 path: ['clientSecret'],
             });
@@ -104,7 +115,7 @@ const createMcpServerFormSchema = z
             values.clientId.trim().length === 0
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Client ID is required',
                 path: ['clientId'],
             });
@@ -116,7 +127,7 @@ const createMcpServerFormSchema = z
                 values.clientSecret.trim().length > 0)
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message:
                     'Client credentials are only supported for personal OAuth',
                 path: ['clientId'],
@@ -387,7 +398,7 @@ const CreateMcpServerModal = ({
                                     More options
                                 </Button>
                                 <Collapse
-                                    in={
+                                    expanded={
                                         oauthOptionsOpened ||
                                         form.values.allowOAuthCredentialSharing
                                     }
@@ -461,7 +472,6 @@ const CreateMcpServerModal = ({
                         form.values.allowOAuthCredentialSharing && (
                             <Alert
                                 color="orange"
-                                variant="light"
                                 icon={<MantineIcon icon={IconAlertTriangle} />}
                                 title="Shared OAuth connection"
                             >
@@ -676,13 +686,20 @@ const McpToolPermissionsSummary = ({
     agentUuid,
     isPersistedAttachment,
     isSavingAgent,
+    mcpServerName,
     mcpServerUuid,
+    onTokenEstimateChange,
     projectUuid,
 }: {
     agentUuid?: string;
     isPersistedAttachment: boolean;
     isSavingAgent?: boolean;
+    mcpServerName: string;
     mcpServerUuid: string;
+    onTokenEstimateChange: (
+        mcpServerUuid: string,
+        tokenEstimate: number,
+    ) => void;
     projectUuid: string;
 }) => {
     const { data } = useAgentAiMcpServerTools(
@@ -694,15 +711,48 @@ const McpToolPermissionsSummary = ({
         },
     );
 
-    if (!agentUuid || !isPersistedAttachment || isSavingAgent || !data) {
+    const tokenEstimate = useMemo(
+        () =>
+            data
+                ? estimateEnabledMcpToolDefinitionTokens(data, mcpServerName)
+                : undefined,
+        [data, mcpServerName],
+    );
+
+    useEffect(() => {
+        if (tokenEstimate !== undefined) {
+            onTokenEstimateChange(mcpServerUuid, tokenEstimate);
+        }
+    }, [mcpServerUuid, onTokenEstimateChange, tokenEstimate]);
+
+    if (
+        !agentUuid ||
+        !isPersistedAttachment ||
+        isSavingAgent ||
+        !data ||
+        tokenEstimate === undefined
+    ) {
         return null;
     }
 
     const enabledCount = data.filter((tool) => tool.enabled).length;
 
+    const isHighTokenEstimate =
+        tokenEstimate >= MCP_TOOL_TOKEN_WARNING_THRESHOLD;
+
     return (
         <Text size="sm" c="dimmed">
             {enabledCount}/{data.length} enabled
+            <Text span c="ldGray.4">
+                {' '}
+                ·{' '}
+            </Text>
+            <Text
+                span
+                className={`${tokenStyles.serverTokenValue} ${isHighTokenEstimate ? tokenStyles.serverTokenValueWarning : ''}`}
+            >
+                {formatTokenEstimate(tokenEstimate)} tokens
+            </Text>
         </Text>
     );
 };
@@ -730,11 +780,16 @@ export const AiAgentMcpServersInput = ({
         useDisclosure(false);
     const [isGithubConfirmModalOpen, githubConfirmModalHandlers] =
         useDisclosure(false);
+    const [isGithubNudgeModalOpen, githubNudgeModalHandlers] =
+        useDisclosure(false);
     const [attachSelection, setAttachSelection] = useState<string[]>([]);
     const [expandedMcpServers, setExpandedMcpServers] = useState<string[]>([]);
     const [isPersistingSelection, setIsPersistingSelection] = useState(false);
     const [editingTokenMcpServer, setEditingTokenMcpServer] =
         useState<AiMcpServer | null>(null);
+    const [mcpServerTokenEstimates, setMcpServerTokenEstimates] = useState<
+        Record<string, number>
+    >({});
     const isPersistingSelectionRef = useRef(false);
     const { showToastSuccess } = useToaster();
     const { data: mcpServers, isLoading: isLoadingMcpServers } =
@@ -768,14 +823,18 @@ export const AiAgentMcpServersInput = ({
         useGithubMcpAvailability(projectUuid);
     const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
         useConnectGithubMcpServerMutation(projectUuid);
+    const {
+        mutateAsync: connectGithubMcpApp,
+        isLoading: isConnectingGithubMcpApp,
+    } = useConnectGithubMcpServerAppMutation(projectUuid);
 
     // A project-level GitHub MCP server may already exist (e.g. created for
     // another agent, or detached from this one). If so, the one-click flow just
     // re-attaches it rather than creating a duplicate.
     const existingGithubMcpServer = useMemo(
         () =>
-            mcpServers?.find(
-                (mcpServer) => mcpServer.url === GITHUB_MCP_SERVER_URL,
+            mcpServers?.find((mcpServer) =>
+                isGithubMcpServerUrl(mcpServer.url),
             ),
         [mcpServers],
     );
@@ -783,12 +842,24 @@ export const AiAgentMcpServersInput = ({
         !!existingGithubMcpServer &&
         value.includes(existingGithubMcpServer.uuid);
 
-    // One-click GitHub: offered when the org has a GitHub integration the user
-    // can manage and GitHub is not already attached to THIS agent. We gate on
-    // agent attachment (not project-level existence) so the button reappears
-    // after the server is removed from this agent.
+    // One-click GitHub: offered when a connect mode is available and GitHub is
+    // not already attached to THIS agent. We gate on agent attachment (not
+    // project-level existence) so the button reappears after the server is
+    // removed from this agent.
+    const githubConnectModes = githubMcpAvailability?.availableModes ?? [];
+    const canGithubAppConnect = githubConnectModes.includes('github_app');
+    const canGithubPatConnect = githubConnectModes.includes('pat');
     const canOneClickConnectGithub =
-        githubMcpAvailability?.available === true && !isGithubConnectedToAgent;
+        githubConnectModes.length > 0 && !isGithubConnectedToAgent;
+    // This settings surface is only reachable by users who can manage the
+    // agent, so an empty modes list means the org needs the GitHub App.
+    const showGithubAppNudge =
+        !!githubMcpAvailability &&
+        githubConnectModes.length === 0 &&
+        !githubMcpAvailability.hasGithubAppInstallation &&
+        !isGithubConnectedToAgent;
+    const showGithubConnectButton =
+        canOneClickConnectGithub || showGithubAppNudge;
 
     const selectedMcpServers = useMemo(
         () =>
@@ -799,6 +870,32 @@ export const AiAgentMcpServersInput = ({
                 .filter((mcpServer): mcpServer is AiMcpServer => !!mcpServer),
         [value, mcpServers],
     );
+    const handleTokenEstimateChange = useCallback(
+        (mcpServerUuid: string, tokenEstimate: number) => {
+            setMcpServerTokenEstimates((currentEstimates) =>
+                currentEstimates[mcpServerUuid] === tokenEstimate
+                    ? currentEstimates
+                    : {
+                          ...currentEstimates,
+                          [mcpServerUuid]: tokenEstimate,
+                      },
+            );
+        },
+        [],
+    );
+    const persistedSelectedMcpServers = selectedMcpServers.filter((mcpServer) =>
+        persistedMcpServerUuids?.includes(mcpServer.uuid),
+    );
+    const hasCompleteTokenEstimate = persistedSelectedMcpServers.every(
+        (mcpServer) => mcpServerTokenEstimates[mcpServer.uuid] !== undefined,
+    );
+    const totalTokenEstimate = hasCompleteTokenEstimate
+        ? persistedSelectedMcpServers.reduce(
+              (total, mcpServer) =>
+                  total + (mcpServerTokenEstimates[mcpServer.uuid] ?? 0),
+              0,
+          )
+        : undefined;
 
     const availableMcpServerOptions = useMemo(
         () => [
@@ -914,6 +1011,56 @@ export const AiAgentMcpServersInput = ({
             value,
             githubConfirmModalHandlers,
         ],
+    );
+
+    const handleConnectGithubMcpApp = useCallback(async () => {
+        try {
+            const server = await connectGithubMcpApp();
+            if (!server) {
+                return;
+            }
+            if (!value.includes(server.uuid)) {
+                await persistMcpServerSelection([...value, server.uuid], value);
+            }
+        } catch {
+            // Errors surface via the mutation's onError toast.
+        }
+    }, [connectGithubMcpApp, persistMcpServerSelection, value]);
+
+    const handleGithubConnectClick = useCallback(() => {
+        if (canGithubAppConnect) {
+            void handleConnectGithubMcpApp();
+            return;
+        }
+        if (canGithubPatConnect) {
+            githubConfirmModalHandlers.open();
+            return;
+        }
+        githubNudgeModalHandlers.open();
+    }, [
+        canGithubAppConnect,
+        canGithubPatConnect,
+        githubConfirmModalHandlers,
+        githubNudgeModalHandlers,
+        handleConnectGithubMcpApp,
+    ]);
+
+    const githubConnectTooltip = canGithubAppConnect
+        ? "Let the agent read the code behind your metrics, using your organization's GitHub App installation."
+        : canGithubPatConnect
+          ? 'Let the agent read the code behind your metrics, using a GitHub personal access token.'
+          : 'Let the agent read the code behind your metrics. Requires the Lightdash GitHub App.';
+
+    const renderGithubConnectButton = (size: 'xs' | 'compact-xs') => (
+        <Button
+            variant="default"
+            size={size}
+            leftSection={<MantineIcon icon={IconBrandGithub} />}
+            loading={isConnectingGithubMcp || isConnectingGithubMcpApp}
+            onClick={handleGithubConnectClick}
+        >
+            Connect GitHub
+        </Button>
     );
 
     const handleAttachMcpServers = useCallback(async () => {
@@ -1126,18 +1273,10 @@ export const AiAgentMcpServersInput = ({
             isExpanded: boolean,
         ) => {
             return (
-                <Menu
-                    position="bottom-end"
-                    withArrow
-                    withinPortal
-                    shadow="md"
-                    width={220}
-                >
+                <Menu position="bottom-end" withArrow width={220}>
                     <Menu.Target>
                         <ActionIcon
                             type="button"
-                            variant="subtle"
-                            color="gray"
                             onClick={(event) => event.stopPropagation()}
                         >
                             <MantineIcon icon={IconDots} />
@@ -1157,19 +1296,21 @@ export const AiAgentMcpServersInput = ({
                         >
                             {isExpanded ? 'Hide tools' : 'View tools'}
                         </Menu.Item>
-                        {mcpServer.authType === 'bearer' && (
-                            <Menu.Item
-                                type="button"
-                                leftSection={<MantineIcon icon={IconKey} />}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    setEditingTokenMcpServer(mcpServer);
-                                }}
-                                disabled={isPersistingSelection}
-                            >
-                                Update token
-                            </Menu.Item>
-                        )}
+                        {mcpServer.authType === 'bearer' &&
+                            (!isGithubMcpServerUrl(mcpServer.url) ||
+                                canGithubPatConnect) && (
+                                <Menu.Item
+                                    type="button"
+                                    leftSection={<MantineIcon icon={IconKey} />}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        setEditingTokenMcpServer(mcpServer);
+                                    }}
+                                    disabled={isPersistingSelection}
+                                >
+                                    Update token
+                                </Menu.Item>
+                            )}
                         {mcpServer.authType === 'oauth' && (
                             <Menu.Item
                                 type="button"
@@ -1266,6 +1407,7 @@ export const AiAgentMcpServersInput = ({
             );
         },
         [
+            canGithubPatConnect,
             handleDisconnectMcpOAuthConnection,
             handleRemoveMcpServer,
             handleRetestMcpServerConnection,
@@ -1278,41 +1420,50 @@ export const AiAgentMcpServersInput = ({
 
     return (
         <>
-            <Paper p="xl">
-                <Group align="center" gap="xs" mb="md">
-                    <Group align="center" gap="xs">
-                        <Paper p="xxs" withBorder radius="sm">
-                            <MantineIcon icon={IconPlug} size="md" />
-                        </Paper>
-                        <Title order={5} c="ldGray.9" fw={700}>
-                            MCP servers
-                        </Title>
-                        <BetaBadge />
-                    </Group>
-                    {selectedMcpServers.length > 0 && (
-                        <Group align="center" gap="xs">
-                            {canOneClickConnectGithub && (
-                                <Tooltip
-                                    withinPortal
-                                    multiline
-                                    w={260}
-                                    label="Let the agent read the code behind your metrics, using a GitHub personal access token."
-                                >
-                                    <Button
-                                        variant="default"
-                                        size="compact-xs"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconBrandGithub}
-                                            />
-                                        }
-                                        loading={isConnectingGithubMcp}
-                                        onClick={
-                                            githubConfirmModalHandlers.open
-                                        }
+            <AgentSettingsSubsection
+                title="MCP servers"
+                description="External tool servers this agent can call. Adding or removing one applies immediately, without saving the page."
+                badge={<BetaBadge />}
+                action={
+                    selectedMcpServers.length > 0 && (
+                        <Group align="center" gap="sm" wrap="wrap">
+                            {persistedSelectedMcpServers.length > 0 && (
+                                <Group gap={4} wrap="nowrap">
+                                    {totalTokenEstimate === undefined ? (
+                                        <Skeleton w={88} h={18} radius="xl" />
+                                    ) : (
+                                        <Text
+                                            className={
+                                                tokenStyles.totalTokenValue
+                                            }
+                                        >
+                                            {formatTokenEstimate(
+                                                totalTokenEstimate,
+                                            )}{' '}
+                                            tokens
+                                        </Text>
+                                    )}
+                                    <Tooltip
+                                        w={320}
+                                        label="Tokens measure how much of the model's working space these tools can take up. A larger tool set can leave less room for your question and the agent's answer, and may make requests slower or more expensive. Lightdash loads tools only when needed, so actual usage is often lower."
                                     >
-                                        Connect GitHub
-                                    </Button>
+                                        <ActionIcon
+                                            type="button"
+                                            color="ldGray"
+                                            size="xs"
+                                            aria-label="Why tool token usage matters"
+                                        >
+                                            <MantineIcon
+                                                icon={IconHelpCircle}
+                                                size="sm"
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                            )}
+                            {showGithubConnectButton && (
+                                <Tooltip w={260} label={githubConnectTooltip}>
+                                    {renderGithubConnectButton('compact-xs')}
                                 </Tooltip>
                             )}
                             <Button
@@ -1324,39 +1475,19 @@ export const AiAgentMcpServersInput = ({
                                 + Add
                             </Button>
                         </Group>
-                    )}
-                </Group>
+                    )
+                }
+            >
                 <Stack gap="sm">
                     {selectedMcpServers.length === 0 && (
-                        <Center
-                            py="xl"
-                            style={{
-                                border: '1px dashed var(--mantine-color-ldGray-4)',
-                                borderRadius: 'var(--mantine-radius-md)',
-                            }}
-                        >
+                        <Paper variant="dotted" py="xl">
                             <Stack align="center" gap="xs">
                                 <Text size="sm" c="dimmed">
                                     No MCP servers attached
                                 </Text>
                                 <Group gap="xs">
-                                    {canOneClickConnectGithub && (
-                                        <Button
-                                            variant="default"
-                                            size="xs"
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconBrandGithub}
-                                                />
-                                            }
-                                            loading={isConnectingGithubMcp}
-                                            onClick={
-                                                githubConfirmModalHandlers.open
-                                            }
-                                        >
-                                            Connect GitHub
-                                        </Button>
-                                    )}
+                                    {showGithubConnectButton &&
+                                        renderGithubConnectButton('xs')}
                                     <Button
                                         variant="default"
                                         size="xs"
@@ -1370,7 +1501,7 @@ export const AiAgentMcpServersInput = ({
                                     </Button>
                                 </Group>
                             </Stack>
-                        </Center>
+                        </Paper>
                     )}
                     {selectedMcpServers.length > 0 && (
                         <Stack gap="sm">
@@ -1409,10 +1540,9 @@ export const AiAgentMcpServersInput = ({
                                 return (
                                     <Paper
                                         key={mcpServer.uuid}
-                                        withBorder
                                         radius="md"
                                         p={0}
-                                        style={{ overflow: 'hidden' }}
+                                        className={classes.serverCard}
                                     >
                                         <Group
                                             justify="space-between"
@@ -1457,7 +1587,7 @@ export const AiAgentMcpServersInput = ({
                                                     <Text
                                                         size="sm"
                                                         c="dimmed"
-                                                        fw={450}
+                                                        fw={500}
                                                     >
                                                         {getMcpAuthTypeLabel(
                                                             mcpServer.authType,
@@ -1482,7 +1612,6 @@ export const AiAgentMcpServersInput = ({
                                                 wrap="nowrap"
                                             >
                                                 <Badge
-                                                    variant="light"
                                                     color={getMcpConnectionStatusColor(
                                                         connectionStatus,
                                                     )}
@@ -1501,15 +1630,9 @@ export const AiAgentMcpServersInput = ({
                                                         mcpServer,
                                                         connectionStatus,
                                                     ) && (
-                                                        <Tooltip
-                                                            label="Test connection"
-                                                            withArrow
-                                                            withinPortal
-                                                        >
+                                                        <Tooltip label="Test connection">
                                                             <ActionIcon
                                                                 type="button"
-                                                                variant="subtle"
-                                                                color="gray"
                                                                 size="sm"
                                                                 loading={
                                                                     isRetesting
@@ -1625,6 +1748,12 @@ export const AiAgentMcpServersInput = ({
                                                         mcpServerUuid={
                                                             mcpServer.uuid
                                                         }
+                                                        mcpServerName={
+                                                            mcpServer.name
+                                                        }
+                                                        onTokenEstimateChange={
+                                                            handleTokenEstimateChange
+                                                        }
                                                         projectUuid={
                                                             projectUuid
                                                         }
@@ -1637,7 +1766,7 @@ export const AiAgentMcpServersInput = ({
                                                 </Text>
                                             </Group>
                                         </Box>
-                                        <Collapse in={isExpanded}>
+                                        <Collapse expanded={isExpanded}>
                                             <Divider />
                                             <Box px="md" py="sm">
                                                 <AiAgentMcpServerToolsPanel
@@ -1661,7 +1790,7 @@ export const AiAgentMcpServersInput = ({
                         </Stack>
                     )}
                 </Stack>
-            </Paper>
+            </AgentSettingsSubsection>
             <CreateMcpServerModal
                 opened={isCreateMcpServerModalOpen}
                 onClose={createMcpServerModalHandlers.close}
@@ -1690,6 +1819,31 @@ export const AiAgentMcpServersInput = ({
                 canChooseScope
                 onConnect={handleConnectGithubMcp}
             />
+            <MantineModal
+                opened={isGithubNudgeModalOpen}
+                onClose={githubNudgeModalHandlers.close}
+                title="Connect GitHub"
+                icon={IconBrandGithub}
+            >
+                <Stack gap="md">
+                    <Text size="sm">
+                        Connecting GitHub lets the agent read the code behind
+                        your metrics.
+                    </Text>
+                    <Text size="sm">
+                        To get started, an organization admin needs to install
+                        the Lightdash GitHub App from{' '}
+                        <Anchor
+                            href="/generalSettings/integrations"
+                            target="_blank"
+                        >
+                            Organization settings → Integrations
+                        </Anchor>
+                        . Once it's installed, you can connect GitHub here with
+                        one click.
+                    </Text>
+                </Stack>
+            </MantineModal>
         </>
     );
 };

@@ -7,8 +7,24 @@ import {
     type FilterOperator,
     type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
+import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
 import { type SdkFilter } from './types';
+
+export const canUseEmbeddedChartBuilder = ({
+    canWriteDashboard,
+    canCreateSavedChart,
+    canExplore,
+}: {
+    canWriteDashboard: boolean;
+    canCreateSavedChart: boolean;
+    canExplore: boolean;
+}): boolean => canWriteDashboard && canCreateSavedChart && canExplore;
+
+export const haveSdkFiltersChanged = (
+    appliedFilters: SdkFilter[] | undefined,
+    currentFilters: SdkFilter[] | undefined,
+): boolean => !isEqual(appliedFilters, currentFilters);
 
 /**
  * Whether SDK filter conversion should be deferred until the data needed to

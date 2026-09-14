@@ -4,19 +4,19 @@ import {
     AiAgentToolResult,
     AiArtifact,
     ChartType,
-    followUpToolsText,
+    deriveDataAppVizPivotConfig,
+    getDataAppVizChartFromArtifact,
     getGroupByDimensions,
     getItemMap,
     getWebAiChartConfig,
-    isActiveFollowUpTool,
+    isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
-    parseAiArtifactChartConfig,
     parseVizConfig,
     SlackPrompt,
-    type AiLegacySemanticChartArtifactConfig,
     type ChartConfig,
+    type DataAppVizField,
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
@@ -437,67 +437,6 @@ export function getReferencedArtifactsBlocks(
     ];
 }
 
-export function getFollowUpToolBlocks(
-    slackPrompt: SlackPrompt,
-    artifacts?: AiArtifact[],
-): KnownBlock[] {
-    // TODO: Assuming each thread has just one artifact for now
-    // TODO: Handle multiple artifacts per thread in the future
-
-    if (!artifacts || artifacts.length === 0) {
-        return [];
-    }
-
-    // Find the first chart artifact (assuming one artifact per thread for now)
-    const chartArtifact = artifacts.find((artifact) => artifact.chartConfig);
-    if (!chartArtifact || !chartArtifact.chartConfig) {
-        return [];
-    }
-
-    // Extract follow-up tools from the chart config if they exist
-    let savedFollowUpTools: unknown[] = [];
-    if (
-        'followUpTools' in chartArtifact.chartConfig &&
-        Array.isArray(chartArtifact.chartConfig.followUpTools)
-    ) {
-        savedFollowUpTools = chartArtifact.chartConfig.followUpTools;
-    }
-
-    const activeSavedFollowUpTools =
-        savedFollowUpTools.filter(isActiveFollowUpTool);
-
-    if (!activeSavedFollowUpTools.length) {
-        return [];
-    }
-
-    return [
-        {
-            type: 'divider',
-        },
-        {
-            type: 'context',
-            elements: [
-                {
-                    type: 'plain_text',
-                    text: `❓ What would you like me to do next?`,
-                },
-            ],
-        },
-        {
-            type: 'actions',
-            elements: activeSavedFollowUpTools.map((tool) => ({
-                type: 'button',
-                text: {
-                    type: 'plain_text',
-                    text: followUpToolsText[tool],
-                },
-                value: slackPrompt.promptUuid,
-                action_id: `execute_follow_up_tool.${tool}`,
-            })),
-        },
-    ];
-}
-
 const parseGithubPrUrl = (prUrl: string) => {
     try {
         const url = new URL(prUrl);
@@ -600,14 +539,14 @@ export async function getModernArtifactCardBlocks(
     isImageUrlReachable: (url: string) => Promise<boolean>,
     agentUuid?: string,
     artifacts?: Array<
-        Omit<AiArtifact, 'chartConfig' | 'savedSqlUuid'> & {
-            chartConfig:
-                | AiArtifact['chartConfig']
-                | AiLegacySemanticChartArtifactConfig;
+        Omit<AiArtifact, 'savedSqlUuid'> & {
             savedSqlUuid?: string | null;
         }
     >,
     toolResults?: AiAgentToolResult[],
+    getDataAppVizSchemaFields?: (
+        dataAppVizUuid: string,
+    ) => Promise<DataAppVizField[] | null>,
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
         return [];
@@ -616,7 +555,6 @@ export async function getModernArtifactCardBlocks(
     const normalizedArtifacts: AiArtifact[] = artifacts.map((artifact) => ({
         ...artifact,
         savedSqlUuid: artifact.savedSqlUuid ?? null,
-        chartConfig: parseAiArtifactChartConfig(artifact.chartConfig),
     }));
 
     const chartImageUrls = (toolResults ?? [])
@@ -659,7 +597,10 @@ export async function getModernArtifactCardBlocks(
         if (!artifact.chartConfig) {
             return 'chart';
         }
-        if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+        if (
+            isAiSqlChartArtifactConfig(artifact.chartConfig) ||
+            isAiComposerChartArtifactConfig(artifact.chartConfig)
+        ) {
             return 'table';
         }
         const parsed = vizTypeSchema.safeParse(artifact.chartConfig.config);
@@ -684,6 +625,9 @@ export async function getModernArtifactCardBlocks(
             if (title) return `chart:${vizType}:${title}`;
             if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
                 return `chart:${vizType}:${artifact.chartConfig.sql}`;
+            }
+            if (isAiComposerChartArtifactConfig(artifact.chartConfig)) {
+                return `chart:${vizType}:${artifact.chartConfig.lastQueryUuid}`;
             }
             const viz = parseVizConfig(
                 artifact.chartConfig.config,
@@ -720,14 +664,16 @@ export async function getModernArtifactCardBlocks(
     const chartArtifacts = dedupedArtifacts.filter(
         (artifact) =>
             Boolean(artifact.chartConfig) &&
-            !isAiSqlChartArtifactConfig(artifact.chartConfig),
+            !isAiSqlChartArtifactConfig(artifact.chartConfig) &&
+            !isAiComposerChartArtifactConfig(artifact.chartConfig),
     );
 
     const blocks = await Promise.all(
         dedupedArtifacts.map(async (artifact, index) => {
             if (
                 artifact.chartConfig &&
-                !isAiSqlChartArtifactConfig(artifact.chartConfig)
+                !isAiSqlChartArtifactConfig(artifact.chartConfig) &&
+                !isAiComposerChartArtifactConfig(artifact.chartConfig)
             ) {
                 const vizConfig = parseVizConfig(
                     artifact.chartConfig.config,
@@ -780,27 +726,52 @@ export async function getModernArtifactCardBlocks(
                     },
                 };
                 let pivotConfig: { columns: string[] } | undefined;
-                try {
-                    const webAiChartConfig = getWebAiChartConfig({
-                        vizConfig: artifact.chartConfig.config,
-                        metricQuery: metricQueryWithSql,
-                        maxQueryLimit,
-                        fieldsMap: getItemMap(
-                            explore,
-                            additionalMetricsWithSql,
-                            vizConfig.metricQuery.tableCalculations,
-                        ),
-                    });
-                    if (webAiChartConfig.echartsConfig) {
-                        chartConfig = webAiChartConfig.echartsConfig;
+                if (artifact.chartConfig.source === 'customChartType') {
+                    // Mirror the web save flow: DATA_APP_VIZ config plus the
+                    // type's schema-derived pivot. Without the schema (app
+                    // deleted / invalid) keep the table fallback so the link
+                    // still works.
+                    const dataAppVizChart = getDataAppVizChartFromArtifact(
+                        artifact.chartConfig,
+                    );
+                    const schemaFields = dataAppVizChart
+                        ? await getDataAppVizSchemaFields?.(
+                              artifact.chartConfig.dataAppVizUuid,
+                          )
+                        : null;
+                    if (dataAppVizChart && schemaFields) {
+                        chartConfig = {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: dataAppVizChart,
+                        };
+                        pivotConfig = deriveDataAppVizPivotConfig(
+                            schemaFields,
+                            dataAppVizChart.fieldMapping,
+                        );
                     }
-                    const groupByDimensions =
-                        getGroupByDimensions(webAiChartConfig);
-                    pivotConfig = groupByDimensions?.length
-                        ? { columns: groupByDimensions }
-                        : undefined;
-                } catch {
-                    // keep the table fallback
+                } else {
+                    try {
+                        const webAiChartConfig = getWebAiChartConfig({
+                            vizConfig: artifact.chartConfig.config,
+                            metricQuery: metricQueryWithSql,
+                            maxQueryLimit,
+                            fieldsMap: getItemMap(
+                                explore,
+                                additionalMetricsWithSql,
+                                vizConfig.metricQuery.tableCalculations,
+                            ),
+                        });
+                        if (webAiChartConfig.echartsConfig) {
+                            chartConfig = webAiChartConfig.echartsConfig;
+                        }
+                        const groupByDimensions =
+                            getGroupByDimensions(webAiChartConfig);
+                        pivotConfig = groupByDimensions?.length
+                            ? { columns: groupByDimensions }
+                            : undefined;
+                    } catch {
+                        // keep the table fallback
+                    }
                 }
 
                 const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
@@ -1229,7 +1200,7 @@ const truncateSlackText = (text: string | null, maxLength: number): string => {
     return `${text.substring(0, maxLength - 3)}...`;
 };
 
-type AgentSelectOption = Pick<AiAgent, 'uuid' | 'name' | 'projectUuid'>;
+export type AgentSelectOption = Pick<AiAgent, 'uuid' | 'name' | 'projectUuid'>;
 
 const buildAgentOptions = (
     agents: AgentSelectOption[],
@@ -1311,12 +1282,17 @@ const buildAgentSelectBlocks = (args: {
     },
 ];
 
-export function getAgentSelectionBlocks(
-    agents: AiAgent[],
-    channelId: string,
-    projectMap?: Map<string, string>,
-    shouldSkipForwardingQuery = false,
-): (Block | KnownBlock)[] {
+export function getAgentSelectionBlocks(args: {
+    agents: AgentSelectOption[];
+    // ts of the message this picker was posted for, so the selection handler
+    // answers that message instead of re-deriving one from thread history.
+    promptSlackTs: string;
+    projectMap: Map<string, string> | undefined;
+    shouldSkipForwardingQuery: boolean;
+}): (Block | KnownBlock)[] {
+    const { agents, promptSlackTs, projectMap, shouldSkipForwardingQuery } =
+        args;
+
     if (agents.length === 0) {
         return [
             {
@@ -1329,11 +1305,13 @@ export function getAgentSelectionBlocks(
         ];
     }
 
+    // Slack caps static_select option values at 150 chars, so keys are terse
+    // and the channel id is left out — the handler reads it off the click.
     const buildValue = (agent: AgentSelectOption) =>
         JSON.stringify({
-            agentUuid: agent.uuid,
-            channelId,
-            shouldSkipForwardingQuery,
+            a: agent.uuid,
+            s: shouldSkipForwardingQuery,
+            t: promptSlackTs,
         });
 
     return buildAgentSelectBlocks({

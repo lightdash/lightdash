@@ -15,10 +15,10 @@
 
 .inlineDropdowns :global(.mantine-Select-dropdown),
 .inlineDropdowns :global(.mantine-MultiSelect-dropdown),
-.inlineDropdowns :global(.mantine-8-Select-dropdown),
-.inlineDropdowns :global(.mantine-8-MultiSelect-dropdown),
-.inlineDropdowns :global(.mantine-8-TagsInput-dropdown),
-.inlineDropdowns :global(.mantine-8-Combobox-dropdown) {
+.inlineDropdowns :global(.mantine-Select-dropdown),
+.inlineDropdowns :global(.mantine-MultiSelect-dropdown),
+.inlineDropdowns :global(.mantine-TagsInput-dropdown),
+.inlineDropdowns :global(.mantine-Combobox-dropdown) {
     position: static !important;
     width: 100% !important;
     margin-top: 4px;

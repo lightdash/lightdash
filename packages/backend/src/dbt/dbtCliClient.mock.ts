@@ -10,6 +10,7 @@ export const cliArgs = {
     dbtProjectDirectory: 'dbtProjectDirectory',
     dbtProfilesDirectory: 'dbtProfilesDirectory',
     environment: {},
+    environmentVariableAllowlist: [],
     profileName: 'profileName',
     target: 'target',
 };

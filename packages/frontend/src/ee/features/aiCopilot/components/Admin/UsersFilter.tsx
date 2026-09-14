@@ -1,4 +1,4 @@
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconUser } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FilterFacet, {
@@ -72,13 +72,14 @@ const UsersFilter: FC<UsersFilterProps> = ({
             options={options}
             selected={selectedUserUuids}
             onChange={setSelectedUserUuids}
-            tooltipLabel="Filter threads by user"
+            tooltipLabel="Filter by user"
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             searchPlaceholder="Search users..."
             loading={isLoading}
             loadingMore={isFetching && !isLoading}
             onScrollEnd={handleScrollEnd}
+            enableSelectAll
             emptyLabel="No users found."
         />
     );

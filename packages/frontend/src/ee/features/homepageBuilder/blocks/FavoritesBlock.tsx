@@ -1,5 +1,5 @@
 import { ResourceViewItemType, type ResourceViewItem } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine/core';
 import {
     IconChartBar,
     IconFolder,
@@ -16,6 +16,7 @@ import { getResourceUrl } from '../../../../components/common/ResourceView/resou
 import TruncatedText from '../../../../components/common/TruncatedText';
 import { useFavoriteMutation } from '../../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../../hooks/favorites/useFavorites';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import layout from '../homepageLayout.module.css';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
@@ -38,17 +39,9 @@ const FavoritePills: FC<{
     /** Text shown when the user has no favorites. Pass `null` to render nothing
      * (used by the top-bar variant, which hides itself when empty). */
     emptyText: string | null;
-    maxVisible?: number;
-    wrap?: 'wrap' | 'nowrap';
     justify?: 'flex-start' | 'center';
-}> = ({
-    projectUuid,
-    isInteractive,
-    emptyText,
-    maxVisible = FAVORITES_DEFAULT_VISIBLE,
-    wrap = 'wrap',
-    justify = 'flex-start',
-}) => {
+}> = ({ projectUuid, isInteractive, emptyText, justify = 'flex-start' }) => {
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const { data: favorites } = useFavorites(projectUuid);
     const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
     const [expanded, setExpanded] = useState(false);
@@ -67,28 +60,29 @@ const FavoritePills: FC<{
         });
     };
 
+    const maxVisible = FAVORITES_DEFAULT_VISIBLE;
     const canTruncate = favorites.length > maxVisible;
     const visible =
         canTruncate && !expanded ? favorites.slice(0, maxVisible) : favorites;
     const hiddenCount = favorites.length - maxVisible;
 
     return (
-        <Group gap={8} wrap={expanded ? 'wrap' : wrap} justify={justify}>
+        <Group gap={8} wrap="wrap" justify={justify}>
             {visible.map((item) => (
                 <Link
                     key={item.data.uuid}
-                    to={getResourceUrl(projectUuid, item)}
+                    to={getResourceUrl(projectUuid, item, projectUrlIdentifier)}
                     className={classes.favPill}
                 >
                     <MantineIcon
                         icon={FAVORITE_ICONS[item.type] ?? IconChartBar}
                         size={15}
-                        color="ldGray.6"
+                        color="dimmed"
                     />
                     <TruncatedText
                         maxWidth={160}
                         inline
-                        fz={13}
+                        fz="sm"
                         fw={500}
                         c="inherit"
                     >

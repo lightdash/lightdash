@@ -1,13 +1,12 @@
 import { FeatureFlags } from '@lightdash/common';
 import {
     Anchor,
-    Box,
     Button,
     Card,
     Stack,
     Text,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCircleCheckFilled,
     IconConfetti,
@@ -16,10 +15,10 @@ import {
 import { type FC } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
+import AuthLayout from '../components/common/AuthLayout';
+import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
-import Page from '../components/common/Page/Page';
-import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
@@ -56,7 +55,7 @@ const VerificationSuccess: FC<{
                     <Text ta="center" fz="md" fw={500}>
                         Your email has been verified successfully.
                     </Text>
-                    <Text ta="center" fz="sm" c="ldGray.6">
+                    <Text ta="center" fz="sm" c="dimmed">
                         You can now start exploring your data.
                     </Text>
                 </Stack>
@@ -71,6 +70,7 @@ const VerifyEmailPage: FC = () => {
         !!health.data?.isAuthenticated,
     );
     const { show: showIntercom } = useIntercom();
+    const { isNewLayout } = useAuthLayoutVariant();
     const navigate = useNavigate();
     const emailOnlySignupFlag = useServerFeatureFlag(
         FeatureFlags.NewOnboarding,
@@ -91,37 +91,45 @@ const VerifyEmailPage: FC = () => {
     }
 
     return (
-        <Page title="Verify your email" withCenteredContent withNavbar={false}>
-            <Stack w={400} mt="4xl">
-                <Box mx="auto" my="lg">
-                    <LightdashLogo />
-                </Box>
-                <Card p="xl" withBorder shadow="subtle">
-                    <VerifyEmailForm
-                        emailStatusData={data}
-                        statusLoading={statusLoading}
-                    />
-                </Card>
-                <Text c="ldGray.6" ta="center" px="xs" fz="sm" fw={500}>
+        <AuthLayout
+            pageTitle="Verify your email"
+            withLegacyCard={false}
+            footer={
+                <Text c="dimmed" ta="center" px="xs" fz="sm" fw={500}>
                     You need to verify your email to get access to Lightdash. If
                     you need help, you can{' '}
                     <Anchor onClick={() => showIntercom()} fz="sm" fw={500}>
                         chat to support here.
                     </Anchor>
                 </Text>
-                {!isEmailOnlySignup && data && (
-                    <VerificationSuccess
-                        isOpen={data.isVerified}
-                        onClose={() => {
-                            void navigate('/');
-                        }}
-                        onContinue={() => {
-                            void navigate('/');
-                        }}
+            }
+        >
+            {isNewLayout ? (
+                <VerifyEmailForm
+                    emailStatusData={data}
+                    statusLoading={statusLoading}
+                    align="left"
+                />
+            ) : (
+                <Card p="xl">
+                    <VerifyEmailForm
+                        emailStatusData={data}
+                        statusLoading={statusLoading}
                     />
-                )}
-            </Stack>
-        </Page>
+                </Card>
+            )}
+            {!isEmailOnlySignup && data && (
+                <VerificationSuccess
+                    isOpen={data.isVerified}
+                    onClose={() => {
+                        void navigate('/');
+                    }}
+                    onContinue={() => {
+                        void navigate('/');
+                    }}
+                />
+            )}
+        </AuthLayout>
     );
 };
 

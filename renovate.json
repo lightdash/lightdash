@@ -98,6 +98,12 @@
       "enabled": false
     },
     {
+      "description": "Maintain the pinned upgrade-automation CLI",
+      "matchPackageNames": ["@lightdash/cli"],
+      "matchFileNames": ["examples/upgrade-automation/cli/package.json"],
+      "enabled": true
+    },
+    {
       "description": "Group AI/LLM packages",
       "groupName": "AI/LLM packages",
       "matchPackageNames": [

@@ -3,7 +3,7 @@ import {
     type GroupWithMembers,
     type UpdateGroupWithMembers,
 } from '@lightdash/common';
-import { Button, Loader, MultiSelect, Stack, TextInput } from '@mantine-8/core';
+import { Button, Loader, MultiSelect, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';

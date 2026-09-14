@@ -119,7 +119,7 @@ describe('summarizeRequiredFilters', () => {
         });
 
         expect(summarizeRequiredFilters(explore)).toBe(
-            '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]',
+            '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]. Required filter values are replaceable defaults, not fixed data limits; use a compatible query filter on the same field or a derived time dimension of that field when the requested scope differs.',
         );
     });
 });
@@ -424,5 +424,28 @@ describe('selectCandidateFields', () => {
         expect(
             selectCandidateFields(index, ['led']).map((field) => field.path),
         ).toEqual(['events/events_sales_led_flag']);
+    });
+});
+
+describe('buildFieldIndex parameter references', () => {
+    it('carries a field parameterReferences into the index entry', () => {
+        const explore = makeExplore({
+            name: 'orders',
+            fields: [{ name: 'selected_metric' }, { name: 'status' }],
+        });
+        explore.tables.orders.dimensions.selected_metric.parameterReferences = [
+            'orders.metric',
+        ];
+
+        const index = buildFieldIndex([explore]);
+        const parameterized = index.find(
+            (entry) => entry.path === 'orders/orders_selected_metric',
+        );
+        const plain = index.find(
+            (entry) => entry.path === 'orders/orders_status',
+        );
+
+        expect(parameterized?.requiredParameters).toEqual(['orders.metric']);
+        expect(plain?.requiredParameters).toEqual([]);
     });
 });

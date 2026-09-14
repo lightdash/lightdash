@@ -4,6 +4,7 @@ import App from '../../App';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import knexConfig from '../../knexfile';
 import { getEnterpriseAppArguments } from '../index';
+import { getConsolidateAgentMemoryScripts } from './scripts/consolidateAgentMemory';
 import { getListProjectsScripts } from './scripts/listProjects';
 import { getReviewClassifierScoreboardScripts } from './scripts/reviewClassifierScoreboard';
 
@@ -34,6 +35,7 @@ import { getReviewClassifierScoreboardScripts } from './scripts/reviewClassifier
         clients,
         database,
         scripts: {
+            ...getConsolidateAgentMemoryScripts(serviceRepository),
             ...getListProjectsScripts(database),
             ...getReviewClassifierScoreboardScripts(
                 database,

@@ -3,11 +3,14 @@ import {
     DimensionType,
     FilterOperator,
     FilterType,
+    MetricType,
+    parseAiArtifactChartConfig,
 } from '@lightdash/common';
+import type { AgentSelectOption } from './getSlackBlocks';
 import {
     buildFeedbackContextActions,
     buildSlackTaskUpdate,
-    getFollowUpToolBlocks,
+    getAgentSelectionBlocks,
     getMarkdownBlocks,
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
@@ -18,34 +21,29 @@ import {
 } from './getSlackBlocks';
 import { mockOrdersExplore } from './validationExplore.mock';
 
+const parseStoredChartConfig = (raw: unknown) => {
+    const parsed = parseAiArtifactChartConfig(raw);
+    if (parsed === null) throw new Error('Expected a valid chart config');
+    return parsed;
+};
+
+const parseStoredArtifact = <
+    const Artifact extends { artifactType: unknown; chartConfig: unknown },
+>(
+    artifact: Artifact,
+) => {
+    const { artifactType } = artifact;
+    if (artifactType !== 'chart' && artifactType !== 'dashboard') {
+        throw new Error('Expected a valid artifact type');
+    }
+    return {
+        ...artifact,
+        artifactType,
+        chartConfig: parseStoredChartConfig(artifact.chartConfig),
+    };
+};
+
 describe('Slack AI agent blocks', () => {
-    it('omits removed follow-up tools from artifact actions', () => {
-        const blocks = getFollowUpToolBlocks(
-            { promptUuid: 'prompt-1' } as never,
-            [
-                {
-                    chartConfig: {
-                        followUpTools: ['propose_change', 'table'],
-                    },
-                } as never,
-            ],
-        );
-
-        expect(blocks).toMatchObject([
-            { type: 'divider' },
-            { type: 'context' },
-            {
-                type: 'actions',
-                elements: [
-                    {
-                        action_id: 'execute_follow_up_tool.table',
-                    },
-                ],
-            },
-        ]);
-        expect(JSON.stringify(blocks)).not.toContain('propose_change');
-    });
-
     it('maps known tool names to readable task titles', () => {
         expect(getSlackToolTitle('runSql')).toBe('Reviewing SQL');
         expect(getSlackToolTitle('editDbtProject')).toBe(
@@ -340,6 +338,120 @@ describe('Slack AI agent blocks', () => {
         ]);
     });
 
+    it('renders filter expression artifacts with independent category connectors', async () => {
+        let sharedParams: string | undefined;
+        const queryConfig = {
+            exploreName: 'test_explore',
+            dimensions: ['orders_customer_name'],
+            metrics: ['orders_order_count'],
+            sorts: [],
+            limit: 500,
+            parameters: null,
+            customMetrics: null,
+            tableCalculations: null,
+        };
+        const artifact = parseStoredArtifact({
+            artifactUuid: 'artifact-1',
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            artifactType: 'chart',
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: 1,
+            versionUuid: 'version-1',
+            title: 'Orders by customer',
+            description: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+            verifiedByUserUuid: null,
+            verifiedAt: null,
+            chartConfig: {
+                source: 'semantic',
+                config: {
+                    title: 'Orders by customer',
+                    description: 'Orders by customer',
+                    queryConfig: {
+                        ...queryConfig,
+                        filters: {
+                            dimensions: {
+                                connector: 'and',
+                                rules: [
+                                    {
+                                        fieldId: 'orders_customer_name',
+                                        fieldType: DimensionType.STRING,
+                                        fieldFilterType: FilterType.STRING,
+                                        operator: FilterOperator.EQUALS,
+                                        values: ['Acme'],
+                                    },
+                                    {
+                                        fieldId: 'orders_product_category',
+                                        fieldType: DimensionType.STRING,
+                                        fieldFilterType: FilterType.STRING,
+                                        operator: FilterOperator.EQUALS,
+                                        values: ['Hardware'],
+                                    },
+                                ],
+                            },
+                            metrics: {
+                                connector: 'or',
+                                rules: [
+                                    {
+                                        fieldId: 'orders_total_revenue',
+                                        fieldType: MetricType.SUM,
+                                        fieldFilterType: FilterType.NUMBER,
+                                        operator: FilterOperator.GREATER_THAN,
+                                        values: [10],
+                                    },
+                                    {
+                                        fieldId: 'orders_order_count',
+                                        fieldType: MetricType.COUNT,
+                                        fieldFilterType: FilterType.NUMBER,
+                                        operator: FilterOperator.LESS_THAN,
+                                        values: [2],
+                                    },
+                                ],
+                            },
+                            tableCalculations: null,
+                        },
+                    },
+                    chartConfig: null,
+                    mergeConfig: null,
+                },
+            },
+        });
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async (_path, params) => {
+                sharedParams = params;
+                return 'https://lightdash.example.com/share/chart';
+            },
+            async () => mockOrdersExplore,
+            async () => true,
+            'agent-1',
+            [artifact],
+            [],
+        );
+
+        expect(blocks).toMatchObject([
+            { type: 'card', title: { text: 'Orders by customer' } },
+        ]);
+        const savedRaw = new URLSearchParams(sharedParams).get(
+            'create_saved_chart_version',
+        );
+        if (savedRaw === null) throw new Error('Expected saved chart state');
+        const saved = JSON.parse(savedRaw);
+        expect(saved.metricQuery.filters.dimensions).toHaveProperty('and');
+        expect(saved.metricQuery.filters.metrics).toHaveProperty('or');
+    });
+
     it('uses generateVisualization chart image URLs as card hero images', async () => {
         const blocks = await getModernArtifactCardBlocks(
             {
@@ -354,7 +466,7 @@ describe('Slack AI agent blocks', () => {
             async () => true,
             'agent-1',
             [
-                {
+                parseStoredArtifact({
                     artifactUuid: 'artifact-1',
                     threadUuid: 'thread-1',
                     promptUuid: 'prompt-1',
@@ -379,13 +491,14 @@ describe('Slack AI agent blocks', () => {
                             metrics: ['orders_unique_order_count'],
                             sorts: [],
                             limit: 500,
+                            parameters: null,
                             customMetrics: [],
                             tableCalculations: [],
                             filters: null,
                         },
                         chartConfig: null,
                     },
-                },
+                }),
             ],
             [
                 {
@@ -424,6 +537,192 @@ describe('Slack AI agent blocks', () => {
         ]);
     });
 
+    it('links custom chart type answers with a data app viz config and schema-derived pivot', async () => {
+        let sharedParams: string | undefined;
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async (_path, params) => {
+                sharedParams = params;
+                return 'https://lightdash.example.com/share/custom';
+            },
+            async () => ({}) as never,
+            async () => true,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Monthly Orders by Status',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        source: 'customChartType',
+                        schemaVersion: 1,
+                        dataAppVizUuid: 'data-app-viz-1',
+                        config: {
+                            title: 'Monthly Orders by Status',
+                            description: 'Orders by month and status',
+                            queryConfig: {
+                                exploreName: 'orders',
+                                dimensions: [
+                                    'orders_order_date_month',
+                                    'orders_status',
+                                ],
+                                metrics: ['orders_unique_order_count'],
+                                sorts: [],
+                                limit: 500,
+                                parameters: null,
+                                customMetrics: [],
+                                tableCalculations: [],
+                                filters: null,
+                            },
+                            chartConfig: {
+                                customChartTypeSlug: 'fuzzy-bar',
+                                fieldMapping: {
+                                    x: 'orders_order_date_month',
+                                    y: 'orders_unique_order_count',
+                                    series: 'orders_status',
+                                },
+                                options: null,
+                            },
+                        },
+                    },
+                },
+            ],
+            [],
+            async (dataAppVizUuid) => {
+                expect(dataAppVizUuid).toBe('data-app-viz-1');
+                return [
+                    {
+                        name: 'x',
+                        label: 'X',
+                        type: 'dimension',
+                        required: true,
+                    },
+                    { name: 'y', label: 'Y', type: 'metric', required: true },
+                    {
+                        name: 'series',
+                        label: 'Series',
+                        type: 'series',
+                        required: false,
+                    },
+                ];
+            },
+        );
+
+        expect(blocks).toHaveLength(1);
+        const savedRaw = new URLSearchParams(sharedParams).get(
+            'create_saved_chart_version',
+        );
+        expect(savedRaw).toBeTruthy();
+        const saved = JSON.parse(savedRaw!);
+        expect(saved.chartConfig).toEqual({
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid: 'data-app-viz-1',
+                fieldMapping: {
+                    x: 'orders_order_date_month',
+                    y: 'orders_unique_order_count',
+                    series: 'orders_status',
+                },
+            },
+        });
+        expect(saved.pivotConfig).toEqual({ columns: ['orders_status'] });
+    });
+
+    it('keeps the table fallback for custom chart type answers when the schema is unavailable', async () => {
+        let sharedParams: string | undefined;
+        await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async (_path, params) => {
+                sharedParams = params;
+                return 'https://lightdash.example.com/share/custom';
+            },
+            async () => ({}) as never,
+            async () => true,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Monthly Orders by Status',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        source: 'customChartType',
+                        schemaVersion: 1,
+                        dataAppVizUuid: 'data-app-viz-1',
+                        config: {
+                            title: 'Monthly Orders by Status',
+                            description: 'Orders by month and status',
+                            queryConfig: {
+                                exploreName: 'orders',
+                                dimensions: ['orders_order_date_month'],
+                                metrics: ['orders_unique_order_count'],
+                                sorts: [],
+                                limit: 500,
+                                parameters: null,
+                                customMetrics: [],
+                                tableCalculations: [],
+                                filters: null,
+                            },
+                            chartConfig: {
+                                customChartTypeSlug: 'fuzzy-bar',
+                                fieldMapping: {
+                                    x: 'orders_order_date_month',
+                                    y: 'orders_unique_order_count',
+                                },
+                                options: null,
+                            },
+                        },
+                    },
+                },
+            ],
+            [],
+            async () => null,
+        );
+
+        const saved = JSON.parse(
+            new URLSearchParams(sharedParams).get(
+                'create_saved_chart_version',
+            )!,
+        );
+        expect(saved.chartConfig.type).toBe(ChartType.TABLE);
+        expect(saved.pivotConfig).toBeUndefined();
+    });
+
     it('omits the hero but keeps the Open image button when the image URL is unreachable', async () => {
         const blocks = await getModernArtifactCardBlocks(
             {
@@ -438,7 +737,7 @@ describe('Slack AI agent blocks', () => {
             async () => false,
             'agent-1',
             [
-                {
+                parseStoredArtifact({
                     artifactUuid: 'artifact-1',
                     threadUuid: 'thread-1',
                     promptUuid: 'prompt-1',
@@ -463,13 +762,14 @@ describe('Slack AI agent blocks', () => {
                             metrics: ['orders_unique_order_count'],
                             sorts: [],
                             limit: 500,
+                            parameters: null,
                             customMetrics: [],
                             tableCalculations: [],
                             filters: null,
                         },
                         chartConfig: null,
                     },
-                },
+                }),
             ],
             [
                 {
@@ -533,6 +833,7 @@ describe('Slack AI agent blocks', () => {
                     metrics: ['orders_unique_order_count'],
                     sorts: [],
                     limit: 500,
+                    parameters: null,
                     customMetrics: [],
                     tableCalculations: [],
                     filters: null,
@@ -567,7 +868,7 @@ describe('Slack AI agent blocks', () => {
             async () => ({}) as never,
             async () => true,
             'agent-1',
-            [artifact],
+            [parseStoredArtifact(artifact)],
             [
                 attempt(
                     'call-1',
@@ -639,6 +940,7 @@ describe('Slack AI agent blocks', () => {
                     metrics: ['orders_unique_order_count'],
                     sorts: [],
                     limit: 500,
+                    parameters: null,
                     customMetrics: [],
                     tableCalculations: [],
                     filters: statusFilter(status),
@@ -678,7 +980,7 @@ describe('Slack AI agent blocks', () => {
                     'Completed orders by month',
                     'completed',
                 ),
-            ],
+            ].map(parseStoredArtifact),
             [
                 attempt('call-1', 'https://files.slack.com/placed.png'),
                 attempt('call-2', 'https://files.slack.com/shipped.png'),
@@ -742,6 +1044,7 @@ describe('Slack AI agent blocks', () => {
                     metrics: ['orders_unique_order_count'],
                     sorts: [],
                     limit: 500,
+                    parameters: null,
                     customMetrics: [],
                     tableCalculations: [],
                     filters: statusFilter('completed'),
@@ -777,7 +1080,7 @@ describe('Slack AI agent blocks', () => {
                 retryVersion('version-1'),
                 retryVersion('version-2'),
                 retryVersion('version-3'),
-            ],
+            ].map(parseStoredArtifact),
             [
                 attempt('call-1', 'https://files.slack.com/attempt-1.png'),
                 attempt('call-2', 'https://files.slack.com/attempt-2.png'),
@@ -823,6 +1126,7 @@ describe('Slack AI agent blocks', () => {
                     metrics: ['orders_unique_order_count'],
                     sorts: [],
                     limit: 500,
+                    parameters: null,
                     customMetrics: [],
                     tableCalculations: [],
                     filters: statusFilter('completed'),
@@ -846,7 +1150,7 @@ describe('Slack AI agent blocks', () => {
             [
                 retryVersion('version-1', 'day'),
                 retryVersion('version-2', 'month'),
-            ],
+            ].map(parseStoredArtifact),
             [],
         );
 
@@ -884,6 +1188,7 @@ describe('Slack AI agent blocks', () => {
                     metrics: ['orders_unique_order_count'],
                     sorts: [],
                     limit: 500,
+                    parameters: null,
                     customMetrics: [],
                     tableCalculations: [],
                     filters: statusFilter(status),
@@ -907,7 +1212,7 @@ describe('Slack AI agent blocks', () => {
             [
                 chartVersion('version-1', 'Placed orders', 'placed'),
                 chartVersion('version-2', 'Completed orders', 'completed'),
-            ],
+            ].map(parseStoredArtifact),
             [],
         );
 
@@ -966,6 +1271,7 @@ describe('Slack AI agent blocks', () => {
                     metrics: ['orders_unique_order_count'],
                     sorts: [],
                     limit: 500,
+                    parameters: null,
                     customMetrics: [],
                     tableCalculations: [],
                     filters: null,
@@ -992,7 +1298,7 @@ describe('Slack AI agent blocks', () => {
             [
                 chartVersion('version-1', 'line', 'line'),
                 chartVersion('version-2', 'bar', null),
-            ],
+            ].map(parseStoredArtifact),
             [],
         );
 
@@ -1024,7 +1330,7 @@ describe('Slack AI agent blocks', () => {
             async () => true,
             'agent-1',
             [
-                {
+                parseStoredArtifact({
                     artifactUuid: 'artifact-1',
                     threadUuid: 'thread-1',
                     promptUuid: 'prompt-1',
@@ -1049,6 +1355,7 @@ describe('Slack AI agent blocks', () => {
                             metrics: ['orders_order_count'],
                             sorts: [],
                             limit: 500,
+                            parameters: null,
                             customMetrics: [],
                             tableCalculations: [],
                             filters: null,
@@ -1067,7 +1374,7 @@ describe('Slack AI agent blocks', () => {
                             secondaryYAxisMetric: null,
                         },
                     },
-                },
+                }),
             ],
             [],
         );
@@ -1107,7 +1414,7 @@ describe('Slack AI agent blocks', () => {
             async () => true,
             'agent-1',
             [
-                {
+                parseStoredArtifact({
                     artifactUuid: 'artifact-1',
                     threadUuid: 'thread-1',
                     promptUuid: 'prompt-1',
@@ -1132,13 +1439,14 @@ describe('Slack AI agent blocks', () => {
                             metrics: ['orders_order_count'],
                             sorts: [],
                             limit: 500,
+                            parameters: null,
                             customMetrics: [],
                             tableCalculations: [],
                             filters: null,
                         },
                         chartConfig: null,
                     },
-                },
+                }),
             ],
             [],
         );
@@ -1169,7 +1477,7 @@ describe('Slack AI agent blocks', () => {
             async () => true,
             'agent-1',
             [
-                {
+                parseStoredArtifact({
                     artifactUuid: 'artifact-1',
                     threadUuid: 'thread-1',
                     promptUuid: 'prompt-1',
@@ -1194,13 +1502,14 @@ describe('Slack AI agent blocks', () => {
                             metrics: ['orders_order_count'],
                             sorts: [],
                             limit: 500,
+                            parameters: null,
                             customMetrics: [],
                             tableCalculations: [],
                             filters: null,
                         },
                         chartConfig: null,
                     },
-                },
+                }),
             ],
             [],
         );
@@ -1367,6 +1676,104 @@ describe('Slack AI agent blocks', () => {
                 createSqlRunnerShareUrl,
             );
             expect(blocks).toEqual([]);
+        });
+    });
+
+    describe('getAgentSelectionBlocks', () => {
+        const agents: AgentSelectOption[] = [
+            { uuid: 'agent-1', name: 'Agent one', projectUuid: 'project-1' },
+            { uuid: 'agent-2', name: 'Agent two', projectUuid: 'project-2' },
+        ];
+
+        const getOptions = (blocks: unknown[]) => {
+            const actions = blocks[1] as {
+                elements: [
+                    {
+                        options?: { value: string }[];
+                        option_groups?: { options: { value: string }[] }[];
+                    },
+                ];
+            };
+            const element = actions.elements[0];
+            return (
+                element.options ??
+                element.option_groups?.flatMap((group) => group.options) ??
+                []
+            );
+        };
+
+        const getOptionValues = (blocks: unknown[]) =>
+            getOptions(blocks).map(
+                (option) => JSON.parse(option.value) as Record<string, unknown>,
+            );
+
+        it('carries the triggering message ts on every option', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents,
+                promptSlackTs: '1700000000.000300',
+                projectMap: undefined,
+                shouldSkipForwardingQuery: false,
+            });
+
+            expect(getOptionValues(blocks)).toEqual([
+                { a: 'agent-1', s: false, t: '1700000000.000300' },
+                { a: 'agent-2', s: false, t: '1700000000.000300' },
+            ]);
+        });
+
+        it('carries the triggering message ts when options are grouped by project', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents,
+                promptSlackTs: '1700000000.000300',
+                projectMap: new Map([
+                    ['project-1', 'Project one'],
+                    ['project-2', 'Project two'],
+                ]),
+                shouldSkipForwardingQuery: true,
+            });
+
+            expect(getOptionValues(blocks)).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        t: '1700000000.000300',
+                        s: true,
+                    }),
+                ]),
+            );
+            expect(getOptionValues(blocks)).toHaveLength(2);
+        });
+
+        it('keeps the option value under the 150 character Slack cap at worst case', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents: [
+                    {
+                        uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+                        name: 'An agent with a very long display name indeed',
+                        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+                    },
+                ],
+                promptSlackTs: '1700000000.000300',
+                projectMap: undefined,
+                shouldSkipForwardingQuery: false,
+            });
+
+            for (const option of getOptions(blocks)) {
+                expect(option.value.length).toBeLessThan(150);
+            }
+        });
+
+        it('leaves the channel id out so long channel ids cannot overflow the cap', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents,
+                promptSlackTs: '1700000000.000300',
+                projectMap: undefined,
+                shouldSkipForwardingQuery: false,
+            });
+
+            for (const option of getOptions(blocks)) {
+                expect(option.value).not.toContain('channelId');
+                expect(JSON.parse(option.value)).not.toHaveProperty('c');
+            }
         });
     });
 });

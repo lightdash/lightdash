@@ -1,17 +1,10 @@
-import {
-    Badge,
-    Box,
-    Divider,
-    Group,
-    Loader,
-    Stack,
-    Text,
-} from '@mantine-8/core';
+import { Badge, Box, Divider, Group, Loader, Stack, Text } from '@mantine/core';
 import { IconCheck, IconClipboardList, IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentEvaluationRunResults } from '../../hooks/useAiAgentEvaluations';
 import { ToolCallPaper } from '../ChatElements/ToolCalls/ToolCallPaper';
+import classes from './EvalAssessmentDisplay.module.css';
 import { getAssessmentConfig } from './utils';
 
 type EvalAssessmentDisplayProps = {
@@ -93,7 +86,7 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
                     {assessment.reason && (
                         <Text
                             size="xs"
-                            style={{ whiteSpace: 'pre-wrap' }}
+                            className={classes.assessmentText}
                             mt="xs"
                         >
                             {assessment.reason}
@@ -106,7 +99,7 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
                             </Text>
                             <Text
                                 size="xs"
-                                style={{ whiteSpace: 'pre-wrap' }}
+                                className={classes.assessmentText}
                                 fs="italic"
                             >
                                 {expectedResponse}

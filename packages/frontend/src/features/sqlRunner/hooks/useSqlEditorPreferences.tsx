@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { useLocalStorage } from '@mantine-8/hooks';
+import { useLocalStorage } from '@mantine/hooks';
 
 export type SqlEditorPreferences = {
     quotePreference: 'always' | 'never';

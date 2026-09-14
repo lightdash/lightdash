@@ -1,5 +1,6 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { ReviewKanbanBoard } from './ReviewKanbanBoard';
@@ -132,5 +133,18 @@ describe('ReviewKanbanBoard', () => {
             '[data-tour="reviews-pr"]',
         ) as HTMLButtonElement | null;
         expect(startButton?.disabled).toBe(true);
+    });
+
+    it('filters board cards by status', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<ReviewKanbanBoard onReviewItemSelect={vi.fn()} />);
+
+        await user.click(screen.getByRole('button', { name: 'Status' }));
+        await user.click(screen.getByRole('button', { name: 'Done 1' }));
+
+        expect(
+            screen.queryByText('Triage correction signal'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText('All done')).toBeInTheDocument();
     });
 });

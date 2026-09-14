@@ -1,4 +1,4 @@
-import { SimpleGrid, Stack, Text } from '@mantine-8/core';
+import { SimpleGrid, Stack, Text } from '@mantine/core';
 import shuffle from 'lodash/shuffle';
 import { useMemo, type FC } from 'react';
 import { PolymorphicPaperButton } from '../../../../../components/common/PolymorphicPaperButton';

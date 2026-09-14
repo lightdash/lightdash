@@ -1,4 +1,4 @@
-import { Box, Flex, Text, Button } from '@mantine-8/core';
+import { Box, Flex, Text, Button } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import {
@@ -34,6 +34,7 @@ type SimpleTableProps = {
     minimal?: boolean;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
+    enableContextMenu?: boolean;
 };
 
 const SimpleTable: FC<SimpleTableProps> = ({
@@ -44,6 +45,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     minimal = false,
     onScreenshotReady,
     onScreenshotError,
+    enableContextMenu = true,
     ...rest
 }) => {
     const {
@@ -106,8 +108,21 @@ const SimpleTable: FC<SimpleTableProps> = ({
         if (!onScreenshotReady && !onScreenshotError) return;
         if (!isTableVisualizationConfig(visualizationConfig)) return;
 
-        const { pivotTableData, isPivotTableEnabled } =
-            visualizationConfig.chartConfig;
+        const {
+            pivotTableData,
+            isPivotTableEnabled,
+            isCalculatingColumnTotals,
+            isCalculatingRowTotals,
+            isCalculatingRowSubtotals,
+            isCalculatingGrandTotals,
+            isCalculatingSubtotals,
+        } = visualizationConfig.chartConfig;
+        const isCalculatingAnyTotals =
+            isCalculatingColumnTotals ||
+            isCalculatingRowTotals ||
+            isCalculatingRowSubtotals ||
+            isCalculatingGrandTotals ||
+            isCalculatingSubtotals;
 
         if (pivotTableData.error) {
             onScreenshotError?.();
@@ -116,7 +131,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
         }
 
         if (isPivotTableEnabled) {
-            if (pivotTableData.data && resultsData?.hasFetchedAllRows) {
+            if (
+                pivotTableData.data &&
+                resultsData?.hasFetchedAllRows &&
+                !isCalculatingAnyTotals
+            ) {
                 onScreenshotReady?.();
                 hasSignaledScreenshotReady.current = true;
             }
@@ -320,6 +339,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 className={className}
                                 data={pivotTableData.data}
                                 isMinimal={minimal}
+                                enableContextMenu={enableContextMenu}
                                 isDashboard={isDashboard}
                                 conditionalFormattings={conditionalFormattings}
                                 minMaxMap={minMaxMap}
@@ -356,6 +376,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 className={className}
                                 data={pivotTableData.data}
                                 isMinimal={minimal}
+                                enableContextMenu={enableContextMenu}
                                 isDashboard={isDashboard}
                                 conditionalFormattings={conditionalFormattings}
                                 minMaxMap={minMaxMap}
@@ -431,8 +452,12 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     visualizationConfig.chartConfig.columnProperties
                 }
                 footer={pagination}
-                headerContextMenu={headerContextMenu}
-                cellContextMenu={cellContextMenu}
+                headerContextMenu={
+                    enableContextMenu ? headerContextMenu : undefined
+                }
+                cellContextMenu={
+                    enableContextMenu ? cellContextMenu : undefined
+                }
                 pagination={{ showResultsTotal }}
                 {...rest}
             />

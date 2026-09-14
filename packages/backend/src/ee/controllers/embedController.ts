@@ -4,6 +4,8 @@ import {
     AnyType,
     ApiCalculateSubtotalsResponse,
     ApiCalculateTotalResponse,
+    ApiDataAppVizPreviewTokenResponse,
+    ApiDataAppVizRenderMetadataResponse,
     ApiErrorPayload,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
@@ -71,6 +73,7 @@ export type ApiEmbedDashboardResponse = {
         dashboardFiltersInteractivity?: CommonEmbedJwtContent['dashboardFiltersInteractivity'];
         parameterInteractivity?: CommonEmbedJwtContent['parameterInteractivity'];
         canExportCsv?: boolean;
+        canExportDashboardCsv?: boolean;
         canExportImages?: boolean;
         canExportPagePdf?: boolean;
         canDateZoom?: boolean;
@@ -613,6 +616,7 @@ export class EmbedController extends BaseController {
             tableName?: string;
             fieldId?: string;
             timezone?: string;
+            parameters?: ParametersValuesMap;
         },
     ): Promise<{
         status: 'ok';
@@ -627,6 +631,7 @@ export class EmbedController extends BaseController {
             tableName,
             fieldId,
             timezone,
+            parameters,
         } = body;
 
         assertEmbeddedAuth(req.account);
@@ -642,6 +647,7 @@ export class EmbedController extends BaseController {
             tableName,
             fieldId,
             timezone,
+            parameters,
         });
         return {
             status: 'ok',
@@ -751,6 +757,64 @@ export class EmbedController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * @summary Get embedded data app visualization render metadata
+     */
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/chart/{savedChartUuid}/visualizations/{dataAppVizUuid}/render-metadata',
+    )
+    @OperationId('getEmbedDataAppVizRenderMetadata')
+    async getEmbedDataAppVizRenderMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() savedChartUuid: string,
+        @Path() dataAppVizUuid: string,
+    ): Promise<ApiDataAppVizRenderMetadataResponse> {
+        assertEmbeddedAuth(req.account);
+        const results =
+            await this.getEmbedService().getEmbedDataAppVizRenderMetadata(
+                req.account,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * @summary Get an embedded data app visualization preview token
+     */
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/chart/{savedChartUuid}/visualizations/{dataAppVizUuid}/versions/{version}/preview-token',
+    )
+    @OperationId('getEmbedDataAppVizPreviewToken')
+    async getEmbedDataAppVizPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() savedChartUuid: string,
+        @Path() dataAppVizUuid: string,
+        @Path() version: number,
+    ): Promise<ApiDataAppVizPreviewTokenResponse> {
+        assertEmbeddedAuth(req.account);
+        const token =
+            await this.getEmbedService().getEmbedDataAppVizPreviewToken(
+                req.account,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+                version,
+            );
+        return {
+            status: 'ok',
+            results: { token },
         };
     }
 

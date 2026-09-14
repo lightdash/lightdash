@@ -1,4 +1,4 @@
-import { CloseButton } from '@mantine-8/core';
+import { CloseButton } from '@mantine/core';
 import { type ComponentPropsWithoutRef, type FC } from 'react';
 import classes from './TagPill.module.css';
 

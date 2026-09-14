@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     getEmailSchema,
+    getUserNameSchema,
     InviteLinkPurpose,
     OrganizationMemberRole,
 } from '@lightdash/common';
@@ -16,14 +17,15 @@ import {
     Text,
     TextInput,
     Title,
-} from '@mantine-8/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+} from '@mantine/core';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { captureException } from '@sentry/react';
 import {
     IconArrowLeft,
     IconInfoCircle,
     IconUserPlus,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import {
     useCallback,
     useEffect,
@@ -177,12 +179,8 @@ const OnboardingInviteExpert: FC = () => {
         },
         validate: zodResolver(
             z.object({
-                firstName: needsName
-                    ? z.string().trim().min(1, 'Required')
-                    : z.string(),
-                lastName: needsName
-                    ? z.string().trim().min(1, 'Required')
-                    : z.string(),
+                firstName: needsName ? getUserNameSchema() : z.string(),
+                lastName: needsName ? getUserNameSchema() : z.string(),
                 email: getEmailSchema(),
             }),
         ),
@@ -366,7 +364,6 @@ const OnboardingInviteExpert: FC = () => {
                         <Title
                             order={1}
                             ta="center"
-                            fw={700}
                             ref={titleRef}
                             tabIndex={-1}
                             className={classes.title}
@@ -396,15 +393,10 @@ const OnboardingInviteExpert: FC = () => {
             <DocumentTitle title="Invite an expert" />
             <Box className={classes.column}>
                 <Stack align="center" gap="xs">
-                    <MantineIcon
-                        icon={IconUserPlus}
-                        size="xl"
-                        color="ldGray.6"
-                    />
+                    <MantineIcon icon={IconUserPlus} size="xl" color="dimmed" />
                     <Title
                         order={1}
                         ta="center"
-                        fw={700}
                         ref={titleRef}
                         tabIndex={-1}
                         className={classes.title}
@@ -417,12 +409,7 @@ const OnboardingInviteExpert: FC = () => {
                     </Text>
                 </Stack>
 
-                <Paper
-                    withBorder
-                    shadow="subtle"
-                    radius="md"
-                    className={classes.card}
-                >
+                <Paper radius="md" className={classes.card}>
                     {isPreparingPlayground || isEnteringPlayground ? (
                         <PreparingPlaygroundCard />
                     ) : playgroundFailure ? (

@@ -1,5 +1,5 @@
 import { ProjectType } from '@lightdash/common';
-import { Flex, Stack, Button, Select } from '@mantine-8/core';
+import { Flex, Stack, Button, Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useEffect, type FC } from 'react';
 import { z } from 'zod';
@@ -60,7 +60,13 @@ const DefaultProjectPanel: FC = () => {
                     key={form.values.defaultProjectUuid}
                     label="Project name"
                     data={projects
-                        .filter(({ type }) => type !== ProjectType.PREVIEW)
+                        // Neither previews nor the training playground can
+                        // be the org's landing project.
+                        .filter(
+                            ({ type }) =>
+                                type !== ProjectType.PREVIEW &&
+                                type !== ProjectType.TRAINING,
+                        )
                         .map((project) => ({
                             value: project.projectUuid,
                             label: project.name,

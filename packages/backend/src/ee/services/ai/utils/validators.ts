@@ -7,20 +7,29 @@ import {
     convertAdditionalMetric,
     convertAiTableCalcsSchemaToTableCalcs,
     CustomMetricBaseTransformed,
+    DataAppVizConfigOption,
+    DataAppVizSchema,
     dateFilterSchema,
     DEFAULT_FILTER_CASE_SENSITIVE,
     DependencyNode,
     detectCircularDependencies,
     Explore,
+    FilterOperator,
     FilterRule,
     Filters,
     FilterType,
+    formatFilterExamplesAsJsonLines,
     getCustomMetricType,
     getErrorMessage,
+    getExploreParameterDefinitions,
+    getExploreParameterReferences,
     getFields,
+    getFilterExamples,
     getFilterRulesFromGroup,
     getFilterTypeFromItemType,
     getItemId,
+    getItemLabelWithoutTableName,
+    getParameterOptionValues,
     isAdditionalMetric,
     isDimension,
     isMetric,
@@ -29,6 +38,8 @@ import {
     MetricType,
     nullaryWindowFunctions,
     numberFilterSchema,
+    ParameterDefinitions,
+    ParametersValuesMap,
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
@@ -37,12 +48,17 @@ import {
     TableCalcSchema,
     TableCalcsSchema,
     TableCalculation,
-    ToolRunQueryArgsTransformed,
+    ToolRunQueryBuiltinChartConfig,
+    ToolRunQueryCustomChartTypeConfig,
     ToolSortField,
     TransformedCustomMetric,
+    UnitOfTime,
     WeekDay,
     WindowFunctionType,
+    withLeadingEquals,
 } from '@lightdash/common';
+import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
+import { z } from 'zod';
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 import { serializeData } from './serializeData';
@@ -183,6 +199,299 @@ export function validateCustomMetricsDefinition(
     }
 }
 
+const getAvailableFilterOperators = (
+    filterType: FilterType,
+): FilterOperator[] =>
+    Array.from(
+        new Set(
+            getFilterExamples({
+                fieldId: 'field_id',
+                fieldType: filterType,
+                fieldFilterType: filterType,
+            }).map((example) => example.operator),
+        ),
+    );
+
+const stringifyReceivedValue = (value: unknown): string => {
+    try {
+        return JSON.stringify(value) ?? String(value);
+    } catch {
+        return String(value);
+    }
+};
+
+const getFilterFieldLabel = (
+    field: CompiledField | AdditionalMetric | TableCalculation,
+): string => {
+    const label = isAdditionalMetric(field)
+        ? field.label
+        : getItemLabelWithoutTableName(field);
+
+    return label || getItemId(field);
+};
+
+const valuesDescription = (values: unknown): string =>
+    values === undefined ? 'omitted' : stringifyReceivedValue(values);
+
+const settingsDescription = (settings: unknown): string =>
+    settings === undefined ? 'undefined' : stringifyReceivedValue(settings);
+
+const isPresenceFilterOperator = (operator: FilterOperator): boolean =>
+    [FilterOperator.NULL, FilterOperator.NOT_NULL].includes(operator);
+
+const shouldIncludeFilterValues = (filterRule: FilterRule): boolean =>
+    filterRule.values !== undefined &&
+    (!isPresenceFilterOperator(filterRule.operator) ||
+        !Array.isArray(filterRule.values) ||
+        filterRule.values.length > 0);
+
+const hasOnlyValuesOfType = (
+    values: unknown,
+    valueType: 'boolean' | 'number' | 'string',
+): boolean =>
+    Array.isArray(values) &&
+    values.every((value) => typeof value === valueType);
+
+const hasLength = (values: unknown, length: number): boolean =>
+    Array.isArray(values) && values.length === length;
+
+const relativeDateUnitSchema = z.union([
+    z.literal(UnitOfTime.days),
+    z.literal(UnitOfTime.weeks),
+    z.literal(UnitOfTime.months),
+    z.literal(UnitOfTime.quarters),
+    z.literal(UnitOfTime.years),
+]);
+
+const dateSettingsSchema = z
+    .object({
+        completed: z.boolean(),
+        unitOfTime: relativeDateUnitSchema,
+    })
+    .strict();
+
+const currentDateSettingsSchema = z
+    .object({
+        completed: z.literal(false),
+        unitOfTime: relativeDateUnitSchema,
+    })
+    .strict();
+
+const dateOrDateTimeSchema = z.union([
+    z.string().date(),
+    z.string().datetime(),
+]);
+
+const hasDateSettings = (settings: unknown): boolean =>
+    dateSettingsSchema.safeParse(settings).success;
+
+const hasCurrentDateSettings = (settings: unknown): boolean =>
+    currentDateSettingsSchema.safeParse(settings).success;
+
+const isIsoDateOrDateTime = (value: unknown): value is string =>
+    dateOrDateTimeSchema.safeParse(value).success;
+
+const hasOnlyIsoDateValues = (values: unknown): boolean =>
+    Array.isArray(values) && values.every(isIsoDateOrDateTime);
+
+const hasCurrentDateValue = (values: unknown): boolean =>
+    Array.isArray(values) && values.length === 1 && values[0] === 1;
+
+const getFilterRuleProblem = (
+    filterRule: FilterRule,
+    filterType: FilterType,
+): string => {
+    const availableOperators = getAvailableFilterOperators(filterType);
+
+    if (!availableOperators.includes(filterRule.operator)) {
+        return `"${filterRule.operator}" is not available for ${filterType} fields. Available operators: ${availableOperators.join(', ')}.`;
+    }
+
+    if (
+        isPresenceFilterOperator(filterRule.operator) &&
+        (shouldIncludeFilterValues(filterRule) ||
+            filterRule.settings !== undefined)
+    ) {
+        return `"${filterRule.operator}" is a presence operator and must not include values or settings. Received values=${valuesDescription(filterRule.values)} settings=${settingsDescription(filterRule.settings)}.`;
+    }
+
+    if (filterType !== FilterType.DATE && filterRule.settings !== undefined) {
+        return `"settings" is only valid for relative or current date filters. Remove settings from this ${filterType} filter. Received settings=${settingsDescription(filterRule.settings)}.`;
+    }
+
+    if (
+        filterType === FilterType.DATE &&
+        ![
+            FilterOperator.IN_THE_PAST,
+            FilterOperator.NOT_IN_THE_PAST,
+            FilterOperator.IN_THE_NEXT,
+            FilterOperator.IN_THE_CURRENT,
+            FilterOperator.NOT_IN_THE_CURRENT,
+        ].includes(filterRule.operator) &&
+        filterRule.settings !== undefined
+    ) {
+        return `"settings" is only valid for relative or current date filters. Remove settings when using "${filterRule.operator}". Received settings=${settingsDescription(filterRule.settings)}.`;
+    }
+
+    switch (filterType) {
+        case FilterType.BOOLEAN:
+            if (
+                [FilterOperator.EQUALS, FilterOperator.NOT_EQUALS].includes(
+                    filterRule.operator,
+                ) &&
+                (!hasLength(filterRule.values, 1) ||
+                    !hasOnlyValuesOfType(filterRule.values, 'boolean'))
+            ) {
+                return `"${filterRule.operator}" is a valid boolean operator, but values must be an array with exactly one boolean. Received ${valuesDescription(filterRule.values)}.`;
+            }
+            break;
+        case FilterType.STRING:
+            if (
+                ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
+                    filterRule.operator,
+                ) &&
+                !hasOnlyValuesOfType(filterRule.values, 'string')
+            ) {
+                return `"${filterRule.operator}" is a valid string operator, but values must be an array of strings. Received ${valuesDescription(filterRule.values)}.`;
+            }
+            break;
+        case FilterType.NUMBER:
+            if (
+                [
+                    FilterOperator.LESS_THAN,
+                    FilterOperator.LESS_THAN_OR_EQUAL,
+                    FilterOperator.GREATER_THAN,
+                    FilterOperator.GREATER_THAN_OR_EQUAL,
+                ].includes(filterRule.operator) &&
+                (!hasLength(filterRule.values, 1) ||
+                    !hasOnlyValuesOfType(filterRule.values, 'number'))
+            ) {
+                return `"${filterRule.operator}" is a valid number operator, but values must be an array with exactly one number. Received ${valuesDescription(filterRule.values)}.`;
+            }
+
+            if (
+                [
+                    FilterOperator.IN_BETWEEN,
+                    FilterOperator.NOT_IN_BETWEEN,
+                ].includes(filterRule.operator) &&
+                (!hasLength(filterRule.values, 2) ||
+                    !hasOnlyValuesOfType(filterRule.values, 'number'))
+            ) {
+                return `"${filterRule.operator}" is a valid number operator, but values must be an array with exactly two numbers. Received ${valuesDescription(filterRule.values)}.`;
+            }
+
+            if (
+                [FilterOperator.EQUALS, FilterOperator.NOT_EQUALS].includes(
+                    filterRule.operator,
+                ) &&
+                !hasOnlyValuesOfType(filterRule.values, 'number')
+            ) {
+                return `"${filterRule.operator}" is a valid number operator, but values must be an array of numbers. Received ${valuesDescription(filterRule.values)}.`;
+            }
+            break;
+        case FilterType.DATE:
+            if (
+                [FilterOperator.EQUALS, FilterOperator.NOT_EQUALS].includes(
+                    filterRule.operator,
+                ) &&
+                !hasOnlyIsoDateValues(filterRule.values)
+            ) {
+                return `"${filterRule.operator}" is a valid date operator, but values must be ISO date/datetime strings. Received ${valuesDescription(filterRule.values)}.`;
+            }
+
+            if (
+                [
+                    FilterOperator.LESS_THAN,
+                    FilterOperator.LESS_THAN_OR_EQUAL,
+                    FilterOperator.GREATER_THAN,
+                    FilterOperator.GREATER_THAN_OR_EQUAL,
+                ].includes(filterRule.operator) &&
+                (!hasLength(filterRule.values, 1) ||
+                    !hasOnlyIsoDateValues(filterRule.values))
+            ) {
+                return `"${filterRule.operator}" is a valid date operator, but values must be an array with exactly one ISO date/datetime string. Received ${valuesDescription(filterRule.values)}.`;
+            }
+
+            if (
+                filterRule.operator === FilterOperator.IN_BETWEEN &&
+                (!hasLength(filterRule.values, 2) ||
+                    !hasOnlyIsoDateValues(filterRule.values))
+            ) {
+                return `"${filterRule.operator}" is a valid date operator, but values must be an array with exactly two ISO date/datetime strings. Received ${valuesDescription(filterRule.values)}.`;
+            }
+
+            if (
+                [
+                    FilterOperator.IN_THE_CURRENT,
+                    FilterOperator.NOT_IN_THE_CURRENT,
+                ].includes(filterRule.operator) &&
+                (!hasCurrentDateValue(filterRule.values) ||
+                    !hasCurrentDateSettings(filterRule.settings))
+            ) {
+                return `"${filterRule.operator}" is a valid date operator, but values must be [1] and settings must include completed=false and unitOfTime. Received values=${valuesDescription(filterRule.values)} settings=${settingsDescription(filterRule.settings)}.`;
+            }
+
+            if (
+                [
+                    FilterOperator.IN_THE_PAST,
+                    FilterOperator.NOT_IN_THE_PAST,
+                    FilterOperator.IN_THE_NEXT,
+                ].includes(filterRule.operator) &&
+                (!hasLength(filterRule.values, 1) ||
+                    !hasOnlyValuesOfType(filterRule.values, 'number') ||
+                    !hasDateSettings(filterRule.settings))
+            ) {
+                return `"${filterRule.operator}" is a valid date operator, but values must be one number and settings must include completed and unitOfTime. Received values=${valuesDescription(filterRule.values)} settings=${settingsDescription(filterRule.settings)}.`;
+            }
+            break;
+        default:
+            return assertUnreachable(
+                filterType,
+                `Invalid field type: ${filterType}`,
+            );
+    }
+
+    return `The filter JSON does not match any supported ${filterType} filter combination.`;
+};
+
+const formatFilterRuleValidationError = (
+    filterRule: FilterRule,
+    field: CompiledField | AdditionalMetric | TableCalculation,
+    filterType: FilterType,
+): string => {
+    const examples = formatFilterExamplesAsJsonLines(
+        getFilterExamples({
+            fieldId: filterRule.target.fieldId,
+            fieldType: field.type ?? filterType,
+            fieldFilterType: filterType,
+        }),
+    );
+
+    return `Invalid filter for field "${filterRule.target.fieldId}" (${getFilterFieldLabel(field)}).
+
+Problem: ${getFilterRuleProblem(filterRule, filterType)}
+
+For ${filterType} fields, these are all available filter combinations:
+${examples}`;
+};
+
+const getFilterSchemaInput = (
+    filterRule: FilterRule,
+    field: CompiledField | AdditionalMetric | TableCalculation,
+    fieldFilterType: FilterType,
+) => ({
+    fieldId: filterRule.target.fieldId,
+    fieldType: field.type,
+    fieldFilterType,
+    operator: filterRule.operator,
+    ...(shouldIncludeFilterValues(filterRule)
+        ? { values: filterRule.values }
+        : {}),
+    ...(filterRule.settings !== undefined
+        ? { settings: filterRule.settings }
+        : {}),
+});
+
 function validateFilterRule(
     filterRule: FilterRule,
     field: CompiledField | AdditionalMetric | TableCalculation,
@@ -195,66 +504,65 @@ function validateFilterRule(
 
     switch (filterType) {
         case FilterType.BOOLEAN:
-            const parsedBooleanFilterRule = booleanFilterSchema.safeParse({
-                fieldId: filterRule.target.fieldId,
-                fieldType: field.type,
-                fieldFilterType: 'boolean',
-                operator: filterRule.operator,
-                values: filterRule.values,
-            });
+            const parsedBooleanFilterRule = booleanFilterSchema.safeParse(
+                getFilterSchemaInput(filterRule, field, FilterType.BOOLEAN),
+            );
 
             if (!parsedBooleanFilterRule.success) {
                 throw new AiAgentValidatorError(
-                    `Expected boolean filter rule for field ${filterRule.target.fieldId}. Error: ${parsedBooleanFilterRule.error.message}`,
+                    formatFilterRuleValidationError(
+                        filterRule,
+                        field,
+                        FilterType.BOOLEAN,
+                    ),
                 );
             }
 
             break;
         case FilterType.DATE:
-            const parsedDateFilterRule = dateFilterSchema.safeParse({
-                fieldId: filterRule.target.fieldId,
-                fieldType: field.type,
-                fieldFilterType: 'date',
-                operator: filterRule.operator,
-                values: filterRule.values,
-                settings: filterRule.settings,
-            });
+            const parsedDateFilterRule = dateFilterSchema.safeParse(
+                getFilterSchemaInput(filterRule, field, FilterType.DATE),
+            );
 
             if (!parsedDateFilterRule.success) {
                 throw new AiAgentValidatorError(
-                    `Expected date filter rule for field ${filterRule.target.fieldId}. Error: ${parsedDateFilterRule.error.message}`,
+                    formatFilterRuleValidationError(
+                        filterRule,
+                        field,
+                        FilterType.DATE,
+                    ),
                 );
             }
 
             break;
         case FilterType.NUMBER:
-            const parsedNumberFilterRule = numberFilterSchema.safeParse({
-                fieldId: filterRule.target.fieldId,
-                fieldType: field.type,
-                fieldFilterType: 'number',
-                operator: filterRule.operator,
-                values: filterRule.values,
-            });
+            const parsedNumberFilterRule = numberFilterSchema.safeParse(
+                getFilterSchemaInput(filterRule, field, FilterType.NUMBER),
+            );
 
             if (!parsedNumberFilterRule.success) {
                 throw new AiAgentValidatorError(
-                    `Expected number filter rule for field ${filterRule.target.fieldId}. Error: ${parsedNumberFilterRule.error.message}`,
+                    formatFilterRuleValidationError(
+                        filterRule,
+                        field,
+                        FilterType.NUMBER,
+                    ),
                 );
             }
 
             break;
         case FilterType.STRING:
-            const parsedStringFilterRule = stringFilterSchema.safeParse({
-                fieldId: filterRule.target.fieldId,
-                fieldType: field.type,
-                fieldFilterType: 'string',
-                operator: filterRule.operator,
-                values: filterRule.values,
-            });
+            const parsedStringFilterRule = stringFilterSchema.safeParse(
+                getFilterSchemaInput(filterRule, field, FilterType.STRING),
+            );
 
             if (!parsedStringFilterRule.success) {
                 throw new AiAgentValidatorError(
-                    `Expected string filter rule for field ${filterRule.target.fieldId}. Error: ${parsedStringFilterRule.error.message}`,
+                    formatFilterRuleValidationError(
+                        filterRule,
+                        field,
+                        FilterType.STRING,
+                    ),
                 );
             }
 
@@ -772,6 +1080,18 @@ const NUMERIC_CALCULATION_TYPES: TableCalcSchema['type'][] = [
     'running_total',
 ];
 
+function parseFormulaRefs(
+    formula: string,
+): { refs: string[] } | { error: string } {
+    try {
+        return {
+            refs: extractColumnRefs(parseFormula(withLeadingEquals(formula))),
+        };
+    } catch (e) {
+        return { error: getErrorMessage(e) };
+    }
+}
+
 function buildTableCalcSchemaDependencyGraph(
     tableCalcs: TableCalcsSchema,
 ): DependencyNode[] {
@@ -779,6 +1099,14 @@ function buildTableCalcSchemaDependencyGraph(
 
     return tableCalcs.map((tc) => {
         const deps: string[] = [];
+
+        if (tc.type === 'formula') {
+            // Parse errors are reported by validateTableCalculations
+            const parsed = parseFormulaRefs(tc.formula);
+            if ('refs' in parsed) {
+                deps.push(...parsed.refs);
+            }
+        }
 
         // Add fieldId dependency if it exists
         if ('fieldId' in tc && tc.fieldId !== null) {
@@ -921,6 +1249,29 @@ export function validateTableCalculations(
 
     tableCalcs.forEach((tableCalc) => {
         const { type, name } = tableCalc;
+
+        if (type === 'formula') {
+            const parsed = parseFormulaRefs(tableCalc.formula);
+            if ('error' in parsed) {
+                errors.push(
+                    `Table calculation "${name}" has an invalid formula: ${parsed.error}`,
+                );
+                return;
+            }
+
+            parsed.refs.forEach((ref) => {
+                if (!allSelectedFieldIds.includes(ref)) {
+                    errors.push(
+                        `Table calculation "${name}" references "${ref}" which is not selected in the query. ` +
+                            'Formulas can only reference selected dimensions, metrics, custom metrics, or other table calculations. ' +
+                            `Selected fields: ${allSelectedFieldIds.join(
+                                ', ',
+                            )}.`,
+                    );
+                }
+            });
+            return;
+        }
 
         if (type === 'window_function') {
             const needsFieldId = !nullaryWindowFunctions.includes(
@@ -1155,7 +1506,7 @@ export function validateYAxisMetrics(
  * @param tableCalculations - Table calculations that can be used as metrics
  */
 export function validateAxisFields(
-    chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined,
+    chartConfig: ToolRunQueryBuiltinChartConfig | null | undefined,
     selectedDimensions: string[],
     selectedMetrics: string[],
     tableCalculations?: TableCalcsSchema | TableCalculation[],
@@ -1205,6 +1556,204 @@ Remember:
 - yAxisMetrics must be included in queryConfig.metrics or tableCalculations`;
 
         Logger.error(`[AiAgent][Validate Axis Fields] ${errorMessage}`);
+
+        throw new AiAgentValidatorError(errorMessage);
+    }
+}
+
+/** The query's selected field ids, split by kind for slot pool matching. */
+export type CustomChartTypeSelectedFields = {
+    dimensions: string[];
+    /** Explore metrics plus aggregation custom metric ids. */
+    metrics: string[];
+    tableCalculations: string[];
+};
+
+const getOptionValidationError = (
+    declaration: DataAppVizConfigOption,
+    value: string | number | boolean,
+): string | null => {
+    const received = JSON.stringify(value);
+    switch (declaration.type) {
+        case 'boolean':
+            return typeof value !== 'boolean'
+                ? `Option "${declaration.name}" (boolean) expects true or false, received ${received}.`
+                : null;
+        case 'number':
+            if (typeof value !== 'number') {
+                return `Option "${declaration.name}" (number) expects a number, received ${received}.`;
+            }
+            if (declaration.min !== undefined && value < declaration.min) {
+                return `Option "${declaration.name}" (number) must be >= ${declaration.min}, received ${received}.`;
+            }
+            if (declaration.max !== undefined && value > declaration.max) {
+                return `Option "${declaration.name}" (number) must be <= ${declaration.max}, received ${received}.`;
+            }
+            return null;
+        case 'select': {
+            const choiceValues = declaration.choices.map(
+                (choice) => choice.value,
+            );
+            return typeof value !== 'string' || !choiceValues.includes(value)
+                ? `Option "${declaration.name}" (select) must be one of: ${choiceValues.join(
+                      ', ',
+                  )}. Received ${received}.`
+                : null;
+        }
+        case 'text':
+        case 'color':
+            return typeof value !== 'string'
+                ? `Option "${declaration.name}" (${declaration.type}) expects a string, received ${received}.`
+                : null;
+        default:
+            return assertUnreachable(declaration, `Unknown config option type`);
+    }
+};
+
+/**
+ * Pre-query validation for a custom chart type chartConfig: slot names exist,
+ * required slots are bound, mapped field ids are selected in the query and
+ * come from the slot's field pool (dimension/series slots take dimensions,
+ * metric slots take metrics ∪ table calculations), and option values match
+ * the type's declarations.
+ */
+export function validateCustomChartTypeChartConfig(
+    chartConfig: ToolRunQueryCustomChartTypeConfig,
+    vizSchema: DataAppVizSchema,
+    selectedFields: CustomChartTypeSelectedFields,
+) {
+    const errors: string[] = [];
+    const declaredSlots = vizSchema.fields.map((field) => field.name);
+
+    const unknownSlots = Object.keys(chartConfig.fieldMapping).filter(
+        (slot) => !declaredSlots.includes(slot),
+    );
+    if (unknownSlots.length > 0) {
+        errors.push(
+            `Unknown field slots in fieldMapping: ${unknownSlots.join(
+                ', ',
+            )}. This custom chart type declares these slots: ${declaredSlots.join(
+                ', ',
+            )}.`,
+        );
+    }
+
+    const unboundRequiredSlots = vizSchema.fields
+        .filter(
+            (field) => field.required && !chartConfig.fieldMapping[field.name],
+        )
+        .map((field) => field.name);
+    if (unboundRequiredSlots.length > 0) {
+        errors.push(
+            `Required field slots not bound in fieldMapping: ${unboundRequiredSlots.join(
+                ', ',
+            )}.`,
+        );
+    }
+
+    const selectedFieldIds = [
+        ...selectedFields.dimensions,
+        ...selectedFields.metrics,
+        ...selectedFields.tableCalculations,
+    ];
+    const selected = new Set(selectedFieldIds);
+    const unknownFieldIds = Object.entries(chartConfig.fieldMapping).filter(
+        ([, fieldId]) => !selected.has(fieldId),
+    );
+    if (unknownFieldIds.length > 0) {
+        errors.push(
+            `fieldMapping references field ids that are not selected in queryConfig: ${unknownFieldIds
+                .map(([slot, fieldId]) => `${slot} → ${fieldId}`)
+                .join(
+                    ', ',
+                )}. Fields selected in this query: ${selectedFieldIds.join(
+                ', ',
+            )}.`,
+        );
+    }
+
+    const dimensionSet = new Set(selectedFields.dimensions);
+    const metricSet = new Set(selectedFields.metrics);
+    Object.entries(chartConfig.fieldMapping).forEach(([slot, fieldId]) => {
+        const slotDeclaration = vizSchema.fields.find(
+            (field) => field.name === slot,
+        );
+        // Unknown slots and unselected field ids are already reported above.
+        if (!slotDeclaration || !selected.has(fieldId)) return;
+
+        let boundKind: 'dimension' | 'metric' | 'table calculation';
+        if (dimensionSet.has(fieldId)) {
+            boundKind = 'dimension';
+        } else if (metricSet.has(fieldId)) {
+            boundKind = 'metric';
+        } else {
+            boundKind = 'table calculation';
+        }
+        switch (slotDeclaration.type) {
+            case 'dimension':
+            case 'series':
+                if (boundKind !== 'dimension') {
+                    errors.push(
+                        `Slot "${slot}" (${slotDeclaration.type}) only accepts dimensions, but "${fieldId}" is a ${boundKind}. Dimensions selected in this query: ${selectedFields.dimensions.join(
+                            ', ',
+                        )}.`,
+                    );
+                }
+                break;
+            case 'metric':
+                if (boundKind === 'dimension') {
+                    errors.push(
+                        `Slot "${slot}" (metric) only accepts metrics or table calculations, but "${fieldId}" is a dimension. Metrics and table calculations selected in this query: ${[
+                            ...selectedFields.metrics,
+                            ...selectedFields.tableCalculations,
+                        ].join(', ')}.`,
+                    );
+                }
+                break;
+            default:
+                assertUnreachable(
+                    slotDeclaration.type,
+                    `Unknown slot type: ${slotDeclaration.type}`,
+                );
+        }
+    });
+
+    if (chartConfig.options) {
+        const declaredOptions = vizSchema.configOptions;
+        const declaredOptionNames = declaredOptions.map(
+            (option) => option.name,
+        );
+        Object.entries(chartConfig.options).forEach(([name, value]) => {
+            const declaration = declaredOptions.find(
+                (option) => option.name === name,
+            );
+            if (!declaration) {
+                errors.push(
+                    declaredOptionNames.length > 0
+                        ? `Unknown option "${name}". This custom chart type declares these options: ${declaredOptionNames.join(
+                              ', ',
+                          )}.`
+                        : `Unknown option "${name}". This custom chart type declares no options.`,
+                );
+                return;
+            }
+            const optionError = getOptionValidationError(declaration, value);
+            if (optionError) {
+                errors.push(optionError);
+            }
+        });
+    }
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid configuration for custom chart type "${
+            chartConfig.customChartTypeSlug
+        }":
+
+${errors.join('\n\n')}
+
+Use findCustomChartTypes with this slug to see the type's field slots and config options, then bind each slot to a field id selected in queryConfig.`;
+
+        Logger.error(`[AiAgent][Validate Custom Chart Type] ${errorMessage}`);
 
         throw new AiAgentValidatorError(errorMessage);
     }
@@ -1281,6 +1830,83 @@ export function validatePeriodComparisons(
 ${errors.join('\n')}
 \`\`\``;
         Logger.error(`[AiAgent][Validate Period Comparisons] ${errorMessage}`);
+        throw new AiAgentValidatorError(errorMessage);
+    }
+}
+
+/**
+ * Reject parameter values the query engine would silently ignore or misapply:
+ * names that aren't defined, names the explore never references (setting them
+ * is a no-op, almost always a wrong-explore mistake), values outside a
+ * parameter's declared options, and lists for single-value parameters.
+ */
+export function validateQueryParameters(
+    parameters: ParametersValuesMap | null | undefined,
+    explore: Explore,
+    projectParameterDefinitions: ParameterDefinitions,
+): void {
+    if (!parameters || Object.keys(parameters).length === 0) return;
+
+    const definitions: ParameterDefinitions = {
+        ...projectParameterDefinitions,
+        ...getExploreParameterDefinitions(explore),
+    };
+    const referenced = new Set(getExploreParameterReferences(explore));
+    const referencedNames = [...referenced].filter((name) => definitions[name]);
+    const referencedNamesText =
+        referencedNames.length > 0
+            ? referencedNames.join(', ')
+            : '(none — no field in this explore is parameter-driven)';
+
+    const errors = Object.entries(parameters).flatMap(([name, value]) => {
+        const definition = definitions[name];
+        if (!definition) {
+            return [
+                `Error: unknown parameter "${name}". Parameters referenced by explore "${explore.name}": ${referencedNamesText}.`,
+            ];
+        }
+        if (!referenced.has(name)) {
+            return [
+                `Error: parameter "${name}" exists but nothing in explore "${explore.name}" references it — setting it would have no effect. Parameters referenced by this explore: ${referencedNamesText}.`,
+            ];
+        }
+        const valueErrors: string[] = [];
+        if (Array.isArray(value) && !definition.multiple) {
+            valueErrors.push(
+                `Error: parameter "${name}" takes a single value, not a list.`,
+            );
+        }
+        const optionValues = getParameterOptionValues(definition);
+        if (optionValues && !definition.allow_custom_values) {
+            const values = Array.isArray(value) ? value : [value];
+            const invalidValues = values.filter(
+                (candidate) =>
+                    !optionValues.some(
+                        (option) => String(option) === String(candidate),
+                    ),
+            );
+            if (invalidValues.length > 0) {
+                valueErrors.push(
+                    `Error: invalid value(s) ${invalidValues
+                        .map((invalid) => `"${invalid}"`)
+                        .join(
+                            ', ',
+                        )} for parameter "${name}". Allowed options: ${optionValues.join(
+                        ', ',
+                    )}.`,
+                );
+            }
+        }
+        return valueErrors;
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `The following query parameters are invalid:
+
+\`\`\`json
+${errors.join('\n')}
+\`\`\``;
+        Logger.error(`[AiAgent][Validate Query Parameters] ${errorMessage}`);
         throw new AiAgentValidatorError(errorMessage);
     }
 }

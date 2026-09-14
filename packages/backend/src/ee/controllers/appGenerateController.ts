@@ -11,7 +11,10 @@ import {
     type ApiClarifyAppResponse,
     type ApiCreateAppSchedulerResponse,
     type ApiDataAppActivityResponse,
+    type ApiDataAppVizPreviewTokenResponse,
+    type ApiDataAppVizRenderMetadataResponse,
     type ApiDeleteAppResponse,
+    type ApiDuplicateAppRequest,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
     type ApiGenerateAppResponse,
@@ -20,7 +23,9 @@ import {
     type ApiGetDataAppAuthoringContextResponse,
     type ApiGetDataAppVizResponse,
     type ApiImportAppCodeResponse,
+    type ApiInstallRegistryChartTypeResponse,
     type ApiListDataAppVizsResponse,
+    type ApiListRegistryChartTypesResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
     type ApiPromoteAppDiffResponse,
@@ -34,7 +39,9 @@ import {
     type DataAppActivityFilters,
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
+    type MyAppsSortBy,
     type UpgradeAppRequestBody,
+    type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
 import {
@@ -92,8 +99,10 @@ export class AppGenerateController extends BaseController {
             body.spaceUuid,
             body.claudeModel,
             {
+                creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
+                codexModelInput: body.codexModel,
             },
         );
         return {
@@ -103,7 +112,9 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
-     * List the project's data apps (for the embed config allowlist picker).
+     * List the project's data apps (for the embed config allowlist picker
+     * and the CLI's project-wide listing). Custom chart types are never
+     * included — they have their own listing at /chart-types.
      * @summary List project data apps
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -119,7 +130,89 @@ export class AppGenerateController extends BaseController {
         const results = await this.getAppGenerateService().listAppsForProject(
             toSessionUser(req.account),
             projectUuid,
+            'exclude',
         );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * List the project's custom chart types (for the CLI's
+     * chart-types-as-code listing). Same shape as the data apps listing;
+     * a 404 tells older CLIs the server predates the split.
+     * @summary List project custom chart types
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/chart-types')
+    @OperationId('listProjectChartTypes')
+    async listProjectChartTypes(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiEmbedProjectAppsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getAppGenerateService().listAppsForProject(
+            toSessionUser(req.account),
+            projectUuid,
+            'only',
+        );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * The installable chart type catalog from the configured chart
+     * registry, merged with this project's install state.
+     * @summary List installable chart types from the chart registry
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/registry/charts')
+    @OperationId('listRegistryChartTypes')
+    async listRegistryChartTypes(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiListRegistryChartTypesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAppGenerateService().listRegistryChartTypes(
+                toSessionUser(req.account),
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Install a chart type from the chart registry, or append a new version
+     * when it's already installed at an older registry version.
+     * @summary Install or upgrade a chart type from the chart registry
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/registry/charts/{chartSlug}/install')
+    @OperationId('installRegistryChartType')
+    async installRegistryChartType(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() chartSlug: string,
+    ): Promise<ApiInstallRegistryChartTypeResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAppGenerateService().installRegistryChartType(
+                toSessionUser(req.account),
+                projectUuid,
+                chartSlug,
+            );
         return {
             status: 'ok',
             results,
@@ -157,6 +250,7 @@ export class AppGenerateController extends BaseController {
 
     /**
      * @summary Get a data app visualization
+     * @param version Answer with this version's schema instead of the latest ready one
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -166,6 +260,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() dataAppVizUuid: string,
+        @Query() version?: number,
     ): Promise<ApiGetDataAppVizResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -174,10 +269,127 @@ export class AppGenerateController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 dataAppVizUuid,
+                version,
             );
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * @summary Get data app visualization render metadata
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations/{dataAppVizUuid}/render-metadata')
+    @OperationId('getDataAppVizRenderMetadata')
+    async getDataAppVizRenderMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() dataAppVizUuid: string,
+    ): Promise<ApiDataAppVizRenderMetadataResponse> {
+        assertRegisteredAccount(req.account);
+        const result =
+            await this.getAppGenerateService().getDataAppVizRenderMetadata(
+                toSessionUser(req.account),
+                projectUuid,
+                dataAppVizUuid,
+            );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * @summary Get a data app visualization preview token
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations/{dataAppVizUuid}/versions/{version}/preview-token')
+    @OperationId('getDataAppVizPreviewToken')
+    async getDataAppVizPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() dataAppVizUuid: string,
+        @Path() version: number,
+    ): Promise<ApiDataAppVizPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
+        const token =
+            await this.getAppGenerateService().getDataAppVizPreviewToken(
+                toSessionUser(req.account),
+                projectUuid,
+                dataAppVizUuid,
+                version,
+            );
+        return {
+            status: 'ok',
+            results: { token },
+        };
+    }
+
+    /**
+     * @summary Get data app visualization render metadata for a saved chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/visualizations/{dataAppVizUuid}/charts/{savedChartUuid}/render-metadata',
+    )
+    @OperationId('getChartDataAppVizRenderMetadata')
+    async getChartDataAppVizRenderMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() savedChartUuid: UUID,
+        @Path() dataAppVizUuid: string,
+        @Query() chartVersionUuid?: UUID,
+    ): Promise<ApiDataAppVizRenderMetadataResponse> {
+        assertRegisteredAccount(req.account);
+        const result =
+            await this.getAppGenerateService().getChartDataAppVizRenderMetadata(
+                toSessionUser(req.account),
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+                chartVersionUuid,
+            );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * @summary Get a data app visualization preview token for a saved chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/visualizations/{dataAppVizUuid}/charts/{savedChartUuid}/versions/{version}/preview-token',
+    )
+    @OperationId('getChartDataAppVizPreviewToken')
+    async getChartDataAppVizPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() savedChartUuid: UUID,
+        @Path() dataAppVizUuid: string,
+        @Path() version: number,
+        @Query() chartVersionUuid?: UUID,
+    ): Promise<ApiDataAppVizPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
+        const token =
+            await this.getAppGenerateService().getChartDataAppVizPreviewToken(
+                toSessionUser(req.account),
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+                version,
+                chartVersionUuid,
+            );
+        return {
+            status: 'ok',
+            results: { token },
         };
     }
 
@@ -329,12 +541,12 @@ export class AppGenerateController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{appUuid}')
+    @Get('/{appUuidOrSlug}')
     @OperationId('getApp')
     async getApp(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Path() appUuid: string,
+        @Path() appUuidOrSlug: UuidOrSlug,
         @Query() beforeVersion?: number,
         @Query() limit?: number,
     ): Promise<ApiGetAppResponse> {
@@ -342,7 +554,7 @@ export class AppGenerateController extends BaseController {
         const result = await this.getAppGenerateService().getAppVersions(
             toSessionUser(req.account),
             projectUuid,
-            appUuid,
+            appUuidOrSlug,
             { beforeVersion, limit },
         );
         return {
@@ -378,8 +590,10 @@ export class AppGenerateController extends BaseController {
             body.dashboard,
             body.claudeModel,
             {
+                creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
+                codexModelInput: body.codexModel,
             },
         );
         return {
@@ -461,12 +675,14 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Body() body?: ApiDuplicateAppRequest,
     ): Promise<ApiDuplicateAppResponse> {
         assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().duplicateApp(
             toSessionUser(req.account),
             projectUuid,
             appUuid,
+            body,
         );
         this.setStatus(200);
         return {
@@ -828,6 +1044,7 @@ export class AppGenerateController extends BaseController {
     /**
      * List schedulers for a data app
      * @summary List app schedulers
+     * @param includeLatestRun include the most recent run for each scheduler
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -837,6 +1054,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() includeLatestRun?: boolean,
     ): Promise<ApiAppSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -844,7 +1062,11 @@ export class AppGenerateController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSchedulerService()
-                .getAppSchedulers(toSessionUser(req.account), appUuid),
+                .getAppSchedulers(
+                    toSessionUser(req.account),
+                    appUuid,
+                    includeLatestRun,
+                ),
         };
     }
 
@@ -903,6 +1125,7 @@ export class UserAppsController extends BaseController {
         @Query() excludePreviewProjects?: boolean,
         @Query() projectUuids?: string[],
         @Query() search?: string,
+        @Query() sortBy?: MyAppsSortBy,
     ): Promise<ApiMyAppsResponse> {
         assertRegisteredAccount(req.account);
         const result = await this.services
@@ -910,7 +1133,7 @@ export class UserAppsController extends BaseController {
             .listMyApps(
                 toSessionUser(req.account),
                 page && pageSize ? { page, pageSize } : undefined,
-                { excludePreviewProjects, projectUuids, search },
+                { excludePreviewProjects, projectUuids, search, sortBy },
             );
         return {
             status: 'ok',
@@ -946,6 +1169,7 @@ export class OrgAppsController extends BaseController {
         @Query() models?: DataAppActivityFilters['models'],
         @Query() dateFrom?: DataAppActivityFilters['dateFrom'],
         @Query() dateTo?: DataAppActivityFilters['dateTo'],
+        @Query() dataAppVizsFilter?: 'exclude' | 'only',
     ): Promise<ApiDataAppActivityResponse> {
         assertRegisteredAccount(req.account);
         validateUuidFilter('projectUuids', projectUuids);
@@ -965,6 +1189,7 @@ export class OrgAppsController extends BaseController {
             ...(models && { models }),
             ...(dateFrom && { dateFrom }),
             ...(dateTo && { dateTo }),
+            ...(dataAppVizsFilter && { dataAppVizsFilter }),
         };
         const results = await this.services
             .getAppGenerateService<AppGenerateService>()

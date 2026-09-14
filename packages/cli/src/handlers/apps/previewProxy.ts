@@ -1,6 +1,8 @@
 import {
     extractAppSdkRouteProjectUuid,
     isAllowedAppSdkRoute,
+    isAppSdkScheduleDownloadRoute,
+    LightdashSignedDownloadHeader,
 } from '@lightdash/common';
 import { timingSafeEqual } from 'crypto';
 import * as http from 'http';
@@ -148,6 +150,12 @@ export const startPreviewProxy = (args: {
         headers.authorization = args.authorization;
         if (args.proxyAuthorization) {
             headers['proxy-authorization'] = args.proxyAuthorization;
+        }
+        // The previewed app fetches the export's fileUrl directly from the
+        // local dev page, which carries no instance credentials — ask the
+        // backend for a SIGNED URL, same as the deployed app's bridge.
+        if (isAppSdkScheduleDownloadRoute(method, pathname)) {
+            headers[LightdashSignedDownloadHeader.toLowerCase()] = 'true';
         }
 
         const upstreamReq = requestFn(

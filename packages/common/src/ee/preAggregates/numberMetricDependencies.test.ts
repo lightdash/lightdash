@@ -115,7 +115,7 @@ describe('analyzePreAggregateNumberMetricDependencies', () => {
         );
     });
 
-    it('rejects number metrics whose leaf dependencies are not materializable', () => {
+    it('rejects number metrics whose leaf dependencies are not re-aggregatable', () => {
         const distinctCustomerCount = makeMetric({
             name: 'distinct_customer_count',
             type: MetricType.COUNT_DISTINCT,

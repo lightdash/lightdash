@@ -6,7 +6,7 @@ import {
     Select,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { NumberInput } from '../../../components/common/NumberInput';
@@ -75,7 +75,6 @@ export const FunnelStepsTab: FC = () => {
                         />
                         {steps.length > 1 && (
                             <ActionIcon
-                                variant="subtle"
                                 color="red"
                                 onClick={() => dispatch(removeStep(index))}
                             >

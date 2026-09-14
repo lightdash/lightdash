@@ -11,7 +11,6 @@ export type KeySpace = {
     uuid: string;
     name: string;
     itemCount: number;
-    isPinned: boolean;
 };
 
 /**
@@ -50,9 +49,4 @@ export const rankKeySpaces = (
                 a.name.localeCompare(b.name),
         )
         .slice(0, limit)
-        .map(({ uuid, name, itemCount, isPinned }) => ({
-            uuid,
-            name,
-            itemCount,
-            isPinned,
-        }));
+        .map(({ uuid, name, itemCount }) => ({ uuid, name, itemCount }));

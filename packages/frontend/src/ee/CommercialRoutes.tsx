@@ -306,6 +306,26 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: 'memories/:slug',
+                lazy: async () => {
+                    const AiAgentMemoryPage = await loadLazyRouteDefault(
+                        './pages/AiAgents/AiAgentMemoryPage',
+                        () => import('./pages/AiAgents/AiAgentMemoryPage'),
+                    );
+                    return { Component: AiAgentMemoryPage };
+                },
+            },
+            {
+                path: 'deep-research/:runUuid',
+                lazy: async () => {
+                    const DeepResearchReportPage = await loadLazyRouteDefault(
+                        './pages/AiAgents/DeepResearchReportPage',
+                        () => import('./pages/AiAgents/DeepResearchReportPage'),
+                    );
+                    return { Component: DeepResearchReportPage };
+                },
+            },
+            {
                 path: ':agentUuid/memories/:slug',
                 lazy: async () => {
                     const AiAgentMemoryPage = await loadLazyRouteDefault(
@@ -444,6 +464,18 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                                                 import('./pages/AiAgents/AgentThreadPage'),
                                         );
                                     return { Component: AiAgentThreadPage };
+                                },
+                            },
+                            {
+                                path: 'battle/:threadUuidA/:threadUuidB',
+                                lazy: async () => {
+                                    const AiAgentBattlePage =
+                                        await loadLazyRouteDefault(
+                                            './pages/AiAgents/AiAgentBattlePage',
+                                            () =>
+                                                import('./pages/AiAgents/AiAgentBattlePage'),
+                                        );
+                                    return { Component: AiAgentBattlePage };
                                 },
                             },
                             {

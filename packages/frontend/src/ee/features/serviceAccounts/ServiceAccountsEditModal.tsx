@@ -17,7 +17,7 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';

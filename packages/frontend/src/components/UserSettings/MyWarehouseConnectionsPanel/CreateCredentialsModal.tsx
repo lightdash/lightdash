@@ -4,16 +4,24 @@ import {
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Select, Stack, TextInput } from '@mantine-8/core';
+import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import React, { type FC } from 'react';
-import useHealth from '../../../hooks/health/useHealth';
+import { useIsDatabricksSsoEnabled } from '../../../hooks/useDatabricks';
 import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { useIsSnowflakeSsoEnabled } from '../../../hooks/useSnowflake';
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
+import {
+    getDefaultDatabricksAuthenticationType,
+    getDefaultSnowflakeAuthenticationType,
+    isDatabricksPersonalAccessToken,
+    isSnowflakeSso,
+    validateUserWarehouseCredentials,
+} from './utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
@@ -26,54 +34,69 @@ type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     onSuccess?: (data: UserWarehouseCredentials) => void;
 };
 
-const defaultCredentials: Record<
-    WarehouseTypes,
-    UpsertUserWarehouseCredentials['credentials']
-> = {
-    [WarehouseTypes.POSTGRES]: {
-        type: WarehouseTypes.POSTGRES,
-        user: '',
-        password: '',
-    },
-    [WarehouseTypes.REDSHIFT]: {
-        type: WarehouseTypes.REDSHIFT,
-        user: '',
-        password: '',
-        authenticationType: RedshiftAuthenticationType.PASSWORD,
-    },
-    [WarehouseTypes.SNOWFLAKE]: {
-        type: WarehouseTypes.SNOWFLAKE,
-        user: '',
-        password: '',
-    },
-    [WarehouseTypes.TRINO]: {
-        type: WarehouseTypes.TRINO,
-        user: '',
-        password: '',
-    },
-    [WarehouseTypes.BIGQUERY]: {
-        type: WarehouseTypes.BIGQUERY,
-        keyfileContents: {},
-    },
-    [WarehouseTypes.DATABRICKS]: {
-        type: WarehouseTypes.DATABRICKS,
-        personalAccessToken: '',
-    },
-    [WarehouseTypes.CLICKHOUSE]: {
-        type: WarehouseTypes.CLICKHOUSE,
-        user: '',
-        password: '',
-    },
-    [WarehouseTypes.ATHENA]: {
-        type: WarehouseTypes.ATHENA,
-        accessKeyId: '',
-        secretAccessKey: '',
-    },
-    [WarehouseTypes.DUCKDB]: {
-        type: WarehouseTypes.DUCKDB,
-        token: '',
-    },
+const getDefaultCredentials = (
+    warehouseType: WarehouseTypes,
+    ssoEnabled: { databricks: boolean; snowflake: boolean },
+): UpsertUserWarehouseCredentials['credentials'] => {
+    const defaultCredentials: Record<
+        WarehouseTypes,
+        UpsertUserWarehouseCredentials['credentials']
+    > = {
+        [WarehouseTypes.POSTGRES]: {
+            type: WarehouseTypes.POSTGRES,
+            user: '',
+            password: '',
+        },
+        [WarehouseTypes.REDSHIFT]: {
+            type: WarehouseTypes.REDSHIFT,
+            user: '',
+            password: '',
+            authenticationType: RedshiftAuthenticationType.PASSWORD,
+        },
+        [WarehouseTypes.SNOWFLAKE]: {
+            type: WarehouseTypes.SNOWFLAKE,
+            user: '',
+            password: '',
+            authenticationType: getDefaultSnowflakeAuthenticationType(
+                ssoEnabled.snowflake,
+            ),
+        },
+        [WarehouseTypes.TRINO]: {
+            type: WarehouseTypes.TRINO,
+            user: '',
+            password: '',
+        },
+        [WarehouseTypes.BIGQUERY]: {
+            type: WarehouseTypes.BIGQUERY,
+            keyfileContents: {},
+        },
+        [WarehouseTypes.DATABRICKS]: {
+            type: WarehouseTypes.DATABRICKS,
+            personalAccessToken: '',
+            authenticationType: getDefaultDatabricksAuthenticationType(
+                ssoEnabled.databricks,
+            ),
+        },
+        [WarehouseTypes.CLICKHOUSE]: {
+            type: WarehouseTypes.CLICKHOUSE,
+            user: '',
+            password: '',
+        },
+        [WarehouseTypes.ATHENA]: {
+            type: WarehouseTypes.ATHENA,
+            accessKeyId: '',
+            secretAccessKey: '',
+        },
+        [WarehouseTypes.DUCKDB]: {
+            type: WarehouseTypes.DUCKDB,
+            token: '',
+        },
+    };
+
+    return defaultCredentials[warehouseType];
 };
+
+const warehouseTypes = Object.values(WarehouseTypes);
 
 const FORM_ID = 'create-credentials-form';
 
@@ -88,18 +111,25 @@ export const CreateCredentialsModal: FC<Props> = ({
     projectName,
     onSuccess,
 }) => {
-    const health = useHealth();
-    const isDatabricksEnabled = health.data?.auth.databricks.enabled ?? false;
     const { mutateAsync, isLoading: isSaving } =
         useUserWarehouseCredentialsCreateMutation({
             onSuccess,
         });
+    const isDatabricksSsoEnabled = useIsDatabricksSsoEnabled();
+    const isSnowflakeSsoEnabled = useIsSnowflakeSsoEnabled();
+    const ssoEnabled = {
+        databricks: isDatabricksSsoEnabled,
+        snowflake: isSnowflakeSsoEnabled,
+    };
     const form = useForm<UpsertUserWarehouseCredentials>({
         initialValues: {
             name: '',
-            credentials:
-                defaultCredentials[warehouseType || WarehouseTypes.POSTGRES],
+            credentials: getDefaultCredentials(
+                warehouseType || WarehouseTypes.POSTGRES,
+                ssoEnabled,
+            ),
         },
+        validate: validateUserWarehouseCredentials,
     });
 
     const isRedshiftBrowserSso =
@@ -109,11 +139,11 @@ export const CreateCredentialsModal: FC<Props> = ({
             RedshiftAuthenticationType.IAM_BROWSER;
     const showSaveButton =
         !isRedshiftBrowserSso &&
-        ![
-            WarehouseTypes.BIGQUERY,
-            WarehouseTypes.SNOWFLAKE,
-            WarehouseTypes.DATABRICKS,
-        ].includes(warehouseType ?? form.values.credentials.type);
+        !isSnowflakeSso(form.values.credentials) &&
+        (isDatabricksPersonalAccessToken(form.values.credentials) ||
+            ![WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS].includes(
+                warehouseType ?? form.values.credentials.type,
+            ));
 
     return (
         <MantineModal
@@ -164,17 +194,21 @@ export const CreateCredentialsModal: FC<Props> = ({
                             label="Warehouse"
                             size="xs"
                             disabled={isSaving}
-                            data={Object.values(WarehouseTypes).map((type) => {
-                                const isDisabled =
-                                    type === WarehouseTypes.DATABRICKS &&
-                                    !isDatabricksEnabled;
-                                return {
-                                    value: type,
-                                    label: getWarehouseLabel(type) || type,
-                                    disabled: isDisabled,
-                                };
-                            })}
-                            {...form.getInputProps('credentials.type')}
+                            data={warehouseTypes.map((type) => ({
+                                value: type,
+                                label: getWarehouseLabel(type) || type,
+                            }))}
+                            value={form.values.credentials.type}
+                            onChange={(value) => {
+                                const type = warehouseTypes.find(
+                                    (warehouse) => warehouse === value,
+                                );
+                                if (!type) return;
+                                form.setFieldValue(
+                                    'credentials',
+                                    getDefaultCredentials(type, ssoEnabled),
+                                );
+                            }}
                         />
                     )}
 

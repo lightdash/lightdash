@@ -1,6 +1,6 @@
 import { FeatureFlags, type HealthState } from '@lightdash/common';
 import { screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
@@ -38,6 +38,24 @@ const renderDataSourcePicker = (isGoogleAuthEnabled: boolean) =>
         { health: healthWithGoogleAuth(isGoogleAuthEnabled) },
     );
 
+const renderWithoutProjectCreation = () =>
+    renderWithProviders(
+        <MemoryRouter initialEntries={['/onboarding/data-source']}>
+            <Routes>
+                <Route
+                    path="/onboarding/data-source"
+                    element={<OnboardingDataSource />}
+                />
+                <Route path="/" element={<div>home</div>} />
+                <Route path="/no-access" element={<div>no access</div>} />
+            </Routes>
+        </MemoryRouter>,
+        {
+            health: healthWithGoogleAuth(false),
+            user: { abilityRules: [] },
+        },
+    );
+
 describe('OnboardingDataSource', () => {
     beforeEach(() => {
         vi.mocked(useServerFeatureFlag).mockReturnValue({
@@ -68,5 +86,12 @@ describe('OnboardingDataSource', () => {
             screen.queryByText('Sign in with Google to connect'),
         ).not.toBeInTheDocument();
         expect(screen.getByText('Connect with SSO')).toBeInTheDocument();
+    });
+
+    it('sends a user who cannot create a project to the no access page', async () => {
+        renderWithoutProjectCreation();
+
+        expect(await screen.findByText('no access')).toBeInTheDocument();
+        expect(screen.queryByText('home')).not.toBeInTheDocument();
     });
 });

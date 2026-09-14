@@ -4,7 +4,7 @@ import {
     type DataAppClaudeModel,
     type DataAppModelVisibility,
 } from '@lightdash/common';
-import { Box, Group, Stack, Switch, Text, Tooltip } from '@mantine-8/core';
+import { Box, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './AiDataAppModelToggles.module.css';
 
@@ -59,7 +59,6 @@ export const AiDataAppModelToggles: FC<AiDataAppModelTogglesProps> = ({
                             key={model}
                             label="At least one model must stay available"
                             disabled={!isLocked}
-                            withArrow
                             position="top"
                         >
                             {/* Anchored on a wrapper, not the Switch: Mantine

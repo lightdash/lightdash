@@ -9,7 +9,6 @@ import {
     areReviewsEnabledForSettings,
     findUnconfiguredProviderKeyWrites,
     isModelConfigAvailable,
-    maskProviderKeyExposure,
     pickReplacementDefaultModelConfig,
     validateDeepResearchLimits,
 } from './AiOrganizationSettingsService';
@@ -18,13 +17,20 @@ const settingsWithKeys: AiOrganizationSettings = {
     organizationUuid: 'org-uuid',
     aiAgentsVisible: true,
     aiAgentReviewsEnabled: false,
+    aiAgentMemoryEnabled: false,
     deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    deepResearchRawSqlEnabled: false,
     mcpContentWritesEnabled: true,
+    mcpAgentsEnabled: true,
     requireExplicitSlackChannelLinking: false,
     defaultAiAgentModelConfig: null,
     modelVisibility: null,
-    providerApiKeysSet: { anthropic: true, openai: false },
-    providerApiKeyHints: { anthropic: 'sk-ant-api03-R2D...igAA', openai: null },
+    providerApiKeysSet: { anthropic: true, google: false, openai: false },
+    providerApiKeyHints: {
+        anthropic: 'sk-ant-api03-R2D...igAA',
+        google: null,
+        openai: null,
+    },
 };
 
 describe('validateDeepResearchLimits', () => {
@@ -34,11 +40,29 @@ describe('validateDeepResearchLimits', () => {
         ).not.toThrow();
     });
 
+    it('allows positive integer values in unrecognized fields', () => {
+        const limits = { ...AI_DEEP_RESEARCH_DEFAULT_LIMITS, extraLimit: 1 };
+
+        expect(() => validateDeepResearchLimits(limits)).not.toThrow();
+    });
+
+    it.each([0, -1, 1.5, 'invalid'])(
+        'rejects invalid values in unrecognized fields: %s',
+        (extraLimit) => {
+            const limits = { ...AI_DEEP_RESEARCH_DEFAULT_LIMITS, extraLimit };
+
+            expect(() => validateDeepResearchLimits(limits)).toThrow(
+                'extraLimit must be a positive integer',
+            );
+        },
+    );
+
     it.each([
         ['maxTokens', 0],
         ['maxToolCalls', -1],
         ['maxWarehouseQueries', 0],
-        ['maxHypotheses', 2.5],
+        ['maxSteps', 2.5],
+        ['deadlineMs', 0],
     ] as const)('rejects invalid %s', (key, value) => {
         expect(() =>
             validateDeepResearchLimits({
@@ -46,33 +70,6 @@ describe('validateDeepResearchLimits', () => {
                 [key]: value,
             }),
         ).toThrow(ParameterError);
-    });
-});
-
-describe('maskProviderKeyExposure', () => {
-    it('returns the settings untouched for org admins', () => {
-        expect(maskProviderKeyExposure(settingsWithKeys, true)).toEqual(
-            settingsWithKeys,
-        );
-    });
-
-    it('strips key hints and set-booleans for non-admins', () => {
-        const masked = maskProviderKeyExposure(settingsWithKeys, false);
-        expect(masked.providerApiKeyHints).toEqual({
-            anthropic: null,
-            openai: null,
-        });
-        expect(masked.providerApiKeysSet).toEqual({
-            anthropic: false,
-            openai: false,
-        });
-    });
-
-    it('leaves non-key settings intact when masking', () => {
-        const masked = maskProviderKeyExposure(settingsWithKeys, false);
-        expect(masked.aiAgentsVisible).toBe(true);
-        expect(masked.mcpContentWritesEnabled).toBe(true);
-        expect(masked.organizationUuid).toBe('org-uuid');
     });
 });
 
@@ -91,6 +88,21 @@ describe('findUnconfiguredProviderKeyWrites', () => {
             findUnconfiguredProviderKeyWrites(
                 { openai: 'sk-123' },
                 { openai: {} },
+            ),
+        ).toEqual([]);
+    });
+
+    it('applies the same configured-provider guard to Google keys', () => {
+        expect(
+            findUnconfiguredProviderKeyWrites(
+                { google: 'AIza-fake-gemini-key' },
+                { openai: {} },
+            ),
+        ).toEqual(['google']);
+        expect(
+            findUnconfiguredProviderKeyWrites(
+                { google: 'AIza-fake-gemini-key' },
+                { google: {} },
             ),
         ).toEqual([]);
     });
@@ -289,14 +301,23 @@ describe('upsertSettings model validation', () => {
         storedDefault?: unknown;
     } = {}) => {
         const upsert = vi.fn(async (_org: string, data: unknown) => data);
+        const updateAiAgentMemoryEnabled = vi.fn();
+        const transaction = vi.fn(
+            async (callback: (trx: unknown) => Promise<unknown>) =>
+                callback('transaction'),
+        );
         const service = new AiOrganizationSettingsService({
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: async () => ({
                     defaultAiAgentModelConfig: storedDefault,
                 }),
                 upsert,
+                transaction,
             },
-            organizationModel: {},
+            organizationModel: {
+                getAiAgentMemoryEnabled: async () => false,
+                updateAiAgentMemoryEnabled,
+            },
             commercialFeatureFlagModel: {
                 get: async () => ({ enabled: true }),
             },
@@ -318,7 +339,18 @@ describe('upsertSettings model validation', () => {
         (
             service as unknown as { createAuditedAbility: () => unknown }
         ).createAuditedAbility = () => ({ can: () => true });
-        return { service, upsert };
+        const getSettings = vi.fn().mockResolvedValue({
+            organizationUuid: 'org-uuid',
+            aiAgentMemoryEnabled: false,
+        });
+        service.getSettings = getSettings;
+        return {
+            service,
+            getSettings,
+            upsert,
+            transaction,
+            updateAiAgentMemoryEnabled,
+        };
     };
 
     const user = { organizationUuid: 'org-uuid' } as never;
@@ -389,12 +421,68 @@ describe('upsertSettings model validation', () => {
                     maxTokens: 10_000_000,
                     maxToolCalls: 0,
                     maxWarehouseQueries: 7,
-                    maxHypotheses: 3,
+                    maxSteps: 16,
+                    deadlineMs: 600_000,
                 },
             }),
         ).rejects.toThrow('maxToolCalls must be a positive integer');
         expect(upsert).not.toHaveBeenCalled();
     });
+
+    it.each([
+        ['maxToolCalls', 1],
+        ['maxToolCalls', 2],
+        ['deadlineMs', 1],
+        ['deadlineMs', 999],
+        ['maxTokens', 10_000_001],
+        ['maxSteps', 1_001],
+        ['maxToolCalls', 1_001],
+        ['maxWarehouseQueries', 1_001],
+        ['deadlineMs', 3_600_001],
+    ] as const)(
+        'rejects out-of-range %s=%s before writing',
+        async (key, value) => {
+            const { service, upsert } = buildService();
+
+            await expect(
+                service.upsertSettings(user, {
+                    deepResearchLimits: {
+                        ...AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+                        [key]: value,
+                    },
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        {
+            maxTokens: 1,
+            maxSteps: 1,
+            maxToolCalls: 3,
+            maxWarehouseQueries: 1,
+            deadlineMs: 1_000,
+        },
+        {
+            maxTokens: 10_000_000,
+            maxSteps: 1_000,
+            maxToolCalls: 1_000,
+            maxWarehouseQueries: 1_000,
+            deadlineMs: 3_600_000,
+        },
+    ])(
+        'persists inclusive limit boundaries: %j',
+        async (deepResearchLimits) => {
+            const { service, upsert } = buildService();
+
+            await service.upsertSettings(user, { deepResearchLimits });
+
+            expect(upsert).toHaveBeenCalledWith('org-uuid', {
+                deepResearchLimits,
+            });
+        },
+    );
 
     it('forwards valid Deep Research limits to the model', async () => {
         const { service, upsert } = buildService();
@@ -402,7 +490,8 @@ describe('upsertSettings model validation', () => {
             maxTokens: 9_000_000,
             maxToolCalls: 42,
             maxWarehouseQueries: 7,
-            maxHypotheses: 3,
+            maxSteps: 16,
+            deadlineMs: 600_000,
         };
 
         await service.upsertSettings(user, { deepResearchLimits });
@@ -410,6 +499,54 @@ describe('upsertSettings model validation', () => {
         expect(upsert).toHaveBeenCalledWith('org-uuid', {
             deepResearchLimits,
         });
+    });
+
+    it('forwards the Deep Research raw SQL policy to the model', async () => {
+        const { service, upsert } = buildService();
+
+        await service.upsertSettings(user, {
+            deepResearchRawSqlEnabled: true,
+        });
+
+        expect(upsert).toHaveBeenCalledWith('org-uuid', {
+            deepResearchRawSqlEnabled: true,
+        });
+    });
+
+    it('stores an explicit off setting without writing AI settings', async () => {
+        const { service, getSettings, upsert, updateAiAgentMemoryEnabled } =
+            buildService();
+
+        await service.upsertSettings(user, { aiAgentMemoryEnabled: false });
+
+        expect(upsert).not.toHaveBeenCalled();
+        expect(updateAiAgentMemoryEnabled).toHaveBeenCalledWith(
+            'org-uuid',
+            false,
+        );
+        expect(getSettings).toHaveBeenCalledWith(user);
+    });
+
+    it('updates memory with other settings in one transaction', async () => {
+        const { service, transaction, upsert, updateAiAgentMemoryEnabled } =
+            buildService();
+
+        await service.upsertSettings(user, {
+            aiAgentMemoryEnabled: false,
+            aiAgentsVisible: false,
+        });
+
+        expect(transaction).toHaveBeenCalledOnce();
+        expect(upsert).toHaveBeenCalledWith(
+            'org-uuid',
+            { aiAgentsVisible: false },
+            'transaction',
+        );
+        expect(updateAiAgentMemoryEnabled).toHaveBeenCalledWith(
+            'org-uuid',
+            false,
+            'transaction',
+        );
     });
 
     it('repoints a stored default that the new visibility hides', async () => {
@@ -429,6 +566,70 @@ describe('upsertSettings model validation', () => {
             },
         });
     });
+});
+
+describe('isAiAgentMemoryEnabled', () => {
+    const buildService = (settingEnabled: boolean | null) =>
+        new AiOrganizationSettingsService({
+            organizationModel: {
+                getAiAgentMemoryEnabled: vi
+                    .fn()
+                    .mockResolvedValue(settingEnabled),
+            },
+        } as never);
+
+    it.each([
+        [null, false],
+        [false, false],
+        [true, true],
+    ])('resolves persisted=%s as %s', async (settingEnabled, expected) => {
+        await expect(
+            buildService(settingEnabled).isAiAgentMemoryEnabled({
+                organizationUuid: 'org-uuid',
+                userUuid: 'user-uuid',
+            }),
+        ).resolves.toBe(expected);
+    });
+
+    it('is disabled for a user without an organization', async () => {
+        await expect(
+            buildService(true).isAiAgentMemoryEnabled({
+                organizationUuid: undefined,
+                userUuid: 'user-uuid',
+            }),
+        ).resolves.toBe(false);
+    });
+});
+
+describe('isDeepResearchRawSqlEnabled', () => {
+    const buildService = (settings: AiOrganizationSettings | null) =>
+        new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {
+                findByOrganizationUuid: vi.fn().mockResolvedValue(settings),
+            },
+        } as never);
+
+    it('fails closed when the organization has no stored settings', async () => {
+        await expect(
+            buildService(null).isDeepResearchRawSqlEnabled({
+                organizationUuid: 'org-uuid',
+            }),
+        ).resolves.toBe(false);
+    });
+
+    it.each([false, true])(
+        'returns the current stored raw SQL policy when it is %s',
+        async (deepResearchRawSqlEnabled) => {
+            await expect(
+                buildService({
+                    ...settingsWithKeys,
+                    deepResearchRawSqlEnabled,
+                }).isDeepResearchRawSqlEnabled({
+                    organizationUuid: 'org-uuid',
+                }),
+            ).resolves.toBe(deepResearchRawSqlEnabled);
+        },
+    );
 });
 
 describe('isExplicitSlackChannelLinkingRequired', () => {

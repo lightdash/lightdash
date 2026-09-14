@@ -68,11 +68,15 @@ export type ParameterInteractivityOptions = z.infer<
     typeof ParameterInteractivityOptionsSchema
 >;
 
+/** Legacy capability flags remain supported; new permissions must use embed scopes. */
 export const InteractivityOptionsSchema = z.object({
     dashboardFiltersInteractivity:
         DashboardFilterInteractivityOptionsSchema.optional(),
     parameterInteractivity: ParameterInteractivityOptionsSchema.optional(),
     canExportCsv: z.boolean().optional(),
+    // Dashboard-level "Export all" (CSV/XLSX ZIP of every tile). Off by
+    // default and independent from the per-tile canExportCsv.
+    canExportDashboardCsv: z.boolean().optional(),
     canExportImages: z.boolean().optional(),
     canExportPagePdf: z.boolean().optional(),
     canDateZoom: z.boolean().optional(),
@@ -82,9 +86,9 @@ export const InteractivityOptionsSchema = z.object({
     // Off by default — without it, data app tiles render as a placeholder.
     // Setting it grants the embed JWT the broader CASL abilities a data app
     // needs (view:DataApp + view:Explore project-wide) so it can mint a
-    // preview token and run its arbitrary metric queries. Mirrors the
-    // existing canExplore opt-in: an explicit decision to widen the embed's
-    // surface beyond pre-built chart queries.
+    // preview token, run its arbitrary metric queries, and use external
+    // connections that an admin linked to the app. Mirrors canExplore: an
+    // explicit decision to widen the embed beyond pre-built chart queries.
     canViewDataApps: z.boolean().optional(),
     // Pins tabs and the filter bar to the top while scrolling. Off by default.
     stickyHeader: z.boolean().optional(),
@@ -117,6 +121,8 @@ export type EmbedWriteActions = {
     serviceAccountUserUuid?: string;
     userUuid?: string;
     spaceUuid: string;
+    /** Use scopes instead of dashboard flags; AI additionally requires EmbedAiAgent. */
+    permissionsMode?: 'default' | 'roles';
 };
 
 export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
@@ -124,6 +130,7 @@ export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
         serviceAccountUserUuid: z.string().uuid().optional(),
         userUuid: z.string().uuid().optional(),
         spaceUuid: z.string().uuid(),
+        permissionsMode: z.enum(['default', 'roles']).optional(),
     })
     .refine(
         ({ serviceAccountUserUuid, userUuid }) =>
@@ -136,7 +143,7 @@ export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
 
 export const EmbedJwtSchema = z
     .object({
-        userAttributes: z.record(z.unknown()).optional(),
+        userAttributes: z.record(z.string(), z.unknown()).optional(),
         user: z
             .object({
                 externalId: z.string().nullish(),
@@ -219,6 +226,7 @@ export type CommonEmbedJwtContent = {
         enabled: boolean;
     };
     canExportCsv?: boolean;
+    canExportDashboardCsv?: boolean;
     canExportImages?: boolean;
     canDateZoom?: boolean;
     canExportPagePdf?: boolean;

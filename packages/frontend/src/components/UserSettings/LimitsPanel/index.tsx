@@ -2,7 +2,7 @@ import {
     type OrganizationSettings,
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
-import { Button, Group, Loader, Stack } from '@mantine-8/core';
+import { Button, Group, Loader, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import useHealth from '../../../hooks/health/useHealth';

@@ -1,5 +1,5 @@
 import { ProjectMemberRoleLabels } from '@lightdash/common';
-import { HoverCard, Loader, Stack, Text } from '@mantine-8/core';
+import { HoverCard, Loader, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useServiceAccountProjectGrants } from './useProjectAccess';
 
@@ -20,13 +20,7 @@ export const ProjectsHoverCard: FC<Props> = ({
     serviceAccountUuid,
     children,
 }) => (
-    <HoverCard
-        position="bottom-start"
-        withArrow
-        shadow="md"
-        withinPortal
-        openDelay={150}
-    >
+    <HoverCard position="bottom-start" withArrow openDelay={150}>
         <HoverCard.Target>{children}</HoverCard.Target>
         <HoverCard.Dropdown w={280}>
             <Stack gap={6}>

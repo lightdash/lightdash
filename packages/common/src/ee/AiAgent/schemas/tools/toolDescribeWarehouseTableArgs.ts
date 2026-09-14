@@ -1,7 +1,10 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Tool: describe_warehouse_table
+export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = ({
+    toolName,
+}: ToolDescriptionContext): string => `Tool: ${toolName}
 
 Purpose:
 Return the column names + types of a single raw warehouse table. Use this to learn the exact schema of a raw / staging / seed table that is NOT exposed via an explore, so you can write correct runSql on the first attempt.
@@ -20,7 +23,8 @@ Do NOT use:
 
 Parameters:
 - table: Required. The unqualified table name (e.g. "raw_parts", not "jaffle.raw_parts").
-- schema: Optional. The schema name (e.g. "jaffle"). If omitted, the project's default schema is used.
+- schema: Optional. The schema name (e.g. "jaffle"). Omit this property to use the project's default schema.
+- database: Optional. Provide the database/catalog returned by listWarehouseTables when targeting a non-default database. Omission uses the project's default database.
 `;
 
 export const toolDescribeWarehouseTableArgsSchema = createToolSchema()
@@ -35,7 +39,13 @@ export const toolDescribeWarehouseTableArgsSchema = createToolSchema()
             .string()
             .optional()
             .describe(
-                "Optional schema name. Defaults to the project's default schema if omitted.",
+                "Optional schema name. Omit this property to use the project's default schema.",
+            ),
+        database: z
+            .string()
+            .optional()
+            .describe(
+                "Database/catalog returned by listWarehouseTables when targeting a non-default database. Omission uses the project's default database.",
             ),
     })
     .build();

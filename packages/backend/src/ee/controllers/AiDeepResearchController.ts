@@ -1,8 +1,8 @@
 import {
     assertRegisteredAccount,
-    ForbiddenError,
     type AiDeepResearchRequestBody,
     type ApiAiAgentThreadMessageVizQueryResponse,
+    type ApiAiDeepResearchChartResponse,
     type ApiAiDeepResearchEventsResponse,
     type ApiAiDeepResearchRunListResponse,
     type ApiAiDeepResearchRunResponse,
@@ -54,11 +54,6 @@ export class AiDeepResearchController extends BaseController {
         @Body() body: AiDeepResearchRequestBody,
     ): Promise<ApiAiDeepResearchRunResponse> {
         assertRegisteredAccount(req.account);
-        if (req.account.authentication.type !== 'session') {
-            throw new ForbiddenError(
-                'Deep Research must be started from a signed-in browser session',
-            );
-        }
         this.setStatus(202);
         return {
             status: 'ok',
@@ -70,6 +65,9 @@ export class AiDeepResearchController extends BaseController {
                 aiThreadUuid: body.threadUuid,
                 promptUuid: body.promptUuid,
                 entryPoint: body.entryPoint,
+                ...(body.resumeFromRunUuid
+                    ? { resumeFromRunUuid: body.resumeFromRunUuid }
+                    : {}),
             }),
         };
     }
@@ -126,7 +124,7 @@ export class AiDeepResearchController extends BaseController {
 
     /**
      * Re-execute the metric query behind a warehouse-backed report chart to
-     * load its live results instead of the persisted snapshot.
+     * load its live results.
      * @summary Refresh Deep Research chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -149,6 +147,33 @@ export class AiDeepResearchController extends BaseController {
                 projectUuid,
                 aiDeepResearchRunUuid,
                 chartKey,
+            }),
+        };
+    }
+
+    /**
+     * Load the retained query metadata behind a report chart.
+     * @summary Get Deep Research chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{aiDeepResearchRunUuid}/charts/{queryUuid}')
+    @OperationId('getAiDeepResearchChart')
+    async getChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() aiDeepResearchRunUuid: UUID,
+        @Path() queryUuid: UUID,
+    ): Promise<ApiAiDeepResearchChartResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiDeepResearchService().getChart({
+                user: toSessionUser(req.account),
+                projectUuid,
+                aiDeepResearchRunUuid,
+                queryUuid,
             }),
         };
     }

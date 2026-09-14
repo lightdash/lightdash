@@ -14,6 +14,7 @@ import {
     CreateAthenaCredentials,
     DimensionType,
     getErrorMessage,
+    getWarehouseTableType,
     Metric,
     MetricType,
     setCatalogTimestampDomain,
@@ -22,7 +23,9 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTables,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
@@ -71,6 +74,29 @@ export const getAthenaTimestampDomain = (
             return 'aware';
         default:
             return undefined;
+    }
+};
+
+// Athena reports a decimal's scale beside its type in ColumnInfo
+export const getAthenaNumericKind = (
+    type: AthenaTypes | string,
+    scale: number | undefined,
+): ResultNumericKind | null => {
+    const normalizedType = type.toLowerCase().replace(/\(\d+(,\s*\d+)?\)/, '');
+    switch (normalizedType) {
+        case AthenaTypes.TINYINT:
+        case AthenaTypes.SMALLINT:
+        case AthenaTypes.INTEGER:
+        case AthenaTypes.BIGINT:
+            return { kind: 'integer' };
+        case AthenaTypes.REAL:
+        case AthenaTypes.FLOAT:
+        case AthenaTypes.DOUBLE:
+            return { kind: 'float' };
+        case AthenaTypes.DECIMAL:
+            return scale === undefined ? null : { kind: 'decimal', scale };
+        default:
+            return null;
     }
 };
 
@@ -456,7 +482,7 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
             // Stream results using pagination
             let nextToken: string | undefined;
             let isFirstBatch = true;
-            let fields: Record<string, { type: DimensionType }> = {};
+            let fields: WarehouseResults['fields'] = {};
 
             do {
                 // eslint-disable-next-line no-await-in-loop
@@ -477,10 +503,15 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                     fields = columnInfo.reduce<WarehouseResults['fields']>(
                         (acc, col) => {
                             if (col.Name) {
+                                const numericKind = getAthenaNumericKind(
+                                    col.Type || 'varchar',
+                                    col.Scale ?? undefined,
+                                );
                                 acc[normalizeColumnName(col.Name)] = {
                                     type: convertDataTypeToDimensionType(
                                         col.Type || 'varchar',
                                     ),
+                                    ...(numericKind ? { numericKind } : {}),
                                 };
                             }
                             return acc;
@@ -585,11 +616,8 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         }, {});
     }
 
-    async getAllTables(): Promise<
-        { database: string; schema: string; table: string }[]
-    > {
-        const tables: { database: string; schema: string; table: string }[] =
-            [];
+    async getAllTables(): Promise<WarehouseTables> {
+        const tables: WarehouseTables = [];
 
         try {
             let nextToken: string | undefined;
@@ -611,6 +639,9 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                             database: this.credentials.database,
                             schema: this.credentials.schema,
                             table: tableMeta.Name,
+                            tableType: getWarehouseTableType(
+                                tableMeta.TableType,
+                            ),
                         });
                     }
                 });

@@ -5,6 +5,7 @@ import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric, type TimestampDomain } from './field';
 import { type CreateWarehouseCredentials } from './projects';
 import type { WarehouseQueryMetadata } from './queryHistory';
+import { type ResultNumericKind } from './results';
 import { type UserAttributeValueMap } from './userAttributes';
 
 const MAX_USER_ATTRIBUTE_QUERY_TAGS = 20;
@@ -169,10 +170,129 @@ export const ensureCatalogTimestampDomainsKey = (
         catalogWithDomains[WAREHOUSE_TIMESTAMP_DOMAINS_KEY] ?? {};
 };
 
+/**
+ * Shape of a non-scalar column path: `repeated` for arrays, `record` for
+ * structs. Keys are dotted paths (`product.attributes`), so a nested node
+ * appears at every level it occurs. Scalar columns have no entry.
+ */
+export type WarehouseNestedColumnShape = {
+    repeated: boolean;
+    record: boolean;
+};
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+export const isWarehouseNestedColumnShape = (
+    value: unknown,
+): value is WarehouseNestedColumnShape =>
+    isPlainRecord(value) &&
+    typeof value.repeated === 'boolean' &&
+    typeof value.record === 'boolean';
+
+/**
+ * Sidecar of nested column shapes keyed database → schema → table → column
+ * path, stored under a reserved key next to the database keys like the
+ * timestamp domains. Its value shares the catalog's key space, so it is read
+ * back through runtime checks rather than a cast; a malformed sidecar from an
+ * older cache is ignored.
+ */
+export const WAREHOUSE_NESTED_COLUMNS_KEY = '__lightdashNestedColumns';
+
+const getNestedColumnsSidecar = (
+    catalog: WarehouseCatalog,
+): Record<string, unknown> | undefined => {
+    const sidecar: unknown = catalog[WAREHOUSE_NESTED_COLUMNS_KEY];
+    return isPlainRecord(sidecar) ? sidecar : undefined;
+};
+
+export const getCatalogNestedColumnShape = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+    columnPath: string,
+): WarehouseNestedColumnShape | undefined => {
+    const shape = [database, schema, table, columnPath].reduce<unknown>(
+        (node, key) => (isPlainRecord(node) ? node[key] : undefined),
+        getNestedColumnsSidecar(catalog),
+    );
+    return isWarehouseNestedColumnShape(shape) ? shape : undefined;
+};
+
+export const setCatalogNestedColumnShape = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+    columnPath: string,
+    shape: WarehouseNestedColumnShape | undefined,
+): void => {
+    if (shape === undefined) return;
+    const sidecar = getNestedColumnsSidecar(catalog) ?? {};
+    Object.assign(catalog, { [WAREHOUSE_NESTED_COLUMNS_KEY]: sidecar });
+    const ensureRecord = (
+        parent: Record<string, unknown>,
+        key: string,
+    ): Record<string, unknown> => {
+        const existing = parent[key];
+        if (isPlainRecord(existing)) return existing;
+        const created: Record<string, unknown> = {};
+        // eslint-disable-next-line no-param-reassign
+        parent[key] = created;
+        return created;
+    };
+    ensureRecord(ensureRecord(ensureRecord(sidecar, database), schema), table)[
+        columnPath
+    ] = shape;
+};
+
+export enum WarehouseTableType {
+    TABLE = 'table',
+    VIEW = 'view',
+    MATERIALIZED_VIEW = 'materialized_view',
+    EXTERNAL = 'external',
+}
+
+export const isWarehouseTableType = (
+    value: unknown,
+): value is WarehouseTableType =>
+    typeof value === 'string' &&
+    Object.values<string>(WarehouseTableType).includes(value);
+
+// Maps the table_type strings and engine names warehouses report onto one vocabulary
+export const getWarehouseTableType = (rawType: unknown): WarehouseTableType => {
+    const normalized =
+        typeof rawType === 'string'
+            ? rawType
+                  .trim()
+                  .toUpperCase()
+                  .replace(/[\s_]+/g, ' ')
+            : '';
+    switch (normalized) {
+        case 'VIEW':
+        case 'VIRTUAL VIEW':
+            return WarehouseTableType.VIEW;
+        case 'MATERIALIZED VIEW':
+        case 'MATERIALIZEDVIEW':
+            return WarehouseTableType.MATERIALIZED_VIEW;
+        case 'EXTERNAL':
+        case 'EXTERNAL TABLE':
+        case 'FOREIGN':
+        case 'FOREIGN TABLE':
+            return WarehouseTableType.EXTERNAL;
+        default:
+            return WarehouseTableType.TABLE;
+    }
+};
+
 export type WarehouseTablesCatalog = {
     [database: string]: {
         [schema: string]: {
-            [table: string]: { partitionColumn?: PartitionColumn };
+            [table: string]: {
+                partitionColumn?: PartitionColumn;
+                tableType?: WarehouseTableType;
+            };
         };
     };
 };
@@ -181,11 +301,17 @@ export type WarehouseTables = {
     database: string;
     schema: string;
     table: string;
+    tableType: WarehouseTableType;
     partitionColumn?: PartitionColumn;
 }[];
 
+export type WarehouseResultField = {
+    type: DimensionType;
+    numericKind?: ResultNumericKind;
+};
+
 export type WarehouseResults = {
-    fields: Record<string, { type: DimensionType }>;
+    fields: Record<string, WarehouseResultField>;
     rows: Record<string, AnyType>[];
 };
 
@@ -242,6 +368,9 @@ export interface WarehouseSqlBuilder {
     escapeString: (value: string) => string;
     // Methods for funnel builder and general SQL generation
     castToTimestamp: (date: Date) => string;
+    castToDate: (date: Date) => string;
+    /** A zoneless (wall-clock) timestamp literal, e.g. BigQuery DATETIME. */
+    castToNaiveTimestamp: (date: Date) => string;
     getIntervalSql: (value: number, unit: TimeIntervalUnit) => string;
     getTimestampDiffSeconds: (
         startTimestampSql: string,
@@ -297,6 +426,15 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
     ): Promise<WarehouseResults>;
 
     test(): Promise<void>;
+
+    /**
+     * The timezone the warehouse session compares and truncates temporal
+     * values in. Null where the adapter cannot report one; callers fall back
+     * to the project timezone. Modelled because result files hold UTC
+     * instants, and reproducing the warehouse's equality outside it needs
+     * the timezone it silently used.
+     */
+    getSessionTimezone(): Promise<string | null>;
 
     getAllTables(
         schema?: string,

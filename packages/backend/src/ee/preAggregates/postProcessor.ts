@@ -10,7 +10,7 @@ import { generatePreAggregateExplores } from './generatePreAggregateExplores';
 
 export const preAggregatePostProcessor: ExplorePostProcessor = (
     compiledExplores,
-    { model, meta },
+    { model, meta, startOfWeek },
 ) => {
     const parsedPreAggregates = attempt(
         parseDbtPreAggregates,
@@ -51,5 +51,6 @@ export const preAggregatePostProcessor: ExplorePostProcessor = (
     return generatePreAggregateExplores({
         compiledExplores: exploresWithPreAggregates,
         parsedPreAggregates,
+        startOfWeek,
     });
 };

@@ -1,5 +1,5 @@
 import { ValueLabelPositionOptions } from '@lightdash/common';
-import { Box, Group, Text, Select } from '@mantine-8/core';
+import { Box, Group, Text, Select } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowLeft,
@@ -73,7 +73,6 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
     return (
         <Select
             allowDeselect={false}
-            radius="md"
             data={Object.values(ValueLabelPositionOptions).map((option) => ({
                 value: option,
                 label: capitalize(option),

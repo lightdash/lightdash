@@ -1,4 +1,4 @@
-import { Group } from '@mantine-8/core';
+import { Group } from '@mantine/core';
 import { type FC } from 'react';
 import { NumberInput } from '../../../common/NumberInput';
 import { Config } from '../../common/Config';

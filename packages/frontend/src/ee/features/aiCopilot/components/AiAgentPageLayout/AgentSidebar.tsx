@@ -1,40 +1,117 @@
 import {
+    AI_AGENT_THREAD_TITLE_MAX_LENGTH,
+    FeatureFlags,
     type AiAgent,
     type AiAgentProjectThreadSummary,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Alert,
     Box,
     Button,
+    Group,
+    Menu,
+    NavLink,
     Paper,
     rem,
     Stack,
     Text,
+    TextInput,
     Title,
     Tooltip,
-    NavLink,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconBrandSlack,
     IconChevronDown,
     IconCirclePlus,
+    IconDots,
     IconInfoCircle,
+    IconPencil,
+    IconPin,
+    IconPinnedOff,
+    IconTrash,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import MantineModal from '../../../../../components/common/MantineModal';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import { useCanManageAiAgentThread } from '../../hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
-import { useInfiniteAiAgentThreads } from '../../hooks/useProjectAiAgents';
+import {
+    useDeleteAiAgentThreadMutation,
+    useInfiniteAiAgentThreads,
+    usePinAiAgentThreadMutation,
+    useRenameAiAgentThreadMutation,
+} from '../../hooks/useProjectAiAgents';
 import { AgentNamePill } from '../AgentNamePill';
 import { AiAgentIcon } from '../AiAgentIcon';
 import classes from './agentSidebar.module.css';
 import { SidebarButton } from './SidebarButton';
+
+type ThreadRenameInputProps = {
+    initialTitle: string;
+    onSubmit: (title: string) => void;
+    onCancel: () => void;
+};
+
+const ThreadRenameInput: FC<ThreadRenameInputProps> = ({
+    initialTitle,
+    onSubmit,
+    onCancel,
+}) => {
+    const [draft, setDraft] = useState(initialTitle);
+    const settledRef = useRef(false);
+
+    const settle = (action: () => void) => {
+        if (settledRef.current) return;
+        settledRef.current = true;
+        action();
+    };
+
+    const commit = () => {
+        const title = draft.trim();
+        if (title.length === 0 || title === initialTitle) {
+            settle(onCancel);
+            return;
+        }
+        settle(() => onSubmit(title));
+    };
+
+    return (
+        <Box px="xs" py={rem(4)}>
+            <TextInput
+                size="xs"
+                autoFocus
+                aria-label="Thread title"
+                maxLength={AI_AGENT_THREAD_TITLE_MAX_LENGTH}
+                value={draft}
+                onChange={(event) => setDraft(event.currentTarget.value)}
+                onFocus={(event) => event.currentTarget.select()}
+                onBlur={commit}
+                onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        commit();
+                    } else if (event.key === 'Escape') {
+                        event.preventDefault();
+                        settle(onCancel);
+                    }
+                }}
+            />
+        </Box>
+    );
+};
 
 type ThreadNavLinkProps = {
     thread: AiAgentProjectThreadSummary;
     isActive: boolean;
     projectUuid: string;
     showAgentName?: boolean;
+    deletionDisabled: boolean;
+    onDelete: (thread: AiAgentProjectThreadSummary) => void;
+    onRename: (thread: AiAgentProjectThreadSummary, title: string) => void;
+    onTogglePin: (thread: AiAgentProjectThreadSummary) => void;
 };
 
 const ThreadNavLink: FC<ThreadNavLinkProps> = ({
@@ -42,9 +119,35 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     isActive,
     projectUuid,
     showAgentName = false,
+    deletionDisabled,
+    onDelete,
+    onRename,
+    onTogglePin,
 }) => {
+    const isPinned = thread.pinnedAt !== null;
     const threadTitle = (thread.title || thread.firstMessage.message).trim();
     const hasTitle = threadTitle.length > 0;
+    const canManageThread = useCanManageAiAgentThread({
+        projectUuid,
+        threadUserUuid: thread.user.uuid,
+    });
+    // Deleting a Slack thread here would not remove it from Slack itself
+    const canDelete =
+        !deletionDisabled && canManageThread && thread.createdFrom !== 'slack';
+    const [isRenaming, setIsRenaming] = useState(false);
+
+    if (isRenaming) {
+        return (
+            <ThreadRenameInput
+                initialTitle={threadTitle}
+                onSubmit={(title) => {
+                    setIsRenaming(false);
+                    onRename(thread, title);
+                }}
+                onCancel={() => setIsRenaming(false)}
+            />
+        );
+    }
 
     return (
         <NavLink
@@ -52,6 +155,12 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             component={Link}
             key={thread.uuid}
             to={`/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
+            // Anchor for scope walkthroughs (data-tour-via): a thread, by its
+            // title. The hint's {value} is the title:
+            //   data-tour-anchor="agent-thread" data-tour-hint="Open the {value} thread"
+            data-tour-anchor="agent-thread"
+            data-tour-hint="Open the {value} thread"
+            data-tour-value={threadTitle}
             px="xs"
             py={rem(4)}
             className={classes.threadNavLink}
@@ -77,16 +186,129 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             }
             active={isActive}
             rightSection={
-                thread.createdFrom === 'slack' && (
-                    <Tooltip label={'Threads created in slack are read only'}>
-                        <IconBrandSlack size={18} stroke={1} />
-                    </Tooltip>
-                )
+                <Group gap={4} wrap="nowrap">
+                    {thread.createdFrom === 'slack' && (
+                        <Tooltip
+                            label={'Threads created in slack are read only'}
+                        >
+                            <IconBrandSlack size={18} stroke={1} />
+                        </Tooltip>
+                    )}
+                    {canManageThread && (
+                        <Menu
+                            position="bottom-end"
+                            width={160}
+                            returnFocus={false}
+                        >
+                            <Menu.Target>
+                                <ActionIcon
+                                    size="xs"
+                                    color="ldGray"
+                                    variant="subtle"
+                                    className={classes.threadMenuButton}
+                                    aria-label="Thread options"
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                    }}
+                                >
+                                    <MantineIcon icon={IconDots} size={12} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            {/* Clicks bubble through the portal to the row link */}
+                            <Menu.Dropdown
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                }}
+                            >
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={
+                                                isPinned
+                                                    ? IconPinnedOff
+                                                    : IconPin
+                                            }
+                                        />
+                                    }
+                                    onClick={() => onTogglePin(thread)}
+                                >
+                                    {isPinned ? 'Unpin' : 'Pin'}
+                                </Menu.Item>
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon icon={IconPencil} />
+                                    }
+                                    onClick={() => setIsRenaming(true)}
+                                >
+                                    Rename
+                                </Menu.Item>
+                                {canDelete && (
+                                    <Menu.Item
+                                        color="red"
+                                        leftSection={
+                                            <MantineIcon icon={IconTrash} />
+                                        }
+                                        onClick={() => onDelete(thread)}
+                                    >
+                                        Delete
+                                    </Menu.Item>
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+                    )}
+                </Group>
             }
             viewTransition
         />
     );
 };
+
+type ThreadGroupProps = {
+    title: string;
+    threads: AiAgentProjectThreadSummary[];
+    projectUuid: string;
+    threadUuid?: string;
+    showAgentName: boolean;
+    deletionDisabled: boolean;
+    onDelete: (thread: AiAgentProjectThreadSummary) => void;
+    onRename: (thread: AiAgentProjectThreadSummary, title: string) => void;
+    onTogglePin: (thread: AiAgentProjectThreadSummary) => void;
+};
+
+const ThreadGroup: FC<ThreadGroupProps> = ({
+    title,
+    threads,
+    projectUuid,
+    threadUuid,
+    showAgentName,
+    deletionDisabled,
+    onDelete,
+    onRename,
+    onTogglePin,
+}) => (
+    <Stack gap="xs">
+        <Title order={6} c="dimmed" size="xs" ml="xs">
+            {title}
+        </Title>
+        <Box>
+            {threads.map((thread) => (
+                <ThreadNavLink
+                    key={thread.uuid}
+                    thread={thread}
+                    isActive={thread.uuid === threadUuid}
+                    projectUuid={projectUuid}
+                    showAgentName={showAgentName}
+                    deletionDisabled={deletionDisabled}
+                    onDelete={onDelete}
+                    onRename={onRename}
+                    onTogglePin={onTogglePin}
+                />
+            ))}
+        </Box>
+    </Stack>
+);
 
 type ThreadListProps = {
     projectUuid: string;
@@ -105,37 +327,91 @@ const ThreadList: FC<ThreadListProps> = ({
         useInfiniteAiAgentThreads(projectUuid, { agentUuid });
 
     const threads = data?.pages.flatMap((page) => page.data) ?? [];
+    const pinnedThreads = threads.filter((thread) => thread.pinnedAt !== null);
+    const recentThreads = threads.filter((thread) => thread.pinnedAt === null);
+
+    const deletionDisabledFlag = useServerFeatureFlag(
+        FeatureFlags.AiDisableThreadDeletion,
+    );
+    const deletionDisabled = deletionDisabledFlag.data?.enabled === true;
+
+    const [threadToDelete, setThreadToDelete] =
+        useState<AiAgentProjectThreadSummary | null>(null);
+    const { mutateAsync: deleteThread, isLoading: isDeletingThread } =
+        useDeleteAiAgentThreadMutation(projectUuid);
+    const { mutate: renameThread } =
+        useRenameAiAgentThreadMutation(projectUuid);
+    const { mutate: setThreadPinned } =
+        usePinAiAgentThreadMutation(projectUuid);
+    const handleConfirmDelete = async () => {
+        if (!threadToDelete) return;
+        await deleteThread({
+            agentUuid: threadToDelete.agentUuid,
+            threadUuid: threadToDelete.uuid,
+        });
+        setThreadToDelete(null);
+    };
 
     if (!isSuccess) {
         return null;
     }
 
+    const groupHandlers = {
+        projectUuid,
+        threadUuid,
+        showAgentName,
+        deletionDisabled,
+        onDelete: setThreadToDelete,
+        onRename: (thread: AiAgentProjectThreadSummary, title: string) =>
+            renameThread({
+                agentUuid: thread.agentUuid,
+                threadUuid: thread.uuid,
+                title,
+            }),
+        onTogglePin: (thread: AiAgentProjectThreadSummary) =>
+            setThreadPinned({
+                agentUuid: thread.agentUuid,
+                threadUuid: thread.uuid,
+                pinned: thread.pinnedAt === null,
+            }),
+    };
+
     return (
-        <Stack gap="xs" className={classes.threadList}>
-            <Title order={6} c="dimmed" tt="uppercase" size="xs" ml="xs">
-                Recent
-            </Title>
+        <Stack gap="md" className={classes.threadList}>
+            {pinnedThreads.length > 0 && (
+                <ThreadGroup
+                    title="Pinned"
+                    threads={pinnedThreads}
+                    {...groupHandlers}
+                />
+            )}
 
-            <Stack gap={2} className={classes.threadItems}>
-                {threads.length === 0 && (
-                    <Paper variant="dotted" p="sm">
-                        <Text truncate="end" size="sm" c="ldGray.6" ta="center">
-                            No threads yet
-                        </Text>
-                    </Paper>
-                )}
-
-                <Box>
-                    {threads.map((thread) => (
-                        <ThreadNavLink
-                            key={thread.uuid}
-                            thread={thread}
-                            isActive={thread.uuid === threadUuid}
-                            projectUuid={projectUuid}
-                            showAgentName={showAgentName}
+            <Stack gap="xs" className={classes.threadItems}>
+                {threads.length === 0 ? (
+                    <>
+                        <Title order={6} c="dimmed" size="xs" ml="xs">
+                            Recent
+                        </Title>
+                        <Paper variant="dotted" p="sm">
+                            <Text
+                                truncate="end"
+                                size="sm"
+                                c="dimmed"
+                                ta="center"
+                            >
+                                No threads yet
+                            </Text>
+                        </Paper>
+                    </>
+                ) : (
+                    recentThreads.length > 0 && (
+                        <ThreadGroup
+                            title="Recent"
+                            threads={recentThreads}
+                            {...groupHandlers}
                         />
-                    ))}
-                </Box>
+                    )
+                )}
             </Stack>
 
             <Box>
@@ -151,6 +427,17 @@ const ThreadList: FC<ThreadListProps> = ({
                     </Button>
                 )}
             </Box>
+
+            <MantineModal
+                opened={threadToDelete !== null}
+                onClose={() => setThreadToDelete(null)}
+                title="Delete thread"
+                variant="delete"
+                resourceType="thread"
+                description="The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone."
+                onConfirm={handleConfirmDelete}
+                confirmLoading={isDeletingThread}
+            />
         </Stack>
     );
 };

@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
+import { Button, getDefaultZIndex, Menu } from '@mantine/core';
 import {
     IconBuildingBank,
     IconDatabase,
@@ -41,7 +41,6 @@ const SettingsMenu: FC = () => {
     return (
         <Menu
             withArrow
-            shadow="lg"
             position="bottom-end"
             arrowOffset={16}
             offset={-2}

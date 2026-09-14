@@ -6,7 +6,7 @@ import {
     type SavedChart,
     type UpdateEmbed,
 } from '@lightdash/common';
-import { Button, Flex, MultiSelect, Stack, Switch } from '@mantine-8/core';
+import { Button, Flex, MultiSelect, Stack, Switch } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 

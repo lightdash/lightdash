@@ -1,6 +1,7 @@
 import {
     ContentType,
     type ApiError,
+    type DataAppVizsFilter,
     type DeletedContentItem,
     type DeletedContentWithDescendants,
     type KnexPaginatedData,
@@ -28,6 +29,7 @@ type UseInfiniteDeletedContentParams = {
     search?: string;
     contentTypes?: ContentType[];
     deletedByUserUuids?: string[];
+    dataAppVizsFilter?: DataAppVizsFilter;
 };
 
 export function useInfiniteDeletedContent(
@@ -44,6 +46,7 @@ export function useInfiniteDeletedContent(
             params.search,
             params.contentTypes,
             params.deletedByUserUuids,
+            params.dataAppVizsFilter,
         ],
         queryFn: async ({ pageParam = 1 }) => {
             return getDeletedContent({
@@ -53,6 +56,7 @@ export function useInfiniteDeletedContent(
                 search: params.search,
                 contentTypes: params.contentTypes,
                 deletedByUserUuids: params.deletedByUserUuids,
+                dataAppVizsFilter: params.dataAppVizsFilter,
             });
         },
         getNextPageParam: (_lastGroup, groups) => {
@@ -65,13 +69,22 @@ export function useInfiniteDeletedContent(
     });
 }
 
+/**
+ * `isChartType` is presentation-only (custom chart types restore to the
+ * builder route, not the app viewer) — it is stripped before the API call.
+ */
+export type RestoreDeletedContentItem = DeletedContentItem & {
+    isChartType?: boolean;
+};
+
 export function useRestoreDeletedContent(projectUuid: string) {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
 
-    return useMutation<undefined, ApiError, DeletedContentItem>({
-        mutationFn: (item) => restoreDeletedContent(projectUuid, item),
+    return useMutation<undefined, ApiError, RestoreDeletedContentItem>({
+        mutationFn: ({ isChartType, ...item }) =>
+            restoreDeletedContent(projectUuid, item),
         onSuccess: async (_data, item) => {
             showToastSuccess({
                 title: 'Content restored',
@@ -106,11 +119,15 @@ export function useRestoreDeletedContent(projectUuid: string) {
                               }
                             : item.contentType === ContentType.DATA_APP
                               ? {
-                                    children: 'Go to app',
+                                    children: item.isChartType
+                                        ? 'Go to chart type'
+                                        : 'Go to app',
                                     icon: IconArrowRight,
                                     onClick: () =>
                                         navigate(
-                                            `/projects/${projectUuid}/apps/${item.uuid}`,
+                                            item.isChartType
+                                                ? `/projects/${projectUuid}/chart-types/${item.uuid}`
+                                                : `/projects/${projectUuid}/apps/${item.uuid}`,
                                         ),
                                 }
                               : undefined,

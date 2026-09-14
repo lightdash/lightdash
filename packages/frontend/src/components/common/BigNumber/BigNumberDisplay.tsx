@@ -7,7 +7,7 @@ import {
     Text,
     Tooltip,
     type TextProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import {
     forwardRef,
@@ -70,6 +70,11 @@ export type BigNumberDisplayProps = {
     flipColors: boolean;
     /** Raw CSS colour from conditional formatting, if any. */
     valueColor?: string;
+    /**
+     * Shown as a tooltip on the value and the label. Only provided when the
+     * tile title, which normally carries the description tooltip, is hidden.
+     */
+    description?: string;
     /** Wraps the value so callers can attach a context menu. */
     renderValue?: (value: ReactNode) => ReactNode;
 } & HTMLAttributes<HTMLDivElement>;
@@ -86,6 +91,7 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
     comparison,
     flipColors,
     valueColor,
+    description,
     renderValue,
     ...wrapperProps
 }) => {
@@ -123,6 +129,12 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
         </BigNumberText>
     );
 
+    const descriptionLabel = description ? (
+        <Text className={styles.descriptionTooltipLabel} fz="sm">
+            {description}
+        </Text>
+    ) : undefined;
+
     return (
         <Center
             w="100%"
@@ -135,9 +147,16 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
             ref={setRef}
             {...wrapperProps}
         >
-            <Flex style={{ flexShrink: 1 }} justify="center" align="center">
-                {renderValue ? renderValue(valueNode) : valueNode}
-            </Flex>
+            <Tooltip
+                maw={400}
+                position="top"
+                label={descriptionLabel}
+                disabled={!descriptionLabel}
+            >
+                <Flex style={{ flexShrink: 1 }} justify="center" align="center">
+                    {renderValue ? renderValue(valueNode) : valueNode}
+                </Flex>
+            </Tooltip>
 
             {showLabel && (
                 <Flex
@@ -147,15 +166,16 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                     mt={valueFontSize * 0.15 * spacingMultiplier}
                 >
                     <Tooltip
-                        withinPortal
-                        label={label}
+                        maw={400}
+                        label={descriptionLabel ?? label}
                         disabled={
-                            !label || label.length < LABEL_TOOLTIP_MIN_LENGTH
+                            !descriptionLabel &&
+                            (!label || label.length < LABEL_TOOLTIP_MIN_LENGTH)
                         }
                     >
                         <Text
                             fz={labelFontSize}
-                            c="ldGray.6"
+                            c="dimmed"
                             fw={500}
                             ta="center"
                             lineClamp={labelLineClamp}
@@ -184,7 +204,7 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                     }
                     gap="xs"
                 >
-                    <Tooltip withinPortal label={comparison.tooltip}>
+                    <Tooltip label={comparison.tooltip}>
                         <Group
                             className={getTrendPillClass(
                                 comparison.direction,
@@ -231,7 +251,6 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                     {comparison.label &&
                         availableHeight > COMPARISON_LABEL_MIN_HEIGHT && (
                             <Tooltip
-                                withinPortal
                                 label={comparison.label}
                                 disabled={
                                     comparison.label.length <
@@ -241,7 +260,7 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                                 <BigNumberText
                                     span
                                     fz={comparisonFontSize}
-                                    c="ldGray.6"
+                                    c="dimmed"
                                     fw={400}
                                     lineClamp={1}
                                 >

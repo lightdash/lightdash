@@ -111,6 +111,26 @@ export class SlackAuthenticationModel {
         return row.slack_team_id;
     }
 
+    async getOrganizationUuidFromTeamId(teamId: string) {
+        const row = await this.database(SlackAuthTokensTableName)
+            .leftJoin(
+                'organizations',
+                'slack_auth_tokens.organization_id',
+                'organizations.organization_id',
+            )
+            .select('organization_uuid')
+            .where('slack_team_id', teamId)
+            .first();
+
+        if (!row) {
+            throw new NotFoundError(
+                `Could not find organization for Slack team ${teamId}`,
+            );
+        }
+
+        return row.organization_uuid;
+    }
+
     async getUserUuid(teamId: string) {
         const [row] = await this.database(SlackAuthTokensTableName)
             .leftJoin(
@@ -149,6 +169,7 @@ export class SlackAuthenticationModel {
             notificationChannel: row.notification_channel ?? undefined,
             appProfilePhotoUrl: row.app_profile_photo_url ?? undefined,
             unfurlsEnabled: row.unfurls_enabled ?? true,
+            aiAgentsEnabled: row.ai_agents_enabled ?? true,
         };
     }
 
@@ -189,6 +210,7 @@ export class SlackAuthenticationModel {
             notificationChannel,
             appProfilePhotoUrl,
             unfurlsEnabled,
+            aiAgentsEnabled,
         }: SlackAppCustomSettings,
     ) {
         const organizationId = await this.getOrganizationId(organizationUuid);
@@ -198,6 +220,7 @@ export class SlackAuthenticationModel {
                 notification_channel: notificationChannel,
                 app_profile_photo_url: appProfilePhotoUrl,
                 unfurls_enabled: unfurlsEnabled,
+                ai_agents_enabled: aiAgentsEnabled,
             })
             .where('organization_id', organizationId);
     }

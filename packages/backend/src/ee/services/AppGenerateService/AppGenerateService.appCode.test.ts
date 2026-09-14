@@ -1,7 +1,10 @@
-import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import {
+    DATA_REFERENCE_EXTRACTOR_VERSION,
     FeatureFlags,
     ForbiddenError,
+    getCustomSqlFieldKey,
+    LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS,
     ParameterError,
     TooManyRequestsError,
     type DataAppCode,
@@ -11,8 +14,13 @@ import {
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { extract as tarExtract, pack as tarPack } from 'tar-stream';
+import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { AppGenerateService } from './AppGenerateService';
-import { TEMPLATE_DEPENDENCIES } from './templateDependencies';
+import {
+    TEMPLATE_DEPENDENCIES,
+    TEMPLATE_DEV_DEPENDENCIES,
+    TEMPLATE_SCRIPTS,
+} from './templateDependencies';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -86,7 +94,11 @@ const VIZ_SCHEMA = {
 
 const makeDeps = (
     customDeps: Record<string, string> = {},
-    opts: { sdkVersion?: string; lockfile?: string } = {},
+    opts: {
+        sdkVersion?: string;
+        lockfile?: string;
+        packageJsonOverrides?: Record<string, unknown>;
+    } = {},
 ): DataAppDependencies => {
     const dependencies = {
         ...TEMPLATE_DEPENDENCIES,
@@ -94,7 +106,10 @@ const makeDeps = (
         ...customDeps,
     };
     return {
-        packageJson: JSON.stringify({ dependencies }),
+        packageJson: JSON.stringify({
+            dependencies,
+            ...opts.packageJsonOverrides,
+        }),
         lockfile:
             opts.lockfile ??
             `lockfileVersion: '9.0'\n# ${Object.keys(dependencies).join(' ')}\n`,
@@ -102,6 +117,17 @@ const makeDeps = (
 };
 
 const s3SendSpy = vi.fn().mockResolvedValue({});
+
+const makeSingleSourceTar = async (content: string): Promise<Buffer> =>
+    new Promise((resolve, reject) => {
+        const packer = tarPack();
+        const chunks: Buffer[] = [];
+        packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+        packer.on('end', () => resolve(Buffer.concat(chunks)));
+        packer.on('error', reject);
+        packer.entry({ name: 'src/App.tsx' }, content);
+        packer.finalize();
+    });
 
 function buildService(
     opts: {
@@ -119,8 +145,18 @@ function buildService(
         }),
         createVersion: vi.fn().mockResolvedValue({ version: 1 }),
         getLatestVersion: vi.fn().mockResolvedValue(null),
+        getVersion: vi.fn().mockResolvedValue(null),
         countInProgressVersionsForProject: vi.fn().mockResolvedValue(0),
+        updateVersionDataReferences: vi.fn().mockResolvedValue(undefined),
         updateApp: vi.fn().mockResolvedValue({}),
+        moveToSpace: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const coderService = {
+        getOrCreateSpace: vi.fn().mockResolvedValue({
+            space: { uuid: 'resolved-space-uuid' },
+            created: false,
+        }),
     };
 
     const schedulerClient = {
@@ -148,10 +184,15 @@ function buildService(
     };
 
     const spacePermissionService = {
-        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+        resolveAccess: vi.fn().mockResolvedValue({}),
     };
 
     const lightdashConfig = {
+        lightdashSecrets: {
+            active: 'test-lightdash-secret',
+            fallbacks: [],
+            all: ['test-lightdash-secret'],
+        },
         appRuntime: {
             dependencyRegistryHosts: ['registry.npmjs.org'],
             dependencyMinReleaseAgeDays: 0,
@@ -173,6 +214,7 @@ function buildService(
         analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: {} as never,
@@ -180,15 +222,20 @@ function buildService(
         projectModel: projectModel as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
+        savedChartModel: {} as never,
         schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
         spacePermissionService: spacePermissionService as never,
+        coderService: coderService as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
         externalConnectionModel: externalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
 
     // Stub ability checks to allow everything
@@ -231,6 +278,7 @@ function buildService(
         schedulerClient,
         analytics,
         externalConnectionModel,
+        coderService,
     };
 }
 
@@ -303,6 +351,45 @@ describe('AppGenerateService.importAppCode', () => {
         });
     });
 
+    it('persists extracted references with the extractor version', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode([
+                {
+                    path: 'src/App.tsx',
+                    contentBase64: Buffer.from(
+                        `import { query } from '@lightdash/query-sdk';
+                         query('orders').metrics(['orders_total_sales']);`,
+                    ).toString('base64'),
+                },
+            ]),
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.updateVersionDataReferences).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            1,
+            {
+                extractorVersion: DATA_REFERENCE_EXTRACTOR_VERSION,
+                references: [
+                    expect.objectContaining({
+                        kind: 'query',
+                        explore: 'orders',
+                        metrics: ['orders_total_sales'],
+                    }),
+                ],
+                parseErrors: [],
+                stats: {
+                    callSites: 1,
+                    fullyResolved: 1,
+                    partiallyResolved: 0,
+                    unresolved: 0,
+                },
+            },
+        );
+    });
+
     it('append mode: appends version 5 when latest is 4 and enqueues build', async () => {
         const { service, appModel, schedulerClient } = buildService();
 
@@ -315,6 +402,7 @@ describe('AppGenerateService.importAppCode', () => {
             name: 'Test App',
             description: 'A test app',
             slug: EXISTING_APP_SLUG,
+            registry_slug: null,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
@@ -350,6 +438,197 @@ describe('AppGenerateService.importAppCode', () => {
         });
         expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalledWith(
             expect.objectContaining({ organizationUuid: USER_ORG_UUID }),
+        );
+    });
+
+    it('create mode: places the app in the manifest spaceSlug space', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { spaceSlug: 'sales/q3-reports' }),
+        } as ImportAppCodeRequestBody);
+
+        expect(coderService.getOrCreateSpace).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'sales/q3-reports',
+            expect.anything(),
+            undefined,
+            undefined,
+            undefined,
+            true,
+        );
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ space_uuid: 'resolved-space-uuid' }),
+            expect.anything(),
+            'pending',
+            expect.any(Object),
+            undefined,
+            undefined,
+            { forceSlug: true },
+        );
+    });
+
+    it('create mode: an explicit body spaceUuid wins over the manifest spaceSlug', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { spaceSlug: 'sales/q3-reports' }),
+            spaceUuid: 'explicit-space-uuid',
+        } as ImportAppCodeRequestBody);
+
+        expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ space_uuid: 'explicit-space-uuid' }),
+            expect.anything(),
+            'pending',
+            expect.any(Object),
+            undefined,
+            undefined,
+            { forceSlug: true },
+        );
+    });
+
+    it('append mode: moves the app when the manifest spaceSlug resolves elsewhere', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: 'old-space-uuid',
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            slug: EXISTING_APP_SLUG,
+            registry_slug: null,
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { spaceSlug: 'sales/q3-reports' }),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.moveToSpace).toHaveBeenCalledWith({
+            appId: EXISTING_APP_UUID,
+            projectUuid: PROJECT_UUID,
+            targetSpaceUuid: 'resolved-space-uuid',
+        });
+    });
+
+    it('append mode: no move when the manifest spaceSlug resolves to the current space', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: 'resolved-space-uuid',
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            slug: EXISTING_APP_SLUG,
+            registry_slug: null,
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { spaceSlug: 'sales/q3-reports' }),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('append mode: leaves placement untouched when the manifest has no spaceSlug', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: 'old-space-uuid',
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            slug: EXISTING_APP_SLUG,
+            registry_slug: null,
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+        expect(appModel.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('create mode: a custom chart type is created spaceless and warns when a space was requested', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                template: 'data_app_viz',
+                vizSchema: VIZ_SCHEMA,
+                spaceSlug: 'sales/q3-reports',
+            }),
+            spaceUuid: 'explicit-space-uuid',
+        } as ImportAppCodeRequestBody);
+
+        expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ space_uuid: null }),
+            expect.anything(),
+            'pending',
+            expect.any(Object),
+            undefined,
+            expect.anything(),
+            { forceSlug: true },
+        );
+        expect(result.warnings).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining(
+                    'Custom chart types cannot be placed in spaces',
+                ),
+            ]),
+        );
+    });
+
+    it('append mode: a custom chart type ignores the manifest spaceSlug and warns', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test Viz',
+            description: 'A test viz',
+            slug: EXISTING_APP_SLUG,
+            template: 'data_app_viz',
+            registry_slug: null,
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                template: 'data_app_viz',
+                vizSchema: VIZ_SCHEMA,
+                spaceSlug: 'sales/q3-reports',
+            }),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+        expect(appModel.moveToSpace).not.toHaveBeenCalled();
+        expect(result.warnings).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining(
+                    'Custom chart types cannot be placed in spaces',
+                ),
+            ]),
         );
     });
 
@@ -455,6 +734,7 @@ describe('AppGenerateService.importAppCode', () => {
             organization_uuid: PROJECT_ORG_UUID,
             name: 'Old Name',
             description: 'Old description',
+            registry_slug: null,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 1 });
@@ -486,6 +766,7 @@ describe('AppGenerateService.importAppCode', () => {
             organization_uuid: PROJECT_ORG_UUID,
             name: 'Test App',
             description: 'A test app',
+            registry_slug: null,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 1 });
@@ -534,6 +815,7 @@ describe('AppGenerateService.importAppCode', () => {
             name: 'Test App',
             description: 'A test app',
             template: 'data_app_viz',
+            registry_slug: null,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
@@ -611,6 +893,198 @@ describe('AppGenerateService.importAppCode', () => {
             undefined, // vizSchema not persisted for non-viz apps
             { forceSlug: true },
         );
+    });
+
+    it('create mode: persists a valid manifest icon for a data_app_viz upload', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.icon = 'chart-sankey';
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ icon: 'chart-sankey' }),
+            { version: 1, prompt: '' },
+            'pending',
+            expect.any(Object),
+            undefined, // no declared dependencies
+            undefined, // no vizSchema in the manifest
+            { forceSlug: true },
+        );
+    });
+
+    it('create mode: ignores a manifest icon when the upload is not a data_app_viz', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const code = makeCode();
+        code.manifest.icon = 'chart-sankey'; // template stays null
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+        } as ImportAppCodeRequestBody);
+
+        const [appArg] = appModel.createWithVersion.mock.calls[0];
+        expect(appArg).not.toHaveProperty('icon');
+    });
+
+    it('create mode: throws ParameterError when the manifest icon is off the curated list', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.icon = 'not-a-real-icon' as never;
+
+        const importPromise = service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+        } as ImportAppCodeRequestBody);
+
+        await expect(importPromise).rejects.toThrow(ParameterError);
+        await expect(importPromise).rejects.toThrow(
+            'Invalid icon in the app manifest. Use one of the curated chart type icons, or null to clear it.',
+        );
+
+        // must not create or enqueue
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+    });
+
+    it('append mode: persists a valid manifest icon when the target app is a data_app_viz', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            template: 'data_app_viz',
+            icon: null,
+            registry_slug: null,
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 1 });
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.icon = 'chart-sankey';
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.updateApp).toHaveBeenCalledExactlyOnceWith(
+            EXISTING_APP_UUID,
+            PROJECT_UUID,
+            { icon: 'chart-sankey' },
+        );
+    });
+
+    it('append mode: clears the icon when the manifest icon is null', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            template: 'data_app_viz',
+            icon: 'chart-sankey',
+            registry_slug: null,
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 1 });
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.icon = null;
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.updateApp).toHaveBeenCalledExactlyOnceWith(
+            EXISTING_APP_UUID,
+            PROJECT_UUID,
+            { icon: null },
+        );
+    });
+
+    it('append mode: throws ParameterError when the manifest icon is off the curated list', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            template: 'data_app_viz',
+            icon: null,
+            registry_slug: null,
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 1 });
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.icon = 'not-a-real-icon' as never;
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code,
+                targetAppUuid: EXISTING_APP_UUID,
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.updateApp).not.toHaveBeenCalled();
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+    });
+
+    it('append mode: ignores a manifest icon when the target app is not a data_app_viz', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            registry_slug: null,
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 1 });
+
+        const code = makeCode();
+        code.manifest.icon = 'not-a-real-icon' as never; // template stays null
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        // No name/description change and icon is ignored (not a chart type)
+        expect(appModel.updateApp).not.toHaveBeenCalled();
     });
 
     it('rejects custom deps when the org flag is off', async () => {
@@ -711,6 +1185,50 @@ describe('AppGenerateService.importAppCode', () => {
         });
     });
 
+    it('stores server-owned build dependencies instead of uploaded devDependencies', async () => {
+        const { service, appModel } = buildService({
+            customDependenciesOrgEnabled: true,
+        });
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: {
+                ...makeCode(),
+                dependencies: makeDeps(
+                    { 'deck.gl': '9.3.5' },
+                    {
+                        packageJsonOverrides: {
+                            devDependencies: { vite: '1.0.0' },
+                            packageManager: 'npm@1.0.0',
+                        },
+                    },
+                ),
+            },
+        } as ImportAppCodeRequestBody);
+
+        const packageUpload = s3SendSpy.mock.calls
+            .map(([command]) => command)
+            .find(
+                (command) =>
+                    command instanceof PutObjectCommand &&
+                    command.input.Key?.endsWith('/deps/package.json'),
+            );
+        if (!(packageUpload instanceof PutObjectCommand)) {
+            throw new Error('Expected package.json upload');
+        }
+
+        expect(JSON.parse(String(packageUpload.input.Body))).toEqual({
+            dependencies: {
+                ...TEMPLATE_DEPENDENCIES,
+                '@lightdash/query-sdk': '0.999.0',
+                'deck.gl': '9.3.5',
+            },
+            devDependencies: TEMPLATE_DEV_DEPENDENCIES,
+            scripts: TEMPLATE_SCRIPTS,
+        });
+    });
+
     it('create mode: source.tar contains only src/ entries when bundle has mixed files', async () => {
         const { service, appModel } = buildService();
 
@@ -755,6 +1273,471 @@ describe('AppGenerateService.importAppCode', () => {
     });
 });
 
+describe('AppGenerateService.getVersionDataReferences', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('refreshes legacy ready-version provenance from its stored source', async () => {
+        const { service, appModel } = buildService();
+        appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: { references: [], parseErrors: [], stats: {} },
+        });
+        const sourceTar = await makeSingleSourceTar(`
+            import { query } from '@lightdash/query-sdk';
+            query('orders').tableCalculations([
+                { name: 'total', displayName: 'Total', sql: 'SUM(1)' },
+            ]);
+        `);
+        s3SendSpy.mockResolvedValue({ Body: Readable.from([sourceTar]) });
+
+        const result = await service.getVersionDataReferences(NEW_APP_UUID, 2);
+
+        expect(result).toEqual(
+            expect.objectContaining({
+                extractorVersion: DATA_REFERENCE_EXTRACTOR_VERSION,
+                references: [
+                    expect.objectContaining({
+                        explore: 'orders',
+                        customSql: expect.objectContaining({
+                            tableCalculations: ['SUM(1)'],
+                        }),
+                    }),
+                ],
+            }),
+        );
+        expect(appModel.updateVersionDataReferences).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            2,
+            result,
+        );
+    });
+
+    it('does not expose provenance from a non-ready version', async () => {
+        const { service, appModel } = buildService();
+        appModel.getVersion.mockResolvedValue({
+            status: 'failed',
+            data_references: null,
+        });
+
+        await expect(
+            service.getVersionDataReferences(NEW_APP_UUID, 2),
+        ).resolves.toBeNull();
+        expect(s3SendSpy).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when legacy provenance cannot be refreshed', async () => {
+        const { service, appModel } = buildService();
+        appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: null,
+        });
+        s3SendSpy.mockRejectedValue(new Error('source unavailable'));
+
+        await expect(
+            service.getVersionDataReferences(NEW_APP_UUID, 2),
+        ).resolves.toBeNull();
+        expect(appModel.updateVersionDataReferences).not.toHaveBeenCalled();
+    });
+
+    it('deduplicates concurrent legacy provenance refreshes', async () => {
+        const { service, appModel } = buildService();
+        appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: null,
+        });
+        const sourceTar = await makeSingleSourceTar(`
+            import { query } from '@lightdash/query-sdk';
+            query('orders').tableCalculations([
+                { name: 'total', displayName: 'Total', sql: 'SUM(1)' },
+            ]);
+        `);
+        s3SendSpy.mockResolvedValue({ Body: Readable.from([sourceTar]) });
+
+        const [first, second] = await Promise.all([
+            service.getVersionDataReferences(NEW_APP_UUID, 2),
+            service.getVersionDataReferences(NEW_APP_UUID, 2),
+        ]);
+
+        expect(first).toEqual(second);
+        expect(s3SendSpy).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('AppGenerateService.getCustomSqlProvenance', () => {
+    const organizationUuid = PROJECT_ORG_UUID;
+    const account = {
+        isRegisteredUser: () => true,
+        user: { id: USER_UUID },
+    } as never;
+
+    const previewToken = (userUuid = USER_UUID) =>
+        mintPreviewToken(
+            {
+                active: 'test-lightdash-secret',
+                fallbacks: [],
+                all: ['test-lightdash-secret'],
+            },
+            NEW_APP_UUID,
+            2,
+            userUuid,
+            organizationUuid,
+            PROJECT_UUID,
+        );
+    const emptyProvenance = {
+        tableCalculations: new Set<string>(),
+        customDimensions: new Set<string>(),
+        additionalMetrics: new Set<string>(),
+    };
+
+    it('returns exact SQL from the signed, viewable app version', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: NEW_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            organization_uuid: organizationUuid,
+            space_uuid: 'space-uuid',
+            created_by_user_uuid: 'author-uuid',
+        });
+        appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: {
+                extractorVersion: DATA_REFERENCE_EXTRACTOR_VERSION,
+                references: [
+                    {
+                        kind: 'query',
+                        explore: 'orders',
+                        customSql: {
+                            tableCalculations: ['SUM(1)'],
+                            customDimensions: [
+                                { table: 'orders', sql: 'UPPER(${name})' },
+                            ],
+                            additionalMetrics: [
+                                { table: 'orders', sql: 'SUM(${amount})' },
+                            ],
+                        },
+                    },
+                ],
+                parseErrors: [],
+                stats: {},
+            },
+        });
+
+        await expect(
+            service.getCustomSqlProvenance({
+                account,
+                projectUuid: PROJECT_UUID,
+                organizationUuid,
+                exploreName: 'orders',
+                previewToken: previewToken(),
+            }),
+        ).resolves.toEqual({
+            tableCalculations: new Set(['SUM(1)']),
+            customDimensions: new Set([
+                getCustomSqlFieldKey({
+                    table: 'orders',
+                    sql: 'UPPER(${name})',
+                }),
+            ]),
+            additionalMetrics: new Set([
+                getCustomSqlFieldKey({
+                    table: 'orders',
+                    sql: 'SUM(${amount})',
+                }),
+            ]),
+        });
+        expect(appModel.getVersion).toHaveBeenCalledWith(NEW_APP_UUID, 2);
+    });
+
+    it('fails closed after the signed capability expires', async () => {
+        vi.useFakeTimers();
+        try {
+            const now = new Date('2026-08-11T08:00:00Z');
+            vi.setSystemTime(now);
+            const token = previewToken();
+            vi.setSystemTime(
+                new Date(
+                    now.getTime() +
+                        (LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS + 1) *
+                            1_000,
+                ),
+            );
+            const { service, appModel } = buildService();
+
+            await expect(
+                service.getCustomSqlProvenance({
+                    account,
+                    projectUuid: PROJECT_UUID,
+                    organizationUuid,
+                    exploreName: 'orders',
+                    previewToken: token,
+                }),
+            ).resolves.toEqual(emptyProvenance);
+            expect(appModel.findApp).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('does not expose SQL from a non-ready version', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: NEW_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            organization_uuid: organizationUuid,
+            space_uuid: 'space-uuid',
+            created_by_user_uuid: 'author-uuid',
+        });
+        appModel.getVersion.mockResolvedValue({
+            status: 'failed',
+            data_references: null,
+        });
+
+        await expect(
+            service.getCustomSqlProvenance({
+                account,
+                projectUuid: PROJECT_UUID,
+                organizationUuid,
+                exploreName: 'orders',
+                previewToken: previewToken(),
+            }),
+        ).resolves.toEqual(emptyProvenance);
+    });
+
+    it('does not expose SQL from another explore', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: NEW_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            organization_uuid: organizationUuid,
+            space_uuid: 'space-uuid',
+            created_by_user_uuid: 'author-uuid',
+        });
+        appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: {
+                extractorVersion: DATA_REFERENCE_EXTRACTOR_VERSION,
+                references: [
+                    {
+                        kind: 'query',
+                        explore: 'orders',
+                        customSql: {
+                            tableCalculations: ['SUM(1)'],
+                            customDimensions: [],
+                            additionalMetrics: [],
+                        },
+                    },
+                ],
+                parseErrors: [],
+                stats: {},
+            },
+        });
+
+        await expect(
+            service.getCustomSqlProvenance({
+                account,
+                projectUuid: PROJECT_UUID,
+                organizationUuid,
+                exploreName: 'customers',
+                previewToken: previewToken(),
+            }),
+        ).resolves.toEqual(emptyProvenance);
+    });
+
+    it('rejects a token minted for another user before loading the app', async () => {
+        const { service, appModel } = buildService();
+
+        await expect(
+            service.getCustomSqlProvenance({
+                account,
+                projectUuid: PROJECT_UUID,
+                organizationUuid,
+                exploreName: 'orders',
+                previewToken: previewToken('another-user'),
+            }),
+        ).resolves.toEqual({
+            ...emptyProvenance,
+        });
+        expect(appModel.findApp).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            name: 'project',
+            organizationUuid,
+            projectUuid: 'another-project',
+        },
+        {
+            name: 'organization',
+            organizationUuid: 'another-organization',
+            projectUuid: PROJECT_UUID,
+        },
+    ])('rejects a token minted for another $name', async (tokenScope) => {
+        const { service, appModel } = buildService();
+        const token = mintPreviewToken(
+            {
+                active: 'test-lightdash-secret',
+                fallbacks: [],
+                all: ['test-lightdash-secret'],
+            },
+            NEW_APP_UUID,
+            2,
+            USER_UUID,
+            tokenScope.organizationUuid,
+            tokenScope.projectUuid,
+        );
+
+        await expect(
+            service.getCustomSqlProvenance({
+                account,
+                projectUuid: PROJECT_UUID,
+                organizationUuid,
+                exploreName: 'orders',
+                previewToken: token,
+            }),
+        ).resolves.toEqual({
+            tableCalculations: new Set(),
+            customDimensions: new Set(),
+            additionalMetrics: new Set(),
+        });
+        expect(appModel.findApp).not.toHaveBeenCalled();
+    });
+
+    it('does not expose SQL when the caller cannot view the app', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: NEW_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            organization_uuid: organizationUuid,
+            space_uuid: 'space-uuid',
+            created_by_user_uuid: 'author-uuid',
+        });
+        vi.mocked(
+            (
+                service as unknown as {
+                    createAuditedAbility: () => {
+                        can: () => boolean;
+                        cannot: () => boolean;
+                    };
+                }
+            ).createAuditedAbility,
+        ).mockReturnValue({
+            can: () => false,
+            cannot: () => true,
+        });
+
+        await expect(
+            service.getCustomSqlProvenance({
+                account,
+                projectUuid: PROJECT_UUID,
+                organizationUuid,
+                exploreName: 'orders',
+                previewToken: previewToken(),
+            }),
+        ).resolves.toEqual({
+            tableCalculations: new Set(),
+            customDimensions: new Set(),
+            additionalMetrics: new Set(),
+        });
+        expect(appModel.getVersion).not.toHaveBeenCalled();
+    });
+});
+
+describe('AppGenerateService generated source references', () => {
+    const makeTar = (path: string, content: string) =>
+        new Promise<Buffer>((resolve, reject) => {
+            const packer = tarPack();
+            const chunks: Buffer[] = [];
+            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+            packer.on('end', () => resolve(Buffer.concat(chunks)));
+            packer.on('error', reject);
+            packer.entry({ name: path }, content, (error) => {
+                if (error) reject(error);
+                else packer.finalize();
+            });
+        });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        s3SendSpy.mockResolvedValue({});
+    });
+
+    it('persists references from the source archive during deployment', async () => {
+        const { service, appModel } = buildService();
+        const distTar = await makeTar('dist/index.html', '<html></html>');
+        const sourceTar = await makeTar(
+            'src/App.tsx',
+            `import { savedChart } from '@lightdash/query-sdk';
+             savedChart('chart-uuid');`,
+        );
+
+        await (
+            service as unknown as {
+                uploadToS3: (
+                    client: unknown,
+                    bucket: string,
+                    appUuid: string,
+                    version: number,
+                    dist: Buffer,
+                    source: Buffer,
+                ) => Promise<number>;
+            }
+        ).uploadToS3(
+            { send: s3SendSpy },
+            'test-bucket',
+            NEW_APP_UUID,
+            2,
+            distTar,
+            sourceTar,
+        );
+
+        expect(appModel.updateVersionDataReferences).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            2,
+            expect.objectContaining({
+                references: [
+                    expect.objectContaining({
+                        kind: 'savedChart',
+                        chartUuid: 'chart-uuid',
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('does not fail deployment when reference persistence fails', async () => {
+        const { service, appModel } = buildService();
+        appModel.updateVersionDataReferences.mockRejectedValue(
+            new Error('database unavailable'),
+        );
+
+        const distTar = await makeTar('dist/index.html', '<html></html>');
+        const sourceTar = await makeTar('src/App.tsx', 'export default null;');
+        const upload = (
+            service as unknown as {
+                uploadToS3: (
+                    client: unknown,
+                    bucket: string,
+                    appUuid: string,
+                    version: number,
+                    dist: Buffer,
+                    source: Buffer,
+                ) => Promise<number>;
+            }
+        ).uploadToS3(
+            { send: s3SendSpy },
+            'test-bucket',
+            NEW_APP_UUID,
+            2,
+            distTar,
+            sourceTar,
+        );
+
+        await expect(upload).resolves.toEqual(expect.any(Number));
+    });
+});
+
 describe('AppGenerateService.importAppCode unchanged skip', () => {
     const existingApp = {
         app_id: EXISTING_APP_UUID,
@@ -766,6 +1749,7 @@ describe('AppGenerateService.importAppCode unchanged skip', () => {
         description: 'A test app',
         slug: EXISTING_APP_SLUG,
         template: null,
+        registry_slug: null,
     };
     const readyVersion = {
         version: 4,
@@ -976,8 +1960,29 @@ describe('AppGenerateService.importAppCode external connection links', () => {
         projectUuid: PROJECT_UUID,
         slug: 'stripe-api',
         name: 'Stripe API',
+        allowDataAppBuilderLinking: true,
         ...overrides,
     });
+
+    const mockBuilderAbility = (service: AppGenerateService) => {
+        const can = (_action: string, value: unknown) => {
+            if (
+                typeof value === 'object' &&
+                value !== null &&
+                'allowDataAppBuilderLinking' in value
+            ) {
+                return value.allowDataAppBuilderLinking === true;
+            }
+            return true;
+        };
+        vi.spyOn(
+            service as unknown as { createAuditedAbility: () => unknown },
+            'createAuditedAbility',
+        ).mockReturnValue({
+            can,
+            cannot: (action: string, value: unknown) => !can(action, value),
+        });
+    };
 
     it('reconciles manifest links by slug in the target project', async () => {
         const { service, appModel, externalConnectionModel } = buildService();
@@ -1002,6 +2007,26 @@ describe('AppGenerateService.importAppCode external connection links', () => {
             [{ externalConnectionUuid: CONN_UUID, alias: 'stripe' }],
         );
         expect(result.warnings).toEqual([]);
+    });
+
+    it('allows a builder to link an admin-enabled connection from the manifest', async () => {
+        const { service, appModel, externalConnectionModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+        externalConnectionModel.findBySlug.mockResolvedValue(makeConnection());
+        mockBuilderAbility(service);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                externalConnections: [
+                    { alias: 'stripe', connectionSlug: 'stripe-api' },
+                ],
+            }),
+        } as ImportAppCodeRequestBody);
+
+        expect(externalConnectionModel.replaceAppLinks).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            [{ externalConnectionUuid: CONN_UUID, alias: 'stripe' }],
+        );
     });
 
     it('warns and skips a missing slug while still applying resolvable links', async () => {
@@ -1092,17 +2117,13 @@ describe('AppGenerateService.importAppCode external connection links', () => {
         expect(appModel.createWithVersion).not.toHaveBeenCalled();
     });
 
-    it('throws ForbiddenError when the user cannot manage the resolved connection', async () => {
+    it('throws ForbiddenError when a builder links an admin-only connection', async () => {
         const { service, appModel, externalConnectionModel } = buildService();
         appModel.findApp.mockResolvedValue(undefined);
-        externalConnectionModel.findBySlug.mockResolvedValue(makeConnection());
-        vi.spyOn(
-            service as unknown as { createAuditedAbility: () => unknown },
-            'createAuditedAbility',
-        ).mockReturnValue({
-            can: () => false,
-            cannot: () => true,
-        });
+        externalConnectionModel.findBySlug.mockResolvedValue(
+            makeConnection({ allowDataAppBuilderLinking: false }),
+        );
+        mockBuilderAbility(service);
 
         await expect(
             service.importAppCode(makeUser(), PROJECT_UUID, {
@@ -1133,6 +2154,7 @@ describe('importAppCode slug identity', () => {
         name: 'Test App',
         description: 'A test app',
         slug: EXISTING_APP_SLUG,
+        registry_slug: null,
     };
 
     it('appends when the manifest slug matches an app in the target project', async () => {

@@ -15,6 +15,7 @@ import {
     type Series,
 } from '../../types/savedCharts';
 import { type CartesianChartDisplay } from '../CartesianChartDataModel';
+import { type EChartsLabelPosition } from '../helpers/styles/valueLabelStyles';
 
 export enum VizAggregationOptions {
     SUM = 'sum',
@@ -404,10 +405,11 @@ export type EChartsSeries = {
         show?: boolean;
         fontSize?: number;
         fontWeight?: string;
-        position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
+        position?: EChartsLabelPosition;
         formatter?: (param: { data: Record<string, unknown> }) => string;
         textBorderColor?: string;
         textBorderWidth?: number;
+        showOverlappingLabels?: boolean;
     };
     labelLayout?:
         | {
@@ -426,6 +428,7 @@ export type EChartsSeries = {
                     x?: number;
                     y?: number;
                     fontSize?: number;
+                    hideOverlap?: boolean;
                     labelLinePoints?: number[][];
                 }
               | undefined);

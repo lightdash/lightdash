@@ -5,7 +5,6 @@ import type {
 } from '@lightdash/common';
 import {
     Accordion,
-    ActionIcon,
     Anchor,
     Badge,
     Box,
@@ -13,13 +12,11 @@ import {
     Group,
     Stack,
     Text,
-    Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconArrowRight,
     IconExternalLink,
     IconHistory,
-    IconInfoCircle,
     IconNotebook,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
@@ -28,9 +25,9 @@ import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import Callout from '../../../../../components/common/Callout';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { parseAiAgentMemorySections } from '../../utils/memory';
-import { MEMORY_SCOPE_LABELS } from '../Admin/memoryScope';
+import { MemoryActions } from './MemoryActions';
 import styles from './MemoryDetails.module.css';
-import { MemoryStatusAction, MemoryStatusMenu } from './MemoryStatusControls';
+import { MemoryStatusMenu } from './MemoryStatusControls';
 
 type Memory = ApiAiAgentMemoryResponse['results'];
 
@@ -79,7 +76,7 @@ const SourceRow: FC<{
         <Box className={styles.sourceRow}>
             <Group justify="space-between" align="flex-start" wrap="nowrap">
                 <Box miw={0}>
-                    <Text fw={550} size="sm" lineClamp={1}>
+                    <Text fw={500} size="sm" lineClamp={1}>
                         {source.threadTitle ?? 'AI agent thread'}
                     </Text>
                     <AiMarkdown className={styles.sourceSummary}>
@@ -110,6 +107,13 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
         memory.replacementSlug && agentUuid
             ? `/projects/${projectUuid}/ai-agents/${agentUuid}/memories/${memory.replacementSlug}`
             : null;
+    const promotionReviewPath =
+        memory.status === 'promoted' && memory.promotionReviewItem
+            ? `/generalSettings/ai/issues?${new URLSearchParams({
+                  reviewProjectUuid: projectUuid,
+                  reviewItemUuid: memory.promotionReviewItem.uuid,
+              }).toString()}`
+            : null;
     const sources =
         memory.provenance.type === 'source_thread'
             ? [memory.provenance.source]
@@ -137,7 +141,17 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                             message: styles.statusCalloutText,
                         }}
                     >
-                        {replacementPath ? (
+                        {promotionReviewPath ? (
+                            <Anchor
+                                component={Link}
+                                to={promotionReviewPath}
+                                c="ldGray.8"
+                                fz="xs"
+                                fw={600}
+                            >
+                                View the promotion proposal
+                            </Anchor>
+                        ) : replacementPath ? (
                             <Anchor
                                 component={Link}
                                 to={replacementPath}
@@ -247,32 +261,6 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         status={memory.status}
                     />
                 </RailRow>
-                <RailRow
-                    label={
-                        <Group gap="two" wrap="nowrap">
-                            Scope
-                            <Tooltip
-                                label="Scope guides how the agent uses this memory. All memories remain private to the user by default."
-                                multiline
-                                w={260}
-                                withinPortal
-                            >
-                                <ActionIcon
-                                    aria-label="About memory scope"
-                                    color="gray"
-                                    size="xs"
-                                    variant="transparent"
-                                >
-                                    <IconInfoCircle size={13} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Group>
-                    }
-                >
-                    <Text className={styles.railText}>
-                        {MEMORY_SCOPE_LABELS[memory.scope]}
-                    </Text>
-                </RailRow>
                 <RailRow label="Saved">
                     <Text className={styles.railText}>
                         {new Date(memory.generatedAt).toLocaleDateString()}
@@ -294,13 +282,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                     {memory.terms.length > 0 ? (
                         <Group gap={6}>
                             {memory.terms.map((term) => (
-                                <Badge
-                                    key={term}
-                                    variant="light"
-                                    color="gray"
-                                    tt="none"
-                                    size="sm"
-                                >
+                                <Badge key={term} size="sm">
                                     {term}
                                 </Badge>
                             ))}
@@ -328,7 +310,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                                         <Box miw={0}>
                                             <Text
                                                 size="xs"
-                                                fw={550}
+                                                fw={500}
                                                 lineClamp={1}
                                             >
                                                 {getObjectLabel(object)}
@@ -384,12 +366,7 @@ export const MemoryDetailsModal: FC<MemoryDetailsModalProps> = ({
         modalBodyProps={{ px: 0, py: 0 }}
         bodyScrollAreaMaxHeight="calc(85vh - 120px)"
         headerActions={
-            <MemoryStatusAction
-                projectUuid={projectUuid}
-                memoryUuid={memory.uuid}
-                slug={memory.slug}
-                status={memory.status}
-            />
+            <MemoryActions projectUuid={projectUuid} memory={memory} />
         }
     >
         <MemoryDetails

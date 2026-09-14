@@ -19,14 +19,14 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Checkbox, Group, Stack, Select, Switch } from '@mantine-8/core';
+import { Box, Checkbox, Group, Stack, Select, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
-import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
 import {
     SeriesDepthControl,
@@ -71,7 +71,8 @@ type DraggablePortalHandlerProps = {
 const DraggablePortalHandler: FC<
     React.PropsWithChildren<DraggablePortalHandlerProps>
 > = ({ children, snapshot }) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
+    const portalTarget = usePortalTarget();
+    if (snapshot.isDragging) return createPortal(children, portalTarget);
     return <>{children}</>;
 };
 
@@ -252,6 +253,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             : {
                                                   show: true,
                                                   position: value as any,
+                                                  showOverlappingLabels:
+                                                      seriesGroup[0].label
+                                                          ?.showOverlappingLabels ??
+                                                      false,
                                               },
                                 });
                             }}
@@ -262,9 +267,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     <Config.Label>Total</Config.Label>
                                     <Switch
                                         size="xs"
-                                        classNames={{
-                                            label: compactStyles.compactCheckboxLabel,
-                                        }}
                                         checked={
                                             seriesGroup[0].stackLabel?.show
                                         }
@@ -285,9 +287,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         <Group gap="xs">
                             <Checkbox
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 checked={Boolean(seriesGroup[0].showSymbol)}
                                 label="Show symbol"
                                 onChange={() => {
@@ -300,9 +299,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                             />
                             <Checkbox
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 checked={seriesGroup[0].smooth}
                                 label="Smooth"
                                 onChange={() => {

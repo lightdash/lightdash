@@ -16,8 +16,7 @@ import {
     ThemeIcon,
     Title,
     Tooltip,
-    useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAlertCircle,
     IconExternalLink,
@@ -26,15 +25,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { CategoryBadge } from '../../../components/common/CategoryBadge/CategoryBadge';
 import {
@@ -49,6 +40,7 @@ import {
     threadReviewRootCauseColors,
     threadReviewRootCauseLabels,
 } from '../../../ee/features/aiCopilot/components/Admin/threadReviewContext';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { usePullRequestsTable } from '../hooks/usePullRequestsTable';
 import { type PullRequestRow } from '../types';
 import {
@@ -97,7 +89,6 @@ const matchesStateFilter = (
 };
 
 const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
-    const theme = useMantineTheme();
     const {
         rows,
         totalResults,
@@ -117,29 +108,22 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
         [rows, stateFilter],
     );
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const {
+        containerRef: tableContainerRef,
+        onScroll,
+        checkNow,
+    } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching: isFetchingNextPage,
+        hasMore: hasNextPage ?? false,
+        threshold: 400,
+    });
 
-    // Fetch the next page once the user scrolls near the bottom of the table.
-    const fetchMoreOnBottomReached = useCallback(
-        (container?: HTMLDivElement | null) => {
-            if (!container) return;
-            const { scrollHeight, scrollTop, clientHeight } = container;
-            if (
-                scrollHeight - scrollTop - clientHeight < 400 &&
-                !isFetchingNextPage &&
-                hasNextPage
-            ) {
-                void fetchNextPage();
-            }
-        },
-        [fetchNextPage, isFetchingNextPage, hasNextPage],
-    );
-
-    // The first page (or the filtered subset) may not fill the viewport — fetch
-    // more on mount and whenever the filter changes.
+    // The filtered subset may not fill the viewport even though the hook's own
+    // inputs did not change.
     useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached, stateFilter]);
+        checkNow();
+    }, [checkNow, stateFilter]);
 
     const columns = useMemo<ContentTableColumnDef<PullRequestRow>[]>(
         () => [
@@ -181,9 +165,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                             pr.provider,
                                         )}. It may have been deleted, or access was revoked.`}
                                         openDelay={300}
-                                        multiline
                                         maw={420}
-                                        withinPortal
                                     >
                                         <Group gap="two" wrap="nowrap">
                                             <MantineIcon
@@ -205,9 +187,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                     <Tooltip
                                         label={pr.title}
                                         openDelay={400}
-                                        multiline
                                         maw={420}
-                                        withinPortal
                                     >
                                         <Text fz="sm" fw={600} truncate>
                                             {pr.title}
@@ -220,14 +200,13 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                         TimeFrames.MINUTE,
                                     )}
                                     openDelay={300}
-                                    withinPortal
                                 >
-                                    <Text fz="xs" c="ldGray.6" truncate span>
+                                    <Text fz="xs" c="dimmed" truncate span>
                                         opened {dayjs(pr.createdAt).fromNow()}
                                         {pr.author ? (
                                             <>
                                                 {' by '}
-                                                <Text span fw={700} fz="xs">
+                                                <Text span fw={600} fz="xs">
                                                     {pr.author.name}
                                                 </Text>
                                             </>
@@ -244,7 +223,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                         className={classes.reviewContext}
                                     >
                                         <Group gap="xs" wrap="wrap">
-                                            <Text fz="xs" fw={600} c="ldGray.6">
+                                            <Text fz="xs" fw={600} c="dimmed">
                                                 Fixes review:
                                             </Text>
                                             <Tooltip
@@ -252,7 +231,6 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                                     pr.reviewContext.reviewTitle
                                                 }
                                                 openDelay={300}
-                                                withinPortal
                                             >
                                                 <Text
                                                     fz="xs"
@@ -352,13 +330,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
         data: filteredRows,
         enableSorting: false,
         enablePagination: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
         enableColumnResizing: false,
-        enableDensityToggle: false,
-        enableFullScreenToggle: false,
-        enableFilters: false,
-        enableHiding: false,
         enableRowVirtualization: true,
         enableRowActions: true,
         positionActionsColumn: 'last',
@@ -375,14 +347,8 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
             return (
                 <Group gap="two" wrap="nowrap" className={classes.rowActions}>
                     {threadPath !== null && threadTarget ? (
-                        <Tooltip
-                            label="Preview thread"
-                            openDelay={300}
-                            withinPortal
-                        >
+                        <Tooltip label="Preview thread" openDelay={300}>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 aria-label="Preview thread"
                                 onClick={() => setPreviewTarget(threadTarget)}
                             >
@@ -393,15 +359,12 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                     <Tooltip
                         label={`View on ${getProviderLabel(pr.provider)}`}
                         openDelay={300}
-                        withinPortal
                     >
                         <ActionIcon
                             component="a"
                             href={pr.prUrl}
                             target="_blank"
                             rel="noreferrer"
-                            variant="subtle"
-                            color="dark"
                             aria-label={`View pull request on ${getProviderLabel(
                                 pr.provider,
                             )}`}
@@ -412,22 +375,10 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                 </Group>
             );
         },
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: { maxHeight: 'calc(100dvh - 260px)' },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.currentTarget),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
@@ -442,7 +393,6 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                 </Text>
                 <SegmentedControl
                     size="xs"
-                    radius="md"
                     value={stateFilter}
                     onChange={(value) => setStateFilter(value as StateFilter)}
                     data={STATE_FILTER_OPTIONS}

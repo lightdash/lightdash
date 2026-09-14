@@ -1,5 +1,5 @@
-import { Button, Group, SegmentedControl, Stack } from '@mantine-8/core';
-import { useLocalStorage } from '@mantine-8/hooks';
+import { Button, Group, SegmentedControl, Stack } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
 import {
     IconLayoutKanban,
     IconPlus,
@@ -56,12 +56,18 @@ export const AiReviewsSettingsPage = () => {
 
     const isSidebarOpen = selectedReviewItem !== null;
 
-    // Seeds the board/table project filter when arriving from a project's
-    // "Review AI findings" promo (e.g. `?projects=<uuid>`).
+    // Seeds the board/table filters when arriving from a project's "Review AI
+    // findings" promo or an agent deep link (e.g. `?projects=<uuid>&agents=<uuid>`).
     const initialProjectUuids = useMemo(() => {
         const projectsParam = searchParams.get('projects');
         if (!projectsParam) return [];
         return projectsParam.split(',').filter(Boolean);
+    }, [searchParams]);
+
+    const initialAgentUuids = useMemo(() => {
+        const agentsParam = searchParams.get('agents');
+        if (!agentsParam) return [];
+        return agentsParam.split(',').filter(Boolean);
     }, [searchParams]);
 
     // While the tour runs, the board always shows the same sample cards so the
@@ -135,7 +141,7 @@ export const AiReviewsSettingsPage = () => {
                     description={
                         <>
                             An actionable queue of data issues from AI findings
-                            and human asks. Semantic layer fixes open a dbt pull
+                            and human asks. Semantic layer fixes open a pull
                             request; project context fixes add guidance your
                             agents read before answering.
                         </>
@@ -202,6 +208,7 @@ export const AiReviewsSettingsPage = () => {
                             onReviewItemSelect={handleReviewItemSelect}
                             showOnboardingExamples={isTourOpen}
                             initialProjectUuids={initialProjectUuids}
+                            initialAgentUuids={initialAgentUuids}
                         />
                     ) : (
                         <AiAgentAdminReviewItemsTable
@@ -210,6 +217,7 @@ export const AiReviewsSettingsPage = () => {
                             }
                             onReviewItemSelect={handleReviewItemSelect}
                             initialProjectUuids={initialProjectUuids}
+                            initialAgentUuids={initialAgentUuids}
                         />
                     )}
                 </SettingsPage>

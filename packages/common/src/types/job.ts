@@ -27,6 +27,7 @@ export enum JobStepType {
     COMPILING = 'COMPILING',
     CREATING_PROJECT = 'CREATING_PROJECT',
     CACHING = 'CACHING',
+    SYNCING_CONTENT = 'SYNCING_CONTENT',
 }
 
 export const JobLabels = {
@@ -39,6 +40,7 @@ export const JobLabels = {
     COMPILING: 'Compiling',
     CREATING_PROJECT: 'Creating project',
     CACHING: 'Saving cache',
+    SYNCING_CONTENT: 'Syncing content from the repo',
 };
 
 export type BaseJob = {
@@ -55,6 +57,8 @@ type CompileJob = BaseJob & {
     jobType: JobType.COMPILE_PROJECT;
     jobResults?: {
         indexCatalogJobUuid: string;
+        errorCount?: number;
+        total?: number;
     };
 };
 

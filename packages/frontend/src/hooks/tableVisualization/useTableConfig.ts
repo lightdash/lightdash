@@ -24,6 +24,8 @@ import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import isEqual from 'lodash/isEqual';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
+import { canHaveWarehouseTotal } from '../../utils/canHaveWarehouseTotal';
 import {
     useAsyncCalculateGrandTotal,
     useAsyncCalculateRowSubtotals,
@@ -246,9 +248,13 @@ const useTableConfig = (
     const numUnpivotedDimensions =
         dimensions.length - (pivotDimensions?.length || 0);
 
+    // Subtotals re-derive from the metric query behind the source query. A
+    // merge has no such query — its metric query describes the merged result
+    // rather than anything the warehouse can be asked to group again.
+    const isMerged = !!useMergeSafe()?.mergeResults;
     const canUseSubtotals = useMemo(
-        () => numUnpivotedDimensions > 1,
-        [numUnpivotedDimensions],
+        () => numUnpivotedDimensions > 1 && !isMerged,
+        [numUnpivotedDimensions, isMerged],
     );
 
     // Once dimensions are loaded, turn off subtotals if there are not enough dimensions.
@@ -262,9 +268,19 @@ const useTableConfig = (
     // exist for a query that errored, and totals against that are meaningless.
     const isInitialQueryReady =
         resultsData?.queryStatus === QueryHistoryStatus.READY;
+    // A dimension-only table has nothing the warehouse can total; skip the
+    // request instead of letting the backend refuse it.
+    const hasTotalableColumns = useMemo(
+        () =>
+            columnOrder.some((fieldId) =>
+                canHaveWarehouseTotal(itemsMap?.[fieldId]),
+            ),
+        [columnOrder, itemsMap],
+    );
     const canFetchAsyncTotals =
         isInitialQueryReady &&
         !!resultsData?.queryUuid &&
+        hasTotalableColumns &&
         !!tableChartConfig?.showColumnCalculation;
     const {
         data: asyncTotals,
@@ -291,6 +307,7 @@ const useTableConfig = (
     const canFetchAsyncRowTotals =
         isInitialQueryReady &&
         !!resultsData?.queryUuid &&
+        hasTotalableColumns &&
         !!tableChartConfig?.showRowCalculation &&
         !!resultsData?.pivotDetails;
     const {
@@ -308,6 +325,7 @@ const useTableConfig = (
     const canFetchAsyncGrandTotals =
         isInitialQueryReady &&
         !!resultsData?.queryUuid &&
+        hasTotalableColumns &&
         !!resultsData?.pivotDetails &&
         !!tableChartConfig?.showColumnCalculation &&
         !!tableChartConfig?.showRowCalculation;
@@ -332,7 +350,11 @@ const useTableConfig = (
         dimensions: resultsData?.metricQuery?.dimensions,
         columnOrder,
         pivotDimensions,
-        enabled: isInitialQueryReady && showSubtotals && canUseSubtotals,
+        enabled:
+            isInitialQueryReady &&
+            hasTotalableColumns &&
+            showSubtotals &&
+            canUseSubtotals,
         invalidateCache,
     });
     const {
@@ -347,6 +369,7 @@ const useTableConfig = (
         pivotDimensions,
         enabled:
             isInitialQueryReady &&
+            hasTotalableColumns &&
             showSubtotals &&
             canUseSubtotals &&
             !!tableChartConfig?.showRowCalculation &&

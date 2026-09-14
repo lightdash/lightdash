@@ -1,11 +1,5 @@
-import {
-    AnyType,
-    ForbiddenError,
-    getErrorMessage,
-    getObjectValue,
-} from '@lightdash/common';
+import { AnyType, ForbiddenError, getErrorMessage } from '@lightdash/common';
 import { sign } from 'cookie-signature';
-import { createHmac } from 'crypto';
 import express, { type Router } from 'express';
 import playwright from 'playwright';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -15,20 +9,20 @@ export const headlessBrowserRouter: Router = express.Router({
     mergeParams: true,
 });
 
-export const getAuthenticationToken = (value: string) =>
-    createHmac('sha512', lightdashConfig.lightdashSecret)
-        .update(value)
-        .digest('hex');
-
-headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
+headlessBrowserRouter.post('/login', async (req, res, next) => {
     try {
-        const userUuid = getObjectValue(req.params, 'userUuid');
-        Logger.debug(`Headless browser login request for user ${userUuid}`);
-        const hash = getAuthenticationToken(userUuid);
-
-        if (hash !== req.body.token) {
+        const token = req.body?.token;
+        if (typeof token !== 'string') {
             throw new ForbiddenError();
         }
+
+        const userUuid = await req.services
+            .getHeadlessBrowserService()
+            .consumeLoginGrant(token);
+        if (userUuid === null) {
+            throw new ForbiddenError();
+        }
+        Logger.debug(`Headless browser login request for user ${userUuid}`);
 
         const sessionUser = await req.services
             .getUserService()
@@ -40,6 +34,7 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
                     `Headless browser login failed: Error during req.login for user ${userUuid}`,
                 );
                 next(err);
+                return;
             }
 
             const internalHost = new URL(
@@ -65,7 +60,7 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
                 );
                 const value = `s:${sign(
                     req.session.id,
-                    lightdashConfig.lightdashSecret,
+                    lightdashConfig.lightdashSecrets.active,
                 )}`;
 
                 res.setHeader('Set-Cookie', [

@@ -7,7 +7,7 @@ import {
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
 } from '@lightdash/common';
-import { Box, Group, Stack, ActionIcon, Tooltip } from '@mantine-8/core';
+import { Box, Group, Stack, ActionIcon, Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -105,8 +105,6 @@ const YFieldsAxisConfig: FC<{
                             />
                             <Tooltip label="Remove Y axis">
                                 <ActionIcon
-                                    color="ldGray.6"
-                                    variant="subtle"
                                     onClick={() =>
                                         dispatch(
                                             actions.removeYAxisField(index),
@@ -181,8 +179,6 @@ const XFieldAxisConfig = ({
             />
             <Tooltip label="Remove X axis">
                 <ActionIcon
-                    color="ldGray.6"
-                    variant="subtle"
                     onClick={() => dispatch(actions.removeXAxisField())}
                     data-testid="remove-x-axis-field"
                 >
@@ -216,8 +212,6 @@ const GroupByFieldAxisConfig = ({
                 // When the field is deleted, the error state prevents the clear button from showing
                 groupByError && (
                     <ActionIcon
-                        variant="subtle"
-                        color="gray"
                         onClick={() =>
                             dispatch(actions.unsetGroupByReference())
                         }
@@ -226,7 +220,9 @@ const GroupByFieldAxisConfig = ({
                     </ActionIcon>
                 )
             }
-            clearable
+            // Only one X at a time: since Mantine 8.3 the native clear button
+            // would render next to the custom error one
+            clearable={!groupByError}
             data={groupByOptions.map((groupBy) => ({
                 value: groupBy.reference,
                 label: groupBy.reference,
@@ -319,8 +315,6 @@ export const CartesianChartFieldConfiguration = ({
                         <Config.Heading>{`Y-axis`}</Config.Heading>
                         <Tooltip label="Add Y axis">
                             <ActionIcon
-                                color="ldGray.6"
-                                variant="subtle"
                                 onClick={() =>
                                     dispatch(actions.addYAxisField())
                                 }

@@ -7,7 +7,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import Callout from '../../../../../components/common/Callout';
 import classes from './McpActivityDetail.module.css';
@@ -46,10 +46,7 @@ export const McpActivityDetail: FC<{ toolCall: McpActivityItem }> = ({
         {
             label: 'Time',
             value: (
-                <Tooltip
-                    withinPortal
-                    label={formatToolCallTimeFull(toolCall.createdAt)}
-                >
+                <Tooltip label={formatToolCallTimeFull(toolCall.createdAt)}>
                     <Text fz="sm" display="inline-block">
                         {formatToolCallTime(toolCall.createdAt)}
                     </Text>
@@ -110,7 +107,7 @@ export const McpActivityDetail: FC<{ toolCall: McpActivityItem }> = ({
                         px="md"
                         py="sm"
                     >
-                        <Text fz="sm" c="ldGray.6" flex="0 0 auto">
+                        <Text fz="sm" c="dimmed" flex="0 0 auto">
                             {row.label}
                         </Text>
                         {typeof row.value === 'string' ? (

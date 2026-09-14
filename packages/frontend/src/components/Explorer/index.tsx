@@ -3,7 +3,7 @@ import {
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Stack } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -19,6 +19,7 @@ import {
     selectColumnOrder,
     selectDimensions,
     selectFormatModal,
+    selectIsChartTypeAuthoring,
     selectIsEditMode,
     selectMetricQuery,
     selectMetrics,
@@ -31,6 +32,10 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
+import { MergeAutoRun } from '../../features/mergeQuery/components/MergeAutoRun';
+import { MergeReadOnlyBar } from '../../features/mergeQuery/components/MergeReadOnlyBar';
+import { MergeRelationshipCard } from '../../features/mergeQuery/components/MergeRelationshipCard';
+import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
@@ -39,6 +44,7 @@ import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
+import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import ScreenshotReadyIndicator from '../common/ScreenshotReadyIndicator';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
@@ -46,6 +52,7 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import RefreshDbtButton from '../RefreshDbtButton';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
+import classes from './Explorer.module.css';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
@@ -56,8 +63,10 @@ import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 import { WriteBackModal } from './WriteBackModal';
 
-const Explorer: FC<{ hideHeader?: boolean }> = memo(
-    ({ hideHeader = false }) => {
+const EMPTY_PARAMETER_REFERENCES: string[] = [];
+
+const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
+    ({ hideHeader = false, chartView = false }) => {
         const tableName = useExplorerSelector(selectTableName);
         const dimensions = useExplorerSelector(selectDimensions);
         const metrics = useExplorerSelector(selectMetrics);
@@ -65,10 +74,27 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const sorts = useExplorerSelector(selectSorts);
         const metricQuery = useExplorerSelector(selectMetricQuery);
         const isEditMode = useExplorerSelector(selectIsEditMode);
+        const showQueryBuilder = isEditMode || !chartView;
+        const showMinimalChart = chartView && !isEditMode;
+        // Authoring a chart type opens the builder modal over the page; the
+        // query keeps running underneath so the preview renders against it.
+        const isAuthoring = useExplorerSelector(selectIsChartTypeAuthoring);
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
         );
         const parameters = useExplorerSelector(selectParameters);
+        const mergeParameterReferences =
+            useMergeSafe()?.parameterReferences ?? EMPTY_PARAMETER_REFERENCES;
+        const effectiveParameterReferences = useMemo(
+            () =>
+                Array.from(
+                    new Set([
+                        ...(parameterReferencesFromRedux ?? []),
+                        ...mergeParameterReferences,
+                    ]),
+                ),
+            [parameterReferencesFromRedux, mergeParameterReferences],
+        );
 
         const savedChart = useExplorerSelector(selectSavedChart);
 
@@ -175,9 +201,9 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const { data: projectParameters } = useParameters(
             projectUuid,
-            parameterReferencesFromRedux ?? undefined,
+            effectiveParameterReferences,
             {
-                enabled: !!parameterReferencesFromRedux?.length,
+                enabled: effectiveParameterReferences.length > 0,
             },
         );
 
@@ -205,10 +231,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 Object.keys(
                     getReferencedParameterDefinitions(
                         parameterDefinitions,
-                        parameterReferencesFromRedux ?? undefined,
+                        effectiveParameterReferences,
                     ),
                 ).length > 0,
-            [parameterDefinitions, parameterReferencesFromRedux],
+            [parameterDefinitions, effectiveParameterReferences],
         );
 
         // Seed parameter values from virtual view's savedParameterValues
@@ -232,6 +258,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const { data: org } = useOrganization();
 
+        // In fullscreen only the visualization is shown, so it can use the
+        // whole viewport
+        const { isFullscreen } = useFullscreen();
+
         return (
             <MetricQueryDataProvider
                 tableName={tableName}
@@ -241,7 +271,8 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 parameters={parameters}
                 resolvedTimezone={query.data?.resolvedTimezone}
             >
-                <Stack style={{ flexGrow: 1 }}>
+                <Stack className={classes.stack}>
+                    <MergeAutoRun />
                     {!hideHeader &&
                         (isEditMode ? (
                             <ExplorerHeader />
@@ -249,33 +280,53 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                             !savedChart && <RefreshDbtButton />
                         ))}
 
-                    {!!tableName && hasReferencedUserParameters && (
-                        <ParametersCard
-                            parameterReferences={
-                                parameterReferencesFromRedux ?? undefined
-                            }
-                        />
+                    {!isFullscreen && showQueryBuilder && <MergeReadOnlyBar />}
+
+                    {!isFullscreen && showQueryBuilder && (
+                        <MergeRelationshipCard />
                     )}
 
-                    <FiltersCard />
+                    {!isFullscreen &&
+                        showQueryBuilder &&
+                        !!tableName &&
+                        hasReferencedUserParameters && (
+                            <ParametersCard
+                                parameterReferences={
+                                    effectiveParameterReferences
+                                }
+                            />
+                        )}
 
+                    {!isFullscreen && showQueryBuilder && <FiltersCard />}
+
+                    {/* The card also hosts the authoring modal, which needs
+                        its visualization context. The chart itself pauses
+                        while the type is authored so it doesn't render twice. */}
                     <VisualizationCard
                         projectUuid={projectUuid}
+                        renderVisualization={!isAuthoring}
                         onScreenshotReady={handleScreenshotReady}
                         onScreenshotError={handleScreenshotError}
+                        minimal={showMinimalChart}
                     />
 
-                    <ResultsCard />
+                    {!isFullscreen && showQueryBuilder && (
+                        <>
+                            <ResultsCard />
 
-                    <Can
-                        I="manage"
-                        this={subject('Explore', {
-                            organizationUuid: org?.organizationUuid,
-                            projectUuid,
-                        })}
-                    >
-                        {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
-                    </Can>
+                            <Can
+                                I="manage"
+                                this={subject('Explore', {
+                                    organizationUuid: org?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                {!!projectUuid && (
+                                    <SqlCard projectUuid={projectUuid} />
+                                )}
+                            </Can>
+                        </>
+                    )}
                 </Stack>
 
                 {/* These use the metricQueryDataProvider context */}

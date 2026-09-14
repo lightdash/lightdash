@@ -6,6 +6,7 @@ import {
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useFieldValues } from '../../../../hooks/useFieldValues';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import FilterStringAutoComplete from './FilterStringAutoComplete';
 
@@ -51,9 +52,74 @@ const mockField: FilterableItem = {
 const createValues = (count: number) =>
     Array.from({ length: count }, (_, i) => `value-${i}`);
 
+const createFieldValuesMock = (isInitialLoading = false) =>
+    ({
+        isInitialLoading,
+        results: [],
+        refreshedAt: new Date(),
+        refetch: vi.fn(),
+        reset: vi.fn(),
+        error: null,
+        isError: false,
+    }) as unknown as ReturnType<typeof useFieldValues>;
+
 describe('FilterStringAutoComplete', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(useFieldValues).mockReturnValue(createFieldValuesMock());
+    });
+
+    describe('manual entry when there is nothing to autocomplete', () => {
+        // No warehouse fetch and no curated values → nothing to suggest
+        const fieldWithDisabledAutocomplete: FilterableItem = {
+            ...mockField,
+            filterAutocomplete: {
+                fetchFromWarehouse: false,
+            },
+        };
+
+        it('shows no dropdown when autocomplete is disabled', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={fieldWithDisabledAutocomplete}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    showNullOption
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            await user.click(input);
+            await user.type(input, 'some value');
+
+            expect(screen.queryByRole('option')).not.toBeInTheDocument();
+            expect(screen.queryByText('(null)')).not.toBeInTheDocument();
+        });
+
+        it('adds the typed value on Enter when autocomplete is disabled', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={fieldWithDisabledAutocomplete}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={onChange}
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            await user.click(input);
+            await user.type(input, 'credit_card{Enter}');
+
+            expect(onChange).toHaveBeenCalledWith(['credit_card']);
+        });
     });
 
     describe('truncation behavior', () => {
@@ -258,6 +324,94 @@ describe('FilterStringAutoComplete', () => {
 
             expect(onIncludeNullChange).toHaveBeenCalledWith(true);
             expect(onChange).not.toHaveBeenCalled();
+        });
+
+        it('hides the unselected null option while field values are initially loading', async () => {
+            vi.mocked(useFieldValues).mockReturnValue(
+                createFieldValuesMock(true),
+            );
+
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    showNullOption
+                    includeNull={false}
+                    onIncludeNullChange={vi.fn()}
+                />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+
+            expect(screen.getByText('Loading...')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('option', {
+                    name: '(null)',
+                    hidden: true,
+                }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('preserves a selected null value while field values are initially loading', () => {
+            vi.mocked(useFieldValues).mockReturnValue(
+                createFieldValuesMock(true),
+            );
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    showNullOption
+                    includeNull
+                    onIncludeNullChange={vi.fn()}
+                />,
+            );
+
+            expect(
+                screen.getByRole('button', { name: 'Remove (null)' }),
+            ).toBeInTheDocument();
+        });
+
+        it('shows the null option after the initial field value request settles with an error', async () => {
+            vi.mocked(useFieldValues).mockReturnValue({
+                ...createFieldValuesMock(),
+                isError: true,
+                error: {
+                    error: { message: 'Unable to load field values' },
+                },
+            } as ReturnType<typeof useFieldValues>);
+
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    showNullOption
+                    includeNull={false}
+                    onIncludeNullChange={vi.fn()}
+                />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+
+            expect(
+                screen.getByRole('option', {
+                    name: '(null)',
+                    hidden: true,
+                }),
+            ).toBeInTheDocument();
         });
 
         it('preserves dropdown lifecycle callbacks', async () => {

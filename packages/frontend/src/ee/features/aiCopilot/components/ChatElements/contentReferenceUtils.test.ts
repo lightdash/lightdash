@@ -1,6 +1,11 @@
 import { ChartKind } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { buildContentReferenceSegments } from './contentReferenceUtils';
+import {
+    buildContentReferenceSegments,
+    getDataAppContextItemLabel,
+    getPromptContextItemHref,
+    getPromptContextItemKey,
+} from './contentReferenceUtils';
 
 describe('contentReferenceUtils', () => {
     it('turns mentioned content labels into ordered reference segments', () => {
@@ -145,6 +150,31 @@ describe('contentReferenceUtils', () => {
         ]);
     });
 
+    it('renders an attached external source as a stable reference', () => {
+        const result = buildContentReferenceSegments(
+            'compare Databricks finance with warehouse revenue',
+            [
+                {
+                    type: 'external_source',
+                    sourceUuid: 'source-1',
+                    sourceType: null,
+                    displayName: 'Databricks finance',
+                    tables: [],
+                },
+            ],
+        );
+
+        expect(result.segments).toEqual([
+            { type: 'text', text: 'compare ' },
+            expect.objectContaining({
+                type: 'reference',
+                key: 'external_source:source-1',
+                label: 'Databricks finance',
+            }),
+            { type: 'text', text: ' with warehouse revenue' },
+        ]);
+    });
+
     it('matches a standalone whole-word label (the irreducible text-match case)', () => {
         const result = buildContentReferenceSegments(
             'the orders table tracks orders by day',
@@ -158,5 +188,46 @@ describe('contentReferenceUtils', () => {
             (segment) => segment.type === 'reference',
         );
         expect(references).toHaveLength(2);
+    });
+
+    it('never inlines an element reference, even when its wire string appears in the text', () => {
+        const message = 'make [h1 "FORMULA 1" @src/App.jsx:14] bigger';
+        const item = {
+            type: 'data_app_element' as const,
+            appUuid: 'app-1',
+            version: 3,
+            tag: 'h1',
+            text: 'FORMULA 1',
+            loc: 'src/App.jsx:14',
+            appSlug: 'f1-standings',
+            displayName: 'F1 standings',
+        };
+        const result = buildContentReferenceSegments(message, [item]);
+
+        expect(result.segments).toEqual([{ type: 'text', text: message }]);
+        expect(result.matchedKeys.size).toBe(0);
+        expect(getPromptContextItemKey(item)).toBe(
+            'data_app_element:app-1:3:[h1 "FORMULA 1" @src/App.jsx:14]',
+        );
+    });
+
+    it('resolves key, chip label with pinned version, and href for a data app', () => {
+        const item = {
+            type: 'data_app' as const,
+            appUuid: 'app-1',
+            appSlug: 'f1-standings',
+            displayName: 'F1 standings',
+            pinnedVersion: 3,
+            isPersonal: false,
+        };
+
+        expect(getPromptContextItemKey(item)).toBe('data_app:app-1');
+        expect(getDataAppContextItemLabel(item)).toBe('F1 standings v3');
+        expect(
+            getDataAppContextItemLabel({ ...item, pinnedVersion: null }),
+        ).toBe('F1 standings');
+        expect(getPromptContextItemHref(item, 'project-1')).toBe(
+            '/projects/project-1/apps/app-1/view',
+        );
     });
 });

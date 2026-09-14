@@ -1,25 +1,20 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
-    DEFAULT_DATA_APP_CLAUDE_MODEL,
+    DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
-    getVisibleDataAppClaudeModels,
+    getSdkFeatureTargetForTemplate,
     isApiError,
     isAppVersionInProgress,
     MAX_APP_FILES_PER_VERSION,
-    resolveDefaultVisibleDataAppClaudeModel,
     type ApiAppVersionSummary,
-    type AppChartReference,
     type AppClarification,
-    type AppDashboardReference,
     type AppExternalConnectionReference,
     type AppVersionDependencyEntry,
-    type DataAppClaudeModel,
     type DataAppTemplate,
     type DataAppVizContext,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Badge,
     Box,
     Button,
@@ -30,16 +25,14 @@ import {
     Menu,
     Stack,
     Text,
-    Textarea,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAppsOff,
     IconAppWindow,
     IconCheck,
     IconArrowUp,
     IconBrush,
-    IconHammer,
     IconExternalLink,
     IconArrowBackUp,
     IconFileDescription,
@@ -49,13 +42,12 @@ import {
     IconPlayerStop,
     IconRestore,
     IconPlugConnected,
-    IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-    forwardRef,
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -70,11 +62,10 @@ import {
     useNavigate,
     useParams,
 } from 'react-router';
-import { v4 as uuid4 } from 'uuid';
+import { validate as isUuidString, v4 as uuid4 } from 'uuid';
 import { AiMarkdown } from '../components/common/AiMarkdown';
 import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
-import MantineModal from '../components/common/MantineModal';
 import {
     ComposerSubmitButton,
     PromptComposer,
@@ -82,20 +73,10 @@ import {
 } from '../components/common/PromptComposer';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
-import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
-import AppIframePreview, {
-    type AppIframePreviewHandle,
-} from '../features/apps/AppIframePreview';
+import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
-    buildElementRefInsert,
-    ElementMention,
-    type ElementRef,
-} from '../features/apps/AppPromptMention';
-import {
     AttachButton,
-    InspectButton,
     ModelPicker,
     ScreenshotButton,
     SelectedAttachmentSection,
@@ -111,31 +92,40 @@ import ChatMessageContent from '../features/apps/ChatMessageContent';
 import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSidebarToggle';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
-import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
-import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
+import AppPreview from '../features/apps/components/AppPreview';
+import AppVersionNarration from '../features/apps/components/AppVersionNarration';
+import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
+import ConnectionChip from '../features/apps/components/ConnectionChip';
+import { ElementPickerButton } from '../features/apps/components/ElementPickerButton';
+import { ElementRefPill } from '../features/apps/components/ElementRefPill';
 import LoadingDots from '../features/apps/components/LoadingDots';
+import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
+import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
-import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
-import type {
-    ExternalRequestEvent,
-    QueryEvent,
-    SdkManifest,
-} from '../features/apps/hooks/useAppSdkBridge';
 import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
-import { useClarifyApp } from '../features/apps/hooks/useClarifyApp';
+import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
+import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
+import { useElementPicker } from '../features/apps/hooks/useElementPicker';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import { useRestoreAppVersion } from '../features/apps/hooks/useRestoreAppVersion';
 import { useSdkUpgradeStatus } from '../features/apps/hooks/useSdkUpgradeStatus';
-import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQueries';
+import {
+    countReadyQueriesSinceBoundary,
+    useTrackedAppQueries,
+} from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
-import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { getTemplate } from '../features/apps/templates';
+import {
+    toAppClarifyParams,
+    toAppGeneratePayload,
+    type AppBuildRequest,
+} from '../features/apps/utils/appBuildRequest';
 import {
     getAppFileValidationError,
     isSupportedAppImage,
@@ -149,39 +139,24 @@ import {
     type ChatMessage,
 } from '../features/apps/utils/chatMessage';
 import {
-    versionNarrationTexts,
-    versionsToChatMessages,
-} from '../features/apps/utils/versionsToChatMessages';
+    elementRefKey,
+    refToWireString,
+} from '../features/apps/utils/elementRefs';
+import { getVersionNarration } from '../features/apps/utils/versionNarration';
+import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMessages';
+import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
+import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
+import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useToaster from '../hooks/toaster/useToaster';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
-
-/**
- * Parse `[tag "text" @loc]` (or `[tag @loc]`, `[tag "text"]`, `[tag]`) from
- * the iframe inspector's `lightdash:inspect:selected` payload into the
- * structured attrs the editor's mention node expects. Returns null if the
- * label doesn't match the expected shape — defensive against future SDK
- * versions that might emit a different format.
- */
-// Stable identity — a new array each render would remount the editor.
-const APP_PROMPT_EXTENSIONS = [ElementMention];
-
-function parseElementRefLabel(label: string): ElementRef | null {
-    // Loc allows any char except `]` (which terminates the reference) so
-    // paths with spaces (e.g. `My Component/App.tsx:42`) round-trip cleanly.
-    const m =
-        /^\[([A-Za-z][A-Za-z0-9-]*)(?:\s+"([^"]*)")?(?:\s+@([^\]]+))?\]$/.exec(
-            label,
-        );
-    if (!m) return null;
-    return { tag: m[1] ?? '', text: m[2] ?? '', loc: m[3] ?? '' };
-}
 
 // Run a layout-changing state update inside a native View Transition so the
 // browser cross-fades/morphs the before/after frames (used for the
@@ -213,134 +188,10 @@ const AppResourceImage: FC<{
     return <Image src={data.imageUrl} className={className} alt="Attached" />;
 };
 
-type AppPreviewProps = {
-    projectUuid: string;
-    appUuid: string;
-    version: number;
-    /** Bumping this re-mounts the iframe URL to force a reload (and a
-     *  re-run of the app's metric queries). Same version → identical app
-     *  bundle, but the new query string defeats any caching and flushes
-     *  whatever in-iframe state was running. */
-    refreshKey: number;
-    /** When true, the iframe's metric queries are sent with `invalidateCache`
-     *  so the warehouse results cache is bypassed. Latched on by the preview
-     *  refresh button so a manual refresh always re-runs against the warehouse. */
-    invalidateCache?: boolean;
-    onQueryEvent?: (event: QueryEvent) => void;
-    onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
-    inspectorEnabled?: boolean;
-    onElementSelected?: (event: { label: string }) => void;
-    onInspectorAvailabilityChange?: (available: boolean) => void;
-    onScreenshotAvailabilityChange?: (available: boolean) => void;
-    onInspectorCancelled?: () => void;
-    lineageEnabled?: boolean;
-    onLineageAvailabilityChange?: (available: boolean) => void;
-    onLineageSelected?: (event: { queryUuid: string }) => void;
-    lineageHighlightQueryUuid?: string | null;
-    onLineageCancelled?: () => void;
-    dataAppVizContext?: DataAppVizContext;
-    onSdkManifest?: (manifest: SdkManifest) => void;
-};
-
-const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
-    (
-        {
-            projectUuid,
-            appUuid,
-            version,
-            refreshKey,
-            invalidateCache,
-            onQueryEvent,
-            onExternalRequestEvent,
-            inspectorEnabled,
-            onElementSelected,
-            onInspectorAvailabilityChange,
-            onScreenshotAvailabilityChange,
-            onInspectorCancelled,
-            lineageEnabled,
-            onLineageAvailabilityChange,
-            onLineageSelected,
-            lineageHighlightQueryUuid,
-            onLineageCancelled,
-            dataAppVizContext,
-            onSdkManifest,
-        },
-        ref,
-    ) => {
-        const {
-            data: token,
-            isLoading,
-            error,
-        } = useAppPreviewToken(projectUuid, appUuid, version);
-
-        const previewOrigin = usePreviewOrigin();
-        const previewUrl = token
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
-            : undefined;
-
-        if (isLoading) {
-            return (
-                <Group gap="sm" p="md" justify="center">
-                    <Loader size="sm" />
-                    <Text size="sm" c="dimmed">
-                        Loading preview...
-                    </Text>
-                </Group>
-            );
-        }
-
-        if (error) {
-            return (
-                <Text c="red" p="md" size="sm">
-                    Failed to load preview:{' '}
-                    {error instanceof Error ? error.message : 'Unknown error'}
-                </Text>
-            );
-        }
-
-        if (!previewUrl) return null;
-
-        return (
-            <AppIframePreview
-                ref={ref}
-                src={previewUrl}
-                expectedPreviewOrigin={previewOrigin}
-                projectUuid={projectUuid}
-                appUuid={appUuid}
-                identityKey={appUuid}
-                invalidateCache={invalidateCache}
-                onQueryEvent={onQueryEvent}
-                onExternalRequestEvent={onExternalRequestEvent}
-                inspectorEnabled={inspectorEnabled}
-                onElementSelected={onElementSelected}
-                onInspectorAvailabilityChange={onInspectorAvailabilityChange}
-                onScreenshotAvailabilityChange={onScreenshotAvailabilityChange}
-                onInspectorCancelled={onInspectorCancelled}
-                lineageEnabled={lineageEnabled}
-                onLineageAvailabilityChange={onLineageAvailabilityChange}
-                onLineageSelected={onLineageSelected}
-                lineageHighlightQueryUuid={lineageHighlightQueryUuid}
-                onLineageCancelled={onLineageCancelled}
-                capabilities={{ gsheetExport: true }}
-                dataAppVizContext={dataAppVizContext}
-                urlStateSync
-                onSdkManifest={onSdkManifest}
-            />
-        );
-    },
-);
-
-AppPreview.displayName = 'AppPreview';
-
 const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     const t = getTemplate(template);
     return (
-        <Badge
-            variant="light"
-            color="gray"
-            size="md"
-            leftSection={<MantineIcon icon={t.icon} size={12} />}
-        >
+        <Badge size="md" leftSection={<MantineIcon icon={t.icon} size={12} />}>
             {t.title}
         </Badge>
     );
@@ -355,13 +206,11 @@ const ThemeChip: FC<{
     disabled?: boolean;
     onThemeChange: (designUuid: string | null) => void;
 }> = ({ themeName, selectedThemeUuid, themes, disabled, onThemeChange }) => (
-    <Menu position="top-start" shadow="md" withinPortal>
+    <Menu position="top-start">
         <Menu.Target>
             <Badge
                 component="button"
                 type="button"
-                variant="light"
-                color="gray"
                 size="md"
                 leftSection={<MantineIcon icon={IconBrush} size={12} />}
                 disabled={disabled}
@@ -412,38 +261,11 @@ const ThemeChip: FC<{
     </Menu>
 );
 
-/** A removable pill for a connection selected for this prompt. */
-const ConnectionChip: FC<{ name: string; onRemove: () => void }> = ({
-    name,
-    onRemove,
-}) => (
-    <Badge
-        variant="light"
-        color="gray"
-        size="md"
-        leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
-        rightSection={
-            <ActionIcon
-                size="xs"
-                variant="transparent"
-                color="gray"
-                onClick={onRemove}
-                aria-label={`Remove ${name}`}
-            >
-                <MantineIcon icon={IconX} size={10} />
-            </ActionIcon>
-        }
-    >
-        {name}
-    </Badge>
-);
-
 /** A small informational badge shown on assistant bubbles for versions that
  *  were uploaded with a custom dependency set. Lists `name@version` per line
  *  in the tooltip so the author can confirm what was installed. */
 const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
     <Tooltip
-        withArrow
         position="top-start"
         label={
             <Stack gap={2}>
@@ -459,8 +281,6 @@ const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
         }
     >
         <Badge
-            variant="light"
-            color="gray"
             size="sm"
             leftSection={<MantineIcon icon={IconPackage} size={10} />}
         >
@@ -472,7 +292,6 @@ const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
 /** A status pill (theme-pill style) listing the connections this app can call. */
 const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
     <Tooltip
-        withArrow
         position="top"
         label={
             <Stack gap={2}>
@@ -488,8 +307,6 @@ const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
         }
     >
         <Badge
-            variant="light"
-            color="gray"
             size="md"
             leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
         >
@@ -499,10 +316,8 @@ const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
 );
 
 const AppGenerate: FC = () => {
-    const { projectUuid, appUuid: urlAppUuid } = useParams<{
-        projectUuid: string;
-        appUuid: string;
-    }>();
+    const { appUuid: urlAppUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
@@ -535,20 +350,6 @@ const AppGenerate: FC = () => {
     //             wizard no longer asks any questions of its own.
     const [selectedTemplate, setSelectedTemplate] =
         useState<DataAppTemplate | null>(null);
-    // Claude model used for the next submit. By default, derived from the
-    // most recent version's persisted `resources.claudeModel` so reopening
-    // an app pre-selects whatever model it was last built with. The user's
-    // explicit pick (tracked in `modelOverride` below) wins until they
-    // navigate to a different app. Per-version persistence happens
-    // server-side on `AppVersionResources.claudeModel`.
-    //
-    // Keyed by appUuid (mirrors the `pin` lifecycle) so the override
-    // self-invalidates when the user navigates — no useEffect+setState
-    // chain (lightdash frontend rule).
-    const [modelOverride, setModelOverride] = useState<{
-        appUuid: string | null; // null = override set from the new-app page
-        model: DataAppClaudeModel;
-    } | null>(null);
     const [themeChipOverride, setThemeChipOverride] = useState<{
         appUuid: string | null; // null = override set from the new-app page
         designUuid: string | null;
@@ -569,15 +370,6 @@ const AppGenerate: FC = () => {
     const [selectedConnections, setSelectedConnections] = useState<
         SelectedConnection[]
     >([]);
-    // Click-to-edit ("Inspect") mode. While on, the iframe overlays a hover
-    // outline and intercepts clicks; each click inserts an element-reference
-    // pill at the editor cursor so the user can compose targeted edits.
-    // Stays on across multiple clicks; the user toggles off when done.
-    const [inspectorEnabled, setInspectorEnabled] = useState(false);
-    // Capability flag — flipped to true when the iframe SDK announces the
-    // inspector. Existing apps in resumed sandboxes may have an older SDK
-    // that never announces, in which case the toggle stays hidden.
-    const [inspectorAvailable, setInspectorAvailable] = useState(false);
     // Same handshake for screenshot capture. Older templates (resumed
     // sandboxes built before this feature shipped) never announce, so the
     // Screenshot button stays hidden — they keep working as before.
@@ -605,6 +397,7 @@ const AppGenerate: FC = () => {
         setPersistLogs,
         handleQueryEvent,
         clearQueries,
+        resetQueries,
         interruptInFlightQueries,
     } = useTrackedAppQueries();
     const {
@@ -618,26 +411,6 @@ const AppGenerate: FC = () => {
     // consistency. Defaults to visible because the builder is the technical
     // workflow where seeing queries as they fire is the point.
     const [networkPanelHidden, setNetworkPanelHidden] = useState(false);
-    const handleElementSelected = useCallback((event: { label: string }) => {
-        const ref = parseElementRefLabel(event.label);
-        if (!ref) {
-            console.warn(
-                '[apps] Ignoring unrecognized inspector label:',
-                event.label,
-            );
-            return;
-        }
-        const editor = promptEditorRef.current?.editor;
-        if (!editor) return;
-        promptEditorRef.current?.insertContent(
-            buildElementRefInsert(editor, ref),
-        );
-    }, []);
-    // Stable so AppIframePreview's keydown listener doesn't re-attach on
-    // every render of this page.
-    const handleInspectorCancelled = useCallback(() => {
-        setInspectorEnabled(false);
-    }, []);
     const handleLineageSelected = useCallback(
         (event: { queryUuid: string }) => {
             setNetworkPanelHidden(false);
@@ -655,41 +428,7 @@ const AppGenerate: FC = () => {
         setFocusedQueryUuid(null);
     }, []);
 
-    const handleToggleLineage = useCallback(() => {
-        setLineageEnabled((v) => {
-            const next = !v;
-            if (next) setInspectorEnabled(false);
-            return next;
-        });
-        setFocusedQueryUuid(null);
-    }, []);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
-    // Pre-build clarification round: captured submission args that we need
-    // to fire the actual generate call once the user answers the questions.
-    // Non-null only between "user submitted prompt" and "user clicked Build
-    // on the questions bubble". Always cleared once generate fires.
-    const [pendingClarification, setPendingClarification] = useState<{
-        questions: string[];
-        prompt: string;
-        template: DataAppTemplate | undefined;
-        fileIds: string[] | undefined;
-        appUuid: string;
-        charts: AppChartReference[] | undefined;
-        dashboard: AppDashboardReference | undefined;
-        externalConnections: AppExternalConnectionReference[] | undefined;
-        spaceUuid: string | undefined;
-        // Snapshot of `selectedModel` at submit time so a mid-clarification
-        // model switch doesn't change which model the build kicks off with —
-        // the user's intent was captured when they pressed send.
-        claudeModel: DataAppClaudeModel;
-        // Same intent-snapshot reasoning as claudeModel — capture the picked
-        // theme at submit time so flipping the picker mid-clarification
-        // doesn't change what the build runs against.
-        designUuid: string | null;
-    } | null>(null);
-    const [clarificationAnswers, setClarificationAnswers] = useState<string[]>(
-        [],
-    );
     // Maps prompt text → image preview URL so the thumbnail survives the
     // local→server message transition (localMessages get cleared when server
     // version data arrives, but the ref persists).
@@ -703,10 +442,27 @@ const AppGenerate: FC = () => {
     // Maps prompt text → dashboard name so it survives the local→server transition
     const sentDashboardByPrompt = useRef(new Map<string, string>());
     // Track appUuid in local state so polling starts immediately after creation
-    // (before the URL param updates via replaceState)
+    // (before the URL param updates via replaceState). The URL param may be a
+    // slug — never seed it here: only `useGetApp` accepts a slug, and every
+    // other endpoint needs the canonical uuid it returns. Until that arrives,
+    // activeAppUuid stays undefined and the uuid-keyed hooks stay idle.
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
-        urlAppUuid,
+        isUuidString(urlAppUuid ?? '') ? urlAppUuid : undefined,
     );
+    // Element references travel as wire-string lines appended to the prompt
+    // at submit time. Picker and lineage modes are mutually exclusive.
+    const elementPicker = useElementPicker({
+        identityKey: activeAppUuid ?? '',
+        onEnabled: handleLineageCancelled,
+    });
+    const cancelElementPicker = elementPicker.cancel;
+    const clearElementRefs = elementPicker.clear;
+    const handleToggleLineage = useCallback(() => {
+        const next = !lineageEnabled;
+        setLineageEnabled(next);
+        if (next) cancelElementPicker();
+        setFocusedQueryUuid(null);
+    }, [lineageEnabled, cancelElementPicker]);
     // Connections already linked to this app — shown as an "available" pill so
     // the user knows what the generated app can call via client.externalFetch.
     const { data: availableConnectionLinks = [] } = useAppExternalConnections(
@@ -729,6 +485,23 @@ const AppGenerate: FC = () => {
         },
         [projectUuid, queryClient],
     );
+    // Assigned further down, once the generate mutation and its callbacks are
+    // in scope; only ever called from an event, never during render.
+    const runBuildRef = useRef<
+        (request: AppBuildRequest, clarifications: AppClarification[]) => void
+    >(() => {});
+    const onClarifiedBuild = useCallback(
+        (request: AppBuildRequest, clarifications: AppClarification[]) =>
+            runBuildRef.current(request, clarifications),
+        [],
+    );
+    const clarification = useClarificationRound<AppBuildRequest>({
+        projectUuid,
+        isFirstBuild: !activeAppUuid,
+        toClarifyParams: toAppClarifyParams,
+        onBuild: onClarifiedBuild,
+    });
+    const { reset: resetClarification } = clarification;
     // Track the previous app UUID so we can detect intentional navigation
     // vs. the post-submit URL update (undefined → newUuid).
     const prevUrlAppUuid = useRef(urlAppUuid);
@@ -738,13 +511,15 @@ const AppGenerate: FC = () => {
         setSelectedCharts([]);
         setSelectedDashboard(null);
         setSelectedConnections([]);
+        clearElementRefs();
+        cancelElementPicker();
         setFileAttachments([]);
         setLocalMessages([]);
         setPin(null);
-        clearQueries();
+        // resetQueries: navigating away tears down the preview but not the
+        // parent-owned fetch/poll of an in-flight query.
+        resetQueries();
         clearExternalRequests();
-        setInspectorEnabled(false);
-        setInspectorAvailable(false);
         setScreenshotAvailable(false);
         setIsCapturingScreenshot(false);
         setLineageEnabled(false);
@@ -753,8 +528,7 @@ const AppGenerate: FC = () => {
         setFocusedQueryUuid(null);
         setSelectedTemplate(null);
         setThemeChipOverride(null);
-        setPendingClarification(null);
-        setClarificationAnswers([]);
+        resetClarification();
         setTestVizContext(null);
         setIsChatPanelCollapsed(false);
         versionCacheRef.current.clear();
@@ -764,11 +538,21 @@ const AppGenerate: FC = () => {
         );
         sentImagesByPrompt.current.clear();
         sentFilesByPrompt.current.clear();
-    }, [clearQueries, clearExternalRequests]);
+    }, [
+        resetQueries,
+        clearExternalRequests,
+        resetClarification,
+        clearElementRefs,
+        cancelElementPicker,
+    ]);
     useEffect(() => {
         const prev = prevUrlAppUuid.current;
         prevUrlAppUuid.current = urlAppUuid;
-        setActiveAppUuid(urlAppUuid);
+        // Slug URLs resolve to the canonical uuid via useGetApp; see the
+        // activeAppUuid declaration.
+        setActiveAppUuid(
+            isUuidString(urlAppUuid ?? '') ? urlAppUuid : undefined,
+        );
 
         // Post-submit redirect: undefined → new uuid. Don't clear state.
         if (!prev && urlAppUuid) return;
@@ -786,8 +570,69 @@ const AppGenerate: FC = () => {
         isLoading: isIterating,
         reset: resetIterate,
     } = useIterateApp();
-    const { mutateAsync: clarifyMutateAsync, isLoading: isClarifying } =
-        useClarifyApp();
+
+    const buildSubmitCallbacks = useCallback(
+        () => ({
+            onSuccess: (data: { appUuid: string; version: number }) => {
+                setActiveAppUuid(data.appUuid);
+                invalidateAppData(data.appUuid);
+                if (!urlAppUuid) {
+                    void navigate(
+                        `/projects/${projectUuid}/apps/${data.appUuid}`,
+                        { replace: true },
+                    );
+                }
+            },
+            onError: (err: unknown) => {
+                // The mutation rejects with an ApiError object (not an Error
+                // instance), so read its message before falling back.
+                const errorMessage = isApiError(err)
+                    ? err.error.message
+                    : err instanceof Error
+                      ? err.message
+                      : 'Failed to generate app';
+                setLocalMessages((prev) => [
+                    ...prev,
+                    {
+                        ...emptyChatMessage(),
+                        role: 'assistant' as const,
+                        status: 'error' as const,
+                        content: errorMessage,
+                        timestamp: new Date(),
+                    },
+                ]);
+            },
+        }),
+        [invalidateAppData, navigate, projectUuid, urlAppUuid],
+    );
+
+    // The generate half of a submit, deferred until the clarifying round (if
+    // any) resolves. Answers ride along and are echoed on the user's bubble.
+    // Assigned in a layout effect, and above the page's early returns, so a
+    // guarded render can neither skip the hook nor leave a stale closure.
+    useLayoutEffect(() => {
+        runBuildRef.current = (request, clarifications) => {
+            if (clarifications.length > 0) {
+                setLocalMessages((prev) => {
+                    const lastUserIdx = prev.findLastIndex(
+                        (m) => m.role === 'user',
+                    );
+                    if (lastUserIdx === -1) return prev;
+                    const next = [...prev];
+                    next[lastUserIdx] = {
+                        ...next[lastUserIdx],
+                        clarifications,
+                    };
+                    return next;
+                });
+            }
+            resetGenerate();
+            generateMutate(
+                toAppGeneratePayload(projectUuid!, request, clarifications),
+                buildSubmitCallbacks(),
+            );
+        };
+    }, [buildSubmitCallbacks, generateMutate, projectUuid, resetGenerate]);
     const { mutate: cancelMutate, isLoading: isCancelling } =
         useCancelAppVersion();
     const {
@@ -832,6 +677,16 @@ const AppGenerate: FC = () => {
         hasNextPage,
         isFetchingNextPage,
     } = useGetApp(projectUuid, activeAppUuid ?? urlAppUuid);
+
+    // The URL may reference the app by slug; the API resolves it and returns
+    // the canonical uuid. Adopt it so every downstream call (iterate, polling,
+    // thumbnails, connections) hits the uuid-only endpoints with a real uuid.
+    const canonicalAppUuid = appData?.pages[0]?.appUuid;
+    useEffect(() => {
+        if (canonicalAppUuid && activeAppUuid !== canonicalAppUuid) {
+            setActiveAppUuid(canonicalAppUuid);
+        }
+    }, [canonicalAppUuid, activeAppUuid]);
 
     // Derive app name/description/space/creator from fetched data
     const appName = appData?.pages?.[0]?.name ?? '';
@@ -883,25 +738,16 @@ const AppGenerate: FC = () => {
         return null;
     }, [appData]);
     const isBuilding = latestBuildingVersion !== null;
-    // Accumulated narration for the live build's Reasoning / Activity rows.
-    const reasoningTexts = useMemo<string[]>(
-        () =>
-            versionNarrationTexts(
-                latestBuildingVersion?.statusHistory,
-                'thinking',
-            ),
-        [latestBuildingVersion],
-    );
-    const activityTexts = useMemo<string[]>(
-        () =>
-            versionNarrationTexts(latestBuildingVersion?.statusHistory, 'tool'),
+    const liveNarration = useMemo(
+        () => getVersionNarration(latestBuildingVersion?.statusHistory),
         [latestBuildingVersion],
     );
     // Clarifying counts as loading for the chat input (disable send; typing
     // stays enabled so the next prompt can be drafted), and a pending
     // unanswered clarification keeps send disabled until the user clicks
     // "Build" on the question bubble.
-    const hasPendingClarification = pendingClarification !== null;
+    const hasPendingClarification = clarification.pending !== null;
+    const isClarifying = clarification.clarifyingPrompt !== null;
     // Server-side work that warrants showing a placeholder assistant bubble.
     // Excludes `isSubmitting` (client-side upload — too early to claim
     // generation has started) and `hasPendingClarification` (drives its own
@@ -922,7 +768,9 @@ const AppGenerate: FC = () => {
     const serverVersionCount = allVersions.length;
     useEffect(() => {
         if (serverVersionCount > 0) {
-            setLocalMessages([]);
+            // Keep the same reference when already empty: a fresh array
+            // rebuilds `messages` and re-triggers the auto-scroll below.
+            setLocalMessages((prev) => (prev.length === 0 ? prev : []));
         }
     }, [serverVersionCount]);
 
@@ -1013,71 +861,21 @@ const AppGenerate: FC = () => {
         if (allVersions.length === 0) return null;
         return [...allVersions].sort((a, b) => b.version - a.version)[0];
     }, [allVersions]);
-    const latestVersionModel: DataAppClaudeModel | null =
-        latestVersion?.resources?.claudeModel ?? null;
 
-    // Org-admin-controlled visibility of Data App Claude models. Until the
-    // query resolves, "loading" and "unrestricted" are indistinguishable — so
-    // the picker is disabled rather than showing every model, which would let
-    // the user pick one the server then rejects on submit.
     const {
-        data: aiOrganizationSettings,
-        isLoading: isModelVisibilityLoading,
-    } = useAiOrganizationSettings();
-    const dataAppModelVisibility =
-        aiOrganizationSettings?.dataAppModelVisibility ?? null;
-    const visibleModels = useMemo(
-        () => getVisibleDataAppClaudeModels(dataAppModelVisibility),
-        [dataAppModelVisibility],
-    );
-
-    // Effective model for the picker / next submit:
-    // user's explicit pick (if it's for this app) > latest version's model
-    // > default. Pure derivation; no useEffect+setState chain.
-    //
-    // A `null` appUuid on the override means the pick was made from the
-    // new-app page (no activeAppUuid yet). It keeps matching even after
-    // `activeAppUuid` materialises to the newly created app's UUID, so the
-    // trigger button doesn't briefly flash the default model between submit
-    // and the first version fetch. The route mount boundary
-    // (/apps/generate → /apps/:appUuid) drops local state on real
-    // navigation, which keeps this from leaking across apps.
-    //
-    // Any candidate hidden by org settings is skipped — e.g. a persisted
-    // version built with a model since disabled by an admin falls through to
-    // the next candidate rather than resurrecting a hidden model.
-    const selectedModel: DataAppClaudeModel = useMemo(() => {
-        const fallback =
-            resolveDefaultVisibleDataAppClaudeModel(dataAppModelVisibility) ??
-            DEFAULT_DATA_APP_CLAUDE_MODEL;
-        if (modelOverride) {
-            const overrideAppUuid = modelOverride.appUuid;
-            if (
-                (overrideAppUuid === null ||
-                    overrideAppUuid === activeAppUuid) &&
-                visibleModels.includes(modelOverride.model)
-            ) {
-                return modelOverride.model;
-            }
-        }
-        if (latestVersionModel && visibleModels.includes(latestVersionModel)) {
-            return latestVersionModel;
-        }
-        return fallback;
-    }, [
-        modelOverride,
-        activeAppUuid,
-        latestVersionModel,
+        codingAgent,
+        selectedModel,
+        modelRequest,
         visibleModels,
-        dataAppModelVisibility,
-    ]);
-
-    const handleModelChange = useCallback(
-        (model: DataAppClaudeModel) => {
-            setModelOverride({ appUuid: activeAppUuid ?? null, model });
-        },
-        [activeAppUuid],
-    );
+        isLoading: isModelVisibilityLoading,
+        setModel: handleModelChange,
+    } = useDataAppModelSelection({
+        appUuid: activeAppUuid ?? null,
+        latestVersionModel:
+            latestVersion?.resources?.codexModel ??
+            latestVersion?.resources?.claudeModel ??
+            null,
+    });
 
     // Theme (org design) picker state. New apps pre-populate with the org's
     // default theme so the visible selection matches what the backend would
@@ -1146,7 +944,8 @@ const AppGenerate: FC = () => {
                     projectUuid,
                     appUuid: activeAppUuid,
                     prompt,
-                    claudeModel: selectedModel,
+                    creationExperience: 'app_builder',
+                    ...modelRequest,
                     designUuid,
                 },
                 {
@@ -1186,7 +985,7 @@ const AppGenerate: FC = () => {
             projectUuid,
             invalidateAppData,
             resetIterate,
-            selectedModel,
+            modelRequest,
             user.data?.firstName,
             user.data?.lastName,
         ],
@@ -1260,14 +1059,27 @@ const AppGenerate: FC = () => {
         return { appUuid: activeAppUuid, version: latestReadyVersion.version };
     }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
 
-    // Upgrade offer for the header menu, derived from the previewed bundle's
-    // SDK manifest. Keyed per app+version so rollbacks/deploys re-classify.
-    const { offer: sdkUpgradeOffer, onSdkManifest: handleSdkManifest } =
-        useSdkUpgradeStatus({
-            resetKey: previewApp
-                ? `${previewApp.appUuid}:${previewApp.version}`
+    // Upgrade offer for the header menu. Keyed to the latest ready bundle —
+    // the one an upgrade would rebuild from — not to whatever version the
+    // user has pinned the preview to.
+    const {
+        offer: sdkUpgradeOffer,
+        renderedManifest: renderedSdkManifest,
+        onSdkManifest: handleSdkManifest,
+    } = useSdkUpgradeStatus({
+        target: getSdkFeatureTargetForTemplate(appPersistedTemplate),
+        bundleKey:
+            activeAppUuid && latestReadyVersion !== null
+                ? `${activeAppUuid}:${latestReadyVersion.version}`
                 : null,
-        });
+        renderedKey: previewApp
+            ? `${previewApp.appUuid}:${previewApp.version}`
+            : null,
+        isRendering:
+            previewApp !== null &&
+            latestReadyVersion !== null &&
+            previewApp.version === latestReadyVersion.version,
+    });
 
     // Pin the preview to a specific version. Captures the current latest as
     // the "pinned-at" snapshot so the derived state can decide later when
@@ -1318,7 +1130,18 @@ const AppGenerate: FC = () => {
     // in-flight entries to a terminal "interrupted" state — the iframe that
     // would have polled their queryUuids is gone, so they'd otherwise sit
     // non-terminal forever. Without persist we just clear the log.
+    //
+    // "Persist" deliberately keeps prior versions' `ready` entries visible in
+    // the log, so a raw ready-count would inflate/mask the scheduler's app
+    // csv/xlsx gate for the version currently previewed. We snapshot the
+    // ready-count as a boundary on every switch and subtract it back out via
+    // `countReadyQueriesSinceBoundary` wherever the live count is read.
     const lastPreviewVersionRef = useRef<number | null>(null);
+    const versionQueryBoundaryRef = useRef(0);
+    // Latest-ref so the version-switch effect can snapshot the ready count
+    // without re-running on every query event.
+    const trackedQueriesRef = useRef(trackedQueries);
+    trackedQueriesRef.current = trackedQueries;
     useEffect(() => {
         const next = previewApp?.version ?? null;
         if (lastPreviewVersionRef.current === next) return;
@@ -1328,15 +1151,22 @@ const AppGenerate: FC = () => {
         if (persistLogs) {
             interruptInFlightQueries();
             interruptInFlightRequests();
+            versionQueryBoundaryRef.current = trackedQueriesRef.current.filter(
+                (q) => q.status === 'ready',
+            ).length;
         } else {
-            clearQueries();
+            // resetQueries (not clearQueries): the old version's fetch/poll
+            // isn't torn down by the iframe reload, so a still-in-flight
+            // query's late terminal event must not resurrect as a phantom row.
+            resetQueries();
             clearExternalRequests();
+            versionQueryBoundaryRef.current = 0;
         }
     }, [
         previewApp?.version,
         persistLogs,
         interruptInFlightQueries,
-        clearQueries,
+        resetQueries,
         interruptInFlightRequests,
         clearExternalRequests,
     ]);
@@ -1363,13 +1193,16 @@ const AppGenerate: FC = () => {
             interruptInFlightQueries();
             interruptInFlightRequests();
         } else {
-            clearQueries();
+            // resetQueries (not clearQueries): the reload leaves the
+            // parent-owned fetch/poll running, so a late terminal event would
+            // otherwise land as a phantom row.
+            resetQueries();
             clearExternalRequests();
         }
     }, [
         persistLogs,
         interruptInFlightQueries,
-        clearQueries,
+        resetQueries,
         interruptInFlightRequests,
         clearExternalRequests,
     ]);
@@ -1382,9 +1215,55 @@ const AppGenerate: FC = () => {
         el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }, []);
 
-    useEffect(() => {
+    // Where the user was when they asked for earlier history. Older versions
+    // are prepended, so without re-anchoring the chat would jump around and
+    // the auto-scroll below would drag them back to the latest message.
+    const earlierHistoryAnchorRef = useRef<{
+        pageCount: number;
+        scrollTop: number;
+        scrollHeight: number;
+    } | null>(null);
+    const loadedPageCount = appData?.pages.length ?? 0;
+
+    const loadEarlierMessages = useCallback(() => {
+        if (isFetchingNextPage) return;
+        const el = chatMessagesRef.current;
+        if (el) {
+            earlierHistoryAnchorRef.current = {
+                pageCount: loadedPageCount,
+                scrollTop: el.scrollTop,
+                scrollHeight: el.scrollHeight,
+            };
+        }
+        void fetchNextPage();
+    }, [isFetchingNextPage, loadedPageCount, fetchNextPage]);
+
+    useLayoutEffect(() => {
+        const anchor = earlierHistoryAnchorRef.current;
+        if (anchor) {
+            if (loadedPageCount > anchor.pageCount) {
+                earlierHistoryAnchorRef.current = null;
+                const el = chatMessagesRef.current;
+                if (el) {
+                    el.scrollTop =
+                        anchor.scrollTop +
+                        (el.scrollHeight - anchor.scrollHeight);
+                }
+                return;
+            }
+            if (isFetchingNextPage) return;
+            // The fetch failed; drop the anchor but leave the user where they are.
+            earlierHistoryAnchorRef.current = null;
+            return;
+        }
         scrollToBottom();
-    }, [messages, isLoading, scrollToBottom]);
+    }, [
+        messages,
+        isLoading,
+        loadedPageCount,
+        isFetchingNextPage,
+        scrollToBottom,
+    ]);
 
     // Revoke all sent image blob URLs on unmount to prevent memory leaks.
     // We don't revoke on fileAttachments change because the URLs may have
@@ -1426,6 +1305,21 @@ const AppGenerate: FC = () => {
                     description="This data app doesn't exist or has been deleted."
                 />
             </Box>
+        );
+    }
+
+    // Chart types have their own builder; use the canonical uuid so slug
+    // deep links land on the uuid route.
+    if (
+        urlAppUuid &&
+        appPersistedTemplate === DATA_APP_VIZ_TEMPLATE &&
+        activeAppUuid
+    ) {
+        return (
+            <Navigate
+                to={chartTypeBuilderPath(projectUuid ?? '', activeAppUuid)}
+                replace
+            />
         );
     }
 
@@ -1583,40 +1477,19 @@ const AppGenerate: FC = () => {
         }
     };
 
-    const buildSubmitCallbacks = () => ({
-        onSuccess: (data: { appUuid: string; version: number }) => {
-            setActiveAppUuid(data.appUuid);
-            invalidateAppData(data.appUuid);
-            if (!urlAppUuid) {
-                void navigate(`/projects/${projectUuid}/apps/${data.appUuid}`, {
-                    replace: true,
-                });
-            }
-        },
-        onError: (err: unknown) => {
-            // The mutation rejects with an ApiError object (not an Error
-            // instance), so read its message before falling back.
-            const errorMessage = isApiError(err)
-                ? err.error.message
-                : err instanceof Error
-                  ? err.message
-                  : 'Failed to generate app';
-            setLocalMessages((prev) => [
-                ...prev,
-                {
-                    ...emptyChatMessage(),
-                    role: 'assistant' as const,
-                    status: 'error' as const,
-                    content: errorMessage,
-                    timestamp: new Date(),
-                },
-            ]);
-        },
-    });
-
     const handleSubmit = async () => {
-        const trimmed = (promptEditorRef.current?.getText() ?? '').trim();
-        if (!trimmed || isLoading || isSubmittingRef.current) return;
+        const typed = (promptEditorRef.current?.getText() ?? '').trim();
+        if (
+            (!typed && elementPicker.refs.length === 0) ||
+            isLoading ||
+            isSubmittingRef.current
+        )
+            return;
+        // Element references travel as their own lines after the typed text —
+        // the same bracketed wire format the agent has always received.
+        const trimmed = [typed, ...elementPicker.refs.map(refToWireString)]
+            .filter(Boolean)
+            .join('\n');
 
         isSubmittingRef.current = true;
         // Morph the centered composer into the split sidebar layout. Only the
@@ -1660,11 +1533,11 @@ const AppGenerate: FC = () => {
 
             // For new apps, pre-generate the UUID so the image upload and
             // the generate request both use the same app-scoped S3 path.
-            const newAppUuid = activeAppUuid ? undefined : uuid4();
-            const targetAppUuid = activeAppUuid ?? newAppUuid;
-            if (newAppUuid) {
+            const isFirstBuild = !activeAppUuid;
+            const targetAppUuid = activeAppUuid ?? uuid4();
+            if (isFirstBuild) {
                 setThemeChipOverride({
-                    appUuid: newAppUuid,
+                    appUuid: targetAppUuid,
                     designUuid: selectedThemeUuid,
                 });
             }
@@ -1684,7 +1557,7 @@ const AppGenerate: FC = () => {
                         const result = await uploadFile({
                             projectUuid: projectUuid!,
                             file: att.file,
-                            appUuid: targetAppUuid!,
+                            appUuid: targetAppUuid,
                             kind: att.kind,
                         });
                         ids.push(result.fileId);
@@ -1781,58 +1654,9 @@ const AppGenerate: FC = () => {
             setSelectedCharts([]);
             setSelectedDashboard(null);
             setSelectedConnections([]);
+            clearElementRefs();
             resetGenerate();
             resetIterate();
-
-            // Pre-build clarification: first-build only. The clarifier runs for
-            // every template — the questions adapt to the kind of app being
-            // built (template is passed through). Iteration prompts skip
-            // clarification entirely — by then intent is already grounded in
-            // the existing version.
-            const isFirstBuild = !activeAppUuid;
-            if (isFirstBuild && newAppUuid) {
-                try {
-                    const { questions } = await clarifyMutateAsync({
-                        projectUuid: projectUuid!,
-                        prompt: trimmed,
-                        template: starterTemplate,
-                        charts,
-                        dashboard,
-                        fileIds,
-                    });
-                    if (questions.length > 0) {
-                        setPendingClarification({
-                            questions,
-                            prompt: trimmed,
-                            template: starterTemplate,
-                            fileIds,
-                            appUuid: newAppUuid,
-                            charts,
-                            dashboard,
-                            externalConnections,
-                            spaceUuid: targetSpaceUuid,
-                            claudeModel: selectedModel,
-                            designUuid: selectedThemeUuid,
-                        });
-                        setClarificationAnswers(
-                            new Array(questions.length).fill(''),
-                        );
-                        return;
-                    }
-                    // No questions returned — fall through and build immediately.
-                } catch (err) {
-                    // Clarify failed (model not configured, network, etc.) — fall
-                    // back to the original behavior and just build. We don't want
-                    // a clarifier outage to block the actual feature.
-                    // eslint-disable-next-line no-console
-                    console.warn(
-                        'App clarification failed; proceeding to build',
-                        err,
-                    );
-                }
-            }
-
-            const callbacks = buildSubmitCallbacks();
 
             if (activeAppUuid) {
                 iterateMutate(
@@ -1840,101 +1664,35 @@ const AppGenerate: FC = () => {
                         projectUuid,
                         appUuid: activeAppUuid,
                         prompt: trimmed,
+                        creationExperience: 'app_builder',
                         fileIds,
                         charts,
                         dashboard,
-                        claudeModel: selectedModel,
+                        ...modelRequest,
                         externalConnections,
                     },
-                    callbacks,
+                    buildSubmitCallbacks(),
                 );
             } else {
-                generateMutate(
-                    {
-                        projectUuid,
-                        prompt: trimmed,
-                        template: starterTemplate,
-                        fileIds,
-                        appUuid: newAppUuid,
-                        charts,
-                        dashboard,
-                        spaceUuid: targetSpaceUuid,
-                        claudeModel: selectedModel,
-                        designUuid: selectedThemeUuid,
-                        externalConnections,
-                    },
-                    callbacks,
-                );
+                // A first build clarifies before generating; the round calls
+                // back into runBuildRef once it resolves, answered or not.
+                clarification.send({
+                    prompt: trimmed,
+                    template: starterTemplate,
+                    fileIds,
+                    appUuid: targetAppUuid,
+                    charts,
+                    dashboard,
+                    externalConnections,
+                    spaceUuid: targetSpaceUuid,
+                    modelRequest,
+                    designUuid: selectedThemeUuid,
+                });
             }
         } finally {
             isSubmittingRef.current = false;
             setIsSubmitting(false);
         }
-    };
-
-    /**
-     * Submit the user's answers to the clarification questions and start the
-     * actual build. Called by both the "Build" button (which folds answers
-     * into the generate request as `clarifications`) and the "Skip" link
-     * (which fires generate without any clarifications, as if the questions
-     * had never been asked).
-     */
-    const handleSubmitClarification = (skip: boolean) => {
-        if (!pendingClarification) return;
-
-        const clarifications: AppClarification[] = skip
-            ? []
-            : pendingClarification.questions
-                  .map((question, i) => ({
-                      question,
-                      answer: (clarificationAnswers[i] ?? '').trim(),
-                  }))
-                  // Drop empty answers — they don't help the model and just
-                  // make the prompt noisier. Same effect as "Skip" for that
-                  // particular question.
-                  .filter((c) => c.answer.length > 0);
-
-        // Attach the Q&A to the user bubble that handleSubmit just added.
-        // The backend persists the same array on `resources.clarifications`
-        // so the local→server transition is seamless.
-        if (clarifications.length > 0) {
-            setLocalMessages((prev) => {
-                const lastUserIdx = prev.findLastIndex(
-                    (m) => m.role === 'user',
-                );
-                if (lastUserIdx === -1) return prev;
-                const next = [...prev];
-                next[lastUserIdx] = {
-                    ...next[lastUserIdx],
-                    clarifications,
-                };
-                return next;
-            });
-        }
-
-        const captured = pendingClarification;
-        setPendingClarification(null);
-        setClarificationAnswers([]);
-        resetGenerate();
-
-        generateMutate(
-            {
-                projectUuid: projectUuid!,
-                prompt: captured.prompt,
-                template: captured.template,
-                fileIds: captured.fileIds,
-                appUuid: captured.appUuid,
-                charts: captured.charts,
-                dashboard: captured.dashboard,
-                externalConnections: captured.externalConnections,
-                clarifications:
-                    clarifications.length > 0 ? clarifications : undefined,
-                spaceUuid: captured.spaceUuid,
-                claudeModel: captured.claudeModel,
-                designUuid: captured.designUuid,
-            },
-            buildSubmitCallbacks(),
-        );
     };
 
     const handleCancel = () => {
@@ -1992,7 +1750,7 @@ const AppGenerate: FC = () => {
                             <Stack gap="lg" className={classes.composeHeading}>
                                 <Stack gap={6}>
                                     <Text
-                                        fw={700}
+                                        fw={600}
                                         fz={28}
                                         className={classes.composeTitle}
                                     >
@@ -2012,18 +1770,22 @@ const AppGenerate: FC = () => {
                         <Box
                             ref={chatMessagesRef}
                             className={classes.chatMessages}
+                            // Walkthrough look for create:DataApp: the
+                            // conversation that builds the app, version by
+                            // version.
+                            data-tour-scope="create:DataApp"
+                            data-tour-look="4"
+                            data-tour-after='[data-tour-anchor="app-continue-building"]'
+                            data-tour-label="Every prompt makes a new version"
+                            data-tour-docs="data-apps.mdx#iterating-on-your-app:1-2"
                         >
                             {hasUnloadedEarlierVersions && (
                                 <Group
                                     gap="xs"
                                     justify="center"
                                     p="xs"
-                                    onClick={() => {
-                                        if (!isFetchingNextPage) {
-                                            void fetchNextPage();
-                                        }
-                                    }}
-                                    style={{ cursor: 'pointer' }}
+                                    onClick={loadEarlierMessages}
+                                    className={classes.loadEarlierRow}
                                 >
                                     {isFetchingNextPage ? (
                                         <Loader size="xs" />
@@ -2054,7 +1816,7 @@ const AppGenerate: FC = () => {
                                 <>
                                     <Box
                                         className={`${classes.chatMessageGroup}${
-                                            pendingClarification
+                                            hasPendingClarification
                                                 ? ` ${classes.dimmedHistory}`
                                                 : ''
                                         }`}
@@ -2422,28 +2184,15 @@ const AppGenerate: FC = () => {
                                                             renderVersionDepsChip(
                                                                 msg.version,
                                                             )}
-                                                        {msg.reasoning.length >
-                                                            0 && (
-                                                            <ReasoningHistoryRow
-                                                                texts={
-                                                                    msg.reasoning
-                                                                }
-                                                                isLive={false}
-                                                            />
-                                                        )}
-                                                        {msg.activity.length >
-                                                            0 && (
-                                                            <ReasoningHistoryRow
-                                                                texts={
-                                                                    msg.activity
-                                                                }
-                                                                isLive={false}
-                                                                icon={
-                                                                    IconHammer
-                                                                }
-                                                                label="Activity"
-                                                            />
-                                                        )}
+                                                        <AppVersionNarration
+                                                            narration={{
+                                                                reasoning:
+                                                                    msg.reasoning,
+                                                                activity:
+                                                                    msg.activity,
+                                                            }}
+                                                            isLive={false}
+                                                        />
                                                         {msg.vizSchema ? (
                                                             msg.version !==
                                                                 null &&
@@ -2485,69 +2234,27 @@ const AppGenerate: FC = () => {
                                             ),
                                         )}
                                     </Box>
-                                    {pendingClarification ? (
+                                    {clarification.pending ? (
                                         <Box
                                             className={classes.clarifyContainer}
                                         >
                                             <Text size="sm">
                                                 A few quick questions:
                                             </Text>
-                                            <Stack gap={6}>
-                                                {pendingClarification.questions.map(
-                                                    (question, qi) => (
-                                                        <Box
-                                                            key={qi}
-                                                            className={
-                                                                classes.clarifyCard
-                                                            }
-                                                        >
-                                                            <Text
-                                                                size="sm"
-                                                                c="dimmed"
-                                                            >
-                                                                {question}
-                                                            </Text>
-                                                            <Textarea
-                                                                variant="unstyled"
-                                                                autosize
-                                                                minRows={1}
-                                                                maxRows={4}
-                                                                placeholder="Your answer"
-                                                                value={
-                                                                    clarificationAnswers[
-                                                                        qi
-                                                                    ] ?? ''
-                                                                }
-                                                                onChange={(
-                                                                    e,
-                                                                ) => {
-                                                                    const next =
-                                                                        [
-                                                                            ...clarificationAnswers,
-                                                                        ];
-                                                                    next[qi] =
-                                                                        e.currentTarget.value;
-                                                                    setClarificationAnswers(
-                                                                        next,
-                                                                    );
-                                                                }}
-                                                                autoFocus={
-                                                                    qi === 0
-                                                                }
-                                                                classNames={{
-                                                                    input: classes.clarifyCardInput,
-                                                                }}
-                                                            />
-                                                        </Box>
-                                                    ),
-                                                )}
-                                            </Stack>
+                                            <ClarificationQuestionList
+                                                questions={
+                                                    clarification.pending
+                                                        .questions
+                                                }
+                                                answers={clarification.answers}
+                                                onAnswer={clarification.answer}
+                                            />
                                             <Group gap="xs" justify="flex-end">
                                                 <Button
                                                     variant="subtle"
                                                     size="xs"
                                                     onClick={() =>
-                                                        handleSubmitClarification(
+                                                        clarification.build(
                                                             true,
                                                         )
                                                     }
@@ -2557,7 +2264,7 @@ const AppGenerate: FC = () => {
                                                 <Button
                                                     size="xs"
                                                     onClick={() =>
-                                                        handleSubmitClarification(
+                                                        clarification.build(
                                                             false,
                                                         )
                                                     }
@@ -2592,28 +2299,12 @@ const AppGenerate: FC = () => {
                                                             </Text>
                                                         ) : (
                                                             <>
-                                                                {reasoningTexts.length >
-                                                                    0 && (
-                                                                    <ReasoningHistoryRow
-                                                                        texts={
-                                                                            reasoningTexts
-                                                                        }
-                                                                        isLive
-                                                                    />
-                                                                )}
-                                                                {activityTexts.length >
-                                                                    0 && (
-                                                                    <ReasoningHistoryRow
-                                                                        texts={
-                                                                            activityTexts
-                                                                        }
-                                                                        isLive
-                                                                        icon={
-                                                                            IconHammer
-                                                                        }
-                                                                        label="Activity"
-                                                                    />
-                                                                )}
+                                                                <AppVersionNarration
+                                                                    narration={
+                                                                        liveNarration
+                                                                    }
+                                                                    isLive
+                                                                />
                                                                 {latestBuildingVersion?.status ===
                                                                 'generating' ? (
                                                                     // A status line here would duplicate the live
@@ -2788,6 +2479,14 @@ const AppGenerate: FC = () => {
                                 <Box
                                     onDragOver={handleDragOver}
                                     onDrop={handleDrop}
+                                    // Typed walkthrough step for create:DataApp:
+                                    // the first prompt, with a suggestion that
+                                    // fits the seeded Jaffle data. The kit fills
+                                    // the editor inside this box.
+                                    data-tour-anchor="app-prompt"
+                                    data-tour-hint="Describe the app you want"
+                                    data-tour-input="true"
+                                    data-tour-suggest="A one-page pulse of orders, revenue and top customers, with a filter on order status"
                                 >
                                     <PromptComposer
                                         ref={promptEditorRef}
@@ -2799,7 +2498,6 @@ const AppGenerate: FC = () => {
                                         // client-side submit, where clear() would wipe text.
                                         disabled={isSubmitting}
                                         submitDisabled={isLoading}
-                                        extensions={APP_PROMPT_EXTENSIONS}
                                         onEmptyChange={setIsPromptEmpty}
                                         onSubmit={() => void handleSubmit()}
                                         onPaste={handlePaste}
@@ -2808,12 +2506,35 @@ const AppGenerate: FC = () => {
                                                 selectedDashboard ||
                                                 selectedConnections.length >
                                                     0 ||
+                                                elementPicker.refs.length > 0 ||
                                                 fileAttachments.length > 0) && (
                                                 <Box
                                                     className={
                                                         classes.attachedResources
                                                     }
                                                 >
+                                                    {elementPicker.refs.length >
+                                                        0 && (
+                                                        <Group gap={4}>
+                                                            {elementPicker.refs.map(
+                                                                (ref) => (
+                                                                    <ElementRefPill
+                                                                        key={elementRefKey(
+                                                                            ref,
+                                                                        )}
+                                                                        elementRef={
+                                                                            ref
+                                                                        }
+                                                                        onRemove={() =>
+                                                                            elementPicker.remove(
+                                                                                ref,
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                ),
+                                                            )}
+                                                        </Group>
+                                                    )}
                                                     {selectedConnections.length >
                                                         0 && (
                                                         <Group gap="xs">
@@ -3047,6 +2768,9 @@ const AppGenerate: FC = () => {
                                                         fileAttachments.length >=
                                                         MAX_APP_FILES_PER_VERSION
                                                     }
+                                                    linkedAppUuid={
+                                                        activeAppUuid
+                                                    }
                                                 />
                                                 {previewApp &&
                                                     screenshotAvailable && (
@@ -3064,31 +2788,14 @@ const AppGenerate: FC = () => {
                                                             }
                                                         />
                                                     )}
-                                                {inspectorAvailable && (
-                                                    <InspectButton
+                                                {elementPicker.available && (
+                                                    <ElementPickerButton
                                                         enabled={
-                                                            inspectorEnabled
+                                                            elementPicker.enabled
                                                         }
-                                                        onToggle={() => {
-                                                            setInspectorEnabled(
-                                                                (v) => {
-                                                                    const next =
-                                                                        !v;
-                                                                    if (next)
-                                                                        setLineageEnabled(
-                                                                            false,
-                                                                        );
-                                                                    return next;
-                                                                },
-                                                            );
-                                                            // Entering inspector
-                                                            // mode force-disables
-                                                            // lineage — drop its
-                                                            // selection too.
-                                                            setFocusedQueryUuid(
-                                                                null,
-                                                            );
-                                                        }}
+                                                        onToggle={
+                                                            elementPicker.toggle
+                                                        }
                                                     />
                                                 )}
                                                 {newAppLanding && (
@@ -3164,6 +2871,7 @@ const AppGenerate: FC = () => {
                                                 <ModelPicker
                                                     value={selectedModel}
                                                     onChange={handleModelChange}
+                                                    codingAgent={codingAgent}
                                                     disabled={
                                                         isSubmitting ||
                                                         isModelVisibilityLoading
@@ -3183,11 +2891,25 @@ const AppGenerate: FC = () => {
                                                     <ComposerSubmitButton
                                                         icon={IconArrowUp}
                                                         label="Send message"
+                                                        // Walkthrough look for
+                                                        // create:DataApp: the
+                                                        // build starts here;
+                                                        // the walkthrough
+                                                        // stops short of it.
+                                                        data-tour-scope="create:DataApp"
+                                                        data-tour-look="3"
+                                                        data-tour-after='[data-tour-anchor="app-prompt"]'
+                                                        data-tour-label="Send starts the build"
+                                                        data-tour-docs="data-apps.mdx#choosing-a-template:p2:2-3"
                                                         onClick={() =>
                                                             void handleSubmit()
                                                         }
                                                         disabled={
-                                                            isPromptEmpty ||
+                                                            (isPromptEmpty &&
+                                                                elementPicker
+                                                                    .refs
+                                                                    .length ===
+                                                                    0) ||
                                                             isLoading
                                                         }
                                                         loading={
@@ -3204,6 +2926,9 @@ const AppGenerate: FC = () => {
                             </Box>
                         )}
                     </Box>
+                    {newAppLanding && (
+                        <RecentAppSuggestions projectUuid={projectUuid} />
+                    )}
                 </Panel>
 
                 {!newAppLanding && (
@@ -3282,6 +3007,10 @@ const AppGenerate: FC = () => {
                                             onViewNetwork={() =>
                                                 setNetworkPanelHidden(false)
                                             }
+                                            capturedQueryCount={countReadyQueriesSinceBoundary(
+                                                trackedQueries,
+                                                versionQueryBoundaryRef.current,
+                                            )}
                                             onDeleted={() =>
                                                 void navigate(
                                                     `/projects/${projectUuid}/apps/generate`,
@@ -3306,23 +3035,20 @@ const AppGenerate: FC = () => {
                                                     </Menu.Item>
                                                 ) : null
                                             }
+                                            askAiItem={null}
                                         />
                                     }
                                 />
                             )}
                             {restoreTargetVersion !== null && activeAppUuid && (
-                                <MantineModal
-                                    opened
+                                <RestoreAppVersionModal
+                                    version={restoreTargetVersion}
+                                    isLoading={isRestoringVersion}
+                                    error={restoreVersionError}
                                     onClose={() => {
-                                        if (isRestoringVersion) return;
                                         setRestoreTargetVersion(null);
                                         resetRestoreVersion();
                                     }}
-                                    title={`Restore version ${restoreTargetVersion}?`}
-                                    icon={IconRestore}
-                                    confirmLabel="Restore version"
-                                    cancelDisabled={isRestoringVersion}
-                                    confirmLoading={isRestoringVersion}
                                     onConfirm={() =>
                                         restoreVersionMutate(
                                             {
@@ -3339,27 +3065,23 @@ const AppGenerate: FC = () => {
                                             },
                                         )
                                     }
-                                >
-                                    <Stack gap="sm">
-                                        <Text fz="sm">
-                                            This will create a new version on
-                                            top of the timeline that duplicates
-                                            the contents of version{' '}
-                                            {restoreTargetVersion}. Your next
-                                            prompt will iterate from there.
-                                        </Text>
-                                        {restoreVersionError && (
-                                            <Callout variant="danger">
-                                                {restoreVersionError.error
-                                                    ?.message ??
-                                                    'Failed to restore version.'}
-                                            </Callout>
-                                        )}
-                                    </Stack>
-                                </MantineModal>
+                                />
                             )}
 
-                            <Box className={classes.previewContent}>
+                            <Box
+                                className={classes.previewContent}
+                                // Walkthrough result for create:DataApp: a
+                                // finished app in the builder, the seeded one
+                                // standing in for the build the learner did
+                                // not start.
+                                data-tour-scope="create:DataApp"
+                                data-tour-step="1"
+                                data-tour-route="/projects/:projectUuid/apps/:appUuid"
+                                data-tour-label="A running app in the builder"
+                                data-tour-docs="data-apps.mdx#creating-a-new-app:1"
+                                data-tour-return="none"
+                                data-tour-resultdocs="data-apps.mdx#restoring-an-earlier-version:1"
+                            >
                                 {previewApp ? (
                                     <AppPreview
                                         ref={previewRef}
@@ -3372,18 +3094,9 @@ const AppGenerate: FC = () => {
                                         onExternalRequestEvent={
                                             handleExternalRequestEvent
                                         }
-                                        inspectorEnabled={inspectorEnabled}
-                                        onElementSelected={
-                                            handleElementSelected
-                                        }
-                                        onInspectorAvailabilityChange={
-                                            setInspectorAvailable
-                                        }
+                                        {...elementPicker.iframeProps}
                                         onScreenshotAvailabilityChange={
                                             setScreenshotAvailable
-                                        }
-                                        onInspectorCancelled={
-                                            handleInspectorCancelled
                                         }
                                         lineageEnabled={lineageEnabled}
                                         onLineageAvailabilityChange={
@@ -3432,7 +3145,7 @@ const AppGenerate: FC = () => {
                                         lineageEnabled={lineageEnabled}
                                         lineageAvailable={lineageAvailable}
                                         lineageSupportedBySdk={
-                                            sdkUpgradeOffer.reportedFeatures?.includes(
+                                            renderedSdkManifest?.features.includes(
                                                 'lineage',
                                             ) ?? false
                                         }

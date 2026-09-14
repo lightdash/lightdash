@@ -108,7 +108,6 @@ describe('AiAgentService deep research conversation history', () => {
                 projectUuid: 'project-1',
                 agentUuid: 'agent-1',
                 retrieveRelevantArtifacts: false,
-                compaction: null,
                 currentPromptUuid: 'follow-up-prompt',
             },
         );

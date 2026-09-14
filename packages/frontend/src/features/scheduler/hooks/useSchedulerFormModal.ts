@@ -4,11 +4,12 @@ import {
     isNumericItem,
     SchedulerFormat,
     type ApiError,
-    type CreateSchedulerAndTargets,
     type CreateSchedulerAndTargetsWithoutIds,
+    type DashboardFilterableField,
     type ItemsMap,
     type ParametersValuesMap,
     type SchedulerAndTargets,
+    type SendNowScheduler,
 } from '@lightdash/common';
 import { type FormValidateInput } from '@mantine/form';
 import { type UseMutationResult } from '@tanstack/react-query';
@@ -18,6 +19,7 @@ import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useUser from '../../../hooks/user/useUser';
+import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
@@ -31,7 +33,10 @@ import {
     type SchedulerFormValues,
 } from '../components/SchedulerForm/schedulerFormContext';
 import { Limit } from '../components/types';
-import { getSchedulerFilterRequirements } from '../utils/filterRequirements';
+import {
+    getChartSchedulerRequiredFiltersWithoutValues,
+    getSchedulerFilterRequirements,
+} from '../utils/filterRequirements';
 import { useScheduler, useSendNowScheduler } from './useScheduler';
 import {
     useSchedulerAiAugmentation,
@@ -55,6 +60,7 @@ export interface UseSchedulerFormModalProps {
     itemsMap?: ItemsMap;
     currentParameterValues?: ParametersValuesMap;
     initialFormValues?: Partial<SchedulerFormValues>;
+    filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
 }
 
 export const useSchedulerFormModal = ({
@@ -68,6 +74,7 @@ export const useSchedulerFormModal = ({
     itemsMap,
     currentParameterValues,
     initialFormValues,
+    filterableFieldsByTileUuid,
 }: UseSchedulerFormModalProps) => {
     const isEditMode = !!schedulerUuid;
 
@@ -141,8 +148,30 @@ export const useSchedulerFormModal = ({
         },
     });
 
+    // Chart deliveries adjust the chart's saved filters, so the form needs the
+    // chart itself (the AI section also reads its space from here).
+    const isChartResource = formResource?.type === 'chart';
+    const { data: savedChart } = useSavedQuery({
+        uuidOrSlug: isChartResource ? formResource?.uuid : undefined,
+        projectUuid,
+    });
+
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 1;
+
+    // Required filters that only apply to tabs left out of the delivery must
+    // not block it, so requirements are scoped to the selected tabs.
+    const filterableTiles = useMemo(
+        () =>
+            dashboard
+                ? {
+                      tiles: dashboard.tiles,
+                      tabUuids: dashboard.tabs.map((tab) => tab.uuid),
+                      filterableFieldsByTileUuid,
+                  }
+                : undefined,
+        [dashboard, filterableFieldsByTileUuid],
+    );
 
     // Use the explicitly passed parameter values
     const dashboardParameterValues = currentParameterValues || {};
@@ -160,13 +189,19 @@ export const useSchedulerFormModal = ({
                         : null;
                 },
             },
-            dashboardFilters: (value) => {
-                if (!value) {
-                    // Dashboard filters are undefined/null for charts
+            dashboardFilters: (value, values) => {
+                if (!isDashboard) {
                     return null;
                 }
                 const { unmetRequirements, filtersWithUnmetRequirements } =
-                    getSchedulerFilterRequirements(dashboard?.filters, value);
+                    getSchedulerFilterRequirements(
+                        dashboard?.filters,
+                        value,
+                        filterableTiles && {
+                            ...filterableTiles,
+                            selectedTabs: values.selectedTabs ?? null,
+                        },
+                    );
 
                 if (filtersWithUnmetRequirements.length > 0) {
                     return unmetRequirements.every(
@@ -176,6 +211,17 @@ export const useSchedulerFormModal = ({
                         : 'Required filters must have values';
                 }
                 return null;
+            },
+            chartFilters: (value) => {
+                if (!isChartResource) {
+                    return null;
+                }
+                return getChartSchedulerRequiredFiltersWithoutValues(
+                    savedChart?.metricQuery.filters,
+                    value,
+                ).length > 0
+                    ? 'Required filters must have values'
+                    : null;
             },
             cron: (cronExpression) => {
                 return isInvalidCronExpression('Cron expression')(
@@ -196,7 +242,13 @@ export const useSchedulerFormModal = ({
                     ? 'Instructions are required'
                     : null,
         }),
-        [dashboard?.filters],
+        [
+            isDashboard,
+            dashboard?.filters,
+            filterableTiles,
+            isChartResource,
+            savedChart?.metricQuery.filters,
+        ],
     );
 
     const form = useSchedulerForm({
@@ -250,10 +302,20 @@ export const useSchedulerFormModal = ({
     } = getSchedulerFilterRequirements(
         dashboard?.filters,
         form.values.dashboardFilters,
+        filterableTiles && {
+            ...filterableTiles,
+            selectedTabs: form.values.selectedTabs ?? null,
+        },
     );
     const hasOnlyUnmetGroupRequirements =
         unmetRequirements.length > 0 &&
         unmetRequirements.every((requirement) => requirement.type === 'group');
+    const chartRequiredFiltersWithoutValues = isChartResource
+        ? getChartSchedulerRequiredFiltersWithoutValues(
+              savedChart?.metricQuery.filters,
+              form.values.chartFilters,
+          )
+        : [];
 
     // Sync form values when data is loaded. The AI augmentation is omitted —
     // it loads via a separate query and is synced by the effect below, so a
@@ -372,45 +434,20 @@ export const useSchedulerFormModal = ({
             formResource?.type,
         );
 
-        let resource: {
-            savedChartUuid: string | null;
-            dashboardUuid: string | null;
-            savedSqlUuid: string | null;
-            appUuid: string | null;
-        };
-        if (isEditMode) {
-            resource = {
-                savedChartUuid: scheduler.data?.savedChartUuid ?? null,
-                dashboardUuid: scheduler.data?.dashboardUuid ?? null,
-                savedSqlUuid: scheduler.data?.savedSqlUuid ?? null,
-                appUuid: scheduler.data?.appUuid ?? null,
-            };
-        } else if (isApp) {
-            resource = {
-                appUuid: resourceUuid,
-                savedChartUuid: null,
-                dashboardUuid: null,
-                savedSqlUuid: null,
-            };
-        } else if (isChart) {
-            resource = {
-                savedChartUuid: resourceUuid,
-                dashboardUuid: null,
-                savedSqlUuid: null,
-                appUuid: null,
-            };
-        } else {
-            resource = {
-                dashboardUuid: resourceUuid,
-                savedChartUuid: null,
-                savedSqlUuid: null,
-                appUuid: null,
-            };
-        }
-
-        const unsavedScheduler: CreateSchedulerAndTargets = {
-            ...schedulerData,
-            ...resource,
+        const sendNowBase = {
+            name: schedulerData.name,
+            message: schedulerData.message,
+            format: schedulerData.format,
+            cron: schedulerData.cron,
+            timezone: schedulerData.timezone,
+            appName: schedulerData.appName,
+            options: schedulerData.options,
+            thresholds: schedulerData.thresholds,
+            enabled: schedulerData.enabled,
+            notificationFrequency: schedulerData.notificationFrequency,
+            includeLinks: schedulerData.includeLinks,
+            plainTextEmail: schedulerData.plainTextEmail,
+            targets: schedulerData.targets,
             createdBy: user.userUuid,
             // Carry the (possibly unsaved) AI settings so send-now runs them.
             aiAugmentation: form.values.aiAugmentation,
@@ -418,6 +455,67 @@ export const useSchedulerFormModal = ({
             // links can open the delivery.
             sourceSchedulerUuid: isEditMode ? schedulerUuid : undefined,
         };
+
+        let unsavedScheduler: SendNowScheduler;
+        const savedChartUuid = isEditMode
+            ? scheduler.data?.savedChartUuid
+            : isChart
+              ? resourceUuid
+              : null;
+        const dashboardUuid = isEditMode
+            ? scheduler.data?.dashboardUuid
+            : !isChart && !isApp
+              ? resourceUuid
+              : null;
+        const savedSqlUuid = isEditMode ? scheduler.data?.savedSqlUuid : null;
+        const appUuid = isEditMode
+            ? scheduler.data?.appUuid
+            : isApp
+              ? resourceUuid
+              : null;
+
+        if (savedChartUuid) {
+            unsavedScheduler = {
+                ...sendNowBase,
+                savedChartUuid,
+                dashboardUuid: null,
+                savedSqlUuid: null,
+                appUuid: null,
+                filters: form.values.chartFilters,
+                parameters: form.values.parameters,
+            };
+        } else if (dashboardUuid) {
+            unsavedScheduler = {
+                ...sendNowBase,
+                savedChartUuid: null,
+                dashboardUuid,
+                savedSqlUuid: null,
+                appUuid: null,
+                filters: form.values.dashboardFilters,
+                parameters: form.values.parameters,
+                customViewportWidth: form.values.customViewportWidth,
+                selectedTabs: form.values.selectedTabs,
+            };
+        } else if (savedSqlUuid) {
+            unsavedScheduler = {
+                ...sendNowBase,
+                savedChartUuid: null,
+                dashboardUuid: null,
+                savedSqlUuid,
+                appUuid: null,
+            };
+        } else if (appUuid) {
+            unsavedScheduler = {
+                ...sendNowBase,
+                savedChartUuid: null,
+                dashboardUuid: null,
+                savedSqlUuid: null,
+                appUuid,
+                appState: form.values.appState ?? undefined,
+            };
+        } else {
+            return;
+        }
 
         track({ name: EventName.SCHEDULER_SEND_NOW_BUTTON });
         sendNow(unsavedScheduler);
@@ -458,10 +556,13 @@ export const useSchedulerFormModal = ({
         confirmText,
         form,
         dashboard,
+        savedChart,
         isThresholdAlertWithNoFields,
         numericMetrics,
         isDashboardTabsAvailable,
+        unmetRequirements,
         requiredFiltersWithoutValues,
+        chartRequiredFiltersWithoutValues,
         hasOnlyUnmetGroupRequirements,
     };
 };

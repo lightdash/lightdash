@@ -1,4 +1,8 @@
-import { sanitizeHtml, type Comment } from '@lightdash/common';
+import {
+    HTML_SANITIZE_DEFAULT_RULES,
+    sanitizeHtml,
+    type Comment,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -8,8 +12,8 @@ import {
     Menu,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import {
     IconArrowBackUp,
     IconCircleCheck,
@@ -23,6 +27,15 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
 import styles from './CommentDetail.module.css';
 import { CommentTimestamp } from './CommentTimestamp';
+
+// Mentions are stored as styled spans; render them as the mention pill instead.
+const COMMENT_RENDER_RULES = {
+    ...HTML_SANITIZE_DEFAULT_RULES,
+    allowedAttributes: { span: ['class'] },
+    transformTags: {
+        span: () => ({ tagName: 'span', attribs: { class: 'ld-mention' } }),
+    },
+};
 
 type Props = {
     comment: Comment;
@@ -54,7 +67,7 @@ export const CommentDetail: FC<Props> = ({
      * precaution we also sanitize it before rendering.
      */
     const sanitizedCommentTextHtml = useMemo(
-        () => sanitizeHtml(comment.textHtml),
+        () => sanitizeHtml(comment.textHtml, COMMENT_RENDER_RULES),
         [comment.textHtml],
     );
 
@@ -80,17 +93,19 @@ export const CommentDetail: FC<Props> = ({
                             <CommentTimestamp timestamp={comment.createdAt} />
                         </Group>
 
-                        <Group gap="two" opacity={hovered ? 1 : 0}>
+                        <Group
+                            gap="two"
+                            opacity={hovered ? 1 : 0}
+                            className={styles.actions}
+                        >
                             {canReply && onReply && (
                                 <Tooltip
                                     label="Reply"
-                                    withinPortal
                                     zIndex={getDefaultZIndex('popover') + 1}
                                 >
                                     <ActionIcon
                                         size="xs"
                                         onClick={() => onReply()}
-                                        variant="subtle"
                                         color="blue"
                                     >
                                         <MantineIcon icon={IconMessage} />
@@ -103,14 +118,15 @@ export const CommentDetail: FC<Props> = ({
                                 <Menu
                                     position="right"
                                     withArrow
-                                    withinPortal
                                     zIndex={getDefaultZIndex('popover') + 1}
                                 >
                                     <Menu.Target>
                                         <ActionIcon
                                             size="xs"
-                                            variant="subtle"
-                                            color="gray"
+                                            // Walkthrough anchor
+                                            // (data-tour-via).
+                                            data-tour-anchor="comment-actions"
+                                            data-tour-hint="Open the comment's menu"
                                         >
                                             <MantineIcon
                                                 icon={IconDotsVertical}
@@ -132,6 +148,17 @@ export const CommentDetail: FC<Props> = ({
                                                     />
                                                 }
                                                 onClick={() => onResolve()}
+                                                // Walkthrough action for
+                                                // manage:DashboardComments.
+                                                // See scripts/scope-tours.
+                                                data-tour-scope="manage:DashboardComments"
+                                                data-tour-step="2"
+                                                data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                                                data-tour-label="Click Resolve"
+                                                data-tour-title="Resolve a comment thread"
+                                                data-tour-interactive="true"
+                                                data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"] >> [data-tour-anchor="tile-comments"] >> [data-tour-anchor="comment-actions"]'
+                                                data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:li3:1"
                                             >
                                                 Resolve
                                             </Menu.Item>

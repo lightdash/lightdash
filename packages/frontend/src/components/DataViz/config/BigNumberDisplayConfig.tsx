@@ -1,5 +1,5 @@
 import { type Compact } from '@lightdash/common';
-import { ActionIcon, Select, Stack, TextInput, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Select, Stack, TextInput, Tooltip } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import {
     useAppDispatch as useVizDispatch,
@@ -27,13 +27,8 @@ export const BigNumberDisplayConfig = () => {
             <Config.Section>
                 <Config.Group>
                     <Config.Heading>Label</Config.Heading>
-                    <Tooltip
-                        label={showLabel ? 'Hide label' : 'Show label'}
-                        withinPortal
-                    >
+                    <Tooltip label={showLabel ? 'Hide label' : 'Show label'}>
                         <ActionIcon
-                            variant="subtle"
-                            color="ldGray.6"
                             onClick={() => dispatch(setShowLabel(!showLabel))}
                         >
                             <MantineIcon

@@ -4,7 +4,7 @@
 # Usage: ./agent-harness/agent-cli.sh <agent-id> <command> [args...]
 #
 # Commands:
-#   logs [service]     PM2 logs (api|frontend|common-watch|warehouses-watch)
+#   logs [service]     PM2 logs (api|api-routes-watch|frontend|common-watch|warehouses-watch)
 #   psql [query]       Run SQL against agent's database
 #   stats              CPU/memory for agent's PM2 processes
 #   url                Print frontend and API URLs
@@ -21,7 +21,7 @@ if [[ -z "$AGENT_ID" ]] || ! [[ "$AGENT_ID" =~ ^[1-5]$ ]]; then
     echo "Usage: $0 <agent-id> <command> [args...]" >&2
     echo "" >&2
     echo "Commands:" >&2
-    echo "  logs [service]     PM2 logs (api|frontend|common-watch|warehouses-watch)" >&2
+    echo "  logs [service]     PM2 logs (api|api-routes-watch|frontend|common-watch|warehouses-watch)" >&2
     echo "  psql [query]       Run SQL against agent's database" >&2
     echo "  stats              CPU/memory for agent's PM2 processes" >&2
     echo "  url                Print frontend and API URLs" >&2

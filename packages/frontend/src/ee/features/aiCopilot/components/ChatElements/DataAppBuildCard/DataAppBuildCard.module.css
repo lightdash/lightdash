@@ -1,0 +1,146 @@
+.card {
+    container-type: inline-size;
+    /* ThemeIcon size="sm"; body text indents past it to line up with the title. */
+    --card-icon-size: 22px;
+}
+
+/* Same active treatment as AiArtifactButton, so an open app and an open
+   artifact read the same in the thread. */
+.cardActive {
+    background-color: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-indigo-6) 3.5%,
+            var(--mantine-color-white)
+        ),
+        var(--mantine-color-dark-6)
+    );
+    border-color: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-indigo-6) 18%,
+            var(--mantine-color-ldGray-2)
+        ),
+        var(--mantine-color-ldGray-3)
+    );
+}
+
+.split {
+    display: flex;
+    align-items: stretch;
+}
+
+.splitMain {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+}
+
+.splitMenuButton {
+    height: auto;
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    border-left: 0;
+}
+
+.cardUnavailable {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-7)
+    );
+}
+
+/* Two columns: leading cells on the left, actions on the right; full-width
+   cells (body, narration) span both. Auto-placement keeps the actions on the
+   same row as whatever leading cell precedes them. */
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--mantine-spacing-sm);
+    row-gap: var(--mantine-spacing-xs);
+    align-items: center;
+    align-content: start;
+}
+
+.lead {
+    grid-column: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+}
+
+/* Icon lines up with the first text line: single-line text centres within
+   the icon's height, a subtitle simply extends below. */
+.leadText {
+    min-width: 0;
+    min-height: var(--card-icon-size);
+    justify-content: center;
+}
+
+.full {
+    grid-column: 1 / -1;
+}
+
+.body {
+    grid-column: 1 / -1;
+    padding-left: calc(var(--card-icon-size) + var(--mantine-spacing-xs));
+}
+
+.summary {
+    --ai-markdown-padding-left: 0;
+    --ai-markdown-font-size: 12px;
+    --summary-line-height: 1.55;
+    --summary-collapsed-lines: 6;
+    width: 100%;
+}
+
+/* Clamped to whole lines so the cut lands between them, not through one;
+   the last line fades out to show there's more behind "See more". */
+.summaryClamped {
+    max-height: calc(
+        var(--summary-collapsed-lines) * var(--summary-line-height) *
+            var(--ai-markdown-font-size)
+    );
+    overflow: hidden;
+    mask-image: linear-gradient(
+        to bottom,
+        black calc(100% - 18px),
+        transparent
+    );
+}
+
+.summaryToggle {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.55;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.summaryToggle:hover {
+    color: var(--mantine-color-ldGray-9);
+    text-decoration: underline;
+}
+
+.actions {
+    grid-column: 2;
+    justify-self: end;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+}
+
+/* Phone width: one column, actions always last. */
+@container (max-width: 420px) {
+    .layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .lead,
+    .actions {
+        grid-column: 1;
+    }
+    .actions {
+        order: 100;
+    }
+}

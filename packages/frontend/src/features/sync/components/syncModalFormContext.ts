@@ -12,6 +12,7 @@ export interface SyncModalFormValues {
         tabName: string;
     };
     saveInNewTab: boolean;
+    showFilters?: boolean;
 }
 
 const [SyncModalFormProvider, useSyncModalFormContext, useSyncModalForm] =
@@ -31,4 +32,5 @@ export const DEFAULT_VALUES: SyncModalFormValues = {
         tabName: '',
     },
     saveInNewTab: false,
+    showFilters: false,
 };

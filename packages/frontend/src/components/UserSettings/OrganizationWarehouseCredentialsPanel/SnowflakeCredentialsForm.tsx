@@ -5,7 +5,7 @@ import {
     Switch,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';

@@ -22,15 +22,22 @@ import path from 'path';
 import Logger from '../logging/logger';
 import { traceSpan } from '../tracing/tracing';
 import { DbtClient } from '../types';
+import {
+    getDbtProcessEnvironment,
+    getMissingEnvironmentVariableHint,
+} from './dbtProcessEnvironment';
 
 type DbtCliArgs = {
     dbtProjectDirectory: string;
     dbtProfilesDirectory: string;
     environment: Record<string, string>;
+    environmentVariableAllowlist: string[];
     profileName?: string;
     target?: string;
     dbtVersion: SupportedDbtVersions;
     selector?: string;
+    gitConfigGlobalPath?: string;
+    dbtDepsErrorHint?: string;
 };
 
 enum DbtCommands {
@@ -52,6 +59,8 @@ export class DbtCliClient implements DbtClient {
 
     environment: Record<string, string>;
 
+    environmentVariableAllowlist: string[];
+
     profileName: string | undefined;
 
     target: string | undefined;
@@ -62,23 +71,33 @@ export class DbtCliClient implements DbtClient {
 
     selector?: string;
 
+    gitConfigGlobalPath?: string;
+
+    dbtDepsErrorHint?: string;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
         environment,
+        environmentVariableAllowlist,
         profileName,
         target,
         dbtVersion,
         selector,
+        gitConfigGlobalPath,
+        dbtDepsErrorHint,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
         this.environment = environment;
+        this.environmentVariableAllowlist = environmentVariableAllowlist;
         this.profileName = profileName;
         this.target = target;
         this.targetDirectory = undefined;
         this.dbtVersion = dbtVersion;
         this.selector = selector;
+        this.gitConfigGlobalPath = gitConfigGlobalPath;
+        this.dbtDepsErrorHint = dbtDepsErrorHint;
     }
 
     getSelector(): string | undefined {
@@ -186,12 +205,15 @@ export class DbtCliClient implements DbtClient {
             const dbtProcess = await execa(dbtExec, dbtArgs, {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
-                env: {
-                    DBT_PARTIAL_PARSE: 'false', // Disable dbt from storing manifest and doing partial parses. https://docs.getdbt.com/reference/parsing#partial-parsing
-                    DBT_SEND_ANONYMOUS_USAGE_STATS: 'false', // Disable sending usage stats. https://docs.getdbt.com/reference/global-configs/usage-stats
-                    DBT_TARGET_PATH: targetPath,
-                    ...this.environment,
-                },
+                extendEnv: false,
+                env: getDbtProcessEnvironment({
+                    processEnvironment: process.env,
+                    environmentVariableAllowlist:
+                        this.environmentVariableAllowlist,
+                    projectEnvironment: this.environment,
+                    targetPath,
+                    gitConfigGlobalPath: this.gitConfigGlobalPath,
+                }),
             });
             return {
                 logs: DbtCliClient.parseDbtJsonLogs(dbtProcess.all),
@@ -210,10 +232,15 @@ export class DbtCliClient implements DbtClient {
                 'all' in execaError &&
                 typeof execaError.all === 'string'
             ) {
+                const missingVariablesHint = getMissingEnvironmentVariableHint(
+                    execaError.all,
+                );
                 throw new DbtError(
                     `Failed to run "${dbtExec} ${command.join(
                         ' ',
-                    )}" with dbt version "${this.dbtVersion}"`,
+                    )}" with dbt version "${this.dbtVersion}"${
+                        missingVariablesHint ? `. ${missingVariablesHint}` : ''
+                    }`,
                     DbtCliClient.parseDbtJsonLogs(execaError.all),
                 );
             }
@@ -229,7 +256,17 @@ export class DbtCliClient implements DbtClient {
             },
             async () => {
                 const startTime = Date.now();
-                await this._runDbtCommand('deps');
+                try {
+                    await this._runDbtCommand('deps');
+                } catch (error) {
+                    if (error instanceof DbtError && this.dbtDepsErrorHint) {
+                        throw new DbtError(
+                            `${error.message}. ${this.dbtDepsErrorHint}`,
+                            error.logs,
+                        );
+                    }
+                    throw error;
+                }
                 Logger.info(
                     `dbt deps completed in ${Date.now() - startTime}ms`,
                 );

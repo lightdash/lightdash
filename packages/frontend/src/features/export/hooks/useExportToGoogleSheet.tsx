@@ -5,7 +5,7 @@ import {
     type ApiScheduledDownloadCsv,
     type GsheetExportProgress,
 } from '@lightdash/common';
-import { notifications } from '@mantine-8/notifications';
+import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getCsvFileUrl } from '../../../api/csv';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -94,7 +94,7 @@ export const useExportToGoogleSheet = ({
         },
         onSuccess: (data) => {
             if (data?.url && data.status === SchedulerJobStatus.COMPLETED) {
-                window.open(data.url, '_blank');
+                window.open(data.url, '_blank', 'noopener,noreferrer');
                 notifications.hide('exporting-gsheets');
                 return;
             }

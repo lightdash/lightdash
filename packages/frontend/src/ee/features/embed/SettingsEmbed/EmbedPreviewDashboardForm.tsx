@@ -26,8 +26,8 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
+    useComputedColorScheme,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconEye,
@@ -81,6 +81,7 @@ type FormValues = {
     dashboardFiltersInteractivity: DashboardFilterInteractivityOptions;
     parameterInteractivity: ParameterInteractivityOptions;
     canExportCsv?: boolean;
+    canExportDashboardCsv?: boolean;
     canExportImages?: boolean;
     externalId?: string;
     canExportPagePdf?: boolean;
@@ -97,16 +98,18 @@ const EmbedPreviewDashboardForm: FC<{
     dashboards: DashboardBasicDetails[];
     writeActions?: CreateEmbedJwt['writeActions'];
     writeActionsPanel?: ReactNode;
+    onDashboardSpaceChange?: (spaceUuid: string | undefined) => void;
 }> = ({
     projectUuid,
     siteUrl,
     dashboards,
     writeActions,
     writeActionsPanel,
+    onDashboardSpaceChange,
 }) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme();
     const { data: user } = useUser(true);
     const [embedMethod, setEmbedMethod] = useState<EmbedMethod>('iframe');
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
@@ -131,6 +134,7 @@ const EmbedPreviewDashboardForm: FC<{
                 enabled: false,
             },
             canExportCsv: false,
+            canExportDashboardCsv: false,
             canExportImages: false,
             canDateZoom: false,
             canExportPagePdf: true,
@@ -176,6 +180,7 @@ const EmbedPreviewDashboardForm: FC<{
                     },
                     parameterInteractivity: values.parameterInteractivity,
                     canExportCsv: values.canExportCsv,
+                    canExportDashboardCsv: values.canExportDashboardCsv,
                     canExportImages: values.canExportImages,
                     isPreview,
                     canDateZoom: values.canDateZoom,
@@ -214,7 +219,7 @@ const EmbedPreviewDashboardForm: FC<{
         // Open data.url in a new tab, matching the current app color scheme
         const previewUrl = new URL(data.url);
         previewUrl.searchParams.set('theme', colorScheme);
-        window.open(previewUrl.toString(), '_blank');
+        window.open(previewUrl.toString(), '_blank', 'noopener,noreferrer');
     }, [
         formValues,
         form,
@@ -254,6 +259,17 @@ const EmbedPreviewDashboardForm: FC<{
                     placeholder="Select a dashboard..."
                     searchable
                     {...form.getInputProps('dashboardUuid')}
+                    onChange={(dashboardUuid) => {
+                        form.setFieldValue(
+                            'dashboardUuid',
+                            dashboardUuid ?? undefined,
+                        );
+                        onDashboardSpaceChange?.(
+                            dashboards.find(
+                                (dashboard) => dashboard.uuid === dashboardUuid,
+                            )?.spaceUuid,
+                        );
+                    }}
                 />
 
                 <Stack gap="xs">
@@ -262,7 +278,6 @@ const EmbedPreviewDashboardForm: FC<{
                     </Text>
                     <SegmentedControl
                         value={form.values.expiresIn}
-                        radius="md"
                         onChange={(value) =>
                             form.setFieldValue('expiresIn', value)
                         }
@@ -277,7 +292,7 @@ const EmbedPreviewDashboardForm: FC<{
                     />
                 </Stack>
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Stack gap="md">
                         <Title order={6}>Identification & Security</Title>
                         <Stack gap="xs">
@@ -309,7 +324,7 @@ const EmbedPreviewDashboardForm: FC<{
                                                 <TextInput
                                                     size="xs"
                                                     placeholder="E.g. user_country"
-                                                    style={{ flex: 1 }}
+                                                    flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.key`,
                                                     )}
@@ -317,7 +332,7 @@ const EmbedPreviewDashboardForm: FC<{
                                                 <TextInput
                                                     size="xs"
                                                     placeholder="E.g. US"
-                                                    style={{ flex: 1 }}
+                                                    flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.value`,
                                                     )}
@@ -364,7 +379,7 @@ const EmbedPreviewDashboardForm: FC<{
                     </Stack>
                 </Paper>
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Stack gap="sm">
                         <Title order={6}>Interactivity & Permissions</Title>
                         <Stack gap="md">
@@ -407,7 +422,16 @@ const EmbedPreviewDashboardForm: FC<{
                                     {...form.getInputProps('canExportCsv', {
                                         type: 'checkbox',
                                     })}
-                                    label="Export CSV"
+                                    label="Export CSV (per tile)"
+                                />
+                                <Switch
+                                    {...form.getInputProps(
+                                        'canExportDashboardCsv',
+                                        {
+                                            type: 'checkbox',
+                                        },
+                                    )}
+                                    label="Export all tiles (CSV/XLSX ZIP)"
                                 />
                                 <Switch
                                     {...form.getInputProps('canExportImages', {
@@ -455,10 +479,7 @@ const EmbedPreviewDashboardForm: FC<{
                                                     View data apps
                                                 </Text>
                                                 <Tooltip
-                                                    label="Grants project-wide explore access so the data app can run its metric queries."
-                                                    withArrow
-                                                    withinPortal
-                                                    multiline
+                                                    label="Lets data apps run project-wide metric queries and use external connections linked by an admin."
                                                     maw="300px"
                                                     position="right"
                                                 >
@@ -489,12 +510,11 @@ const EmbedPreviewDashboardForm: FC<{
                 </Paper>
 
                 {writeActionsPanel && (
-                    <Paper p="md" withBorder>
+                    <Paper p="md">
                         <Stack gap="xs" mb="md">
                             <Group gap="sm">
                                 <Title order={6}>Write actions</Title>
                                 <Badge
-                                    variant="light"
                                     color="violet"
                                     size="sm"
                                     leftSection={<IconFlask2Filled size={12} />}

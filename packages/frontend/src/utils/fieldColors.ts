@@ -7,7 +7,7 @@ import {
     type AdditionalMetric,
     type Item,
 } from '@lightdash/common';
-import { LD_FIELD_COLORS, type LightdashFieldColors } from '../mantineTheme';
+import { LD_FIELD_COLORS, type LightdashFieldColors } from '../theme';
 
 /**
  * Returns the complete color theme for a field based on its type.

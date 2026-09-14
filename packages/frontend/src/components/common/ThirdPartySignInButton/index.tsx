@@ -2,7 +2,7 @@ import {
     OpenIdIdentityIssuerType,
     type OpenIdIdentitySummary,
 } from '@lightdash/common';
-import { Badge, Box, Button, Image, type ButtonProps } from '@mantine-8/core';
+import { Badge, Box, Button, Image, type ButtonProps } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import useApp from '../../../providers/App/useApp';
@@ -17,7 +17,7 @@ import classes from './ThirdPartySignInButton.module.css';
 
 type ThirdPartySignInButtonProps = {
     inviteCode?: string;
-    intent?: 'signin' | 'add' | 'signup';
+    intent?: 'signin' | 'add' | 'signup' | 'continue';
     providerName: OpenIdIdentitySummary['issuerType'];
     // Default redirect is the current window.location.href
     redirect?: string;
@@ -80,7 +80,7 @@ const ThirdPartySignInButtonBase: FC<
             }`}
             leftSection={
                 typeof logo === 'string' ? (
-                    <Image w={16} src={logo} alt={`${providerName} logo}`} />
+                    <Image w={16} src={logo} alt={`${providerName} logo`} />
                 ) : (
                     logo
                 )
@@ -90,6 +90,7 @@ const ThirdPartySignInButtonBase: FC<
         >
             {intent === 'signup' && `Sign up with ${providerName}`}
             {intent === 'signin' && `Sign in with ${providerName}`}
+            {intent === 'continue' && `Continue with ${providerName}`}
             {intent === 'add' && 'Add +'}
         </Button>
     );
@@ -107,8 +108,6 @@ const ThirdPartySignInButtonBase: FC<
                 className={classes.lastUsedBadge}
                 size="sm"
                 variant="default"
-                radius="sm"
-                tt="none"
             >
                 Last used
             </Badge>

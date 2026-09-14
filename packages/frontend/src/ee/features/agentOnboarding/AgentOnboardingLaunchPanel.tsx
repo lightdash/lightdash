@@ -16,7 +16,7 @@ import {
     Text,
     ThemeIcon,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCheck,
     IconChevronDown,
@@ -216,11 +216,11 @@ export const AgentOnboardingLaunchPanel: FC<
                                 size={44}
                                 radius="xl"
                                 variant="light"
-                                color="violet"
+                                color="indigo"
                             >
                                 <MantineIcon icon={IconSparkles} size="lg" />
                             </ThemeIcon>
-                            <Stack gap={6} style={{ flex: 1 }}>
+                            <Stack gap={6} flex={1}>
                                 <Title order={3}>
                                     Let Lightdash build it for you
                                 </Title>
@@ -270,7 +270,7 @@ export const AgentOnboardingLaunchPanel: FC<
                         >
                             Use my own coding agent instead
                         </Button>
-                        <Collapse in={isLocalPromptOpen}>
+                        <Collapse expanded={isLocalPromptOpen}>
                             {localPrompt}
                         </Collapse>
                     </Stack>

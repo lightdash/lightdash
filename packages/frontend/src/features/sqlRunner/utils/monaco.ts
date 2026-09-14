@@ -1,5 +1,4 @@
 import { WarehouseTypes, type ParameterValue } from '@lightdash/common';
-import type { ColorScheme } from '@mantine/core';
 import type { EditorProps, Monaco } from '@monaco-editor/react';
 import {
     bigqueryLanguageDefinition,
@@ -75,7 +74,7 @@ export const registerMonacoLanguage = (monaco: Monaco, language: string) => {
     }
 };
 
-export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
+export const getLightdashMonacoTheme = (colorScheme: 'light' | 'dark') => {
     if (colorScheme === 'dark') {
         // Dracula-inspired dark theme with Lightdash purple accent
         return {
@@ -94,10 +93,10 @@ export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
                 { token: 'comment', foreground: '6272a4', fontStyle: 'italic' },
             ],
             colors: {
-                'editor.background': '#1a1a1a',
+                'editor.background': '#1e1e21',
                 'editor.foreground': '#f8f8f2',
-                'editor.lineHighlightBackground': '#242424',
-                'editor.lineHighlight': '#242424',
+                'editor.lineHighlightBackground': '#26262a',
+                'editor.lineHighlight': '#26262a',
                 'editorCursor.foreground': '#7262FF',
                 'editorWhitespace.foreground': '#3b3b3b',
                 'editor.selectionBackground': '#3d3d5c',
@@ -105,7 +104,7 @@ export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
                 'editor.wordHighlightBackground': '#454545',
                 'editor.selectionHighlightBorder': '#7262FF',
                 // Subtle indentation guides
-                'editorIndentGuide.background': '#2a2a2a',
+                'editorIndentGuide.background': '#303034',
                 'editorIndentGuide.activeBackground': '#3a3a3a',
                 // Bracket pair colors
                 'editorBracketHighlight.foreground1': '#7262FF',
@@ -115,10 +114,10 @@ export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
                 'editorBracketHighlight.foreground5': '#8be9fd',
                 'editorBracketHighlight.foreground6': '#bd93f9',
                 // Line numbers
-                'editorLineNumber.foreground': '#4a4a4a',
-                'editorLineNumber.activeForeground': '#888888',
+                'editorLineNumber.foreground': '#55555c',
+                'editorLineNumber.activeForeground': '#9a9aa3',
                 // Gutter
-                'editorGutter.background': '#1a1a1a',
+                'editorGutter.background': '#1e1e21',
             },
         };
     }
@@ -136,10 +135,10 @@ export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
             { token: 'comment', foreground: '6b7280', fontStyle: 'italic' },
         ],
         colors: {
-            'editor.background': '#f8f9fa',
+            'editor.background': '#ffffff',
             'editor.foreground': '#24292e',
-            'editor.lineHighlightBackground': '#f0f1f4',
-            'editor.lineHighlight': '#f0f1f4',
+            'editor.lineHighlightBackground': '#f4f4f5',
+            'editor.lineHighlight': '#f4f4f5',
             'editorCursor.foreground': '#7262FF',
             'editorWhitespace.foreground': '#e1e4e8',
             'editor.selectionBackground': '#E6E3FF',
@@ -147,8 +146,8 @@ export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
             'editor.wordHighlightBackground': '#dce6f0',
             'editor.selectionHighlightBorder': '#7262FF',
             // Subtle indentation guides
-            'editorIndentGuide.background': '#e8e8e8',
-            'editorIndentGuide.activeBackground': '#d0d0d0',
+            'editorIndentGuide.background': '#ebebee',
+            'editorIndentGuide.activeBackground': '#dcdce0',
             // Bracket pair colors
             'editorBracketHighlight.foreground1': '#7262FF',
             'editorBracketHighlight.foreground2': '#d6336c',
@@ -157,10 +156,10 @@ export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
             'editorBracketHighlight.foreground5': '#0078d4',
             'editorBracketHighlight.foreground6': '#8b5cf6',
             // Line numbers
-            'editorLineNumber.foreground': '#b0b0b0',
-            'editorLineNumber.activeForeground': '#6b7280',
+            'editorLineNumber.foreground': '#a1a1aa',
+            'editorLineNumber.activeForeground': '#71717a',
             // Gutter
-            'editorGutter.background': '#f8f9fa',
+            'editorGutter.background': '#ffffff',
         },
     };
 };
@@ -323,7 +322,15 @@ export const registerCustomCompletionProvider = (
 
                 // Then apply quote preference
                 if (!settings || settings?.quotePreference === 'always') {
-                    return `${quoteChar}${formattedName}${quoteChar}`;
+                    // Backtick warehouses expose nested columns as dotted
+                    // paths; quoting the whole path would name one identifier.
+                    const segments =
+                        quoteChar === '`'
+                            ? formattedName.split('.')
+                            : [formattedName];
+                    return segments
+                        .map((segment) => `${quoteChar}${segment}${quoteChar}`)
+                        .join('.');
                 }
 
                 return formattedName;

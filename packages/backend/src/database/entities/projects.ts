@@ -1,4 +1,5 @@
 import {
+    AgentSqlScope,
     AnyType,
     DbtProjectType,
     GroupType,
@@ -11,17 +12,21 @@ import { Knex } from 'knex';
 export const ProjectTableName = 'projects';
 export const CachedExploresTableName = 'cached_explores';
 export const CachedExploreTableName = 'cached_explore';
+export const CachedExploreStagingTableName = 'cached_explore_staging';
 export const CachedWarehouseTableName = 'cached_warehouse';
 
 export type DbProject = {
     project_id: number;
     project_uuid: string;
+    slug: string;
     name: string;
     project_type: ProjectType;
     created_at: Date;
     organization_id: number;
     dbt_connection_type: DbtProjectType | null;
     dbt_connection: Buffer | null;
+    dbt_source_uuid: string | null;
+    dbt_source_name: string;
     organization_warehouse_credentials_uuid: string | null;
     table_selection_type: TableSelectionType;
     table_selection_value: string[] | null;
@@ -41,7 +46,9 @@ export type DbProject = {
     expires_at: Date | null;
     default_preview_expiration_hours: number;
     max_preview_expiration_hours: number;
+    results_cache_ttl_seconds: number | null;
     provisioning_source: string | null;
+    agent_sql_scope: AgentSqlScope | null;
 };
 
 type CreateDbProject = Pick<
@@ -56,6 +63,7 @@ type CreateDbProject = Pick<
     | 'created_by_user_uuid'
     | 'organization_warehouse_credentials_uuid'
 > & {
+    slug?: string;
     scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
     query_timezone?: string | null;
     use_project_timezone_in_filters?: boolean; // On create it will default to false as per migration
@@ -67,6 +75,7 @@ type UpdateDbProject = Partial<
         | 'name'
         | 'dbt_connection'
         | 'dbt_connection_type'
+        | 'dbt_source_name'
         | 'organization_warehouse_credentials_uuid'
         | 'table_selection_type'
         | 'table_selection_value'
@@ -85,7 +94,9 @@ type UpdateDbProject = Partial<
         | 'expires_at'
         | 'default_preview_expiration_hours'
         | 'max_preview_expiration_hours'
+        | 'results_cache_ttl_seconds'
         | 'provisioning_source'
+        | 'agent_sql_scope'
     >
 >;
 
@@ -114,6 +125,11 @@ export type CachedExploreTable = Knex.CompositeTableType<
     DbCachedExplore,
     Omit<DbCachedExplore, 'cached_explore_uuid'>
 >;
+
+export type DbCachedExploreStaging = DbCachedExplore & {
+    save_uuid: string;
+    created_at: Date;
+};
 
 export type DbCachedWarehouse = {
     project_uuid: string;

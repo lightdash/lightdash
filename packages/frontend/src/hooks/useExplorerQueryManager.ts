@@ -19,11 +19,13 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExploreByProjectUuid } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
+import { useProjectUuid } from './useProjectUuid';
 
 type ExplorerQueryManagerArgs = {
     projectUuid?: string;
@@ -68,16 +70,21 @@ export const useExplorerQueryManager = ({
     );
 
     const embed = useEmbed();
+    const customSqlProvenanceChartUuid =
+        embed?.customSqlProvenanceChartUuid ??
+        (embed?.savedChart && 'uuid' in embed.savedChart
+            ? embed.savedChart.uuid
+            : undefined);
+    const routeProjectUuid = useProjectUuid();
     const params = useParams<{
         savedQueryUuid: string;
-        projectUuid: string;
     }>();
     const savedQueryUuid =
         explicitSavedQueryUuid ||
         embed?.savedQueryUuid ||
         params.savedQueryUuid;
     const projectUuid =
-        explicitProjectUuid || embed?.projectUuid || params.projectUuid!;
+        explicitProjectUuid || embed?.projectUuid || routeProjectUuid!;
     const viewModeQueryArgs = useMemo(() => {
         return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
     }, [savedQueryUuid]);
@@ -137,11 +144,18 @@ export const useExplorerQueryManager = ({
         [dispatch],
     );
 
+    // A merge replaces the query it was built from, so once one has run there
+    // is nothing left for this query to render and re-running it is a second
+    // warehouse query for a result nobody sees. It stays enabled while the
+    // merge is being built, because until then its results are what is on
+    // screen.
+    const hasMergedResults = !!useMergeSafe()?.mergeResults;
+
     // Main query executor - creates TanStack Query subscriptions
     const [mainQueryExecutor] = useQueryExecutor(
         validQueryArgs,
         missingRequiredParameters,
-        true,
+        !hasMergedResults,
         queryUuidHistory,
         setQueryUuidHistory,
     );
@@ -172,6 +186,7 @@ export const useExplorerQueryManager = ({
             dateZoomGranularity,
             minimal,
             usePreAggregateCache: preAggCacheEnabled,
+            customSqlProvenanceChartUuid,
             savedChart: chartConfigForQuery,
         });
 
@@ -192,6 +207,7 @@ export const useExplorerQueryManager = ({
         dateZoomGranularity,
         minimal,
         preAggCacheEnabled,
+        customSqlProvenanceChartUuid,
         chartConfigForQuery,
         dispatch,
     ]);

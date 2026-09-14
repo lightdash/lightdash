@@ -12,10 +12,11 @@ const registration: DeepResearchRunRegistration = {
     question: 'Why did retention change?',
     createdAt: '2026-07-01T00:00:00.000Z',
     state: 'started',
+    resumeFromRunUuid: 'run-1',
 };
 
 describe('runDeepResearchAgain', () => {
-    it('creates a fresh prompt before starting a separate run with the original question', async () => {
+    it('creates a fresh prompt before resuming unfinished work', async () => {
         const createPrompt = vi.fn().mockResolvedValue({ uuid: 'prompt-2' });
         const startRun = vi.fn().mockResolvedValue(undefined);
 
@@ -29,6 +30,7 @@ describe('runDeepResearchAgain', () => {
         expect(startRun).toHaveBeenCalledWith({
             question: registration.question,
             promptUuid: 'prompt-2',
+            resumeFromRunUuid: registration.runUuid,
         });
         expect(createPrompt.mock.invocationCallOrder[0]).toBeLessThan(
             startRun.mock.invocationCallOrder[0],

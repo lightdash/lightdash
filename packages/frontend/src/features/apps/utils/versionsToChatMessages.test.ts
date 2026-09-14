@@ -1,7 +1,7 @@
 import { type ApiAppVersionSummary } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import { versionNarrationTexts } from './versionNarration';
 import {
-    versionNarrationTexts,
     versionsToChatMessages,
     type ChatMessageFallbacks,
 } from './versionsToChatMessages';

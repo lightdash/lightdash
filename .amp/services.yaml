@@ -1,0 +1,17 @@
+services:
+    docker:
+        command: sudo dockerd --group "$(id -gn)"
+    lightdash:
+        command: |
+            until docker info >/dev/null 2>&1; do
+              sleep 1
+            done
+            export LD_FRONTEND_PORT_OVERRIDE="$PORT"
+            export LD_FRONTEND_PORT_RESERVED=true
+            export PATH="$HOME/.local/share/lightdash/node-current/bin:$PWD/node_modules/.bin:$PATH"
+            ./scripts/dev-fast-start.sh
+            exec pnpm exec pm2 logs --raw --lines 0
+        port: 3000
+        portal:
+            title: Lightdash
+            description: Log in with demo@lightdash.com / demo_password!

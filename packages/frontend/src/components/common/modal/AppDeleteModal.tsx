@@ -1,5 +1,5 @@
 import { getAppDisplayName } from '@lightdash/common';
-import { type ModalProps } from '@mantine-8/core';
+import { type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
 import { useDeleteApp } from '../../../features/apps/hooks/useDeleteApp';
 import useApp from '../../../providers/App/useApp';

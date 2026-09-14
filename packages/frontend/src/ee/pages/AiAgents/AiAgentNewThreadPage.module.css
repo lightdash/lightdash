@@ -23,3 +23,11 @@
         background-color: var(--mantine-color-dark-7);
     }
 }
+
+.agentInstruction {
+    white-space: pre-wrap;
+}
+
+.agentDescription {
+    white-space: pre-wrap;
+}

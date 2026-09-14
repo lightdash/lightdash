@@ -1,6 +1,5 @@
 import {
     CommercialFeatureFlags,
-    FeatureFlags,
     ProjectType,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
@@ -19,6 +18,7 @@ import {
     type DbFeatureFlag,
     type FeatureFlagsTable,
 } from '../../database/entities/featureFlags';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import {
     ProjectTableName,
     type DbProject,
@@ -36,10 +36,12 @@ import {
     type DbAiPrompt,
 } from '../database/entities/ai';
 import {
+    AiAgentMemoryConsolidationRunTableName,
     AiAgentMemoryTableName,
     AiAgentThreadDistillTableName,
 } from '../database/entities/aiAgentMemory';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
+import { createReviewJudgeConfigResolverMock } from '../services/ai/reviewJudgeModel.mock';
 import { renderMemoryBlock } from '../services/ai/utils/memoryBlock';
 import {
     AiAgentMemoryService,
@@ -57,12 +59,19 @@ describe('AiAgentMemoryModel integration', () => {
     const originalFlags = new Map<string, DbFeatureFlag | undefined>();
     const threadUuids = new Set<string>();
     const memoryUuids = new Set<string>();
+    const consolidationRunUuids = new Set<string>();
 
     const setFeatureFlag = async (flagId: string, enabled: boolean) => {
         await database<FeatureFlagsTable>(FeatureFlagsTableName)
             .insert({ flag_id: flagId, default_enabled: enabled })
             .onConflict('flag_id')
             .merge({ default_enabled: enabled });
+    };
+
+    const setOrgMemoryEnabled = async (enabled: boolean) => {
+        await database(OrganizationTableName)
+            .where('organization_uuid', SEED_ORG_1.organization_uuid)
+            .update({ ai_agent_memory_enabled: enabled });
     };
 
     beforeAll(async () => {
@@ -77,8 +86,6 @@ describe('AiAgentMemoryModel integration', () => {
         const testDatabaseUrl = new URL(lightdashConfig.database.connectionUri);
         testDatabaseUrl.pathname = `${testDatabaseUrl.pathname}_test`;
         lightdashConfig.database.connectionUri = testDatabaseUrl.toString();
-        lightdashConfig.enabledFeatureFlags.delete(FeatureFlags.AiAgentMemory);
-        lightdashConfig.disabledFeatureFlags.delete(FeatureFlags.AiAgentMemory);
         const featureFlagModel = new CommercialFeatureFlagModel({
             database,
             lightdashConfig,
@@ -102,10 +109,7 @@ describe('AiAgentMemoryModel integration', () => {
             featureFlagModel,
         });
         await schedulerClient.graphileUtils;
-        const flagIds = [
-            FeatureFlags.AiAgentMemory,
-            CommercialFeatureFlags.AiCopilot,
-        ];
+        const flagIds = [CommercialFeatureFlags.AiCopilot];
         const storedFlags = await Promise.all(
             flagIds.map((flagId) =>
                 database<FeatureFlagsTable>(FeatureFlagsTableName)
@@ -119,10 +123,19 @@ describe('AiAgentMemoryModel integration', () => {
         await Promise.all(
             flagIds.map((flagId) => setFeatureFlag(flagId, true)),
         );
+        await setOrgMemoryEnabled(true);
     });
 
     afterEach(async () => {
-        await setFeatureFlag(FeatureFlags.AiAgentMemory, true);
+        await setOrgMemoryEnabled(true);
+        if (consolidationRunUuids.size > 0) {
+            await database(AiAgentMemoryConsolidationRunTableName)
+                .whereIn('ai_agent_memory_consolidation_run_uuid', [
+                    ...consolidationRunUuids,
+                ])
+                .delete();
+            consolidationRunUuids.clear();
+        }
         if (memoryUuids.size > 0) {
             await database(AiAgentMemoryTableName)
                 .whereIn('ai_agent_memory_uuid', [...memoryUuids])
@@ -258,19 +271,87 @@ describe('AiAgentMemoryModel integration', () => {
         distillCall: AiAgentMemoryDistillCall,
         projectModel: Pick<
             ProjectModel,
-            'findExploresFromCache' | 'getSummary'
+            'findExploresFromCache' | 'getCachedExploreNames' | 'getSummary'
         > = getTestContext().app.getModels().getProjectModel(),
     ) =>
         new AiAgentMemoryService({
             analytics,
             aiAgentMemoryModel: model,
+            aiAgentReviewClassifierModel: getTestContext()
+                .app.getModels()
+                .getAiAgentReviewClassifierModel(),
             aiAgentModel: getTestContext().app.getModels().getAiAgentModel(),
             groupsModel: getTestContext().app.getModels().getGroupsModel(),
             projectModel,
+            projectContextModel: getTestContext()
+                .app.getModels()
+                .getProjectContextModel(),
+            userModel: { findSessionUserAndOrgByUuid: vi.fn() } as never,
             featureFlagService,
+            aiOrganizationSettingsService: {
+                isAiAgentMemoryEnabled: async ({ organizationUuid }) => {
+                    const org = await database(OrganizationTableName)
+                        .select('ai_agent_memory_enabled')
+                        .where('organization_uuid', organizationUuid)
+                        .first();
+                    return org?.ai_agent_memory_enabled ?? false;
+                },
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
+            },
             schedulerClient,
+            consolidationDryRun: false,
+            orgAiCopilotConfigResolver: createReviewJudgeConfigResolverMock(),
+            lightdashConfig: parseConfig(),
             distillCall,
         });
+
+    it('finds the latest consolidation run in the requested mode', async () => {
+        const recordRun = async (dryRun: boolean, inputHash: string) => {
+            const run = await model.recordConsolidationRun({
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                ownerUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                status: 'succeeded',
+                dryRun,
+                trigger: 'scheduled',
+                triggeredByUserUuid: null,
+                promptHash: 'prompt-hash',
+                inputHash,
+                inputCount: 30,
+                appliedOperations: [],
+                rejectedOperations: [],
+                errorMessage: null,
+                consolidatedUpTo: new Date('2026-07-30T10:00:00Z'),
+            });
+            consolidationRunUuids.add(
+                run.ai_agent_memory_consolidation_run_uuid,
+            );
+            return run;
+        };
+        const live = await recordRun(false, 'live-hash');
+        const dry = await recordRun(true, 'dry-hash');
+
+        await expect(
+            model.findLatestConsolidationRun({
+                projectUuid: SEED_PROJECT.project_uuid,
+                ownerUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                dryRun: false,
+            }),
+        ).resolves.toMatchObject({
+            ai_agent_memory_consolidation_run_uuid:
+                live.ai_agent_memory_consolidation_run_uuid,
+        });
+        await expect(
+            model.findLatestConsolidationRun({
+                projectUuid: SEED_PROJECT.project_uuid,
+                ownerUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                dryRun: true,
+            }),
+        ).resolves.toMatchObject({
+            ai_agent_memory_consolidation_run_uuid:
+                dry.ai_agent_memory_consolidation_run_uuid,
+        });
+    });
 
     it('replaces source-thread content while keeping slug and telemetry', async () => {
         const sourceThreadUuid = await createThread();
@@ -1399,7 +1480,7 @@ describe('AiAgentMemoryModel integration', () => {
         expect(distillCall).toHaveBeenCalledOnce();
     });
 
-    it('uses the stored flag to gate real scheduler enqueueing', async () => {
+    it('uses the stored org setting to gate real scheduler enqueueing', async () => {
         const now = new Date('2026-07-22T12:00:00Z');
         const threadUuid = await createThread();
         await createPrompt(threadUuid, new Date('2026-07-22T05:00:00Z'));
@@ -1407,7 +1488,7 @@ describe('AiAgentMemoryModel integration', () => {
         const service = buildService(distillCall);
         const jobKey = `ai-agent-memory-distill:${threadUuid}`;
 
-        await setFeatureFlag(FeatureFlags.AiAgentMemory, false);
+        await setOrgMemoryEnabled(false);
         await expect(service.sweep(now)).resolves.toBe(0);
         const graphileClient = await schedulerClient.graphileUtils;
         await expect(
@@ -1420,7 +1501,7 @@ describe('AiAgentMemoryModel integration', () => {
             }),
         ).resolves.toBeUndefined();
 
-        await setFeatureFlag(FeatureFlags.AiAgentMemory, true);
+        await setOrgMemoryEnabled(true);
         await expect(service.sweep(now)).resolves.toBeGreaterThanOrEqual(1);
         const job = await graphileClient.withPgClient(async (client) => {
             const result = await client.query(
@@ -1740,6 +1821,8 @@ describe('AiAgentMemoryModel integration', () => {
         const projectModel = getTestContext().app.getModels().getProjectModel();
         const service = buildService(distillCall, {
             findExploresFromCache,
+            getCachedExploreNames:
+                projectModel.getCachedExploreNames.bind(projectModel),
             getSummary: projectModel.getSummary.bind(projectModel),
         });
 
@@ -1777,7 +1860,7 @@ describe('AiAgentMemoryModel integration', () => {
         );
     });
 
-    it.each(['superseded', 'retired'] as const)(
+    it.each(['superseded', 'retired', 'promoted'] as const)(
         'skips a thread whose memory is %s and keeps it out of the next sweep',
         async (status) => {
             const activity = new Date('2026-07-22T05:00:00Z');

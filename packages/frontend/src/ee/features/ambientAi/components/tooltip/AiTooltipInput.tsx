@@ -1,10 +1,10 @@
-import { ActionIcon, Box, Group, Text, Textarea } from '@mantine-8/core';
-import { useHotkeys } from '@mantine-8/hooks';
+import { ActionIcon, Box, Group, Text, Textarea } from '@mantine/core';
+import { useHotkeys } from '@mantine/hooks';
 import { IconArrowUp, IconSparkles } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useGenerateTooltip } from '../../../../../hooks/useGenerateTooltip';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import styles from './AiTooltipInput.module.css';
 
 type Props = {
@@ -14,7 +14,7 @@ type Props = {
 };
 
 export const AiTooltipInput: FC<Props> = ({ fields, currentHtml, onApply }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [prompt, setPrompt] = useState('');
 
     const handleSuccess = useCallback(

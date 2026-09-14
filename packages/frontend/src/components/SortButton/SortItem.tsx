@@ -10,7 +10,7 @@ import {
     SegmentedControl,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconGripVertical, IconMinus } from '@tabler/icons-react';
 import { forwardRef, useMemo } from 'react';
 import { useColumns } from '../../hooks/useColumns';
@@ -130,7 +130,6 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                         disabled={!isEditMode}
                         value={selectedSortDirection}
                         size="xs"
-                        radius="md"
                         color="ldDark.5"
                         data={getSortDirectionOrder(item).map((direction) => ({
                             label: getSortLabel(item, direction),
@@ -153,7 +152,6 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                         disabled={!isEditMode}
                         value={selectedSortNullsFirst}
                         size="xs"
-                        radius="md"
                         color="ldDark.5"
                         data={Object.entries(sortNullsFirstLabels).map(
                             ([value, label]) => ({
@@ -176,12 +174,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
 
                     {isEditMode && (
                         <Tooltip label="Remove sort">
-                            <ActionIcon
-                                onClick={onRemoveSortField}
-                                size="xs"
-                                variant="subtle"
-                                color="ldGray.6"
-                            >
+                            <ActionIcon onClick={onRemoveSortField} size="xs">
                                 <MantineIcon icon={IconMinus} />
                             </ActionIcon>
                         </Tooltip>

@@ -65,7 +65,7 @@ AUTHORITATIVE-SOURCE DUPLICATION GATE (STRICT)
 
 Memory fills gaps below the project's authoritative sources. It does not cache those sources.
 
-Return the no-op object when every candidate is already directly available from a fresh Lightdash lookup, including:
+Return a no-op with reason `authoritative_source_duplicate` when every candidate is already directly available from a fresh Lightdash lookup, including:
 
 - explore existence, names, labels, descriptions, joins, required filters, default filters, or AI hints,
 - field existence, fieldIds, labels, types, descriptions, SQL, metric definitions, or current schema shape,
@@ -363,7 +363,7 @@ Choosing the label:
 `thread_summary` FORMAT
 ============================================================
 
-Goal: preserve enough grounded context for consolidation or later drill-down without reopening raw tables.
+Goal: preserve enough grounded context for later review or drill-down without reopening raw tables.
 
 Use this task-first markdown shape inside the string:
 
@@ -408,7 +408,9 @@ Use this markdown shape inside the string:
 
 `## Memory`
 
-One to three concise paragraphs stating the reusable project convention, standing user preference, or failure shield and why it changes future action.
+One to three paragraphs stating the reusable project convention, standing user preference, or failure shield and why it changes future action.
+
+Weakest valid phrasing: among the phrasings that would, on their own, dictate the action every piece of evidence dictated, state the least specific one. A rule earns future recall from how many situations it covers, never from brevity — a short rule pinned to one request fires never, and a rule broader than its evidence misleads. Keep only load-bearing conditions in the rule; incidental context (the particular chart, date, filter values, the phrasing of the surrounding request) goes in `## Evidence`. A quoted standing instruction is load-bearing and stays eligible for `## Memory`.
 
 `## Evidence`
 
@@ -425,7 +427,7 @@ Raw-memory rules:
 
 - Applicable, Durable, and Legible must each be independently true.
 - A standing user preference is eligible; a one-off request is not.
-- Evidence before abstraction.
+- No abstraction beyond its evidence; ground every abstraction in the `## Evidence` section.
 - One topic, no transcript recap.
 - Present catalog/schema state as point-in-time evidence, never as timeless authority.
 - A memory naming explores or fields remains subordinate to the current catalog and project context.
@@ -468,6 +470,12 @@ Memory — standing user preference:
 - The user says: "from now on always give me a table first, I never want a chart unless I ask".
 - The wording is a standing instruction that applies beyond the current answer.
 - Preserve the preference with the user's wording and the default it changes. A repeated steer with no standing phrasing qualifies the same way when the user has to enforce it more than once.
+
+Memory — weakest valid rule:
+
+- The assistant builds a daily revenue chart; the user corrects it to monthly. Later in the thread the same correction recurs on a revenue table.
+- Pinned to one chart and date, the rule has nothing to fire on later; "the user prefers monthly for all analysis" claims more than the evidence shows.
+- Store "default revenue reporting to month granularity" in `## Memory`, with the chart, table, dates, and filter details in `## Evidence`.
 
 Memory — demonstrated failure shield:
 

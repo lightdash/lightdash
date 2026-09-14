@@ -3,9 +3,10 @@ import {
     Droppable,
     type DraggableStateSnapshot,
 } from '@hello-pangea/dnd';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine/core';
 import React, { type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { usePortalTarget } from '../../../providers/PortalTarget/usePortalTarget';
 import { GrabIcon } from '../common/GrabIcon';
 import ColumnConfiguration, {
     type ColumnConfigurationProps,
@@ -18,7 +19,8 @@ type DraggablePortalHandlerProps = {
 const DraggablePortalHandler: FC<
     React.PropsWithChildren<DraggablePortalHandlerProps>
 > = ({ children, snapshot }) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
+    const portalTarget = usePortalTarget();
+    if (snapshot.isDragging) return createPortal(children, portalTarget);
     return <>{children}</>;
 };
 
@@ -69,7 +71,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                         }
                     >
                         {!isDragging && !hasItems ? (
-                            <Text size="xs" c="ldGray.6" m="xs" ta="center">
+                            <Text size="xs" c="dimmed" m="xs" ta="center">
                                 {placeholder}
                             </Text>
                         ) : null}

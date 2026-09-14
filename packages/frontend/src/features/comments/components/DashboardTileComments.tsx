@@ -11,8 +11,8 @@ import {
     Text,
     Tooltip,
     type PopoverProps,
-} from '@mantine-8/core';
-import { useDisclosure, useScrollIntoView } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure, useScrollIntoView } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -185,8 +185,6 @@ export const DashboardTileComments: FC<
     return (
         <Popover
             withArrow
-            withinPortal
-            shadow="md"
             position="bottom-end"
             offset={4}
             arrowOffset={10}
@@ -198,9 +196,34 @@ export const DashboardTileComments: FC<
             closeOnClickOutside
             onChange={setOpenedComments}
         >
-            <Popover.Dropdown p={0} w={400} maw={400}>
+            <Popover.Dropdown
+                p={0}
+                w={400}
+                maw={400}
+                // Walkthrough result marker for create:DashboardComments:
+                // the thread, with the learner's own comment in it.
+                data-tour-scope="create:DashboardComments"
+                data-tour-step="1"
+                data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                data-tour-label="A comment lives on the tile it is about"
+                data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:1"
+                data-tour-return="none"
+                // The closing step describes what the learner sees next (the
+                // icon with its count), not mentions: the suggested comment
+                // cannot mention anyone, since who exists differs per org.
+                data-tour-resultdocs="explore/dashboards/interact.mdx#comment-on-a-tile:2"
+            >
                 <Stack
                     id="comments-stack"
+                    // Walkthrough result marker for view:DashboardComments:
+                    // the tile's thread, opened from its speech bubble.
+                    data-tour-scope="view:DashboardComments"
+                    data-tour-step="1"
+                    data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                    data-tour-label="Every tile carries its own comment thread"
+                    data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:1"
+                    data-tour-return="none"
+                    data-tour-resultdocs="explore/dashboards/interact.mdx#comment-on-a-tile:li1"
                     ref={scrollableRef}
                     p="sm"
                     gap="xs"
@@ -237,6 +260,16 @@ export const DashboardTileComments: FC<
                                 color="gray"
                                 fz="xs"
                                 onClick={toggleShowResolved}
+                                // Walkthrough result marker for
+                                // manage:DashboardComments: where a
+                                // resolved thread went.
+                                data-tour-scope="manage:DashboardComments"
+                                data-tour-step="1"
+                                data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                                data-tour-label="A resolved thread folds away"
+                                data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:1"
+                                data-tour-return="none"
+                                data-tour-resultdocs="explore/dashboards/interact.mdx#comment-on-a-tile:li3:2"
                                 rightSection={
                                     <MantineIcon
                                         icon={
@@ -250,7 +283,7 @@ export const DashboardTileComments: FC<
                                 {showResolved ? 'Hide' : 'Show'} resolved (
                                 {resolvedComments.length})
                             </Button>
-                            <Collapse in={showResolved}>
+                            <Collapse expanded={showResolved}>
                                 <Stack gap="xs" mt="xs">
                                     {resolvedComments.map((resolvedComment) => (
                                         <DashboardCommentAndReplies
@@ -302,17 +335,29 @@ export const DashboardTileComments: FC<
                 >
                     <Tooltip
                         label="Comments"
-                        withArrow
-                        withinPortal
                         position="top"
                         disabled={openedComments}
                     >
                         <ActionIcon
                             display="block"
                             size="sm"
-                            variant="subtle"
-                            color="gray"
                             onClick={handleTargetClick}
+                            // Walkthrough anchor (data-tour-via) for the
+                            // commenting walkthroughs, and the action of
+                            // view:DashboardComments.
+                            data-tour-anchor="tile-comments"
+                            data-tour-hint="Open the tile's comments"
+                            // Walkthrough action for view:DashboardComments.
+                            // Tiles with comments keep this visible, so the
+                            // first one on the page is a commented tile.
+                            data-tour-scope="view:DashboardComments"
+                            data-tour-step="2"
+                            data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                            data-tour-label="Open the tile's comments"
+                            data-tour-title="Read the conversation on a dashboard"
+                            data-tour-interactive="true"
+                            data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"]'
+                            data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:2"
                         >
                             <MantineIcon icon={IconMessage} />
                         </ActionIcon>

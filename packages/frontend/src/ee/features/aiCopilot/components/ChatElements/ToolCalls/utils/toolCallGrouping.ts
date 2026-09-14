@@ -68,9 +68,6 @@ const TOOL_CALL_GROUP_DEFINITIONS: ToolCallGroupDefinition[] = [
             'runQuery',
             'runContentQuery',
             'runSavedChart',
-            'generateBarVizConfig',
-            'generateTableVizConfig',
-            'generateTimeSeriesVizConfig',
         ],
     },
     {

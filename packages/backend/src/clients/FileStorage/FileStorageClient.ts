@@ -2,6 +2,15 @@ import { type WarehouseResults } from '@lightdash/common';
 import { type ReadStream } from 'fs';
 import { type PassThrough, type Readable } from 'stream';
 
+/**
+ * `contentDisposition` is the header stored on the object at upload time, which
+ * carries the friendly download name. Null when the object has none.
+ */
+export type FileStreamResult = {
+    stream: Readable;
+    contentDisposition: string | null;
+};
+
 export interface FileStorageClient {
     readonly expirationDays: number | undefined;
 
@@ -24,7 +33,11 @@ export interface FileStorageClient {
         attachmentDownloadName?: string,
     ): Promise<string>;
 
-    uploadZip(zip: ReadStream, zipName: string): Promise<string>;
+    uploadZip(
+        zip: ReadStream,
+        zipName: string,
+        attachmentDownloadName?: string,
+    ): Promise<string>;
 
     uploadExcel(
         excel: ReadStream,
@@ -37,7 +50,7 @@ export interface FileStorageClient {
         fileId: string,
     ): Promise<() => Promise<string>>;
 
-    getFileStream(fileId: string): Promise<Readable>;
+    getFileStream(fileId: string): Promise<FileStreamResult>;
 
     createUploadStream(
         fileName: string,

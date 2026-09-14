@@ -1,7 +1,12 @@
 import { promises as fs } from 'fs';
+import * as yaml from 'js-yaml';
 import * as os from 'os';
 import * as path from 'path';
-import { ensureConfigFilePermissions, writeConfigToFile } from './config';
+import {
+    ensureConfigFilePermissions,
+    getConfig,
+    writeConfigToFile,
+} from './config';
 
 // Masking file-type bits is the standard way to assert POSIX permissions.
 // eslint-disable-next-line no-bitwise
@@ -44,4 +49,44 @@ describePosix('CLI config permissions', () => {
         expect(permissionBits((await fs.stat(configDir)).mode)).toBe(0o700);
         expect(permissionBits((await fs.stat(configPath)).mode)).toBe(0o600);
     });
+});
+
+describe('CLI project environment override', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllEnvs();
+    });
+
+    it.each([
+        ['other-project', undefined],
+        ['stored-project', 'Stored project'],
+        ['', 'Stored project'],
+        [undefined, 'Stored project'],
+    ])(
+        'only retains the cached name for its own project (override: %s)',
+        async (projectOverride, expectedName) => {
+            vi.stubEnv('LIGHTDASH_PROJECT', projectOverride);
+            vi.spyOn(fs, 'chmod').mockResolvedValue(undefined);
+            vi.spyOn(fs, 'readFile').mockResolvedValue(
+                yaml.dump({
+                    user: { anonymousUuid: 'anonymous-user' },
+                    context: {
+                        project: 'stored-project',
+                        projectName: 'Stored project',
+                        previewProject: 'preview-project',
+                        previewName: 'Preview project',
+                    },
+                }),
+            );
+
+            const config = await getConfig();
+
+            expect(config.context).toMatchObject({
+                project: projectOverride || 'stored-project',
+                projectName: expectedName,
+                previewProject: 'preview-project',
+                previewName: 'Preview project',
+            });
+        },
+    );
 });

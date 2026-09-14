@@ -1,12 +1,5 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
-import {
-    Box,
-    ColorSwatch,
-    Group,
-    Skeleton,
-    Stack,
-    Text,
-} from '@mantine-8/core';
+import { Box, ColorSwatch, Group, Skeleton, Stack, Text } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { type EChartsOption } from 'echarts';
 import { useMemo, type FC } from 'react';

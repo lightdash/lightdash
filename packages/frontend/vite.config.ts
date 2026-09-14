@@ -5,6 +5,8 @@ import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import { defineConfig } from 'vitest/config';
+import { buildHashPlugin } from './vite.config.buildHash';
+import { pruneZodLocalesPlugin } from './vite.config.zodLocales';
 
 const FE_PORT = process.env.FE_PORT ? parseInt(process.env.FE_PORT) : 3000;
 const FE_HOST = process.env.FE_HOST;
@@ -23,6 +25,8 @@ export default defineConfig({
             process.env.REACT_QUERY_DEVTOOLS_ENABLED ?? true,
     },
     plugins: [
+        buildHashPlugin(),
+        pruneZodLocalesPlugin(),
         compression({
             include: [/\.(js)$/, /\.(css)$/],
             algorithms: ['gzip'],
@@ -53,7 +57,6 @@ export default defineConfig({
         }),
     ],
     optimizeDeps: {
-        exclude: ['@lightdash/common'],
         include: ['react-vega'],
     },
     resolve: {
@@ -144,11 +147,28 @@ export default defineConfig({
         hmr: {
             overlay: true,
         },
+        // Transform the entry graph at startup instead of on the first
+        // request. Without this the browser discovers these modules one
+        // import at a time and each one is compiled while it waits, which is
+        // most visible on a remote dev server (a cloud devbox or a PR
+        // preview) where that cost is paid over the network.
+        warmup: {
+            clientFiles: [
+                './src/index.tsx',
+                './src/App.tsx',
+                './src/Routes.tsx',
+                './src/MobileRoutes.tsx',
+                './src/ee/CommercialRoutes.tsx',
+                './src/providers/**/*.tsx',
+            ],
+        },
         allowedHosts: [
             'lightdash-dev', // for local development with docker
             'host.docker.internal', // for headless browser in docker (scheduled deliveries)
             '.lightdash.dev', // for cloudflared tunnels,
             '.exe.xyz', // for exe.dev devboxes
+            '.e2b.app', // for Amp orb portals
+            '.onamp.dev', // for Amp orb portals
             ...(FE_HOST ? [FE_HOST] : []),
         ],
         watch: {

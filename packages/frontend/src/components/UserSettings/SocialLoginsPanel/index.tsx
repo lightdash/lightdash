@@ -4,7 +4,7 @@ import {
     type HealthState,
     type OpenIdIdentitySummary,
 } from '@lightdash/common';
-import { ActionIcon, Card, Group, Stack, Text } from '@mantine-8/core';
+import { ActionIcon, Card, Group, Stack, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { type Entries } from 'type-fest';
@@ -80,11 +80,7 @@ const SocialLoginsPanel: FC = () => {
                             </Text>
                             {logins.length
                                 ? logins.map((login) => (
-                                      <Card
-                                          key={login.email}
-                                          withBorder
-                                          padding="xs"
-                                      >
+                                      <Card key={login.email} padding="xs">
                                           <Group justify="space-between">
                                               {login.email}
                                               <ActionIcon

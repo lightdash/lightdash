@@ -16,7 +16,7 @@ import {
     type Series as SeriesType,
     type TableCalculation,
 } from '@lightdash/common';
-import { Checkbox, Divider, Stack, Switch } from '@mantine-8/core';
+import { Checkbox, Divider, Stack, Switch } from '@mantine/core';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -25,11 +25,11 @@ import {
     moveSeriesGroup,
     type SeriesGroup,
 } from '../../../../hooks/cartesianChartConfig/utils';
+import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../../common/ColorPaletteSection';
 import { Config } from '../../common/Config';
-import compactStyles from '../../mantineTheme.module.css';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import { CustomColors } from './CustomColors';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
@@ -43,7 +43,8 @@ type DraggablePortalHandlerProps = {
 const DraggablePortalHandler: FC<
     React.PropsWithChildren<DraggablePortalHandlerProps>
 > = ({ children, snapshot }) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
+    const portalTarget = usePortalTarget();
+    if (snapshot.isDragging) return createPortal(children, portalTarget);
     return <>{children}</>;
 };
 
@@ -377,9 +378,6 @@ export const Series: FC<Props> = ({ items }) => {
                         <Stack gap="xs">
                             <Switch
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 label="Apply custom colors"
                                 checked={customColorsEnabled}
                                 onChange={(e) => {
@@ -446,9 +444,6 @@ export const Series: FC<Props> = ({ items }) => {
             {hasStackedBars && (
                 <Checkbox
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     checked={showOverlappingLabelsEnabled}
                     label="Show overlapping labels"
                     onChange={handleOverlappingLabelsToggle}

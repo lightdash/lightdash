@@ -1,10 +1,12 @@
 import {
     ApiErrorPayload,
     ApiGetRolesResponse,
+    ApiOrganizationRoleSetResponse,
     ApiRoleAssignmentListResponse,
     ApiRoleAssignmentResponse,
     ApiRoleWithScopesResponse,
     CreateRole,
+    OrganizationRoleSet,
     type UUID,
 } from '@lightdash/common';
 import {
@@ -14,6 +16,7 @@ import {
     OperationId,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -162,6 +165,60 @@ export class OrganizationRolesController extends BaseController {
             status: 'ok',
             results: assignment,
         };
+    }
+
+    /**
+     * Get the complete role set (system role plus custom roles) a user holds in the organization.
+     * Requires custom roles (Enterprise).
+     * @summary Get organization role set for user
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/assignments/user/{userId}/set')
+    @OperationId('GetOrganizationUserRoleSet')
+    async getOrganizationUserRoleSet(
+        @Request() req: express.Request,
+        @Path() orgUuid: UUID,
+        @Path() userId: UUID,
+    ): Promise<ApiOrganizationRoleSetResponse> {
+        const results = await this.getRolesService().getOrganizationUserRoleSet(
+            req.account!,
+            orgUuid,
+            userId,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Atomically replace the complete role set a user holds in the organization.
+     * At most one system role plus any number of custom roles; the set must not be empty.
+     * Requires custom roles (Enterprise).
+     * @summary Replace organization role set for user
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/assignments/user/{userId}/set')
+    @OperationId('ReplaceOrganizationUserRoleSet')
+    async replaceOrganizationUserRoleSet(
+        @Request() req: express.Request,
+        @Path() orgUuid: UUID,
+        @Path() userId: UUID,
+        @Body() body: OrganizationRoleSet,
+    ): Promise<ApiOrganizationRoleSetResponse> {
+        const results =
+            await this.getRolesService().replaceOrganizationUserRoleSet(
+                req.account!,
+                orgUuid,
+                userId,
+                body,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
     }
 
     /**

@@ -22,6 +22,7 @@
 .actions {
     display: flex;
     align-items: center;
+    gap: var(--mantine-spacing-xs);
     padding-right: var(--mantine-spacing-lg);
     padding-left: var(--mantine-spacing-sm);
 }

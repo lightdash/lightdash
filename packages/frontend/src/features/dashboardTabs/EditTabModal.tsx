@@ -1,5 +1,5 @@
 import { type DashboardTab } from '@lightdash/common';
-import { Button, TextInput } from '@mantine-8/core';
+import { Button, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';

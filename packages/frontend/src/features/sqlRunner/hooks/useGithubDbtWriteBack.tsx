@@ -40,7 +40,7 @@ export const useGithubDbtWriteBack = () => {
     >(createPullRequest, {
         mutationKey: ['sqlRunner', 'createPullRequest'],
         onSuccess: (data) => {
-            window.open(data.prUrl, '_blank');
+            window.open(data.prUrl, '_blank', 'noopener,noreferrer');
         },
         onError: (e) => {
             showToastError({

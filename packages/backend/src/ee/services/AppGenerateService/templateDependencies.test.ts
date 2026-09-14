@@ -4,6 +4,7 @@ import {
     buildTemplateBaseline,
     QUERY_SDK_PACKAGE,
     TEMPLATE_DEPENDENCIES,
+    TEMPLATE_DEV_DEPENDENCIES,
     TEMPLATE_SCRIPTS,
 } from './templateDependencies';
 
@@ -26,10 +27,12 @@ describe('TEMPLATE_DEPENDENCIES', () => {
             readFileSync(templatePackageJsonPath, 'utf-8'),
         ) as {
             dependencies: Record<string, string>;
+            devDependencies: Record<string, string>;
             scripts: Record<string, string>;
         };
 
         expect(TEMPLATE_DEPENDENCIES).toEqual(parsed.dependencies);
+        expect(TEMPLATE_DEV_DEPENDENCIES).toEqual(parsed.devDependencies);
         expect(TEMPLATE_SCRIPTS).toEqual(parsed.scripts);
     });
 });

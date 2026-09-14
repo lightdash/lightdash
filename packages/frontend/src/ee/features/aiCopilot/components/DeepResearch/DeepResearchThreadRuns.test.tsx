@@ -21,6 +21,9 @@ vi.mock('../../hooks/useDeepResearch', () => ({
 
 vi.mock('./DeepResearchRunCard', () => ({
     DeepResearchRunCard: () => <div>Saved deep research result</div>,
+    DeepResearchRunHeading: ({ statusLabel }: { statusLabel: string }) => (
+        <div>{statusLabel}</div>
+    ),
 }));
 
 describe('DeepResearchThreadRuns', () => {
@@ -84,7 +87,7 @@ describe('DeepResearchThreadRuns', () => {
                 screen.getByText('Saved deep research result'),
             ).toBeInTheDocument();
             expect(
-                screen.queryByText('Could not refresh this run'),
+                screen.queryByText('Couldn’t load the latest activity'),
             ).not.toBeInTheDocument();
         },
     );
@@ -94,7 +97,7 @@ describe('DeepResearchThreadRuns', () => {
         renderThreadRuns();
 
         expect(
-            screen.getByText('Could not refresh this run'),
+            screen.getByText('Couldn’t load the latest activity'),
         ).toBeInTheDocument();
         expect(
             screen.queryByText('Saved deep research result'),
@@ -111,7 +114,9 @@ describe('DeepResearchThreadRuns', () => {
             />,
         );
 
-        const retryButton = screen.getByRole('button', { name: 'Try again' });
+        const retryButton = screen.getByRole('button', {
+            name: 'Try starting again',
+        });
         expect(retryButton).toBeDisabled();
         await user.click(retryButton);
         expect(continueDeepResearchMock).not.toHaveBeenCalled();
@@ -126,7 +131,9 @@ describe('DeepResearchThreadRuns', () => {
                 canRetry
             />,
         );
-        await user.click(screen.getByRole('button', { name: 'Try again' }));
+        await user.click(
+            screen.getByRole('button', { name: 'Try starting again' }),
+        );
 
         expect(continueDeepResearchMock).toHaveBeenCalledWith({
             question: registration.question,

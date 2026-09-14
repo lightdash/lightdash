@@ -4,14 +4,7 @@ import {
     FeatureFlags,
     ManagedAgentScheduleOption,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Stack,
-    Text,
-    UnstyledButton,
-} from '@mantine-8/core';
+import { Box, Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import {
     IconArrowRight,
     IconChartBar,
@@ -193,7 +186,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                         </Box>
                         <Stack gap={4}>
                             <Group gap={8} align="center">
-                                <Text fz="lg" fw={700}>
+                                <Text fz="lg" fw={600}>
                                     Autopilot
                                 </Text>
                                 <BetaBadge />
@@ -245,7 +238,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                         </Box>
                         <Stack gap={4}>
                             <Group gap={8} align="center">
-                                <Text fz="lg" fw={700}>
+                                <Text fz="lg" fw={600}>
                                     Autopilot
                                 </Text>
                                 <BetaBadge />
@@ -269,8 +262,6 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
 
                     <Box ml={52}>
                         <Button
-                            variant="filled"
-                            color="dark"
                             size="sm"
                             rightSection={<IconArrowRight size={14} />}
                         >

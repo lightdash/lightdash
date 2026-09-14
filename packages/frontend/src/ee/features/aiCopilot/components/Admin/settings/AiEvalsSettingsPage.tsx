@@ -1,5 +1,5 @@
 import { type AiAgentAdminEvalSummary } from '@lightdash/common';
-import { Drawer } from '@mantine-8/core';
+import { Drawer } from '@mantine/core';
 import { useState } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';

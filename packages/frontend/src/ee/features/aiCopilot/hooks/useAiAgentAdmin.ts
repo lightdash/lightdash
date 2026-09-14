@@ -1,4 +1,5 @@
 import {
+    isApiError,
     type AiAgentAdminEvalFilters,
     type AiAgentAdminFilters,
     type AiAgentAdminMemoryFilters,
@@ -6,6 +7,7 @@ import {
     type AiAgentAdminSort,
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
+    type AiAgentThreadDump,
     type ApiAiAgentAdminConversationsResponse,
     type ApiAiAgentAdminEvalPromptsResponse,
     type ApiAiAgentAdminEvalsResponse,
@@ -18,6 +20,7 @@ import {
     type ApiAiAgentReviewItemWritebackPreviewResponse,
     type ApiAiAgentReviewSignalsResponse,
     type ApiAiAgentSummaryResponse,
+    type ApiAiAgentThreadDumpResponse,
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
     type ApiUpstreamDiffResponse,
@@ -319,6 +322,72 @@ const createAiAgentReviewItem = async (body: CreateAiAgentReviewItem) => {
     });
 };
 
+const getAiAgentAdminThreadDump = async (threadUuid: string) =>
+    lightdashApi<ApiAiAgentThreadDumpResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/threads/${threadUuid}/dump`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useDownloadAiAgentAdminThreadDump = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<AiAgentThreadDump, ApiError, string>({
+        mutationFn: getAiAgentAdminThreadDump,
+        onSuccess: (dump) => {
+            const blob = new Blob([JSON.stringify(dump, null, 2)], {
+                type: 'application/json',
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ai-thread-dump-${dump.threadUuid}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToastSuccess({
+                title: 'Thread dump downloaded',
+                subtitle: 'Review the file before sharing it.',
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to download thread dump',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const deleteAiAgentAdminThread = async (threadUuid: string) =>
+    lightdashApi<undefined>({
+        version: 'v1',
+        url: `/aiAgents/admin/threads/${threadUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteAiAgentAdminThread = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<undefined, ApiError, string>({
+        mutationFn: deleteAiAgentAdminThread,
+        onSuccess: () => {
+            showToastSuccess({ title: 'Thread deleted' });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-threads'],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to delete thread',
+                apiError: error,
+            });
+        },
+    });
+};
+
 export const useCreateAiAgentReviewItem = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -609,7 +678,9 @@ export const useAiAgentReviewItemByPreviewThread = (
             try {
                 return await getAiAgentReviewItemByPreviewThread(threadUuid!);
             } catch (error) {
-                if ((error as ApiError).error?.statusCode === 404) return null;
+                if (isApiError(error) && error.error.statusCode === 404) {
+                    return null;
+                }
                 throw error;
             }
         },

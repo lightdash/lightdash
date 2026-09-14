@@ -1,5 +1,5 @@
 import { type RoleLevel, type RoleWithScopes } from '@lightdash/common';
-import { Badge, Group, Stack, Tabs, Text } from '@mantine-8/core';
+import { Badge, Group, Stack, Tabs, Text } from '@mantine/core';
 import { IconBuilding, IconFolder, IconIdBadge2 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -97,11 +97,7 @@ export const CustomRoles = () => {
                                     <Text span inherit>
                                         Project
                                     </Text>
-                                    <Badge
-                                        className={classes.tabBadge}
-                                        variant="light"
-                                        radius="sm"
-                                    >
+                                    <Badge className={classes.tabBadge}>
                                         {projectRoles.length}
                                     </Badge>
                                 </Group>
@@ -119,11 +115,7 @@ export const CustomRoles = () => {
                                     <Text span inherit>
                                         Organization
                                     </Text>
-                                    <Badge
-                                        className={classes.tabBadge}
-                                        variant="light"
-                                        radius="sm"
-                                    >
+                                    <Badge className={classes.tabBadge}>
                                         {organizationRoles.length}
                                     </Badge>
                                 </Group>

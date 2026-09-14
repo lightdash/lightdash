@@ -20,10 +20,15 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | "select an element", editor element picker | `inspect` | none (automatic) |
 | thumbnails / screenshots / scheduled deliveries | `screenshot` | required — see below |
 | drill down, click into a chart | `drill-down` | app code opt-in |
+| drill into a viz data point (reusable visualization) | `viz-drill-down` | app code opt-in |
 | "share this view", URL that restores state | `url-state` | app code opt-in |
 | Google Sheets export | `gsheet-export` | app code opt-in |
+| "delivery has all tabs", full data in scheduled deliveries | `delivery-render` | app code opt-in |
 | external API data | `external-fetch` | app code opt-in |
 | runs inside a dashboard tile | `viz-context` | required — see below |
+| reusable chart/table with pivoted results | `viz-pivoted-results` | required — see below |
+| "view underlying data", raw rows behind a point (viz only) | `viz-underlying-data` | app code opt-in |
+| light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
 
 ## Automatic (zero wiring — active on any current-SDK bundle)
 
@@ -62,10 +67,46 @@ Wrap the app in `VizContextProvider` (see the template `main.jsx`) and read
 the host-supplied query context with `useVizContext`. Only relevant for
 visualization-style apps meant to run inside dashboards.
 
+### `follow-host-theme` — light/dark mode
+
+The SDK puts the `dark` class on `<html>` as the app boots and again
+whenever the viewer toggles their Lightdash theme, so an app that styles
+everything through the theme tokens follows along with no code at all. What an
+older app usually needs is the opposite of wiring — *removing* what pins it to
+one mode:
+
+- drop any `className="dark …"` on the app shell and any
+  `document.documentElement.classList.add('dark')`;
+- move dark values out of `:root` and into `.dark`, leaving a complete set of
+  light values on `:root`;
+- keep both sets complete for every token the app defines.
+
+For colours CSS can't reach (a chart library's theme object, a logo swap), read
+the mode: `const colorScheme = useColorScheme();` — `'light' | 'dark'`,
+re-rendering on every host toggle.
+
+### `viz-pivoted-results` — reusable visualization pivots
+
+Read `pivotDetails` from `useVizContext()`. When it is non-null, match
+`pivotDetails.valuesColumns` to the mapped metric by `referenceField`, derive series
+labels from `pivotValues`, and read each generated `pivotColumnName` with
+`getRaw(row, pivotColumnName)` or `getFormatted(row, pivotColumnName)`. Generated and
+ordinary row keys both contain `VizContextCell` objects; never coerce `row[fieldId]`
+directly. Use the remaining metadata for the visualization's actual shape: `indexColumn` and
+`originalColumns` provide row-grain/type semantics, `groupByColumns` provides header
+order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation, and
+`passthroughDimensions` identifies hidden fields retained on rows. Preserve the ordinary
+`fieldMapping` path when `pivotDetails` is null. The full contract is in the
+`reusable-visualization` skill.
+
 ### App-code opt-ins (call the API where it fits the app)
 
 - `drill-down`: `drillDown(...)` derives a more detailed query from a clicked
   result row — wire it to click handlers on charts/rows.
+- `viz-drill-down`: in a reusable visualization, the data-point action menu
+  offers "Drill into …" when `useVizContext().drillDown.enabled`; selection
+  calls `drillDown.open({ row, metric })` and Lightdash opens its drill
+  dialog. Distinct from `drill-down`, which is the full-app query helper.
 - `url-state`: `useUrlState(...)` syncs a piece of app state into the page URL
   so views can be shared and restored.
 - `gsheet-export`: `exportToSheets(...)` sends tabular results to a new
@@ -73,6 +114,17 @@ visualization-style apps meant to run inside dashboards.
 - `external-fetch`: `client.externalFetch(alias, opts)` calls an external
   connection linked to this app. The connection must already be linked by the
   host; you cannot add one from app code.
+- `delivery-render`: `useDeliveryRender()` is `true` during scheduled-delivery
+  and delivery-preview capture renders. Gate tab/slide DATA mounting on it so
+  every tab's queries execute during capture while only the active tab stays
+  visible — never mount all tabs unconditionally (interactive loads must stay
+  lazy).
+- `viz-underlying-data` (vizs only): keep the untransformed `sourceRow` on each
+  interactive datum, gate a data-point action menu on
+  `useVizContext().underlyingData.enabled`, render
+  `underlyingData.get({ row, metric })` in a themed dialog, and wire its
+  Download button to `underlyingData.download`. Full contract in the
+  `reusable-visualization` skill.
 
 ## After a template upgrade
 

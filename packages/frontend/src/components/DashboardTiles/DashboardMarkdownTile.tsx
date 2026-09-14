@@ -2,11 +2,10 @@ import {
     MARKDOWN_TILE_CLASS,
     type DashboardMarkdownTile,
 } from '@lightdash/common';
-import { Box, Menu, useMantineColorScheme } from '@mantine-8/core';
+import { Box, Menu, useMantineColorScheme } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid4 } from 'uuid';
 import { DashboardTileComments } from '../../features/comments';
@@ -46,7 +45,7 @@ const MarkdownTile: FC<Props> = (props) => {
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
-    const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
 
     const dashboardComments = useMemo(
         () =>

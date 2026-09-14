@@ -1,12 +1,15 @@
-import { Box, Button, Group, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import { BetaBadge } from '../BetaBadge';
 import MantineIcon from '../MantineIcon';
+import PageBreadcrumbs, { type PageBreadcrumbsProps } from '../PageBreadcrumbs';
 import classes from './SettingsPage.module.css';
 
 type SettingsPageProps = {
     title: string;
+    fillHeight?: boolean;
+    breadcrumbs?: PageBreadcrumbsProps['items'];
     isBeta?: boolean;
     description?: ReactNode;
     actions?: ReactNode;
@@ -41,12 +44,14 @@ const SettingsPageDocumentationLink: FC<{
 
 const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
     title,
+    fillHeight = false,
+    breadcrumbs,
     isBeta,
     description,
     actions,
     children,
 }) => (
-    <Stack gap="lg" className={classes.page}>
+    <Stack gap="lg" className={classes.page} data-fill-height={fillHeight}>
         <SettingsPageContainer>
             <Group
                 justify="space-between"
@@ -57,15 +62,35 @@ const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
             >
                 <Stack gap={4} className={classes.heading}>
                     <Group gap="xs" wrap="nowrap">
-                        <Title order={4} className={classes.title}>
-                            {title}
-                        </Title>
+                        {breadcrumbs ? (
+                            <PageBreadcrumbs
+                                items={[
+                                    ...breadcrumbs,
+                                    {
+                                        title: (
+                                            <Title
+                                                display="inline"
+                                                order={4}
+                                                className={classes.title}
+                                            >
+                                                {title}
+                                            </Title>
+                                        ),
+                                        active: true,
+                                    },
+                                ]}
+                            />
+                        ) : (
+                            <Title order={4} className={classes.title}>
+                                {title}
+                            </Title>
+                        )}
                         {isBeta ? <BetaBadge /> : null}
                     </Group>
                     {description ? (
                         <Text
                             fz="sm"
-                            c="ldGray.6"
+                            c="dimmed"
                             className={classes.description}
                         >
                             {description}

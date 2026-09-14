@@ -7,7 +7,7 @@ import {
     ActionIcon,
     Popover,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC } from 'react';
@@ -37,7 +37,6 @@ const QueryWarnings: FC<QueryWarningsProps> = ({ queryWarnings }) => {
                 <Tooltip label="Query warnings">
                     <ActionIcon
                         color="yellow"
-                        variant="subtle"
                         onClick={() => {
                             setWarningsPopoverOpened((o) => !o);
                             if (!warningsPopoverOpened) {
@@ -50,9 +49,7 @@ const QueryWarnings: FC<QueryWarningsProps> = ({ queryWarnings }) => {
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown>
-                <Title order={6} fw={600}>
-                    Query warnings
-                </Title>
+                <Title order={6}>Query warnings</Title>
                 <Stack gap="xs" mt={'md'}>
                     {queryWarnings
                         .slice(

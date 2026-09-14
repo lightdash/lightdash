@@ -1,14 +1,14 @@
-import { Anchor, Button, HoverCard, Text } from '@mantine-8/core';
+import { Anchor, Button, HoverCard, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 export const GoogleSheetsInfoPopover = () => {
     return (
-        <HoverCard withinPortal width={300} withArrow>
+        <HoverCard width={300} withArrow>
             <HoverCard.Target>
                 <Button
                     size="xs"
-                    fz={9}
+                    fz="xs"
                     variant="subtle"
                     color="ldGray.3"
                     leftSection={

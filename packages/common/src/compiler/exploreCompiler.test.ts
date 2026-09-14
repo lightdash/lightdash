@@ -1,11 +1,12 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
-import { type Table } from '../types/explore';
+import { InlineErrorType, type Table } from '../types/explore';
 import {
     DimensionType,
     FieldType,
     friendlyName,
     MetricType,
+    type CompiledDimension,
 } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import { TimeFrames } from '../types/timeFrames';
@@ -84,6 +85,20 @@ import {
 
 const compiler = new ExploreCompiler(warehouseClientMock);
 
+describe('custom model metadata', () => {
+    test.each([undefined, {}])(
+        'omits absent or empty custom metadata (%j)',
+        (customMeta) => {
+            const compiled = compiler.compileExplore({
+                ...exploreOneEmptyTable,
+                customMeta,
+            });
+
+            expect(compiled).not.toHaveProperty('customMeta');
+        },
+    );
+});
+
 test('Should throw when required/default filters reference a hidden dimension', () => {
     const exploreWithHiddenRequiredFilter = createExploreWithRequiredFilters([
         {
@@ -148,6 +163,57 @@ test('Should throw error when missing base table', () => {
     expect(() => compiler.compileExplore(exploreMissingBaseTable)).toThrowError(
         CompileError,
     );
+});
+
+test('Missing joins explain model selection and identify the alias', () => {
+    const partialCompiler = new ExploreCompiler(warehouseClientMock, {
+        allowPartialCompilation: true,
+    });
+    const result = partialCompiler.compileExplore({
+        ...exploreMissingJoinTable,
+        joinedTables: [{ table: 'b', alias: 'account', sqlOn: '' }],
+    });
+
+    expect(result.joinedTables).toEqual([]);
+    expect(result.warnings).toEqual([
+        {
+            type: InlineErrorType.MISSING_TABLE,
+            message:
+                'Join "account" to table "b" was skipped because the model is not available in this Lightdash project. Check that the model exists, is included by the project\'s tags/selector, and compiles successfully, then refresh the project.',
+        },
+    ]);
+});
+
+test('Dependent joins point to the skipped alias and its unavailable model', () => {
+    const partialCompiler = new ExploreCompiler(warehouseClientMock, {
+        allowPartialCompilation: true,
+    });
+    const result = partialCompiler.compileExplore({
+        ...simpleJoinedExplore,
+        joinedTables: [
+            {
+                table: 'accounts',
+                alias: 'account',
+                sqlOn: '${a.dim1} = ${account.dim1}',
+            },
+            {
+                table: 'b',
+                alias: 'details',
+                sqlOn: '${account.dim1} = ${details.dim1}',
+            },
+        ],
+    });
+
+    expect(result.joinedTables).toEqual([]);
+    expect(Object.keys(result.tables)).toEqual(['a']);
+    expect(result.warnings).toEqual([
+        expect.objectContaining({ type: InlineErrorType.MISSING_TABLE }),
+        {
+            type: InlineErrorType.SKIPPED_JOIN,
+            message:
+                'Join "details" was skipped because it depends on skipped join "account" (table "accounts"). Resolve the missing-table warning for that join, then refresh the project.',
+        },
+    ]);
 });
 
 test('Should throw error when missing joined table', () => {
@@ -621,6 +687,18 @@ describe('Parse dimension reference', () => {
             { refName: 'TABLE', refTable: 'table' },
         ]);
     });
+    test('should keep the first segment as the table and the rest as a nested field name', () => {
+        expect(
+            parseAllReferences('${orders.customer.address.city}', 'table'),
+        ).toStrictEqual([
+            { refName: 'customer.address.city', refTable: 'orders' },
+        ]);
+        // Two segments keep today's meaning: a nested field on the current
+        // table needs its table prefix.
+        expect(parseAllReferences('${customer.city}', 'orders')).toStrictEqual([
+            { refName: 'city', refTable: 'customer' },
+        ]);
+    });
     test('should parse unquoted TABLE column references', () => {
         expect(
             getTableColumnReferences(
@@ -850,6 +928,33 @@ describe('Compiled custom dimensions', () => {
                 [],
             ),
         ).toStrictEqual(expectedCompiledCustomSqlDimensionWithReferences);
+    });
+
+    test('should preserve precompiled joined dimension table references', () => {
+        expect(
+            compiler.compileCustomDimension(
+                customSqlDimensionWithReferences,
+                {
+                    ...simpleJoinedExplore.tables,
+                    b: {
+                        ...simpleJoinedExplore.tables.b,
+                        dimensions: {
+                            dim1: {
+                                ...simpleJoinedExplore.tables.b.dimensions.dim1,
+                                sql: '"a".b_dim1',
+                                compiledSql: '"a".b_dim1',
+                                tablesReferences: ['a'],
+                            } as CompiledDimension,
+                        },
+                    },
+                },
+                [],
+            ),
+        ).toStrictEqual({
+            ...expectedCompiledCustomSqlDimensionWithReferences,
+            compiledSql: '("a".dim1) + ("a".b_dim1)',
+            tablesReferences: ['a'],
+        });
     });
 });
 
@@ -2031,5 +2136,184 @@ describe('absolute timestamp metric filters are recorded for query-time re-rende
             values: [],
         });
         expect(nullCheck.compiledTimestampFilters).toBeUndefined();
+    });
+});
+
+describe('show_underlying_values validation', () => {
+    const makeDimension = (table: string, name: string, index: number) => ({
+        fieldType: FieldType.DIMENSION as const,
+        type: DimensionType.STRING,
+        name,
+        label: friendlyName(name),
+        table,
+        tableLabel: friendlyName(table),
+        sql: `\${TABLE}.${name}`,
+        hidden: false,
+        index,
+    });
+
+    const makeExplores = (
+        showUnderlyingValues: string[],
+        sets?: Table['sets'],
+    ): { standalone: UncompiledExplore; joined: UncompiledExplore } => {
+        const spine: Table = {
+            name: 'spine',
+            label: 'Spine',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.spine',
+            dimensions: {
+                week_number: makeDimension('spine', 'week_number', 0),
+                farm: makeDimension('spine', 'farm', 1),
+                farm_region: makeDimension('spine', 'farm_region', 2),
+            },
+            metrics: {},
+            lineageGraph: {},
+        };
+        const sales: Table = {
+            name: 'sales',
+            label: 'Sales',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.sales',
+            dimensions: {
+                week_number: makeDimension('sales', 'week_number', 0),
+                farm: makeDimension('sales', 'farm', 1),
+            },
+            metrics: {
+                total_sales: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'total_sales',
+                    label: 'Total sales',
+                    table: 'sales',
+                    tableLabel: 'Sales',
+                    sql: '${TABLE}.amount',
+                    hidden: false,
+                    showUnderlyingValues,
+                },
+            },
+            lineageGraph: {},
+            ...(sets ? { sets } : {}),
+        };
+        const base = {
+            label: 'Test',
+            tags: [],
+            groupLabel: undefined,
+            targetDatabase: SupportedDbtAdapter.POSTGRES,
+            meta: {},
+        };
+        return {
+            standalone: {
+                ...base,
+                name: 'sales',
+                baseTable: 'sales',
+                joinedTables: [],
+                // Mirrors production: UncompiledExplore.tables is always the
+                // full project lookup, even when nothing is joined.
+                tables: { spine, sales },
+            },
+            joined: {
+                ...base,
+                name: 'spine',
+                baseTable: 'spine',
+                joinedTables: [
+                    {
+                        table: 'sales',
+                        sqlOn: '${spine.farm} = ${sales.farm}',
+                    },
+                ],
+                tables: { spine, sales },
+            },
+        };
+    };
+
+    it('warns and drops an unknown own-table ref even when no set ref is present', () => {
+        const { standalone } = makeExplores(['week_number', 'does_not_exist']);
+        const result = compiler.compileExplore(standalone);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('does_not_exist'),
+            },
+        ]);
+    });
+
+    it('keeps cross-table refs where the table is joined and skips them silently elsewhere', () => {
+        const sets = { sales_dims: { fields: ['week_number', 'farm'] } };
+        const { standalone, joined } = makeExplores(
+            ['sales_dims*', 'spine.farm_region'],
+            sets,
+        );
+
+        const joinedResult = compiler.compileExplore(joined);
+        expect(
+            joinedResult.tables.sales.metrics.total_sales.showUnderlyingValues,
+        ).toEqual(['week_number', 'farm', 'spine.farm_region']);
+        expect(joinedResult.warnings).toBeUndefined();
+
+        const standaloneResult = compiler.compileExplore(standalone);
+        const metric = standaloneResult.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number', 'farm']);
+        expect(standaloneResult.warnings).toBeUndefined();
+    });
+
+    it('warns and drops a ref to a missing field on a joined table', () => {
+        const { joined } = makeExplores([
+            'week_number',
+            'spine.does_not_exist',
+        ]);
+        const result = compiler.compileExplore(joined);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('spine.does_not_exist'),
+            },
+        ]);
+    });
+
+    it('warns and drops a cross-table ref whose table exists in no explore', () => {
+        const { standalone } = makeExplores([
+            'week_number',
+            'spien.farm_region',
+        ]);
+        const result = compiler.compileExplore(standalone);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('spien'),
+            },
+        ]);
+    });
+
+    it('warns and drops an unknown set ref but keeps the metric and remaining refs', () => {
+        const { standalone } = makeExplores([
+            'nonexistent_set*',
+            'week_number',
+        ]);
+        const result = compiler.compileExplore(standalone);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('nonexistent_set'),
+            },
+        ]);
     });
 });

@@ -3,7 +3,7 @@ import {
     ResourceViewItemType,
     type ResourceViewDataAppItem,
 } from '@lightdash/common';
-import { Text } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';
@@ -72,6 +72,10 @@ export const FavoritePersonalDataAppModal: FC<
                         firstViewedAt: null,
                         latestVersionNumber: app.latestVersionNumber,
                         latestVersionStatus: app.latestVersionStatus,
+                        latestReadyVersionNumber:
+                            app.latestVersionStatus === 'ready'
+                                ? app.latestVersionNumber
+                                : null,
                         pinnedListUuid: null,
                         pinnedListOrder: null,
                     },

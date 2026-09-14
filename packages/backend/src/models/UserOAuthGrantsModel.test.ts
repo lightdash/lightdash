@@ -14,7 +14,14 @@ const providerEmail = 'shared@example.com';
 describe('UserOAuthGrantsModel', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
     const encryptionUtil = new EncryptionUtil({
-        lightdashConfig: { lightdashSecret: 'test-secret' },
+        lightdashConfig: {
+            lightdashSecret: 'test-secret',
+            lightdashSecrets: {
+                active: 'test-secret',
+                fallbacks: [],
+                all: ['test-secret'],
+            },
+        },
     });
     const userModel = {
         getRefreshToken: vi.fn<UserModel['getRefreshToken']>(

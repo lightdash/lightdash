@@ -1,4 +1,4 @@
-import { ActionIcon, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -15,14 +15,8 @@ const AppBuilderSidebarToggle: FC<Props> = ({ collapsed, onToggle }) => {
     const label = collapsed ? 'Show build panel' : 'Hide build panel';
 
     return (
-        <Tooltip label={label} withArrow position="right">
-            <ActionIcon
-                variant="subtle"
-                size="sm"
-                color="ldGray.6"
-                onClick={onToggle}
-                aria-label={label}
-            >
+        <Tooltip label={label} position="right">
+            <ActionIcon size="sm" onClick={onToggle} aria-label={label}>
                 <MantineIcon
                     icon={
                         collapsed

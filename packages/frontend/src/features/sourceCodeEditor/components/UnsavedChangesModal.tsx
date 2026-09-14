@@ -1,4 +1,4 @@
-import { type ModalProps } from '@mantine-8/core';
+import { type ModalProps } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';

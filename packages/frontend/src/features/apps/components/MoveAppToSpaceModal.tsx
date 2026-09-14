@@ -3,7 +3,7 @@ import {
     ResourceViewItemType,
     type ResourceViewDataAppItem,
 } from '@lightdash/common';
-import { Box, Checkbox, Tooltip } from '@mantine-8/core';
+import { Box, Checkbox, Tooltip } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import TransferItemsModal from '../../../components/common/TransferItemsModal/TransferItemsModal';
@@ -12,6 +12,7 @@ import { useContentAction } from '../../../hooks/useContent';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../AppIframePreview';
+import { getVisiblePreviewTokenError } from '../hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../hooks/useAppPreviewToken';
 import {
     useAppThumbnailUpload,
@@ -102,15 +103,19 @@ export const MoveAppToSpaceModal: FC<Props> = ({
     // when the surface has no live iframe to capture from.
     const useFallbackPreview = !capturePreviewScreenshot;
     const previewOrigin = usePreviewOrigin();
-    const { data: previewToken } = useAppPreviewToken(
+    const { data: previewToken, error: previewTokenError } = useAppPreviewToken(
         opened && hasReadyVersion && useFallbackPreview
             ? projectUuid
             : undefined,
         app.uuid,
         app.latestVersionNumber ?? undefined,
     );
+    const visiblePreviewTokenError = getVisiblePreviewTokenError(
+        previewTokenError,
+        !!previewToken,
+    );
     const previewUrl =
-        hasReadyVersion && previewToken
+        hasReadyVersion && previewToken && !visiblePreviewTokenError
             ? `${previewOrigin}/api/apps/${app.uuid}/versions/${app.latestVersionNumber}/t/${previewToken}/?r=0#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
 
@@ -211,6 +216,10 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                             firstViewedAt: null,
                             latestVersionNumber: app.latestVersionNumber,
                             latestVersionStatus: app.latestVersionStatus,
+                            latestReadyVersionNumber:
+                                app.latestVersionStatus === 'ready'
+                                    ? app.latestVersionNumber
+                                    : null,
                             pinnedListUuid: null,
                             pinnedListOrder: null,
                         },
@@ -218,7 +227,7 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                 ]}
                 isLoading={isMovingToSpace || isCapturing}
                 footer={
-                    <Tooltip label={checkboxTooltip} withArrow position="top">
+                    <Tooltip label={checkboxTooltip} position="top">
                         <Box>
                             <Checkbox
                                 checked={hasReadyVersion && includeThumbnail}
@@ -257,11 +266,12 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                     onClose();
                 }}
             />
-            {opened && useFallbackPreview && previewUrl && (
+            {opened && useFallbackPreview && previewUrl && previewToken && (
                 <Box className={classes.offscreenPreview} aria-hidden>
                     <AppIframePreview
                         ref={previewRef}
                         src={previewUrl}
+                        previewToken={previewToken}
                         expectedPreviewOrigin={previewOrigin}
                         projectUuid={projectUuid}
                         appUuid={app.uuid}

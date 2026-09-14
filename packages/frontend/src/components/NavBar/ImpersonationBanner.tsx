@@ -1,4 +1,4 @@
-import { Button, Center, Group, Text } from '@mantine-8/core';
+import { Button, Center, Group, Text } from '@mantine/core';
 import { IconEye } from '@tabler/icons-react';
 import {
     useImpersonation,

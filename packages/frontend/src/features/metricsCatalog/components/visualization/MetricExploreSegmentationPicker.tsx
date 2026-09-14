@@ -15,7 +15,7 @@ import {
     Text,
     Select,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
@@ -63,8 +63,6 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                 <Button
                     variant="subtle"
                     size="compact-xs"
-                    color="dark"
-                    radius="md"
                     rightSection={
                         <MantineIcon icon={IconX} color="ldGray.5" size={12} />
                     }
@@ -98,7 +96,6 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                         placeholder="Segment by"
                         leftSection={<Blocks />}
                         searchable
-                        radius="md"
                         size="xs"
                         data={segmentByData}
                         disabled={segmentByData.length === 0}
@@ -137,7 +134,6 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                 <Alert
                     py="xs"
                     px="sm"
-                    variant="light"
                     color="blue"
                     style={{
                         border: '1px dashed var(--mantine-color-blue-4)',

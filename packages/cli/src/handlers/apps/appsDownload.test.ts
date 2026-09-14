@@ -23,8 +23,9 @@ import {
     preSlugServerHint,
     preSlugUploadHint,
     resolveAppsLimit,
+    resolveAppSpaceUuid,
+    resolveUploadFilterUuids,
     selectAppsToDownload,
-    shouldAutoPushApp,
     shouldFallBackToSpaceScopedListing,
     shouldWarnAllSkipped,
     unmatchedUploadRefsWarning,
@@ -498,6 +499,16 @@ describe('computeUpsertedTotal', () => {
 });
 
 describe('shouldWarnAllSkipped', () => {
+    it.each(['data apps skipped', 'chart types skipped', 'data apps failed'])(
+        'does not suggest --force for %s, even with unchanged charts',
+        (key) => {
+            expect(shouldWarnAllSkipped({ [key]: 1 })).toBe(false);
+            expect(
+                shouldWarnAllSkipped({ [key]: 1, 'charts skipped': 3 }),
+            ).toBe(false);
+        },
+    );
+
     it('returns true when everything was skipped', () => {
         expect(shouldWarnAllSkipped({ 'charts skipped': 3 })).toBe(true);
     });
@@ -677,8 +688,82 @@ describe('downloadAppsToDir', () => {
         expect(outcome).toEqual({
             successCount: 1,
             skippedNotBuiltCount: 0,
+            skippedWrongKindCount: 0,
             failures: [],
         });
+        expect(
+            fs.existsSync(
+                path.join(appsDir, 'revenue-explorer', 'lightdash-app.yml'),
+            ),
+        ).toBe(true);
+    });
+
+    it('gives downloaded chart types the chart-type authoring flavor', async () => {
+        const appsDir = tmpDir();
+        const vizCode = codeFor('my-chart-type');
+        vizCode.manifest.template = 'data_app_viz';
+
+        const outcome = await downloadAppsToDir({
+            appRefs: ['my-chart-type'],
+            projectId: 'project-uuid',
+            appsDir,
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async () => vizCode,
+        });
+
+        expect(outcome.successCount).toBe(1);
+        const skillsDir = path.join(appsDir, 'my-chart-type', '.claude/skills');
+        expect(
+            fs.existsSync(
+                path.join(skillsDir, 'developing-chart-types-locally/SKILL.md'),
+            ),
+        ).toBe(true);
+        // The app SDK skills would only mislead — a viz must not query.
+        expect(
+            fs.existsSync(path.join(skillsDir, 'lightdash-data-app/SKILL.md')),
+        ).toBe(false);
+        expect(
+            fs.existsSync(
+                path.join(skillsDir, 'developing-data-apps-locally/SKILL.md'),
+            ),
+        ).toBe(false);
+        expect(
+            fs
+                .readFileSync(
+                    path.join(appsDir, 'my-chart-type', 'AGENTS.md'),
+                    'utf8',
+                )
+                .toString(),
+        ).toContain('custom chart type');
+    });
+
+    it('skips bundles the skipBundle guard rejects without writing them', async () => {
+        const appsDir = tmpDir();
+        const vizCode = codeFor('my-chart-type');
+        vizCode.manifest.template = 'data_app_viz';
+
+        const outcome = await downloadAppsToDir({
+            appRefs: ['my-chart-type', 'revenue-explorer'],
+            projectId: 'project-uuid',
+            appsDir,
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async (_p, ref) =>
+                ref === 'my-chart-type' ? vizCode : codeFor(ref),
+            skipBundle: (manifest) =>
+                manifest.template === 'data_app_viz'
+                    ? 'this is a custom chart type'
+                    : null,
+        });
+
+        expect(outcome).toEqual({
+            successCount: 1,
+            skippedNotBuiltCount: 0,
+            skippedWrongKindCount: 1,
+            failures: [],
+        });
+        expect(fs.existsSync(path.join(appsDir, 'my-chart-type'))).toBe(false);
         expect(
             fs.existsSync(
                 path.join(appsDir, 'revenue-explorer', 'lightdash-app.yml'),
@@ -741,108 +826,53 @@ describe('downloadAppsToDir', () => {
     });
 });
 
-describe('shouldAutoPushApp', () => {
-    const manifest = {
-        slug: 'revenue-explorer',
-        projectUuid: 'source-project',
-    };
-    const known = (...slugs: string[]): AnyType => ({
-        kind: 'known',
-        slugs: new Set(slugs),
+describe('resolveUploadFilterUuids', () => {
+    const appUuid = 'd3afc44c-6f0f-4d9f-a267-fb739efa31dd';
+    const otherUuid = 'a1b2c3d4-0000-4000-8000-000000000000';
+
+    it('translates uuid refs the listing knows into slugs', () => {
+        const resolved = resolveUploadFilterUuids(new Set([appUuid]), [
+            { appUuid, slug: 'my-app' },
+        ]);
+        expect(resolved).toEqual(new Set(['my-app']));
     });
 
-    it('pushes when the target project does not have the app', () => {
-        expect(
-            shouldAutoPushApp({
-                manifest,
-                presence: known(),
-                folderChanged: false,
-                force: false,
-            }),
-        ).toBe(true);
+    it('keeps slug refs and unknown uuids untouched', () => {
+        const resolved = resolveUploadFilterUuids(
+            new Set(['my-app', otherUuid]),
+            [{ appUuid, slug: 'my-app' }],
+        );
+        expect(resolved).toEqual(new Set(['my-app', otherUuid]));
     });
 
-    it('pushes when the app exists and the folder changed', () => {
-        expect(
-            shouldAutoPushApp({
-                manifest,
-                presence: known('revenue-explorer'),
-                folderChanged: true,
-                force: false,
-            }),
-        ).toBe(true);
+    it('leaves uuid refs alone when the listing has no slugs (pre-slug server)', () => {
+        const resolved = resolveUploadFilterUuids(new Set([appUuid]), [
+            { appUuid },
+        ]);
+        expect(resolved).toEqual(new Set([appUuid]));
+    });
+});
+
+describe('resolveAppSpaceUuid', () => {
+    const spaces = [
+        { uuid: 'space-1', slug: 'marketing' },
+        { uuid: 'space-2', slug: 'finance' },
+        { uuid: 'space-3', slug: 'finance' },
+    ];
+
+    it('resolves a unique slug to its uuid', () => {
+        expect(resolveAppSpaceUuid('marketing', spaces)).toBe('space-1');
     });
 
-    it('skips when the app exists and nothing changed', () => {
-        expect(
-            shouldAutoPushApp({
-                manifest,
-                presence: known('revenue-explorer'),
-                folderChanged: false,
-                force: false,
-            }),
-        ).toBe(false);
+    it('fails loudly when no space matches the slug', () => {
+        expect(() => resolveAppSpaceUuid('missing', spaces)).toThrow(
+            /no space with slug "missing"/,
+        );
     });
 
-    it('pushes an unchanged existing app under --force', () => {
-        expect(
-            shouldAutoPushApp({
-                manifest,
-                presence: known('revenue-explorer'),
-                folderChanged: false,
-                force: true,
-            }),
-        ).toBe(true);
-    });
-
-    it('falls back to the project comparison when presence is unknown', () => {
-        expect(
-            shouldAutoPushApp({
-                manifest,
-                presence: {
-                    kind: 'unknown',
-                    targetProjectUuid: 'other-project',
-                },
-                folderChanged: false,
-                force: false,
-            }),
-        ).toBe(true);
-
-        expect(
-            shouldAutoPushApp({
-                manifest,
-                presence: {
-                    kind: 'unknown',
-                    targetProjectUuid: 'source-project',
-                },
-                folderChanged: false,
-                force: false,
-            }),
-        ).toBe(false);
-    });
-
-    it('pushes a slug-less manifest so a pre-slug bundle still lands', () => {
-        expect(
-            shouldAutoPushApp({
-                manifest: { slug: undefined, projectUuid: 'source-project' },
-                presence: known('revenue-explorer'),
-                folderChanged: false,
-                force: false,
-            }),
-        ).toBe(true);
-    });
-
-    it('pushes a slug-less manifest against an older server with unknown presence', () => {
-        expect(
-            shouldAutoPushApp({
-                manifest: { slug: undefined, projectUuid: 'source-project' },
-                presence: {
-                    kind: 'unknown',
-                    targetProjectUuid: 'source-project',
-                },
-                folderChanged: false,
-                force: false,
-            }),
-        ).toBe(true);
+    it('fails loudly when the slug is ambiguous', () => {
+        expect(() => resolveAppSpaceUuid('finance', spaces)).toThrow(
+            /multiple spaces match/,
+        );
     });
 });

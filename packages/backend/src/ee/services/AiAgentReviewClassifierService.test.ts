@@ -7,10 +7,8 @@ import {
 } from '@lightdash/common';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
-import {
-    AiAgentReviewClassifierService,
-    resolveReviewJudgeProvider,
-} from './AiAgentReviewClassifierService';
+import { resolveReviewJudgeProvider } from './ai/reviewJudgeModel';
+import { AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
 
 const ORGANIZATION_UUID = '00000000-0000-0000-0000-000000000001';
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000002';
@@ -272,6 +270,9 @@ describe('AiAgentReviewClassifierService', () => {
         getSummary: vi.fn(),
         findExploresFromCache: vi.fn(),
     };
+    const projectContextModel = {
+        getDocument: vi.fn(),
+    };
     const aiAgentReviewNotificationService = {
         notifyNeedsReview: vi.fn(),
     };
@@ -285,6 +286,7 @@ describe('AiAgentReviewClassifierService', () => {
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
         catalogModel: catalogModel as never,
         projectModel: projectModel as never,
+        projectContextModel,
         lightdashConfig: {} as never,
         judgeTurn,
         aiAgentReviewNotificationService:
@@ -304,12 +306,22 @@ describe('AiAgentReviewClassifierService', () => {
             aiAgentsVisible: true,
             aiAgentReviewsEnabled: true,
             deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+            deepResearchRawSqlEnabled: false,
             mcpContentWritesEnabled: true,
+            mcpAgentsEnabled: true,
             requireExplicitSlackChannelLinking: false,
             defaultAiAgentModelConfig: null,
             modelVisibility: null,
-            providerApiKeysSet: { anthropic: false, openai: false },
-            providerApiKeyHints: { anthropic: null, openai: null },
+            providerApiKeysSet: {
+                anthropic: false,
+                google: false,
+                openai: false,
+            },
+            providerApiKeyHints: {
+                anthropic: null,
+                google: null,
+                openai: null,
+            },
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -374,12 +386,22 @@ describe('AiAgentReviewClassifierService', () => {
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+                deepResearchRawSqlEnabled: false,
                 mcpContentWritesEnabled: true,
+                mcpAgentsEnabled: true,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: null,
-                providerApiKeysSet: { anthropic: false, openai: false },
-                providerApiKeyHints: { anthropic: null, openai: null },
+                providerApiKeysSet: {
+                    anthropic: false,
+                    google: false,
+                    openai: false,
+                },
+                providerApiKeyHints: {
+                    anthropic: null,
+                    google: null,
+                    openai: null,
+                },
             },
         );
 
@@ -837,7 +859,7 @@ describe('AiAgentReviewClassifierService', () => {
         expect(model.listTurnReviewCandidates).toHaveBeenCalledTimes(1);
     });
 
-    it('stores product capability findings as grouped review projections', async () => {
+    it('keeps classifying product capability findings but never announces them', async () => {
         judgeTurn.mockResolvedValueOnce(makeProductJudgeOutput());
         model.listTurnReviewCandidates.mockResolvedValue([
             makeCandidate({
@@ -863,6 +885,10 @@ describe('AiAgentReviewClassifierService', () => {
                 }),
             }),
         );
+        // Hidden root causes never reach a board, so there is nothing to open.
+        expect(
+            aiAgentReviewNotificationService.notifyNeedsReview,
+        ).not.toHaveBeenCalled();
     });
 
     it('passes existing review items to the judge as dedup candidates', async () => {

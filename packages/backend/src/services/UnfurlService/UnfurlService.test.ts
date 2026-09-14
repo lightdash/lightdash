@@ -2,11 +2,14 @@ import {
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
     LightdashPage,
+    LightdashRequestMethodHeader,
     NotFoundError,
+    RequestMethod,
     SCREENSHOT_SELECTORS,
     UnexpectedServerError,
     type DeliveryCaptureManifest,
 } from '@lightdash/common';
+import type { Route, WebSocketRoute } from 'playwright';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
@@ -14,6 +17,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import { type AppModel } from '../../models/AppModel';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { type DownloadFileModel } from '../../models/DownloadFileModel';
+import { type HeadlessBrowserLoginGrantModel } from '../../models/HeadlessBrowserLoginGrantModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../models/SavedChartModel';
 import { type SavedSqlModel } from '../../models/SavedSqlModel';
@@ -27,9 +31,22 @@ const playwrightMocks = vi.hoisted(() => ({
     connectOverCDP: vi.fn(),
 }));
 
-vi.mock('playwright', () => ({
-    default: { chromium: { connectOverCDP: playwrightMocks.connectOverCDP } },
-    chromium: { connectOverCDP: playwrightMocks.connectOverCDP },
+const ssrfMocks = vi.hoisted(() => ({
+    validatePublicHttpUrl: vi.fn(),
+}));
+
+vi.mock('playwright', () => {
+    const chromium = { connectOverCDP: playwrightMocks.connectOverCDP };
+    const errors = { TimeoutError: class extends Error {} };
+    return {
+        default: { chromium, errors },
+        chromium,
+        errors,
+    };
+});
+
+vi.mock('../../utils/ssrfProtection', () => ({
+    validatePublicHttpUrl: ssrfMocks.validatePublicHttpUrl,
 }));
 
 const mockFileStorageClient = {
@@ -63,6 +80,9 @@ function createService(
     overrides: Partial<{
         savedSqlModel: Partial<SavedSqlModel>;
         savedChartModel: Partial<SavedChartModel>;
+        dashboardModel: Partial<DashboardModel>;
+        projectModel: Partial<ProjectModel>;
+        slackAuthenticationModel: Partial<SlackAuthenticationModel>;
         headlessBrowser: Record<string, unknown>;
     }> = {},
 ) {
@@ -71,10 +91,12 @@ function createService(
             siteUrl: 'https://app.lightdash.cloud',
             headlessBrowser: {
                 internalLightdashHost: 'http://headless-browser:8080',
+                screenshotTimeoutMs: 45_000,
                 ...(overrides.headlessBrowser ?? {}),
             },
         } as unknown as LightdashConfig,
-        dashboardModel: {} as unknown as DashboardModel,
+        dashboardModel: (overrides.dashboardModel ??
+            {}) as unknown as DashboardModel,
         savedChartModel: (overrides.savedChartModel ??
             {}) as unknown as SavedChartModel,
         savedSqlModel: (overrides.savedSqlModel ??
@@ -84,14 +106,17 @@ function createService(
         fileStorageClient:
             mockFileStorageClient as unknown as FileStorageClient,
         slackClient: {} as unknown as SlackClient,
-        projectModel: {} as unknown as ProjectModel,
+        projectModel: (overrides.projectModel ?? {}) as unknown as ProjectModel,
         downloadFileModel:
             mockDownloadFileModel as unknown as DownloadFileModel,
         slackUnfurlImageModel:
             mockSlackUnfurlImageModel as unknown as SlackUnfurlImageModel,
         analytics: {} as unknown as LightdashAnalytics,
-        slackAuthenticationModel: {} as unknown as SlackAuthenticationModel,
+        slackAuthenticationModel: (overrides.slackAuthenticationModel ??
+            {}) as unknown as SlackAuthenticationModel,
         spacePermissionService: {} as unknown as SpacePermissionService,
+        headlessBrowserLoginGrantModel:
+            {} as unknown as HeadlessBrowserLoginGrantModel,
     });
 }
 
@@ -146,6 +171,179 @@ describe('UnfurlService', () => {
                 undefined,
                 undefined,
             );
+        });
+    });
+
+    describe('exportAiAgentArtifact', () => {
+        const ACTING_USER = {
+            userUuid: 'user-uuid-1',
+            organizationUuid: 'org-uuid-1',
+        } as never;
+        const ARTIFACT_REFS = {
+            projectUuid: '11111111-1111-4111-8111-111111111111',
+            agentUuid: '22222222-2222-4222-8222-222222222222',
+            artifactUuid: '33333333-3333-4333-8333-333333333333',
+            versionUuid: '44444444-4444-4444-8444-444444444444',
+        };
+        // Callers resolve this via AiAgentService.getArtifact (access-checked)
+        // and pass the result in.
+        const customChartArtifact = {
+            artifactUuid: ARTIFACT_REFS.artifactUuid,
+            versionUuid: ARTIFACT_REFS.versionUuid,
+            title: 'Revenue treemap',
+            chartConfig: {
+                source: 'customChartType',
+                schemaVersion: 1,
+                dataAppVizUuid: 'viz-1',
+                config: {},
+            },
+        };
+        const EXPORT_ARGS = {
+            projectUuid: ARTIFACT_REFS.projectUuid,
+            agentUuid: ARTIFACT_REFS.agentUuid,
+            artifact: customChartArtifact as never,
+        };
+
+        const createScreenshotMockPage = () => {
+            const cdpSession = { send: vi.fn().mockResolvedValue(undefined) };
+            const pageContext = {
+                addCookies: vi.fn().mockResolvedValue(undefined),
+                newCDPSession: vi.fn().mockResolvedValue(cdpSession),
+                route: vi.fn().mockResolvedValue(undefined),
+                routeWebSocket: vi.fn().mockResolvedValue(undefined),
+            };
+            return {
+                cdpSession,
+                pageContext,
+                addInitScript: vi.fn().mockResolvedValue(undefined),
+                context: vi.fn().mockReturnValue(pageContext),
+                on: vi.fn(),
+                goto: vi.fn().mockResolvedValue(undefined),
+                waitForSelector: vi.fn().mockResolvedValue(undefined),
+                evaluate: vi.fn().mockResolvedValue(undefined),
+                locator: vi.fn().mockReturnValue({
+                    first: vi.fn().mockReturnValue({
+                        elementHandle: vi
+                            .fn()
+                            .mockRejectedValue(new Error('no element')),
+                    }),
+                }),
+                setViewportSize: vi.fn().mockResolvedValue(undefined),
+                waitForTimeout: vi.fn().mockResolvedValue(undefined),
+                screenshot: vi.fn().mockResolvedValue(Buffer.from('png-bytes')),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+        };
+
+        const setup = () => {
+            const page = createScreenshotMockPage();
+            const browser = {
+                newPage: vi.fn().mockResolvedValue(page),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+            playwrightMocks.connectOverCDP.mockResolvedValue(browser);
+            const service = createService({
+                headlessBrowser: {
+                    host: 'headless-browser',
+                    browserEndpoint: 'ws://headless-browser:3000',
+                    screenshotTimeoutMs: 180_000,
+                    maxScreenshotRetries: 1,
+                },
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            vi.spyOn(service as any, 'getUserCookie').mockResolvedValue(
+                'connect.sid=session-value; Path=/; HttpOnly',
+            );
+            return { service, browser, page };
+        };
+
+        it('rejects artifacts that are not custom chart type answers', async () => {
+            const { service } = setup();
+
+            await expect(
+                service.exportAiAgentArtifact(ACTING_USER, {
+                    ...EXPORT_ARGS,
+                    artifact: {
+                        ...customChartArtifact,
+                        chartConfig: { source: 'semantic', config: {} },
+                    } as never,
+                }),
+            ).rejects.toThrow(/custom chart type/);
+            expect(playwrightMocks.connectOverCDP).not.toHaveBeenCalled();
+        });
+
+        it('renders the minimal artifact page with app-style launch args and a fixed 800x600@2x viewport', async () => {
+            const { service, browser, page } = setup();
+            mockFileStorageClient.isEnabled.mockReturnValue(true);
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://s3.example.com/raw-signed-url',
+            );
+            mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
+
+            const { imageBuffer, imageUrl } =
+                await service.exportAiAgentArtifact(ACTING_USER, EXPORT_ARGS);
+
+            // App-style launch: window sizing + secure-context for the
+            // sandboxed viz iframe SDK.
+            const [endpoint] = playwrightMocks.connectOverCDP.mock.calls[0];
+            expect(endpoint).toContain('--window-size%3D800%2C600');
+            expect(endpoint).toContain(
+                'unsafely-treat-insecure-origin-as-secure',
+            );
+
+            expect(browser.newPage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    viewport: { width: 800, height: 600 },
+                    deviceScaleFactor: 2,
+                    serviceWorkers: 'block',
+                }),
+            );
+            expect(page.cdpSession.send).toHaveBeenCalledWith(
+                'Emulation.setDeviceMetricsOverride',
+                expect.objectContaining({
+                    width: 800,
+                    height: 600,
+                    deviceScaleFactor: 2,
+                }),
+            );
+
+            expect(page.goto).toHaveBeenCalledWith(
+                `http://headless-browser:8080/minimal/projects/${ARTIFACT_REFS.projectUuid}/ai-agents/${ARTIFACT_REFS.agentUuid}/artifacts/${ARTIFACT_REFS.artifactUuid}/versions/${ARTIFACT_REFS.versionUuid}`,
+                expect.objectContaining({ timeout: expect.any(Number) }),
+            );
+            expect(page.waitForSelector).toHaveBeenCalledWith(
+                SCREENSHOT_SELECTORS.READY_INDICATOR,
+                { state: 'attached', timeout: 180_000 },
+            );
+
+            // Fixed-frame capture: viewport-sized, never content-measured.
+            expect(page.setViewportSize).not.toHaveBeenCalled();
+            expect(page.screenshot).toHaveBeenCalledTimes(1);
+            expect(page.screenshot.mock.calls[0][0]).not.toMatchObject({
+                fullPage: true,
+            });
+
+            expect(mockSlackUnfurlImageModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({ organizationUuid: 'org-uuid-1' }),
+            );
+            expect(imageUrl).toMatch(
+                /^https:\/\/app\.lightdash\.cloud\/api\/v1\/slack\/preview\//,
+            );
+            expect(imageBuffer).toEqual(Buffer.from('png-bytes'));
+        });
+
+        it('fails closed when the ready indicator never mounts', async () => {
+            const { service, page } = setup();
+            const { errors } = await import('playwright');
+            page.waitForSelector.mockRejectedValue(
+                new errors.TimeoutError('Timeout 180000ms exceeded'),
+            );
+
+            await expect(
+                service.exportAiAgentArtifact(ACTING_USER, EXPORT_ARGS),
+            ).rejects.toThrow(/Screenshot timeout/);
+            expect(page.screenshot).not.toHaveBeenCalled();
+            expect(page.close).toHaveBeenCalled();
         });
     });
 
@@ -371,6 +569,250 @@ describe('UnfurlService', () => {
         });
     });
 
+    describe('parseUrl - chart and dashboard slugs', () => {
+        const PROJECT_UUID = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+        const CHART_UUID = '11111111-2222-4333-8444-555555555555';
+        const DASHBOARD_UUID = '66666666-7777-4888-8999-000000000000';
+
+        it.each(['current-chart', 'retired-chart-alias'])(
+            'resolves chart identifier %s to its canonical UUID',
+            async (identifier) => {
+                const get = vi.fn().mockResolvedValue({ uuid: CHART_UUID });
+                const service = createService({
+                    savedChartModel: { get },
+                });
+
+                const result = await service.parseUrl(
+                    `https://app.lightdash.cloud/projects/${PROJECT_UUID}/saved/${identifier}/view`,
+                );
+
+                expect(get).toHaveBeenCalledWith(identifier, undefined, {
+                    projectUuid: PROJECT_UUID,
+                });
+                expect(result).toMatchObject({
+                    isValid: true,
+                    lightdashPage: LightdashPage.CHART,
+                    projectUuid: PROJECT_UUID,
+                    chartUuid: CHART_UUID,
+                    minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/saved/${CHART_UUID}`,
+                });
+            },
+        );
+
+        it('resolves a dashboard slug to its canonical UUID', async () => {
+            const getByIdOrSlug = vi
+                .fn()
+                .mockResolvedValue({ uuid: DASHBOARD_UUID });
+            const service = createService({
+                dashboardModel: { getByIdOrSlug },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/dashboards/current-dashboard/view?foo=bar`,
+            );
+
+            expect(getByIdOrSlug).toHaveBeenCalledWith('current-dashboard', {
+                projectUuid: PROJECT_UUID,
+            });
+            expect(result).toMatchObject({
+                isValid: true,
+                lightdashPage: LightdashPage.DASHBOARD,
+                projectUuid: PROJECT_UUID,
+                dashboardUuid: DASHBOARD_UUID,
+                minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}?foo=bar`,
+            });
+        });
+
+        it('keeps UUID URLs on the existing lookup-free path', async () => {
+            const get = vi.fn();
+            const getByIdOrSlug = vi.fn();
+            const service = createService({
+                savedChartModel: { get },
+                dashboardModel: { getByIdOrSlug },
+            });
+
+            const chartResult = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/saved/${CHART_UUID}/view`,
+            );
+            const dashboardResult = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}/view`,
+            );
+
+            expect(get).not.toHaveBeenCalled();
+            expect(getByIdOrSlug).not.toHaveBeenCalled();
+            expect(chartResult.chartUuid).toBe(CHART_UUID);
+            expect(dashboardResult.dashboardUuid).toBe(DASHBOARD_UUID);
+        });
+
+        it('returns an invalid result when a slug does not resolve', async () => {
+            const get = vi.fn().mockRejectedValue(new Error('not found'));
+            const service = createService({ savedChartModel: { get } });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/saved/missing-chart/view`,
+            );
+
+            expect(result.isValid).toBe(false);
+        });
+    });
+
+    describe('parseUrl - project slugs', () => {
+        const ORGANIZATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+        const PROJECT_UUID = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+        const PROJECT_SLUG = 'analytics-project';
+        const CHART_UUID = '11111111-2222-4333-8444-555555555555';
+        const DASHBOARD_UUID = '66666666-7777-4888-8999-000000000000';
+
+        const projectModel = () => ({
+            getUuidBySlug: vi.fn().mockResolvedValue(PROJECT_UUID),
+        });
+
+        it('resolves a chart beneath an organization-scoped project slug', async () => {
+            const project = projectModel();
+            const get = vi.fn().mockResolvedValue({ uuid: CHART_UUID });
+            const service = createService({
+                projectModel: project,
+                savedChartModel: { get },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/saved/retired-chart-alias`,
+                ORGANIZATION_UUID,
+            );
+
+            expect(project.getUuidBySlug).toHaveBeenCalledWith(
+                ORGANIZATION_UUID,
+                PROJECT_SLUG,
+            );
+            expect(get).toHaveBeenCalledWith('retired-chart-alias', undefined, {
+                projectUuid: PROJECT_UUID,
+            });
+            expect(result).toMatchObject({
+                isValid: true,
+                projectUuid: PROJECT_UUID,
+                chartUuid: CHART_UUID,
+                minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/saved/${CHART_UUID}`,
+            });
+        });
+
+        it('keeps UUID project URLs on the existing lookup-free path', async () => {
+            const project = projectModel();
+            const service = createService({ projectModel: project });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/saved/${CHART_UUID}`,
+                ORGANIZATION_UUID,
+            );
+
+            expect(project.getUuidBySlug).not.toHaveBeenCalled();
+            expect(result).toMatchObject({
+                isValid: true,
+                projectUuid: PROJECT_UUID,
+                chartUuid: CHART_UUID,
+                minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/saved/${CHART_UUID}`,
+            });
+        });
+
+        it('resolves a dashboard beneath an organization-scoped project slug', async () => {
+            const project = projectModel();
+            const getByIdOrSlug = vi
+                .fn()
+                .mockResolvedValue({ uuid: DASHBOARD_UUID });
+            const service = createService({
+                projectModel: project,
+                dashboardModel: { getByIdOrSlug },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/dashboards/sales-dashboard/view`,
+                ORGANIZATION_UUID,
+            );
+
+            expect(getByIdOrSlug).toHaveBeenCalledWith('sales-dashboard', {
+                projectUuid: PROJECT_UUID,
+            });
+            expect(result).toMatchObject({
+                isValid: true,
+                projectUuid: PROJECT_UUID,
+                dashboardUuid: DASHBOARD_UUID,
+                minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}?`,
+            });
+        });
+
+        it('canonicalizes project slugs for SQL charts and explores', async () => {
+            const project = projectModel();
+            const getBySlug = vi.fn().mockResolvedValue({
+                savedSqlUuid: CHART_UUID,
+            });
+            const service = createService({
+                projectModel: project,
+                savedSqlModel: { getBySlug },
+            });
+
+            const sqlResult = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/sql-runner/saved-query`,
+                ORGANIZATION_UUID,
+            );
+            const exploreResult = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/tables/orders?foo=bar`,
+                ORGANIZATION_UUID,
+            );
+
+            expect(sqlResult).toMatchObject({
+                isValid: true,
+                projectUuid: PROJECT_UUID,
+                savedSqlUuid: CHART_UUID,
+                minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/sql-runner/${CHART_UUID}`,
+            });
+            expect(exploreResult).toMatchObject({
+                isValid: true,
+                projectUuid: PROJECT_UUID,
+                exploreModel: 'orders',
+                minimalUrl: `http://headless-browser:8080/projects/${PROJECT_UUID}/tables/orders?foo=bar`,
+            });
+        });
+
+        it('fails safely when a project slug has no organization context', async () => {
+            const project = projectModel();
+            const get = vi.fn();
+            const service = createService({
+                projectModel: project,
+                savedChartModel: { get },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/saved/chart`,
+            );
+
+            expect(result.isValid).toBe(false);
+            expect(project.getUuidBySlug).not.toHaveBeenCalled();
+            expect(get).not.toHaveBeenCalled();
+        });
+
+        it('does not fall back to another organization', async () => {
+            const getUuidBySlug = vi
+                .fn()
+                .mockRejectedValue(new NotFoundError('not found'));
+            const get = vi.fn();
+            const service = createService({
+                projectModel: { getUuidBySlug },
+                savedChartModel: { get },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/saved/chart`,
+                ORGANIZATION_UUID,
+            );
+
+            expect(getUuidBySlug).toHaveBeenCalledWith(
+                ORGANIZATION_UUID,
+                PROJECT_SLUG,
+            );
+            expect(result.isValid).toBe(false);
+            expect(get).not.toHaveBeenCalled();
+        });
+    });
+
     describe('captureAppDeliveryManifest', () => {
         const APP_URL =
             'http://headless-browser:8080/minimal/projects/p1/apps/a1?captureMode=delivery';
@@ -396,11 +838,12 @@ describe('UnfurlService', () => {
             const pageContext = {
                 addCookies: vi.fn().mockResolvedValue(undefined),
                 newCDPSession: vi.fn().mockResolvedValue(cdpSession),
+                route: vi.fn().mockResolvedValue(undefined),
+                routeWebSocket: vi.fn().mockResolvedValue(undefined),
             };
             return {
                 cdpSession,
                 pageContext,
-                route: vi.fn().mockResolvedValue(undefined),
                 addInitScript: vi.fn().mockResolvedValue(undefined),
                 context: vi.fn().mockReturnValue(pageContext),
                 on: vi.fn(),
@@ -410,6 +853,48 @@ describe('UnfurlService', () => {
                 screenshot: vi.fn().mockResolvedValue(Buffer.from('nope')),
                 close: vi.fn().mockResolvedValue(undefined),
             };
+        };
+
+        type MockPage = ReturnType<typeof createMockPage>;
+
+        const getRequestRouteHandler = (
+            page: MockPage,
+        ): ((route: Route) => Promise<void>) => {
+            const registration = page.pageContext.route.mock.calls.find(
+                ([pattern]) => pattern === '**',
+            );
+            expect(registration).toBeDefined();
+            if (!registration) {
+                throw new Error('Expected a catch-all browser route');
+            }
+            return registration[1] as (route: Route) => Promise<void>;
+        };
+
+        const createMockRoute = (
+            url: string,
+            headers: Record<string, string> = {},
+        ) => ({
+            request: vi.fn().mockReturnValue({
+                url: vi.fn().mockReturnValue(url),
+                headers: vi.fn().mockReturnValue(headers),
+            }),
+            abort: vi.fn().mockResolvedValue(undefined),
+            continue: vi.fn().mockResolvedValue(undefined),
+            fallback: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const getWebSocketRouteHandler = (
+            page: MockPage,
+        ): ((route: WebSocketRoute) => Promise<void>) => {
+            const registration =
+                page.pageContext.routeWebSocket.mock.calls.find(
+                    ([pattern]) => pattern === '**',
+                );
+            expect(registration).toBeDefined();
+            if (!registration) {
+                throw new Error('Expected a catch-all websocket route');
+            }
+            return registration[1] as (route: WebSocketRoute) => Promise<void>;
         };
 
         const setup = () => {
@@ -423,6 +908,7 @@ describe('UnfurlService', () => {
                 headlessBrowser: {
                     host: 'headless-browser',
                     browserEndpoint: 'ws://headless-browser:3000',
+                    screenshotTimeoutMs: 180_000,
                 },
             });
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -449,7 +935,7 @@ describe('UnfurlService', () => {
             );
             expect(page.waitForSelector).toHaveBeenCalledWith(
                 SCREENSHOT_SELECTORS.READY_INDICATOR,
-                { state: 'attached', timeout: 60_000 },
+                { state: 'attached', timeout: 180_000 },
             );
             expect(page.evaluate).toHaveBeenCalledWith(
                 expect.any(Function),
@@ -461,7 +947,7 @@ describe('UnfurlService', () => {
         });
 
         it('renders with the same window geometry as the app screenshot path', async () => {
-            const { service, page } = setup();
+            const { service, browser, page } = setup();
             page.evaluate.mockResolvedValue(validManifest);
 
             await service.captureAppDeliveryManifest({
@@ -477,6 +963,267 @@ describe('UnfurlService', () => {
                 'Emulation.setDeviceMetricsOverride',
                 expect.objectContaining({ width: 1400, height: 4000 }),
             );
+            expect(browser.newPage).toHaveBeenCalledWith(
+                expect.objectContaining({ serviceWorkers: 'block' }),
+            );
+        });
+
+        // The browserless session budget has to outlast the ready-wait, or the
+        // container's own TIMEOUT kills the session mid-capture.
+        it('asks browserless for a session budget covering the ready-wait', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const [endpoint] =
+                playwrightMocks.connectOverCDP.mock.calls[
+                    playwrightMocks.connectOverCDP.mock.calls.length - 1
+                ];
+            expect(new URL(endpoint).searchParams.get('timeout')).toBe(
+                '210000',
+            );
+        });
+
+        it('guards dashboard and chart screenshots and preserves internal request headers', async () => {
+            const { service, browser, page } = setup();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            vi.spyOn(service as any, 'unfurlDetails').mockResolvedValue(
+                undefined,
+            );
+            page.addInitScript.mockRejectedValueOnce(
+                new Error('stop after route registration'),
+            );
+
+            await expect(
+                service.unfurlImage({
+                    url: APP_URL,
+                    imageId: 'image-1',
+                    authUserUuid: 'user-uuid-1',
+                    context: 'export_dashboard' as never,
+                    selectedTabs: null,
+                }),
+            ).rejects.toThrow('stop after route registration');
+
+            expect(browser.newPage).toHaveBeenCalledWith(
+                expect.objectContaining({ serviceWorkers: 'block' }),
+            );
+            expect(page.pageContext.route).toHaveBeenCalledWith(
+                '**',
+                expect.any(Function),
+            );
+            expect(page.pageContext.routeWebSocket).toHaveBeenCalledWith(
+                '**',
+                expect.any(Function),
+            );
+
+            const handler = getRequestRouteHandler(page);
+            const route = createMockRoute(
+                'http://headless-browser:8080/api/v1/health',
+                {
+                    authorization: 'Bearer internal-token',
+                    cookie: 'connect.sid=session-value',
+                },
+            );
+
+            await handler(route as unknown as Route);
+
+            expect(ssrfMocks.validatePublicHttpUrl).not.toHaveBeenCalled();
+            expect(route.continue).toHaveBeenCalledWith({
+                headers: {
+                    authorization: 'Bearer internal-token',
+                    cookie: 'connect.sid=session-value',
+                    [LightdashRequestMethodHeader]:
+                        RequestMethod.HEADLESS_BROWSER,
+                    'Lightdash-Headless-Browser-Context': 'export_dashboard',
+                    'Lightdash-Headless-Browser-Context-Id': 'undefined',
+                },
+            });
+        });
+
+        it('blocks outbound browser requests to non-public destinations', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+            ssrfMocks.validatePublicHttpUrl.mockRejectedValueOnce(
+                new Error('non-public destination'),
+            );
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getRequestRouteHandler(page);
+            const route = createMockRoute('http://127.0.0.1/private');
+
+            await handler(route as unknown as Route);
+
+            expect(route.abort).toHaveBeenCalledWith('accessdenied');
+            expect(route.continue).not.toHaveBeenCalled();
+        });
+
+        it('continues public browser requests without internal headers', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+            ssrfMocks.validatePublicHttpUrl.mockResolvedValueOnce(
+                new URL('https://cdn.example.com/image.png'),
+            );
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getRequestRouteHandler(page);
+            const route = createMockRoute('https://cdn.example.com/image.png');
+
+            await handler(route as unknown as Route);
+
+            expect(ssrfMocks.validatePublicHttpUrl).toHaveBeenCalledWith(
+                'https://cdn.example.com/image.png',
+                { allowedProtocols: ['http:', 'https:'] },
+            );
+            expect(route.continue).toHaveBeenCalledWith();
+            expect(route.abort).not.toHaveBeenCalled();
+        });
+
+        it('continues Lightdash requests with headless-browser headers', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+                contextId: 'job-1',
+            });
+
+            const handler = getRequestRouteHandler(page);
+            const route = createMockRoute(
+                'http://headless-browser:8080/api/v1/health',
+                { accept: '*/*' },
+            );
+
+            await handler(route as unknown as Route);
+
+            expect(ssrfMocks.validatePublicHttpUrl).not.toHaveBeenCalled();
+            expect(route.continue).toHaveBeenCalledWith({
+                headers: expect.objectContaining({
+                    accept: '*/*',
+                    'Lightdash-Headless-Browser-Context': 'scheduled_delivery',
+                    'Lightdash-Headless-Browser-Context-Id': 'job-1',
+                }),
+            });
+        });
+
+        it.each([
+            'https://headless-browser:8080/api/v1/health',
+            'http://headless-browser:8081/api/v1/health',
+        ])('validates internal-origin near miss %s', async (url) => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+            ssrfMocks.validatePublicHttpUrl.mockResolvedValueOnce(new URL(url));
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getRequestRouteHandler(page);
+            const route = createMockRoute(url, {
+                authorization: 'Bearer internal-token',
+            });
+
+            await handler(route as unknown as Route);
+
+            expect(ssrfMocks.validatePublicHttpUrl).toHaveBeenCalledWith(url, {
+                allowedProtocols: ['http:', 'https:'],
+            });
+            expect(route.continue).toHaveBeenCalledWith();
+        });
+
+        it('blocks websocket connections to non-public destinations', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+            ssrfMocks.validatePublicHttpUrl.mockRejectedValueOnce(
+                new Error('non-public destination'),
+            );
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getWebSocketRouteHandler(page);
+            const webSocketRoute = {
+                url: vi.fn().mockReturnValue('ws://127.0.0.1/private'),
+                close: vi.fn().mockResolvedValue(undefined),
+                connectToServer: vi.fn(),
+            };
+
+            await handler(webSocketRoute as unknown as WebSocketRoute);
+
+            expect(webSocketRoute.close).toHaveBeenCalledWith({
+                code: 1008,
+                reason: 'Destination is not permitted',
+            });
+            expect(webSocketRoute.connectToServer).not.toHaveBeenCalled();
+        });
+
+        it('connects websocket requests to public destinations', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+            ssrfMocks.validatePublicHttpUrl.mockResolvedValueOnce(
+                new URL('wss://stream.example.com/socket'),
+            );
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getWebSocketRouteHandler(page);
+            const webSocketRoute = {
+                url: vi.fn().mockReturnValue('wss://stream.example.com/socket'),
+                close: vi.fn().mockResolvedValue(undefined),
+                connectToServer: vi.fn(),
+            };
+
+            await handler(webSocketRoute as unknown as WebSocketRoute);
+
+            expect(ssrfMocks.validatePublicHttpUrl).toHaveBeenCalledWith(
+                'wss://stream.example.com/socket',
+                { allowedProtocols: ['ws:', 'wss:'] },
+            );
+            expect(webSocketRoute.connectToServer).toHaveBeenCalled();
+            expect(webSocketRoute.close).not.toHaveBeenCalled();
+        });
+
+        it('connects internal websocket requests without public validation', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getWebSocketRouteHandler(page);
+            const webSocketRoute = {
+                url: vi
+                    .fn()
+                    .mockReturnValue('ws://headless-browser:8080/socket'),
+                close: vi.fn().mockResolvedValue(undefined),
+                connectToServer: vi.fn(),
+            };
+
+            await handler(webSocketRoute as unknown as WebSocketRoute);
+
+            expect(ssrfMocks.validatePublicHttpUrl).not.toHaveBeenCalled();
+            expect(webSocketRoute.connectToServer).toHaveBeenCalled();
+            expect(webSocketRoute.close).not.toHaveBeenCalled();
         });
 
         it('throws when the window global is missing', async () => {

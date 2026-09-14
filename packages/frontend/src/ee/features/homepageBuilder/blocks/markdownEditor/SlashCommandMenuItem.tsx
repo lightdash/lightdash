@@ -1,4 +1,4 @@
-import { Group, Text } from '@mantine-8/core';
+import { Group, Text } from '@mantine/core';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
 import suggestionStyles from '../../../../../components/common/SuggestionList/SuggestionList.module.css';

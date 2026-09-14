@@ -2,7 +2,7 @@ import {
     type McpActivityItem,
     type McpActivityStatsFilters,
 } from '@lightdash/common';
-import { Box, Drawer, Text } from '@mantine-8/core';
+import { Box, Drawer, Text } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
@@ -57,7 +57,7 @@ export const McpActivitySettingsPage = () => {
             title="MCP activity"
             description="Monitor MCP tool calls and investigate errors across your organization."
             actions={
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     Last 90 days
                 </Text>
             }

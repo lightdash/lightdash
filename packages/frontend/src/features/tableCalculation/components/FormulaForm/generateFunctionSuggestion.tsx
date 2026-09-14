@@ -1,5 +1,5 @@
 import type { FunctionDefinition } from '@lightdash/formula';
-import { Group, Text } from '@mantine-8/core';
+import { Group, Text } from '@mantine/core';
 import { IconMathFunction } from '@tabler/icons-react';
 import { type MentionOptions } from '@tiptap/extension-mention';
 import MantineIcon from '../../../../components/common/MantineIcon';

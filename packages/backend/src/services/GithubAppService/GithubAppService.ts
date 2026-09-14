@@ -328,7 +328,21 @@ export class GithubAppService extends BaseService {
     }
 
     async getRepos(user: SessionUser) {
-        // Permissions are checked on this.getInstallationId
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('GitIntegration', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const installationId = await this.getInstallationId(user);
 
         if (installationId === undefined)

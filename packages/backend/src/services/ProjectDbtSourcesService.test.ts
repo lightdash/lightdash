@@ -1,11 +1,14 @@
 import { Ability } from '@casl/ability';
 import {
+    AlreadyExistsError,
     DbtProjectType,
+    EMPTY_WAREHOUSE_LOCATION,
     ForbiddenError,
     ParameterError,
     PossibleAbilities,
     SessionUser,
     UnexpectedServerError,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { fromSession } from '../auth/account/account';
 import { buildAccount, defaultSessionUser } from '../auth/account/account.mock';
@@ -14,6 +17,7 @@ import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 const otherProjectUuid = '99999999-9999-4999-8999-999999999999';
 const sourceUuid = '22222222-2222-4222-8222-222222222222';
+const primarySourceUuid = '33333333-3333-4333-8333-333333333333';
 
 const adminSessionUser: SessionUser = {
     ...defaultSessionUser,
@@ -22,6 +26,15 @@ const adminSessionUser: SessionUser = {
     ]),
 };
 const adminAccount = fromSession(adminSessionUser, 'session-cookie');
+const viewerAccount = fromSession(
+    {
+        ...adminSessionUser,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+        ]),
+    },
+    'session-cookie',
+);
 
 // buildAccount() defaults to a developer-level ability: `update`/`view` on
 // Project but NOT `manage` — additional dbt source mutations require `manage`.
@@ -55,6 +68,11 @@ const projectModel = {
         projectUuid: uuid,
         dbtConnection: primaryDbtConnection,
     })),
+    getDbtSourceIdentity: vi.fn(async () => ({
+        dbtSourceUuid: primarySourceUuid,
+        dbtSourceName: 'dbt_project',
+    })),
+    updateDbtSourceName: vi.fn(async () => undefined),
 };
 
 const projectDbtSourcesModel = {
@@ -85,11 +103,15 @@ describe('ProjectDbtSourcesService', () => {
             projectUuid,
             dbtConnection: primaryDbtConnection,
         } as never);
+        projectModel.getDbtSourceIdentity.mockResolvedValue({
+            dbtSourceUuid: primarySourceUuid,
+            dbtSourceName: 'dbt_project',
+        });
         projectDbtSourcesModel.getSources.mockResolvedValue([]);
     });
 
     describe('getProjectDbtSources', () => {
-        it('synthesises the primary source from the project dbt_connection with precedence 0', async () => {
+        it('synthesises the primary source with its persistent identity and precedence 0', async () => {
             const service = getService();
 
             const sources = await service.getProjectDbtSources(
@@ -98,12 +120,35 @@ describe('ProjectDbtSourcesService', () => {
             );
 
             expect(sources[0]).toMatchObject({
-                projectDbtSourceUuid: projectUuid,
-                name: 'Project dbt connection',
+                projectDbtSourceUuid: primarySourceUuid,
+                name: 'dbt_project',
                 isPrimary: true,
                 precedence: 0,
                 type: DbtProjectType.GITHUB,
                 repository: 'acme/primary',
+            });
+        });
+
+        it("reports the primary source's location from the project warehouse", async () => {
+            projectModel.get.mockResolvedValue({
+                projectUuid,
+                dbtConnection: primaryDbtConnection,
+                warehouseConnection: {
+                    type: WarehouseTypes.BIGQUERY,
+                    project: 'primary-gcp-project',
+                    dataset: 'prod',
+                },
+            } as never);
+            const service = getService();
+
+            const sources = await service.getProjectDbtSources(
+                adminAccount,
+                projectUuid,
+            );
+
+            expect(sources[0].warehouseLocation).toEqual({
+                database: 'primary-gcp-project',
+                schema: 'prod',
             });
         });
 
@@ -157,12 +202,42 @@ describe('ProjectDbtSourcesService', () => {
     });
 
     describe('createProjectDbtSource', () => {
+        it('rejects the primary source name', async () => {
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'dbt_project',
+                    dbtConnection: githubConnection as never,
+                }),
+            ).rejects.toThrow(AlreadyExistsError);
+
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['my source!', 'Use only letters, numbers, and underscores'],
+            ['a'.repeat(300), 'Name must be 64 characters or fewer'],
+            ['sales__orders', 'Name cannot contain "__"'],
+        ])('rejects invalid source name %s', async (name, message) => {
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name,
+                    dbtConnection: githubConnection as never,
+                }),
+            ).rejects.toThrow(message);
+
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
         it('rejects unsafe dbt environment variables', async () => {
             const service = getService();
 
             await expect(
                 service.createProjectDbtSource(adminAccount, projectUuid, {
-                    name: 'unsafe-source',
+                    name: 'unsafe_source',
                     dbtConnection: {
                         ...githubConnection,
                         environment: [
@@ -183,7 +258,7 @@ describe('ProjectDbtSourcesService', () => {
 
             await expect(
                 service.createProjectDbtSource(adminAccount, projectUuid, {
-                    name: 'gitlab-source',
+                    name: 'gitlab_source',
                     dbtConnection: { type: DbtProjectType.GITLAB } as never,
                 }),
             ).rejects.toThrow(ParameterError);
@@ -198,7 +273,7 @@ describe('ProjectDbtSourcesService', () => {
             ]);
             projectDbtSourcesModel.createSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
-                name: 'jaffle-2',
+                name: 'Analytics_2',
                 isPrimary: false,
                 precedence: 4,
                 dbtConnection: githubConnection,
@@ -208,7 +283,10 @@ describe('ProjectDbtSourcesService', () => {
             const created = await service.createProjectDbtSource(
                 adminAccount,
                 projectUuid,
-                { name: 'jaffle-2', dbtConnection: githubConnection as never },
+                {
+                    name: 'Analytics_2',
+                    dbtConnection: githubConnection as never,
+                },
             );
 
             expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
@@ -216,6 +294,115 @@ describe('ProjectDbtSourcesService', () => {
                 expect.objectContaining({ isPrimary: false, precedence: 4 }),
             );
             expect(created.precedence).toBe(4);
+            expect(created.name).toBe('Analytics_2');
+        });
+
+        it("saves the source's own warehouse location", async () => {
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'jaffle_2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+                warehouseLocation: {
+                    database: 'source-gcp-project',
+                    schema: 'source_dataset',
+                },
+            } as never);
+            const service = getService();
+
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'jaffle_2',
+                dbtConnection: githubConnection as never,
+                warehouseLocation: {
+                    database: 'source-gcp-project',
+                    schema: 'source_dataset',
+                },
+            });
+
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseLocation: {
+                        database: 'source-gcp-project',
+                        schema: 'source_dataset',
+                    },
+                }),
+            );
+        });
+
+        it('inherits the project location when the source sets none', async () => {
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'jaffle_2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+                warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+            } as never);
+            const service = getService();
+
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'jaffle_2',
+                dbtConnection: githubConnection as never,
+            });
+
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+                }),
+            );
+        });
+
+        it('stores a blank location as inherit rather than as an override', async () => {
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'jaffle_2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+                warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+            } as never);
+            const service = getService();
+
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'jaffle_2',
+                dbtConnection: githubConnection as never,
+                warehouseLocation: { database: '', schema: '  ' },
+            });
+
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+                }),
+            );
+        });
+
+        it('rejects a database on a warehouse whose tables have none', async () => {
+            projectModel.get.mockResolvedValue({
+                projectUuid,
+                dbtConnection: primaryDbtConnection,
+                warehouseConnection: {
+                    type: WarehouseTypes.CLICKHOUSE,
+                    schema: 'primary_schema',
+                },
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'jaffle-2',
+                    dbtConnection: githubConnection as never,
+                    warehouseLocation: {
+                        database: 'source-database',
+                        schema: null,
+                    },
+                }),
+            ).rejects.toThrow(ParameterError);
+
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
         });
 
         it('rejects a developer (no manage permission) with ForbiddenError', async () => {
@@ -233,6 +420,94 @@ describe('ProjectDbtSourcesService', () => {
     });
 
     describe('updateProjectDbtSource', () => {
+        it('renames the primary source through its stable source uuid', async () => {
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    primarySourceUuid,
+                    { name: 'core_analytics' },
+                ),
+            ).resolves.toMatchObject({
+                projectDbtSourceUuid: primarySourceUuid,
+                name: 'core_analytics',
+                isPrimary: true,
+            });
+
+            expect(projectModel.updateDbtSourceName).toHaveBeenCalledWith(
+                projectUuid,
+                'core_analytics',
+            );
+            expect(projectDbtSourcesModel.getSource).not.toHaveBeenCalled();
+        });
+
+        it('rejects a warehouse location on the primary source', async () => {
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    primarySourceUuid,
+                    {
+                        name: 'core_analytics',
+                        warehouseLocation: {
+                            database: 'analytics',
+                            schema: 'core',
+                        },
+                    },
+                ),
+            ).rejects.toThrow(ParameterError);
+
+            expect(projectModel.updateDbtSourceName).not.toHaveBeenCalled();
+        });
+
+        it('rejects the primary source name', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                    { name: 'dbt_project' },
+                ),
+            ).rejects.toThrow(AlreadyExistsError);
+
+            expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['my source!', 'Use only letters, numbers, and underscores'],
+            ['a'.repeat(300), 'Name must be 64 characters or fewer'],
+            ['sales__orders', 'Name cannot contain "__"'],
+        ])('rejects invalid source name %s', async (name, message) => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                    { name },
+                ),
+            ).rejects.toThrow(message);
+
+            expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
         it('rejects unsafe dbt environment variables', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
@@ -283,6 +558,77 @@ describe('ProjectDbtSourcesService', () => {
             expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
         });
 
+        it("updates the source's warehouse location", async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+                warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+            } as never);
+            projectDbtSourcesModel.updateSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'jaffle-2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+                warehouseLocation: {
+                    database: null,
+                    schema: 'source_dataset',
+                },
+            } as never);
+            const service = getService();
+
+            await service.updateProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+                {
+                    warehouseLocation: {
+                        database: null,
+                        schema: 'source_dataset',
+                    },
+                },
+            );
+
+            expect(projectDbtSourcesModel.updateSource).toHaveBeenCalledWith(
+                sourceUuid,
+                expect.objectContaining({
+                    warehouseLocation: {
+                        database: null,
+                        schema: 'source_dataset',
+                    },
+                }),
+            );
+        });
+
+        it('rejects an invalid GitHub token before updating the source', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                    {
+                        dbtConnection: {
+                            ...githubConnection,
+                            authorization_method: 'personal_access_token',
+                            personal_access_token: 'invalid',
+                        } as never,
+                    },
+                ),
+            ).rejects.toThrow(
+                'GitHub token should start with "github_pat_", "ghp_", "gho_", "ghs_", or "ghu_"',
+            );
+
+            expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
         it('rejects a source uuid that belongs to a different project', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
@@ -303,6 +649,28 @@ describe('ProjectDbtSourcesService', () => {
     });
 
     describe('getProjectDbtSource (credential stripping)', () => {
+        const sourceWithEnvironment = {
+            projectDbtSourceUuid: sourceUuid,
+            projectUuid,
+            name: 'jaffle-2',
+            isPrimary: false,
+            precedence: 1,
+            dbtConnection: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'installation_id',
+                installation_id: '123',
+                repository: 'acme/jaffle-2',
+                branch: 'main',
+                project_sub_path: '/dbt',
+                environment: [
+                    {
+                        key: 'DBT_ENV_SECRET_PASSWORD',
+                        value: 'super-secret',
+                    },
+                ],
+            },
+        } as never;
+
         it('strips sensitive credential fields from the returned connection', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
@@ -333,6 +701,38 @@ describe('ProjectDbtSourcesService', () => {
             expect(result.dbtConnection).toMatchObject({
                 repository: 'acme/jaffle-2',
             });
+        });
+
+        it('does not expose dbt environment variables to project viewers', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue(
+                sourceWithEnvironment,
+            );
+            const service = getService();
+
+            const result = await service.getProjectDbtSource(
+                viewerAccount,
+                projectUuid,
+                sourceUuid,
+            );
+
+            expect(result.dbtConnection).not.toHaveProperty('environment');
+        });
+
+        it('returns dbt environment variables to users who can manage the project', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue(
+                sourceWithEnvironment,
+            );
+            const service = getService();
+
+            const result = await service.getProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+            );
+
+            expect(result.dbtConnection).toHaveProperty('environment', [
+                { key: 'DBT_ENV_SECRET_PASSWORD', value: 'super-secret' },
+            ]);
         });
 
         it('fails clearly, naming the source, when its credentials cannot be decrypted', async () => {

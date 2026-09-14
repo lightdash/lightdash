@@ -31,7 +31,7 @@ There are two placement mechanics, because some dropdowns render in a portal at 
 <importantToKnow>
 - **This is a public API.** Once a classname ships, renaming or removing it breaks customer stylesheets. Add freely; treat every existing name as frozen.
 - **Never apply a contract class unconditionally inside a shared component** (`features/dateZoom`, `features/dashboardFilters`, `features/parameters`). Those render in the main app too — the class would leak outside embeds. That's why the portalled dropdowns thread an optional `dropdownClassName` prop set only by the embed wrappers; a default/absent prop means no class in the main app.
-- **`[surface]` is the embedded surface the customer sees** (`dashboard`), not the React component name. Name by where it appears in the embed, not by which component renders it — the same shared component may render in several places.
+- **`[surface]` is the embedded surface the customer sees** (`dashboard`, or `sdk` for the containers the React SDK itself owns), not the React component name. Name by where it appears in the embed, not by which component renders it — the same shared component may render in several places.
 - If you change a shared component's dropdown structure, keep the `dropdownClassName` → `classNames={{ dropdown }}` wiring intact, or the contract silently breaks.
 </importantToKnow>
 

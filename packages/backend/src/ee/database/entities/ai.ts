@@ -4,6 +4,9 @@ import {
     type AiDashboardRuntimeOverrides,
     type AiDeepResearchLimits,
     type AiOrgModelVisibility,
+    type AiPromptExternalSourceSnapshot,
+    type AiPromptResponseTiming,
+    type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
     type AiWritebackRunStatus,
@@ -29,6 +32,7 @@ export type DbAiThread = {
     title: string | null;
     title_generated_at: Date | null;
     sql_auto_approved_at: Date | null;
+    pinned_at: Date | null;
 };
 
 export type AiThreadTable = Knex.CompositeTableType<
@@ -46,6 +50,7 @@ export type AiThreadTable = Knex.CompositeTableType<
             | 'project_uuid'
             | 'share_source_thread_share_uuid'
             | 'sql_auto_approved_at'
+            | 'pinned_at'
         > & { updated_at: Date | Knex.Raw }
     >
 >;
@@ -201,6 +206,22 @@ export type AiWritebackRunTable = Knex.CompositeTableType<
 
 export const AiPromptTableName = 'ai_prompt';
 
+export type AiPromptClassifierNeedsUserInputMetadata = {
+    gate: 'match' | 'no_match';
+    model: string | null;
+    durationMs: number;
+    confidence: number | null;
+};
+
+export type AiPromptStructuredNeedsUserInputMetadata = {
+    gate: 'structured';
+    reason: 'writeback_source_selection';
+};
+
+export type AiPromptNeedsUserInputMetadata =
+    | AiPromptClassifierNeedsUserInputMetadata
+    | AiPromptStructuredNeedsUserInputMetadata;
+
 export type DbAiPrompt = {
     ai_prompt_uuid: string;
     created_at: Date;
@@ -210,6 +231,7 @@ export type DbAiPrompt = {
     response: string | null;
     error_message: string | null;
     responded_at: Date | null;
+    retried_at: Date | null;
     viz_config_output: object | null;
     filters_output: object | null;
     human_score: number | null;
@@ -217,7 +239,11 @@ export type DbAiPrompt = {
     metric_query: object | null;
     saved_query_uuid: string | null;
     model_config: { modelName: string; modelProvider: string } | null;
-    token_usage: { totalTokens: number } | null;
+    token_usage: AiPromptTokenUsage | null;
+    response_timing: AiPromptResponseTiming | null;
+    execution_mode: 'standard' | 'deep_research' | null;
+    needs_user_input: boolean | null;
+    needs_user_input_metadata: AiPromptNeedsUserInputMetadata | null;
     // Hidden turn: the agent receives and responds to the prompt, but the UI
     // doesn't render the user bubble (e.g. the post-merge migration prompt).
     hidden: boolean;
@@ -228,7 +254,7 @@ export type AiPromptTable = Knex.CompositeTableType<
     DbAiPrompt,
     // insert
     Pick<DbAiPrompt, 'ai_thread_uuid' | 'created_by_user_uuid' | 'prompt'> &
-        Partial<Pick<DbAiPrompt, 'model_config' | 'hidden'>>,
+        Partial<Pick<DbAiPrompt, 'model_config' | 'hidden' | 'execution_mode'>>,
     // update
     Partial<
         Pick<
@@ -243,8 +269,13 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'saved_query_uuid'
             | 'model_config'
             | 'token_usage'
+            | 'response_timing'
+            | 'execution_mode'
+            | 'needs_user_input'
+            | 'needs_user_input_metadata'
         > & {
             responded_at: Knex.Raw;
+            retried_at?: Date | Knex.Raw;
         }
     >
 >;
@@ -424,7 +455,7 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
         DbAiAgentToolResult,
         'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'result'
     > &
-        Partial<Pick<DbAiAgentToolResult, 'metadata'>>,
+        Partial<Pick<DbAiAgentToolResult, 'metadata' | 'created_at'>>,
     Partial<Pick<DbAiAgentToolResult, 'metadata' | 'result'>>
 >;
 
@@ -436,10 +467,36 @@ export type AiPromptContextEntityType =
     | 'thread'
     | 'file'
     | 'repository'
+    | 'external_source'
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
-    | 'preview_environment';
+    | 'preview_environment'
+    | 'data_app_element'
+    | 'data_app_restore'
+    | 'data_app';
+
+// Element reference snapshot stored in runtime_overrides; entity_ref holds the
+// natural key so one prompt can reference several elements of the same app.
+export type AiPromptDataAppElementSnapshot = {
+    appUuid: string;
+    version: number;
+    tag: string;
+    text: string;
+    loc: string;
+};
+
+// Restore snapshot stored in runtime_overrides; entity_uuid holds the app uuid.
+export type AiPromptDataAppRestoreSnapshot = {
+    version: number;
+    restoredFromVersion: number;
+};
+
+// Latest ready version number at attach time; app versions are integers, so
+// pinned_version_uuid stays null.
+export type AiPromptDataAppSnapshot = {
+    version: number | null;
+};
 
 export type DbAiPromptContext = {
     ai_prompt_context_uuid: string;
@@ -456,6 +513,10 @@ export type DbAiPromptContext = {
     runtime_overrides:
         | AiChartRuntimeOverrides
         | AiDashboardRuntimeOverrides
+        | AiPromptExternalSourceSnapshot
+        | AiPromptDataAppElementSnapshot
+        | AiPromptDataAppRestoreSnapshot
+        | AiPromptDataAppSnapshot
         | null;
     created_at: Date;
 };
@@ -483,13 +544,16 @@ export type DbAiOrganizationSettings = {
     ai_agents_visible: boolean;
     ai_agent_reviews_enabled: boolean;
     deep_research_limits: AiDeepResearchLimits;
+    deep_research_raw_sql_enabled: boolean;
     mcp_content_writes_enabled: boolean;
+    mcp_agents_enabled: boolean;
     require_explicit_slack_channel_linking: boolean;
     default_ai_agent_model_config: AiAgentModelConfig | null;
     model_visibility: AiOrgModelVisibility | null;
     data_app_model_visibility: DataAppModelVisibility | null;
     encrypted_provider_api_keys: Buffer | null;
-    provider_api_key_hints: AiProviderApiKeyHints | null;
+    provider_api_key_hints: Partial<AiProviderApiKeyHints> | null;
+    thread_retention_hours: number | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -502,13 +566,16 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 DbAiOrganizationSettings,
                 | 'ai_agent_reviews_enabled'
                 | 'deep_research_limits'
+                | 'deep_research_raw_sql_enabled'
                 | 'mcp_content_writes_enabled'
+                | 'mcp_agents_enabled'
                 | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
                 | 'data_app_model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
+                | 'thread_retention_hours'
             >
         >,
     Partial<
@@ -517,13 +584,16 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'ai_agents_visible'
             | 'ai_agent_reviews_enabled'
             | 'deep_research_limits'
+            | 'deep_research_raw_sql_enabled'
             | 'mcp_content_writes_enabled'
+            | 'mcp_agents_enabled'
             | 'require_explicit_slack_channel_linking'
             | 'default_ai_agent_model_config'
             | 'model_visibility'
             | 'data_app_model_visibility'
             | 'encrypted_provider_api_keys'
             | 'provider_api_key_hints'
+            | 'thread_retention_hours'
         >
     >
 >;

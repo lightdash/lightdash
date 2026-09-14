@@ -2,8 +2,10 @@ import type { ModelMessage } from 'ai';
 import { describe, expect, it } from 'vitest';
 import {
     buildQueryRetryStepOverride,
+    DEEP_RESEARCH_RESOURCE_RECOVERY_ATTEMPTS,
     INVALID_INPUT_CAP,
     QUERY_TOOL_NAMES,
+    REPEATED_QUERY_ERROR_CAP,
     WAREHOUSE_ERROR_CAP,
     WAREHOUSE_SLOW_CAP,
 } from './queryRetryCap';
@@ -52,11 +54,18 @@ const makeTurn = () => {
             invalidToolCallIds.add(toolCallId);
             return toolCallId;
         },
-        override: () =>
+        nextRound: () => {
+            messages.push({
+                role: 'assistant',
+                content: [{ type: 'text', text: 'Trying a narrower query.' }],
+            } as unknown as ModelMessage);
+        },
+        override: (executionMode: 'standard' | 'deep_research' = 'standard') =>
             buildQueryRetryStepOverride(
                 messages,
                 ALL_TOOLS,
                 invalidToolCallIds,
+                executionMode,
             ),
     };
 };
@@ -93,6 +102,61 @@ describe('query retry cap', () => {
         const override = turn.override();
         expect(override?.activeTools).toEqual([NON_QUERY_TOOL]);
         expect(override?.nudge.toLowerCase()).toContain('do not run it again');
+    });
+
+    it('stops Deep Research after the same runtime query error repeats', () => {
+        const turn = makeTurn();
+        times(REPEATED_QUERY_ERROR_CAP, () =>
+            turn.failure(
+                'generateVisualization',
+                'Error running query. Unknown field orders_is_corrupted',
+            ),
+        );
+
+        const override = turn.override('deep_research');
+
+        expect(override?.activeTools).toEqual([NON_QUERY_TOOL]);
+        expect(override?.nudge).toContain('Unknown field orders_is_corrupted');
+        expect(override?.nudge).toContain('same query error repeated');
+    });
+
+    it('leaves standard runs on the existing aggregate retry cap', () => {
+        const turn = makeTurn();
+        times(REPEATED_QUERY_ERROR_CAP, () =>
+            turn.failure(
+                'generateVisualization',
+                'Error running query. Unknown field orders_is_corrupted',
+            ),
+        );
+
+        expect(turn.override('standard')).toBeNull();
+    });
+
+    it('resets the repeated error count after a successful query', () => {
+        const turn = makeTurn();
+        turn.failure(
+            'generateVisualization',
+            'Error running query. Unknown field orders_is_corrupted',
+        );
+        turn.success('generateVisualization');
+        turn.failure(
+            'generateVisualization',
+            'Error running query. Unknown field orders_is_corrupted',
+        );
+
+        expect(turn.override('deep_research')).toBeNull();
+    });
+
+    it('keeps Deep Research query tools for distinct repair errors', () => {
+        const turn = makeTurn();
+        times(REPEATED_QUERY_ERROR_CAP, () =>
+            turn.failure(
+                'generateVisualization',
+                `Error running query. Unknown field attempt-${crypto.randomUUID()}`,
+            ),
+        );
+
+        expect(turn.override('deep_research')).toBeNull();
     });
 
     it('trips sooner on repeated warehouse timeouts', () => {
@@ -187,6 +251,86 @@ describe('query retry cap', () => {
         expect(override?.nudge).toContain('Access Denied: no permission');
         expect(override?.nudge).not.toContain(
             'SDK wording for the dropped call',
+        );
+    });
+
+    it('keeps query tools available for a narrowed deep research recovery', () => {
+        const turn = makeTurn();
+        times(3, () =>
+            turn.failure(
+                'runQuery',
+                'BigQuery error: bytesBilledLimitExceeded. Query exceeded limit for bytes billed.',
+            ),
+        );
+
+        const override = turn.override('deep_research');
+
+        expect(override?.activeTools).toEqual(ALL_TOOLS);
+        expect(override?.markerKey).toBe('resource-recovery-1');
+        expect(override?.nudge).toContain('Recovery attempt 1 of 2');
+        expect(override?.nudge).toContain(
+            'Do not repeat the same query unchanged',
+        );
+        expect(override?.nudge).toContain('narrowing the date range');
+    });
+
+    it('counts parallel resource failures as one recovery round', () => {
+        const turn = makeTurn();
+        times(3, () =>
+            turn.failure('runQuery', 'Query exceeded limit for bytes billed.'),
+        );
+
+        expect(turn.override('deep_research')?.markerKey).toBe(
+            'resource-recovery-1',
+        );
+    });
+
+    it('allows two changed recovery rounds before using partial evidence', () => {
+        const turn = makeTurn();
+        for (
+            let round = 0;
+            round < DEEP_RESEARCH_RESOURCE_RECOVERY_ATTEMPTS;
+            round += 1
+        ) {
+            turn.failure(
+                'runSql',
+                'Warehouse resource exhausted: memory limit exceeded.',
+            );
+            expect(turn.override('deep_research')?.activeTools).toEqual(
+                ALL_TOOLS,
+            );
+            turn.nextRound();
+        }
+        turn.failure(
+            'runSql',
+            'Warehouse resource exhausted: memory limit exceeded.',
+        );
+
+        const override = turn.override('deep_research');
+
+        expect(override?.activeTools).toEqual([NON_QUERY_TOOL]);
+        expect(override?.markerKey).toBe('resource-recovery-exhausted');
+        expect(override?.nudge).toContain('verified evidence already gathered');
+        expect(override?.nudge).toContain(
+            'Do not fail the whole research run when useful evidence remains',
+        );
+    });
+
+    it('stops recovery guidance after a successful changed query', () => {
+        const turn = makeTurn();
+        turn.failure('runQuery', 'Query exceeded limit for bytes billed.');
+        turn.nextRound();
+        turn.success();
+
+        expect(turn.override('deep_research')).toBeNull();
+
+        turn.nextRound();
+        turn.failure(
+            'runQuery',
+            'Query exceeded limit for bytes billed on different evidence.',
+        );
+        expect(turn.override('deep_research')?.markerKey).toBe(
+            'resource-recovery-1',
         );
     });
 });

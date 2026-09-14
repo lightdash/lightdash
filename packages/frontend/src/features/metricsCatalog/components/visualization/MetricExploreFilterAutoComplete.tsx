@@ -7,7 +7,7 @@ import {
     Tooltip,
     type ComboboxProps,
     type PillsInputProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
@@ -22,7 +22,7 @@ import {
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import styles from './MetricExploreFilterAutoComplete.module.css';
 
-type Props = Omit<PillsInputProps, 'onChange'> & {
+type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     dimension: CompiledDimension;
     values: string[];
     onChange: (values: string[]) => void;
@@ -212,7 +212,6 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                 footer={
                     healthData?.hasCacheAutocompleResults ? (
                         <Tooltip
-                            withinPortal
                             position="left"
                             label="Click here to refresh cache filter values"
                         >

@@ -13,13 +13,9 @@ import {
     Paper,
     Text,
     Anchor,
-} from '@mantine-8/core';
-import { useMantineTheme } from '@mantine/core';
-import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
-} from '@tabler/icons-react';
+    useMantineTheme,
+} from '@mantine/core';
+import {} from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
 import {
     useCallback,
@@ -29,7 +25,6 @@ import {
     useRef,
     useState,
     type FC,
-    type UIEvent,
 } from 'react';
 import {
     ContentTable,
@@ -37,8 +32,8 @@ import {
     type ContentTableSortingState,
     type ContentTableVirtualizer,
 } from '../../../components/common/ContentTable';
-import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
@@ -112,7 +107,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({
     );
     const deferredSearch = useDeferredValue(search);
     const prevView = useRef(metricCatalogView);
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -201,29 +195,11 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         },
     });
 
-    //called on scroll and possibly on mount to fetch more data as the user scrolls and reaches bottom of table
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                //once the user has scrolled within 200px of the bottom of the table, fetch more data if we can
-                if (
-                    scrollHeight - scrollTop - clientHeight < 200 &&
-                    !isFetching &&
-                    hasNextPage
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    // Check if we need to fetch more data on mount
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const handleSetCategoryFilters = (selectedCategories: string[]) => {
         dispatch(setCategoryFilters(selectedCategories));
@@ -339,27 +315,17 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         columns: MetricsCatalogColumns,
         data: flatData,
         enableColumnResizing: true,
-        enableRowNumbers: false,
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
         enablePagination: false,
-        enableFilters: true,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
             dispatch(setSearch(s));
         },
         manualFiltering: true,
-        enableFilterMatchHighlighting: true,
         enableSorting: true,
         manualSorting: true,
         onSortingChange: setInternalSorting,
         enableTopToolbar: true,
-        positionGlobalFilter: 'left',
         mantinePaperProps,
         mantineTableContainerProps: {
             ref: tableContainerRef,
@@ -369,8 +335,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                 display: 'flex',
                 flexDirection: 'column',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
@@ -384,22 +349,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         mantineTableHeadProps: {
             sx: {
                 flexShrink: 1,
-            },
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-
-                // Each head row has a divider when resizing columns is enabled
-                'th > div > div:last-child': {
-                    height: 40,
-                    top: -10,
-                    right: -5,
-                },
-
-                'th > div > div:last-child > .mantine-Divider-root': {
-                    border: 'none',
-                },
             },
         },
         mantineTableHeadCellProps: (props) => {
@@ -536,7 +485,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                                 ? 'Scroll for more metrics'
                                 : 'All metrics loaded'}
                         </Text>
-                        <Text fz="sm" fw={400} c="ldGray.6">
+                        <Text fz="sm" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${flatData.length} loaded)`
                                 : `(${flatData.length})`}
@@ -570,17 +519,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                 </Center>
             );
         },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             sorting: stateTableSorting,
             showProgressBars: false,
@@ -607,7 +545,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({
             },
         },
         enableEditing: true,
-        editDisplayMode: 'cell',
     });
 
     // Initialize Redux state from API config whenever we load it via the API
@@ -636,7 +573,19 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         case MetricCatalogView.LIST:
             return (
                 <>
-                    <ContentTable table={table} />
+                    <Box
+                        // Walkthrough result marker for view:Tags: the
+                        // catalog, narrowed to a category.
+                        data-tour-scope="view:Tags"
+                        data-tour-step="1"
+                        data-tour-route="/projects/:projectUuid/metrics"
+                        data-tour-label="The catalog lists every metric you can use"
+                        data-tour-docs="explore/metrics-catalog.mdx#getting-started:li1"
+                        data-tour-return="none"
+                        data-tour-resultdocs="explore/metrics-catalog/curate-the-catalog.mdx#browsing-the-catalog:li3:1"
+                    >
+                        <ContentTable table={table} />
+                    </Box>
                     {isMetricExploreModalOpen && (
                         <MetricExploreModal
                             opened={isMetricExploreModalOpen}

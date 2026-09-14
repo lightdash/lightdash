@@ -2,10 +2,13 @@ import {
     CreateChartInDashboard,
     CreateChartInSpace,
     Dashboard,
+    FilterOperator,
+    MergeJoinType,
     SavedChart,
     SEED_ORG_1_EDITOR,
     SEED_PROJECT,
     SpaceMemberRole,
+    type SavedMergeQuery,
 } from '@lightdash/common';
 import { login, loginAsEditor } from '../helpers/auth';
 import { chartMock, dashboardMock } from '../helpers/mocks';
@@ -157,6 +160,118 @@ describe('Saved chart space selection', () => {
             columns: ['orders_status'],
             rows: ['orders_average_order_size'],
         });
+    });
+
+    it('Should persist and edit a merged chart without losing filters or parameters', async () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        const completedOnly = {
+            dimensions: {
+                id: 'completed-orders',
+                and: [
+                    {
+                        id: 'completed-orders-filter',
+                        target: { fieldId: 'orders_status' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['completed'],
+                    },
+                ],
+            },
+        };
+        const additionalMetricQuery = {
+            exploreName: 'payments',
+            dimensions: ['orders_status'],
+            metrics: ['payments_unique_payment_count'],
+            filters: completedOnly,
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        };
+        const merge: SavedMergeQuery = {
+            primarySourceId: 'a',
+            sources: [
+                { id: 'a', kind: 'chart' },
+                {
+                    id: 'b',
+                    kind: 'query',
+                    metricQuery: additionalMetricQuery,
+                },
+            ],
+            joinKey: [
+                {
+                    name: 'status',
+                    fieldIdBySourceId: {
+                        a: 'orders_status',
+                        b: 'orders_status',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.FULL,
+            tableCalculations: [],
+        };
+        const parameters = { 'customers.customer_name': 'Ken' };
+        const createResponse = await admin.post<{ results: SavedChart }>(
+            `${apiUrl}/projects/${projectUuid}/saved`,
+            {
+                ...chartMock,
+                name: uniqueName('Merged chart persistence'),
+                metricQuery: {
+                    ...chartMock.metricQuery,
+                    filters: completedOnly,
+                },
+                merge,
+                parameters,
+                dashboardUuid: null,
+                spaceUuid: undefined,
+            } satisfies CreateChartInSpace,
+        );
+        expect(createResponse.status).toBe(200);
+        createdChartUuids.push(createResponse.body.results.uuid);
+
+        const getCreated = await admin.get<{ results: SavedChart }>(
+            `${apiUrl}/saved/${createResponse.body.results.uuid}`,
+        );
+        expect(getCreated.body.results.merge).toEqual(merge);
+        expect(getCreated.body.results.metricQuery.filters).toEqual(
+            completedOnly,
+        );
+        expect(getCreated.body.results.parameters).toEqual(parameters);
+
+        const editedMerge: SavedMergeQuery = {
+            ...merge,
+            joinType: MergeJoinType.LEFT,
+            sources: [
+                merge.sources[0],
+                {
+                    id: 'b',
+                    kind: 'query',
+                    metricQuery: {
+                        ...additionalMetricQuery,
+                        filters: {},
+                    },
+                },
+            ],
+        };
+        const editResponse = await admin.post(
+            `${apiUrl}/saved/${createResponse.body.results.uuid}/version`,
+            {
+                ...chartMock,
+                metricQuery: {
+                    ...chartMock.metricQuery,
+                    filters: completedOnly,
+                },
+                merge: editedMerge,
+                parameters,
+            },
+        );
+        expect(editResponse.status).toBe(200);
+
+        const getEdited = await admin.get<{ results: SavedChart }>(
+            `${apiUrl}/saved/${createResponse.body.results.uuid}`,
+        );
+        expect(getEdited.body.results.merge).toEqual(editedMerge);
+        expect(getEdited.body.results.merge?.joinType).toBe(MergeJoinType.LEFT);
+        expect(getEdited.body.results.parameters).toEqual(parameters);
     });
 
     it('Should create a chart belonging to a dashboard', async () => {

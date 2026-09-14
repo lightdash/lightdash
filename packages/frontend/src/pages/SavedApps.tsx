@@ -1,18 +1,19 @@
 import { subject } from '@casl/ability';
 import { ContentType, FeatureFlags } from '@lightdash/common';
-import { Group, Stack, Button } from '@mantine-8/core';
+import { Group, Stack, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { Link, Navigate, useParams } from 'react-router';
+import { Link, Navigate } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 
 const SavedApps = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
@@ -64,10 +65,12 @@ const SavedApps = () => {
                     </Group>
 
                     <InfiniteResourceTable
+                        showDataAppVersionStatus
                         filters={{
                             projectUuid,
                             contentTypes: [ContentType.DATA_APP],
                             includePersonalDataApps: true,
+                            dataAppVizsFilter: 'exclude',
                         }}
                     />
                 </Stack>

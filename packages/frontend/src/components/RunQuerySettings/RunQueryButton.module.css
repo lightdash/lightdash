@@ -1,0 +1,8 @@
+/* Second half of the Run query split button: same fill as the primary
+   half, separated by a hairline that works on the near-black (light) and
+   near-white (dark) primary fills. */
+.attached {
+    border-inline-start: 1px solid
+        light-dark(rgb(255 255 255 / 0.22), rgb(0 0 0 / 0.14));
+    padding-inline: rem(8px);
+}

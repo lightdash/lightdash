@@ -9,6 +9,16 @@ declare module 'express-session' {
             githubFlow?: 'installation' | 'user_link' | undefined;
             codeVerifier?: string | undefined;
             state?: string | undefined;
+            linear?: {
+                clientId: string;
+                codeVerifier: string;
+                redirectUri: string;
+            };
+            jira?: {
+                redirectUri: string;
+                clientId: string;
+                encryptedClientSecret: string;
+            };
             isPopup?: boolean | undefined;
             databricks?: {
                 projectUuid?: string | undefined;

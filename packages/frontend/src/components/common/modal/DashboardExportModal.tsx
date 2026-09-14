@@ -13,7 +13,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCsv,
     IconFileExport,
@@ -160,7 +160,11 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
 
     const handleImageExport = useCallback(() => {
         if (previewChoice && previews[getPreviewKey(previewChoice)]) {
-            window.open(previews[getPreviewKey(previewChoice)], '_blank');
+            window.open(
+                previews[getPreviewKey(previewChoice)],
+                '_blank',
+                'noopener,noreferrer',
+            );
             return;
         }
 
@@ -259,7 +263,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                             { label: '.xlsx', value: SchedulerFormat.XLSX },
                         ]}
                         w="min-content"
-                        radius="md"
                         value={exportType}
                         onChange={(value) =>
                             setExportType(
@@ -315,9 +318,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                             <Group gap="xs">
                                 Tabs
                                 <Tooltip
-                                    withinPortal
                                     maw={400}
-                                    multiline
                                     label="When unchecked, choose specific tabs to include in the export."
                                 >
                                     <MantineIcon

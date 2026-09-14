@@ -2,6 +2,8 @@ import {
     assertUnreachable,
     DEFAULT_RESULTS_PAGE_SIZE,
     DownloadFileType,
+    isBigqueryTokenErrorMessage,
+    LightdashCustomSqlProvenanceChartUuidHeader,
     MAX_SAFE_INTEGER,
     ParameterError,
     QueryExecutionContext,
@@ -21,6 +23,7 @@ import {
     type PivotConfiguration,
     type ReadyQueryResultsPage,
     type ResultRow,
+    type UUID,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -43,6 +46,7 @@ export type QueryResultsProps = {
     parameters?: ParametersValuesMap;
     pivotConfiguration?: PivotConfiguration;
     pivotResults?: boolean;
+    customSqlProvenanceChartUuid?: UUID;
 };
 
 /**
@@ -62,16 +66,27 @@ const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
     );
 };
 
-const getAsyncQueryError = (message: string | null): ApiError => {
+const getAsyncQueryErrorType = (
+    message: string,
+): Pick<ApiError['error'], 'name' | 'statusCode'> => {
+    if (isRedshiftIamTokenErrorMessage(message)) {
+        return { name: 'RedshiftIamTokenError', statusCode: 401 };
+    }
+    if (isBigqueryTokenErrorMessage(message)) {
+        return { name: 'BigqueryTokenError', statusCode: 401 };
+    }
+    return { name: 'Error', statusCode: 500 };
+};
+
+export const getAsyncQueryError = (message: string | null): ApiError => {
     const errorMessage = message || 'Query failed';
-    const isRedshiftIamTokenError =
-        isRedshiftIamTokenErrorMessage(errorMessage);
+    const { name, statusCode } = getAsyncQueryErrorType(errorMessage);
 
     return {
         status: 'error',
         error: {
-            name: isRedshiftIamTokenError ? 'RedshiftIamTokenError' : 'Error',
-            statusCode: isRedshiftIamTokenError ? 401 : 500,
+            name,
+            statusCode,
             message: errorMessage,
             data: {},
         },
@@ -81,13 +96,22 @@ const getAsyncQueryError = (message: string | null): ApiError => {
 const executeAsyncMetricQuery = async (
     projectUuid: string,
     data: ExecuteAsyncMetricQueryRequestParams,
-    options: { signal?: AbortSignal },
+    options: {
+        signal?: AbortSignal;
+        customSqlProvenanceChartUuid?: UUID;
+    },
 ): Promise<ApiExecuteAsyncMetricQueryResults> => {
     return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/query/metric-query`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
+        headers: options.customSqlProvenanceChartUuid
+            ? {
+                  [LightdashCustomSqlProvenanceChartUuidHeader]:
+                      options.customSqlProvenanceChartUuid,
+              }
+            : undefined,
         signal: options.signal,
     });
 };
@@ -194,7 +218,10 @@ const executeAsyncQuery = (
                 parameters: data.parameters,
                 pivotConfiguration: data.pivotConfiguration,
             },
-            { signal },
+            {
+                signal,
+                customSqlProvenanceChartUuid: data.customSqlProvenanceChartUuid,
+            },
         );
     }
     return Promise.reject(new ParameterError('Missing QueryResultsProps'));

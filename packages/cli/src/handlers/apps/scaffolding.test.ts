@@ -1,8 +1,10 @@
 import { mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
+import { parse } from 'yaml';
 import {
     buildStaticAuthoringFiles,
     firstExistingDir,
+    loadVendoredBuildScaffold,
     loadVendoredStarterSource,
     rewriteWorkspaceDeps,
 } from './scaffolding';
@@ -90,16 +92,86 @@ describe('buildStaticAuthoringFiles', () => {
 
     it('uses npm for the standard local workflow', () => {
         expect(text('README.md')).toContain('run `npm install` first');
-        expect(text('AGENTS.md')).toContain('npm install && npm run build');
+        expect(text('AGENTS.md')).toContain('run `npm install` first');
         expect(
             text('.claude/skills/developing-data-apps-locally/SKILL.md'),
-        ).toContain('run `npm install` first');
+        ).toContain('run `npm install` before');
         expect(text('.npmrc')).toContain('ignore-scripts=true');
         expect(text('.npmrc')).not.toContain('shamefully-hoist');
     });
 
+    it('ships a release-age policy for pnpm with the SDK exemption', () => {
+        expect(parse(text('pnpm-workspace.yaml'))).toMatchObject({
+            minimumReleaseAge: 4320,
+            minimumReleaseAgeExclude: ['@lightdash/query-sdk'],
+            ignoreScripts: true,
+        });
+    });
+
+    it('documents Cloud-parity validation builds', () => {
+        for (const path of [
+            'README.md',
+            'AGENTS.md',
+            '.claude/skills/developing-data-apps-locally/SKILL.md',
+        ]) {
+            expect(text(path)).toContain('validate --build');
+            expect(text(path)).toContain('Cloud-parity');
+        }
+    });
+
     it('never writes app source (no src/ files)', () => {
         expect(files.every((f) => !f.path.startsWith('src/'))).toBe(true);
+    });
+});
+
+describe('buildStaticAuthoringFiles — chart-type flavor', () => {
+    const files = buildStaticAuthoringFiles({
+        appName: 'Radial gauge',
+        sdkVersion: '0.3275.0',
+        flavor: 'chart-type',
+    });
+    const byPath = (p: string) => files.find((f) => f.path === p);
+    const text = (p: string) =>
+        Buffer.from(byPath(p)!.contentBase64, 'base64').toString('utf-8');
+
+    it('ships the chart-type workflow skill, not the app skills', () => {
+        expect(
+            byPath('.claude/skills/developing-chart-types-locally/SKILL.md'),
+        ).toBeDefined();
+        expect(
+            byPath('.claude/skills/lightdash-data-app/SKILL.md'),
+        ).toBeUndefined();
+    });
+
+    it('ships a starter viz fixture for local preview', () => {
+        const fixture = JSON.parse(text('viz-fixture.json'));
+        expect(fixture.fieldMapping.category).toBeDefined();
+        expect(fixture.fieldMapping.value).toBeDefined();
+        expect(Array.isArray(fixture.rows)).toBe(true);
+    });
+
+    it('documents the fixture preview flow in AGENTS.md', () => {
+        expect(text('AGENTS.md')).toContain('vizFixture');
+    });
+});
+
+describe('loadVendoredBuildScaffold', () => {
+    const files = loadVendoredBuildScaffold('0.3275.0');
+    const byPath = (p: string) => files.find((file) => file.path === p);
+
+    it('loads the trusted build files without app source', () => {
+        expect(byPath('vite.config.js')).toBeDefined();
+        expect(byPath('index.html')).toBeDefined();
+        expect(files.every((file) => !file.path.startsWith('src/'))).toBe(true);
+    });
+
+    it('pins the SDK used by the local build', () => {
+        const packageJson = Buffer.from(
+            byPath('package.json')!.contentBase64,
+            'base64',
+        ).toString('utf-8');
+        expect(packageJson).toContain('"@lightdash/query-sdk": "0.3275.0"');
+        expect(packageJson).not.toContain('workspace:');
     });
 });
 

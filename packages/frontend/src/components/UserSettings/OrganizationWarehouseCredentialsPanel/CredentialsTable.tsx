@@ -1,5 +1,5 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
-import { ActionIcon, Group, Paper, Table } from '@mantine-8/core';
+import { ActionIcon, Group, Paper, Table } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
@@ -42,8 +42,6 @@ const CredentialsItem: FC<
         >
             <Group>
                 <ActionIcon
-                    variant="subtle"
-                    color="gray"
                     onClick={() =>
                         setWarehouseCredentialsToBeEdited(credentials)
                     }
@@ -52,8 +50,6 @@ const CredentialsItem: FC<
                 </ActionIcon>
 
                 <ActionIcon
-                    variant="subtle"
-                    color="gray"
                     onClick={() =>
                         setWarehouseCredentialsToBeDeleted(credentials)
                     }
@@ -71,7 +67,7 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
     setWarehouseCredentialsToBeDeleted,
 }) => {
     return (
-        <Paper withBorder style={{ overflow: 'hidden' }}>
+        <Paper className={tableStyles.paper}>
             <Table
                 className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 ta="left"

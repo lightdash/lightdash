@@ -66,6 +66,7 @@ export const DISTILL_TOOL_POLICIES = {
     loadProjectContext: {
         result: strip('ld-memory', PROJECT_CONTEXT_RESULT_LIMIT),
     },
+    loadMcpTools: { result: omitCall },
     loadSkill: { result: omitResult('harness instructions') },
     getKnowledgeDocumentContent: {
         result: omitResult('authoritative source document'),
@@ -78,6 +79,7 @@ export const DISTILL_TOOL_POLICIES = {
     discoverFields: { result: keep },
     getMetadata: { result: keep },
     findExplores: { result: keep },
+    findCustomChartTypes: { result: keep },
     findFields: { result: keep },
     searchSemanticLayer: { result: keep },
     analyzeFieldImpact: { result: keep },
@@ -92,6 +94,7 @@ export const DISTILL_TOOL_POLICIES = {
     runSavedChart: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
     runContentQuery: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
     runSql: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
+    runComposerQueries: { result: shape() },
     generateVisualization: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
     getDashboardCharts: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
     generateDashboard: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
@@ -105,20 +108,23 @@ export const DISTILL_TOOL_POLICIES = {
     exploreRepo: { result: omitResult('volatile repository content') },
     getPullRequestDiff: { result: omitResult('volatile repository diff') },
     editRepo: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    generateDataApp: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
+    iterateDataApp: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     editDbtProject: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     syncDbtProject: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     setupPreviewDeploy: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     closePullRequest: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     discoverRepos: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     listWorkstreams: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
+    // Legacy persisted tool; keep past-thread distillation bounded and quiet.
     improveContext: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     editProjectContext: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     updateUserName: { result: keep },
     submitResearchReport: { result: truncate(RESEARCH_REPORT_RESULT_LIMIT) },
-    submitResearchHypotheses: {
+    delegateResearchTask: {
         result: truncate(RESEARCH_REPORT_RESULT_LIMIT),
     },
-    submitInvestigationReport: {
+    submitWorkerFindings: {
         result: truncate(RESEARCH_REPORT_RESULT_LIMIT),
     },
     generateHashes: { result: omitCall },
@@ -126,6 +132,7 @@ export const DISTILL_TOOL_POLICIES = {
     submitDiscoverFieldsResult: { result: omitCall },
     findCharts: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     findDashboards: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    // Legacy persisted viz tools; keep past-thread distillation bounded and quiet.
     generateBarVizConfig: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     generateTableVizConfig: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     generateTimeSeriesVizConfig: {
@@ -292,11 +299,17 @@ const shapeResult = async (
     return shapeNonTabularResult(value);
 };
 
-const shapeRowsInResult = async (value: string): Promise<string> => {
+export const shapeRowsInResult = async (
+    value: string,
+    includeSamples = true,
+): Promise<string> => {
     const csv = CSV_BLOCK_PATTERN.exec(value)?.[1];
     if (!csv) return value;
 
-    const shaped = await shapeResult(`\`\`\`csv\n${csv}\n\`\`\``, true);
+    const shaped = await shapeResult(
+        `\`\`\`csv\n${csv}\n\`\`\``,
+        includeSamples,
+    );
     if (!shaped) return value;
     return value.replace(CSV_BLOCK_PATTERN, () =>
         shaped === MALFORMED_CSV_MARKER

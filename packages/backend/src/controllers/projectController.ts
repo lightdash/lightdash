@@ -9,6 +9,7 @@ import {
     ApiChartListResponse,
     ApiChartSummaryListResponse,
     ApiCreateTagResponse,
+    ApiCreateTrainingPreviewResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardAsCodeUpsertResponse,
     ApiDataTimezonePreview,
@@ -22,6 +23,7 @@ import {
     ApiProjectAccessListResponse,
     ApiProjectColorPaletteResponse,
     ApiProjectResponse,
+    ApiResultsCacheProjectSettingsResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSpaceSummaryListResponse,
@@ -40,12 +42,14 @@ import {
     DbtExposure,
     DbtProjectEnvironmentVariable,
     ForbiddenError,
+    formatMergeQueryRefusal,
     getErrorMessage,
     getRequestMethod,
     GoogleSheetsSyncAsCode,
     isDuplicateDashboardParams,
     LightdashRequestMethodHeader,
     ParameterError,
+    QueryExecutionContext,
     RequestMethod,
     ScheduledDeliveryAsCode,
     SqlChartAsCode,
@@ -55,30 +59,46 @@ import {
     UpdateProjectMember,
     UserWarehouseCredentials,
     VirtualViewAsCode,
+    type AgentSqlScope,
     type ApiCalculateSubtotalsResponse,
+    type ApiCompiledMergeQueryResults,
     type ApiCreateDashboardResponse,
     type ApiCreateDashboardWithChartsResponse,
     type ApiCreatePreviewResults,
+    type ApiExecuteAsyncMetricQueryResults,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
+    type ApiRefreshBody,
     type ApiRefreshResults,
     type ApiSuccess,
     type ApiTableGroupsResults,
     type ApiUpdateDashboardsResponse,
     type ApiUpstreamDiffResponse,
     type ApiVerifiedContentListResponse,
+    type ApiWarehouseConnectionTestBody,
+    type ApiWarehouseConnectionTestResponse,
     type CalculateSubtotalsFromQuery,
+    type CompileMergeQueryRequest,
     type CreateDashboard,
     type CreateDashboardWithCharts,
     type DataTimezonePreviewRequest,
     type DuplicateDashboardParams,
+    type MergeQuery,
+    type MergeQueryColumns,
+    type MergeQueryError,
+    type MetricQuery,
+    type ParametersValuesMap,
     type ProjectSummary,
+    type RunMergeQueryRequest,
     type Tag,
+    type UpdateAgentSqlScope,
     type UpdateMultipleDashboards,
     type UpdatePreviewExpirationProjectSettings,
     type UpdatePreviewExpiresAt,
     type UpdateQueryTimezoneSettings,
+    type UpdateResultsCacheProjectSettings,
     type UpdateSchedulerSettings,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -101,6 +121,9 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
+import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
 import Logger from '../logging/logger';
@@ -137,6 +160,26 @@ export class ProjectController extends BaseController {
                 .getProjectService()
                 .getProject(projectUuid, req.account!),
         };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/dbt/manifest')
+    @OperationId('GetMergedDbtManifest')
+    async getMergedManifest(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<void> {
+        assertRegisteredAccount(req.account);
+        const body = await this.services
+            .getProjectService()
+            .getMergedManifest(req.account, projectUuid);
+        const res = req.res!;
+        res.status(200);
+        res.setHeader('Content-Encoding', 'gzip');
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        await pipeline(Readable.from(body), res);
     }
 
     /**
@@ -517,6 +560,126 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
+     * Compile several queries into a single merged warehouse statement.
+     *
+     * Returns the statement and the fields it produces, without running it.
+     * Use it to validate a merge while it is being built: a merge that would
+     * produce wrong numbers comes back with `errors` and a null `sql` — most
+     * importantly the fan-out case, where a query still carries a dimension
+     * that is neither joined on nor pivoted. Run a valid merge with
+     * POST {projectUuid}/mergeQuery/run.
+     * @summary Compile merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/mergeQuery/compile')
+    @OperationId('CompileMergeQuery')
+    @Tags('Exploring')
+    async CompileMergeQuery(
+        @Path() projectUuid: string,
+        @Body() body: CompileMergeQueryRequest,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: ApiCompiledMergeQueryResults;
+    }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            // The async query service, not the base project service: result
+            // sources resolve from query history, which only it can reach
+            results: await this.services
+                .getAsyncQueryService()
+                .compileMergeQuery({
+                    account: req.account,
+                    projectUuid,
+                    mergeQuery: body.mergeQuery,
+                    parameters: body.parameters,
+                }),
+        };
+    }
+
+    /**
+     * Run a merge, returning a query uuid to page results from.
+     *
+     * The merged statement is registered as an ordinary async query, so its
+     * results are fetched, formatted, cancelled and downloaded through the
+     * same endpoints as any other query — page them with
+     * GET /api/v2/projects/{projectUuid}/query/{queryUuid}.
+     *
+     * A merge that cannot be run is rejected here rather than returned:
+     * compile it first to show the problem against the query that caused it.
+     * @summary Run merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/mergeQuery/run')
+    @OperationId('RunMergeQuery')
+    @Tags('Exploring')
+    async RunMergeQuery(
+        @Path() projectUuid: string,
+        @Body() body: RunMergeQueryRequest,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: ApiExecuteAsyncMetricQueryResults;
+    }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const result = await this.services
+            .getAsyncQueryService()
+            .executeLegacyAsyncMergeQuery({
+                account: req.account,
+                projectUuid,
+                mergeQuery: body.mergeQuery,
+                parameters: body.parameters,
+                mode:
+                    body.csvLimit === undefined
+                        ? { type: 'interactive' }
+                        : { type: 'export', limit: body.csvLimit },
+                pivotConfiguration: body.pivotConfiguration,
+                context:
+                    getContextFromHeader(req) ?? QueryExecutionContext.EXPLORE,
+            });
+        if (result.outcome === 'refused') {
+            throw new ParameterError(formatMergeQueryRefusal(result.errors), {
+                errors: result.errors,
+            });
+        }
+        return { status: 'ok', results: result.query };
+    }
+
+    /**
+     * Tests warehouse credentials without saving them. Reports each SSH tunnel hop and the database login separately so a broken bastion setup points at the step to fix.
+     * @summary Test warehouse connection
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/warehouse/test')
+    @OperationId('testWarehouseConnection')
+    async testWarehouseConnection(
+        @Path() projectUuid: UUID,
+        @Body() body: ApiWarehouseConnectionTestBody,
+        @Request() req: express.Request,
+    ): Promise<ApiWarehouseConnectionTestResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .testWarehouseConnection(
+                req.account,
+                projectUuid,
+                body.warehouseConnection,
+            );
+        return { status: 'ok', results };
+    }
+
+    /**
      * Calculate all metric totals from a metricQuery
      * @summary Calculate total from query
      * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead, which computes totals from a previously-executed async query.
@@ -761,7 +924,8 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
 
     /**
      * Toggle default user spaces for a project.
-     * When enabled, creates personal spaces for all eligible users.
+     * When enabled, queues a background job that creates personal spaces
+     * for all eligible users.
      * @summary Update default user spaces setting
      */
     @Middlewares([
@@ -1120,6 +1284,51 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
+     * Make (or remake) the caller's own throwaway copy of the training
+     * project for a walkthrough. The copy starts from the seeded state and
+     * expires on its own.
+     * @summary Create training preview
+     * @param projectUuid the training project
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/training-previews')
+    @OperationId('CreateTrainingPreview')
+    async createTrainingPreview(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiCreateTrainingPreviewResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .createTrainingPreview(toSessionUser(req.account), projectUuid);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Remove the caller's own copies of the training project, once a
+     * walkthrough is finished or abandoned.
+     * @summary Delete training previews
+     * @param projectUuid the training project
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Delete('{projectUuid}/training-previews')
+    @OperationId('DeleteTrainingPreviews')
+    async deleteTrainingPreviews(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .deleteTrainingPreviews(toSessionUser(req.account), projectUuid);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
      * Diff a preview project against the project it was copied from, using the
      * catalog index. Detects added/removed fields and label changes; does not
      * detect SQL-only field changes.
@@ -1189,6 +1398,64 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         const settings = await this.services
             .getProjectService()
             .updateProjectPreviewExpirationSettings(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
+    /**
+     * Get the results cache TTL for a project. A null TTL means the
+     * instance-wide default applies.
+     * @summary Get results cache settings
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/results-cache-config')
+    @OperationId('getProjectResultsCacheSettings')
+    async getProjectResultsCacheSettings(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheProjectSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        const settings = await this.services
+            .getProjectService()
+            .getProjectResultsCacheSettings(
+                toSessionUser(req.account),
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
+    /**
+     * Update the results cache TTL for a project. Pass null to fall back to
+     * the instance-wide default.
+     * @summary Update results cache settings
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/results-cache-config')
+    @OperationId('updateProjectResultsCacheSettings')
+    async updateProjectResultsCacheSettings(
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateResultsCacheProjectSettings,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheProjectSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        const settings = await this.services
+            .getProjectService()
+            .updateProjectResultsCacheSettings(
                 toSessionUser(req.account),
                 projectUuid,
                 body,
@@ -1296,6 +1563,59 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 throw e;
             }
         }
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Get the agent SQL scope for a project
+     * @summary Get agent SQL scope
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/agentSqlScope')
+    @OperationId('getAgentSqlScope')
+    async getAgentSqlScope(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: AgentSqlScope | null }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getAgentSqlScope(req.account, projectUuid),
+        };
+    }
+
+    /**
+     * Update the agent SQL scope for a project
+     * @summary Update agent SQL scope
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/agentSqlScope')
+    @OperationId('updateAgentSqlScope')
+    async updateAgentSqlScope(
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateAgentSqlScope,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        await this.services
+            .getProjectService()
+            .updateAgentSqlScope(req.account, projectUuid, body);
 
         return {
             status: 'ok',
@@ -1554,6 +1874,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     async refresh(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Body() body?: ApiRefreshBody,
     ): Promise<ApiSuccess<ApiRefreshResults>> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -1566,6 +1887,9 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 toSessionUser(req.account),
                 projectUuid,
                 context,
+                false,
+                false,
+                body?.syncContent === true,
             );
         return {
             status: 'ok',

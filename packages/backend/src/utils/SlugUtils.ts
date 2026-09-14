@@ -2,7 +2,10 @@ import { assertUnreachable, generateSlug } from '@lightdash/common';
 import { Knex } from 'knex';
 import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
+import { DashboardSlugMappingsTableName } from '../database/entities/dashboardSlugMappings';
+import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SavedChartSlugMappingsTableName } from '../database/entities/savedChartSlugMappings';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 
@@ -16,9 +19,11 @@ type SlugTable = ProjectUuidSlugTable | typeof SpaceTableName;
 
 const PROJECT_SLUG_LOCK_NAMESPACE = 2;
 const SPACE_ACCESS_LOCK_NAMESPACE = 3;
+const ORGANIZATION_PROJECT_SLUG_LOCK_NAMESPACE = 5;
 
 const MAX_GENERATED_SAVED_CHART_SLUG_LENGTH = 255;
 const MAX_GENERATED_APP_SLUG_LENGTH = 255;
+const MAX_GENERATED_PROJECT_SLUG_LENGTH = 255;
 
 const getSlugCandidate = (
     tableName: SlugTable,
@@ -72,6 +77,39 @@ export const acquireSpaceAccessLock = async (
     ]);
 };
 
+export const generateUniqueProjectSlug = async (
+    trx: Knex,
+    organizationId: number,
+    name: string,
+): Promise<string> => {
+    const generatedSlug = generateSlug(name).slice(
+        0,
+        MAX_GENERATED_PROJECT_SLUG_LENGTH,
+    );
+    const baseSlug = generatedSlug || 'project';
+
+    let increment = 0;
+    for (;;) {
+        const suffix = increment === 0 ? '' : `-${increment}`;
+        const candidate = `${baseSlug.slice(
+            0,
+            MAX_GENERATED_PROJECT_SLUG_LENGTH - suffix.length,
+        )}${suffix}`;
+        // eslint-disable-next-line no-await-in-loop
+        await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+            ORGANIZATION_PROJECT_SLUG_LOCK_NAMESPACE,
+            `${organizationId}:${candidate}`,
+        ]);
+        // eslint-disable-next-line no-await-in-loop
+        const existing = await trx(ProjectTableName)
+            .select('slug')
+            .where({ organization_id: organizationId, slug: candidate })
+            .first();
+        if (!existing) return candidate;
+        increment += 1;
+    }
+};
+
 export function generateUniqueSlugScopedToProject(
     trx: Knex,
     projectUuid: string,
@@ -94,6 +132,19 @@ export async function generateUniqueSlugScopedToProject(
     let increment = 0;
     for (;;) {
         const candidate = getSlugCandidate(tableName, baseSlug, increment);
+        if (
+            tableName === SavedChartsTableName ||
+            tableName === DashboardsTableName
+        ) {
+            // Alias and canonical rows cannot share a database constraint, so
+            // all content writers lock the exact candidate before checking both.
+            // eslint-disable-next-line no-await-in-loop
+            await acquireProjectSlugLock(
+                trx,
+                projectOwner as string,
+                candidate,
+            );
+        }
         const ownerColumn =
             tableName === SpaceTableName
                 ? `${SpaceTableName}.project_id`
@@ -106,7 +157,27 @@ export async function generateUniqueSlugScopedToProject(
             .where(ownerColumn, projectOwner)
             .where(`${tableName}.slug`, candidate)
             .first();
-        if (!existing) return candidate;
+        let isReserved = existing !== undefined;
+
+        if (
+            !isReserved &&
+            (tableName === SavedChartsTableName ||
+                tableName === DashboardsTableName)
+        ) {
+            const mappingsTable =
+                tableName === SavedChartsTableName
+                    ? SavedChartSlugMappingsTableName
+                    : DashboardSlugMappingsTableName;
+            // eslint-disable-next-line no-await-in-loop
+            const historical = await trx(mappingsTable)
+                .select(`${mappingsTable}.slug`)
+                .where(`${mappingsTable}.project_uuid`, projectOwner)
+                .where(`${mappingsTable}.slug`, candidate)
+                .first();
+            isReserved = historical !== undefined;
+        }
+
+        if (!isReserved) return candidate;
         increment += 1;
     }
 }

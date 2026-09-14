@@ -1,8 +1,13 @@
-import { SDK_FEATURES, type SdkFeature } from '@lightdash/common';
-import { useEffect, useMemo, useState } from 'react';
+import {
+    getSdkFeaturesForTarget,
+    type SdkFeature,
+    type SdkFeatureTarget,
+} from '@lightdash/common';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type SdkManifest } from './useAppSdkBridge';
 
-/** How long after a preview mounts before a silent bundle counts as legacy. */
+/** How long the classified bundle may render without reporting before it
+ *  counts as legacy. */
 const LEGACY_TIMEOUT_MS = 5000;
 
 export type SdkUpgradeStatus = 'unknown' | 'legacy' | 'current' | 'stale';
@@ -21,42 +26,85 @@ export type SdkUpgradeOffer = {
 };
 
 /**
- * Classifies the previewed app bundle against the current SDK feature
+ * Classifies an app's latest ready bundle against the current SDK feature
  * registry. The bundle self-reports via `lightdash:sdk:manifest`
  * (`onSdkManifest` feeds it in); a bundle that stays silent past the timeout
  * is `legacy` (built before feature reporting). Nothing is persisted — the
- * running bundle is the only source of truth, so restoring an old version
- * legitimately re-lights the offer.
+ * running bundle is the only source of truth, so a rollback that makes an
+ * older bundle the latest ready one legitimately re-lights the offer.
+ *
+ * The offer always describes the version an upgrade would actually rebuild
+ * from — `upgradeApp` restores the latest ready source regardless of what the
+ * user is previewing — so manifests from any other version are ignored.
+ *
+ * Only registry entries that apply to `target` count: every bundle reports
+ * the whole SDK registry, so a chart type is not stale for lacking Sheets
+ * export, and an app is not stale for lacking viz-context features.
  */
 export const useSdkUpgradeStatus = ({
-    resetKey,
+    target,
+    bundleKey,
+    renderedKey,
+    isRendering,
 }: {
-    /** Identity of the previewed bundle (app + version); null = no preview.
-     *  A change resets the manifest so a rolled-back or newly deployed
-     *  version re-reports rather than inheriting the previous bundle's. */
-    resetKey: string | null;
+    /** Which kind of bundle is being classified. */
+    target: SdkFeatureTarget;
+    /** Identity (app + version) of the bundle the offer describes: the latest
+     *  ready version, never the one the user happens to be viewing. A change
+     *  resets the manifest so the new bundle re-reports rather than inheriting
+     *  the previous one's. Null = nothing to classify. */
+    bundleKey: string | null;
+    /** Identity (app + version) of the bundle on screen; null = no preview.
+     *  A change clears the rendered manifest so the new bundle re-reports. */
+    renderedKey: string | null;
+    /** Whether the preview is currently running that bundle. While it is not,
+     *  the last classification stands: manifests belong to some other version
+     *  and the legacy timeout would fire against a bundle that never got the
+     *  chance to report. */
+    isRendering: boolean;
 }) => {
     const [manifest, setManifest] = useState<SdkManifest | null>(null);
+    const [renderedManifest, setRenderedManifest] =
+        useState<SdkManifest | null>(null);
     const [timedOut, setTimedOut] = useState(false);
+
+    const isRenderingRef = useRef(isRendering);
+    useEffect(() => {
+        isRenderingRef.current = isRendering;
+    }, [isRendering]);
+
+    useEffect(() => {
+        setManifest(null);
+        setTimedOut(false);
+    }, [bundleKey]);
+
+    useEffect(() => {
+        setRenderedManifest(null);
+    }, [renderedKey]);
 
     // The iframe is an external system — keyed reset + timeout is
     // synchronisation, not prop-mirroring.
     useEffect(() => {
-        setManifest(null);
-        setTimedOut(false);
-        if (resetKey === null) return undefined;
+        if (bundleKey === null || !isRendering) return undefined;
         const timer = setTimeout(() => setTimedOut(true), LEGACY_TIMEOUT_MS);
         return () => clearTimeout(timer);
-    }, [resetKey]);
+    }, [bundleKey, isRendering]);
+
+    // Stable identity: the bridge re-subscribes its window listener whenever
+    // this changes, so the gate reads a ref rather than closing over the flag.
+    const onSdkManifest = useCallback((reported: SdkManifest) => {
+        setRenderedManifest(reported);
+        if (!isRenderingRef.current) return;
+        setManifest(reported);
+    }, []);
 
     const offer = useMemo<SdkUpgradeOffer>(() => {
+        const registry = getSdkFeaturesForTarget(target);
         if (manifest) {
             const reported = new Set(manifest.features);
             // Additions only: keys the bundle reports that the current
             // registry no longer has (removed features) are ignored.
-            const newFeatures = SDK_FEATURES.filter(
-                (f) => !reported.has(f.key),
-            );
+            const newFeatures = registry.filter((f) => !reported.has(f.key));
             return {
                 status: newFeatures.length > 0 ? 'stale' : 'current',
                 newFeatures,
@@ -68,11 +116,14 @@ export const useSdkUpgradeStatus = ({
         return {
             status: timedOut ? 'legacy' : 'unknown',
             newFeatures: [],
-            candidateFeatures: timedOut ? [...SDK_FEATURES] : [],
+            candidateFeatures: timedOut ? registry : [],
             reportedSdkVersion: null,
             reportedFeatures: null,
         };
-    }, [manifest, timedOut]);
+    }, [manifest, timedOut, target]);
 
-    return { offer, onSdkManifest: setManifest };
+    /** What the bundle on screen reports, whichever version that is. Answers
+     *  "can the app I am looking at do X?" — a different question from the
+     *  offer, which describes the version an upgrade would rebuild from. */
+    return { offer, renderedManifest, onSdkManifest };
 };

@@ -1,12 +1,14 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    DeploySessionStatus,
     ProjectType,
-    type Account,
     type MemberAbility,
+    type RegisteredAccount,
 } from '@lightdash/common';
+import { toSessionUser } from '../auth/account';
 import { DeployService } from './DeployService';
 
-const buildAccount = (ability: MemberAbility): Account =>
+const buildAccount = (ability: MemberAbility): RegisteredAccount =>
     ({
         authentication: {
             type: 'service-account',
@@ -46,7 +48,7 @@ const buildAccount = (ability: MemberAbility): Account =>
         isRegisteredUser: () => true,
         isServiceAccount: () => true,
         isSessionUser: () => false,
-    }) as Account;
+    }) as RegisteredAccount;
 
 describe('DeployService', () => {
     it('allows starting a deploy session for an own preview from a granted upstream project', async () => {
@@ -82,4 +84,66 @@ describe('DeployService', () => {
             ),
         ).resolves.toEqual({ deploySessionUuid: 'deploy-session-uuid' });
     });
+
+    it.each([
+        { complete: true, dbtModelNames: undefined },
+        { complete: false, dbtModelNames: undefined },
+        { complete: false, dbtModelNames: ['orders', 'customers'] },
+        { complete: false, dbtModelNames: [] },
+    ])(
+        'passes batched completeness $complete and model inventory $dbtModelNames to the cache write',
+        async ({ complete, dbtModelNames }) => {
+            const projectService = {
+                saveExploresToCacheAndIndexCatalog: vi
+                    .fn()
+                    .mockResolvedValue('index-job-uuid'),
+            };
+            const deploySessionModel = {
+                getSession: vi.fn().mockResolvedValue({
+                    deploySessionUuid: 'deploy-session-uuid',
+                    projectUuid: 'project-uuid',
+                    userUuid: 'service-account-user-uuid',
+                    status: DeploySessionStatus.UPLOADING,
+                    batchCount: 1,
+                    exploreCount: 0,
+                    createdAt: new Date(),
+                }),
+                updateStatus: vi.fn().mockResolvedValue(undefined),
+                getDeployData: vi.fn().mockResolvedValue({
+                    explores: [],
+                    complete,
+                }),
+                deleteSession: vi.fn().mockResolvedValue(undefined),
+            };
+            const schedulerClient = {
+                generateValidation: vi.fn().mockResolvedValue(undefined),
+            };
+            const service = new DeployService({
+                deploySessionModel,
+                projectModel: {
+                    getWithSensitiveFields: vi.fn().mockResolvedValue({
+                        organizationUuid: 'org-uuid',
+                        warehouseConnection: null,
+                    }),
+                },
+                projectService,
+                schedulerClient,
+            } as never);
+            const user = toSessionUser(buildAccount(new Ability()));
+
+            await service.finalizeDeploy(
+                user,
+                'project-uuid',
+                'deploy-session-uuid',
+                undefined,
+                dbtModelNames,
+            );
+
+            expect(
+                projectService.saveExploresToCacheAndIndexCatalog,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ complete, dbtModelNames }),
+            );
+        },
+    );
 });

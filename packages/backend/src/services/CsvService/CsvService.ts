@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AnyType,
+    assertRegisteredAccount,
     DashboardFilters,
     DateGranularity,
     DownloadFileType,
@@ -20,6 +21,7 @@ import {
     MetricQuery,
     MissingConfigError,
     ParameterError,
+    PersistentDownloadFileAccessMode,
     PivotConfig,
     SCHEDULER_TASKS,
     SchedulerCsvOptions,
@@ -533,6 +535,8 @@ export class CsvService extends BaseService {
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     source: 'analytics',
                 });
             return {
@@ -549,6 +553,7 @@ export class CsvService extends BaseService {
             downloadFileId,
             filePath,
             DownloadFileType.CSV,
+            projectUuid,
         );
 
         const localUrl = new URL(
@@ -574,6 +579,10 @@ export class CsvService extends BaseService {
         selectedTabs: string[] | null,
         dateZoomGranularity?: DateGranularity | string,
     ) {
+        // Registered-only: this legacy payload cannot carry an embed JWT, so a
+        // JWT-scheduled job would fail at the worker. Embeds use the v2
+        // dashboard exports endpoint instead.
+        assertRegisteredAccount(account);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const auditedAbility = this.createAuditedAbility(account);

@@ -1,4 +1,4 @@
-import { ForbiddenError, ParameterError } from '@lightdash/common';
+import { ForbiddenError, ParameterError, ProjectType } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -29,19 +29,50 @@ const makeApp = (overrides: Record<string, unknown> = {}) => ({
     created_by_user_uuid: USER_UUID,
     sandbox_id: 'sandbox-registry-uuid',
     design_uuid: null,
+    template: 'data_app',
+    registry_slug: null,
     ...overrides,
 });
 
-function buildService(opts: { canManage?: boolean } = {}) {
+const VIZ_SCHEMA = {
+    fields: [
+        {
+            name: 'category',
+            label: 'Category',
+            type: 'dimension' as const,
+            required: true,
+        },
+    ],
+    configOptions: [
+        {
+            name: 'showLabels',
+            label: 'Show labels',
+            type: 'boolean' as const,
+            default: true,
+            group: 'Display',
+        },
+    ],
+};
+
+function buildService(
+    opts: { canManage?: boolean; template?: 'data_app' | 'data_app_viz' } = {},
+) {
     const appModel = {
-        getApp: vi.fn().mockResolvedValue(makeApp()),
+        getApp: vi
+            .fn()
+            .mockResolvedValue(
+                makeApp({ template: opts.template ?? 'data_app' }),
+            ),
         getLatestVersion: vi.fn().mockResolvedValue({
             version: 4,
             status: 'ready',
             dependencies: null,
             created_at: new Date(),
         }),
-        getLatestReadyVersion: vi.fn().mockResolvedValue({ version: 4 }),
+        getLatestReadyVersion: vi.fn().mockResolvedValue({
+            version: 4,
+            viz_schema: opts.template === 'data_app_viz' ? VIZ_SCHEMA : null,
+        }),
         getVersionsWithDependencies: vi.fn().mockResolvedValue([]),
         createVersion: vi.fn().mockResolvedValue({ version: 5 }),
         updateSandboxUuid: vi.fn().mockResolvedValue(undefined),
@@ -56,7 +87,14 @@ function buildService(opts: { canManage?: boolean } = {}) {
     };
 
     const spacePermissionService = {
-        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+        resolveAccess: vi.fn().mockResolvedValue({
+            organizationUuid: USER_ORG_UUID,
+            projectUuid: PROJECT_UUID,
+            inheritsFromOrgOrProject: false,
+            access: [],
+            admins: [],
+            directOnly: false,
+        }),
     };
 
     const analytics = { track: vi.fn() };
@@ -64,6 +102,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
     const lightdashConfig = {
         appRuntime: {
             dependencyRegistryHosts: ['registry.npmjs.org'],
+            dataAppCodingAgent: 'claude',
         },
     };
 
@@ -72,22 +111,35 @@ function buildService(opts: { canManage?: boolean } = {}) {
         analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
-        projectModel: {} as never,
+        projectModel: {
+            getSummary: vi.fn().mockResolvedValue({
+                organizationUuid: USER_ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                type: ProjectType.DEFAULT,
+                createdByUserUuid: USER_UUID,
+            }),
+        } as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
+        savedChartModel: {} as never,
         schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
         spacePermissionService: spacePermissionService as never,
+        coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
         externalConnectionModel: {} as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
 
     const canManage = opts.canManage ?? true;
@@ -97,6 +149,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
     ).mockReturnValue({
         can: () => canManage,
         cannot: () => !canManage,
+        rules: [],
     });
 
     return { service, appModel, schedulerClient, analytics };
@@ -138,6 +191,7 @@ describe('upgradeApp', () => {
             USER_UUID,
             undefined,
             undefined,
+            undefined,
         );
 
         const payload = schedulerClient.appGeneratePipeline.mock.calls[0][0];
@@ -158,6 +212,7 @@ describe('upgradeApp', () => {
         expect(payload.prompt).toContain('cannot run shell commands');
         expect(payload.prompt).toContain('Now active');
         expect(payload.prompt).not.toBe('Upgrade to the latest app template');
+        expect(payload.upgradeStatusMessage).toBeUndefined();
 
         expect(analytics.track).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -170,6 +225,146 @@ describe('upgradeApp', () => {
                     candidateFeatureKeys: ['drill-down', 'lineage'],
                 }),
             }),
+        );
+    });
+
+    it('drops chart-type-only candidates from a data app upgrade', async () => {
+        const { service, schedulerClient } = buildService();
+
+        await service.upgradeApp(makeUser(), PROJECT_UUID, APP_UUID, {
+            reportedSdkVersion: '0.3400.0',
+            reportedFeatures: ['query'],
+            candidateFeatures: [
+                {
+                    key: 'viz-config-options',
+                    label: 'Visualization config options',
+                    description: 'Adjust the viz from the config panel.',
+                    wiring: 'Read options[name] from useVizContext().',
+                },
+                {
+                    key: 'gsheet-export',
+                    label: 'Google Sheets export',
+                    description: 'Export tabular results to Google Sheets.',
+                },
+                {
+                    key: 'not-a-registry-key',
+                    label: 'Made up',
+                    description: 'Not in the SDK registry.',
+                },
+            ],
+        });
+
+        const payload = schedulerClient.appGeneratePipeline.mock.calls[0][0];
+        expect(payload.prompt).toContain(
+            'gsheet-export: Google Sheets export — Export tabular results to Google Sheets.',
+        );
+        expect(payload.prompt).not.toContain('viz-config-options');
+        expect(payload.prompt).not.toContain('useVizContext');
+        expect(payload.prompt).not.toContain('not-a-registry-key');
+        expect(payload.upgradeStatusMessage).toBeUndefined();
+    });
+
+    it('preserves a chart type schema and queues a capability summary limited to chart-type features', async () => {
+        const { service, appModel, schedulerClient } = buildService({
+            template: 'data_app_viz',
+        });
+
+        await service.upgradeApp(makeUser(), PROJECT_UUID, APP_UUID, {
+            reportedSdkVersion: '1.68.0',
+            reportedFeatures: ['query'],
+            candidateFeatures: [
+                {
+                    key: 'metric-filters',
+                    label: 'Metric filters',
+                    description: 'Filter grouped results by metric values.',
+                    wiring: 'Pass metric filters to the query builder.',
+                },
+                {
+                    key: 'gsheet-export',
+                    label: 'Google Sheets export',
+                    description: 'Export tabular results to Google Sheets.',
+                },
+                {
+                    key: 'screenshot',
+                    label: 'In-app screenshots',
+                    description: 'Capture this chart for deliveries.',
+                },
+                {
+                    key: 'viz-underlying-data',
+                    label: 'View underlying data',
+                    description: 'Open the rows behind a clicked data point.',
+                    wiring: 'Show the action menu when underlyingData.enabled.',
+                },
+            ],
+        });
+
+        expect(appModel.createVersion).toHaveBeenCalledWith(
+            APP_UUID,
+            { version: 5, prompt: 'Upgrade to the latest app template' },
+            'pending',
+            USER_UUID,
+            undefined,
+            undefined,
+            VIZ_SCHEMA,
+        );
+        const payload = schedulerClient.appGeneratePipeline.mock.calls[0][0];
+        // Query and Sheets features never apply to a chart type: neither the
+        // durable summary nor the agent prompt may mention them.
+        expect(payload.upgradeStatusMessage).toBe(
+            'Upgraded to the latest chart SDK.\n\nNow active:\n\n- **In-app screenshots** — Capture this chart for deliveries.\n\nNewly available — ask me to add this in the prompt bar:\n\n- **View underlying data** — Open the rows behind a clicked data point.',
+        );
+        expect(payload.prompt).toContain('viz-underlying-data');
+        expect(payload.prompt).toContain('screenshot');
+        expect(payload.prompt).not.toContain('metric-filters');
+        expect(payload.prompt).not.toContain('gsheet-export');
+    });
+
+    it('treats a chart type whose only candidates are data-app features as already complete', async () => {
+        const { service, schedulerClient } = buildService({
+            template: 'data_app_viz',
+        });
+
+        await service.upgradeApp(makeUser(), PROJECT_UUID, APP_UUID, {
+            reportedSdkVersion: '1.68.0',
+            reportedFeatures: ['query'],
+            candidateFeatures: [
+                {
+                    key: 'metric-filters',
+                    label: 'Metric filters',
+                    description: 'Filter grouped results by metric values.',
+                    wiring: 'Pass metric filters to the query builder.',
+                },
+            ],
+        });
+
+        expect(
+            schedulerClient.appGeneratePipeline.mock.calls[0][0]
+                .upgradeStatusMessage,
+        ).toBe(
+            'Upgraded to the latest chart SDK. This chart already had all currently reported capabilities.',
+        );
+    });
+
+    it('uses a generic chart completion message when a legacy SDK cannot report an exact delta', async () => {
+        const { service, schedulerClient } = buildService({
+            template: 'data_app_viz',
+        });
+
+        await service.upgradeApp(makeUser(), PROJECT_UUID, APP_UUID, {
+            candidateFeatures: [
+                {
+                    key: 'metric-filters',
+                    label: 'Metric filters',
+                    description: 'Filter grouped results by metric values.',
+                },
+            ],
+        });
+
+        expect(
+            schedulerClient.appGeneratePipeline.mock.calls[0][0]
+                .upgradeStatusMessage,
+        ).toBe(
+            'Upgraded to the latest chart SDK.\n\nThis chart came from an older SDK that could not report its capabilities. Ask for a new capability in the prompt bar when you want the builder to add it.',
         );
     });
 

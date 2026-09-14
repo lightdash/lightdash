@@ -1,5 +1,5 @@
 import { ManagedAgentScheduleOption } from '@lightdash/common';
-import { Box, Group, Select, Stack, Text } from '@mantine-8/core';
+import { Box, Group, Select, Stack, Text } from '@mantine/core';
 import {
     IconChartBar,
     IconClock,

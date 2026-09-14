@@ -1,19 +1,16 @@
-import { formatSql } from '@lightdash/common';
+import { formatSql, getMergeCompiledSqlText } from '@lightdash/common';
 import {
     Alert,
     Box,
     Loader,
     Stack,
+    Text,
     Title,
     useMantineColorScheme,
-} from '@mantine-8/core';
-import Editor, {
-    type BeforeMount,
-    type EditorProps,
-} from '@monaco-editor/react';
+} from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
+import { useMergeCompiledSql } from '../features/mergeQuery/hooks/useMergeCompiledSql';
 import {
     getLightdashMonacoTheme,
     getMonacoLanguage,
@@ -22,6 +19,8 @@ import {
 } from '../features/sqlRunner/utils/monaco';
 import { useCompiledSql } from '../hooks/useCompiledSql';
 import { useProject } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
+import Editor, { type BeforeMount, type EditorProps } from './MonacoEditor';
 
 const MONACO_READ_ONLY: EditorProps['options'] = {
     ...MONACO_DEFAULT_OPTIONS,
@@ -38,13 +37,16 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
     selectedView = 'query',
 }) => {
     const { colorScheme } = useMantineColorScheme();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const language = useMemo(
         () => getMonacoLanguage(project?.warehouseConnection?.type),
         [project],
     );
     const { data, error, isInitialLoading } = useCompiledSql();
+    // With a merge configured, each leg and then the join are what Run
+    // executes; Query A's SQL alone would be SQL that does not run.
+    const merge = useMergeCompiledSql();
 
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {
@@ -73,18 +75,27 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
     );
 
     const formattedSql = useMemo(() => {
-        const sqlToFormat =
-            effectiveView === 'pivotQuery' ? data?.pivotQuery : data?.query;
+        const sqlToFormat = merge.isMergeActive
+            ? merge.data && getMergeCompiledSqlText(merge.data)
+            : effectiveView === 'pivotQuery'
+              ? data?.pivotQuery
+              : data?.query;
         if (!sqlToFormat) return '';
         return formatSql(sqlToFormat, project?.warehouseConnection?.type);
     }, [
         data?.query,
         data?.pivotQuery,
         effectiveView,
+        merge.isMergeActive,
+        merge.data,
         project?.warehouseConnection?.type,
     ]);
 
-    if (isInitialLoading) {
+    const mergeCompileErrors = merge.isMergeActive
+        ? (merge.data?.errors ?? [])
+        : [];
+
+    if (isInitialLoading || (merge.isMergeActive && merge.isInitialLoading)) {
         return (
             <Stack my="xs" align="center">
                 <Loader size="lg" color="gray" mt="xs" />
@@ -97,21 +108,21 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
 
     if (error?.error.message) {
         return (
-            <div style={{ margin: 10 }}>
+            <Box m="sm">
                 <Alert
                     icon={<IconAlertCircle size="1rem" />}
                     title="Compilation error"
                     color="red"
                     variant="filled"
                 >
-                    <p>{error.error.message}</p>
+                    <Text>{error.error.message}</Text>
                 </Alert>
-            </div>
+            </Box>
         );
     } else if (error?.error.data) {
         // Validation error
         return (
-            <div style={{ margin: 10 }}>
+            <Box m="sm">
                 <Alert
                     icon={<IconAlertCircle size="1rem" />}
                     title="Compilation error"
@@ -121,19 +132,39 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
                     {Object.entries(error.error.data).map(
                         ([key, validation]) => {
                             return (
-                                <p key={key}>{JSON.stringify(validation)}</p>
+                                <Text key={key}>
+                                    {JSON.stringify(validation)}
+                                </Text>
                             );
                         },
                     )}
                 </Alert>
-            </div>
+            </Box>
         );
     }
 
     return (
         <Stack gap={0} h="100%">
+            {mergeCompileErrors.length > 0 && (
+                <Box m="sm">
+                    <Alert
+                        icon={<IconAlertCircle size="1rem" />}
+                        title="This merge cannot compile"
+                        color="red"
+                        variant="filled"
+                    >
+                        {mergeCompileErrors.map((mergeError) => (
+                            <Text
+                                key={`${mergeError.kind}-${mergeError.sourceId ?? ''}`}
+                            >
+                                {mergeError.message}
+                            </Text>
+                        ))}
+                    </Alert>
+                </Box>
+            )}
             {data?.compilationErrors && data.compilationErrors.length > 0 && (
-                <div style={{ margin: 10 }}>
+                <Box m="sm">
                     <Alert
                         icon={<IconAlertCircle size="1rem" />}
                         title="Compilation error"
@@ -142,11 +173,11 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
                     >
                         {data.compilationErrors.map(
                             (errorMsg: string, index: number) => (
-                                <p key={index}>{errorMsg}</p>
+                                <Text key={index}>{errorMsg}</Text>
                             ),
                         )}
                     </Alert>
-                </div>
+                </Box>
             )}
             <Box flex={1}>
                 <Editor

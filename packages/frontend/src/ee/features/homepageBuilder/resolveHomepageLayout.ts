@@ -17,8 +17,14 @@ const GRID_COLUMNS = 12;
 const LEADING_HERO_TYPES: HomepageBlock['type'][] = ['ask-ai-hero', 'greeting'];
 
 // Chrome-like rows that may sit above the composer without demoting it — they
-// join the hero composition instead (day-0 has its chips above the hero too).
-const HERO_COMPANION_TYPES: HomepageBlock['type'][] = ['quick-actions'];
+// join the hero composition instead. Day-0 has both above its hero: the
+// quick-action chips and the personal favorites strip. A hero demoted to a
+// body row silently loses its density control, so this list must cover every
+// block the starter layouts place above the composer.
+const HERO_COMPANION_TYPES: HomepageBlock['type'][] = [
+    'quick-actions',
+    'favorites',
+];
 
 // Gap before a row, as a token resolved to px in CSS. The first row of a
 // section has no gap (the section's own spacing separates it).
@@ -144,6 +150,12 @@ const dedupeGreetings = (
 // directions during rolling deploys — reads tolerate missing fields rather
 // than trusting the current schema. The layout reasons about what will actually paint: an invisible block
 // must not demote the hero, leave a phantom row gap, or hold a ghost column.
+const isEmptyList = (items: readonly unknown[] | undefined): boolean =>
+    (items?.length ?? 0) === 0;
+
+const isBlankText = (text: string | undefined): boolean =>
+    (text ?? '').trim() === '';
+
 const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
     switch (block.type) {
         // A collection with a dynamic source has no items in config — what it
@@ -152,15 +164,17 @@ const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
         case 'collection':
             return (
                 collectionSourceOf(block.config) === 'manual' &&
-                (block.config.items?.length ?? 0) === 0
+                isEmptyList(block.config.items)
             );
         case 'resources':
         case 'metrics':
-            return (block.config.items?.length ?? 0) === 0;
+            return isEmptyList(block.config.items);
         case 'quick-actions':
-            return (block.config.actions?.length ?? 0) === 0;
+            return isEmptyList(block.config.actions);
+        case 'cta':
+            return isBlankText(block.config.buttonLabel);
         case 'markdown':
-            return (block.config.content ?? '').trim() === '';
+            return isBlankText(block.config.content);
         // Visibility depends on runtime data (viewer, AI availability, the
         // announcements feed), not config — always treat as visible.
         case 'announcements':
@@ -220,6 +234,7 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
         case 'recent':
         case 'markdown':
         case 'quick-actions':
+        case 'cta':
         case 'ask-ai-hero':
         case 'greeting':
             return null;
@@ -331,6 +346,9 @@ const resolveRow = (
     })();
     const gap: RowGap = (() => {
         if (isFirst) return 'none';
+        // A row emptied by the read-path sanitizer resolves benignly (it
+        // paints nothing) rather than crashing the page.
+        if (row.blocks.length === 0) return 'section';
         // The incoming block's rhythm drives the gap: a grouped block tucks
         // tight under whatever precedes it; a section block breaks away.
         return traitFor(row.blocks[0].type).rhythm === 'grouped'

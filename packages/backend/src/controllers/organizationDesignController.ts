@@ -1,13 +1,17 @@
 import {
     ApiErrorPayload,
     ApiOrganizationDesignFileResponse,
+    ApiOrganizationDesignPackageImportResponse,
     ApiOrganizationDesignResponse,
     ApiOrganizationDesignsResponse,
     ApiSuccessEmpty,
     assertRegisteredAccount,
     CreateOrganizationDesignRequest,
+    MAX_THEME_PACKAGE_BYTES,
+    ORGANIZATION_DESIGN_PACKAGE_CONTENT_TYPE,
     ParameterError,
     UpdateOrganizationDesignRequest,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import {
     Body,
@@ -18,6 +22,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -26,6 +31,9 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { createContentDispositionHeader } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -59,16 +67,44 @@ export class OrganizationDesignController extends BaseController {
     }
 
     /**
+     * Download a complete organization theme as the canonical theme-as-code
+     * tar package.
+     * @summary Download theme package
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{designUuidOrSlug}/package')
+    @OperationId('DownloadOrganizationDesignPackage')
+    async downloadPackage(
+        @Request() req: express.Request,
+        @Path() designUuidOrSlug: UuidOrSlug,
+    ): Promise<void> {
+        assertRegisteredAccount(req.account);
+        const { body, filename } = await this.services
+            .getOrganizationDesignService()
+            .exportPackage(req.account, designUuidOrSlug);
+        const res = req.res!;
+        res.status(200);
+        res.setHeader('Content-Type', ORGANIZATION_DESIGN_PACKAGE_CONTENT_TYPE);
+        res.setHeader('Content-Length', String(body.length));
+        res.setHeader(
+            'Content-Disposition',
+            createContentDispositionHeader(filename),
+        );
+        await pipeline(Readable.from(body), res);
+    }
+
+    /**
      * Get a single organization design with its files.
      * @summary Get organization design
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{designUuid}')
+    @Get('/{designUuidOrSlug}')
     @OperationId('GetOrganizationDesign')
     async getDesign(
         @Request() req: express.Request,
-        @Path() designUuid: string,
+        @Path() designUuidOrSlug: UuidOrSlug,
     ): Promise<ApiOrganizationDesignResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -76,7 +112,7 @@ export class OrganizationDesignController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationDesignService()
-                .getDesign(req.account, designUuid),
+                .getDesign(req.account, designUuidOrSlug),
         };
     }
 
@@ -107,6 +143,61 @@ export class OrganizationDesignController extends BaseController {
     }
 
     /**
+     * Create or atomically replace an organization theme from a canonical
+     * theme-as-code tar package. Send the uncompressed tar as the raw
+     * `application/x-tar` request body; the manifest slug selects the remote
+     * theme.
+     * @summary Import theme package
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/package')
+    @OperationId('ImportOrganizationDesignPackage')
+    async importPackage(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationDesignPackageImportResponse> {
+        assertRegisteredAccount(req.account);
+        const contentType = req.headers['content-type']
+            ?.split(';')[0]
+            .trim()
+            .toLowerCase();
+        if (contentType !== ORGANIZATION_DESIGN_PACKAGE_CONTENT_TYPE) {
+            throw new ParameterError(
+                `Content-Type must be ${ORGANIZATION_DESIGN_PACKAGE_CONTENT_TYPE}`,
+            );
+        }
+        const contentLengthHeader = req.headers['content-length'];
+        if (!contentLengthHeader) {
+            throw new ParameterError('Content-Length header is required');
+        }
+        const contentLength = Number(contentLengthHeader);
+        if (
+            !Number.isSafeInteger(contentLength) ||
+            contentLength <= 0 ||
+            contentLength > MAX_THEME_PACKAGE_BYTES
+        ) {
+            throw new ParameterError(
+                `Content-Length must be between 1 and ${MAX_THEME_PACKAGE_BYTES}`,
+            );
+        }
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOrganizationDesignService()
+                .importPackage(req.account, {
+                    body: req,
+                    contentLength,
+                }),
+        };
+    }
+
+    /**
      * Update an organization design's name or description.
      * @summary Update organization design
      */
@@ -116,11 +207,11 @@ export class OrganizationDesignController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Patch('/{designUuid}')
+    @Patch('/{designUuidOrSlug}')
     @OperationId('UpdateOrganizationDesign')
     async updateDesign(
         @Request() req: express.Request,
-        @Path() designUuid: string,
+        @Path() designUuidOrSlug: UuidOrSlug,
         @Body() body: UpdateOrganizationDesignRequest,
     ): Promise<ApiOrganizationDesignResponse> {
         assertRegisteredAccount(req.account);
@@ -129,7 +220,7 @@ export class OrganizationDesignController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationDesignService()
-                .updateDesign(req.account, designUuid, body),
+                .updateDesign(req.account, designUuidOrSlug, body),
         };
     }
 
@@ -138,9 +229,9 @@ export class OrganizationDesignController extends BaseController {
      * — succeeds when no default is set.
      *
      * NOTE: This literal `/default` route MUST stay registered before
-     * `Delete('/{designUuid}')` below so Express routes a request to
+     * `Delete('/{designUuidOrSlug}')` below so Express routes a request to
      * `DELETE /api/v1/org/designs/default` here rather than treating
-     * "default" as a `designUuid` path param.
+     * "default" as a `designUuidOrSlug` path param.
      * @summary Clear default organization design
      */
     @Middlewares([
@@ -172,16 +263,16 @@ export class OrganizationDesignController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Delete('/{designUuid}')
+    @Delete('/{designUuidOrSlug}')
     @OperationId('DeleteOrganizationDesign')
     async deleteDesign(
         @Request() req: express.Request,
-        @Path() designUuid: string,
+        @Path() designUuidOrSlug: UuidOrSlug,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         await this.services
             .getOrganizationDesignService()
-            .deleteDesign(req.account, designUuid);
+            .deleteDesign(req.account, designUuidOrSlug);
         this.setStatus(200);
         return { status: 'ok', results: undefined };
     }
@@ -196,11 +287,11 @@ export class OrganizationDesignController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Post('/{designUuid}/default')
+    @Post('/{designUuidOrSlug}/default')
     @OperationId('SetDefaultOrganizationDesign')
     async setAsDefault(
         @Request() req: express.Request,
-        @Path() designUuid: string,
+        @Path() designUuidOrSlug: UuidOrSlug,
     ): Promise<ApiOrganizationDesignResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -208,7 +299,7 @@ export class OrganizationDesignController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationDesignService()
-                .setAsDefault(req.account, designUuid),
+                .setAsDefault(req.account, designUuidOrSlug),
         };
     }
 
@@ -225,11 +316,11 @@ export class OrganizationDesignController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('201', 'Created')
-    @Post('/{designUuid}/files')
+    @Post('/{designUuidOrSlug}/files')
     @OperationId('UploadOrganizationDesignFile')
     async uploadFile(
         @Request() req: express.Request,
-        @Path() designUuid: string,
+        @Path() designUuidOrSlug: UuidOrSlug,
         @Query() kind: string,
         @Query() filename: string,
     ): Promise<ApiOrganizationDesignFileResponse> {
@@ -253,7 +344,7 @@ export class OrganizationDesignController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationDesignService()
-                .uploadFile(req.account, designUuid, {
+                .uploadFile(req.account, designUuidOrSlug, {
                     kind,
                     filename,
                     contentType,
@@ -274,16 +365,16 @@ export class OrganizationDesignController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Delete('/{designUuid}/files')
+    @Delete('/{designUuidOrSlug}/files')
     @OperationId('DeleteAllOrganizationDesignFiles')
     async deleteAllFiles(
         @Request() req: express.Request,
-        @Path() designUuid: string,
+        @Path() designUuidOrSlug: UuidOrSlug,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         await this.services
             .getOrganizationDesignService()
-            .clearFiles(req.account, designUuid);
+            .clearFiles(req.account, designUuidOrSlug);
         this.setStatus(200);
         return { status: 'ok', results: undefined };
     }
@@ -298,17 +389,17 @@ export class OrganizationDesignController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Delete('/{designUuid}/files/{fileUuid}')
+    @Delete('/{designUuidOrSlug}/files/{fileUuid}')
     @OperationId('DeleteOrganizationDesignFile')
     async deleteFile(
         @Request() req: express.Request,
-        @Path() designUuid: string,
+        @Path() designUuidOrSlug: UuidOrSlug,
         @Path() fileUuid: string,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         await this.services
             .getOrganizationDesignService()
-            .deleteFile(req.account, designUuid, fileUuid);
+            .deleteFile(req.account, designUuidOrSlug, fileUuid);
         this.setStatus(200);
         return { status: 'ok', results: undefined };
     }
@@ -321,17 +412,17 @@ export class OrganizationDesignController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{designUuid}/files/{fileUuid}')
+    @Get('/{designUuidOrSlug}/files/{fileUuid}')
     @OperationId('DownloadOrganizationDesignFile')
     async downloadFile(
         @Request() req: express.Request,
-        @Path() designUuid: string,
+        @Path() designUuidOrSlug: UuidOrSlug,
         @Path() fileUuid: string,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const { body, contentType, filename, sizeBytes } = await this.services
             .getOrganizationDesignService()
-            .getFileStream(req.account, designUuid, fileUuid);
+            .getFileStream(req.account, designUuidOrSlug, fileUuid);
         const { res } = req as express.Request & { res: express.Response };
         res.status(200);
         res.setHeader('Content-Type', contentType);

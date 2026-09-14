@@ -332,7 +332,10 @@ const credentialsTarget = (
                     },
                 };
             }
-            if (credentials.connectionType === DuckdbConnectionType.EMBEDDED) {
+            if (
+                credentials.connectionType === DuckdbConnectionType.EMBEDDED ||
+                credentials.connectionType === DuckdbConnectionType.ANALYTICS
+            ) {
                 throw new ParameterError(
                     'Embedded DuckDB credentials cannot be used for dbt compilation',
                 );

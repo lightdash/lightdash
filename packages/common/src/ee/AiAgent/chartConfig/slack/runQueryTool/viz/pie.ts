@@ -4,14 +4,14 @@ import {
     getPieLabelLineStyle,
 } from '../../../../../../visualizations/helpers/styles/pieChartStyles';
 import { getTooltipStyle } from '../../../../../../visualizations/helpers/styles/tooltipStyles';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import { type ToolRunQueryArgsTransformedBuiltinChart } from '../../../../schemas';
 import { getCommonEChartsConfig } from '../../shared/getCommonEChartsConfig';
 
 /**
  * Generates pie chart echarts config for server-side rendering
  */
 export const getPieChartEchartsConfig = (
-    queryTool: ToolRunQueryArgsTransformed,
+    queryTool: ToolRunQueryArgsTransformedBuiltinChart,
     rows: Record<string, unknown>[],
 ): EChartsOption => {
     const { dimensions, metrics } = queryTool.queryConfig;

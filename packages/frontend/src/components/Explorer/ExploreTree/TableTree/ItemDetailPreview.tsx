@@ -6,7 +6,6 @@ import {
     type Dimension,
 } from '@lightdash/common';
 import {
-    Anchor,
     Badge,
     Box,
     Button,
@@ -19,8 +18,8 @@ import {
     Title,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
-import { IconCode } from '@tabler/icons-react';
+} from '@mantine/core';
+import { IconArrowRight, IconCode } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC, type PropsWithChildren } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
@@ -33,6 +32,13 @@ import FieldIcon from '../../../common/Filters/FieldIcon';
 import { filterOperatorLabel } from '../../../common/Filters/FilterInputs/constants';
 import MantineIcon from '../../../common/MantineIcon';
 import classes from './ItemDetailPreview.module.css';
+import { ITEM_DETAIL_PREVIEW_TRANSITION_PROPS } from './itemDetailPreviewTransition';
+
+export const MetricTypeBadge: FC<{ type: string }> = ({ type }) => (
+    <Badge className={classes.metricTypeBadge} color="indigo" p={2}>
+        {friendlyName(type)}
+    </Badge>
+);
 
 /**
  * Renders markdown for an item's description, with additional constraints
@@ -43,6 +49,7 @@ export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
     const theme = useMantineTheme();
     return (
         <ReactMarkdownPreview
+            className={classes.markdown}
             skipHtml
             components={{
                 h1: ({ children }) => <Title order={2}>{children}</Title>,
@@ -102,24 +109,14 @@ export const ItemDetailPreview: FC<{
     const [showCompiled, setShowCompiled] = useState(false);
 
     return (
-        <Stack gap="xs">
+        <Stack gap="sm">
             {metricInfo && (
                 <>
                     <Group gap="xs" justify="space-between">
                         <Text fz="sm" fw={500} c="ldDark.7">
                             {metricInfo.name}
                         </Text>
-                        <Badge
-                            radius="sm"
-                            color="indigo"
-                            p={2}
-                            style={{
-                                boxShadow: 'var(--mantine-shadow-subtle)',
-                                border: '1px solid var(--mantine-color-indigo-1)',
-                            }}
-                        >
-                            {friendlyName(metricInfo.type)}
-                        </Badge>
+                        <MetricTypeBadge type={metricInfo.type} />
                     </Group>
                     {metricInfo.baseDimension && (
                         <>
@@ -172,16 +169,20 @@ export const ItemDetailPreview: FC<{
                 </Box>
             )}
             {isTruncated && (
-                <Box ta={'center'}>
-                    <Anchor
-                        size={'xs'}
-                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                <Box ta="right">
+                    <Button
+                        variant="subtle"
+                        size="compact-sm"
+                        rightSection={
+                            <MantineIcon icon={IconArrowRight} size="sm" />
+                        }
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                             e.preventDefault();
                             onViewDescription();
                         }}
                     >
                         Read full description
-                    </Anchor>
+                    </Button>
                 </Box>
             )}
             {metricInfo && (
@@ -329,12 +330,11 @@ export const TableItemDetailPreview = ({
         <Popover
             opened={showPreview}
             keepMounted={false}
-            shadow="sm"
-            withinPortal
             disabled={!description}
             position="right"
             withArrow
             offset={offset}
+            transitionProps={ITEM_DETAIL_PREVIEW_TRANSITION_PROPS}
         >
             <Popover.Target>{children}</Popover.Target>
             <Popover.Dropdown
@@ -343,6 +343,8 @@ export const TableItemDetailPreview = ({
                  * of readability.
                  */
                 maw={500}
+                p="md"
+                className={classes.previewDropdown}
                 /**
                  * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
                  * while interacting with the hovercard.

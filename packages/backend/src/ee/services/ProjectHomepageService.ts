@@ -1,14 +1,19 @@
 import { subject } from '@casl/ability';
 import {
     ANNOUNCEMENT_BODY_MAX_LENGTH,
+    ANNOUNCEMENT_CATEGORY_META,
     assertUnreachable,
     CommercialFeatureFlags,
+    convertOrganizationRoleToProjectRole,
     defaultHomepageConfig,
     ForbiddenError,
     getErrorMessage,
-    HOMEPAGE_MAX_BLOCKS_PER_ROW,
+    getHighestProjectRole,
+    isSystemRole,
     NotFoundError,
     ParameterError,
+    parseHomepageConfig,
+    PersistentDownloadFileAccessMode,
     type AnnouncementsPage,
     type CreateAnnouncementRequest,
     type CreateProjectHomepageRequest,
@@ -19,29 +24,36 @@ import {
     type HomepageRecentlyViewedItem,
     type HomepageViewAsResult,
     type HomepageViewAsTarget,
+    type OrganizationHomepageSettings,
     type ProjectAnnouncement,
     type ProjectHomepage,
     type ProjectMemberRole,
+    type PublishAnnouncementPayload,
     type ResolvedHomepage,
     type SessionUser,
     type UpdateAnnouncementRequest,
+    type UpdateOrganizationHomepageSettings,
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
 import { type KnownBlock } from '@slack/web-api';
 import { createCanvas, loadImage } from 'canvas';
 import { randomUUID } from 'crypto';
 import { type Readable } from 'stream';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import type { RecentContentService } from '../../services/RecentContentService/RecentContentService';
 import { secureFetch } from '../../utils/secureFetch/secureFetch';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
+import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import {
     classifyResourceUrl,
     parseOpenGraph,
@@ -160,12 +172,12 @@ const readImageDimensions = (buffer: Buffer): ImageDimensions | null =>
     readJpegDimensions(buffer);
 
 export type ProjectHomepageServiceArguments = {
+    recentContentService: Pick<RecentContentService, 'getRecentlyViewed'>;
     projectHomepageModel: Pick<
         ProjectHomepageModel,
         | 'getDefault'
         | 'getByUuid'
         | 'getPublishedDefault'
-        | 'getRecentlyViewed'
         | 'getAssignments'
         | 'updateGroupPriorities'
         | 'resolvePublished'
@@ -181,10 +193,19 @@ export type ProjectHomepageServiceArguments = {
         | 'updateAnnouncement'
         | 'deleteAnnouncement'
         | 'publishProjectDraftAnnouncements'
+        | 'publishPendingAnnouncements'
+        | 'findOrgHomepageSettings'
+        | 'upsertOrgHomepageSettings'
+        | 'swapHeroBlocks'
     >;
+    analytics: Pick<LightdashAnalytics, 'track'>;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
-    projectModel: Pick<ProjectModel, 'getProjectMemberAccess' | 'getSummary'>;
+    projectModel: Pick<
+        ProjectModel,
+        'getProjectMemberAccess' | 'getProjectGroupAccesses' | 'getSummary'
+    >;
+    userModel: Pick<UserModel, 'getUserDetailsByUuid'>;
     fileStorageClient: FileStorageClient;
     persistentDownloadFileService: PersistentDownloadFileService;
     slackClient: Pick<SlackClient, 'postMessage'>;
@@ -193,16 +214,25 @@ export type ProjectHomepageServiceArguments = {
         'getInstallationFromOrganizationUuid'
     >;
     lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
+    schedulerClient: Pick<
+        CommercialSchedulerClient,
+        'schedulePublishAnnouncement' | 'cancelPublishAnnouncement'
+    >;
 };
 
 export class ProjectHomepageService extends BaseService {
+    private readonly recentContentService: ProjectHomepageServiceArguments['recentContentService'];
     private readonly projectHomepageModel: ProjectHomepageServiceArguments['projectHomepageModel'];
+
+    private readonly analytics: ProjectHomepageServiceArguments['analytics'];
 
     private readonly featureFlagService: ProjectHomepageServiceArguments['featureFlagService'];
 
     private readonly groupsModel: ProjectHomepageServiceArguments['groupsModel'];
 
     private readonly projectModel: ProjectHomepageServiceArguments['projectModel'];
+
+    private readonly userModel: ProjectHomepageServiceArguments['userModel'];
 
     private readonly fileStorageClient: ProjectHomepageServiceArguments['fileStorageClient'];
 
@@ -214,27 +244,117 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly lightdashConfig: ProjectHomepageServiceArguments['lightdashConfig'];
 
+    private readonly schedulerClient: ProjectHomepageServiceArguments['schedulerClient'];
+
     constructor(args: ProjectHomepageServiceArguments) {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
+        this.recentContentService = args.recentContentService;
+        this.analytics = args.analytics;
         this.featureFlagService = args.featureFlagService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
+        this.userModel = args.userModel;
         this.fileStorageClient = args.fileStorageClient;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.slackClient = args.slackClient;
         this.slackAuthenticationModel = args.slackAuthenticationModel;
         this.lightdashConfig = args.lightdashConfig;
+        this.schedulerClient = args.schedulerClient;
     }
 
-    private async assertFlagEnabled(user: SessionUser): Promise<void> {
+    // Homepage v2 is on when the org opted in via settings OR the commercial
+    // flag is set — the flag remains as the legacy enablement path and
+    // kill-switch while the opt-in flow rolls out.
+    private async isHomepageEnabled(user: SessionUser): Promise<boolean> {
+        if (user.organizationUuid) {
+            const settings =
+                await this.projectHomepageModel.findOrgHomepageSettings(
+                    user.organizationUuid,
+                );
+            if (settings?.enabled) return true;
+        }
         const flag = await this.featureFlagService.get({
             user,
             featureFlagId: CommercialFeatureFlags.HomepageBuilder,
         });
-        if (!flag.enabled) {
+        return flag.enabled;
+    }
+
+    private async assertFlagEnabled(user: SessionUser): Promise<void> {
+        if (!(await this.isHomepageEnabled(user))) {
             throw new ForbiddenError('Homepage builder is not enabled');
         }
+    }
+
+    async getOrgHomepageSettings(
+        user: SessionUser,
+    ): Promise<OrganizationHomepageSettings> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        const settings =
+            await this.projectHomepageModel.findOrgHomepageSettings(
+                user.organizationUuid,
+            );
+        return (
+            settings ?? {
+                organizationUuid: user.organizationUuid,
+                enabled: false,
+                opening: null,
+            }
+        );
+    }
+
+    async updateOrgHomepageSettings(
+        user: SessionUser,
+        update: UpdateOrganizationHomepageSettings,
+    ): Promise<OrganizationHomepageSettings> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        const ability = this.createAuditedAbility(user);
+        if (
+            ability.cannot(
+                'manage',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only organization admins can change homepage settings',
+            );
+        }
+        const previous =
+            await this.projectHomepageModel.findOrgHomepageSettings(
+                user.organizationUuid,
+            );
+        const settings =
+            await this.projectHomepageModel.upsertOrgHomepageSettings(
+                user.organizationUuid,
+                update,
+            );
+        // Choosing an opening is an explicit layout decision: rewrite stored
+        // hero blocks in both directions so the builder, drafts, and
+        // published pages all agree with it (block ids and density survive).
+        if (update.opening !== null) {
+            await this.projectHomepageModel.swapHeroBlocks(
+                user.organizationUuid,
+                update.opening,
+            );
+        }
+        this.analytics.track({
+            event: 'organization_homepage_settings.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                enabled: settings.enabled,
+                opening: settings.opening,
+                previouslyEnabled: previous?.enabled ?? false,
+            },
+        });
+        return settings;
     }
 
     private async assertCanView(
@@ -285,16 +405,14 @@ export class ProjectHomepageService extends BaseService {
         }
     }
 
-    private static validateConfig(config: HomepageConfig): void {
-        if (config.version !== 1) {
-            throw new ParameterError('Unsupported homepage config version');
-        }
-        const oversizedRow = config.rows.find(
-            (row) => row.blocks.length > HOMEPAGE_MAX_BLOCKS_PER_ROW,
-        );
-        if (oversizedRow) {
+    /** Strict schema parse: validates the block union, strips unknown
+     * properties before they reach storage, enforces the row block cap. */
+    private static validateConfig(config: HomepageConfig): HomepageConfig {
+        try {
+            return parseHomepageConfig(config);
+        } catch (e) {
             throw new ParameterError(
-                `Rows support at most ${HOMEPAGE_MAX_BLOCKS_PER_ROW} blocks`,
+                e instanceof Error ? e.message : 'Invalid homepage config',
             );
         }
     }
@@ -340,7 +458,7 @@ export class ProjectHomepageService extends BaseService {
         groupUuids: string[];
         role: ProjectMemberRole | undefined;
     }> {
-        const [groups, membership] = await Promise.all([
+        const [groups, membership, groupAccesses, user] = await Promise.all([
             organizationUuid
                 ? this.groupsModel.findUserGroups({
                       userUuid,
@@ -348,11 +466,27 @@ export class ProjectHomepageService extends BaseService {
                   })
                 : Promise.resolve([]),
             this.projectModel.getProjectMemberAccess(projectUuid, userUuid),
+            this.projectModel.getProjectGroupAccesses(projectUuid),
+            this.userModel.getUserDetailsByUuid(userUuid),
         ]);
-        return {
-            groupUuids: groups.map((group) => group.uuid),
-            role: membership?.role,
-        };
+        const groupUuids = groups.map((group) => group.uuid);
+        // Custom roles resolve to their stored placeholder, not a scope-derived tier.
+        const highestRole = getHighestProjectRole([
+            {
+                type: 'organization',
+                role: user.role
+                    ? convertOrganizationRoleToProjectRole(user.role)
+                    : undefined,
+            },
+            { type: 'project', role: membership?.role },
+            ...groupAccesses
+                .filter((access) => groupUuids.includes(access.groupUuid))
+                .map((access) => ({
+                    type: 'group' as const,
+                    role: isSystemRole(access.role) ? access.role : undefined,
+                })),
+        ]);
+        return { groupUuids, role: highestRole?.role };
     }
 
     async getResolvedHomepage(
@@ -429,10 +563,15 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<HomepageRecentlyViewedItem[]> {
         await this.assertFlagEnabled(user);
         await this.assertCanView(user, projectUuid);
-        return this.projectHomepageModel.getRecentlyViewed(
+        const entries = await this.recentContentService.getRecentlyViewed(
+            user,
             projectUuid,
-            user.userUuid,
         );
+        return entries.map(({ contentType, uuid, viewedAt }) => ({
+            contentType,
+            uuid,
+            viewedAt,
+        }));
     }
 
     async getHomepageForBuilder(
@@ -499,11 +638,13 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
         await this.assertCanManage(user, projectUuid);
-        ProjectHomepageService.validateConfig(data.draftConfig);
+        const draftConfig = ProjectHomepageService.validateConfig(
+            data.draftConfig,
+        );
         await this.getOwnedHomepage(projectUuid, homepageUuid);
         return this.projectHomepageModel.updateDraft(homepageUuid, {
             name: data.name,
-            draftConfig: data.draftConfig,
+            draftConfig,
             baseUpdatedAt: data.baseUpdatedAt,
         });
     }
@@ -532,6 +673,32 @@ export class ProjectHomepageService extends BaseService {
             homepageUuid,
             audience,
         );
+        const publishedBlocks = (published.publishedConfig?.rows ?? []).flatMap(
+            (row) => row.blocks,
+        );
+        this.analytics.track({
+            event: 'homepage.published',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid ?? '',
+                projectId: projectUuid,
+                homepageUuid,
+                audienceType: audience.type,
+                blockTypeCounts: publishedBlocks.reduce<Record<string, number>>(
+                    (counts, block) => ({
+                        ...counts,
+                        [block.type]: (counts[block.type] ?? 0) + 1,
+                    }),
+                    {},
+                ),
+                openingBlockType:
+                    publishedBlocks.find(
+                        (block) =>
+                            block.type === 'ask-ai-hero' ||
+                            block.type === 'greeting',
+                    )?.type ?? null,
+            },
+        });
         const { organizationUuid } = user;
         if (organizationUuid) {
             const publishedDrafts =
@@ -704,6 +871,50 @@ export class ProjectHomepageService extends BaseService {
             .trim();
     }
 
+    private static announcementCategoryLabel(
+        announcement: ProjectAnnouncement,
+    ): string | null {
+        if (announcement.category == null) {
+            return null;
+        }
+        return ANNOUNCEMENT_CATEGORY_META[announcement.category]?.label ?? null;
+    }
+
+    // Context-line attribution only — omit missing parts so Slack never
+    // shows an empty "Posted by" or a dangling separator.
+    private static announcementSlackAttribution(
+        announcement: ProjectAnnouncement,
+    ): string | null {
+        const parts: string[] = [];
+        const categoryLabel =
+            ProjectHomepageService.announcementCategoryLabel(announcement);
+        if (categoryLabel) {
+            parts.push(categoryLabel);
+        }
+        if (announcement.authorName) {
+            parts.push(`Posted by ${announcement.authorName}`);
+        }
+        return parts.length > 0 ? parts.join(' · ') : null;
+    }
+
+    private static announcementSlackFallbackText(
+        announcement: ProjectAnnouncement,
+    ): string {
+        const categoryLabel =
+            ProjectHomepageService.announcementCategoryLabel(announcement);
+        const author = announcement.authorName;
+        if (categoryLabel && author) {
+            return `📢 ${categoryLabel} from ${author}: ${announcement.title}`;
+        }
+        if (categoryLabel) {
+            return `📢 ${categoryLabel}: ${announcement.title}`;
+        }
+        if (author) {
+            return `📢 New announcement from ${author}: ${announcement.title}`;
+        }
+        return `📢 New announcement: ${announcement.title}`;
+    }
+
     private async notifyAnnouncementToSlack(
         organizationUuid: string,
         projectUuid: string,
@@ -717,6 +928,8 @@ export class ProjectHomepageService extends BaseService {
         const image = announcement.body
             ? this.announcementSlackImage(announcement.body)
             : null;
+        const attribution =
+            ProjectHomepageService.announcementSlackAttribution(announcement);
         const blocks: (KnownBlock | SlackMarkdownBlock)[] = [
             {
                 type: 'header',
@@ -726,6 +939,19 @@ export class ProjectHomepageService extends BaseService {
                     emoji: true,
                 },
             },
+            ...(attribution
+                ? [
+                      {
+                          type: 'context' as const,
+                          elements: [
+                              {
+                                  type: 'mrkdwn' as const,
+                                  text: attribution,
+                              },
+                          ],
+                      },
+                  ]
+                : []),
             ...(markdown
                 ? [{ type: 'markdown' as const, text: markdown }]
                 : []),
@@ -748,7 +974,8 @@ export class ProjectHomepageService extends BaseService {
                 ],
             },
         ];
-        const text = `📢 New announcement: ${announcement.title}`;
+        const text =
+            ProjectHomepageService.announcementSlackFallbackText(announcement);
         try {
             await this.slackClient.postMessage({
                 organizationUuid,
@@ -794,21 +1021,60 @@ export class ProjectHomepageService extends BaseService {
         await this.assertCanManage(user, projectUuid);
         ProjectHomepageService.validateAnnouncementTitle(data.title);
         ProjectHomepageService.validateAnnouncementBody(data.body);
+        if (data.publishNow && data.scheduledPublishAt) {
+            throw new ParameterError(
+                'An announcement cannot both publish now and be scheduled',
+            );
+        }
+        if (data.scheduledPublishAt) {
+            ProjectHomepageService.validateScheduledPublishAt(
+                data.scheduledPublishAt,
+            );
+        }
         if (data.slackChannelId) {
             if (!user.organizationUuid) throw new ForbiddenError();
             await this.assertSlackInstalled(user.organizationUuid);
         }
-        // Created as a draft — it stays invisible on the live homepage and its
-        // Slack notification (if any) is deferred until the homepage is
-        // published, see `publishHomepage`.
-        return this.projectHomepageModel.createAnnouncement({
-            projectUuid,
-            title: data.title.trim(),
-            body: data.body,
-            category: data.category,
-            createdByUserUuid: user.userUuid,
-            pendingSlackChannelId: data.slackChannelId ?? null,
-        });
+        // Default path creates a draft — invisible on the live homepage, its
+        // Slack notification (if any) deferred until the homepage is
+        // published, see `publishHomepage`. With `publishNow` (posting from
+        // the published homepage) it goes live and notifies immediately; with
+        // `scheduledPublishAt` it goes live at that instant.
+        const announcement = await this.projectHomepageModel.createAnnouncement(
+            {
+                projectUuid,
+                title: data.title.trim(),
+                body: data.body,
+                category: data.category,
+                createdByUserUuid: user.userUuid,
+                pendingSlackChannelId: data.slackChannelId ?? null,
+                published: data.publishNow === true,
+                scheduledPublishAt: data.scheduledPublishAt ?? null,
+            },
+        );
+        if (data.publishNow && data.slackChannelId && user.organizationUuid) {
+            await this.notifyAnnouncementToSlack(
+                user.organizationUuid,
+                projectUuid,
+                announcement,
+                data.slackChannelId,
+            );
+        }
+        if (announcement.scheduledPublishAt) {
+            // assertCanManage guarantees an org; throw rather than silently
+            // leaving the row to the sweep if that invariant ever breaks.
+            if (!user.organizationUuid) throw new ForbiddenError();
+            await this.schedulerClient.schedulePublishAnnouncement(
+                {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    announcementUuid: announcement.announcementUuid,
+                },
+                announcement.scheduledPublishAt,
+            );
+        }
+        return announcement;
     }
 
     async updateAnnouncement(
@@ -842,10 +1108,75 @@ export class ProjectHomepageService extends BaseService {
                 await this.assertSlackInstalled(user.organizationUuid);
             }
         }
-        return this.projectHomepageModel.updateAnnouncement(announcementUuid, {
-            ...update,
-            ...(update.title !== undefined && { title: update.title.trim() }),
-        });
+        const { publishNow, scheduledPublishAt, ...contentUpdate } = update;
+        if (publishNow && scheduledPublishAt) {
+            throw new ParameterError(
+                'An announcement cannot both publish now and be scheduled',
+            );
+        }
+        if (
+            announcement.published &&
+            (publishNow || scheduledPublishAt !== undefined)
+        ) {
+            throw new ParameterError('Announcement is already published');
+        }
+        if (scheduledPublishAt) {
+            ProjectHomepageService.validateScheduledPublishAt(
+                scheduledPublishAt,
+            );
+        }
+
+        // Content edits (and any schedule change) land first so a publish-now
+        // publishes what the admin just wrote, with the current Slack target.
+        const hasModelUpdate =
+            Object.keys(contentUpdate).length > 0 ||
+            scheduledPublishAt !== undefined;
+        const updated = hasModelUpdate
+            ? await this.projectHomepageModel.updateAnnouncement(
+                  announcementUuid,
+                  {
+                      ...contentUpdate,
+                      ...(update.title !== undefined && {
+                          title: update.title.trim(),
+                      }),
+                      ...(scheduledPublishAt !== undefined && {
+                          scheduledPublishAt,
+                      }),
+                  },
+              )
+            : announcement;
+
+        if (publishNow) {
+            const published =
+                await this.projectHomepageModel.publishPendingAnnouncements({
+                    announcementUuid,
+                    onlyDue: false,
+                });
+            await this.schedulerClient.cancelPublishAnnouncement(
+                announcementUuid,
+            );
+            await this.notifyPublishedAnnouncements(published);
+            return published[0]?.announcement ?? updated;
+        }
+        if (scheduledPublishAt) {
+            // assertCanManage guarantees an org; throw rather than silently
+            // leaving the row to the sweep if that invariant ever breaks.
+            if (!user.organizationUuid) throw new ForbiddenError();
+            await this.schedulerClient.schedulePublishAnnouncement(
+                {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    announcementUuid,
+                },
+                scheduledPublishAt,
+            );
+        } else if (scheduledPublishAt === null) {
+            await this.schedulerClient.cancelPublishAnnouncement(
+                announcementUuid,
+            );
+        }
+        return updated;
     }
 
     // Best-effort: uploaded images are only reachable through the body, so
@@ -890,7 +1221,83 @@ export class ProjectHomepageService extends BaseService {
             announcementUuid,
         );
         await this.projectHomepageModel.deleteAnnouncement(announcementUuid);
+        await this.schedulerClient.cancelPublishAnnouncement(announcementUuid);
         await this.deleteAnnouncementImages(projectUuid, announcement.body);
+    }
+
+    private static validateScheduledPublishAt(scheduledPublishAt: Date): void {
+        if (
+            Number.isNaN(scheduledPublishAt.getTime()) ||
+            scheduledPublishAt.getTime() <= Date.now()
+        ) {
+            throw new ParameterError(
+                'Scheduled publish time must be in the future',
+            );
+        }
+    }
+
+    /** Slack for announcements published by the worker: org resolved from the
+     * project row at publish time, never from a stale job payload. */
+    private async notifyPublishedAnnouncements(
+        published: Array<{
+            announcement: ProjectAnnouncement;
+            slackChannelId: string | null;
+        }>,
+    ): Promise<void> {
+        await Promise.all(
+            published.map(async ({ announcement, slackChannelId }) => {
+                if (!slackChannelId) return;
+                try {
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(
+                            announcement.projectUuid,
+                        );
+                    await this.notifyAnnouncementToSlack(
+                        organizationUuid,
+                        announcement.projectUuid,
+                        announcement,
+                        slackChannelId,
+                    );
+                } catch (error) {
+                    this.logger.error(
+                        `Failed to notify Slack for announcement ${
+                            announcement.announcementUuid
+                        }: ${getErrorMessage(error)}`,
+                    );
+                }
+            }),
+        );
+    }
+
+    /** Worker entrypoint for the one-shot publish job. */
+    async publishScheduledAnnouncement(
+        payload: PublishAnnouncementPayload,
+    ): Promise<void> {
+        const announcement = await this.projectHomepageModel.getAnnouncement(
+            payload.announcementUuid,
+        );
+        // Stale or forged payloads publish nothing: the row must still exist,
+        // belong to the payload's project, and actually be due.
+        if (!announcement || announcement.projectUuid !== payload.projectUuid) {
+            return;
+        }
+        const published =
+            await this.projectHomepageModel.publishPendingAnnouncements({
+                announcementUuid: payload.announcementUuid,
+                onlyDue: true,
+            });
+        await this.notifyPublishedAnnouncements(published);
+    }
+
+    /** Worker entrypoint for the backstop sweep: publishes anything due whose
+     * job was lost (deploy, crash). Returns how many were published. */
+    async sweepDueAnnouncements(): Promise<number> {
+        const published =
+            await this.projectHomepageModel.publishPendingAnnouncements({
+                onlyDue: true,
+            });
+        await this.notifyPublishedAnnouncements(published);
+        return published.length;
     }
 
     private static async bufferAnnouncementImageUpload(
@@ -1004,6 +1411,8 @@ export class ProjectHomepageService extends BaseService {
                 organizationUuid: user.organizationUuid,
                 projectUuid,
                 createdByUserUuid: user.userUuid,
+                accessMode:
+                    PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT,
                 expirationSeconds:
                     ANNOUNCEMENT_IMAGE_PERSISTENT_URL_EXPIRY_SECONDS,
             });

@@ -5,8 +5,8 @@ import {
     Title,
     UnstyledButton,
     type MantineStyleProp,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconExclamationCircle, IconSelector } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
 import MantineIcon, {
@@ -44,7 +44,6 @@ export const ToolCallPaper = ({
 
     return (
         <Paper
-            withBorder
             p="xs"
             radius="md"
             style={styles}
@@ -69,12 +68,12 @@ export const ToolCallPaper = ({
                         <MantineIcon
                             icon={IconSelector}
                             size={12}
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                     </Group>
                 </Group>
             </UnstyledButton>
-            <Collapse in={opened} style={{ opacity: hasError ? 0.6 : 1 }}>
+            <Collapse expanded={opened} style={{ opacity: hasError ? 0.6 : 1 }}>
                 {children}
             </Collapse>
         </Paper>

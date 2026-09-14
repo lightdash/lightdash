@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { type SummaryExplore } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     lazy,
@@ -16,6 +17,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import { defaultState } from '../../../providers/Explorer/defaultState';
@@ -26,8 +28,18 @@ import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 const LazyExplorePanel = lazy(() => import('../ExplorePanel'));
 const LazyBasePanel = lazy(() => import('./BasePanel'));
 
-const ExploreSideBar = memo(() => {
+type Props = {
+    // Embeds override table navigation and the back-to-tables action so both
+    // stay inside the embed route.
+    onExploreClick?: (explore: SummaryExplore) => void;
+    onBackToTables?: () => void;
+};
+
+const ExploreSideBar = memo(({ onExploreClick, onBackToTables }: Props) => {
     const projectUuid = useProjectUuid();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
 
     const tableName = useExplorerSelector(selectTableName);
     const deferredTableName = useDeferredValue(tableName);
@@ -56,8 +68,12 @@ const ExploreSideBar = memo(() => {
     );
     const handleBack = useCallback(() => {
         void clearExplore();
-        void navigate(`/projects/${projectUuid}/tables`);
-    }, [clearExplore, navigate, projectUuid]);
+        if (onBackToTables) {
+            onBackToTables();
+            return;
+        }
+        void navigate(`/projects/${projectUrlIdentifier}/tables`);
+    }, [clearExplore, navigate, projectUrlIdentifier, onBackToTables]);
 
     // When transitioning back to tables it's relatively fast so we don't show any skeleton
     const isTransitioningToExplore = useMemo(
@@ -71,12 +87,16 @@ const ExploreSideBar = memo(() => {
                 <LoadingSkeleton />
             ) : !tableName ? (
                 <Suspense fallback={<LoadingSkeleton />}>
-                    <LazyBasePanel />
+                    <LazyBasePanel onExploreClick={onExploreClick} />
                 </Suspense>
             ) : (
                 <Suspense fallback={<LoadingSkeleton />}>
                     <LazyExplorePanel
-                        onBack={canManageExplore ? handleBack : undefined}
+                        onBack={
+                            onBackToTables || canManageExplore
+                                ? handleBack
+                                : undefined
+                        }
                     />
                 </Suspense>
             )}

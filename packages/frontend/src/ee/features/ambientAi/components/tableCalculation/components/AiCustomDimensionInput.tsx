@@ -1,10 +1,9 @@
 import type { GeneratedCustomDimension } from '@lightdash/common';
-import { ActionIcon, Text } from '@mantine-8/core';
-import { useHotkeys } from '@mantine-8/hooks';
+import { ActionIcon, Text } from '@mantine/core';
+import { useHotkeys } from '@mantine/hooks';
 import { IconArrowUp } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/react';
 import { useCallback, useRef, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
     selectMetricQuery,
@@ -13,6 +12,7 @@ import {
 } from '../../../../../../features/explorer/store';
 import { useExplore } from '../../../../../../hooks/useExplore';
 import { useGenerateCustomDimension } from '../../../../../../hooks/useGenerateCustomDimension';
+import { useProjectUuid } from '../../../../../../hooks/useProjectUuid';
 import { AiPromptEditor } from './AiPromptInput';
 import styles from './AiTableCalculationInput.module.css';
 
@@ -25,7 +25,7 @@ export const AiCustomDimensionInputBody: FC<Props> = ({
     currentSql,
     onApply,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const { data: explore } = useExplore(tableName);

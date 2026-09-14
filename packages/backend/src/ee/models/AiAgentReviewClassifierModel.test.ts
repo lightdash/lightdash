@@ -2,6 +2,7 @@ import { ProjectType } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AiPromptTableName } from '../database/entities/ai';
+import { AiAgentMemoryTableName } from '../database/entities/aiAgentMemory';
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemEventsTableName,
@@ -637,6 +638,58 @@ describe('AiAgentReviewClassifierModel', () => {
             );
         });
 
+        it('excludes hidden root causes from both the signal and manual queries, keeping unclassified rows', async () => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+
+            await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [signalQuery, manualQuery] = tracker.history.select;
+            for (const query of [signalQuery, manualQuery]) {
+                expect(query.bindings).toContain('product_capability');
+                // NULL NOT IN (...) is unknown, so unclassified rows need the
+                // explicit IS NULL branch to stay visible.
+                expect(query.sql).toMatch(/primary_root_cause"? is null/i);
+            }
+        });
+
+        // The judge is told to reuse an existing item's key even when it assigns
+        // a different root cause, so a card kept alive by visible findings can
+        // have a hidden one as its most recent signal.
+        it('drops a card whose resolved root cause is hidden', async () => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                {
+                    fingerprint: FINGERPRINT,
+                    first_seen_at: SEEN_AT,
+                    last_seen_at: SEEN_AT,
+                    finding_count: '1',
+                },
+            ]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                makeTurnSignalRow({
+                    primary_root_cause: 'product_capability',
+                }),
+            ]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .select(AiAgentReviewRemediationTableName)
+                .responseOnce([]);
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result).toEqual([]);
+            // The latest-signal lookup is filtered too, so the card's face comes
+            // from its latest visible finding rather than the hidden one.
+            expect(tracker.history.select[1].bindings).toContain(
+                'product_capability',
+            );
+        });
+
         it('overlays persisted human state and PR linkage onto the projection', async () => {
             tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
                 {
@@ -1110,6 +1163,9 @@ describe('AiAgentReviewClassifierModel', () => {
             });
 
             expect(result).toHaveLength(1);
+            const [query] = tracker.history.select;
+            expect(query.bindings).toContain('product_capability');
+            expect(query.sql).toMatch(/primary_root_cause"? is null/i);
             expect(result[0]).toEqual(
                 expect.objectContaining({
                     uuid: TURN_SIGNAL_UUID,
@@ -1680,8 +1736,11 @@ describe('AiAgentReviewClassifierModel', () => {
     });
 
     describe('reconcileReviewItemPrState', () => {
-        it('updates status and pr_state for a fingerprint in the org', async () => {
-            tracker.on.update(AiAgentReviewItemTableName).responseOnce(1);
+        it('promotes an active source memory when its pull request merges', async () => {
+            tracker.on
+                .update(AiAgentReviewItemTableName)
+                .responseOnce([{ source_ai_agent_memory_uuid: USER_UUID }]);
+            tracker.on.update(AiAgentMemoryTableName).responseOnce(1);
 
             await model.reconcileReviewItemPrState({
                 fingerprint: FINGERPRINT,
@@ -1690,12 +1749,154 @@ describe('AiAgentReviewClassifierModel', () => {
                 prState: 'merged',
             });
 
-            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update).toHaveLength(2);
             expect(tracker.history.update[0].sql).toContain(
                 AiAgentReviewItemTableName,
             );
             expect(tracker.history.update[0].bindings).toContain('resolved');
             expect(tracker.history.update[0].bindings).toContain('merged');
+            expect(tracker.history.update[1].sql).toContain(
+                AiAgentMemoryTableName,
+            );
+            expect(tracker.history.update[1].bindings).toContain('active');
+            expect(tracker.history.update[1].bindings).toContain('promoted');
+        });
+
+        it('leaves the source memory untouched when the pull request closes', async () => {
+            tracker.on
+                .update(AiAgentReviewItemTableName)
+                .responseOnce([{ source_ai_agent_memory_uuid: USER_UUID }]);
+
+            await model.reconcileReviewItemPrState({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+                status: 'open',
+                prState: 'closed',
+            });
+
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].bindings).toContain('open');
+            expect(tracker.history.update[0].bindings).toContain('closed');
+        });
+
+        it('resolves a merged item when its source memory is no longer active', async () => {
+            tracker.on
+                .update(AiAgentReviewItemTableName)
+                .responseOnce([{ source_ai_agent_memory_uuid: USER_UUID }]);
+            tracker.on.update(AiAgentMemoryTableName).responseOnce(0);
+
+            await expect(
+                model.reconcileReviewItemPrState({
+                    fingerprint: FINGERPRINT,
+                    organizationUuid: ORGANIZATION_UUID,
+                    status: 'resolved',
+                    prState: 'merged',
+                }),
+            ).resolves.toBeUndefined();
+
+            expect(tracker.history.update).toHaveLength(2);
+        });
+
+        it('resolves a merged item after its source memory was deleted', async () => {
+            tracker.on
+                .update(AiAgentReviewItemTableName)
+                .responseOnce([{ source_ai_agent_memory_uuid: null }]);
+
+            await expect(
+                model.reconcileReviewItemPrState({
+                    fingerprint: FINGERPRINT,
+                    organizationUuid: ORGANIZATION_UUID,
+                    status: 'resolved',
+                    prState: 'merged',
+                }),
+            ).resolves.toBeUndefined();
+
+            expect(tracker.history.update).toHaveLength(1);
+        });
+    });
+
+    describe('withReviewItemLinkedIssueLock', () => {
+        it('locks the row and stores the URL set by the callback', async () => {
+            tracker.on
+                .select(AiAgentReviewItemTableName)
+                .responseOnce([{ linked_issue_url: null }]);
+            tracker.on.update(AiAgentReviewItemTableName).responseOnce(1);
+
+            const seen: Array<string | null> = [];
+            await model.withReviewItemLinkedIssueLock(
+                {
+                    organizationUuid: ORGANIZATION_UUID,
+                    fingerprint: FINGERPRINT,
+                },
+                async (linkedIssueUrl, setLinkedIssueUrl) => {
+                    seen.push(linkedIssueUrl);
+                    await setLinkedIssueUrl(
+                        'https://linear.app/acme/issue/PRD-1',
+                    );
+                },
+            );
+
+            expect(seen).toEqual([null]);
+            expect(tracker.history.select[0].sql).toContain('for update');
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].bindings).toContain(
+                'https://linear.app/acme/issue/PRD-1',
+            );
+        });
+
+        it('hands the callback an existing URL without updating', async () => {
+            tracker.on
+                .select(AiAgentReviewItemTableName)
+                .responseOnce([
+                    { linked_issue_url: 'https://linear.app/acme/issue/PRD-1' },
+                ]);
+
+            const result = await model.withReviewItemLinkedIssueLock(
+                {
+                    organizationUuid: ORGANIZATION_UUID,
+                    fingerprint: FINGERPRINT,
+                },
+                async (linkedIssueUrl) => linkedIssueUrl,
+            );
+
+            expect(result).toBe('https://linear.app/acme/issue/PRD-1');
+            expect(tracker.history.update).toHaveLength(0);
+        });
+    });
+
+    describe('listUnlinkedReviewItemsForLinearExport', () => {
+        it('returns open items that have a project and no Linear URL', async () => {
+            tracker.on
+                .select(AiAgentReviewItemTableName)
+                .responseOnce([
+                    { fingerprint: FINGERPRINT, project_uuid: PROJECT_UUID },
+                ]);
+
+            await expect(
+                model.listUnlinkedReviewItemsForLinearExport({
+                    organizationUuid: ORGANIZATION_UUID,
+                    projectUuids: null,
+                }),
+            ).resolves.toEqual([
+                { fingerprint: FINGERPRINT, projectUuid: PROJECT_UUID },
+            ]);
+
+            const { sql } = tracker.history.select[0];
+            expect(sql).toContain(AiAgentReviewItemTableName);
+            expect(sql).toContain('linked_issue_url');
+            expect(tracker.history.select[0].bindings).toContain('triage');
+            expect(tracker.history.select[0].bindings).toContain('open');
+            expect(tracker.history.select[0].bindings).toContain('in_progress');
+        });
+
+        it('returns nothing when selected-project routing has no projects', async () => {
+            await expect(
+                model.listUnlinkedReviewItemsForLinearExport({
+                    organizationUuid: ORGANIZATION_UUID,
+                    projectUuids: [],
+                }),
+            ).resolves.toEqual([]);
+            expect(tracker.history.select).toHaveLength(0);
         });
     });
 });

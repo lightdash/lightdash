@@ -11,7 +11,8 @@ import {
     PasswordInput,
     Avatar,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
+import { useInterval } from '@mantine/hooks';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
 import React, { useEffect, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -51,18 +52,20 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         }
     }, [config?.installationId, form]);
 
-    useEffect(() => {
-        if (
-            repos &&
-            repos.length > 0 &&
-            form.values.dbt.type === DbtProjectType.GITHUB &&
-            form.values.dbt.repository === ''
-        ) {
-            form.setFieldValue('dbt.repository', repos[0].fullName);
-        }
-    }, [repos, form]);
-
     const { showToastSuccess } = useToaster();
+    const installationPolling = useInterval(() => {
+        void refetch()
+            .then((status) => {
+                if (status.status === 'success' && status.data.installationId) {
+                    showToastSuccess({
+                        title: 'Successfully connected to GitHub',
+                    });
+                    installationPolling.stop();
+                    void refetchRepos();
+                }
+            })
+            .catch(() => {});
+    }, 2000);
 
     const repositoryField = form.getInputProps('dbt.repository');
 
@@ -77,6 +80,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             required
                             w="90%"
                             label="Repository"
+                            placeholder="Select a repository"
                             disabled={disabled}
                             data={repos.map((repo) => ({
                                 value: repo.fullName,
@@ -84,10 +88,8 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             }))}
                             footer={
                                 <Tooltip
-                                    withinPortal
                                     position="left"
                                     w={300}
-                                    multiline
                                     label="Click here to open your Github installation page to add more repositories."
                                 >
                                     <Text
@@ -124,9 +126,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
                         <Tooltip label="Refresh repositories after updating access on Github">
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                mt="20px"
+                                mt="lg"
                                 onClick={() => refetchRepos()}
                                 disabled={!isValidGithubInstallation}
                             >
@@ -158,24 +158,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         '_blank',
                         'popup=true,width=600,height=700',
                     );
-                    // Poll the API to check if the installation is successful
-                    const interval = setInterval(() => {
-                        refetch()
-                            .then((s) => {
-                                if (
-                                    s.status === 'success' &&
-                                    s.data.installationId
-                                ) {
-                                    showToastSuccess({
-                                        title: 'Successfully connected to GitHub',
-                                    });
-
-                                    clearInterval(interval);
-                                    void refetchRepos();
-                                }
-                            })
-                            .catch(() => {});
-                    }, 2000);
+                    installationPolling.start();
                 }}
             >
                 Sign in with GitHub
@@ -203,9 +186,10 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 const GithubPersonalAccessTokenForm: FC<{ disabled: boolean }> = ({
     disabled,
 }) => {
-    const { savedProject } = useProjectFormContext();
+    const { savedProject, isDbtSource } = useProjectFormContext();
     const form = useFormContext();
     const requireSecrets: boolean =
+        !isDbtSource &&
         savedProject?.dbtConnection.type !== DbtProjectType.GITHUB;
 
     return (
@@ -214,19 +198,24 @@ const GithubPersonalAccessTokenForm: FC<{ disabled: boolean }> = ({
                 name="dbt.personal_access_token"
                 label="Personal access token"
                 description={
-                    <p>
-                        This is used to access your repo.
-                        <Anchor
-                            inherit
-                            target="_blank"
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#github"
-                            rel="noreferrer"
-                        >
-                            {' '}
-                            Click to open documentation
-                        </Anchor>
-                        .
-                    </p>
+                    <>
+                        {isDbtSource && (
+                            <p>Required for private repositories</p>
+                        )}
+                        <p>
+                            This is used to access your repo.
+                            <Anchor
+                                inherit
+                                target="_blank"
+                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#github"
+                                rel="noreferrer"
+                            >
+                                {' '}
+                                Click to open documentation
+                            </Anchor>
+                            .
+                        </p>
+                    </>
                 }
                 required={requireSecrets}
                 {...form.getInputProps('dbt.personal_access_token')}
@@ -253,13 +242,15 @@ const GithubPersonalAccessTokenForm: FC<{ disabled: boolean }> = ({
 };
 
 const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
-    const { savedProject } = useProjectFormContext();
+    const { savedProject, isDbtSource } = useProjectFormContext();
     const form = useFormContext();
     const { data: githubConfig } = useGithubConfig();
 
     if (form.values.dbt.type !== DbtProjectType.GITHUB) {
         throw new Error('GithubForm can only be used for Github projects');
     }
+
+    const isNative = form.values.dbt.semanticLayer === 'lightdash';
 
     const formAuthorizationMethod = form.values.dbt?.authorization_method;
     const authorizationMethod: DbtGithubProjectConfig['authorization_method'] =
@@ -280,7 +271,40 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
     return (
         <>
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
+                {!isDbtSource && (
+                    <Select
+                        label="Semantic layer format"
+                        name="dbt.semanticLayer"
+                        value={form.values.dbt.semanticLayer ?? 'dbt'}
+                        allowDeselect={false}
+                        disabled={disabled}
+                        data={[
+                            { value: 'dbt', label: 'dbt' },
+                            {
+                                value: 'lightdash',
+                                label: 'Native Lightdash YAML',
+                            },
+                        ]}
+                        onChange={(value) => {
+                            if (value !== 'dbt' && value !== 'lightdash')
+                                return;
+                            if (form.values.dbt.type !== DbtProjectType.GITHUB)
+                                return;
+                            form.setFieldValue('dbt', {
+                                ...form.values.dbt,
+                                semanticLayer: value,
+                                ...(value === 'lightdash'
+                                    ? {
+                                          target: undefined,
+                                          selector: undefined,
+                                          environment: undefined,
+                                      }
+                                    : {}),
+                            });
+                        }}
+                    />
+                )}
                 <Group gap="sm">
                     <Select
                         allowDeselect={false}
@@ -294,7 +318,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         }
                         description={
                             isInstallationValid ? (
-                                <Text>
+                                <>
                                     You are connected to GitHub.{' '}
                                     <Anchor
                                         inherit
@@ -303,7 +327,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                     >
                                         Click here to use another account
                                     </Anchor>
-                                </Text>
+                                </>
                             ) : undefined
                         }
                         w={isInstallationValid ? '90%' : '100%'}
@@ -335,7 +359,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <GithubPersonalAccessTokenForm disabled={disabled} />
                 )}
 
-                <DbtVersionSelect disabled={disabled} />
+                {!isNative && <DbtVersionSelect disabled={disabled} />}
                 <TextInput
                     name="dbt.branch"
                     {...form.getInputProps('dbt.branch')}
@@ -362,21 +386,30 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     {...form.getInputProps('dbt.project_sub_path')}
                     label="Project directory path"
                     description={
-                        <>
-                            <p>
-                                Put <b>/</b> if your <b>dbt_project.yml</b> file
-                                is in the main folder of your repo (e.g.
-                                lightdash/lightdash-analytics/dbt_project.yml).
-                            </p>
-                            <p>
-                                Include the path to the sub-folder where your
-                                dbt project is if your dbt project is in a
-                                sub-folder in your repo. For example, if my
-                                project was in
-                                lightdash/lightdash-analytics/dbt/dbt_project.yml,
-                                I'd write <b>/dbt</b> in this field.
-                            </p>
-                        </>
+                        isNative ? (
+                            <Text size="sm">
+                                Use / for the repository root, or the
+                                subdirectory containing lightdash.config.yml and
+                                models/ (or lightdash/models/).
+                            </Text>
+                        ) : (
+                            <>
+                                <p>
+                                    Put <b>/</b> if your <b>dbt_project.yml</b>{' '}
+                                    file is in the main folder of your repo
+                                    (e.g.
+                                    lightdash/lightdash-analytics/dbt_project.yml).
+                                </p>
+                                <p>
+                                    Include the path to the sub-folder where
+                                    your dbt project is if your dbt project is
+                                    in a sub-folder in your repo. For example,
+                                    if my project was in
+                                    lightdash/lightdash-analytics/dbt/dbt_project.yml,
+                                    I'd write <b>/dbt</b> in this field.
+                                </p>
+                            </>
+                        )
                     }
                     required
                     disabled={disabled}

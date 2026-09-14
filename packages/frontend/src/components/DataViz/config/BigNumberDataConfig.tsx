@@ -1,5 +1,5 @@
 import { type VizColumn } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Stack } from '@mantine/core';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,

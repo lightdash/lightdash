@@ -2,6 +2,7 @@ packages: []
 # pnpm 11 reads settings from here; the .npmrc copies remain for pnpm <=10.
 shamefullyHoist: true
 ignoreWorkspaceRootCheck: true
+minimumReleaseAge: 4320 # 3 days
 # The pinned SDK version is often <3 days old; exempt it from release-age policies
 minimumReleaseAgeExclude:
   - '@lightdash/query-sdk'

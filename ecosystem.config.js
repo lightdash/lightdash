@@ -15,15 +15,18 @@
  *
  * Process overview:
  *   - <instanceId>-api: Backend API server (default port 8080)
+ *   - <instanceId>-api-routes-watch: Regenerates TSOA routes on controller changes
  *   - <instanceId>-scheduler: Background job processor (default port 8081)
  *   - <instanceId>-frontend: Vite dev server (default port 3000)
  *   - <instanceId>-common-watch: TypeScript watcher for common package
  *   - <instanceId>-warehouses-watch: TypeScript watcher for warehouses package
- *   - <instanceId>-spotlight: Sentry Spotlight debugging UI (default port 8969)
+ *   - <instanceId>-maple: Maple local-mode tracing server (default port 4320)
  *
  * Logs are stored in ~/.pm2/logs/ (PM2 default location)
  */
 
+const { spawnSync } = require('child_process');
+const os = require('os');
 const path = require('path');
 const dotenv = require('dotenv');
 
@@ -59,13 +62,69 @@ const fePort = env.FE_PORT || undefined; // Vite auto-detects if not set
 const sdkTestPort = env.SDK_TEST_PORT || '3030';
 const sdkTestEnabled =
     (process.env.LD_ENABLE_SDK_TEST ?? env.LD_ENABLE_SDK_TEST) === 'true';
-const spotlightPort = env.SPOTLIGHT_PORT || '8969';
+const maplePort = env.MAPLE_PORT || '4320';
+
+// Maple is a standalone binary (not a node_modules bin), so it may be absent.
+// Resolve it up front: without it there is nothing to export traces to, and an
+// OTLP exporter pointed at a dead port just logs export failures every batch.
+const mapleBin = (() => {
+    const { stdout } = spawnSync('sh', ['-c', 'command -v maple'], {
+        encoding: 'utf8',
+    });
+    return (stdout || '').trim() || undefined;
+})();
+
+// Maple anchors its pidfile and store markers in the data dir's PARENT, so
+// each instance needs its own parent directory — sibling data dirs directly
+// under ~/.maple would share one maple.pid and lock each other out.
+const mapleDataDir = path.join(
+    os.homedir(),
+    '.maple',
+    'instances',
+    instanceId,
+    'data',
+);
+
+// Each app adds its own OTEL_SERVICE_NAME on top of this: service.name is what
+// namespaces traces per checkout in the Maple UI.
+const tracingEnv = mapleBin
+    ? {
+          LIGHTDASH_OTEL_TRACES_ENABLED: 'true',
+          OTEL_EXPORTER_OTLP_ENDPOINT: `http://127.0.0.1:${maplePort}`,
+      }
+    : {};
 
 // Log the root directory so it's obvious which worktree PM2 is running from
 console.log(`\n  Lightdash PM2 root: ${__dirname}`);
 console.log(`  Instance ID: ${instanceId}\n`);
 
+if (!mapleBin) {
+    console.log(
+        '  maple not found on PATH — local tracing disabled.\n' +
+            '  Install it with: curl -fsSL https://maple.dev/cli/install | sh\n',
+    );
+}
+
 const frontendArgs = fePort ? `--port ${fePort}` : undefined;
+
+// Opt-in via LD_WATCHER_MEMORY_CAP (e.g. 4G in .env.development.local): hard
+// backstop that bounces a runaway tsc watcher. Keep it well above GOMEMLIMIT —
+// a cap below the full-rebuild peak kills tsc mid-build and loops on cold
+// rebuilds. Unset = no cap.
+const watcherMemoryCap =
+    process.env.LD_WATCHER_MEMORY_CAP ?? env.LD_WATCHER_MEMORY_CAP;
+const watcherMemoryCapConfig = watcherMemoryCap
+    ? { max_memory_restart: watcherMemoryCap }
+    : {};
+
+// tsgo (TS7 native) is a Go binary: GOMEMLIMIT is a soft cap its GC works to
+// stay under, releasing freed memory back to the OS, so branch-switch rebuilds
+// can't balloon to multi-GB peaks. LD_WATCHER_GOMEMLIMIT overrides ('off'
+// disables).
+const watcherGoMemLimit =
+    process.env.LD_WATCHER_GOMEMLIMIT ?? env.LD_WATCHER_GOMEMLIMIT ?? '1500MiB';
+const watcherEnv =
+    watcherGoMemLimit === 'off' ? {} : { GOMEMLIMIT: watcherGoMemLimit };
 
 module.exports = {
     apps: [
@@ -81,12 +140,46 @@ module.exports = {
                 LIGHTDASH_MODE: 'development',
                 HEADLESS: 'true',
                 NODE_ENV: 'development',
-                SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,
+                ...tracingEnv,
+                OTEL_SERVICE_NAME: instanceId,
                 PORT: apiPort,
             },
-            watch: false,
+            // Restart when common's CJS build completes (single sentinel
+            // file) rather than on every emitted dist file.
+            watch: ['src', '../common/dist/cjs/.tsbuildinfo'],
+            // Setting ignore_watch replaces chokidar's default node_modules
+            // ignore; without the explicit entries + followSymlinks:false,
+            // mcp-chart-app/node_modules (a symlink back into packages/common)
+            // turns every common rebuild into thousands of API restarts.
+            ignore_watch: [
+                'src/generated/swagger.json',
+                '**/*.test.ts',
+                '**/node_modules',
+                '**/node_modules/**',
+            ],
+            watch_options: { followSymlinks: false },
+            watch_delay: 500,
             autorestart: true,
             kill_timeout: 5000,
+            merge_logs: true,
+            time: true,
+        },
+
+        // TSOA route generation watcher
+        {
+            name: `${instanceId}-api-routes-watch`,
+            script: 'pnpm',
+            // common-watch already emits ../common/dist, so skip the root
+            // script's extra common-build: it duplicates work and crash-loops
+            // at 1Hz whenever a stale incremental build reports errors.
+            args: '-F backend generate-api-dev',
+            interpreter: 'none',
+            cwd: __dirname,
+            env: envWithPath,
+            watch: false,
+            autorestart: true,
+            exp_backoff_restart_delay: 1000,
+            kill_timeout: 3000,
             merge_logs: true,
             time: true,
         },
@@ -101,7 +194,8 @@ module.exports = {
             env: {
                 ...envWithPath,
                 NODE_ENV: 'development',
-                SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,
+                ...tracingEnv,
+                OTEL_SERVICE_NAME: `${instanceId}-scheduler`,
                 PORT: schedulerPort,
                 LIGHTDASH_PROMETHEUS_ENABLED: 'false',
             },
@@ -121,7 +215,6 @@ module.exports = {
             cwd: path.join(__dirname, 'packages/frontend'),
             env: {
                 NODE_ENV: 'development',
-                VITE_SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,
                 PORT: apiPort,
             },
             watch: false,
@@ -138,8 +231,10 @@ module.exports = {
             args: '--build --watch --preserveWatchOutput --incremental tsconfig.build.json',
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/common'),
+            env: watcherEnv,
             watch: false,
             autorestart: false,
+            ...watcherMemoryCapConfig,
             kill_timeout: 3000,
             merge_logs: true,
             time: true,
@@ -152,8 +247,10 @@ module.exports = {
             args: '--build --watch --preserveWatchOutput tsconfig.json',
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/formula'),
+            env: watcherEnv,
             watch: false,
             autorestart: false,
+            ...watcherMemoryCapConfig,
             kill_timeout: 3000,
             merge_logs: true,
             time: true,
@@ -166,8 +263,10 @@ module.exports = {
             args: '--build --watch --preserveWatchOutput tsconfig.json',
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/warehouses'),
+            env: watcherEnv,
             watch: false,
             autorestart: false,
+            ...watcherMemoryCapConfig,
             kill_timeout: 3000,
             merge_logs: true,
             time: true,
@@ -195,21 +294,29 @@ module.exports = {
               ]
             : []),
 
-        // Spotlight.js Sidecar (Sentry Dev Debugging UI)
-        {
-            name: `${instanceId}-spotlight`,
-            script: 'node_modules/.bin/spotlight',
-            args: `--port ${spotlightPort}`,
-            interpreter: 'none',
-            cwd: __dirname,
-            env: {
-                NODE_ENV: 'development',
-            },
-            watch: false,
-            autorestart: true,
-            kill_timeout: 3000,
-            merge_logs: true,
-            time: true,
-        },
+        // Maple local mode: OTLP ingest + embedded ClickHouse + trace UI.
+        // --offline serves the UI from the binary (same-origin, no internet, no
+        // Chrome local-network prompt). --on-dirty-store wipe keeps it from
+        // refusing to boot after PM2 SIGKILLs it; local traces are disposable.
+        ...(mapleBin
+            ? [
+                  {
+                      name: `${instanceId}-maple`,
+                      script: mapleBin,
+                      args: `start --port ${maplePort} --data-dir ${mapleDataDir} --offline --on-dirty-store wipe`,
+                      interpreter: 'none',
+                      cwd: __dirname,
+                      env: {
+                          NODE_ENV: 'development',
+                          MAPLE_NO_UPDATE_CHECK: '1',
+                      },
+                      watch: false,
+                      autorestart: true,
+                      kill_timeout: 3000,
+                      merge_logs: true,
+                      time: true,
+                  },
+              ]
+            : []),
     ],
 };

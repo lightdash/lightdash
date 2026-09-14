@@ -12,8 +12,8 @@ import {
     Tooltip,
     useCombobox,
     type PillsInputProps,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconRefresh, IconX } from '@tabler/icons-react';
 import compact from 'lodash/compact';
 import uniq from 'lodash/uniq';
@@ -180,7 +180,7 @@ export const SlackChannelSelect: FC<
         isBusy ? (
             <Loader size="xs" color="gray" />
         ) : (
-            <Tooltip label="Refresh Slack channels" withArrow withinPortal>
+            <Tooltip label="Refresh Slack channels">
                 <ActionIcon variant="transparent" onClick={refresh}>
                     <MantineIcon icon={IconRefresh} color="gray" />
                 </ActionIcon>
@@ -195,7 +195,6 @@ export const SlackChannelSelect: FC<
                 handleValueRemove(values[0]);
             }}
             variant="transparent"
-            color="gray"
         >
             <MantineIcon icon={IconX} size="sm" />
         </ActionIcon>
@@ -218,8 +217,6 @@ export const SlackChannelSelect: FC<
                 label={
                     "We couldn't find this channel and the integration may not be installed correctly. Please use the channel ID instead."
                 }
-                withArrow
-                withinPortal
                 disabled={!isUncached}
             >
                 <Pill

@@ -1,6 +1,7 @@
 import {
     type ToolAnalyzeFieldImpactOutput,
-    type ToolDashboardOutput,
+    type ToolComposerQueriesOutput,
+    type ToolDashboardV2Output,
     type ToolDescribeWarehouseTableOutput,
     type ToolDiscoverFieldsOutput,
     type ToolEditContentOutput,
@@ -10,10 +11,10 @@ import {
     type ToolFindDashboardsOutput,
     type ToolFindExploresOutput,
     type ToolFindFieldsOutput,
+    type ToolGenerateDataAppOutput,
     type ToolGenerateHashesOutput,
     type ToolGenerateUuidsOutput,
     type ToolGetKnowledgeDocumentContentOutput,
-    type ToolImproveContextOutput,
     type ToolListKnowledgeDocumentsOutput,
     type ToolListWarehouseTablesOutput,
     type ToolLoadSkillOutput,
@@ -24,23 +25,23 @@ import {
     type ToolSearchFieldValuesOutput,
     type ToolSearchSemanticLayerOutput,
     type ToolSyncDbtProjectOutput,
-    type ToolTableVizOutput,
-    type ToolTimeSeriesOutput,
-    type ToolVerticalBarOutput,
 } from './tools';
 
 export * from './customMetrics';
 export * from './defineTool';
+export * from './filterExpressions';
 export * from './filters';
 export * from './McpSchemaCompatLayer';
 export * from './outputMetadata';
+export * from './persistedRunQueryArgs';
 export * from './sortField';
+export * from './tableCalcs/tableCalcFormula';
 export * from './tableCalcs/tableCalcs';
 export * from './tools';
 export * from './visualizations';
 
 export type AgentToolOutput =
-    | ToolDashboardOutput
+    | ToolDashboardV2Output
     | ToolFindContentOutput
     | ToolFindChartsOutput
     | ToolFindDashboardsOutput
@@ -52,19 +53,17 @@ export type AgentToolOutput =
     | ToolDescribeWarehouseTableOutput
     | ToolDiscoverFieldsOutput
     | ToolEditContentOutput
-    | ToolImproveContextOutput
     | ToolListKnowledgeDocumentsOutput
     | ToolListWarehouseTablesOutput
     | ToolLoadSkillOutput
     | ToolEditDbtProjectOutput
+    | ToolGenerateDataAppOutput
     | ToolSyncDbtProjectOutput
     | ToolReadContentOutput
     | ToolRunQueryOutput
     | ToolRunSavedChartOutput
     | ToolRunSqlOutput
+    | ToolComposerQueriesOutput
     | ToolSearchFieldValuesOutput
     | ToolSearchSemanticLayerOutput
-    | ToolAnalyzeFieldImpactOutput
-    | ToolTableVizOutput
-    | ToolTimeSeriesOutput
-    | ToolVerticalBarOutput;
+    | ToolAnalyzeFieldImpactOutput;

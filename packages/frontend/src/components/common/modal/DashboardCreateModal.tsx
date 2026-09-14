@@ -7,7 +7,7 @@ import {
     Textarea,
     TextInput,
     type ModalProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
@@ -16,7 +16,7 @@ import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
-import Mantine8Provider from '../../../providers/Mantine8Provider';
+import MantineBaseProvider from '../../../providers/MantineBaseProvider';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import SaveToSpaceForm from './ChartCreateModal/SaveToSpaceForm';
@@ -181,7 +181,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     if (isLoadingSpaces || !spaces) return null;
 
     return (
-        <Mantine8Provider>
+        <MantineBaseProvider>
             <MantineModal
                 {...modalProps}
                 title="Create Dashboard"
@@ -206,6 +206,8 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             onClick={handleNextStep}
                             disabled={!form.values.dashboardName}
                             data-testid="DashboardCreateModal/Next"
+                            data-tour-anchor="dashboard-create-next"
+                            data-tour-hint="Click Next"
                         >
                             Next
                         </Button>
@@ -219,6 +221,8 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                 loading={isCreatingDashboard}
                                 type="submit"
                                 form="dashboard-create-modal"
+                                data-tour-anchor="dashboard-create-submit"
+                                data-tour-hint="Click Create"
                             >
                                 Create
                             </Button>
@@ -239,6 +243,12 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                 placeholder="eg. KPI Dashboard"
                                 disabled={isCreatingDashboard}
                                 required
+                                // Walkthrough: a typed step; the card offers
+                                // a name to use in one click.
+                                data-tour-anchor="dashboard-name"
+                                data-tour-input="true"
+                                data-tour-hint="Name your dashboard"
+                                data-tour-suggest="Orders overview"
                                 {...form.getInputProps('dashboardName')}
                             />
                             <Textarea
@@ -269,7 +279,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                     )}
                 </form>
             </MantineModal>
-        </Mantine8Provider>
+        </MantineBaseProvider>
     );
 };
 

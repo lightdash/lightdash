@@ -1,5 +1,5 @@
 import type { AiAgentDocumentStructuredSummary } from '@lightdash/common';
-import { Group, Paper, Text } from '@mantine-8/core';
+import { Group, Paper, Text } from '@mantine/core';
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 
@@ -14,7 +14,7 @@ export const AiAgentDocumentRelevanceCard = ({ summary }: Props) => {
 
     if (isNotRelevant) {
         return (
-            <Paper p="sm" radius="md" withBorder>
+            <Paper p="sm" radius="md">
                 <Group gap="xs" wrap="nowrap" align="flex-start">
                     <MantineIcon
                         icon={IconAlertTriangle}
@@ -32,7 +32,7 @@ export const AiAgentDocumentRelevanceCard = ({ summary }: Props) => {
     }
 
     return (
-        <Paper p="sm" radius="md" withBorder>
+        <Paper p="sm" radius="md">
             <Group gap="xs" wrap="nowrap" align="flex-start">
                 <MantineIcon
                     icon={IconInfoCircle}

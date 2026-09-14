@@ -32,7 +32,7 @@ import {
     TextInput,
     Tooltip,
     type ComboboxItem,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconAlertTriangle,
@@ -55,7 +55,6 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -72,6 +71,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
@@ -161,6 +161,21 @@ enum EditMode {
     FORMULA = 'formula',
 }
 
+/**
+ * Walkthrough action for manage:CustomSqlTableCalculations: creating a SQL
+ * table calculation on a saved chart being edited.
+ */
+const createTourAction = {
+    'data-tour-scope': 'manage:CustomSqlTableCalculations',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/saved/:savedQueryUuid/edit',
+    'data-tour-label': 'Create the calculation',
+    'data-tour-title': 'Add a SQL table calculation',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="edit-chart"] >> [data-tour-anchor="results-heading"] >> [data-tour-anchor="add-table-calculation"] >> [data-tour-anchor="table-calc-sql-mode"] >> [data-tour-anchor="table-calc-sql"] >> [data-tour-anchor="table-calc-name"]',
+    'data-tour-docs': 'explore/table-calculations.mdx#intro:p3:2',
+};
 const TableCalculationModal: FC<Props> = ({
     opened,
     tableCalculation,
@@ -169,7 +184,7 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const [isExpanded, toggleExpanded] = useToggle(false);
 
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
 
@@ -626,11 +641,7 @@ const TableCalculationModal: FC<Props> = ({
             size={isExpanded ? 'auto' : 'xl'}
             headerActions={
                 <Tooltip label={isExpanded ? 'Collapse' : 'Expand'}>
-                    <ActionIcon
-                        variant="subtle"
-                        onClick={toggleExpanded}
-                        color="gray"
-                    >
+                    <ActionIcon onClick={toggleExpanded}>
                         <MantineIcon
                             icon={isExpanded ? IconMinimize : IconMaximize}
                         />
@@ -641,6 +652,7 @@ const TableCalculationModal: FC<Props> = ({
                 <Button
                     onClick={handleConfirm}
                     data-testid="table-calculation-save-button"
+                    {...(isNewCalculation ? createTourAction : {})}
                     disabled={
                         (editMode === EditMode.SQL &&
                             form.values.sql.length === 0) ||
@@ -679,12 +691,11 @@ const TableCalculationModal: FC<Props> = ({
                                         withArrow
                                         width={320}
                                         position="bottom-start"
-                                        shadow="md"
                                         openDelay={100}
                                         closeDelay={150}
                                     >
                                         <HoverCard.Target>
-                                            <Box style={{ display: 'flex' }}>
+                                            <Box display="flex">
                                                 <MantineIcon
                                                     icon={IconAlertTriangle}
                                                     color="red.6"
@@ -738,6 +749,15 @@ const TableCalculationModal: FC<Props> = ({
                                 c="dimmed"
                                 onClick={handleSwitchEditMode}
                                 className={classes.switchEditModeLink}
+                                // Anchor for scope walkthroughs (data-tour-via),
+                                // read first as a look at the two modes.
+                                data-tour-anchor="table-calc-sql-mode"
+                                data-tour-hint="Switch to SQL"
+                                data-tour-scope="manage:CustomSqlTableCalculations"
+                                data-tour-look="1"
+                                data-tour-after='[data-tour-anchor="add-table-calculation"]'
+                                data-tour-label="Formula is the default, SQL is one click away"
+                                data-tour-docs="explore/table-calculations/formulas.mdx#intro:2-3"
                             >
                                 {switchEditModeLabel}
                             </Anchor>
@@ -745,8 +765,6 @@ const TableCalculationModal: FC<Props> = ({
                         {showConvertToFormulaButton && (
                             <Tooltip
                                 label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
-                                withArrow
-                                multiline
                                 w={260}
                                 disabled={showConversionPreview}
                             >
@@ -791,6 +809,7 @@ const TableCalculationModal: FC<Props> = ({
                         isTemplateTableCalculation(tableCalculation) ? (
                             <TemplateViewer
                                 template={editedTemplate ?? template}
+                                excludedFieldId={tableCalculation.name}
                                 readOnly={false}
                                 onTemplateChange={handleTemplateChange}
                             />
@@ -814,6 +833,17 @@ const TableCalculationModal: FC<Props> = ({
                             <Box
                                 className={classes.sqlEditorBorder}
                                 pos="relative"
+                                // Typed anchor for scope walkthroughs: the SQL
+                                // editor; the card suggests a running total.
+                                data-tour-anchor="table-calc-sql"
+                                data-tour-hint="Write the SQL"
+                                data-tour-input="true"
+                                data-tour-suggest="SUM(${orders.unique_order_count}) OVER (ORDER BY ${orders.order_date_month})"
+                                data-tour-scope="manage:CustomSqlTableCalculations"
+                                data-tour-look="2"
+                                data-tour-after='[data-tour-anchor="table-calc-sql-mode"]'
+                                data-tour-label="The calculation is raw SQL over the results"
+                                data-tour-docs="explore/table-calculations.mdx#write-the-sql-for-your-table-calculation-in-the-pop-up-box:p2:1"
                             >
                                 {sqlReadOnly && !showConversionPreview && (
                                     <Box
@@ -825,7 +855,6 @@ const TableCalculationModal: FC<Props> = ({
                                         <Popover
                                             position="bottom-end"
                                             withArrow
-                                            shadow="md"
                                             width={300}
                                         >
                                             <Popover.Target>
@@ -1064,6 +1093,11 @@ const TableCalculationModal: FC<Props> = ({
                     required
                     placeholder="E.g. Cumulative order count"
                     data-testid="table-calculation-name-input"
+                    // Typed anchor for scope walkthroughs (data-tour-via)
+                    data-tour-anchor="table-calc-name"
+                    data-tour-hint="Name the calculation"
+                    data-tour-input="true"
+                    data-tour-suggest="Running order count"
                     {...form.getInputProps('name')}
                 />
             </Stack>

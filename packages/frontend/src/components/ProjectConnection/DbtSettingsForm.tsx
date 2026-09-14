@@ -4,7 +4,7 @@ import {
     DbtProjectTypeLabels,
     WarehouseTypes,
 } from '@lightdash/common';
-import { TextInput, Stack, Anchor, Select } from '@mantine-8/core';
+import { TextInput, Stack, Anchor, Select } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import useApp from '../../providers/App/useApp';
 import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';
@@ -21,6 +21,7 @@ import { useFormContext } from './formContext';
 import FormSection from './Inputs/FormSection';
 import { MultiKeyValuePairsInput } from './Inputs/MultiKeyValuePairsInput';
 import { useProjectFormContext } from './useProjectFormContext';
+import WarehouseLocationInputs from './WarehouseLocationInputs';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 
 interface DbtSettingsFormProps {
@@ -33,11 +34,16 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     defaultType,
 }) => {
     const form = useFormContext();
-    const { isDbtSource } = useProjectFormContext();
+    const { isDbtSource, projectUuid } = useProjectFormContext();
     const selectedWarehouse = form.values.warehouse?.type;
 
     const type: DbtProjectType =
         form.values.dbt.type ?? (defaultType || DbtProjectType.GITHUB);
+
+    const isNative =
+        (form.values.dbt.type === DbtProjectType.GITHUB ||
+            form.values.dbt.type === DbtProjectType.BITBUCKET) &&
+        form.values.dbt.semanticLayer === 'lightdash';
 
     const warehouseType: WarehouseTypes =
         form.values.warehouse?.type ??
@@ -140,7 +146,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
                 <Select
                     allowDeselect={false}
                     name="dbt.type"
@@ -162,32 +168,36 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
 
                 <DbtForm disabled={disabled} />
 
-                {type !== DbtProjectType.NONE && (
+                {type !== DbtProjectType.NONE && !isNative && (
                     <>
                         <FormSection name="target">
-                            <Stack style={{ marginTop: '8px' }}>
+                            <Stack mt="xs">
                                 <TextInput
                                     name="dbt.target"
                                     {...form.getInputProps('dbt.target')}
                                     label="Target name"
                                     description={
                                         <p>
-                                            <b>target</b> is the dataset/schema
-                                            in your data warehouse that
-                                            Lightdash will look for your dbt
-                                            models. By default, we set this to
-                                            be the same value as you have as the
-                                            default in your profiles.yml file.
+                                            The name Lightdash gives the dbt
+                                            target it compiles with. Set it to
+                                            match the target your dbt code
+                                            branches on. It does not change
+                                            which database or schema your models
+                                            are read from.
                                         </p>
                                     }
                                     disabled={disabled}
                                     placeholder="prod"
                                 />
-                                {/* The schema is a warehouse-credential field; an
-                                additional dbt source shares the project's
-                                warehouse, so it's inherited rather than set per
-                                source. Also hidden when org warehouse credentials
-                                provide it. */}
+                                {/* A source shares the project's warehouse but
+                                not necessarily the same location inside it, so
+                                it sets its own here. Hidden on the project form
+                                when org warehouse credentials provide it. */}
+                                {isDbtSource && projectUuid ? (
+                                    <WarehouseLocationInputs
+                                        projectUuid={projectUuid}
+                                    />
+                                ) : null}
                                 {isDbtSource ||
                                 form.values
                                     .organizationWarehouseCredentialsUuid ? null : (
@@ -202,7 +212,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                             name="Advanced"
                             isOpen={isAdvancedSettingsOpen}
                         >
-                            <Stack style={{ marginTop: '8px' }}>
+                            <Stack mt="xs">
                                 {type !== DbtProjectType.DBT_CLOUD_IDE && (
                                     <TextInput
                                         name="dbt.selector"

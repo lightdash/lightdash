@@ -1,10 +1,13 @@
 import {
     AgentToolOutput,
+    AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     AnyType,
     assertUnreachable,
     Explore,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type CustomChartTypeLibrary,
+    type ParameterDefinitions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -24,16 +27,26 @@ import {
 } from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
 import {
-    getAiDeepResearchInvestigatorInstructions,
-    getAiDeepResearchJudgeInstructions,
-    getAiDeepResearchPlannerInstructions,
+    getAiDeepResearchCoordinatorInstructions,
+    getAiDeepResearchWorkerInstructions,
 } from '../../AiDeepResearchService/AiDeepResearchAgent';
+import {
+    isDeepResearchRawSqlMcpTool,
+    isDeepResearchWarehouseMcpTool,
+} from '../../AiDeepResearchService/toolClassification';
+import { Compaction } from '../compaction';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import {
+    accumulatePromptTokenUsage,
+    finalStepPromptTokenUsage,
+    initialPromptTokenUsage,
+} from '../promptTokenUsage';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
 import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
 import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
+import { getDelegateResearchTask } from '../tools/delegateResearchTask';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
@@ -42,7 +55,9 @@ import { getEditProjectContext } from '../tools/editProjectContext';
 import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
+import { getFindCustomChartTypes } from '../tools/findCustomChartTypes';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
+import { getGenerateDataApp } from '../tools/generateDataApp';
 import { getGenerateHashes } from '../tools/generateHashes';
 import { getGenerateUuids } from '../tools/generateUuids';
 import { getGenerateVisualization } from '../tools/generateVisualization';
@@ -58,27 +73,27 @@ import {
     renderCandidateBlock,
     selectCandidateFields,
 } from '../tools/grepFieldsIndex';
-import { getImproveContext } from '../tools/improveContext';
+import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getListWorkstreams } from '../tools/listWorkstreams';
+import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
+import { getRunComposerQueries } from '../tools/runComposerQueries';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
-import { getSubmitInvestigationReport } from '../tools/submitInvestigationReport';
-import { getSubmitResearchHypotheses } from '../tools/submitResearchHypotheses';
-import { getSubmitResearchReport } from '../tools/submitResearchReport';
+import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
 import type {
@@ -95,13 +110,15 @@ import {
 } from '../utils/errorMessages';
 import { renderMemoryBlock } from '../utils/memoryBlock';
 import {
+    isErrorToolResult,
     isPendingToolResult,
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
-import { getDiscoverFields } from './discoverFields/tool';
+import { getMcpActiveTools } from './mcpToolGating';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
+import { TurnTimingTracker, type StepTiming } from './turnTiming';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -131,7 +148,138 @@ export const recordAgentStepUsage = async ({
     return tokens;
 };
 
+/**
+ * Separate from `recordAgentStepUsage`: that reports billing tokens exactly
+ * once per model call, this is the latency grain.
+ */
+const trackAgentStep = (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+    timing: StepTiming,
+    usage: LanguageModelUsage | undefined,
+) => {
+    const tokens = usage
+        ? languageModelUsageToTokens(usage)
+        : {
+              inputTokens: null,
+              outputTokens: null,
+              cacheReadTokens: null,
+              cacheWriteTokens: null,
+              reasoningTokens: null,
+              totalTokens: null,
+          };
+
+    dependencies.trackEvent({
+        event: 'ai_agent.step_completed',
+        userId: args.userId,
+        properties: {
+            organizationId: args.organizationId,
+            projectId: args.agentSettings.projectUuid,
+            aiAgentId: args.agentSettings.uuid,
+            promptId: args.promptUuid,
+            threadId: args.threadUuid,
+            stepIndex: timing.stepIndex,
+            model: getAiAgentModelName(args.model),
+            modelProvider:
+                typeof args.model === 'string' ? null : args.model.provider,
+            stepOffsetMs: timing.stepOffsetMs,
+            stepTotalMs: timing.stepTotalMs,
+            inferenceMs: timing.inferenceMs,
+            toolWallMs: timing.toolWallMs,
+            ttftMs: timing.ttftMs,
+            toolCallCount: timing.toolCallCount,
+            reasoningChars: timing.reasoningChars,
+            ...tokens,
+        },
+    });
+};
+
 export const DEFAULT_AGENT_MAX_STEPS = 40;
+
+export const AGENT_WRAP_UP_STEPS = 5;
+
+export const AGENT_WRAP_UP_INSTRUCTION =
+    'You are running out of steps. Stop expanding the scope. Use tools only if essential, then finish with the best answer you can. If you cannot fully complete the request, explain what you found and what prevented completion.';
+
+export const AGENT_FINAL_STEP_INSTRUCTION =
+    'This is your final step. Do not call any tools. Respond to the user now with the best answer you can, including any limitations or reasons the request could not be fully completed.';
+
+/**
+ * A deep-research worker only ever answers one narrow data question, so it gets
+ * field discovery and query execution and nothing else — no content, repo,
+ * memory, delegation, or reporting tools.
+ */
+export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
+    'describeWarehouseTable',
+    'generateVisualization',
+    'getMetadata',
+    'grepFields',
+    'listWarehouseTables',
+    'runSql',
+    'searchFieldValues',
+    'searchSemanticLayer',
+]);
+
+export const DEEP_RESEARCH_COORDINATOR_TOOL_NAMES = new Set([
+    'analyzeFieldImpact',
+    'describeWarehouseTable',
+    'findContent',
+    'generateVisualization',
+    'getDashboardCharts',
+    'getKnowledgeDocumentContent',
+    'getMetadata',
+    'getProjectInfo',
+    'grepFields',
+    'listContent',
+    'listKnowledgeDocuments',
+    'listProjects',
+    'listWarehouseTables',
+    'loadProjectContext',
+    'readContent',
+    'readPinnedThread',
+    'resolveUrl',
+    'runContentQuery',
+    'runSavedChart',
+    'runSql',
+    'searchFieldValues',
+    'searchSemanticLayer',
+]);
+
+const getTrustedDeepResearchMcpToolNames = (
+    args: AiAgentArgs,
+    mcpToolSetup: AgentMcpToolSetup,
+): Set<string> => {
+    const expectedUrl = new URL(
+        `/api/v1/mcp/projects/${args.agentSettings.projectUuid}`,
+        args.siteUrl,
+    );
+    const trustedServerUuids = new Set(
+        (args.mcpServers ?? [])
+            .filter((server) => {
+                try {
+                    const serverUrl = new URL(server.url);
+                    return (
+                        serverUrl.origin === expectedUrl.origin &&
+                        serverUrl.pathname.replace(/\/$/, '') ===
+                            expectedUrl.pathname.replace(/\/$/, '')
+                    );
+                } catch {
+                    return false;
+                }
+            })
+            .map((server) => server.uuid),
+    );
+
+    return new Set(
+        Object.entries(mcpToolSetup.mcpToolNameToServerUuid)
+            .filter(
+                ([toolName, serverUuid]) =>
+                    trustedServerUuids.has(serverUuid) &&
+                    isDeepResearchWarehouseMcpTool(toolName),
+            )
+            .map(([toolName]) => toolName),
+    );
+};
 
 const PERSIST_TIMEOUT_MS = 10_000;
 
@@ -305,7 +453,10 @@ export const buildDeepResearchExecutionContextSnapshot = (
             enabledToolNames: Object.entries(
                 mcpToolSetup.mcpToolNameToServerUuid,
             )
-                .filter(([, serverUuid]) => serverUuid === server.uuid)
+                .filter(
+                    ([toolName, serverUuid]) =>
+                        toolName in tools && serverUuid === server.uuid,
+                )
                 .map(([toolName]) => toolName)
                 .sort(),
         })),
@@ -330,7 +481,10 @@ export const buildDeepResearchExecutionContextSnapshot = (
     },
     effectivePermissions: {
         canManageAgent: args.canManageAgent,
-        canRunSql: args.canRunSql,
+        canRunSql:
+            args.execution.mode === 'deep_research'
+                ? args.execution.canUseRawSql
+                : args.canRunSql,
         canUseDataTools: args.enableDataAccess,
         canUseContentTools: args.enableDataAccess && args.enableContentTools,
         canUseSelfImprovementTools: args.canManageAgent,
@@ -380,6 +534,28 @@ export const normalizeToolOutput = (
     } catch {
         return { result: String(output) };
     }
+};
+
+const trackFailedToolResult = (
+    dependencies: Pick<AiAgentDependencies, 'trackEvent'>,
+    args: AiAgentArgs,
+    toolName: string,
+    output: unknown,
+) => {
+    if (!isErrorToolResult(output)) return;
+    dependencies.trackEvent({
+        event: 'ai_agent_tool_call_failed',
+        userId: args.userId,
+        properties: {
+            organizationId: args.organizationId,
+            projectId: args.agentSettings.projectUuid,
+            aiAgentId: args.agentSettings.uuid,
+            agentName: args.agentSettings.name,
+            toolName,
+            threadId: args.threadUuid,
+            promptId: args.promptUuid,
+        },
+    });
 };
 
 // Raw args of an invalid tool call: may be a parsed object or, when JSON
@@ -466,6 +642,12 @@ const buildStopWhenPromptInterrupted =
  * discussing the fix. No-op if the forced tool isn't in the registered set.
  */
 export const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
+    if (
+        args.execution?.mode === 'deep_research' &&
+        args.execution.research?.role === 'worker'
+    ) {
+        return undefined;
+    }
     if (!args.forceToolHints) return undefined;
     const forcedTool = args.toolHints[0];
     if (!forcedTool || !(forcedTool in tools)) return undefined;
@@ -475,23 +657,69 @@ export const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
             : {};
 };
 
-const buildPrepareStep = ({
+export const getStepBudgetOverride = (
+    execution: AiAgentArgs['execution'],
+    stepNumber: number,
+) => {
+    if (
+        execution.mode === 'deep_research' &&
+        execution.research?.role === 'worker'
+    ) {
+        if (stepNumber < Math.max(0, execution.maxSteps - 1)) {
+            return undefined;
+        }
+        return {
+            message: `This is your final step. Submit the best findings packet available now with ${AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME}, even if the evidence is incomplete or inconclusive. Do not run another query.`,
+            activeTools: [AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME],
+            toolChoice: {
+                type: 'tool' as const,
+                toolName: AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
+            },
+        };
+    }
+
+    if (
+        execution.mode !== 'standard' ||
+        stepNumber < Math.max(0, execution.maxSteps - AGENT_WRAP_UP_STEPS)
+    ) {
+        return undefined;
+    }
+
+    if (stepNumber >= execution.maxSteps - 1) {
+        return {
+            message: AGENT_FINAL_STEP_INSTRUCTION,
+            activeTools: [] as string[],
+            toolChoice: 'none' as const,
+        };
+    }
+
+    return { message: AGENT_WRAP_UP_INSTRUCTION };
+};
+
+export const buildPrepareStep = ({
     args,
     dependencies,
     tools,
+    mcpToolNames,
     logger,
     invalidToolCallIds,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
     tools: ToolSet;
+    mcpToolNames: string[];
     logger: ReturnType<typeof createAiAgentLogger>;
     // Ids of tool calls the AI SDK dropped for invalid input, recorded by
     // onStepFinish/onChunk as the turn progresses (shared mutable set).
     invalidToolCallIds: ReadonlySet<string>;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
-    let retryCapPersisted = false;
+    const retryMarkersPersisted = new Set<string>();
+    const retryMarkerScope =
+        args.execution.mode === 'deep_research'
+            ? (args.execution.parentToolCallId ??
+              `deep-research:${args.execution.runUuid}:coordinator`)
+            : args.promptUuid;
 
     return async ({
         stepNumber,
@@ -501,9 +729,17 @@ const buildPrepareStep = ({
         messages: ModelMessage[];
     }) => {
         const forced = forcedFirstStep?.({ stepNumber }) ?? {};
+        const stepBudgetOverride = getStepBudgetOverride(
+            args.execution,
+            stepNumber,
+        );
 
         const extraMessages: ModelMessage[] = [];
-        let activeTools: string[] | undefined;
+        let activeTools = getMcpActiveTools(
+            messages,
+            Object.keys(tools),
+            mcpToolNames,
+        );
 
         // ZAP-574: bound repeated query-tool failures so a slow/looping
         // visualization can't stack multi-minute warehouse scans in one turn.
@@ -511,9 +747,14 @@ const buildPrepareStep = ({
             messages,
             Object.keys(tools),
             invalidToolCallIds,
+            args.execution.mode,
         );
         if (retryOverride) {
-            activeTools = retryOverride.activeTools;
+            activeTools = activeTools
+                ? activeTools.filter((name) =>
+                      retryOverride.activeTools.includes(name),
+                  )
+                : retryOverride.activeTools;
             extraMessages.push({
                 role: 'user' as const,
                 content: retryOverride.nudge,
@@ -522,14 +763,14 @@ const buildPrepareStep = ({
                 'Prepare Step',
                 `Query retry cap tripped for prompt UUID: ${args.promptUuid}`,
             );
-            // Once per prompt: leave a debugging trail that the query tools
-            // were removed this turn (the cap stays tripped on later steps).
-            if (!retryCapPersisted) {
-                retryCapPersisted = true;
+            // Persist each distinct recovery/cap state once so the original
+            // failure, chosen retry round, and terminal outcome are traceable.
+            if (!retryMarkersPersisted.has(retryOverride.markerKey)) {
+                retryMarkersPersisted.add(retryOverride.markerKey);
                 void dependencies
                     .storeToolCallError({
                         promptUuid: args.promptUuid,
-                        toolCallId: `${QUERY_RETRY_CAP_TOOL_NAME}-${args.promptUuid}`,
+                        toolCallId: `${QUERY_RETRY_CAP_TOOL_NAME}-${retryOverride.markerKey}-${retryMarkerScope}`,
                         toolName: QUERY_RETRY_CAP_TOOL_NAME,
                         errorMessage: retryOverride.nudge,
                         rawArgs: null,
@@ -543,10 +784,15 @@ const buildPrepareStep = ({
             }
         }
 
-        const steers = await dependencies.consumePromptSteers({
-            promptUuid: args.promptUuid,
-            stepNumber,
-        });
+        const isDeepResearchWorker =
+            args.execution.mode === 'deep_research' &&
+            args.execution.research?.role === 'worker';
+        const steers = isDeepResearchWorker
+            ? []
+            : await dependencies.consumePromptSteers({
+                  promptUuid: args.promptUuid,
+                  stepNumber,
+              });
         if (steers.length > 0) {
             logger(
                 'Prepare Step',
@@ -561,13 +807,31 @@ const buildPrepareStep = ({
             });
         }
 
-        if (extraMessages.length === 0 && activeTools === undefined) {
+        if (stepBudgetOverride) {
+            extraMessages.push({
+                role: 'user',
+                content: stepBudgetOverride.message,
+            });
+        }
+
+        if (
+            extraMessages.length === 0 &&
+            activeTools === undefined &&
+            stepBudgetOverride === undefined
+        ) {
             return forced;
         }
 
+        const stepActiveTools = stepBudgetOverride?.activeTools ?? activeTools;
+
         return {
             ...forced,
-            ...(activeTools !== undefined ? { activeTools } : {}),
+            ...(stepActiveTools !== undefined
+                ? { activeTools: stepActiveTools }
+                : {}),
+            ...(stepBudgetOverride?.toolChoice !== undefined
+                ? { toolChoice: stepBudgetOverride.toolChoice }
+                : {}),
             messages: [...messages, ...extraMessages],
         };
     };
@@ -579,6 +843,8 @@ export const getAgentTools = (
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
+    projectParameterDefinitions: ParameterDefinitions,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ): ToolSet => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -586,57 +852,28 @@ export const getAgentTools = (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    const discoverFields = getDiscoverFields(
-        {
-            model: args.model,
-            callOptions: args.callOptions,
-            providerOptions: args.providerOptions,
-            availableExplores,
-            findExploresFieldSearchSize: args.findExploresFieldSearchSize,
-            findFieldsPageSize: args.findFieldsPageSize,
-            toolDescriptionMaxChars: args.toolDescriptionMaxChars,
-            promptUuid: args.promptUuid,
-            telemetry: {
-                agentSettings: args.agentSettings,
-                threadUuid: args.threadUuid,
-                promptUuid: args.promptUuid,
-                organizationId: args.organizationId,
-                userId: args.userId,
-                telemetryEnabled: args.telemetryEnabled,
-                model: args.model,
-                keyManagement: args.keyManagement,
-            },
-        },
-        {
-            findExplores: dependencies.findExplores,
-            findFields: dependencies.findFields,
-            getExplore: dependencies.getExplore,
-            updateProgress: dependencies.updateProgress,
-            storeToolCall: dependencies.storeToolCall,
-            storeToolResults: dependencies.storeToolResults,
-        },
-    );
+    const enableContentTools = args.enableDataAccess && args.enableContentTools;
 
-    // Experimental swap: when on, the main agent greps the in-memory annotated
-    // explores itself instead of delegating to the discoverFields sub-agent.
-    const grepFields = args.enableGrepFields
-        ? getGrepFields({
-              availableExplores,
-              findExplores: dependencies.findExplores,
-              verifiedFieldUsage,
-          })
-        : null;
+    const grepFields = getGrepFields({
+        availableExplores,
+        findExplores: dependencies.findExplores,
+        verifiedFieldUsage,
+    });
 
     // Companion to grepFields: rich detail for the explores/fields the agent
     // selected (joined tables, required filters, filter types, hints).
-    const getMetadata = args.enableGrepFields
-        ? getGetMetadata({ availableExplores })
-        : null;
+    const getMetadata = getGetMetadata({
+        availableExplores,
+        projectParameterDefinitions,
+    });
 
     const findContent = getFindContent({
         findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
         toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+        dashboardDetailsToolName: enableContentTools
+            ? 'readContent'
+            : 'getDashboardCharts',
         trackCoverage: (coverage) => {
             dependencies.trackEvent({
                 event: 'ai_agent.find_content_coverage',
@@ -648,10 +885,7 @@ export const getAgentTools = (
                     agentName: args.agentSettings.name,
                     threadId: args.threadUuid,
                     promptId: args.promptUuid,
-                    searchQuery: coverage.searchQuery,
-                    totalResultCount: coverage.totalResultCount,
-                    verifiedResultCount: coverage.verifiedResultCount,
-                    topResultVerified: coverage.topResultVerified,
+                    ...coverage,
                 },
             });
         },
@@ -660,6 +894,16 @@ export const getAgentTools = (
     const listContent = getListContent({
         listContent: dependencies.listContent,
     });
+
+    // Only offered when the project has a custom chart type library — an
+    // empty library keeps zero prompt and tool overhead.
+    const findCustomChartTypes =
+        customChartTypeLibrary.totalCount > 0
+            ? getFindCustomChartTypes({
+                  findCustomChartTypes: dependencies.findCustomChartTypes,
+                  updateProgress: dependencies.updateProgress,
+              })
+            : null;
 
     const getDashboardCharts = getGetDashboardCharts({
         getDashboardCharts: dependencies.getDashboardCharts,
@@ -678,11 +922,20 @@ export const getAgentTools = (
     const generateVisualization = getGenerateVisualization({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
+        runAsyncMergeQuery: dependencies.runAsyncMergeQuery,
         getPrompt: dependencies.getPrompt,
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        maxContextRows: args.maxContextRows,
+        exposeQueryUuid: args.execution.mode === 'deep_research',
         enableDataAccess: args.enableDataAccess,
+        projectParameterDefinitions,
+        slackLinksOnly: args.slackLinksOnly,
+        enableMergeQueries: args.enableMergeQueries,
+        enableFilterExpressions: args.enableFilterExpressions,
+        resolveCustomChartType: dependencies.resolveCustomChartType,
+        exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
     });
 
     const runSavedChart = getRunSavedChart({
@@ -690,26 +943,50 @@ export const getAgentTools = (
         runAsyncQuery: dependencies.runAsyncQuery,
         getSavedChart: dependencies.getSavedChart,
         maxLimit: args.maxQueryLimit,
+        maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
     });
 
-    const runSql = args.canRunSql
-        ? getRunSql({
+    // Composer queries supersede the standalone runSql tool: a single `sql`
+    // node is the direct equivalent, and exposing both lets the model shadow
+    // the composer path with raw runSql calls.
+    const runSql =
+        args.canRunSql && !args.enableComposerQueries
+            ? getRunSql({
+                  updateProgress: dependencies.updateProgress,
+                  runSqlJob: dependencies.runSqlJob,
+                  getPrompt: dependencies.getPrompt,
+                  sendFile: dependencies.sendFile,
+                  updateSlackMessage: dependencies.updateSlackMessage,
+                  siteUrl: args.siteUrl,
+                  waitForSqlApproval: dependencies.waitForSqlApproval,
+                  recordSqlApproval: dependencies.recordSqlApproval,
+                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  storeToolResults: dependencies.storeToolResults,
+                  createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                  maxQueryLimit: args.runSqlMaxLimit,
+                  enableDataAccess: args.enableDataAccess,
+                  slackLinksOnly: args.slackLinksOnly,
+                  sqlScope: args.sqlScope,
+                  autoApproveSql: args.autoApproveSql,
+                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+                  useSlackStreamCard: args.useSlackStreamCard,
+              })
+            : null;
+
+    const runComposerQueries = args.enableComposerQueries
+        ? getRunComposerQueries({
               updateProgress: dependencies.updateProgress,
-              runSqlJob: dependencies.runSqlJob,
+              runComposerQueries: dependencies.runComposerQueries,
               getPrompt: dependencies.getPrompt,
-              sendFile: dependencies.sendFile,
-              updateSlackMessage: dependencies.updateSlackMessage,
-              siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
-              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-              storeToolResults: dependencies.storeToolResults,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
+              enableDataAccess: args.enableDataAccess,
+              canRunSql: args.canRunSql,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
-              useSlackStreamCard: args.useSlackStreamCard,
           })
         : null;
 
@@ -725,12 +1002,13 @@ export const getAgentTools = (
           })
         : null;
 
-    const generateDashboard = getGenerateDashboardV2({
-        getPrompt: dependencies.getPrompt,
-        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-    });
+    const generateDashboard = args.canCreateDashboards
+        ? getGenerateDashboardV2({
+              getPrompt: dependencies.getPrompt,
+              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+          })
+        : null;
 
-    const improveContext = getImproveContext();
     const editContent = getEditContent({
         editContent: dependencies.editContent,
     });
@@ -747,8 +1025,21 @@ export const getAgentTools = (
         getSavedChart: dependencies.getSavedChart,
         validateContent: dependencies.validateContent,
         maxLimit: args.maxQueryLimit,
+        maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
     });
+
+    const generateDataApp = args.enableGenerateDataApp
+        ? getGenerateDataApp({
+              generateDataApp: dependencies.generateDataApp,
+          })
+        : null;
+
+    const iterateDataApp = args.enableGenerateDataApp
+        ? getIterateDataApp({
+              iterateDataApp: dependencies.iterateDataApp,
+          })
+        : null;
 
     const editDbtProject = args.enableAiWriteback
         ? getEditDbtProject({
@@ -824,6 +1115,8 @@ export const getAgentTools = (
 
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
+        getExplore: dependencies.getExplore,
+        enableFilterExpressions: args.enableFilterExpressions,
     });
 
     const analyzeFieldImpact = getAnalyzeFieldImpact({
@@ -861,10 +1154,6 @@ export const getAgentTools = (
             : null;
     const generateHashes = getGenerateHashes();
     const generateUuids = getGenerateUuids();
-    const submitResearchReport =
-        args.execution.mode === 'deep_research'
-            ? getSubmitResearchReport()
-            : null;
 
     const listProjects = getListProjects({
         listProjects: dependencies.listProjects,
@@ -899,14 +1188,22 @@ export const getAgentTools = (
               })
             : null;
 
-    const enableContentTools = args.enableDataAccess && args.enableContentTools;
+    const mcpTools = Object.fromEntries(
+        Object.entries(mcpToolSetup.tools).filter(
+            ([toolName]) =>
+                args.execution.mode !== 'deep_research' ||
+                args.execution.canUseRawSql ||
+                !isDeepResearchRawSqlMcpTool(toolName),
+        ),
+    );
+    const mcpToolNames = Object.keys(mcpTools);
+    const loadMcpTools =
+        mcpToolNames.length > 0 ? getLoadMcpTools(mcpToolNames) : null;
 
     const tools: ToolSet = {
         findContent,
-        // grepFields replaces discoverFields when the ai-grep-fields flag is on,
-        // with getMetadata as its rich-detail companion.
-        ...(grepFields ? { grepFields } : { discoverFields }),
-        ...(getMetadata ? { getMetadata } : {}),
+        grepFields,
+        getMetadata,
         analyzeFieldImpact,
         searchSemanticLayer,
         listProjects,
@@ -933,13 +1230,14 @@ export const getAgentTools = (
               }
             : {
                   getDashboardCharts,
-                  generateDashboard,
+                  ...(generateDashboard ? { generateDashboard } : {}),
               }),
         generateVisualization,
         runSavedChart,
         generateHashes,
         generateUuids,
-        ...(args.canManageAgent ? { improveContext } : {}),
+        ...(generateDataApp ? { generateDataApp } : {}),
+        ...(iterateDataApp ? { iterateDataApp } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
         ...(editRepo ? { editRepo } : {}),
@@ -951,44 +1249,58 @@ export const getAgentTools = (
         ...(closePullRequest ? { closePullRequest } : {}),
         ...(getPullRequestDiff ? { getPullRequestDiff } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
+        ...(findCustomChartTypes ? { findCustomChartTypes } : {}),
         ...(runSql ? { runSql } : {}),
+        ...(runComposerQueries ? { runComposerQueries } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
         ...(loadProjectContext ? { loadProjectContext } : {}),
-        ...(submitResearchReport ? { submitResearchReport } : {}),
+        ...(loadMcpTools ? { loadMcpTools } : {}),
     };
 
-    const mergedTools = { ...tools, ...mcpToolSetup.tools };
+    const mergedTools = { ...tools, ...mcpTools };
 
-    // Structured deep-research phases replace the toolset: planner and judge
-    // are single-purpose model calls, and investigators trade the report tool
-    // for their per-hypothesis submission tool.
+    // Deep-research roles reshape the toolset: the coordinator gains delegation,
+    // and a worker is cut down to the warehouse tools its one task needs so the
+    // agent's full context is not reloaded per worker.
     const research =
         args.execution.mode === 'deep_research'
             ? args.execution.research
             : undefined;
+    const trustedDeepResearchMcpToolNames = research
+        ? getTrustedDeepResearchMcpToolNames(args, mcpToolSetup)
+        : new Set<string>();
     const getResearchTools = (): ToolSet | null => {
         switch (research?.role) {
-            case 'planner':
+            case 'coordinator':
                 return {
-                    submitResearchHypotheses: getSubmitResearchHypotheses({
-                        maxHypotheses: research.maxHypotheses,
-                        onHypotheses: research.onHypotheses,
+                    ...Object.fromEntries(
+                        Object.entries(mergedTools).filter(
+                            ([toolName]) =>
+                                DEEP_RESEARCH_COORDINATOR_TOOL_NAMES.has(
+                                    toolName,
+                                ) ||
+                                trustedDeepResearchMcpToolNames.has(toolName),
+                        ),
+                    ),
+                    delegateResearchTask: getDelegateResearchTask({
+                        runTask: research.runTask,
                     }),
                 };
-            case 'judge':
-                return submitResearchReport ? { submitResearchReport } : null;
-            case 'investigator': {
-                const { submitResearchReport: omitted, ...investigatorTools } =
-                    mergedTools;
+            case 'worker':
                 return {
-                    ...investigatorTools,
-                    submitInvestigationReport: getSubmitInvestigationReport({
-                        onReport: research.onReport,
+                    ...Object.fromEntries(
+                        Object.entries(mergedTools).filter(
+                            ([toolName]) =>
+                                DEEP_RESEARCH_WORKER_TOOL_NAMES.has(toolName) ||
+                                trustedDeepResearchMcpToolNames.has(toolName),
+                        ),
+                    ),
+                    submitWorkerFindings: getSubmitWorkerFindings({
+                        onFindings: research.onFindings,
                     }),
                 };
-            }
             case undefined:
                 return null;
             default:
@@ -1089,46 +1401,98 @@ const getUnauthenticatedMcpServerNames = (
         .map((server) => server.serverName);
 };
 
-export const buildMessagesWithMemoryBlock = ({
+export const buildAgentMessages = ({
     systemPrompt,
+    compactionSummary,
     messageHistory,
-    memoryEnabled,
     memoryBlock,
 }: {
     systemPrompt: ModelMessage;
+    compactionSummary: string | null;
     messageHistory: ModelMessage[];
-    memoryEnabled: boolean;
     memoryBlock: string | null;
 }): ModelMessage[] => [
     systemPrompt,
-    ...(memoryEnabled && memoryBlock
-        ? [{ role: 'user' as const, content: memoryBlock }]
+    ...(compactionSummary
+        ? [Compaction.createSummaryMessage(compactionSummary)]
         : []),
+    ...(memoryBlock ? [{ role: 'user' as const, content: memoryBlock }] : []),
     ...messageHistory,
 ];
+
+export const scopeAgentConversation = ({
+    execution,
+    messageHistory,
+    compactionSummary,
+    memoryBlock,
+}: {
+    execution: AiAgentArgs['execution'];
+    messageHistory: ModelMessage[];
+    compactionSummary: string | null;
+    memoryBlock: string | null;
+}) =>
+    execution.mode === 'deep_research' && execution.research?.role === 'worker'
+        ? {
+              messageHistory: [
+                  {
+                      role: 'user' as const,
+                      content:
+                          'Carry out the isolated task packet in your system instructions.',
+                  },
+              ],
+              compactionSummary: null,
+              memoryBlock: null,
+          }
+        : { messageHistory, compactionSummary, memoryBlock };
 
 export const getDeepResearchBudgetInstruction = (
     budget: AiDeepResearchBudget,
 ): string =>
-    `Run limits: at most ${budget.maxTokens} total model tokens, ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, and ${budget.maxResultRows} rows per query result. Submit the best report available before a limit is exhausted.`;
+    `Run limits: at most ${budget.maxSteps} steps, ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, ${budget.maxTokens} total model tokens, ${Math.round(budget.deadlineMs / 1_000)} seconds of wall clock, and ${budget.maxResultRows} rows per query result. These are ceilings, not targets — a focused answer that uses a fraction of them is better than one that exhausts them. Submit the best report available before a limit is reached.`;
 
-const getAgentMessages = (
+export const getPromptMcpServers = (
+    mcpServers: AiAgentArgs['mcpServers'],
+    mcpToolSetup: AgentMcpToolSetup,
+    tools: ToolSet,
+) =>
+    mcpServers.map((server) => ({
+        name: server.name,
+        toolNames: Object.keys(mcpToolSetup.tools).filter(
+            (toolName) =>
+                toolName in tools &&
+                mcpToolSetup.mcpToolNameToServerUuid[toolName] === server.uuid,
+        ),
+    }));
+
+export const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
+    tools: ToolSet,
     verifiedFieldUsage: Map<string, number>,
     memoryBlock: string | null,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
-    const messageHistory = args.enableGrepFields
-        ? withPreGrepCandidates(
-              withToolHints(args.messageHistory, args.toolHints),
-              availableExplores,
-              verifiedFieldUsage,
-          )
-        : withToolHints(args.messageHistory, args.toolHints);
+    const scopedConversation = scopeAgentConversation({
+        execution: args.execution,
+        messageHistory: args.messageHistory,
+        compactionSummary: args.compactionSummary,
+        memoryBlock,
+    });
+    const isDeepResearchWorker =
+        args.execution.mode === 'deep_research' &&
+        args.execution.research?.role === 'worker';
+    let { messageHistory } = scopedConversation;
+    if (!isDeepResearchWorker) {
+        messageHistory = withPreGrepCandidates(
+            withToolHints(messageHistory, args.toolHints),
+            availableExplores,
+            verifiedFieldUsage,
+        );
+    }
 
     // Project context is loaded on demand via the loadProjectContext tool; the
     // system prompt only advertises that it exists (when enabled + non-empty).
@@ -1141,28 +1505,30 @@ const getAgentMessages = (
         const budgetInstruction = getDeepResearchBudgetInstruction(
             args.execution.budget,
         );
+        const resumeInstruction = args.execution.resumeContext
+            ? `A previous Deep Research run already completed the evidence below. Continue only unfinished work; do not repeat these successful queries unless you need a genuinely different slice.\n\n${args.execution.resumeContext}`
+            : null;
         const { research } = args.execution;
         switch (research?.role) {
-            case 'planner':
-                return [
-                    getAiDeepResearchPlannerInstructions(
-                        research.maxHypotheses,
-                    ),
-                ];
-            case 'investigator':
-                return [
-                    getAiDeepResearchInvestigatorInstructions(
-                        research.hypothesis,
-                    ),
-                    budgetInstruction,
-                ];
-            case 'judge':
+            case 'coordinator':
                 return [
                     AI_DEEP_RESEARCH_INSTRUCTIONS,
-                    getAiDeepResearchJudgeInstructions(research.investigations),
+                    getAiDeepResearchCoordinatorInstructions(),
+                    budgetInstruction,
+                    resumeInstruction,
+                ];
+            case 'worker':
+                return [
+                    getAiDeepResearchWorkerInstructions(research.task),
+                    budgetInstruction,
+                    resumeInstruction,
                 ];
             case undefined:
-                return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];
+                return [
+                    AI_DEEP_RESEARCH_INSTRUCTIONS,
+                    budgetInstruction,
+                    resumeInstruction,
+                ];
             default:
                 return assertUnreachable(research, 'Unknown research role');
         }
@@ -1177,12 +1543,14 @@ const getAgentMessages = (
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
         requestingUser: args.requestingUser,
         availableExplores,
+        availableCustomChartTypes: customChartTypeLibrary,
         availableSkills: args.availableSkills,
         knowledgeDocuments: args.knowledgeDocuments,
         deepResearchRuns: args.deepResearchRuns,
         hasProjectContext,
         enableAiAgentMemory: args.aiAgentMemoryEnabled,
         enableDataAccess: args.enableDataAccess,
+        enableFilterExpressions: args.enableFilterExpressions,
         enableAiWriteback: args.enableAiWriteback,
         writebackAttribution: args.writebackAttribution,
         enableCodingAgent: args.enableCodingAgent,
@@ -1190,23 +1558,28 @@ const getAgentMessages = (
         enableRepoDiscovery: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        enableGrepFields: args.enableGrepFields,
         enableContentTools: args.enableDataAccess && args.enableContentTools,
+        enableGenerateDataApp: args.enableGenerateDataApp,
         slackChannelId: args.slackChannelId,
         canRunSql: args.canRunSql,
+        slackLinksOnly: args.slackLinksOnly,
+        enableComposerQueries: args.enableComposerQueries,
+        enableMergeQueries: args.enableMergeQueries,
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
+        sqlScope: args.sqlScope,
         runSqlMaxLimit: args.runSqlMaxLimit,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
             mcpToolSetup,
         ),
+        mcpServers: getPromptMcpServers(args.mcpServers, mcpToolSetup, tools),
     });
-    const messages = buildMessagesWithMemoryBlock({
+    const messages = buildAgentMessages({
         systemPrompt,
+        compactionSummary: scopedConversation.compactionSummary,
         messageHistory,
-        memoryEnabled: args.aiAgentMemoryEnabled,
-        memoryBlock,
+        memoryBlock: scopedConversation.memoryBlock,
     });
 
     logger('Agent Messages', `Retrieved ${messages.length} messages.`);
@@ -1267,24 +1640,32 @@ export const generateAgentResponse = async ({
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
     const startTime = Date.now();
+    // No decide/execute split here: steps are reported once wholly finished.
+    const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
-    let generatedTokenUsage =
+    let generatedTokenUsage = initialPromptTokenUsage(
         args.execution.mode === 'deep_research'
             ? args.execution.initialTokenUsage
-            : 0;
+            : 0,
+    );
 
     try {
-        const [availableExplores, memoryBlock] = await Promise.all([
+        const [
+            availableExplores,
+            memoryBlock,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
+        ] = await Promise.all([
             dependencies.listExplores(),
             getMemoryBlock(args, dependencies),
+            dependencies.getProjectParameterDefinitions(),
+            dependencies.listCustomChartTypes(),
         ]);
         // Verified-chart usage powers verified-first ranking in grep discovery;
         // degrade to an empty map if it can't be fetched.
-        const verifiedFieldUsage = args.enableGrepFields
-            ? await dependencies
-                  .getVerifiedFieldUsage()
-                  .catch(() => new Map<string, number>())
-            : new Map<string, number>();
+        const verifiedFieldUsage = await dependencies
+            .getVerifiedFieldUsage()
+            .catch(() => new Map<string, number>());
         const tools = withEarlyToolProgress(
             getAgentTools(
                 args,
@@ -1292,6 +1673,8 @@ export const generateAgentResponse = async ({
                 availableExplores,
                 mcpToolSetup,
                 verifiedFieldUsage,
+                projectParameterDefinitions,
+                customChartTypeLibrary,
             ),
             dependencies.updateProgress,
             args.execution.mode === 'deep_research',
@@ -1301,8 +1684,10 @@ export const generateAgentResponse = async ({
             args,
             availableExplores,
             mcpToolSetup,
+            tools,
             verifiedFieldUsage,
             memoryBlock,
+            customChartTypeLibrary,
         );
         logger(
             'Generate Agent Response',
@@ -1313,6 +1698,9 @@ export const generateAgentResponse = async ({
             args,
             dependencies,
             tools,
+            mcpToolNames: Object.keys(mcpToolSetup.tools).filter(
+                (name) => name in tools,
+            ),
             logger,
             invalidToolCallIds,
         });
@@ -1346,6 +1734,17 @@ export const generateAgentResponse = async ({
                     telemetry,
                     execution: args.execution,
                 });
+                // completeStep opens the next step; these calls belong to this one.
+                const stepIndex = timing.getCurrentStepIndex();
+                trackAgentStep(
+                    args,
+                    dependencies,
+                    timing.completeStep(
+                        step.reasoningText?.length ?? 0,
+                        step.toolCalls?.length ?? 0,
+                    ),
+                    step.usage,
+                );
                 for (const toolCall of step.toolCalls) {
                     if (toolCall) {
                         logger(
@@ -1384,6 +1783,8 @@ export const generateAgentResponse = async ({
                                         toolName: toolCall.toolName,
                                         threadId: args.threadUuid,
                                         promptId: args.promptUuid,
+                                        toolCallId: toolCall.toolCallId,
+                                        stepIndex,
                                     },
                                 });
 
@@ -1473,6 +1874,12 @@ export const generateAgentResponse = async ({
                                     toolResult.toolCallId
                                 }) (RESULT: ${JSON.stringify(toolResult.output)})`,
                             );
+                            trackFailedToolResult(
+                                dependencies,
+                                args,
+                                toolResult.toolName,
+                                toolResult.output,
+                            );
                             const output = normalizeToolOutput(
                                 toolResult.output,
                             );
@@ -1487,8 +1894,10 @@ export const generateAgentResponse = async ({
                     );
                 }
 
-                const stepTokens = stepUsage.totalTokens ?? 0;
-                generatedTokenUsage += stepTokens;
+                generatedTokenUsage = accumulatePromptTokenUsage(
+                    generatedTokenUsage,
+                    stepUsage.totalTokens,
+                );
                 if (args.execution.mode === 'deep_research') {
                     // Hidden phases (planner/investigators, persisted as
                     // subagent children) each track their own slice; writing
@@ -1498,7 +1907,7 @@ export const generateAgentResponse = async ({
                     if (args.execution.parentToolCallId == null) {
                         await dependencies.updatePrompt({
                             promptUuid: args.promptUuid,
-                            tokenUsage: { totalTokens: generatedTokenUsage },
+                            tokenUsage: generatedTokenUsage,
                         });
                     }
                 } else {
@@ -1521,26 +1930,36 @@ export const generateAgentResponse = async ({
         // would otherwise be stored as a blank response with no explanation
         // for the user. Structured deep-research phases are exempt: their
         // deliverable is a forced submission tool call, so ending on it with
-        // no trailing text is a success, not an empty response.
+        // no trailing text is a success, not an empty response. Interrupted
+        // prompts are exempt too: the user stopped the generation, so an
+        // empty response is expected and must not surface as an error.
         const isStructuredResearchPhase =
             args.execution.mode === 'deep_research' &&
             args.execution.research !== undefined;
         if (!result.text.trim() && !isStructuredResearchPhase) {
-            if (result.steps.length >= args.execution.maxSteps) {
-                throw new AiAgentStepCapReachedError(result.steps.length);
-            }
-            throw new AiAgentEmptyResponseError(
-                result.finishReason,
-                result.steps.length,
+            const interrupted = await dependencies.isPromptInterrupted(
+                args.promptUuid,
             );
+            if (!interrupted) {
+                if (result.steps.length >= args.execution.maxSteps) {
+                    throw new AiAgentStepCapReachedError(result.steps.length);
+                }
+                throw new AiAgentEmptyResponseError(
+                    result.finishReason,
+                    result.steps.length,
+                );
+            }
         }
 
         if (args.execution.mode !== 'deep_research') {
             await dependencies.updatePrompt({
                 promptUuid: args.promptUuid,
                 response: result.text,
-                tokenUsage: {
-                    totalTokens: result.usage.totalTokens ?? 0,
+                tokenUsage: finalStepPromptTokenUsage(result.usage.totalTokens),
+                responseTiming: {
+                    startedAt: new Date(startTime).toISOString(),
+                    firstTokenAt: null,
+                    finishedAt: new Date().toISOString(),
                 },
             });
         }
@@ -1566,6 +1985,7 @@ export const generateAgentResponse = async ({
         const userFacingMessage = getUserFacingErrorMessage(
             error,
             'Something went wrong while generating the response. Please try again.',
+            args.keyManagement,
         );
 
         if (args.execution.mode !== 'deep_research') {
@@ -1604,6 +2024,8 @@ export const streamAgentResponse = async ({
     let firstChunkTime: number | null = null;
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
+    // The turn-level timers above still feed Prometheus and responseTiming.
+    const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
     const persistPrompt = makeStreamSafePersist(
         dependencies.updatePrompt,
@@ -1620,29 +2042,38 @@ export const streamAgentResponse = async ({
     };
 
     try {
-        const [availableExplores, memoryBlock] = await Promise.all([
+        const [
+            availableExplores,
+            memoryBlock,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
+        ] = await Promise.all([
             dependencies.listExplores(),
             getMemoryBlock(args, dependencies),
+            dependencies.getProjectParameterDefinitions(),
+            dependencies.listCustomChartTypes(),
         ]);
-        const verifiedFieldUsage = args.enableGrepFields
-            ? await dependencies
-                  .getVerifiedFieldUsage()
-                  .catch(() => new Map<string, number>())
-            : new Map<string, number>();
+        const verifiedFieldUsage = await dependencies
+            .getVerifiedFieldUsage()
+            .catch(() => new Map<string, number>());
         const tools = getAgentTools(
             args,
             dependencies,
             availableExplores,
             mcpToolSetup,
             verifiedFieldUsage,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
         );
         await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
             args,
             availableExplores,
             mcpToolSetup,
+            tools,
             verifiedFieldUsage,
             memoryBlock,
+            customChartTypeLibrary,
         );
         logger(
             'Stream Agent Response',
@@ -1653,6 +2084,9 @@ export const streamAgentResponse = async ({
             args,
             dependencies,
             tools,
+            mcpToolNames: Object.keys(mcpToolSetup.tools).filter(
+                (name) => name in tools,
+            ),
             logger,
             invalidToolCallIds,
         });
@@ -1676,6 +2110,7 @@ export const streamAgentResponse = async ({
             messages,
             experimental_context: new AgentContext(availableExplores),
             onChunk: (event) => {
+                timing.recordChunk();
                 // Track time to first chunk (any type) - only once
                 if (firstChunkTime === null) {
                     firstChunkTime = Date.now();
@@ -1689,6 +2124,10 @@ export const streamAgentResponse = async ({
 
                 switch (event.chunk.type) {
                     case 'tool-call':
+                        timing.recordToolCallStart(
+                            event.chunk.toolCallId,
+                            event.chunk.toolName,
+                        );
                         logger(
                             'Chunk Tool Call',
                             `Storing tool call for Prompt UUID ${
@@ -1710,6 +2149,8 @@ export const streamAgentResponse = async ({
                                 toolName: event.chunk.toolName,
                                 threadId: args.threadUuid,
                                 promptId: args.promptUuid,
+                                toolCallId: event.chunk.toolCallId,
+                                stepIndex: timing.getCurrentStepIndex(),
                             },
                         });
 
@@ -1791,12 +2232,8 @@ export const streamAgentResponse = async ({
                         break;
 
                     case 'tool-result':
-                        // The discoverFields tool emits preliminary
-                        // tool-result chunks as it streams subagent progress.
-                        // Only persist the final, non-preliminary one — N
-                        // intermediate rows for the same toolCallId would be
-                        // wasteful and the intermediate output shapes carry
-                        // streaming state, not the parent-facing result.
+                        // Only persist final tool results. Preliminary chunks
+                        // contain transient streaming state.
                         if (event.chunk.preliminary) {
                             break;
                         }
@@ -1828,6 +2265,37 @@ export const streamAgentResponse = async ({
                                     error,
                                 );
                             });
+                        trackFailedToolResult(
+                            dependencies,
+                            args,
+                            event.chunk.toolName,
+                            event.chunk.output,
+                        );
+                        const toolTiming = timing.recordToolCallEnd(
+                            event.chunk.toolCallId,
+                        );
+                        if (toolTiming) {
+                            dependencies.trackEvent({
+                                event: 'ai_agent.tool_call_completed',
+                                userId: args.userId,
+                                properties: {
+                                    organizationId: args.organizationId,
+                                    projectId: args.agentSettings.projectUuid,
+                                    aiAgentId: args.agentSettings.uuid,
+                                    toolName: event.chunk.toolName,
+                                    threadId: args.threadUuid,
+                                    promptId: args.promptUuid,
+                                    toolCallId: event.chunk.toolCallId,
+                                    stepIndex: toolTiming.stepIndex,
+                                    durationMs: toolTiming.durationMs,
+                                    status: isErrorToolResult(
+                                        event.chunk.output as AnyType,
+                                    )
+                                        ? 'error'
+                                        : 'success',
+                                },
+                            });
+                        }
                         void dependencies
                             .storeToolResults([
                                 {
@@ -1877,6 +2345,12 @@ export const streamAgentResponse = async ({
                 }
             },
             onStepFinish: (step) => {
+                trackAgentStep(
+                    args,
+                    dependencies,
+                    timing.completeStep(step.reasoningText?.length ?? 0),
+                    step.usage,
+                );
                 if (step.reasoningText && step.reasoningText.length > 0) {
                     logger(
                         'On Step Finish',
@@ -1930,7 +2404,22 @@ export const streamAgentResponse = async ({
                 // or an error message — a blank response with no error renders
                 // as an empty chat bubble with no explanation. trim() matters:
                 // steps with empty text still join into "\n" strings.
-                if (!completeResponse.trim()) {
+                // Interrupted prompts are exempt: the user stopped the
+                // generation, so an empty response is expected and persisted
+                // as-is instead of surfacing as an error.
+                const isEmptyResponse = !completeResponse.trim();
+                const interrupted = isEmptyResponse
+                    ? await dependencies.isPromptInterrupted(args.promptUuid)
+                    : false;
+                const responseTiming = {
+                    startedAt: new Date(startTime).toISOString(),
+                    firstTokenAt:
+                        firstChunkTime === null
+                            ? null
+                            : new Date(firstChunkTime).toISOString(),
+                    finishedAt: new Date().toISOString(),
+                };
+                if (isEmptyResponse && !interrupted) {
                     const emptyResponseError = stepCapReached
                         ? new AiAgentStepCapReachedError(steps.length)
                         : new AiAgentEmptyResponseError(
@@ -1955,17 +2444,19 @@ export const streamAgentResponse = async ({
                         promptUuid: args.promptUuid,
                         errorMessage:
                             getUserFacingErrorMessage(emptyResponseError),
-                        tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
-                        },
+                        tokenUsage: finalStepPromptTokenUsage(
+                            usage.totalTokens,
+                        ),
+                        responseTiming,
                     });
                 } else {
                     await persistPrompt({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
-                        tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
-                        },
+                        tokenUsage: finalStepPromptTokenUsage(
+                            usage.totalTokens,
+                        ),
+                        responseTiming,
                     });
                 }
 
@@ -1981,14 +2472,22 @@ export const streamAgentResponse = async ({
                         projectId: args.agentSettings.projectUuid,
                         aiAgentId: args.agentSettings.uuid,
                         agentName: args.agentSettings.name,
+                        promptId: args.promptUuid,
+                        threadId: args.threadUuid,
                         usageTokensCount: totalUsage.totalTokens ?? 0,
                         stepsCount: steps.length,
-                        model:
+                        model: modelName,
+                        modelProvider:
                             typeof args.model === 'string'
-                                ? args.model
-                                : args.model.modelId,
+                                ? null
+                                : args.model.provider,
                         finishReason,
                         stepCapReached,
+                        timeToFirstTokenMs:
+                            firstChunkTime === null
+                                ? null
+                                : firstChunkTime - startTime,
+                        durationMs: Date.now() - startTime,
                     },
                 });
                 logger(
@@ -2026,6 +2525,7 @@ export const streamAgentResponse = async ({
                 const userFacingMessage = getUserFacingErrorMessage(
                     error,
                     'Something went wrong while streaming the response. Please try again.',
+                    args.keyManagement,
                 );
 
                 await persistPrompt({
@@ -2057,6 +2557,7 @@ export const streamAgentResponse = async ({
         const userFacingMessage = getUserFacingErrorMessage(
             error,
             'Something went wrong while processing your request. Please try again.',
+            args.keyManagement,
         );
 
         await dependencies.updatePrompt({

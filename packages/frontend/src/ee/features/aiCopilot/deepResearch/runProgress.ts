@@ -39,6 +39,8 @@ const getEventLabel = (event: AiDeepResearchEvent): string => {
             return 'Cancellation requested';
         case 'progress':
             return getActivityLabel(event.payload.progress.activity);
+        case 'report_adjusted':
+            return 'Report adjusted to preserve valid evidence';
         default:
             return assertUnreachable(event, 'Unknown research event');
     }
@@ -68,6 +70,28 @@ const getPhaseLabel = (
     }
 };
 
+const getLatestEvents = (events: AiDeepResearchEvent[]) => {
+    const labels = new Set<string>();
+    return events.reduceRight<DeepResearchRunView['latestEvents']>(
+        (latestEvents, event) => {
+            const label = getEventLabel(event);
+            if (latestEvents.length === 4 || labels.has(label)) {
+                return latestEvents;
+            }
+
+            labels.add(label);
+            latestEvents.push({
+                uuid: event.aiDeepResearchEventUuid,
+                type: event.eventType,
+                label,
+                createdAt: event.createdAt,
+            });
+            return latestEvents;
+        },
+        [],
+    );
+};
+
 export const isDeepResearchRunTerminal = (
     status: DeepResearchRunStatus,
 ): boolean =>
@@ -90,6 +114,10 @@ export const toDeepResearchRegistration = (
     agentUuid: run.agentUuid,
     threadUuid: args.threadUuid,
     promptUuid: run.promptUuid,
+    resumeFromRunUuid:
+        run.status === 'partially_completed' || run.status === 'failed'
+            ? run.aiDeepResearchRunUuid
+            : undefined,
     userUuid: args.userUuid,
     question: run.prompt,
     createdAt: run.createdAt,
@@ -133,6 +161,7 @@ export const adaptDeepResearchRun = ({
         threadUuid: registration.threadUuid,
         question: registration.question,
         status: run.status,
+        terminalReason: run.terminalReason,
         phase: getPhaseLabel(
             latestProgress?.phase ?? null,
             latestProgress?.activity ?? null,
@@ -147,17 +176,8 @@ export const adaptDeepResearchRun = ({
             ? countDeepResearchFindings(run.resultMarkdown)
             : 0,
         actionRequired: null,
-        latestEvents: events
-            .slice(-4)
-            .reverse()
-            .map((event) => ({
-                uuid: event.aiDeepResearchEventUuid,
-                type: event.eventType,
-                label: getEventLabel(event),
-                createdAt: event.createdAt,
-            })),
+        latestEvents: getLatestEvents(events),
         resultMarkdown: run.resultMarkdown,
-        resultChartData: run.resultChartData,
         reportExpiresAt: run.reportExpiresAt,
         reportExpiredAt: run.reportExpiredAt,
         isReportExpired: run.isReportExpired,

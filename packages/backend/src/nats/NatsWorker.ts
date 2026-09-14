@@ -22,7 +22,7 @@ import {
 
 const asyncQueryTagsSchema = z
     .object({
-        query_context: z.nativeEnum(QueryExecutionContext),
+        query_context: z.enum(QueryExecutionContext),
     })
     .catchall(z.string());
 
@@ -174,6 +174,18 @@ export class NatsWorker {
         }
 
         const preAgg = STREAM_CONFIGS['pre-aggregate'];
+        if (
+            subject === STREAM_CONFIGS.duckdb.subjects.query ||
+            (preAgg && subject === preAgg.subjects.duckdb)
+        ) {
+            return (queryUuid, worker, queryTags) =>
+                this.asyncQueryService.runAsyncDuckdbQueryFromHistory(
+                    queryUuid,
+                    worker,
+                    queryTags,
+                );
+        }
+
         if (preAgg && subject === preAgg.subjects.query) {
             return (queryUuid, worker, queryTags) =>
                 this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(

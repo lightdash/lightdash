@@ -1,0 +1,68 @@
+name: Merge freeze status
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  statuses: write
+
+concurrency:
+  group: merge-freeze-${{ github.repository }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  flag:
+    name: freeze
+    # Stacked PRs merging into their parent are not covered by the main ruleset
+    # and are not blocked, so they are not flagged either.
+    if: >-
+      github.event.pull_request.base.ref == github.event.repository.default_branch
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Explain the freeze on this PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+          FREEZE_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/merge-freeze.yml
+        run: |
+          set -euo pipefail
+
+          branch=$(jq -rn --arg branch "$BRANCH" '$branch | @uri')
+          rules=$(gh api --paginate --slurp "repos/$REPO/rules/branches/$branch?per_page=100")
+          frozen=$(jq -er '
+            if type == "array" and length > 0 and all(.[]; type == "array")
+            then add else error("Invalid branch rule pages") end
+            | if all(.[]; type == "object" and (.type | type == "string"))
+              then . else error("Invalid branch rules") end
+            | [.[] | select(.type == "required_status_checks")
+               | .parameters.required_status_checks
+               | if type == "array" and all(.[]; type == "object" and (.context | type == "string"))
+                 then .[] else error("Invalid required status checks") end]
+            | any(.[]; .context == "merge-freeze") | tostring
+          ' <<<"$rules")
+
+          if [ "$frozen" = "true" ]; then
+            state=failure
+            description="Merges to main are frozen - ask Cloudy in Slack"
+          else
+            state=success
+            description="Merges to main are open"
+          fi
+
+          gh api --method POST "repos/$REPO/statuses/$SHA" \
+            -f state="$state" \
+            -f context=merge-freeze \
+            -f description="$description" \
+            -f target_url="$FREEZE_URL" >/dev/null
+
+          echo "$description"

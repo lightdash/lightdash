@@ -12,6 +12,7 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type PivotConfiguration,
+    type QueryExecutionContext,
     type QueryWarning,
     type UserAccessControls,
     type UserAttributeValueMap,
@@ -35,6 +36,9 @@ export type QueryComposerDefinition = {
     // (totals only arrive from the internal calculate-total path, which never
     // sets them).
     totalConfiguration?: TotalConfiguration;
+    // Compile without ORDER BY / LIMIT, for embedding as a CTE body in an
+    // outer statement (a merge) that orders and limits once.
+    asCteBody?: boolean;
 };
 
 /**
@@ -60,11 +64,12 @@ export type QueryComposerContext = {
      */
     pivotItemsMap?: ItemsMap;
     continueOnError?: boolean;
+    skipModelRequiredFilters?: boolean;
     useTimezoneAwareDateTrunc?: boolean;
     columnTimezone?: string;
     dataTimezone?: string;
-    rebaseRawTimestampFilters?: boolean;
     applyDateZoomToFilters?: boolean;
+    queryExecutionContext?: QueryExecutionContext;
     /**
      * Flag-gated timezone echoed to clients and persisted with the query.
      * Not a compile input — `timezone` drives SQL. SQL charts set it to null.
@@ -121,11 +126,12 @@ export class QueryComposer {
             dateZoom,
             pivotDimensions,
             continueOnError,
+            skipModelRequiredFilters,
             useTimezoneAwareDateTrunc,
             columnTimezone,
             dataTimezone,
-            rebaseRawTimestampFilters,
             applyDateZoomToFilters,
+            queryExecutionContext,
         } = this.context;
 
         // Fold reserved definitions in so custom SQL referencing them compiles; a
@@ -178,6 +184,7 @@ export class QueryComposer {
             pivotConfiguration,
             pivotDimensions,
             continueOnError,
+            skipModelRequiredFilters,
             originalExplore: dateZoom ? explore : undefined,
             dateZoomFilterTargetFieldId:
                 applyDateZoomToFilters && dateZoomApplied
@@ -186,8 +193,8 @@ export class QueryComposer {
             useTimezoneAwareDateTrunc,
             columnTimezone,
             dataTimezone,
-            rebaseRawTimestampFilters,
             totalConfiguration,
+            queryExecutionContext,
         });
         return this.queryBuilder;
     }
@@ -314,7 +321,9 @@ export class QueryComposer {
     protected computeCompiled(): CompiledQuery {
         const queryBuilder = this.getQueryBuilder();
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
-            queryBuilder.compileQuery(),
+            queryBuilder.compileQuery({
+                excludeOrderByAndLimit: this.definition.asCteBody,
+            }),
         );
     }
 
@@ -327,7 +336,7 @@ export class QueryComposer {
         const pivotConfiguration = this.getPivotConfiguration();
 
         if (!pivotConfiguration) {
-            return compiledQuery.query;
+            return this.finalizeSql(compiledQuery.query, false);
         }
 
         const pivotQueryBuilder = new PivotQueryBuilder(
@@ -337,6 +346,15 @@ export class QueryComposer {
             this.getMetricQuery().limit,
             this.context.pivotItemsMap ?? compiledQuery.fields,
         );
-        return pivotQueryBuilder.toSql({ columnLimit });
+        return this.finalizeSql(pivotQueryBuilder.toSql({ columnLimit }), true);
+    }
+
+    /**
+     * Last composition seam, after the optional pivot. Most queries need no
+     * extra stage; composed result sets can attach assertions or wrappers
+     * without reimplementing the async execution path.
+     */
+    protected finalizeSql(sql: string, _isPivoted: boolean): string {
+        return sql;
     }
 }

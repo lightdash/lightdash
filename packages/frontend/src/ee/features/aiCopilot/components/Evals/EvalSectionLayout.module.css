@@ -13,3 +13,7 @@
 .threadPanel {
     max-height: 100%;
 }
+
+.breadcrumbLink {
+    cursor: pointer;
+}

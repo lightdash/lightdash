@@ -58,6 +58,15 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
         fullRowOnly: false,
         itemSpan: null,
     },
+    cta: {
+        // A banner is the page's one loud moment: it owns its row and joins
+        // the card-grid axis so its edges align with content around it.
+        widthTier: 'full',
+        columnWeight: 1,
+        rhythm: 'section',
+        fullRowOnly: true,
+        itemSpan: null,
+    },
     metrics: {
         widthTier: 'full',
         columnWeight: 2,

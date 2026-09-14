@@ -2,6 +2,7 @@ import Anthropic, { toFile } from '@anthropic-ai/sdk';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ANTHROPIC_PUBLIC_BASE_URL } from '../config/aiGatewayConfig';
 
 type Args = {
     displayTitle: string;
@@ -119,7 +120,11 @@ const main = async () => {
         }),
     );
 
-    const client = new Anthropic({ apiKey });
+    const client = new Anthropic({
+        apiKey,
+        authToken: null,
+        baseURL: ANTHROPIC_PUBLIC_BASE_URL,
+    });
 
     if (skillId) {
         console.log(`Creating new version for skill: ${skillId}`);

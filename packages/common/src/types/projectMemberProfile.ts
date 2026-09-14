@@ -5,6 +5,8 @@ export type ProjectMemberProfile = {
     projectUuid: string;
     role: ProjectMemberRole;
     roleUuid: string | undefined;
+    /** True when the member holds extra custom roles beyond `role`/`roleUuid` (see role sets). */
+    hasMultipleRoles?: boolean;
     email: string;
     firstName: string;
     lastName: string;

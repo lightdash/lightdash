@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
-import { Alert, Stack, Text, SimpleGrid } from '@mantine-8/core';
+import { Alert, Stack, Text, SimpleGrid } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -56,7 +56,6 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                         <Alert
                             icon={<MantineIcon icon={IconAlertTriangle} />}
                             color="yellow"
-                            variant="light"
                             ta="left"
                         >
                             You don't have permission to create new projects.
@@ -82,7 +81,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                                                   properties: {
                                                       organizationId:
                                                           organization?.organizationUuid ??
-                                                          '',
+                                                          null,
                                                       warehouse: item.key,
                                                       tier:
                                                           item.key ===

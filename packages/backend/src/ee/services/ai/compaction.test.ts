@@ -2,10 +2,13 @@ import { type AiAgentToolResult } from '@lightdash/common';
 import { Compaction } from './compaction';
 
 describe('AI context compaction helpers', () => {
-    it('triggers compaction when total tokens exceed the reserved budget', () => {
+    it('triggers compaction when the final step exceeds the reserved budget', () => {
         expect(
             Compaction.shouldCompactPrompt({
-                totalTokens: 184000,
+                tokenUsage: {
+                    totalTokens: 184000,
+                    finalStepTotalTokens: 184000,
+                },
                 contextWindowTokens: 200000,
                 reserveTokens: 16384,
             }),
@@ -13,7 +16,10 @@ describe('AI context compaction helpers', () => {
 
         expect(
             Compaction.shouldCompactPrompt({
-                totalTokens: 180000,
+                tokenUsage: {
+                    totalTokens: 180000,
+                    finalStepTotalTokens: 180000,
+                },
                 contextWindowTokens: 200000,
                 reserveTokens: 30000,
             }),
@@ -21,7 +27,71 @@ describe('AI context compaction helpers', () => {
 
         expect(
             Compaction.shouldCompactPrompt({
-                totalTokens: 150000,
+                tokenUsage: {
+                    totalTokens: 150000,
+                    finalStepTotalTokens: 150000,
+                },
+                contextWindowTokens: 200000,
+                reserveTokens: 16384,
+            }),
+        ).toBe(false);
+    });
+
+    it('ignores the cumulative billing total when a final-step figure exists', () => {
+        // Deep research sums every step into totalTokens; only the final step
+        // reflects resident context.
+        expect(
+            Compaction.shouldCompactPrompt({
+                tokenUsage: {
+                    totalTokens: 1_200_000,
+                    finalStepTotalTokens: 42_000,
+                },
+                contextWindowTokens: 200000,
+                reserveTokens: 16384,
+            }),
+        ).toBe(false);
+    });
+
+    it('falls back to totalTokens on rows persisted without a final-step figure', () => {
+        expect(
+            Compaction.shouldCompactPrompt({
+                tokenUsage: { totalTokens: 184000 },
+                contextWindowTokens: 200000,
+                reserveTokens: 16384,
+            }),
+        ).toBe(true);
+
+        expect(
+            Compaction.shouldCompactPrompt({
+                tokenUsage: { totalTokens: 150000 },
+                contextWindowTokens: 200000,
+                reserveTokens: 16384,
+            }),
+        ).toBe(false);
+    });
+
+    it('never compacts when no usage was persisted', () => {
+        expect(
+            Compaction.shouldCompactPrompt({
+                tokenUsage: null,
+                contextWindowTokens: 200000,
+                reserveTokens: 16384,
+            }),
+        ).toBe(false);
+
+        expect(
+            Compaction.shouldCompactPrompt({
+                tokenUsage: undefined,
+                contextWindowTokens: 200000,
+                reserveTokens: 16384,
+            }),
+        ).toBe(false);
+    });
+
+    it('does not compact when the final step reports zero tokens', () => {
+        expect(
+            Compaction.shouldCompactPrompt({
+                tokenUsage: { totalTokens: 500, finalStepTotalTokens: 0 },
                 contextWindowTokens: 200000,
                 reserveTokens: 16384,
             }),
@@ -91,6 +161,7 @@ describe('AI context compaction helpers', () => {
                 referencedArtifacts: null,
                 modelConfig: null,
                 tokenUsage: null,
+                responseTiming: null,
             },
         ]);
 
@@ -123,6 +194,7 @@ describe('AI context compaction helpers', () => {
                     referencedArtifacts: null,
                     modelConfig: null,
                     tokenUsage: null,
+                    responseTiming: null,
                 },
             ];
         const serializeWithLegacyReportOption =
@@ -201,6 +273,64 @@ describe('AI context compaction helpers', () => {
         ]);
 
         expect(serialized).toContain('active tab "Customers"');
+    });
+
+    it('serializes an element reference with its wire string and app', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Make this bigger',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'data_app_element',
+                        appUuid: 'app-1',
+                        version: 3,
+                        tag: 'button',
+                        text: 'Send',
+                        loc: '',
+                        appSlug: 'f1-standings',
+                        displayName: 'F1 standings',
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain(
+            'element reference [button "Send"] in data app F1 standings (app-1, version 3',
+        );
+    });
+
+    it('serializes a pinned data app by name and slug', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'What data does this app use?',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'data_app',
+                        appUuid: 'app-1',
+                        appSlug: 'f1-standings',
+                        displayName: 'F1 standings',
+                        pinnedVersion: 3,
+                        isPersonal: false,
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain('data app F1 standings (f1-standings)');
     });
 
     it('filters raw prompt rows after the latest compaction boundary', () => {

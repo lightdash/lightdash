@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconBrandGithub, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import githubIcon from '../../../svgs/github-icon.svg';
@@ -69,7 +69,6 @@ const GithubUserSettingsPanel: FC = () => {
                             size="xs"
                             component="a"
                             target="_blank"
-                            color="blue"
                             href={`${GITHUB_USER_AUTHORIZE_URL}?redirect=/generalSettings/profile`}
                             leftSection={<MantineIcon icon={IconBrandGithub} />}
                         >

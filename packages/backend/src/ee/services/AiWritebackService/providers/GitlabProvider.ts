@@ -243,7 +243,6 @@ export class GitlabProvider implements GitProvider {
             title,
             user,
             setStage,
-            denyCiPaths: args.denyCiPaths,
         });
 
         setStage('pull_request');
@@ -284,7 +283,6 @@ export class GitlabProvider implements GitProvider {
             title,
             user,
             setStage,
-            denyCiPaths: args.denyCiPaths,
         });
 
         setStage('pull_request');
@@ -423,7 +421,6 @@ export class GitlabProvider implements GitProvider {
         title,
         user,
         setStage,
-        denyCiPaths,
     }: {
         sandbox: SandboxHandle;
         connection: GitlabConnection;
@@ -432,7 +429,6 @@ export class GitlabProvider implements GitProvider {
         title: string;
         user: SessionUser;
         setStage: SetStage;
-        denyCiPaths: boolean;
     }): Promise<LandedCommit> {
         setStage('commit');
         const projectPaths = await resolveDbtProjectPaths(
@@ -443,8 +439,8 @@ export class GitlabProvider implements GitProvider {
         await stageChanges(sandbox, projectPaths, this.logger);
         // Host-side denied-path gate (GitLab pushes via git, so check the staged
         // paths here rather than in collectFileChanges). Reject the whole commit
-        // — secrets always, CI/workflow for the general agent.
-        await assertStagedPathsAllowed(sandbox, { denyCiPaths });
+        // before any commit or push reaches the remote.
+        await assertStagedPathsAllowed(sandbox);
         // Read the line stat while still staged — the local commit clears it.
         const diffStat = await collectDiffStat(sandbox);
         const userTrailer = buildUserCoAuthorTrailer(user);

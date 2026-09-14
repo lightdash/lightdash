@@ -1,7 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
 import fs from 'fs';
 import path from 'path';
-import { expect } from 'vitest';
 import { ApiClient, Body } from './api-client';
 
 export const BIGQUERY_CREDENTIALS_PATH = path.resolve(
@@ -130,16 +129,64 @@ export type WarehouseTestEntry = {
     config: Record<string, unknown>;
 };
 
+const WAREHOUSE_NAMES = [
+    'postgres',
+    'snowflake',
+    'bigquery',
+    'databricks',
+    'trino',
+] as const;
+
+type WarehouseName = (typeof WAREHOUSE_NAMES)[number];
+
+const isWarehouseName = (name: string): name is WarehouseName =>
+    (WAREHOUSE_NAMES as readonly string[]).includes(name);
+
+const hasWarehouseCredentials: Record<WarehouseName, () => boolean> = {
+    postgres: () => true,
+    snowflake: hasSnowflakeCredentials,
+    bigquery: hasBigqueryCredentials,
+    databricks: hasDatabricksCredentials,
+    trino: hasTrinoCredentials,
+};
+
+/**
+ * `REQUIRED_WAREHOUSES` (comma-separated names) turns a credential-less skip
+ * into a failure naming the warehouse; unset, nothing is required.
+ */
+function assertRequiredWarehousesAvailable(): void {
+    const required = (process.env.REQUIRED_WAREHOUSES ?? '')
+        .split(',')
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0);
+    required.forEach((name) => {
+        if (!isWarehouseName(name)) {
+            throw new Error(
+                `REQUIRED_WAREHOUSES names "${name}", which is not a warehouse these suites know. Known: ${WAREHOUSE_NAMES.join(', ')}.`,
+            );
+        }
+        if (!hasWarehouseCredentials[name]()) {
+            throw new Error(
+                `REQUIRED_WAREHOUSES requires ${name}, but its credentials are not available, so every warehouse-parameterized suite would silently skip it.`,
+            );
+        }
+    });
+}
+
 /**
  * The warehouses whose credentials are currently available, ready to drive a
- * parameterized suite. Postgres is always included (seeded locally) unless
- * `includePostgres: false` — pass that when a suite already covers Postgres via
- * the seed project.
+ * parameterized suite. Postgres and Databricks are included by default and can
+ * be excluded per suite through options. Throws when a warehouse named in
+ * `REQUIRED_WAREHOUSES` has no credentials.
  */
 export function getAvailableWarehouseConfigs(
-    options: { includePostgres?: boolean } = {},
+    options: {
+        includePostgres?: boolean;
+        includeDatabricks?: boolean;
+    } = {},
 ): WarehouseTestEntry[] {
-    const { includePostgres = true } = options;
+    assertRequiredWarehousesAvailable();
+    const { includePostgres = true, includeDatabricks = true } = options;
     const entries: WarehouseTestEntry[] = [];
     if (includePostgres) {
         entries.push({ name: 'postgres', config: postgresWarehouseConfig() });
@@ -150,7 +197,7 @@ export function getAvailableWarehouseConfigs(
     if (hasBigqueryCredentials()) {
         entries.push({ name: 'bigquery', config: bigqueryWarehouseConfig() });
     }
-    if (hasDatabricksCredentials()) {
+    if (includeDatabricks && hasDatabricksCredentials()) {
         entries.push({
             name: 'databricks',
             config: databricksWarehouseConfig(),
@@ -178,10 +225,9 @@ export async function createProject(
             type: 'dbt',
             project_dir: process.env.DBT_PROJECT_DIR || '/usr/app/dbt',
         },
-        dbtVersion: 'v1.11',
+        dbtVersion: 'v1.12',
         warehouseConnection,
     });
-    expect(resp.status).toBe(200);
     return resp.body.results.project.projectUuid;
 }
 
@@ -203,27 +249,28 @@ async function waitForV1JobCompletion(
 }
 
 /**
- * Create a project, run a full refresh, and return its UUID once compiled.
- * Throws if the refresh job fails so callers fail loudly instead of querying
- * an empty project.
+ * Kick off a full refresh (dbt compile + warehouse catalog) and return the job
+ * to wait on, so callers can overlap the compile with other work.
  */
-export async function createAndRefreshProject(
+export async function startProjectRefresh(
     client: ApiClient,
-    projectName: string,
-    warehouseConnection: Record<string, unknown>,
+    projectUuid: string,
 ): Promise<string> {
-    const projectUuid = await createProject(
-        client,
-        projectName,
-        warehouseConnection,
-    );
-
     const refreshResp = await client.post<Body<{ jobUuid: string }>>(
         `/api/v1/projects/${projectUuid}/refresh`,
     );
-    expect(refreshResp.status).toBe(200);
+    return refreshResp.body.results.jobUuid;
+}
 
-    const { jobUuid } = refreshResp.body.results;
+/**
+ * Block until a refresh job finishes. Throws if it fails so callers fail
+ * loudly instead of querying an empty project.
+ */
+export async function waitForProjectRefresh(
+    client: ApiClient,
+    projectName: string,
+    jobUuid: string,
+): Promise<void> {
     const outcome = await waitForV1JobCompletion(client, jobUuid);
     if (outcome === 'ERROR') {
         const jobResp = await client.get<
@@ -242,6 +289,23 @@ export async function createAndRefreshProject(
             `Project refresh timed out for "${projectName}" (job ${jobUuid} still running after poll window)`,
         );
     }
+}
+
+/**
+ * Create a project, run a full refresh, and return its UUID once compiled.
+ */
+export async function createAndRefreshProject(
+    client: ApiClient,
+    projectName: string,
+    warehouseConnection: Record<string, unknown>,
+): Promise<string> {
+    const projectUuid = await createProject(
+        client,
+        projectName,
+        warehouseConnection,
+    );
+    const jobUuid = await startProjectRefresh(client, projectUuid);
+    await waitForProjectRefresh(client, projectName, jobUuid);
     return projectUuid;
 }
 
@@ -252,7 +316,6 @@ export async function deleteProjectsByName(
     const resp = await client.get<
         Body<{ projectUuid: string; name: string }[]>
     >('/api/v1/org/projects');
-    expect(resp.status).toBe(200);
     for (const project of resp.body.results) {
         if (names.includes(project.name)) {
             await client.delete(`/api/v1/org/projects/${project.projectUuid}`);

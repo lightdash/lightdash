@@ -1,4 +1,4 @@
-import { Anchor, Box, Group, Text, Tooltip } from '@mantine-8/core';
+import { Anchor, Box, Group, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { PillTagsInput } from '../../../../components/common/TagsInput/PillTagsInput';
 import { TagPill } from '../../../../components/common/TagsInput/TagPill';
@@ -19,7 +19,7 @@ const renderWebhookPill = ({
     value: string;
     onRemove: () => void;
 }) => (
-    <Tooltip label={value} withinPortal multiline w="500px">
+    <Tooltip label={value} w="500px">
         <TagPill
             label={value}
             onRemove={onRemove}

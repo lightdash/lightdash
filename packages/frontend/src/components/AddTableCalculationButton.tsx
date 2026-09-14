@@ -1,4 +1,4 @@
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { memo, useState } from 'react';
 import { CreateTableCalculationModal } from '../features/tableCalculation';
@@ -23,6 +23,9 @@ const AddTableCalculationButton = memo(() => {
                         name: EventName.ADD_COLUMN_BUTTON_CLICKED,
                     });
                 }}
+                // Anchor for scope walkthroughs (data-tour-via)
+                data-tour-anchor="add-table-calculation"
+                data-tour-hint="Add a table calculation"
             >
                 Table calculation
             </Button>

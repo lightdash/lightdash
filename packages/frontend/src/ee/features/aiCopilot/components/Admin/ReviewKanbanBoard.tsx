@@ -34,8 +34,14 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentRootCause,
 } from '@lightdash/common';
-import { Badge, Box, Button, Group, Stack, Text } from '@mantine-8/core';
-import { IconBox, IconTag, IconUser } from '@tabler/icons-react';
+import { Badge, Box, Button, Group, Stack, Text } from '@mantine/core';
+import {
+    IconBox,
+    IconListCheck,
+    IconRobotFace,
+    IconTag,
+    IconUser,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC, useDeferredValue, useMemo, useState } from 'react';
 import FilterFacet, {
@@ -46,6 +52,7 @@ import { useProjects } from '../../../../../hooks/useProjects';
 import useApp from '../../../../../providers/App/useApp';
 import {
     applyOptimisticReviewBoardOrder,
+    useAiAgentAdminAgents,
     useAiAgentAdminReviewItems,
     useCreateAiAgentReviewItemWriteback,
     useReorderReviewItems,
@@ -60,7 +67,10 @@ import {
 import {
     DEFAULT_VISIBLE_ROOT_CAUSES,
     getIssueTitle,
+    getReviewItemAgentUuid,
+    getReviewItemProjectUuid,
     reviewRootCauseLabels,
+    SURFACED_ROOT_CAUSES,
 } from './reviewItemDetails';
 import styles from './ReviewKanbanBoard.module.css';
 import { ReviewKanbanCard } from './ReviewKanbanCard';
@@ -87,6 +97,7 @@ type Props = {
     onReviewItemSelect: (target: AiAgentAdminReviewItemPreviewTarget) => void;
     showOnboardingExamples?: boolean;
     initialProjectUuids?: string[];
+    initialAgentUuids?: string[];
 };
 
 const toTarget = (
@@ -176,20 +187,26 @@ export const ReviewKanbanBoard: FC<Props> = ({
     onReviewItemSelect,
     showOnboardingExamples = false,
     initialProjectUuids = [],
+    initialAgentUuids = [],
 }) => {
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
         () => initialProjectUuids,
     );
+    const [selectedAgentUuids, setSelectedAgentUuids] = useState<string[]>(
+        () => initialAgentUuids,
+    );
     const [selectedRootCauses, setSelectedRootCauses] = useState<
         AiAgentRootCause[]
     >(DEFAULT_VISIBLE_ROOT_CAUSES);
     const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+    const [selectedStatuses, setSelectedStatuses] = useState<ReviewLane[]>([]);
     const { data, isLoading } = useAiAgentAdminReviewItems({
         statuses: BOARD_STATUSES,
     });
     const { data: projects } = useProjects();
+    const { data: agents } = useAiAgentAdminAgents();
     const { user } = useApp();
     const currentUserUuid = user.data?.userUuid ?? null;
     const orgUsersByUuid = useOrgUsersByUuid();
@@ -222,6 +239,11 @@ export const ReviewKanbanBoard: FC<Props> = ({
         return new Map(projects.map((p) => [p.projectUuid, p]));
     }, [projects]);
 
+    const agentsMap = useMemo(() => {
+        if (!agents) return new Map<string, { name: string }>();
+        return new Map(agents.map((agent) => [agent.uuid, agent]));
+    }, [agents]);
+
     const allItems = useMemo<AiAgentReviewItemSummary[]>(() => {
         // Tie the examples to the tour being open (not to emptiness) so the same
         // cards get highlighted every run, even on a populated board.
@@ -246,14 +268,28 @@ export const ReviewKanbanBoard: FC<Props> = ({
         if (selectedProjectUuids.length === 0) return searchFilteredItems;
         const projectSet = new Set(selectedProjectUuids);
         return searchFilteredItems.filter((item) => {
-            const projectUuid =
-                item.latestFinding?.projectUuid ?? item.projectUuid ?? null;
+            const projectUuid = getReviewItemProjectUuid(item);
             return projectUuid !== null && projectSet.has(projectUuid);
         });
     }, [searchFilteredItems, selectedProjectUuids]);
 
+    // Agents are scoped after projects so the agent options only ever list
+    // agents that appear in the project-filtered view.
+    const scopedItems = useMemo<AiAgentReviewItemSummary[]>(() => {
+        if (selectedAgentUuids.length === 0) return projectFilteredItems;
+        const agentSet = new Set(selectedAgentUuids);
+        return projectFilteredItems.filter((item) => {
+            const agentUuid = getReviewItemAgentUuid(item);
+            return agentUuid !== null && agentSet.has(agentUuid);
+        });
+    }, [projectFilteredItems, selectedAgentUuids]);
+
     const items = useMemo<AiAgentReviewItemSummary[]>(() => {
-        let next = projectFilteredItems;
+        let next = scopedItems;
+        if (selectedStatuses.length > 0) {
+            const statusSet = new Set(selectedStatuses);
+            next = next.filter((item) => statusSet.has(getReviewLane(item)));
+        }
         if (selectedRootCauses.length > 0) {
             const rootCauseSet = new Set(selectedRootCauses);
             next = next.filter((item) =>
@@ -266,7 +302,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
             );
         }
         return next;
-    }, [projectFilteredItems, selectedRootCauses, selectedAssignees]);
+    }, [scopedItems, selectedStatuses, selectedRootCauses, selectedAssignees]);
 
     const projectFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<string, number>();
@@ -277,8 +313,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
             if (selectedRootCauses.length === 0) return true;
             return selectedRootCauses.includes(item.primaryRootCause);
         })) {
-            const projectUuid =
-                item.latestFinding?.projectUuid ?? item.projectUuid ?? null;
+            const projectUuid = getReviewItemProjectUuid(item);
             if (!projectUuid) continue;
             counts.set(projectUuid, (counts.get(projectUuid) ?? 0) + 1);
         }
@@ -295,36 +330,71 @@ export const ReviewKanbanBoard: FC<Props> = ({
             );
     }, [projectsMap, searchFilteredItems, selectedRootCauses]);
 
-    const rootCauseFacetOptions = useMemo((): FilterFacetOption[] => {
-        const counts = new Map<AiAgentRootCause, number>();
-        for (const item of projectFilteredItems) {
-            counts.set(
-                item.primaryRootCause,
-                (counts.get(item.primaryRootCause) ?? 0) + 1,
-            );
+    const agentFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<string, number>();
+        for (const item of projectFilteredItems.filter((item) => {
+            if (getReviewLane(item) === 'done') return false;
+            if (selectedRootCauses.length === 0) return true;
+            return selectedRootCauses.includes(item.primaryRootCause);
+        })) {
+            const agentUuid = getReviewItemAgentUuid(item);
+            if (!agentUuid) continue;
+            counts.set(agentUuid, (counts.get(agentUuid) ?? 0) + 1);
         }
-        return (Object.keys(reviewRootCauseLabels) as AiAgentRootCause[])
-            .map((rootCause) => ({
-                value: rootCause,
-                label: reviewRootCauseLabels[rootCause],
-                count: counts.get(rootCause) ?? 0,
+        return Array.from(counts.entries())
+            .map(([agentUuid, count]) => ({
+                value: agentUuid,
+                label: agentsMap.get(agentUuid)?.name ?? 'Unknown agent',
+                count,
             }))
             .sort(
                 (a, b) =>
                     b.count - a.count ||
                     String(a.label).localeCompare(String(b.label)),
             );
-    }, [projectFilteredItems]);
+    }, [agentsMap, projectFilteredItems, selectedRootCauses]);
+
+    const rootCauseFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<AiAgentRootCause, number>();
+        for (const item of scopedItems) {
+            counts.set(
+                item.primaryRootCause,
+                (counts.get(item.primaryRootCause) ?? 0) + 1,
+            );
+        }
+        return SURFACED_ROOT_CAUSES.map((rootCause) => ({
+            value: rootCause,
+            label: reviewRootCauseLabels[rootCause],
+            count: counts.get(rootCause) ?? 0,
+        })).sort(
+            (a, b) =>
+                b.count - a.count ||
+                String(a.label).localeCompare(String(b.label)),
+        );
+    }, [scopedItems]);
 
     const assigneeFacetOptions = useMemo(
         (): FilterFacetOption[] =>
             buildAssigneeFacetOptions({
-                items: projectFilteredItems,
+                items: scopedItems,
                 usersByUuid: orgUsersByUuid,
                 currentUserUuid,
             }),
-        [projectFilteredItems, orgUsersByUuid, currentUserUuid],
+        [scopedItems, orgUsersByUuid, currentUserUuid],
     );
+
+    const statusFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<ReviewLane, number>();
+        for (const item of scopedItems) {
+            const lane = getReviewLane(item);
+            counts.set(lane, (counts.get(lane) ?? 0) + 1);
+        }
+        return REVIEW_LANES.map((lane) => ({
+            value: lane.id,
+            label: lane.label,
+            count: counts.get(lane.id) ?? 0,
+        }));
+    }, [scopedItems]);
 
     const lanes = useMemo(() => {
         const byLane: Record<ReviewLane, AiAgentReviewItemSummary[]> = {
@@ -481,7 +551,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
     };
 
     return (
-        <Stack gap="sm" style={{ minHeight: 0, flex: 1 }}>
+        <Stack gap="sm" mih={0} flex={1}>
             <Group gap="sm" wrap="wrap" className={styles.toolbar}>
                 <SearchFilter
                     search={search}
@@ -498,6 +568,15 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     tooltipLabel="Filter by project"
                 />
                 <FilterFacet
+                    label="Agent"
+                    icon={IconRobotFace}
+                    options={agentFacetOptions}
+                    selected={selectedAgentUuids}
+                    onChange={setSelectedAgentUuids}
+                    emptyLabel="No agents in current view"
+                    tooltipLabel="Filter by agent"
+                />
+                <FilterFacet
                     label="Cause"
                     icon={IconTag}
                     options={rootCauseFacetOptions}
@@ -507,6 +586,17 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     }
                     emptyLabel="No root causes in current view"
                     tooltipLabel="Filter by root cause"
+                />
+                <FilterFacet
+                    label="Status"
+                    icon={IconListCheck}
+                    options={statusFacetOptions}
+                    selected={selectedStatuses}
+                    onChange={(values) =>
+                        setSelectedStatuses(values as ReviewLane[])
+                    }
+                    emptyLabel="No statuses in current view"
+                    tooltipLabel="Filter by status"
                 />
                 <FilterFacet
                     label="Assignee"
@@ -554,16 +644,10 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                             bg={`${lane.color}.5`}
                                             style={{ borderRadius: 3 }}
                                         />
-                                        <Text fz="sm" fw={650}>
+                                        <Text fz="xs" fw={600}>
                                             {lane.label}
                                         </Text>
-                                        <Badge
-                                            color="gray"
-                                            variant="light"
-                                            size="sm"
-                                        >
-                                            {all.length}
-                                        </Badge>
+                                        <Badge size="xs">{all.length}</Badge>
                                     </Group>
                                     <DroppableLane
                                         laneId={lane.id}

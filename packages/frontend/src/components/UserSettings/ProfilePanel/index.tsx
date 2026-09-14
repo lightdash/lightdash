@@ -1,6 +1,7 @@
 import {
     FeatureFlags,
     getEmailSchema,
+    getUserNameSchema,
     isValidTimezone,
     type ApiError,
 } from '@lightdash/common';
@@ -12,9 +13,10 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
-import { useForm, zodResolver } from '@mantine/form';
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -31,8 +33,8 @@ import TimeZonePicker from '../../common/TimeZonePicker';
 import AvatarSettings from './AvatarSettings';
 
 const validationSchema = z.object({
-    firstName: z.string().nonempty(),
-    lastName: z.string().nonempty(),
+    firstName: getUserNameSchema(),
+    lastName: getUserNameSchema(),
     email: getEmailSchema().or(z.undefined()),
     timezone: z
         .string()
@@ -175,7 +177,7 @@ const ProfilePanel: FC = () => {
                             <MantineIcon
                                 size="lg"
                                 icon={IconAlertCircle}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                         )
                     }

@@ -1,5 +1,5 @@
 import { type AiAgentEvaluationRunSummary } from '@lightdash/common';
-import { Text, Tooltip, type MantineColor } from '@mantine-8/core';
+import { Text, Tooltip, type MantineColor } from '@mantine/core';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import { statusConfig } from '../Evals/utils';
 import { StatusIndicator } from '../StatusIndicator';
@@ -36,7 +36,7 @@ export const TimeAgo = ({
 }) => {
     const timeAgo = useTimeAgo(date);
     return (
-        <Tooltip withinPortal label={new Date(date).toLocaleString()}>
+        <Tooltip label={new Date(date).toLocaleString()}>
             <Text fz={fz} c={c} truncate>
                 {timeAgo}
             </Text>

@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Stack, Tabs } from '@mantine-8/core';
+import { Stack, Tabs } from '@mantine/core';
 import { IconUser, IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { ProjectGroupAccess } from '../../features/projectGroupAccess';

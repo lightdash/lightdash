@@ -1,0 +1,34 @@
+name: Trusted Contributors
+
+# Closes pull requests from external authors who are not listed in
+# .github/trusted-contributors.yml. The workflow, the script, and the list are
+# all read from base/default branches (pull_request_target, base-branch
+# checkout), so a pull request cannot change the rules that apply to itself.
+# The PR's code is never checked out.
+on:
+    pull_request_target:
+        types:
+            - opened
+            - reopened
+
+permissions:
+    pull-requests: write
+    issues: write
+    contents: read
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+              with:
+                  egress-policy: audit
+            # Default checkout under pull_request_target is the PR's base
+            # branch in this repository, never the PR's own code.
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+            - name: Close untrusted external pull requests
+              uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+              with:
+                  script: |
+                      const check = require('${{ github.workspace }}/.github/scripts/trusted-contributors.cjs');
+                      await check({ github, context, core });

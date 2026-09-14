@@ -16,7 +16,12 @@ import {
     EE_SCHEDULER_TASKS,
     EmbedArtifactVersionJobPayload,
     GenerateArtifactQuestionJobPayload,
+    IngestExternalSourceJobPayload,
     JobPriority,
+    MOBILE_PUSH_LIVE_ACTIVITY_START_MAX_ATTEMPTS,
+    MobilePushLiveActivityJobPayload,
+    MobilePushLiveActivityStartJobPayload,
+    PublishAnnouncementPayload,
     SlackPromptJobPayload,
 } from '@lightdash/common';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -41,14 +46,100 @@ export const aiAgentReviewRunAt = (
         ? new Date(now.getTime() + FEEDBACK_REVIEW_DEBOUNCE_MS)
         : now;
 
+/**
+ * How long to defer an event-driven distill so a burst of activity on the same
+ * thread (consecutive turns, rate-then-comment feedback) coalesces into one
+ * distill via the shared per-thread jobKey. Long enough that a follow-up turn
+ * usually completes (and re-arms the job) before the window expires — a distill
+ * that fires while a turn is still in flight misses that turn's answer, since
+ * response saves don't advance the thread watermark.
+ */
+const MEMORY_DISTILL_EVENT_DEBOUNCE_MS = 180_000;
+
+export const aiAgentMemoryDistillEventRunAt = (now: Date): Date =>
+    new Date(now.getTime() + MEMORY_DISTILL_EVENT_DEBOUNCE_MS);
+
 export class CommercialSchedulerClient extends SchedulerClient {
-    async aiAgentMemoryDistill(payload: AiAgentMemoryDistillJobPayload) {
+    async mobilePushLiveActivityStart(
+        payload: MobilePushLiveActivityStartJobPayload,
+        runAt: Date = new Date(),
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START,
+            payload,
+            {
+                runAt,
+                maxAttempts: MOBILE_PUSH_LIVE_ACTIVITY_START_MAX_ATTEMPTS,
+                jobKey: `mobile-push-live-activity-start:${payload.liveActivityStartAttemptUuid}`,
+                priority: JobPriority.MEDIUM,
+            },
+        );
+        return { jobId };
+    }
+
+    async mobilePushLiveActivity(
+        payload: MobilePushLiveActivityJobPayload,
+        runAt: Date = new Date(),
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY,
+            payload,
+            {
+                runAt,
+                maxAttempts: 5,
+                jobKey: `mobile-push-live-activity:${payload.liveActivityUuid}`,
+                priority: JobPriority.MEDIUM,
+            },
+        );
+        return { jobId };
+    }
+
+    /**
+     * One pending publish per announcement: the stable jobKey (default
+     * jobKeyMode `replace`) makes rescheduling an in-place move of `runAt`.
+     * maxAttempts 1 — the due-announcements sweep is the retry mechanism.
+     */
+    async schedulePublishAnnouncement(
+        payload: PublishAnnouncementPayload,
+        runAt: Date,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.PUBLISH_ANNOUNCEMENT,
+            payload,
+            {
+                runAt,
+                maxAttempts: 1,
+                jobKey: `announcement-publish:${payload.announcementUuid}`,
+                priority: JobPriority.LOW,
+            },
+        );
+        return { jobId };
+    }
+
+    async cancelPublishAnnouncement(announcementUuid: string): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.withPgClient(async (pgClient) => {
+            await pgClient.query(
+                `DELETE FROM graphile_worker.jobs
+                 WHERE locked_by IS NULL AND key = $1`,
+                [`announcement-publish:${announcementUuid}`],
+            );
+        });
+    }
+
+    async aiAgentMemoryDistill(
+        payload: AiAgentMemoryDistillJobPayload,
+        runAt: Date = new Date(),
+    ) {
         const graphileClient = await this.graphileUtils;
         const { id: jobId } = await graphileClient.addJob(
             EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL,
             payload,
             {
-                runAt: new Date(),
+                runAt,
                 maxAttempts: 1,
                 jobKey: `ai-agent-memory-distill:${payload.threadUuid}`,
                 queueName: `ai-agent-memory-distill:${payload.projectUuid}`,
@@ -119,15 +210,21 @@ export class CommercialSchedulerClient extends SchedulerClient {
         return { jobId };
     }
 
-    async aiAgentReviewWriteback(payload: AiAgentReviewWritebackJobPayload) {
+    async aiAgentReviewWriteback(
+        payload: AiAgentReviewWritebackJobPayload,
+        runAt: Date = new Date(),
+        continuation: boolean = false,
+    ) {
         const graphileClient = await this.graphileUtils;
         const { id: jobId } = await graphileClient.addJob(
             EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK,
             payload,
             {
-                runAt: new Date(),
+                runAt,
                 maxAttempts: 1,
-                jobKey: `ai-agent-review-writeback:${payload.fingerprint}`,
+                jobKey: continuation
+                    ? `ai-agent-review-writeback:${payload.fingerprint}:continuation:${runAt.getTime()}`
+                    : `ai-agent-review-writeback:${payload.fingerprint}`,
             },
         );
         return { jobId };
@@ -278,6 +375,40 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 1,
                 jobKey: `ai-deep-research:${payload.aiDeepResearchRunUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async ingestExternalSource(
+        payload: IngestExternalSourceJobPayload,
+        options: { runAt?: Date } = {},
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE,
+            payload,
+            {
+                runAt: options.runAt ?? new Date(),
+                maxAttempts: 5,
+                jobKey: `external-source-ingest:${payload.attemptUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async ingestExternalSourceAttachment(
+        payload: IngestExternalSourceJobPayload,
+        options: { runAt?: Date } = {},
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT,
+            payload,
+            {
+                runAt: options.runAt ?? new Date(),
+                maxAttempts: 5,
+                jobKey: `external-source-attachment-ingest:${payload.attemptUuid}`,
             },
         );
         return { jobId };

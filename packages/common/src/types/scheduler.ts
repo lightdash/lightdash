@@ -3,6 +3,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
+import { type ContentReviewNotificationEvent } from './contentReviewRequests';
 import type { DownloadFileType } from './downloadFile';
 import { type Explore, type ExploreError } from './explore';
 import {
@@ -12,6 +13,7 @@ import {
 } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type ParametersValuesMap } from './parameters';
+import { type PersistentDownloadFileAccessMode } from './persistentDownloadFile';
 import { type PivotConfig } from './pivot';
 import type { CompilationSource } from './projectCompileLogs';
 import { SchedulerResourceType } from './schedulerLog';
@@ -38,6 +40,7 @@ export type SchedulerGsheetsOptions = {
     gdriveOrganizationName: string;
     url: string;
     tabName?: string;
+    showFilters?: boolean;
 };
 export type SchedulerPdfOptions = {
     pagePerTab?: boolean;
@@ -137,6 +140,12 @@ export type SchedulerBase = {
     enabled: boolean;
     notificationFrequency?: NotificationFrequency;
     includeLinks: boolean;
+    /**
+     * Email targets only: send a bare text/plain email (no HTML template, no
+     * Lightdash branding) with the file attached. Slack and webhook targets are
+     * unaffected.
+     */
+    plainTextEmail: boolean;
     projectUuid?: string | null;
     projectName?: string | null;
 };
@@ -151,8 +160,8 @@ export type ChartScheduler = SchedulerBase & {
 };
 
 export const isDashboardScheduler = (
-    scheduler: Scheduler | CreateSchedulerAndTargets,
-): scheduler is DashboardScheduler =>
+    scheduler: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
+): scheduler is DashboardScheduler | InlineDashboardScheduler =>
     'dashboardUuid' in scheduler && !!scheduler.dashboardUuid;
 
 export type DashboardScheduler = SchedulerBase & {
@@ -204,12 +213,13 @@ export type AppScheduler = SchedulerBase & {
 };
 
 export const isAppScheduler = (
-    data: Scheduler | CreateSchedulerAndTargets,
-): data is AppScheduler => 'appUuid' in data && !!data.appUuid;
+    data: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
+): data is AppScheduler | InlineAppScheduler =>
+    'appUuid' in data && !!data.appUuid;
 
 export const isSqlChartScheduler = (
-    scheduler: Scheduler | CreateSchedulerAndTargets,
-): scheduler is SqlChartScheduler =>
+    scheduler: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
+): scheduler is SqlChartScheduler | InlineSqlChartScheduler =>
     'savedSqlUuid' in scheduler && !!scheduler.savedSqlUuid;
 
 export type Scheduler =
@@ -336,7 +346,11 @@ export type CreateSchedulerAndTargets = Omit<
     | 'savedChartName'
     | 'dashboardName'
     | 'savedSqlName'
+    | 'plainTextEmail'
 > & {
+    // Optional on the wire so existing API clients keep working; absent means
+    // the branded HTML email, which is what they already get.
+    plainTextEmail?: boolean;
     slug?: string;
     targets: CreateSchedulerTarget[];
     // Transient: carries the AI augmentation for an unsaved "send now" so the
@@ -349,6 +363,61 @@ export type CreateSchedulerAndTargets = Omit<
     // (send-now filter/batch semantics key off schedulerUuid being absent).
     sourceSchedulerUuid?: string;
 };
+
+type InlineSchedulerBase = Omit<
+    CreateSchedulerAndTargets,
+    'cron' | 'savedChartUuid' | 'dashboardUuid' | 'savedSqlUuid' | 'appUuid'
+> & {
+    // Inline deliveries do not need a recurring schedule.
+    cron?: string;
+};
+
+type InlineChartScheduler = InlineSchedulerBase &
+    Pick<
+        ChartScheduler,
+        | 'savedChartUuid'
+        | 'dashboardUuid'
+        | 'savedSqlUuid'
+        | 'appUuid'
+        | 'filters'
+        | 'parameters'
+    >;
+
+type InlineDashboardScheduler = InlineSchedulerBase &
+    Pick<
+        DashboardScheduler,
+        | 'savedChartUuid'
+        | 'dashboardUuid'
+        | 'savedSqlUuid'
+        | 'appUuid'
+        | 'filters'
+        | 'parameters'
+        | 'customViewportWidth'
+    > & {
+        selectedTabs?: string[] | null;
+    };
+
+type InlineSqlChartScheduler = InlineSchedulerBase &
+    Pick<
+        SqlChartScheduler,
+        'savedChartUuid' | 'dashboardUuid' | 'savedSqlUuid' | 'appUuid'
+    >;
+
+type InlineAppScheduler = InlineSchedulerBase &
+    Pick<
+        AppScheduler,
+        | 'savedChartUuid'
+        | 'dashboardUuid'
+        | 'savedSqlUuid'
+        | 'appUuid'
+        | 'appState'
+    >;
+
+export type SendNowScheduler =
+    | InlineChartScheduler
+    | InlineDashboardScheduler
+    | InlineSqlChartScheduler
+    | InlineAppScheduler;
 
 export type CreateSchedulerAndTargetsWithoutIds = Omit<
     CreateSchedulerAndTargets,
@@ -368,6 +437,7 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'notificationFrequency'
     | 'includeLinks'
 > & {
+    plainTextEmail?: boolean;
     filters?: SchedulerFilters;
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
@@ -412,11 +482,12 @@ export const isUpdateSchedulerEmailTarget = (
     'schedulerEmailTargetUuid' in data && !!data.schedulerEmailTargetUuid;
 
 export const isChartScheduler = (
-    data: Scheduler | CreateSchedulerAndTargets,
-): data is ChartScheduler => 'savedChartUuid' in data && !!data.savedChartUuid;
+    data: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
+): data is ChartScheduler | InlineChartScheduler =>
+    'savedChartUuid' in data && !!data.savedChartUuid;
 
 export const getSchedulerResourceTypeAndId = (
-    scheduler: Scheduler | CreateSchedulerAndTargets,
+    scheduler: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
 ): { resourceType: SchedulerResourceType; resourceId: string } => {
     if (isChartScheduler(scheduler)) {
         return {
@@ -446,19 +517,23 @@ export const getSchedulerResourceTypeAndId = (
 };
 
 export const isChartCreateScheduler = (
-    data: CreateSchedulerAndTargets,
-): data is ChartScheduler & { targets: CreateSchedulerTarget[] } =>
-    'savedChartUuid' in data && !!data.savedChartUuid;
+    data: CreateSchedulerAndTargets | SendNowScheduler,
+): data is
+    | (ChartScheduler & { targets: CreateSchedulerTarget[] })
+    | InlineChartScheduler => 'savedChartUuid' in data && !!data.savedChartUuid;
 
 export const isDashboardCreateScheduler = (
-    data: CreateSchedulerAndTargets,
-): data is DashboardScheduler & { targets: CreateSchedulerTarget[] } =>
+    data: CreateSchedulerAndTargets | SendNowScheduler,
+): data is
+    | (DashboardScheduler & { targets: CreateSchedulerTarget[] })
+    | InlineDashboardScheduler =>
     'dashboardUuid' in data && !!data.dashboardUuid;
 
 export const isAppCreateScheduler = (
-    data: CreateSchedulerAndTargets,
-): data is AppScheduler & { targets: CreateSchedulerTarget[] } =>
-    'appUuid' in data && !!data.appUuid;
+    data: CreateSchedulerAndTargets | SendNowScheduler,
+): data is
+    | (AppScheduler & { targets: CreateSchedulerTarget[] })
+    | InlineAppScheduler => 'appUuid' in data && !!data.appUuid;
 
 export const isSlackTarget = (
     target:
@@ -612,6 +687,15 @@ export type TraceTaskBase = {
     schedulerUuid?: string;
 };
 
+export type PublishAnnouncementPayload = TraceTaskBase & {
+    announcementUuid: string;
+};
+
+export type IngestExternalSourceJobPayload = TraceTaskBase & {
+    attemptUuid: string;
+    sourceUuid: string;
+};
+
 export type ManagedAgentHeartbeatTriggeredBy = 'cron' | 'manual' | 'on_enable';
 
 export type ManagedAgentHeartbeatPayload = TraceTaskBase & {
@@ -628,22 +712,33 @@ export type QueueTraceProperties = {
 
 // Scheduler task types
 export type ScheduledDeliveryPayload = TraceTaskBase &
-    (CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>);
+    (
+        | SendNowScheduler
+        | (Pick<Scheduler, 'schedulerUuid'> & {
+              executionUserUuid?: string;
+          })
+    );
 
 export const isCreateScheduler = (
     data: ScheduledDeliveryPayload,
-): data is CreateSchedulerAndTargets & TraceTaskBase => 'targets' in data;
+): data is SendNowScheduler & TraceTaskBase => 'targets' in data;
 export const hasSchedulerUuid = (
-    data: SchedulerAndTargets | CreateSchedulerAndTargets,
+    data: SchedulerAndTargets | CreateSchedulerAndTargets | SendNowScheduler,
 ): data is SchedulerAndTargets => 'schedulerUuid' in data;
 
 export const getSchedulerUuid = (
-    data: CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>,
+    data:
+        | CreateSchedulerAndTargets
+        | SendNowScheduler
+        | Pick<Scheduler, 'schedulerUuid'>,
 ): string | undefined =>
     'schedulerUuid' in data ? data.schedulerUuid : undefined;
 
 export const getSourceSchedulerUuid = (
-    data: CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>,
+    data:
+        | CreateSchedulerAndTargets
+        | SendNowScheduler
+        | Pick<Scheduler, 'schedulerUuid'>,
 ): string | undefined =>
     'sourceSchedulerUuid' in data ? data.sourceSchedulerUuid : undefined;
 
@@ -653,6 +748,7 @@ export enum LightdashPage {
     EXPLORE = 'explore',
     SQL_CHART = 'sql_chart',
     APP = 'app',
+    AI_ARTIFACT = 'ai_artifact',
 }
 
 // Info-only delivery notice — never a failure, must not affect run status.
@@ -697,7 +793,7 @@ export type NotificationPayloadBase = {
         failures?: PartialFailure[];
         notices?: DeliveryNotice[];
     };
-    scheduler: CreateSchedulerAndTargets;
+    scheduler: SchedulerAndTargets | SendNowScheduler;
 };
 
 export type SlackNotificationPayload = TraceTaskBase &
@@ -803,6 +899,8 @@ export type CompileProjectPayload = TraceTaskBase & {
     jobUuid: string;
     isPreview: boolean;
     validateAfterCompile?: boolean;
+    // Apply charts and dashboards as code from the repo once compiled
+    syncContentAfterCompile?: boolean;
     compilationSource?: CompilationSource;
 };
 
@@ -818,6 +916,8 @@ export type MaterializePreAggregatePayload = TraceTaskBase & {
 };
 
 export type ReplaceCustomFieldsPayload = TraceTaskBase;
+
+export type BackfillDefaultUserSpacesPayload = TraceTaskBase;
 
 export type ValidateProjectPayload = TraceTaskBase & {
     context: 'lightdash_app' | 'dbt_refresh' | 'test_and_compile' | 'cli';
@@ -865,6 +965,9 @@ export type ExportContentPayload = TraceTaskBase & {
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
     parameters?: ParametersValuesMap;
+    // Set for embed/JWT exports so the scheduler worker can rebuild the
+    // anonymous account (no DB user) and run each tile query under it.
+    encodedJwt?: string;
 };
 
 export type ExportContentRequest = {
@@ -891,6 +994,17 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
     encodedJwt?: string;
+    /**
+     * Access mode for the persistent URL of the exported file. Set to SIGNED
+     * for downloads scheduled through the data-app SDK bridge, whose final
+     * file fetch happens in a sandboxed, credential-less context. Absent on
+     * jobs from other callers (and all jobs queued before this field existed),
+     * which keep the AUTHENTICATED_CREATOR default.
+     */
+    fileAccessMode?: Exclude<
+        PersistentDownloadFileAccessMode,
+        PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+    >;
 };
 
 export type SyncSlackChannelsPayload = Pick<
@@ -911,3 +1025,24 @@ export type SendReviewNotificationPayload = {
     schedulerUuid?: string;
     userUuid?: string;
 };
+
+export type SendContentReviewNotificationPayload = {
+    organizationUuid: string;
+    projectUuid: string;
+    requestUuid: string;
+    event: ContentReviewNotificationEvent;
+    recipientUserUuids: string[];
+    userUuid: string;
+    schedulerUuid?: string;
+};
+
+export type CreateReviewLinearIssuePayload = {
+    organizationUuid: string;
+    projectUuid: string;
+    fingerprints: string[];
+    reviewRunUuid: string | null;
+    schedulerUuid?: string;
+    userUuid?: string;
+};
+
+export type CreateReviewJiraIssuePayload = CreateReviewLinearIssuePayload;

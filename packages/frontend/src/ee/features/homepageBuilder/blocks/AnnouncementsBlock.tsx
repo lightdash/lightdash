@@ -12,17 +12,21 @@ import {
     Select,
     Skeleton,
     Stack,
+    Switch,
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
+import { TimeInput } from '@mantine/dates';
 import {
     IconChevronDown,
     IconChevronRight,
+    IconClock,
     IconPencil,
     IconPin,
     IconPinnedOff,
     IconPlus,
+    IconSend,
     IconSpeakerphone,
     IconTrash,
 } from '@tabler/icons-react';
@@ -35,6 +39,7 @@ import {
     type ReactNode,
 } from 'react';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge/CategoryBadge';
+import CalendarPickerInput from '../../../../components/common/DatePickers/CalendarPickerInput';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
@@ -47,13 +52,14 @@ import {
     useUpdateAnnouncement,
     useUploadAnnouncementImage,
 } from '../hooks/useAnnouncements';
+import { useCanManageHomepage } from '../hooks/useHomepageAbilities';
 import classes from './announcements/announcements.module.css';
 import { BlockHeader } from './BlockShell';
 import { TiptapMarkdownEditor } from './markdownEditor/TiptapMarkdownEditor';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const FEED_PAGE_SIZE = 25;
-const RECENT_LIMIT = 3;
+const RECENT_LIMIT = 5;
 
 const NOOP = () => {};
 
@@ -153,9 +159,23 @@ const AnnouncementCard: FC<{
         {(announcement.pinned || !announcement.published) && (
             <div className={classes.cardHeader}>
                 <span className={classes.headerTags}>
-                    {!announcement.published && (
-                        <span className={classes.draftTag}>Draft</span>
-                    )}
+                    {!announcement.published &&
+                        (announcement.scheduledPublishAt ? (
+                            <span className={classes.draftTag}>
+                                <MantineIcon icon={IconClock} size="sm" />
+                                Scheduled ·{' '}
+                                {new Date(
+                                    announcement.scheduledPublishAt,
+                                ).toLocaleString(undefined, {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                })}
+                            </span>
+                        ) : (
+                            <span className={classes.draftTag}>Draft</span>
+                        ))}
                     {announcement.pinned && (
                         <span className={classes.pinnedTag}>
                             <MantineIcon icon={IconPin} size="sm" />
@@ -259,16 +279,43 @@ const EarlierSection: FC<{
 const AnnouncementFeed: FC<{
     projectUuid: string;
     announcements: ProjectAnnouncement[];
+    collapseAfterFirst: boolean;
     renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
-}> = ({ projectUuid, announcements, renderActions }) => {
+}> = ({ projectUuid, announcements, collapseAfterFirst, renderActions }) => {
     const { top, earlier } = useMemo(() => {
         const pinned = announcements.filter((a) => a.pinned);
         const rest = announcements.filter((a) => !a.pinned);
+        const ordered = [...pinned, ...rest];
+        // A project has at most one pinned announcement, so the lead is that
+        // one when it exists and the most recent otherwise.
+        if (collapseAfterFirst)
+            return { top: ordered.slice(0, 1), earlier: ordered.slice(1) };
         return {
             top: [...pinned, ...rest.slice(0, RECENT_LIMIT)],
             earlier: rest.slice(RECENT_LIMIT),
         };
-    }, [announcements]);
+    }, [announcements, collapseAfterFirst]);
+
+    // Collapsed mode keeps one lead card and puts everything else behind the
+    // single toggle, rather than listing part of the tail alongside it.
+    if (collapseAfterFirst)
+        return (
+            <>
+                {top.map((announcement) => (
+                    <AnnouncementCard
+                        key={announcement.announcementUuid}
+                        projectUuid={projectUuid}
+                        announcement={announcement}
+                        actions={renderActions?.(announcement)}
+                    />
+                ))}
+                <EarlierSection
+                    projectUuid={projectUuid}
+                    items={earlier}
+                    renderActions={renderActions}
+                />
+            </>
+        );
 
     // 3+ recent cards render as a bento grid: a full-width lead, the rest
     // tiled two-up, and a lone trailing tile spanning full width so the grid
@@ -346,23 +393,378 @@ const FeedError: FC = () => (
     </div>
 );
 
+const AnnouncementItemActions: FC<{
+    projectUuid: string;
+    announcement: ProjectAnnouncement;
+    onEdit: (announcement: ProjectAnnouncement) => void;
+    onDelete: (announcement: ProjectAnnouncement) => void;
+}> = ({ projectUuid, announcement, onEdit, onDelete }) => {
+    const [confirmingPublish, setConfirmingPublish] = useState(false);
+    const { mutate: update, isLoading: updating } =
+        useUpdateAnnouncement(projectUuid);
+    return (
+        <>
+            {!announcement.published && (
+                <Tooltip label="Publish now">
+                    <ActionIcon
+                        size="sm"
+                        aria-label="Publish announcement now"
+                        onClick={() => setConfirmingPublish(true)}
+                    >
+                        <MantineIcon icon={IconSend} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+            {confirmingPublish && (
+                <MantineModal
+                    opened
+                    onClose={() => !updating && setConfirmingPublish(false)}
+                    title="Publish announcement"
+                    icon={IconSend}
+                    confirmLabel="Publish now"
+                    confirmLoading={updating}
+                    onConfirm={() =>
+                        update(
+                            {
+                                announcementUuid: announcement.announcementUuid,
+                                publishNow: true,
+                            },
+                            {
+                                onSuccess: () => setConfirmingPublish(false),
+                            },
+                        )
+                    }
+                >
+                    <Text size="sm">
+                        “{announcement.title}” goes live on the homepage
+                        immediately
+                        {announcement.pendingSlackChannelId
+                            ? ' and notifies Slack'
+                            : ''}
+                        {announcement.scheduledPublishAt
+                            ? ', replacing its schedule'
+                            : ''}
+                        .
+                    </Text>
+                </MantineModal>
+            )}
+            <Tooltip label={announcement.pinned ? 'Unpin' : 'Pin to top'}>
+                <ActionIcon
+                    size="sm"
+                    aria-label={announcement.pinned ? 'Unpin' : 'Pin'}
+                    onClick={() =>
+                        update({
+                            announcementUuid: announcement.announcementUuid,
+                            pinned: !announcement.pinned,
+                        })
+                    }
+                >
+                    <MantineIcon
+                        icon={announcement.pinned ? IconPinnedOff : IconPin}
+                    />
+                </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Edit">
+                <ActionIcon
+                    size="sm"
+                    aria-label="Edit announcement"
+                    onClick={() => onEdit(announcement)}
+                >
+                    <MantineIcon icon={IconPencil} />
+                </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Delete">
+                <ActionIcon
+                    color="red"
+                    size="sm"
+                    aria-label="Delete announcement"
+                    onClick={() => onDelete(announcement)}
+                >
+                    <MantineIcon icon={IconTrash} />
+                </ActionIcon>
+            </Tooltip>
+        </>
+    );
+};
+
+const DeleteAnnouncementModal: FC<{
+    projectUuid: string;
+    announcement: ProjectAnnouncement;
+    onClose: () => void;
+}> = ({ projectUuid, announcement, onClose }) => {
+    const { mutate: remove, isLoading: removing } =
+        useDeleteAnnouncement(projectUuid);
+    return (
+        <MantineModal
+            opened
+            onClose={() => !removing && onClose()}
+            title="Delete announcement"
+            variant="delete"
+            resourceType="announcement"
+            resourceLabel={announcement.title}
+            cancelDisabled={removing}
+            confirmLoading={removing}
+            onConfirm={() =>
+                remove(announcement.announcementUuid, { onSuccess: onClose })
+            }
+        />
+    );
+};
+
+/** Form modal wrapper mounted only while open, so plain homepage viewers
+ * never pay for the Slack settings fetch the picker needs. */
+const AnnouncementComposer: FC<{
+    projectUuid: string;
+    announcement: ProjectAnnouncement | null;
+    publishNow: boolean;
+    onClose: () => void;
+}> = ({ projectUuid, announcement, publishNow, onClose }) => {
+    const { data: slack } = useGetSlack();
+    return (
+        <AnnouncementFormModal
+            projectUuid={projectUuid}
+            announcement={announcement}
+            slackInstalled={!!slack?.organizationUuid}
+            publishNow={publishNow}
+            onClose={onClose}
+        />
+    );
+};
+
 export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
 }) => {
-    const { announcements, isLoading, isError } =
-        useAnnouncementFeed(projectUuid);
+    const canManage = useCanManageHomepage(projectUuid);
+    // Managers see drafts inline (tagged) so they can edit or delete them
+    // from here; viewers only ever get published announcements.
+    const { announcements, isLoading, isError } = useAnnouncementFeed(
+        projectUuid,
+        canManage,
+    );
+    const [creating, setCreating] = useState(false);
+    const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
+    const [deleting, setDeleting] = useState<ProjectAnnouncement | null>(null);
     if (block.type !== 'announcements') return null;
-    // Read mode stays invisible until there is something real to show.
-    if (isLoading || isError || announcements.length === 0) return null;
+    // Read mode stays invisible until there is something real to show —
+    // except for managers, who keep the entry point on an empty feed.
+    if (isLoading || isError) return null;
+    if (announcements.length === 0 && !canManage) return null;
     return (
         <Stack gap="sm" className={classes.feedBand}>
-            <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
-            <AnnouncementFeed
-                projectUuid={projectUuid}
-                announcements={announcements}
+            <BlockHeader
+                icon={IconSpeakerphone}
+                title={block.config.title}
+                actions={
+                    canManage ? (
+                        <Button
+                            variant="subtle"
+                            color="ldGray.7"
+                            size="compact-xs"
+                            leftSection={
+                                <MantineIcon icon={IconPlus} size="sm" />
+                            }
+                            onClick={() => setCreating(true)}
+                        >
+                            New announcement
+                        </Button>
+                    ) : undefined
+                }
             />
+            {announcements.length === 0 ? (
+                <div className={classes.emptyHint}>
+                    No announcements yet — share your first update. Viewers
+                    don’t see this block while it’s empty.
+                </div>
+            ) : (
+                <AnnouncementFeed
+                    projectUuid={projectUuid}
+                    announcements={announcements}
+                    collapseAfterFirst={
+                        block.config.collapseAfterFirst ?? false
+                    }
+                    renderActions={
+                        canManage
+                            ? (announcement) => (
+                                  <AnnouncementItemActions
+                                      projectUuid={projectUuid}
+                                      announcement={announcement}
+                                      onEdit={setEditing}
+                                      onDelete={setDeleting}
+                                  />
+                              )
+                            : undefined
+                    }
+                />
+            )}
+            {(creating || editing !== null) && (
+                <AnnouncementComposer
+                    projectUuid={projectUuid}
+                    announcement={editing}
+                    publishNow={creating}
+                    onClose={() => {
+                        setCreating(false);
+                        setEditing(null);
+                    }}
+                />
+            )}
+            {deleting !== null && (
+                <DeleteAnnouncementModal
+                    projectUuid={projectUuid}
+                    announcement={deleting}
+                    onClose={() => setDeleting(null)}
+                />
+            )}
         </Stack>
+    );
+};
+
+const DEFAULT_SCHEDULE_TIME = '09:00';
+
+const formatTimeOfDay = (date: Date): string =>
+    `${String(date.getHours()).padStart(2, '0')}:${String(
+        date.getMinutes(),
+    ).padStart(2, '0')}`;
+
+const initialFormValues = (announcement: ProjectAnnouncement | null) => ({
+    title: announcement?.title ?? '',
+    body: announcement?.body ?? '',
+    category: announcement?.category ?? null,
+    slackChannelId: announcement?.pendingSlackChannelId ?? null,
+    schedule: announcement?.scheduledPublishAt
+        ? new Date(announcement.scheduledPublishAt)
+        : null,
+});
+
+// Wall-clock date+time in the admin's local timezone → a UTC instant.
+const useScheduleFields = (initialSchedule: Date | null) => {
+    const [enabled, setEnabled] = useState(initialSchedule !== null);
+    const [date, setDate] = useState<Date | null>(initialSchedule);
+    const [time, setTime] = useState(
+        initialSchedule
+            ? formatTimeOfDay(initialSchedule)
+            : DEFAULT_SCHEDULE_TIME,
+    );
+    const scheduledAt = useMemo(() => {
+        if (!enabled || !date) return null;
+        const [hours, minutes] = time.split(':').map(Number);
+        const combined = new Date(date);
+        combined.setHours(hours || 0, minutes || 0, 0, 0);
+        return combined;
+    }, [enabled, date, time]);
+    const isInPast =
+        scheduledAt !== null && scheduledAt.getTime() <= Date.now();
+    const isValid = !enabled || (scheduledAt !== null && !isInPast);
+    return {
+        enabled,
+        setEnabled,
+        date,
+        setDate,
+        time,
+        setTime,
+        scheduledAt,
+        isInPast,
+        isValid,
+    };
+};
+
+type ScheduleFields = ReturnType<typeof useScheduleFields>;
+
+const SchedulePicker: FC<{ schedule: ScheduleFields }> = ({ schedule }) => (
+    <Stack gap="xs">
+        <Switch
+            size="xs"
+            label="Schedule publish"
+            checked={schedule.enabled}
+            onChange={(event) =>
+                schedule.setEnabled(event.currentTarget.checked)
+            }
+        />
+        {schedule.enabled && (
+            <Group grow align="flex-start" wrap="nowrap">
+                <CalendarPickerInput
+                    label="Date"
+                    size="sm"
+                    radius="md"
+                    value={schedule.date}
+                    onChange={schedule.setDate}
+                    minDate={new Date()}
+                />
+                <TimeInput
+                    label="Time"
+                    size="sm"
+                    value={schedule.time}
+                    onChange={(event) =>
+                        schedule.setTime(event.currentTarget.value)
+                    }
+                />
+            </Group>
+        )}
+    </Stack>
+);
+
+const saveLabelFor = ({
+    isEdit,
+    isScheduled,
+    publishNow,
+    hasSlack,
+}: {
+    isEdit: boolean;
+    isScheduled: boolean;
+    publishNow: boolean;
+    hasSlack: boolean;
+}): string => {
+    if (isEdit) return 'Save';
+    if (isScheduled) return hasSlack ? 'Schedule & queue Slack' : 'Schedule';
+    if (publishNow) return hasSlack ? 'Post & send to Slack' : 'Post';
+    return hasSlack ? 'Create draft & queue Slack' : 'Create draft';
+};
+
+const PublishHint: FC<{
+    isEdit: boolean;
+    isPublished: boolean;
+    publishNow: boolean;
+    hasSlack: boolean;
+    schedule: ScheduleFields;
+}> = ({ isEdit, isPublished, publishNow, hasSlack, schedule }) => {
+    if (schedule.enabled && schedule.isInPast) {
+        return (
+            <Text size="xs" c="red">
+                Pick a publish time in the future.
+            </Text>
+        );
+    }
+    if (schedule.enabled && schedule.scheduledAt) {
+        return (
+            <Text size="xs" c="dimmed">
+                Publishes automatically on{' '}
+                {schedule.scheduledAt.toLocaleString(undefined, {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                })}{' '}
+                (your local time)
+                {hasSlack ? ' and notifies Slack then' : ''}.
+            </Text>
+        );
+    }
+    if (!isEdit && publishNow) {
+        return (
+            <Text size="xs" c="dimmed">
+                Goes live on the homepage immediately
+                {hasSlack ? ' and notifies Slack' : ''}.
+            </Text>
+        );
+    }
+    if (isPublished) return null;
+    return (
+        <Text size="xs" c="dimmed">
+            Saved as a draft. It
+            {hasSlack ? ' and its Slack notification' : ''} goes live when you
+            publish the homepage.
+        </Text>
     );
 };
 
@@ -370,20 +772,32 @@ const AnnouncementFormModal: FC<{
     projectUuid: string;
     announcement: ProjectAnnouncement | null;
     slackInstalled: boolean;
+    /** Publish immediately on create (posting from the live homepage)
+     * instead of the builder's draft-until-homepage-publish flow. */
+    publishNow?: boolean;
     onClose: () => void;
-}> = ({ projectUuid, announcement, slackInstalled, onClose }) => {
+}> = ({
+    projectUuid,
+    announcement,
+    slackInstalled,
+    publishNow = false,
+    onClose,
+}) => {
     const isEdit = announcement !== null;
+    const isPublished = announcement?.published === true;
     // Slack can only be retargeted while the announcement is still a draft.
-    const slackEditable = slackInstalled && !announcement?.published;
-    const initialSlackChannelId = announcement?.pendingSlackChannelId ?? null;
-    const [title, setTitle] = useState(announcement?.title ?? '');
-    const [body, setBody] = useState(announcement?.body ?? '');
+    const slackEditable = slackInstalled && !isPublished;
+    const initial = initialFormValues(announcement);
+    const [title, setTitle] = useState(initial.title);
+    const [body, setBody] = useState(initial.body);
     const [category, setCategory] = useState<AnnouncementCategory | null>(
-        announcement?.category ?? null,
+        initial.category,
     );
     const [slackChannelId, setSlackChannelId] = useState<string | null>(
-        initialSlackChannelId,
+        initial.slackChannelId,
     );
+    const schedule = useScheduleFields(initial.schedule);
+    const { scheduledAt } = schedule;
     const { mutate: create, isLoading: creating } =
         useCreateAnnouncement(projectUuid);
     const { mutate: update, isLoading: updating } =
@@ -391,6 +805,7 @@ const AnnouncementFormModal: FC<{
     const uploadImage = useUploadAnnouncementImage(projectUuid);
     const isLoading = creating || updating;
     const bodyTooLong = body.trim().length > ANNOUNCEMENT_BODY_MAX_LENGTH;
+    const hasSlack = !!slackChannelId;
 
     const handleSave = () => {
         const trimmedTitle = title.trim();
@@ -405,8 +820,15 @@ const AnnouncementFormModal: FC<{
                     category,
                     // Omitted when untouched — PATCH leaves it unchanged.
                     ...(slackEditable &&
-                    slackChannelId !== initialSlackChannelId
+                    slackChannelId !== initial.slackChannelId
                         ? { slackChannelId }
+                        : {}),
+                    ...(scheduledAt &&
+                    scheduledAt.getTime() !== initial.schedule?.getTime()
+                        ? { scheduledPublishAt: scheduledAt }
+                        : {}),
+                    ...(!schedule.enabled && initial.schedule
+                        ? { scheduledPublishAt: null }
                         : {}),
                 },
                 { onSuccess: onClose },
@@ -418,15 +840,16 @@ const AnnouncementFormModal: FC<{
                     body: bodyValue,
                     category,
                     slackChannelId,
+                    ...(scheduledAt
+                        ? { scheduledPublishAt: scheduledAt }
+                        : publishNow
+                          ? { publishNow: true }
+                          : {}),
                 },
                 { onSuccess: onClose },
             );
         }
     };
-
-    let saveLabel = 'Create draft';
-    if (isEdit) saveLabel = 'Save';
-    else if (slackChannelId) saveLabel = 'Create draft & queue Slack';
 
     return (
         <MantineModal
@@ -436,8 +859,15 @@ const AnnouncementFormModal: FC<{
             icon={IconSpeakerphone}
             size="lg"
             onConfirm={handleSave}
-            confirmLabel={saveLabel}
-            confirmDisabled={title.trim().length === 0 || bodyTooLong}
+            confirmLabel={saveLabelFor({
+                isEdit,
+                isScheduled: scheduledAt !== null,
+                publishNow,
+                hasSlack,
+            })}
+            confirmDisabled={
+                title.trim().length === 0 || bodyTooLong || !schedule.isValid
+            }
             confirmLoading={isLoading}
         >
             <Stack gap="md">
@@ -452,7 +882,7 @@ const AnnouncementFormModal: FC<{
                     />
                     <div className={classes.docBody}>
                         <TiptapMarkdownEditor
-                            content={announcement?.body ?? ''}
+                            content={initial.body}
                             onChange={setBody}
                             onImageUpload={async (file) =>
                                 (await uploadImage.mutateAsync(file)).url
@@ -468,7 +898,6 @@ const AnnouncementFormModal: FC<{
                         placeholder="None"
                         clearable
                         size="sm"
-                        radius="md"
                         data={CATEGORY_OPTIONS}
                         value={category}
                         onChange={(value) =>
@@ -486,6 +915,7 @@ const AnnouncementFormModal: FC<{
                         />
                     )}
                 </Group>
+                {!isPublished && <SchedulePicker schedule={schedule} />}
                 {bodyTooLong && (
                     <Text size="xs" c="red">
                         Body is {body.trim().length.toLocaleString()} characters
@@ -494,15 +924,13 @@ const AnnouncementFormModal: FC<{
                         fewer.
                     </Text>
                 )}
-                {!announcement?.published && (
-                    <Text size="xs" c="dimmed">
-                        Saved as a draft. It
-                        {slackChannelId
-                            ? ' and its Slack notification'
-                            : ''}{' '}
-                        goes live when you publish the homepage.
-                    </Text>
-                )}
+                <PublishHint
+                    isEdit={isEdit}
+                    isPublished={isPublished}
+                    publishNow={publishNow}
+                    hasSlack={hasSlack}
+                    schedule={schedule}
+                />
             </Stack>
         </MantineModal>
     );
@@ -511,7 +939,7 @@ const AnnouncementFormModal: FC<{
 export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
-    onChange: _onChange,
+    onChange,
 }) => {
     const [creating, setCreating] = useState(false);
     const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
@@ -524,59 +952,35 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     // Warmed here so the Slack picker is ready the instant the modal opens.
     const { data: slack } = useGetSlack();
     const slackInstalled = !!slack?.organizationUuid;
-    const { mutate: update } = useUpdateAnnouncement(projectUuid);
-    const { mutate: remove, isLoading: removing } =
-        useDeleteAnnouncement(projectUuid);
     if (block.type !== 'announcements') return null;
+    const collapseAfterFirst = block.config.collapseAfterFirst ?? false;
 
     const itemActions = (announcement: ProjectAnnouncement) => (
-        <>
-            <Tooltip label={announcement.pinned ? 'Unpin' : 'Pin to top'}>
-                <ActionIcon
-                    variant="subtle"
-                    color="ldGray.6"
-                    size="sm"
-                    aria-label={announcement.pinned ? 'Unpin' : 'Pin'}
-                    onClick={() =>
-                        update({
-                            announcementUuid: announcement.announcementUuid,
-                            pinned: !announcement.pinned,
-                        })
-                    }
-                >
-                    <MantineIcon
-                        icon={announcement.pinned ? IconPinnedOff : IconPin}
-                    />
-                </ActionIcon>
-            </Tooltip>
-            <Tooltip label="Edit">
-                <ActionIcon
-                    variant="subtle"
-                    color="ldGray.6"
-                    size="sm"
-                    aria-label="Edit announcement"
-                    onClick={() => setEditing(announcement)}
-                >
-                    <MantineIcon icon={IconPencil} />
-                </ActionIcon>
-            </Tooltip>
-            <Tooltip label="Delete">
-                <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    size="sm"
-                    aria-label="Delete announcement"
-                    onClick={() => setDeleting(announcement)}
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Tooltip>
-        </>
+        <AnnouncementItemActions
+            projectUuid={projectUuid}
+            announcement={announcement}
+            onEdit={setEditing}
+            onDelete={setDeleting}
+        />
     );
 
     return (
         <Stack gap="sm">
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
+            <Switch
+                size="xs"
+                label="Collapse all but the first announcement"
+                checked={collapseAfterFirst}
+                onChange={(e) =>
+                    onChange({
+                        ...block,
+                        config: {
+                            ...block.config,
+                            collapseAfterFirst: e.currentTarget.checked,
+                        },
+                    })
+                }
+            />
             <Button
                 variant="default"
                 size="xs"
@@ -600,6 +1004,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 <AnnouncementFeed
                     projectUuid={projectUuid}
                     announcements={announcements}
+                    collapseAfterFirst={collapseAfterFirst}
                     renderActions={itemActions}
                 />
             )}
@@ -615,20 +1020,10 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 />
             )}
             {deleting !== null && (
-                <MantineModal
-                    opened
-                    onClose={() => !removing && setDeleting(null)}
-                    title="Delete announcement"
-                    variant="delete"
-                    resourceType="announcement"
-                    resourceLabel={deleting.title}
-                    cancelDisabled={removing}
-                    confirmLoading={removing}
-                    onConfirm={() =>
-                        remove(deleting.announcementUuid, {
-                            onSuccess: () => setDeleting(null),
-                        })
-                    }
+                <DeleteAnnouncementModal
+                    projectUuid={projectUuid}
+                    announcement={deleting}
+                    onClose={() => setDeleting(null)}
                 />
             )}
         </Stack>

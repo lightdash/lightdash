@@ -4,6 +4,7 @@ import {
     type LineageGraph,
     type SupportedDbtAdapter,
 } from './dbt';
+import { type ExternalSourceRef } from './externalSources';
 import {
     type CompiledDimension,
     type CompiledMetric,
@@ -61,7 +62,25 @@ export enum ExploreType {
     VIRTUAL = 'virtual',
     DEFAULT = 'default',
     PRE_AGGREGATE = 'pre_aggregate',
+    EXTERNAL_SOURCE = 'external_source',
 }
+
+/**
+ * Explores created and owned by users in the app rather than compiled from
+ * dbt. They live only in the explore cache and must survive dbt recompiles.
+ */
+export const USER_MANAGED_EXPLORE_TYPES = [
+    ExploreType.VIRTUAL,
+    ExploreType.EXTERNAL_SOURCE,
+] as const;
+
+export const isUserManagedExplore = (explore: {
+    type?: ExploreType;
+}): boolean =>
+    explore.type !== undefined &&
+    (USER_MANAGED_EXPLORE_TYPES as readonly ExploreType[]).includes(
+        explore.type,
+    );
 
 export enum InlineErrorType {
     // Fatal error types (ExploreError - explore is broken)
@@ -72,6 +91,7 @@ export enum InlineErrorType {
     MISSING_TABLE = 'MISSING_TABLE',
     FIELD_ERROR = 'FIELD_ERROR',
     SET_VALIDATION_ERROR = 'SET_VALIDATION_ERROR',
+    SHOW_UNDERLYING_VALUES_ERROR = 'SHOW_UNDERLYING_VALUES_ERROR',
     INVALID_PARAMETER = 'INVALID_PARAMETER',
     DUPLICATE_FIELD_NAME = 'DUPLICATE_FIELD_NAME',
     WAREHOUSE_COLUMN_ERROR = 'WAREHOUSE_COLUMN_ERROR',
@@ -85,7 +105,11 @@ export type InlineError = {
 export type PreAggregateSource = {
     sourceExploreName: string;
     preAggregateName: string;
+    // Present ⇒ external pre-aggregate: served from this table on the project warehouse
+    externalTable?: string;
 };
+
+export type CustomMetaValue = string | number | boolean;
 
 export type Explore = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
@@ -118,6 +142,7 @@ export type Explore = {
         owner?: string; // model owner email (inherited by metrics)
     };
     aiHint?: string | string[];
+    customMeta?: Record<string, CustomMetaValue>;
     parameters?: LightdashProjectConfig['parameters'];
     /** Project `granularity_labels` overrides, keyed by TimeFrames. Consumed
      *  by the date zoom to relabel standard granularities. */
@@ -125,6 +150,8 @@ export type Explore = {
     savedParameterValues?: ParametersValuesMap; // Parameter values stored with virtual views
     preAggregates?: PreAggregateDef[];
     preAggregateSource?: PreAggregateSource;
+    /** Present ⇒ generated from an external source table (CSV upload, Google Sheet). */
+    externalSource?: ExternalSourceRef;
     /**
      * Non-fatal compilation or validation warnings (e.g. fields that failed to
      * compile, warehouse-rejected column references). The explore is still usable.
@@ -145,6 +172,24 @@ export const isExploreError = (
     explore: Explore | ExploreError,
 ): explore is ExploreError => 'errors' in explore;
 
+export const getExploreSplitCandidates = (
+    exploreName: string,
+    explores: (Explore | ExploreError)[],
+): string[] => {
+    const candidates = explores.flatMap((explore) => {
+        if (isExploreError(explore)) return [];
+        const baseTable = explore.tables[explore.baseTable];
+        // Package names can contain `__`, so match the qualified suffix rather
+        // than treating the separator as something we can parse.
+        return baseTable?.originalName === exploreName &&
+            explore.name.endsWith(`__${exploreName}`)
+            ? [explore.name]
+            : [];
+    });
+
+    return [...new Set(candidates)].sort();
+};
+
 type SummaryExploreFields =
     | 'name'
     | 'label'
@@ -153,7 +198,9 @@ type SummaryExploreFields =
     | 'groups'
     | 'type'
     | 'preAggregateSource'
+    | 'externalSource'
     | 'aiHint'
+    | 'customMeta'
     | 'warnings';
 type SummaryExploreErrorFields =
     | 'name'
@@ -163,6 +210,7 @@ type SummaryExploreErrorFields =
     | 'groups'
     | 'type'
     | 'aiHint'
+    | 'customMeta'
     | 'errors';
 type SummaryExtraFields = {
     description?: string;

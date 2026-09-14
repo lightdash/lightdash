@@ -21,6 +21,7 @@ describe('externalFetch types', () => {
         const r: ExternalFetchResult = {
             status: 200,
             contentType: 'application/json',
+            headers: { 'retry-after': '2' },
             body: { ok: true },
             truncated: false,
         };
@@ -99,6 +100,7 @@ describe('LightdashClient.externalFetch', () => {
         const result = {
             status: 200,
             contentType: 'application/json',
+            headers: {},
             body: 1,
             truncated: false,
         };
@@ -130,6 +132,7 @@ describe('postMessageTransport.externalFetch', () => {
             return {
                 status: 201,
                 contentType: 'application/json',
+                headers: { 'x-ratelimit-remaining': '9' },
                 body: { id: 'ch_1' },
                 truncated: false,
             };
@@ -148,6 +151,7 @@ describe('postMessageTransport.externalFetch', () => {
             expect(out).toEqual({
                 status: 201,
                 contentType: 'application/json',
+                headers: { 'x-ratelimit-remaining': '9' },
                 body: { id: 'ch_1' },
                 truncated: false,
             });
@@ -217,6 +221,7 @@ describe('postMessageTransport.externalFetch', () => {
                     result: {
                         status: 999,
                         contentType: 'application/json',
+                        headers: {},
                         body: { spoofed: true },
                         truncated: false,
                     },
@@ -231,6 +236,7 @@ describe('postMessageTransport.externalFetch', () => {
                     result: {
                         status: 200,
                         contentType: 'application/json',
+                        headers: {},
                         body: { real: true },
                         truncated: false,
                     },

@@ -45,6 +45,19 @@ const addAccessCondition = (context: ScopeContext, role?: SpaceMemberRole) => ({
 const addDefaultUuidCondition = flow(addUuidCondition, Array.of);
 
 /**
+ * Deployment config caps token access: a listed scope can be switched off by
+ * config, but never switched on for a deployment that disabled tokens or
+ * excluded the role's tier. An absent organization role cannot be checked
+ * against the allowlist, so it denies rather than assuming allowed.
+ */
+const personalAccessTokenConditions = (context: ScopeContext) => {
+    const { pat } = context.permissionsConfig ?? {};
+    if (!pat?.enabled || !context.organizationRole) return null;
+    if (!pat.allowedOrgRoles.includes(context.organizationRole)) return null;
+    return addDefaultUuidCondition(context);
+};
+
+/**
  * True only inside a preview the current user created. Shared by the @self
  * preview scopes; returns false for org-level assignments (no project context).
  */
@@ -56,14 +69,30 @@ const isSelfPreview = (context: ScopeContext) =>
         context.projectCreatedByUserUuid === context.userUuid,
     );
 
-const ownPreviewProjectConditions = (context: ScopeContext) => {
+const PROJECT_PREVIEW_FIELDS = {
+    type: 'type',
+    createdByUserUuid: 'createdByUserUuid',
+} as const;
+
+const DATA_APP_PREVIEW_FIELDS = {
+    type: 'projectType',
+    createdByUserUuid: 'projectCreatedByUserUuid',
+} as const;
+
+const ownPreviewProjectConditions = (
+    context: ScopeContext,
+    fields: {
+        type: string;
+        createdByUserUuid: string;
+    } = PROJECT_PREVIEW_FIELDS,
+) => {
     if (context.organizationUuid) {
         return [
             {
                 // Org assignments can reach any preview created by this principal.
                 organizationUuid: context.organizationUuid,
-                createdByUserUuid: context.userUuid || false,
-                type: ProjectType.PREVIEW,
+                [fields.createdByUserUuid]: context.userUuid || false,
+                [fields.type]: ProjectType.PREVIEW,
             },
         ];
     }
@@ -74,17 +103,20 @@ const ownPreviewProjectConditions = (context: ScopeContext) => {
         {
             // Direct preview assignment: the grant is on the preview itself.
             projectUuid: context.projectUuid,
-            createdByUserUuid: context.userUuid,
-            type: ProjectType.PREVIEW,
+            [fields.createdByUserUuid]: context.userUuid,
+            [fields.type]: ProjectType.PREVIEW,
         },
         {
             // Upstream assignment: the grant is on the source project.
             upstreamProjectUuid: context.projectUuid,
-            createdByUserUuid: context.userUuid,
-            type: ProjectType.PREVIEW,
+            [fields.createdByUserUuid]: context.userUuid,
+            [fields.type]: ProjectType.PREVIEW,
         },
     ];
 };
+
+const ownPreviewDataAppConditions = (context: ScopeContext) =>
+    ownPreviewProjectConditions(context, DATA_APP_PREVIEW_FIELDS);
 
 /**
  * Project-wide grant inside the user's own preview. For subjects with no space
@@ -426,6 +458,15 @@ const scopes: Scope[] = [
     {
         name: 'manage:ContentVerification',
         description: 'Verify and unverify charts and dashboards',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:VerifiedContent',
+        description:
+            'Edit or delete verified charts and dashboards (without this, verified content is read-only)',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         dependencies: [{ name: 'view:Project' }],
@@ -844,6 +885,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:Roadmap',
+        description: 'Request to follow organization roadmap projects',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [{ name: 'view:Roadmap' }],
+        level: 'organization',
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:OrganizationColorPalette',
         description:
             'Create, edit, delete, and activate organization color palettes',
@@ -1006,14 +1056,20 @@ const scopes: Scope[] = [
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
         dependencies: [],
         level: 'organization',
-        getConditions: addDefaultUuidCondition,
+        getConditions: personalAccessTokenConditions,
     },
     {
         name: 'impersonate:User',
         description: 'Impersonate other users in the organization',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
-        dependencies: [],
+        dependencies: [
+            {
+                name: 'manage:OrganizationMemberProfile',
+                description:
+                    'Open Users & groups to pick a user to impersonate',
+            },
+        ],
         level: 'organization',
         getConditions: (context) => [
             { ...addUuidCondition(context), isActive: true },
@@ -1158,6 +1214,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:ExternalSource',
+        description:
+            'Upload and manage external data sources (CSV files, Google Sheets)',
+        isEnterprise: true,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:PreAggregation',
         description: 'View and query pre-aggregates in explore',
         isEnterprise: true,
@@ -1198,6 +1263,111 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.DATA,
         dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+
+    // Embedding
+    {
+        name: 'view:EmbedDashboardFilters',
+        description: 'Interact with filters in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedDashboardFilterAddition',
+        description: 'Add temporary filters in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [
+            {
+                name: 'view:EmbedDashboardFilters',
+                description: 'Interact with dashboard filters',
+            },
+        ],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedDashboardParameters',
+        description: 'Change parameters in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedCsvExport',
+        description: 'Export individual embedded chart tiles as CSV',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedDashboardCsvExport',
+        description: 'Export all tiles from an embedded dashboard',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedImageExport',
+        description: 'Export embedded chart tiles as images',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedPagePdfExport',
+        description: 'Export embedded dashboard pages as PDF',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedDateZoom',
+        description: 'Use date zoom in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedExplore',
+        description: 'Open embedded charts in Explore',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedUnderlyingData',
+        description: 'View underlying data from embedded charts',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedDataApps',
+        description: 'View data app tiles in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+
+    {
+        name: 'view:EmbedAiAgent',
+        description:
+            'Use embedded AI agents, subject to existing agent and space access',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
         getConditions: addDefaultUuidCondition,
     },
 
@@ -1406,7 +1576,8 @@ const scopes: Scope[] = [
             },
             {
                 name: 'view:ExternalConnection',
-                description: 'Browse external connections while building',
+                description:
+                    'Browse admin-enabled external connections while building',
             },
             {
                 name: 'manage:DataApp@self',
@@ -1414,6 +1585,41 @@ const scopes: Scope[] = [
             },
         ],
         getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'create:DataApp@preview',
+        description: 'Create data apps in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'create:Project@preview' },
+            {
+                name: 'view:ExternalConnection',
+                description: 'Link external connections while building',
+            },
+            {
+                name: 'manage:DataApp@preview',
+                description: 'Open and iterate on the apps you upload',
+            },
+        ],
+        getConditions: ownPreviewDataAppConditions,
+    },
+    {
+        name: 'manage:DataApp@preview',
+        description:
+            'Edit and delete data apps in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'create:Project@preview' },
+            {
+                name: 'create:DataApp@preview',
+                description: 'Create the apps you iterate on',
+            },
+        ],
+        getConditions: ownPreviewDataAppConditions,
     },
     {
         name: 'view:DataApp@self',
@@ -1456,15 +1662,21 @@ const scopes: Scope[] = [
 
     // External Connections — project-scoped allowlisted outbound HTTP endpoints
     // that data apps reach through the secure fetch proxy. Managing (create/
-    // edit/delete) is admin-only; viewing is available to app builders so they
-    // can select an existing connection to link in the data app builder.
+    // edit/delete) is admin-only; viewing is available to app builders only
+    // when an admin has enabled the connection for builder linking.
     {
         name: 'view:ExternalConnection',
-        description: 'View external API connections to link them in data apps',
+        description:
+            'View admin-enabled external API connections to link them in data apps',
         isEnterprise: true,
         group: ScopeGroup.AI,
         dependencies: [{ name: 'view:Project' }],
-        getConditions: addDefaultUuidCondition,
+        getConditions: (context) => [
+            {
+                ...addUuidCondition(context),
+                allowDataAppBuilderLinking: true,
+            },
+        ],
     },
     {
         name: 'manage:ExternalConnection',
@@ -1752,15 +1964,11 @@ export const getScopeSubstitutes = (
         });
 };
 
-/**
- * Returns the granted scopes that coveringScopeNames does not satisfy, using
- * getScopeSubstitutes semantics (manage:X covers view:X, unmodified covers
- * @modifier variants). Organization-only scopes are excluded.
- */
-export const getUncoveredProjectScopes = (
+const getUncoveredScopesMatching = (
     grantedScopeNames: string[],
     coveringScopeNames: string[],
-    { isEnterprise = false }: ScopeGraphOptions = {},
+    includeScope: (scopeName: ScopeName) => boolean,
+    { isEnterprise = false }: ScopeGraphOptions,
 ): ScopeName[] => {
     const scopeMap = getAllScopeMap({ isEnterprise });
     const coveringParts = getValidScopeNames(coveringScopeNames, scopeMap).map(
@@ -1779,9 +1987,55 @@ export const getUncoveredProjectScopes = (
         );
 
     return [...new Set(getValidScopeNames(grantedScopeNames, scopeMap))]
-        .filter((scopeName) => !isOrganizationOnlyScope(scopeName))
+        .filter(includeScope)
         .filter((scopeName) => !isCovered(parseScopeNameParts(scopeName)));
 };
+
+/**
+ * Returns permission names that the covering permissions do not satisfy.
+ *
+ * Names do not need to be present in the custom-role scope registry. This is
+ * useful when comparing a legacy CASL ability (which can contain permissions
+ * that predate custom scopes) against the scopes held by a caller.
+ */
+export const getUncoveredPermissions = (
+    requiredPermissionNames: string[],
+    coveringScopeNames: string[],
+): string[] => {
+    const coveringParts = coveringScopeNames
+        .map(normalizeScopeName)
+        .filter((scopeName): scopeName is ScopeName => scopeName !== null)
+        .map(parseScopeNameParts);
+
+    return [...new Set(requiredPermissionNames)]
+        .map(normalizeScopeName)
+        .filter((scopeName): scopeName is ScopeName => scopeName !== null)
+        .filter((scopeName) => {
+            const required = parseScopeNameParts(scopeName);
+            return !coveringParts.some(
+                (substitute) =>
+                    substitute.subject === required.subject &&
+                    canSubstituteActionSatisfy(
+                        substitute.action,
+                        required.action,
+                    ) &&
+                    canSubstituteModifierSatisfy(substitute, required),
+            );
+        });
+};
+
+/** Returns uncovered scopes that are assignable to project roles. */
+export const getUncoveredProjectScopes = (
+    grantedScopeNames: string[],
+    coveringScopeNames: string[],
+    options: ScopeGraphOptions = {},
+): ScopeName[] =>
+    getUncoveredScopesMatching(
+        grantedScopeNames,
+        coveringScopeNames,
+        (scopeName) => !isOrganizationOnlyScope(scopeName),
+        options,
+    );
 
 export const getUnsatisfiedScopeDependencies = (
     existingScopeNames: string[],

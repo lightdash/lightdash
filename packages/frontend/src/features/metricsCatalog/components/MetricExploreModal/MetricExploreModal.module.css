@@ -1,4 +1,10 @@
+/* Mantine caps the content at the viewport minus its y offset, so sizing
+   here (not on the body) keeps the modal off the page edges on laptops. */
 .modalContent {
+    --modal-content-height: 85dvh;
+    display: flex;
+    flex-direction: column;
+    min-height: rem(600px);
     overflow: hidden;
 }
 
@@ -21,6 +27,7 @@
 .modalBody {
     display: flex;
     flex: 1;
+    min-height: 0;
 }
 
 .sidebarContainer {

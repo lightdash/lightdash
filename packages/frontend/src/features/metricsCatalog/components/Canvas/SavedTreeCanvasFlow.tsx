@@ -1,6 +1,5 @@
 import type { CatalogMetricsTreeEdge } from '@lightdash/common';
-import { Box, Group, Text, Button } from '@mantine-8/core';
-import { useMantineTheme } from '@mantine/core';
+import { Box, Group, Text, Button, useMantineTheme } from '@mantine/core';
 import { IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     Background,
@@ -113,6 +112,16 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                 {!viewOnly && (
                     <MetricsSidebar
                         nodes={flow.sidebarNodes}
+                        onAddMetric={(node) =>
+                            flow.addMetricsToCanvas([
+                                {
+                                    catalogSearchUuid: node.id,
+                                    name: node.data.metricName,
+                                    label: node.data.label,
+                                    tableName: node.data.tableName,
+                                },
+                            ])
+                        }
                         yamlDriversByTarget={yamlDriversByTarget}
                         hasMore={hasMoreMetrics}
                         isLoadingMore={isLoadingMoreMetrics}
@@ -145,7 +154,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                                 style={{ margin: '14px 27px' }}
                             >
                                 <Group gap="xs">
-                                    <Text fz={14} fw={500} c="ldGray.6">
+                                    <Text fz="sm" fw={500} c="dimmed">
                                         Canvas mode:
                                     </Text>
                                     <CanvasTimeFramePicker
@@ -158,7 +167,6 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                                 <ReactFlowPanel position="bottom-left">
                                     <Button
                                         variant="default"
-                                        radius="md"
                                         onClick={() =>
                                             flow.applyLayout({
                                                 removeUnconnected: true,

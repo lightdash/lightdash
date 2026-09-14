@@ -30,6 +30,12 @@ import type {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
+type JsonbWrites<T, K extends keyof T> = Omit<T, K> & {
+    [P in K]: null extends T[P]
+        ? Knex.Raw<NonNullable<T[P]>> | null
+        : Knex.Raw<T[P]>;
+};
+
 export const AiAgentReviewClassifierRunTableName = 'ai_agent_review_run';
 
 export type DbAiAgentReviewClassifierRun = {
@@ -55,29 +61,32 @@ export type DbAiAgentReviewClassifierRun = {
 
 export type AiAgentReviewClassifierRunTable = Knex.CompositeTableType<
     DbAiAgentReviewClassifierRun,
-    Pick<
-        DbAiAgentReviewClassifierRun,
-        | 'organization_uuid'
-        | 'review_agent_version'
-        | 'judge_prompt_hash'
-        | 'run_scope'
-    > &
-        Partial<
-            Pick<
-                DbAiAgentReviewClassifierRun,
-                | 'agent_config_snapshot_hash'
-                | 'agent_config_snapshot'
-                | 'agent_config_snapshot_agent_updated_at'
-                | 'status'
-                | 'total_turns'
-                | 'processed_turns'
-                | 'signal_count'
-                | 'finding_count'
-                | 'review_item_count'
-                | 'error_message'
-                | 'completed_at'
-            >
-        >,
+    JsonbWrites<
+        Pick<
+            DbAiAgentReviewClassifierRun,
+            | 'organization_uuid'
+            | 'review_agent_version'
+            | 'judge_prompt_hash'
+            | 'run_scope'
+        > &
+            Partial<
+                Pick<
+                    DbAiAgentReviewClassifierRun,
+                    | 'agent_config_snapshot_hash'
+                    | 'agent_config_snapshot'
+                    | 'agent_config_snapshot_agent_updated_at'
+                    | 'status'
+                    | 'total_turns'
+                    | 'processed_turns'
+                    | 'signal_count'
+                    | 'finding_count'
+                    | 'review_item_count'
+                    | 'error_message'
+                    | 'completed_at'
+                >
+            >,
+        'run_scope' | 'agent_config_snapshot'
+    >,
     Partial<
         Pick<
             DbAiAgentReviewClassifierRun,
@@ -132,14 +141,48 @@ export type DbAiAgentTurnSignal = {
 
 export type AiAgentTurnSignalTable = Knex.CompositeTableType<
     DbAiAgentTurnSignal,
-    Omit<
-        DbAiAgentTurnSignal,
-        | 'ai_agent_review_turn_signal_uuid'
-        | 'created_at'
-        | 'promoted_to_finding'
-        | 'promotion_reason'
-        | 'fingerprint'
-        | 'primary_root_cause'
+    JsonbWrites<
+        Omit<
+            DbAiAgentTurnSignal,
+            | 'ai_agent_review_turn_signal_uuid'
+            | 'created_at'
+            | 'promoted_to_finding'
+            | 'promotion_reason'
+            | 'fingerprint'
+            | 'primary_root_cause'
+            | 'secondary_root_causes'
+            | 'subcategories'
+            | 'fix_targets'
+            | 'target_refs'
+            | 'evidence_excerpts'
+            | 'recommendation'
+            | 'project_context_entry'
+            | 'owner_type'
+            | 'review_item_title'
+            | 'review_item_description'
+        > &
+            Partial<
+                Pick<
+                    DbAiAgentTurnSignal,
+                    | 'promoted_to_finding'
+                    | 'promotion_reason'
+                    | 'fingerprint'
+                    | 'primary_root_cause'
+                    | 'secondary_root_causes'
+                    | 'subcategories'
+                    | 'fix_targets'
+                    | 'target_refs'
+                    | 'evidence_excerpts'
+                    | 'recommendation'
+                    | 'project_context_entry'
+                    | 'owner_type'
+                    | 'review_item_title'
+                    | 'review_item_description'
+                >
+            >,
+        | 'source_ref'
+        | 'implicit_signal_sources'
+        | 'tool_evidence_refs'
         | 'secondary_root_causes'
         | 'subcategories'
         | 'fix_targets'
@@ -147,29 +190,9 @@ export type AiAgentTurnSignalTable = Knex.CompositeTableType<
         | 'evidence_excerpts'
         | 'recommendation'
         | 'project_context_entry'
-        | 'owner_type'
-        | 'review_item_title'
-        | 'review_item_description'
-    > &
-        Partial<
-            Pick<
-                DbAiAgentTurnSignal,
-                | 'promoted_to_finding'
-                | 'promotion_reason'
-                | 'fingerprint'
-                | 'primary_root_cause'
-                | 'secondary_root_causes'
-                | 'subcategories'
-                | 'fix_targets'
-                | 'target_refs'
-                | 'evidence_excerpts'
-                | 'recommendation'
-                | 'project_context_entry'
-                | 'owner_type'
-                | 'review_item_title'
-                | 'review_item_description'
-            >
-        >,
+        | 'runtime_context_snapshot'
+        | 'model_metadata'
+    >,
     Partial<
         Pick<DbAiAgentTurnSignal, 'promoted_to_finding' | 'promotion_reason'>
     >
@@ -238,6 +261,9 @@ export type DbAiAgentReviewItem = {
     ai_agent_review_item_uuid: string;
     fingerprint: string;
     source: AiAgentReviewItemSource;
+    source_ai_agent_memory_uuid: string | null;
+    project_context_entry: AiAgentJudgeProjectContextEntry | null;
+    nomination_reason: string | null;
     organization_uuid: string;
     project_uuid: string | null;
     agent_uuid: string | null;
@@ -250,6 +276,7 @@ export type DbAiAgentReviewItem = {
     dismissed_reason: AiAgentReviewItemDismissedReason | null;
     assigned_to_user_uuid: string | null;
     linked_issue_url: string | null;
+    jira_linked_issue_url: string | null;
     linked_pr_url: string | null;
     pr_writeback_thread_uuid: string | null;
     pr_state: AiAgentReviewItemPrState | null;
@@ -265,26 +292,32 @@ export type DbAiAgentReviewItem = {
 
 export type AiAgentReviewItemTable = Knex.CompositeTableType<
     DbAiAgentReviewItem,
-    Pick<
-        DbAiAgentReviewItem,
-        'fingerprint' | 'organization_uuid' | 'project_uuid' | 'agent_uuid'
-    > &
+    JsonbWrites<
+        Pick<
+            DbAiAgentReviewItem,
+            'fingerprint' | 'organization_uuid' | 'project_uuid' | 'agent_uuid'
+        > &
+            Partial<
+                Omit<
+                    DbAiAgentReviewItem,
+                    | 'created_at'
+                    | 'updated_at'
+                    | 'fingerprint'
+                    | 'organization_uuid'
+                    | 'project_uuid'
+                    | 'agent_uuid'
+                >
+            >,
+        'target_refs' | 'project_context_entry'
+    >,
+    JsonbWrites<
         Partial<
             Omit<
                 DbAiAgentReviewItem,
-                | 'created_at'
-                | 'updated_at'
-                | 'fingerprint'
-                | 'organization_uuid'
-                | 'project_uuid'
-                | 'agent_uuid'
+                'ai_agent_review_item_uuid' | 'fingerprint' | 'created_at'
             >
         >,
-    Partial<
-        Omit<
-            DbAiAgentReviewItem,
-            'ai_agent_review_item_uuid' | 'fingerprint' | 'created_at'
-        >
+        'target_refs' | 'project_context_entry'
     >
 >;
 

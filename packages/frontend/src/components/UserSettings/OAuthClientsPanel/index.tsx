@@ -1,4 +1,4 @@
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconPlug } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useOAuthClients } from '../../../hooks/useOAuthClients';

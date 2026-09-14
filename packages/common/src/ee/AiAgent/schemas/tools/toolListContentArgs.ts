@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_LIST_CONTENT_DESCRIPTION = `Tool: "listContent"
+export const TOOL_LIST_CONTENT_DESCRIPTION = ({
+    toolName,
+}: ToolDescriptionContext): string => `Tool: "${toolName}"
 Purpose:
 Lists accessible Lightdash content in a project as a browsable hierarchy.
 

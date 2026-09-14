@@ -1,4 +1,4 @@
-import { Box, Switch, Text, Title } from '@mantine-8/core';
+import { Box, Switch, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import { useProject, useUpdateDefaultUserSpaces } from '../../hooks/useProject';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
@@ -13,7 +13,7 @@ export const DefaultUserSpaces: FC<{ projectUuid: string }> = ({
         <SettingsGridCard>
             <Box>
                 <Title order={5}>Personal spaces</Title>
-                <Text c="ldGray.6" fz="xs">
+                <Text c="dimmed" fz="xs">
                     When enabled, each project member will automatically get a
                     personal space where they can save their own charts and
                     dashboards.

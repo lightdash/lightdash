@@ -15,6 +15,7 @@ type ActivityTitle = {
 
 const SEARCH_TOOLS = new Set([
     'findExplores',
+    'findCustomChartTypes',
     'findFields',
     'discoverFields',
     'grepFields',
@@ -33,12 +34,6 @@ const SEARCH_TOOLS = new Set([
     'resolveUrl',
 ]);
 
-const VIZ_TOOLS = new Set([
-    'generateBarVizConfig',
-    'generateTimeSeriesVizConfig',
-    'generateTableVizConfig',
-]);
-
 /**
  * Summarizes a finished agent run into one opinionated title shown in the
  * activity bento. The title morphs based on what tools the agent actually
@@ -55,7 +50,6 @@ export const getActivityTitle = (
     );
     const hasDashboard = toolNames.includes('generateDashboard');
     const hasCreateContent = toolNames.includes('createContent');
-    const hasViz = toolNames.some((n) => VIZ_TOOLS.has(n));
     const hasQuery =
         toolNames.includes('generateVisualization') ||
         toolNames.includes('runContentQuery') ||
@@ -75,7 +69,7 @@ export const getActivityTitle = (
             icon: IconLayoutDashboard,
         };
     }
-    if (hasViz || hasQuery) {
+    if (hasQuery) {
         return { title: 'How this chart was built', icon: IconChartLine };
     }
     if (hasRunSql) {

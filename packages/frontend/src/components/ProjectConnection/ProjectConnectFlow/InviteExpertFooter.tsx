@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Box, Button, Group, Paper, Stack, Text } from '@mantine-8/core';
+import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -22,12 +22,7 @@ const InviteExpertFooter: FC = () => {
     if (!user.data || !canInviteUsers) return null;
 
     return (
-        <Paper
-            withBorder
-            shadow="subtle"
-            radius="md"
-            className={classes.callout}
-        >
+        <Paper radius="md" className={classes.callout}>
             <Group justify="space-between" wrap="nowrap" gap="md">
                 <Group wrap="nowrap" gap="md">
                     <Box className={classes.iconBox}>

@@ -7,11 +7,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import {
-    bigqueryWarehouseConfig,
     createAndRefreshProject,
     deleteProjectsByName,
     hasBigqueryCredentials,
+    hasSnowflakeCredentials,
 } from '../helpers/projects';
+import { useSharedWarehouseProject } from '../helpers/shared-projects';
 
 const apiUrl = '/api/v2';
 
@@ -296,46 +297,21 @@ describe('Async Query API', () => {
         }, 120_000);
     });
 
-    describe.skipIf(!process.env.SNOWFLAKE_ACCOUNT)('Snowflake', () => {
-        let projectUuid: string | undefined;
-        const projectName = 'snowflakeSQL query test';
-
-        afterAll(async () => {
-            if (projectUuid) {
-                await deleteProjectsByName(admin, [projectName]);
-            }
-        });
-
+    describe.skipIf(!hasSnowflakeCredentials())('Snowflake', () => {
         it('should execute async query and get all results paged', async () => {
-            projectUuid = await createAndRefreshProject(admin, projectName, {
-                account: process.env.SNOWFLAKE_ACCOUNT,
-                user: process.env.SNOWFLAKE_USER,
-                password: process.env.SNOWFLAKE_PASSWORD,
-                role: 'SYSADMIN',
-                database: 'SNOWFLAKE_DATABASE_STAGING',
-                warehouse: 'TESTING',
-                schema: 'JAFFLE',
-                type: WarehouseTypes.SNOWFLAKE,
-            });
+            const projectUuid = await useSharedWarehouseProject(
+                admin,
+                'snowflake',
+            );
             await runAsyncQueryTest(admin, projectUuid);
-        }, 120_000);
+        }, 420_000);
     });
 
     describe.skipIf(!hasBigqueryCredentials())('BigQuery', () => {
-        let projectUuid: string | undefined;
-        const projectName = 'bigQuerySQL query test';
-
-        afterAll(async () => {
-            if (projectUuid) {
-                await deleteProjectsByName(admin, [projectName]);
-            }
-        });
-
         it('should execute async query and get all results paged', async () => {
-            projectUuid = await createAndRefreshProject(
+            const projectUuid = await useSharedWarehouseProject(
                 admin,
-                projectName,
-                bigqueryWarehouseConfig(),
+                'bigquery',
             );
             await runAsyncQueryTest(admin, projectUuid);
         }, 420_000);

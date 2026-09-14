@@ -6,13 +6,17 @@ import {
     Stack,
     Switch,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
-import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { DayOneAskInput } from '../DayOneAskInput';
-import { getGreeting } from '../greeting';
+import { DEFAULT_GREETING_SUBTITLE, getGreeting } from '../greeting';
 import layout from '../homepageLayout.module.css';
+import { useHomepageAiState } from '../hooks/useHomepageAiState';
+import { useHomepageConfigFacts } from '../hooks/useHomepageConfigFacts';
+import { GreetingHero } from './GreetingHero';
+import { getDefaultQuickActions } from './quickActionDefaults';
+import { QuickActionCards } from './QuickActionsBlock';
 import {
     RecommendedActionsChecklist,
     RecommendedActionsChecklistPlaceholder,
@@ -89,6 +93,7 @@ export const HeroDensityControl: FC<{
         </Text>
         <SegmentedControl
             size="xs"
+            w="fit-content"
             value={value ?? 'auto'}
             onChange={(next) =>
                 onChange(
@@ -113,8 +118,27 @@ export const AskAiHeroBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
 }) => {
-    const isAiEnabled = useAiAgentButtonVisibility();
-    if (block.type !== 'ask-ai-hero' || !isAiEnabled) return null;
+    // Stored configs are rewritten when an org chooses content-first, so a
+    // surviving ask-ai-hero block only degrades when AI can't answer: the
+    // hero slot becomes the greeting opening instead of a hole in the page.
+    const { canAskAi } = useHomepageAiState(projectUuid);
+    const { hasQuickActionsBlock } = useHomepageConfigFacts();
+    if (block.type !== 'ask-ai-hero') return null;
+    if (!canAskAi) {
+        // The full content-first hero, matching day-0: quick actions belong
+        // right under the greeting, unless the page already has its own
+        // quick-actions block (which would duplicate them).
+        return (
+            <GreetingHero subtitle={DEFAULT_GREETING_SUBTITLE}>
+                {!hasQuickActionsBlock && (
+                    <QuickActionCards
+                        actions={getDefaultQuickActions()}
+                        projectUuid={projectUuid}
+                    />
+                )}
+            </GreetingHero>
+        );
+    }
     // The greeting follows its toggle regardless of the block's position; it
     // still renders inline mid-page rather than only in the hero slot.
     return (

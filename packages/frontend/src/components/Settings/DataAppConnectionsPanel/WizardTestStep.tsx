@@ -13,7 +13,7 @@ import {
     Text,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC, useState } from 'react';
 import { ConnectionTestResult } from '../../../features/externalConnections/components/ConnectionTestResult';
 import { useTestConnectionConfig } from '../../../features/externalConnections/hooks/useTestConnectionConfig';
@@ -23,6 +23,7 @@ type Props = {
     projectUuid: string;
     config: CreateExternalConnection;
     allowedMethods: ExternalConnectionMethod[];
+    initialPath: string;
     onTestResult: (result: ConnectionTestResultValue | null) => void;
     saveSample: boolean;
     onSaveSampleChange: (value: boolean) => void;
@@ -35,11 +36,12 @@ export const WizardTestStep: FC<Props> = ({
     projectUuid,
     config,
     allowedMethods,
+    initialPath,
     onTestResult,
     saveSample,
     onSaveSampleChange,
 }) => {
-    const [path, setPath] = useState('');
+    const [path, setPath] = useState(initialPath);
     const [selectedMethod, setSelectedMethod] =
         useState<ExternalConnectionMethod | null>(null);
     const [body, setBody] = useState('');
@@ -66,6 +68,17 @@ export const WizardTestStep: FC<Props> = ({
             return 'Request body must be valid JSON';
         }
     })();
+
+    if (allowedMethods.length === 0) {
+        return (
+            <Stack gap="md" mt="xl">
+                <Text c="dimmed" fz="sm">
+                    This image-only connection does not allow proxied requests,
+                    so there is nothing to test here.
+                </Text>
+            </Stack>
+        );
+    }
 
     const handleTest = async () => {
         let parsedBody: unknown;
@@ -96,7 +109,7 @@ export const WizardTestStep: FC<Props> = ({
 
     return (
         <Stack gap="md" mt="xl">
-            <Text c="ldGray.6" fz="sm">
+            <Text c="dimmed" fz="sm">
                 Send a test request to confirm the connection works before
                 saving it. This step is optional.
             </Text>
@@ -121,7 +134,7 @@ export const WizardTestStep: FC<Props> = ({
                     label="Path"
                     description="Relative to the base URL"
                     placeholder="/v1/endpoint"
-                    style={{ flexGrow: 1 }}
+                    flex={1}
                     value={path}
                     onChange={(e) => setPath(e.currentTarget.value)}
                 />

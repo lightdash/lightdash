@@ -3,10 +3,11 @@ import {
     FieldType,
     MetricType,
     TableCalculationType,
+    type RawResultRow,
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { type CellContext } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
@@ -16,6 +17,7 @@ import {
     getJsonCellValue,
     getFormattedValueCell,
     getJsonLikeString,
+    getValueCell,
 } from './useColumns';
 
 /* eslint-disable testing-library/no-container */
@@ -69,7 +71,7 @@ const createMockCellContext = ({
 
 // Helper to render components with MantineProvider
 const renderWithMantine = (component: React.ReactElement) => {
-    return render(<MantineProvider>{component}</MantineProvider>);
+    return render(<MantineProvider env="test">{component}</MantineProvider>);
 };
 
 describe('JSON cell inspection', () => {
@@ -84,6 +86,55 @@ describe('JSON cell inspection', () => {
         expect(getJsonLikeString('not json')).toBeUndefined();
         expect(getJsonLikeString('"json string"')).toBeUndefined();
         expect(getJsonLikeString(' true ')).toBeUndefined();
+    });
+
+    test('renders JSON-like result strings as their literal value', () => {
+        const context = createMockCellContext({
+            columnId: 'array_like_string',
+            value: {
+                raw: '[5,5]',
+                formatted: '[5,5]',
+            },
+        });
+
+        const result = getFormattedValueCell(context, undefined, {
+            enableJsonViewer: true,
+        });
+        renderWithMantine(result as React.ReactElement);
+
+        expect(screen.getByText('[5,5]')).toBeInTheDocument();
+    });
+
+    test('renders JSON-like SQL Runner strings as their literal value', () => {
+        const context = {
+            getValue: () => '[5,5]',
+            column: { id: 'array_like_string', columnDef: {} },
+            table: { options: { meta: {} } },
+        } as CellContext<RawResultRow, string>;
+
+        const result = getValueCell(context, undefined, {
+            enableJsonViewer: true,
+        });
+        renderWithMantine(result as React.ReactElement);
+
+        expect(screen.getByText('[5,5]')).toBeInTheDocument();
+    });
+
+    test('keeps collapsed previews for structured result values', () => {
+        const context = createMockCellContext({
+            columnId: 'array_value',
+            value: {
+                raw: [5, 5],
+                formatted: '[object Object]',
+            } as ResultValue,
+        });
+
+        const result = getFormattedValueCell(context, undefined, {
+            enableJsonViewer: true,
+        });
+        renderWithMantine(result as React.ReactElement);
+
+        expect(screen.getByText('[...] 2')).toBeInTheDocument();
     });
 });
 

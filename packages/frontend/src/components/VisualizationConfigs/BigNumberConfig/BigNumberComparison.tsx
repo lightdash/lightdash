@@ -3,20 +3,13 @@ import {
     getItemId,
     type CompactOrAlias,
 } from '@lightdash/common';
-import {
-    Group,
-    SegmentedControl,
-    Select,
-    Stack,
-    Switch,
-} from '@mantine-8/core';
+import { Group, SegmentedControl, Select, Stack, Switch } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { LabelEditor } from '../common/LabelEditor';
-import compactStyles from '../mantineTheme.module.css';
 import classes from './BigNumberComparison.module.css';
 import { StyleOptions } from './common';
 
@@ -81,9 +74,6 @@ export const Comparison: React.FC = () => {
                         <Config.Heading>Show comparison</Config.Heading>
                         <Switch
                             size="xs"
-                            classNames={{
-                                label: compactStyles.compactCheckboxLabel,
-                            }}
                             checked={showComparison}
                             onChange={() => {
                                 setShowComparison(!showComparison);
@@ -175,7 +165,7 @@ export const Comparison: React.FC = () => {
                                 }}
                                 labelPosition="left"
                                 classNames={{
-                                    label: `${compactStyles.compactCheckboxLabel} ${classes.switchLabel}`,
+                                    label: classes.switchLabel,
                                 }}
                             />
 

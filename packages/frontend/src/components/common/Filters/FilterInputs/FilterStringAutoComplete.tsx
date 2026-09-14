@@ -1,4 +1,9 @@
-import { isDimension, type FilterableItem } from '@lightdash/common';
+import {
+    interpolateUiString,
+    isDimension,
+    isFilterAutocompleteManualOnly,
+    type FilterableItem,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -11,8 +16,8 @@ import {
     Tooltip,
     type ComboboxProps,
     type PillsInputProps,
-} from '@mantine-8/core';
-import { useDisclosure, useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure, useHover } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconListDetails,
@@ -28,6 +33,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
@@ -51,7 +57,7 @@ import { ManageFilterValuesModal } from './ManageFilterValuesModal';
 import MultiValuePastePopover from './MultiValuePastePopover';
 import { formatDisplayValue } from './utils';
 
-type Props = Omit<PillsInputProps, 'onChange'> & {
+type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     filterId: string;
     field: FilterableItem;
     values: string[];
@@ -72,6 +78,7 @@ const RefreshIndicator: FC<{
     refreshedAtRef: React.RefObject<Date>;
     onRefresh: () => void;
 }> = ({ refreshedAtRef, onRefresh }) => {
+    const getUiString = useUiStrings();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [displayTime, setDisplayTime] = useState(
         refreshedAtRef.current.toLocaleString(),
@@ -79,9 +86,8 @@ const RefreshIndicator: FC<{
 
     return (
         <Tooltip
-            withinPortal
             position="left"
-            label="Click to refresh filter values"
+            label={getUiString('filters.autocomplete.refreshTooltip')}
         >
             <Text
                 size="xs"
@@ -93,7 +99,10 @@ const RefreshIndicator: FC<{
                     setIsRefreshing(true);
                 }}
             >
-                Results loaded at {displayTime}{' '}
+                {interpolateUiString(
+                    getUiString('filters.autocomplete.resultsLoadedAt'),
+                    { time: displayTime },
+                )}{' '}
                 <MantineIcon
                     icon={IconRefresh}
                     display="inline"
@@ -130,6 +139,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     comboboxProps,
     ...rest
 }) => {
+    const getUiString = useUiStrings();
     // The "(null)" option is only meaningful for multi-value filters.
     const showNull = !!showNullOption && !singleValue;
     const multiSelectRef = useRef<HTMLInputElement>(null);
@@ -288,13 +298,16 @@ const FilterStringAutoComplete: FC<Props> = ({
             value,
             label: resultLabels.get(value) ?? formatDisplayValue(value),
         }));
-        return showNull
+        const showNullInData =
+            showNull && (!isInitialLoading || includeNull === true);
+
+        return showNullInData
             ? [
                   ...valueData,
                   { value: NULL_VALUE_TOKEN, label: NULL_VALUE_LABEL },
               ]
             : valueData;
-    }, [results, values, showNull]);
+    }, [includeNull, isInitialLoading, results, showNull, values]);
 
     const isSummaryMode =
         !singleValue && values.length > SUMMARY_MODE_THRESHOLD;
@@ -318,6 +331,9 @@ const FilterStringAutoComplete: FC<Props> = ({
         [handleAdd, handleResetSearch, onInputBlur, pastePopUpOpened, search],
     );
 
+    // Nothing to autocomplete (no warehouse fetch, no curated values):
+    // the input is plain entry with no dropdown.
+    const manualEntryOnly = isFilterAutocompleteManualOnly(filterAutocomplete);
     const searchedMaxResults = results.length >= MAX_AUTOCOMPLETE_RESULTS;
     const canRefreshAutocomplete =
         filterAutocomplete?.fetchFromWarehouse !== false &&
@@ -329,7 +345,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                 onClose={closeManageValues}
                 values={values}
                 onChange={handleChange}
-                title="Manage filter values"
+                title={getUiString('filters.manageValues.filterValuesTitle')}
             />
 
             <MultiValuePastePopover
@@ -368,17 +384,12 @@ const FilterStringAutoComplete: FC<Props> = ({
                         rightSectionPointerEvents="all"
                         rightSection={
                             disabled ? null : (
-                                <Tooltip
-                                    withinPortal
-                                    label="Edit filter values"
-                                >
+                                <Tooltip label="Edit filter values">
                                     <ActionIcon
                                         aria-label="Edit filter values"
                                         onMouseDown={(event) =>
                                             event.preventDefault()
                                         }
-                                        variant="subtle"
-                                        color="gray"
                                         size="sm"
                                         onClick={() => openManageValues()}
                                     >
@@ -401,7 +412,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                             placeholder={
                                 values.length > 0 || disabled
                                     ? undefined
-                                    : placeholder
+                                    : manualEntryOnly
+                                      ? 'Type a value and press Enter'
+                                      : placeholder
                             }
                             disabled={disabled}
                             shouldCreate={(query: string) =>
@@ -416,7 +429,12 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         size="sm"
                                     />
                                     <Text c="blue.7" fz="sm" fw={500}>
-                                        Add "{search.trim()}"
+                                        {interpolateUiString(
+                                            getUiString(
+                                                'filters.autocomplete.addValue',
+                                            ),
+                                            { value: search.trim() },
+                                        )}
                                     </Text>
                                 </Group>
                             }
@@ -428,10 +446,15 @@ const FilterStringAutoComplete: FC<Props> = ({
                             onSearchChange={setSearch}
                             comboboxProps={comboboxProps}
                             onPaste={handlePaste}
+                            withDropdown={!manualEntryOnly}
                             nothingFoundMessage={
                                 isInitialLoading
-                                    ? 'Loading...'
-                                    : 'No results found'
+                                    ? getUiString(
+                                          'filters.autocomplete.loading',
+                                      )
+                                    : getUiString(
+                                          'filters.autocomplete.noResults',
+                                      )
                             }
                             rightSectionWidth={30}
                             rightSectionPointerEvents="all"
@@ -451,9 +474,10 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         <Tooltip
                                             label={
                                                 error?.error?.message ||
-                                                'Filter not available'
+                                                getUiString(
+                                                    'filters.autocomplete.filterNotAvailable',
+                                                )
                                             }
-                                            withinPortal
                                         >
                                             <MantineIcon
                                                 icon={IconAlertCircle}
@@ -463,12 +487,11 @@ const FilterStringAutoComplete: FC<Props> = ({
                                     ) : null}
 
                                     <Tooltip
-                                        withinPortal
-                                        label="Edit filter values"
+                                        label={getUiString(
+                                            'filters.autocomplete.editValuesTooltip',
+                                        )}
                                     >
                                         <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
                                             size="sm"
                                             onClick={openManageValues}
                                             style={{
@@ -493,9 +516,14 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         pt="xs"
                                         pb="xxs"
                                     >
-                                        Showing first {MAX_AUTOCOMPLETE_RESULTS}{' '}
-                                        results. {search ? 'Continue' : 'Start'}{' '}
-                                        typing...
+                                        {interpolateUiString(
+                                            getUiString(
+                                                search
+                                                    ? 'filters.autocomplete.maxResultsContinue'
+                                                    : 'filters.autocomplete.maxResultsStart',
+                                            ),
+                                            { n: MAX_AUTOCOMPLETE_RESULTS },
+                                        )}
                                     </Text>
                                 ) : null
                             }

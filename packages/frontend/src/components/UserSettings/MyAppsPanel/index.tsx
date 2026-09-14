@@ -8,8 +8,8 @@ import {
     Menu,
     SegmentedControl,
     Text,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconCode,
     IconDots,
@@ -20,18 +20,13 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
 import { MoveAppToSpaceModal as SharedMoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useProjects } from '../../../hooks/useProjects';
 import {
     ContentTable,
@@ -126,7 +121,6 @@ type MyAppsPanelProps = {
 const MyAppsPanel: FC<MyAppsPanelProps> = ({
     includePreviewAppsByDefault = false,
 }) => {
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const [includePreviewApps, setIncludePreviewApps] = useState(
         includePreviewAppsByDefault,
     );
@@ -153,26 +147,12 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = flatData.length;
 
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: totalFetched < totalDBRowCount,
+        threshold: 400,
+    });
 
     const resetFilters = useCallback(() => {
         setSearch('');
@@ -254,7 +234,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     return (
                         <Group gap="xs">
                             <Badge
-                                variant="light"
                                 color={statusColor(lastVersionStatus)}
                                 size="sm"
                             >
@@ -291,17 +270,20 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     const app = row.original;
 
                     return (
-                        <Menu position="bottom-end" withinPortal>
+                        <Menu position="bottom-end">
                             <Menu.Target>
-                                <ActionIcon
-                                    variant="transparent"
-                                    color="ldGray.6"
-                                    size="sm"
-                                >
+                                <ActionIcon variant="transparent" size="sm">
                                     <MantineIcon icon={IconDots} size={16} />
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
+                                <AskAiAgentMenuItem
+                                    projectUuid={app.projectUuid}
+                                    dataAppUuid={app.appUuid}
+                                    clickedFrom="data_app_my_apps_menu"
+                                    mode="navigate"
+                                    withDivider
+                                />
                                 {hasReadyVersion(app) && (
                                     <Menu.Item
                                         component={Link}
@@ -386,25 +368,12 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
     const table = useContentTable({
         columns,
         data: flatData,
-        enableColumnActions: false,
         enableColumnResizing: false,
-        enableColumnFilters: false,
-        enableDensityToggle: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableGlobalFilter: false,
-        enableGlobalFilterModes: false,
-        enableHiding: false,
         enablePagination: false,
-        enableRowNumbers: false,
         enableSorting: false,
         enableTopToolbar: true,
         enableBottomToolbar: false,
         enableStickyHeader: true,
-        mantinePaperProps: {
-            className: classes.tableSurface,
-            shadow: undefined,
-        },
         mantineTableHeadCellProps: {
             px: 'lg',
             py: 'sm',
@@ -416,16 +385,18 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: { maxHeight: 'calc(100dvh - 420px)' },
-            onScroll: (event: React.UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
         },
         emptyState: {
-            emptyMessage: includePreviewApps
-                ? "You haven't created any apps yet."
-                : 'No apps in production projects. Switch to All projects to include apps from preview projects.',
+            title: includePreviewApps
+                ? "You haven't created any apps yet"
+                : 'No apps in production projects',
+            description: includePreviewApps
+                ? undefined
+                : 'Switch to All projects to include apps from preview projects.',
             entityName: 'apps',
             hasActiveFilters: selectedProjectUuids.length > 0,
             onClearFilters: resetFilters,
@@ -442,7 +413,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 <Divider orientation="vertical" h={20} />
                 <SegmentedControl
                     size="xs"
-                    radius="md"
                     aria-label="App project scope"
                     value={includePreviewApps ? 'all' : 'production'}
                     onChange={(value) => setIncludePreviewApps(value === 'all')}
@@ -500,6 +470,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     uuid={appToRename.appUuid}
                     initialName={appToRename.name}
                     initialDescription={appToRename.description}
+                    iconPicker={null}
                     onClose={() => setAppToRename(null)}
                     onConfirm={() => setAppToRename(null)}
                 />

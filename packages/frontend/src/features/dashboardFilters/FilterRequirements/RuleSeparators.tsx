@@ -1,10 +1,10 @@
-import { Divider, Text } from '@mantine-8/core';
+import { Divider, Text } from '@mantine/core';
 import { type FC } from 'react';
 
 export const AndSeparator: FC = () => (
     <Divider
         label={
-            <Text size="10px" fw={600} c="ldGray.6">
+            <Text size="10px" fw={600} c="dimmed">
                 AND
             </Text>
         }

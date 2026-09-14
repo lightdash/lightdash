@@ -24,12 +24,13 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
                 parameters: z
                     .unknown()
                     .nullable()
+                    .optional()
                     .describe('Optional chart parameter values, or null.'),
             }),
             z.object({
                 type: z.literal('chart'),
                 chartSlug: z.string().describe('Slug of the saved chart.'),
-                limit: z
+                limit: z.coerce
                     .number()
                     .nullable()
                     .describe('Optional row limit override.'),
@@ -40,7 +41,7 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
                 dashboardSlug: z
                     .string()
                     .describe('Slug of the dashboard containing the chart.'),
-                limit: z
+                limit: z.coerce
                     .number()
                     .nullable()
                     .describe('Optional row limit override.'),

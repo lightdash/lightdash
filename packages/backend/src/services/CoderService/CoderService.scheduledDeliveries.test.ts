@@ -89,6 +89,7 @@ const scheduler: SchedulerAndTargets = {
     parameters: undefined,
     enabled: true,
     includeLinks: true,
+    plainTextEmail: false,
     targets: [
         {
             schedulerEmailTargetUuid: 'email-target-uuid',
@@ -110,6 +111,7 @@ const delivery: ScheduledDeliveryAsCode = {
     timezone: 'Europe/Madrid',
     enabled: true,
     includeLinks: true,
+    plainTextEmail: false,
     targets: [{ type: 'email', recipient: 'data@example.com' }],
     resource: { type: 'chart', slug: 'orders' },
     format: SchedulerFormat.CSV,
@@ -148,6 +150,7 @@ const alert: AlertAsCode = {
     timezone: 'Europe/Madrid',
     enabled: true,
     includeLinks: true,
+    plainTextEmail: false,
     targets: [{ type: 'email', recipient: 'data@example.com' }],
     resource: { type: 'chart', slug: 'orders' },
     thresholds: [
@@ -177,6 +180,7 @@ const googleSheetsScheduler: SchedulerAndTargets = {
         tabName: 'Orders data',
     },
     includeLinks: false,
+    plainTextEmail: false,
     targets: [],
 };
 
@@ -190,6 +194,7 @@ const googleSheetsSync: GoogleSheetsSyncAsCode = {
     timezone: 'Europe/Madrid',
     enabled: true,
     includeLinks: false,
+    plainTextEmail: false,
     destination: {
         spreadsheetId: 'spreadsheet-id',
         spreadsheetName: 'Orders',
@@ -277,6 +282,7 @@ const buildService = ({
     };
 
     const service = new CoderService({
+        directAccessService: {} as never,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {
@@ -313,6 +319,8 @@ const buildService = ({
         schedulerClient: {} as never,
         promoteService: {} as never,
         spacePermissionService: {} as never,
+        contentAsCodeSnapshotModel: { upsert: vi.fn() } as never,
+        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as never,
         contentVerificationModel: {} as never,
         groupsModel: {} as never,
         organizationMemberProfileModel: {} as never,

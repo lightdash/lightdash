@@ -1,0 +1,42 @@
+chartConfig:
+  config:
+    eChartsConfig:
+      series:
+        - encode:
+            xRef:
+              field: events_date_day
+            yRef:
+              field: events_count
+          type: bar
+          yAxisIndex: 0
+      showAxisTicks: false
+    layout:
+      xField: events_date_day
+      yField:
+        - events_count
+  type: cartesian
+contentType: chart
+description: Linux binary smoke test
+metricQuery:
+  additionalMetrics: []
+  customDimensions: []
+  dimensionOverrides: {}
+  dimensions:
+    - events_date_day
+  exploreName: events
+  filters: {}
+  limit: 1
+  metricOverrides: {}
+  metrics:
+    - events_count
+  sorts: []
+  tableCalculations: []
+name: Linux binary smoke test
+slug: linux-binary-smoke-test
+spaceSlug: smoke-test
+tableConfig:
+  columnOrder:
+    - events_date_day
+    - events_count
+tableName: events
+version: 1

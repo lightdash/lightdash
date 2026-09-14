@@ -1,4 +1,4 @@
-import { Stack } from '@mantine-8/core';
+import { Stack } from '@mantine/core';
 
 export const FormContainer = ({ children }: { children: React.ReactNode }) => {
     return (

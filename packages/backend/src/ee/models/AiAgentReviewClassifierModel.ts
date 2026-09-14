@@ -1,5 +1,9 @@
 import {
     AiSlackThreadCreatedFrom,
+    ConflictError,
+    HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES,
+    isHiddenAiAgentReviewRootCause,
+    ParameterError,
     ProjectType,
     QueryExecutionContext,
     shouldReopenReviewItem,
@@ -9,6 +13,7 @@ import type {
     AiAgentEvidenceExcerpt,
     AiAgentFixTarget,
     AiAgentImplicitSignalSource,
+    AiAgentJudgeProjectContextEntry,
     AiAgentMcpServerSnapshot,
     AiAgentRecommendation,
     AiAgentReviewClassifierConfidence,
@@ -42,9 +47,12 @@ import type {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
+import { EmailTableName } from '../../database/entities/emails';
 import { ProjectTableName } from '../../database/entities/projects';
 import { PullRequestsTableName } from '../../database/entities/pullRequests';
 import { QueryHistoryTableName } from '../../database/entities/queryHistory';
+import { UserTableName } from '../../database/entities/users';
+import { isUniqueConstraintViolation } from '../../database/errors';
 import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
@@ -61,6 +69,10 @@ import {
     AiMcpServerTableName,
     AiMcpServerToolTableName,
 } from '../database/entities/aiAgent';
+import {
+    AiAgentMemoryTableName,
+    type AiAgentMemoryTable,
+} from '../database/entities/aiAgentMemory';
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemEventsTableName,
@@ -127,6 +139,19 @@ const defaultWritebackEligibility: AiAgentReviewItemWritebackEligibility = {
     provider: null,
     strategy: null,
 };
+
+// Read-side gate for root causes that are classified but never surfaced (see
+// HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES). Rows with a null root cause stay visible,
+// so this cannot be written as a bare NOT IN (NULL NOT IN (...) is unknown).
+const excludeHiddenRootCauses =
+    (column: string) =>
+    (query: Knex.QueryBuilder): void => {
+        void query.where((builder) => {
+            void builder
+                .whereNull(column)
+                .orWhereNotIn(column, [...HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES]);
+        });
+    };
 
 const ACTIVE_REMEDIATION_STATUSES: AiAgentReviewRemediationStatus[] = [
     'queued',
@@ -233,6 +258,19 @@ type CreateManualReviewItemArgs = {
     priority: AiAgentReviewItemPriority;
     targetRefs: AiAgentTargetRef[];
     createdByUserUuid: string | null;
+};
+
+type UpsertMemoryReviewItemArgs = {
+    organizationUuid: string;
+    projectUuid: string;
+    memoryUuid: string;
+    fingerprint: string;
+    title: string;
+    description: string;
+    agentUuid: string | null;
+    projectContextEntry: AiAgentJudgeProjectContextEntry;
+    createdByUserUuid: string;
+    nominationReason: string | null;
 };
 
 type CreateReviewRemediationArgs = {
@@ -522,7 +560,7 @@ export class AiAgentReviewClassifierModel {
         this.database = database;
     }
 
-    private jsonb(value: unknown): Knex.Raw {
+    private jsonb<T>(value: T): Knex.Raw<T> {
         return this.database.raw('?::jsonb', [JSON.stringify(value)]);
     }
 
@@ -690,10 +728,10 @@ export class AiAgentReviewClassifierModel {
                 organization_uuid: args.organizationUuid,
                 review_agent_version: args.reviewAgentVersion,
                 judge_prompt_hash: args.judgePromptHash,
-                run_scope: this.jsonb(args.runScope) as never,
+                run_scope: this.jsonb(args.runScope),
                 agent_config_snapshot_hash: args.agentConfigSnapshotHash,
                 agent_config_snapshot: args.agentConfigSnapshot
-                    ? (this.jsonb(args.agentConfigSnapshot) as never)
+                    ? this.jsonb(args.agentConfigSnapshot)
                     : null,
                 agent_config_snapshot_agent_updated_at:
                     args.agentConfigSnapshotAgentUpdatedAt,
@@ -1215,6 +1253,11 @@ export class AiAgentReviewClassifierModel {
             )
             .where(`${AiAgentTurnSignalTableName}.promoted_to_finding`, true)
             .whereNotNull(`${AiAgentTurnSignalTableName}.fingerprint`)
+            .modify(
+                excludeHiddenRootCauses(
+                    `${AiAgentTurnSignalTableName}.primary_root_cause`,
+                ),
+            )
             .modify((query) => {
                 if (args.projectUuid) {
                     void query.where(
@@ -1286,6 +1329,11 @@ export class AiAgentReviewClassifierModel {
                       .select('*')
                       .where('organization_uuid', args.organizationUuid)
                       .whereIn('fingerprint', fingerprints)
+                      // The judge is told to reuse an existing item's key even
+                      // when it assigns a different root cause, so one card can
+                      // carry a hidden finding as its most recent signal. The
+                      // card's face must come from its latest VISIBLE finding.
+                      .modify(excludeHiddenRootCauses('primary_root_cause'))
                       .modify((query) => {
                           if (args.projectUuid) {
                               void query.where(
@@ -1369,6 +1417,7 @@ export class AiAgentReviewClassifierModel {
                     statusUpdatedByUserUuid:
                         item?.status_updated_by_user_uuid ?? null,
                     linkedIssueUrl: item?.linked_issue_url ?? null,
+                    linkedJiraIssueUrl: item?.jira_linked_issue_url ?? null,
                     linkedPrUrl: item?.linked_pr_url ?? null,
                     prState: item?.pr_state ?? null,
                     prWritebackStatus: writebackStale
@@ -1379,6 +1428,10 @@ export class AiAgentReviewClassifierModel {
                         : (item?.pr_writeback_message ?? null),
                     boardPosition: item?.board_position ?? null,
                     createdByUserUuid: item?.created_by_user_uuid ?? null,
+                    projectContextEntry: latest.project_context_entry ?? null,
+                    sourceMemory: null,
+                    nominationReason: null,
+                    nominator: null,
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
                     remediation,
@@ -1403,17 +1456,23 @@ export class AiAgentReviewClassifierModel {
             })
             .filter(
                 (reviewItem): reviewItem is AiAgentReviewItemSummary =>
-                    reviewItem !== null,
+                    reviewItem !== null &&
+                    // Last line of defence: whatever the projection resolved to,
+                    // a hidden root cause never leaves the model.
+                    !isHiddenAiAgentReviewRootCause(
+                        reviewItem.primaryRootCause,
+                    ),
             );
 
         const aiFingerprints = new Set(
             reviewItems.map((item) => item.fingerprint),
         );
-        const manualRows = (await this.database<AiAgentReviewItemTable>(
+        const standaloneRows = (await this.database<AiAgentReviewItemTable>(
             AiAgentReviewItemTableName,
         )
             .where('organization_uuid', args.organizationUuid)
-            .where('source', 'manual')
+            .whereIn('source', ['manual', 'memory'])
+            .modify(excludeHiddenRootCauses('primary_root_cause'))
             .modify((query) => {
                 if (args.projectUuid) {
                     void query.where('project_uuid', args.projectUuid);
@@ -1435,15 +1494,71 @@ export class AiAgentReviewClassifierModel {
                 ),
             )) as ReviewItemRow[];
 
-        const manualFingerprints = manualRows
+        const standaloneFingerprints = standaloneRows
             .map((row) => row.fingerprint)
             .filter((fingerprint) => !aiFingerprints.has(fingerprint));
-        const manualRemediations =
+        const standaloneRemediations =
             await this.getLatestReviewRemediationsByFingerprint({
                 organizationUuid: args.organizationUuid,
-                fingerprints: manualFingerprints,
+                fingerprints: standaloneFingerprints,
             });
-        const manualItems = manualRows
+        const sourceMemoryUuids = standaloneRows.flatMap((row) =>
+            row.source_ai_agent_memory_uuid
+                ? [row.source_ai_agent_memory_uuid]
+                : [],
+        );
+        const sourceMemories =
+            sourceMemoryUuids.length === 0
+                ? []
+                : await this.database<AiAgentMemoryTable>(
+                      AiAgentMemoryTableName,
+                  )
+                      .whereIn('ai_agent_memory_uuid', sourceMemoryUuids)
+                      .select('ai_agent_memory_uuid', 'slug');
+        const sourceMemoryByUuid = new Map(
+            sourceMemories.map((memory) => [
+                memory.ai_agent_memory_uuid,
+                memory,
+            ]),
+        );
+        const nominatorUuids = [
+            ...new Set(
+                standaloneRows.flatMap((row) =>
+                    row.source === 'memory' && row.created_by_user_uuid
+                        ? [row.created_by_user_uuid]
+                        : [],
+                ),
+            ),
+        ];
+        const nominators =
+            nominatorUuids.length === 0
+                ? []
+                : ((await this.database(UserTableName)
+                      .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                          this.on(
+                              `${EmailTableName}.user_id`,
+                              `${UserTableName}.user_id`,
+                          ).andOnVal(`${EmailTableName}.is_primary`, true);
+                      })
+                      .whereIn(`${UserTableName}.user_uuid`, nominatorUuids)
+                      .select(
+                          `${UserTableName}.user_uuid`,
+                          this.database.raw(
+                              `NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), '') as name`,
+                          ),
+                          `${EmailTableName}.email`,
+                      )) as Array<{
+                      user_uuid: string;
+                      name: string | null;
+                      email: string | null;
+                  }>);
+        const nominatorByUuid = new Map(
+            nominators.map(({ user_uuid: userUuid, name, email }) => [
+                userUuid,
+                { name, email },
+            ]),
+        );
+        const standaloneItems = standaloneRows
             .filter((row) => !aiFingerprints.has(row.fingerprint))
             .map((row): AiAgentReviewItemSummary => {
                 const writebackStale = isStaleWritebackStatus(
@@ -1451,11 +1566,16 @@ export class AiAgentReviewClassifierModel {
                     row.updated_at_age_ms,
                 );
                 const remediation =
-                    manualRemediations.get(row.fingerprint) ?? null;
+                    standaloneRemediations.get(row.fingerprint) ?? null;
+                const sourceMemory = row.source_ai_agent_memory_uuid
+                    ? (sourceMemoryByUuid.get(
+                          row.source_ai_agent_memory_uuid,
+                      ) ?? null)
+                    : null;
                 return {
                     uuid: row.ai_agent_review_item_uuid,
                     fingerprint: row.fingerprint,
-                    source: 'manual',
+                    source: row.source,
                     organizationUuid: row.organization_uuid,
                     projectUuid: row.project_uuid,
                     agentUuid: row.agent_uuid,
@@ -1474,6 +1594,7 @@ export class AiAgentReviewClassifierModel {
                     statusUpdatedAt: row.status_updated_at ?? row.updated_at,
                     statusUpdatedByUserUuid: row.status_updated_by_user_uuid,
                     linkedIssueUrl: row.linked_issue_url,
+                    linkedJiraIssueUrl: row.jira_linked_issue_url,
                     linkedPrUrl: row.linked_pr_url,
                     prState: row.pr_state,
                     prWritebackStatus: writebackStale
@@ -1484,6 +1605,19 @@ export class AiAgentReviewClassifierModel {
                         : row.pr_writeback_message,
                     boardPosition: row.board_position,
                     createdByUserUuid: row.created_by_user_uuid,
+                    projectContextEntry: row.project_context_entry,
+                    sourceMemory: sourceMemory
+                        ? {
+                              uuid: sourceMemory.ai_agent_memory_uuid,
+                              slug: sourceMemory.slug,
+                          }
+                        : null,
+                    nominationReason: row.nomination_reason,
+                    nominator:
+                        row.source === 'memory' && row.created_by_user_uuid
+                            ? (nominatorByUuid.get(row.created_by_user_uuid) ??
+                              null)
+                            : null,
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
                     remediation,
@@ -1493,7 +1627,7 @@ export class AiAgentReviewClassifierModel {
                 };
             });
 
-        return [...reviewItems, ...manualItems]
+        return [...reviewItems, ...standaloneItems]
             .sort((a, b) => {
                 if (a.boardPosition == null && b.boardPosition == null) {
                     return (
@@ -1528,7 +1662,9 @@ export class AiAgentReviewClassifierModel {
                 primary_root_cause: args.primaryRootCause,
                 priority: args.priority,
                 target_refs:
-                    args.targetRefs.length > 0 ? args.targetRefs : null,
+                    args.targetRefs.length > 0
+                        ? this.jsonb(args.targetRefs)
+                        : null,
                 status: 'open',
                 assigned_to_user_uuid: args.assignedToUserUuid,
                 created_by_user_uuid: args.createdByUserUuid,
@@ -1554,6 +1690,148 @@ export class AiAgentReviewClassifierModel {
         if (!item) {
             throw new Error('Failed to create manual review item');
         }
+        return item;
+    }
+
+    async findMemoryReviewItem(args: {
+        organizationUuid: string;
+        memoryUuid: string;
+    }): Promise<
+        | Pick<
+              DbAiAgentReviewItem,
+              | 'ai_agent_review_item_uuid'
+              | 'fingerprint'
+              | 'status'
+              | 'dismissed_reason'
+          >
+        | undefined
+    > {
+        return this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .where('organization_uuid', args.organizationUuid)
+            .where('source_ai_agent_memory_uuid', args.memoryUuid)
+            .first(
+                'ai_agent_review_item_uuid',
+                'fingerprint',
+                'status',
+                'dismissed_reason',
+            );
+    }
+
+    async upsertMemoryReviewItemInTransaction(
+        args: UpsertMemoryReviewItemArgs,
+        trx: Knex.Transaction,
+    ): Promise<void> {
+        const memory = await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', args.memoryUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .where('project_uuid', args.projectUuid)
+            .forUpdate()
+            .first('status');
+        if (!memory || memory.status !== 'active') {
+            throw new ParameterError(
+                'Only active memories can be nominated for project context',
+            );
+        }
+
+        const existing = await trx<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .where('source_ai_agent_memory_uuid', args.memoryUuid)
+            .forUpdate()
+            .first();
+        if (
+            existing &&
+            !shouldReopenReviewItem(existing.status, existing.dismissed_reason)
+        ) {
+            throw new ConflictError('This memory already has a review item', {
+                fingerprint: existing.fingerprint,
+            });
+        }
+
+        const itemFields = {
+            agent_uuid: args.agentUuid,
+            title: args.title,
+            description: args.description,
+            primary_root_cause: 'project_context' as const,
+            priority: 'none' as const,
+            target_refs: null,
+            project_context_entry: this.jsonb(args.projectContextEntry),
+            nomination_reason: args.nominationReason,
+            status: 'open' as const,
+            dismissed_reason: null,
+            status_updated_at: trx.fn.now() as never,
+            status_updated_by_user_uuid: args.createdByUserUuid,
+            created_by_user_uuid: args.createdByUserUuid,
+            updated_at: trx.fn.now(),
+        };
+
+        if (existing) {
+            await trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+                .where(
+                    'ai_agent_review_item_uuid',
+                    existing.ai_agent_review_item_uuid,
+                )
+                .update(itemFields as never);
+            await this.createReviewItemEvent({
+                fingerprint: existing.fingerprint,
+                organizationUuid: args.organizationUuid,
+                event: {
+                    eventType: 'status_changed',
+                    payload: {
+                        from: existing.status,
+                        to: 'open',
+                        dismissedReason: null,
+                    },
+                },
+                createdByUserUuid: args.createdByUserUuid,
+                trx,
+            });
+            return;
+        }
+
+        try {
+            await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            ).insert({
+                fingerprint: args.fingerprint,
+                source: 'memory',
+                source_ai_agent_memory_uuid: args.memoryUuid,
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                ...itemFields,
+            });
+        } catch (error) {
+            if (isUniqueConstraintViolation(error)) {
+                throw new ConflictError(
+                    'This memory already has a review item',
+                );
+            }
+            throw error;
+        }
+        await this.createReviewItemEvent({
+            fingerprint: args.fingerprint,
+            organizationUuid: args.organizationUuid,
+            event: {
+                eventType: 'created',
+                payload: { rootCause: 'project_context' },
+            },
+            createdByUserUuid: args.createdByUserUuid,
+            trx,
+        });
+    }
+
+    async upsertMemoryReviewItem(
+        args: UpsertMemoryReviewItemArgs,
+    ): Promise<AiAgentReviewItemSummary> {
+        await this.database.transaction((trx) =>
+            this.upsertMemoryReviewItemInTransaction(args, trx),
+        );
+
+        const item = await this.getReviewItem(
+            args.organizationUuid,
+            args.fingerprint,
+        );
+        if (!item) throw new Error('Failed to create memory review item');
         return item;
     }
 
@@ -2141,6 +2419,7 @@ export class AiAgentReviewClassifierModel {
             .where('organization_uuid', organizationUuid)
             .where('fingerprint', fingerprint)
             .where('promoted_to_finding', true)
+            .modify(excludeHiddenRootCauses('primary_root_cause'))
             .orderBy('created_at', 'desc')
             .first('project_uuid', 'agent_uuid');
         if (!row) {
@@ -2168,6 +2447,7 @@ export class AiAgentReviewClassifierModel {
         )
             .where('organization_uuid', organizationUuid)
             .where('fingerprint', fingerprint)
+            .modify(excludeHiddenRootCauses('primary_root_cause'))
             .first('project_uuid', 'agent_uuid');
         if (!row) {
             return null;
@@ -2266,6 +2546,135 @@ export class AiAgentReviewClassifierModel {
             })
             .onConflict('fingerprint')
             .ignore();
+    }
+
+    async listUnlinkedReviewItemsForLinearExport(args: {
+        organizationUuid: string;
+        projectUuids: string[] | null;
+    }): Promise<Array<{ fingerprint: string; projectUuid: string }>> {
+        if (args.projectUuids && args.projectUuids.length === 0) {
+            return [];
+        }
+
+        const query = this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .select('fingerprint', 'project_uuid')
+            .where('organization_uuid', args.organizationUuid)
+            .whereNull('linked_issue_url')
+            .whereNotNull('project_uuid')
+            .whereIn('status', ['triage', 'open', 'in_progress']);
+        const rows = await (args.projectUuids
+            ? query.whereIn('project_uuid', args.projectUuids)
+            : query);
+
+        return rows.flatMap((row) =>
+            row.project_uuid
+                ? [
+                      {
+                          fingerprint: row.fingerprint,
+                          projectUuid: row.project_uuid,
+                      },
+                  ]
+                : [],
+        );
+    }
+
+    async listUnlinkedReviewItemsForJiraExport(args: {
+        organizationUuid: string;
+        projectUuids: string[] | null;
+    }): Promise<Array<{ fingerprint: string; projectUuid: string }>> {
+        if (args.projectUuids && args.projectUuids.length === 0) return [];
+        const query = this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .select('fingerprint', 'project_uuid')
+            .where('organization_uuid', args.organizationUuid)
+            .whereNull('jira_linked_issue_url')
+            .whereNotNull('project_uuid')
+            .whereIn('status', ['triage', 'open', 'in_progress']);
+        const rows = await (args.projectUuids
+            ? query.whereIn('project_uuid', args.projectUuids)
+            : query);
+        return rows.flatMap((row) =>
+            row.project_uuid
+                ? [
+                      {
+                          fingerprint: row.fingerprint,
+                          projectUuid: row.project_uuid,
+                      },
+                  ]
+                : [],
+        );
+    }
+
+    // Holds a row lock while the external issue is created so concurrent jobs
+    // for the same item cannot each create one.
+    async withReviewItemLinkedIssueLock<T>(
+        args: { fingerprint: string; organizationUuid: string },
+        run: (
+            linkedIssueUrl: string | null,
+            setLinkedIssueUrl: (linkedIssueUrl: string) => Promise<void>,
+        ) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            )
+                .select('linked_issue_url')
+                .where('fingerprint', args.fingerprint)
+                .where('organization_uuid', args.organizationUuid)
+                .forUpdate()
+                .first();
+
+            return run(
+                row?.linked_issue_url ?? null,
+                async (linkedIssueUrl) => {
+                    await trx<AiAgentReviewItemTable>(
+                        AiAgentReviewItemTableName,
+                    )
+                        .where('fingerprint', args.fingerprint)
+                        .where('organization_uuid', args.organizationUuid)
+                        .update({
+                            linked_issue_url: linkedIssueUrl,
+                            updated_at: trx.fn.now() as never,
+                        });
+                },
+            );
+        });
+    }
+
+    async withReviewItemJiraLinkedIssueLock<T>(
+        args: { fingerprint: string; organizationUuid: string },
+        run: (
+            linkedIssueUrl: string | null,
+            setLinkedIssueUrl: (linkedIssueUrl: string) => Promise<void>,
+        ) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            )
+                .select('jira_linked_issue_url')
+                .where('fingerprint', args.fingerprint)
+                .where('organization_uuid', args.organizationUuid)
+                .forUpdate()
+                .first();
+            return run(
+                row?.jira_linked_issue_url ?? null,
+                async (linkedIssueUrl) => {
+                    await trx<AiAgentReviewItemTable>(
+                        AiAgentReviewItemTableName,
+                    )
+                        .where('fingerprint', args.fingerprint)
+                        .where('organization_uuid', args.organizationUuid)
+                        .update({
+                            jira_linked_issue_url: linkedIssueUrl,
+                            updated_at: trx.fn.now() as never,
+                        });
+                },
+            );
+        });
     }
 
     async updateReviewItemAssignee(args: {
@@ -2386,15 +2795,36 @@ export class AiAgentReviewClassifierModel {
         status: AiAgentReviewItemStatus;
         prState: AiAgentReviewItemPrState;
     }): Promise<void> {
-        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
-            .where('fingerprint', args.fingerprint)
-            .where('organization_uuid', args.organizationUuid)
-            .update({
-                status: args.status,
-                pr_state: args.prState,
-                status_updated_at: this.database.fn.now() as never,
-                updated_at: this.database.fn.now() as never,
-            });
+        await this.database.transaction(async (trx) => {
+            const [item] = await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            )
+                .where('fingerprint', args.fingerprint)
+                .where('organization_uuid', args.organizationUuid)
+                .update({
+                    status: args.status,
+                    pr_state: args.prState,
+                    status_updated_at: trx.fn.now() as never,
+                    updated_at: trx.fn.now() as never,
+                })
+                .returning('source_ai_agent_memory_uuid');
+
+            if (
+                args.prState !== 'merged' ||
+                !item?.source_ai_agent_memory_uuid
+            ) {
+                return;
+            }
+
+            await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+                .where('ai_agent_memory_uuid', item.source_ai_agent_memory_uuid)
+                .where('organization_uuid', args.organizationUuid)
+                .where('status', 'active')
+                .update({
+                    status: 'promoted',
+                    updated_at: trx.fn.now(),
+                });
+        });
     }
 
     async listReviewSignals(
@@ -2440,6 +2870,7 @@ export class AiAgentReviewClassifierModel {
                 recommendation: 'signal.recommendation',
             })
             .where('signal.organization_uuid', args.organizationUuid)
+            .modify(excludeHiddenRootCauses('signal.primary_root_cause'))
             .modify((query) => {
                 if (args.projectUuid) {
                     void query.where('signal.project_uuid', args.projectUuid);
@@ -2506,49 +2937,45 @@ export class AiAgentReviewClassifierModel {
                     project_uuid: turnSignal.subject.projectUuid,
                     agent_uuid: turnSignal.subject.agentUuid,
                     interaction_source: turnSignal.interactionSource,
-                    source_ref: this.jsonb(turnSignal.sourceRef) as never,
+                    source_ref: this.jsonb(turnSignal.sourceRef),
                     signal: turnSignal.signal,
                     implicit_signal_sources: this.jsonb(
                         turnSignal.implicitSignalSources,
-                    ) as never,
+                    ),
                     confidence: turnSignal.confidence,
                     promoted_to_finding: turnSignal.promotedToFinding,
                     promotion_reason: turnSignal.promotionReason,
-                    tool_evidence_refs: this.jsonb(
-                        turnSignal.toolEvidenceRefs,
-                    ) as never,
+                    tool_evidence_refs: this.jsonb(turnSignal.toolEvidenceRefs),
                     fingerprint: finding?.reviewItem.fingerprint,
                     primary_root_cause: finding?.primaryRootCause,
                     secondary_root_causes: finding
-                        ? (this.jsonb(finding.secondaryRootCauses) as never)
+                        ? this.jsonb(finding.secondaryRootCauses)
                         : null,
                     subcategories: finding
-                        ? (this.jsonb(finding.subcategories) as never)
+                        ? this.jsonb(finding.subcategories)
                         : null,
                     fix_targets: finding
-                        ? (this.jsonb(finding.fixTargets) as never)
+                        ? this.jsonb(finding.fixTargets)
                         : null,
                     target_refs: finding
-                        ? (this.jsonb(finding.targetRefs) as never)
+                        ? this.jsonb(finding.targetRefs)
                         : null,
                     evidence_excerpts: finding
-                        ? (this.jsonb(finding.evidenceExcerpts) as never)
+                        ? this.jsonb(finding.evidenceExcerpts)
                         : null,
-                    recommendation: finding
-                        ? (this.jsonb(finding.recommendation) as never)
+                    recommendation: finding?.recommendation
+                        ? this.jsonb(finding.recommendation)
                         : null,
-                    project_context_entry: finding
-                        ? (this.jsonb(finding.projectContextEntry) as never)
+                    project_context_entry: finding?.projectContextEntry
+                        ? this.jsonb(finding.projectContextEntry)
                         : null,
                     owner_type: finding?.reviewItem.ownerType,
                     review_item_title: finding?.reviewItem.title,
                     review_item_description: finding?.reviewItem.description,
                     runtime_context_snapshot: this.jsonb(
                         turnSignal.runtimeContextSnapshot,
-                    ) as never,
-                    model_metadata: this.jsonb(
-                        turnSignal.modelMetadata,
-                    ) as never,
+                    ),
+                    model_metadata: this.jsonb(turnSignal.modelMetadata),
                 })
                 .returning('ai_agent_review_turn_signal_uuid');
 
@@ -2647,6 +3074,7 @@ export class AiAgentReviewClassifierModel {
                         .whereIn('status', ['triage', 'open'])
                         .whereNull('assigned_to_user_uuid')
                         .whereNull('linked_issue_url')
+                        .whereNull('jira_linked_issue_url')
                         .whereNull('linked_pr_url')
                         .whereNull('pr_writeback_thread_uuid')
                         .whereNull('status_updated_by_user_uuid')

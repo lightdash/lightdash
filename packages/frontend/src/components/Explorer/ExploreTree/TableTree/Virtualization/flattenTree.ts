@@ -8,7 +8,7 @@ import {
     type CustomDimension,
     type Explore,
 } from '@lightdash/common';
-import { LD_FIELD_COLORS } from '../../../../../mantineTheme';
+import { LD_FIELD_COLORS } from '../../../../../theme';
 import { sortNodes } from '../Tree/sortNodes';
 import {
     isGroupNode,
@@ -183,6 +183,7 @@ function flattenSection(
             sectionInfo.missingItems
                 ? sectionInfo.missingItems.filter((i) => isCustomDimension(i))
                 : undefined,
+        dashboardMetricIds: options.dashboardMetricIds,
         itemsAlerts: sectionInfo.itemsAlerts,
         orderFieldsBy: sectionInfo.orderFieldsBy,
         isGithubIntegrationEnabled: options.isGithubIntegrationEnabled,

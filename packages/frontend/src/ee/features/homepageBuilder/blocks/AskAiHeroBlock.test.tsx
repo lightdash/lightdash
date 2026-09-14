@@ -1,21 +1,32 @@
 import { type HomepageAskAiHeroBlock } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { AskAiHeroBlockBuild, AskAiHeroBlockView } from './AskAiHeroBlock';
 
 vi.mock('../DayOneAskInput', () => ({
     DayOneAskInput: () => <div data-testid="ask-input" />,
 }));
-vi.mock('../../aiCopilot/hooks/useAiAgentsButtonVisibility', () => ({
-    useAiAgentButtonVisibility: () => true,
-}));
 vi.mock('../../../../providers/App/useApp', () => ({
     default: () => ({ user: { data: { firstName: 'Test' } } }),
+}));
+vi.mock('../../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: vi.fn() }),
+}));
+vi.mock('./QuickActionsBlock', () => ({
+    QuickActionCards: () => <div data-testid="quick-actions" />,
 }));
 const state = vi.hoisted(() => ({
     isLoading: false,
     isWarehouseConnected: true,
     hasPendingActions: false,
+    canAskAi: true,
+}));
+
+vi.mock('../hooks/useHomepageAiState', () => ({
+    useHomepageAiState: () => ({
+        canAskAi: state.canAskAi,
+        isLoading: false,
+    }),
 }));
 
 vi.mock('./useRecommendedActions', () => ({
@@ -50,13 +61,30 @@ const blockWithChecklist: HomepageAskAiHeroBlock = {
 };
 
 const wrap = (ui: React.ReactNode) =>
-    render(<MantineProvider>{ui}</MantineProvider>);
+    render(<MantineProvider env="test">{ui}</MantineProvider>);
 
 describe('AskAiHeroBlockView', () => {
     beforeEach(() => {
         state.isLoading = false;
         state.isWarehouseConnected = true;
         state.hasPendingActions = false;
+        state.canAskAi = true;
+    });
+
+    it('renders the greeting hero with quick actions when AI is unavailable', () => {
+        state.canAskAi = false;
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={block}
+                projectUuid="p1"
+            />,
+        );
+        expect(screen.queryByTestId('ask-input')).toBeNull();
+        expect(screen.getByText(/Good \w+, Test/)).toBeInTheDocument();
+        // The full content-first hero: quick actions directly under the
+        // greeting, matching day-0 and the opt-in preview.
+        expect(screen.getByTestId('quick-actions')).toBeInTheDocument();
     });
 
     it('greets in the hero slot', () => {
@@ -65,7 +93,6 @@ describe('AskAiHeroBlockView', () => {
                 itemSpan={null}
                 block={block}
                 projectUuid="p1"
-                presentation="hero"
             />,
         );
         expect(

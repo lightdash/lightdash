@@ -17,6 +17,7 @@ export type DbAiAgent = {
     enable_self_improvement: boolean;
     enable_content_tools: boolean;
     enable_user_context: boolean;
+    enable_sql_mode: boolean;
     admin_only: boolean;
     model_config: AiAgentModelConfig | null;
     /**
@@ -34,6 +35,7 @@ export type DbAiAgent = {
      */
     is_system: boolean;
     version: number;
+    thread_retention_hours: number | null;
     created_at: Date;
     updated_at: Date;
 };

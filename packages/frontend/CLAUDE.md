@@ -7,19 +7,41 @@ the [Frontend Style Guide](../../.cursor/rules/frontend.mdc). Key points:
 -   **Prefer Mantine components over raw HTML elements** - `Box` instead of `<div>`, `Text` instead of `<p>`/`<span>` for copy, `Group`/`Stack` for flex layouts. This applies even when mirroring existing code that uses raw elements - older files predate the rule and are not a licence to copy the pattern
 -   **Styling hierarchy**:
     1. Inline-style component props (≤3 simple layout props like `mt`, `p`, `w`)
-    2. CSS modules (default choice when more than 3 inline-style props are needed or when component props aren't available)
+    2. CSS modules (default choice when more than 3 inline-style props are needed or when component props aren't available). This includes single rules Mantine has no prop for (`align-self`, `overflow`, `cursor`, `white-space`): add a role-named class (`.scrollableBody`, `.clickableRow`) to the file's module. `flex-shrink: 0` and `flex-grow: 1` are the `flex` style prop (`flex="0 0 auto"`, `flex={1}`). No global utility classes.
     3. Theme extensions for reusable styles
 -   **NEVER use** `styles`(v8) or `sx`(v6) props or `style`(v6/v8)
 -   **Colors**: Prefer default component colors (auto-theme switching). For custom colors, use `ldGray.X` and `ldDark.X`, not standard `gray.X`
 -   **Prop changes** - `spacing` → `gap`, `noWrap` → `wrap="nowrap"`, `sx` → `style` (v6)
--   **Shared layout vars** - Heights/widths/z-indexes (navbar, page content, sidebar, dashboard header/tabs) are global CSS vars sourced from `*/constants.ts` via `src/mantine8CssVariablesResolver.ts`. Reference `var(--name)` in CSS; don't hardcode the literal or bridge it through an inline `style`. To add one: constant → resolver → `var()`.
+-   **Shared layout vars** - Heights/widths/z-indexes (navbar, page content, sidebar, dashboard header/tabs) are global CSS vars sourced from `*/constants.ts` via `src/theme/cssVariablesResolver.ts`. Reference `var(--name)` in CSS; don't hardcode the literal or bridge it through an inline `style`. To add one: constant → resolver → `var()`.
 -   **Component docs** - Props/APIs at `https://mantine.dev/core/[component-name]/` (e.g. select, segmented-control)
+
+## 🎛️ Theme
+
+The theme lives in `src/theme/`: `colors.ts` (neutral ramps, `primary` is the ink color), `index.ts` (type scale, radius, shadows), `cssVariablesResolver.ts` (semantic tokens) and `components/` (one CSS module per component plus the registry in `components/index.ts`).
+
+-   **Use semantic tokens, not `light-dark()` pairs**: `--mantine-color-body` (surface), `--ld-color-page` (canvas), `--mantine-color-default-border`, `--mantine-color-default-hover`, `--mantine-color-text`, `--mantine-color-dimmed`, `--mantine-color-placeholder`. They resolve per scheme already.
+-   **`ldGray.N` means the same thing in both schemes**: 0 canvas, 1 muted fill, 2 border, 3 strong border, 4 faint icon, 5 tertiary text, 6 secondary text (same as `dimmed`), 7 label, 9 text.
+-   **Defaults you get for free**: Paper/Card are bordered, flat (no shadow), 12px radius; Menu/Popover carry the `md` shadow and pop open from their anchor; ActionIcon is `subtle`; Badge is `light` gray; Button sizes are 28/32/36/40px. Do not restate these at call sites.
+-   **Add a variant, not a one-off**: repeated overrides belong in `src/theme/components/<Component>.module.css`. Reach for the theme's `vars` callback only when Mantine writes the value inline (button/badge colors, NavLink fill, input font size).
+-   **Check both schemes** in the running app before shipping a theme change; the colour-scheme toggle is in the user menu.
+-   **Design principles** (one ink accent, hierarchy by variant, flat surfaces, tokens over hand-picked greys, the type scale, the self-review list) live in the `frontend-style-guide` skill (`.claude/skills/frontend-style-guide/SKILL.md`). Read them before building or reviewing a screen.
 
 ## 🧩 Reusable Components
 
 -   **Modals**: Always use `MantineModal` from `components/common/MantineModal`. See `stories/Modal.stories.tsx` for examples.
 -   **Callouts**: Use `Callout` from `components/common/Callout` with variants: `danger`, `warning`, `info`
+-   **Shared controls**: `CopyActionIcon`, `FavoriteActionIcon`, `ConfirmDeleteButton` and `FilterFacet` in `components/common` replace the hand-rolled copy, star, two-click delete and faceted-filter patterns.
 -   **Number inputs**: Always use `NumberInput` from `components/common/NumberInput`. Prefer `onNumberChange` (fires `number`, or `undefined` on clear; never transient strings). Integer-only by default; decimal fields opt in via `decimalScale={n}` or `decimalScale="unlimited"`. Raw `onChange` only for `form.getInputProps()` spreads.
+
+## 🎓 Learn walkthroughs (`data-tour-*` attributes)
+
+Attributes named `data-tour-*` are steps in Learn walkthroughs, the in-app training generated from the product (`docs/learn/architecture.md`). They are not test ids and not dead code.
+
+-   **Before changing a component**, check it: `git grep -n 'data-tour-' -- <file>`. When refactoring, keep every attribute on the equivalent control; when a control moves to another component, its attributes move with it. Renaming a `data-tour-nav` or `data-tour-anchor` value means updating every path that names it.
+-   **After changing a marked component**, run `pnpm scope-tours:generate`, `pnpm scope-tours:order` and `pnpm scope-tours:check` (docs from `../mintlify-docs` or `LIGHTDASH_DOCS_DIR`) and commit any change to `src/features/scopeTours/generated.ts` and `curriculum.ts`.
+-   **If the change alters what a user clicks through** (a new dialog or menu, a control moved, disabled, or shown only under some configuration), run `pnpm scope-tours:smoke` for the affected walkthroughs. CI cannot catch this.
+-   **Never change product UI to make a walkthrough pass.** Adapt the walkthrough instead.
+-   Finding affected walkthroughs, running the smoke, what each failure means and who fixes it: `docs/learn/maintaining-walkthroughs.md`.
 
 ## ⚛️ State Management
 

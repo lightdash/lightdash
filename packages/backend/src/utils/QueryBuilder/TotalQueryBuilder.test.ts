@@ -395,6 +395,129 @@ describe('TotalQueryBuilder: grandTotal', () => {
     });
 });
 
+describe('TotalQueryBuilder: nothing to total', () => {
+    const popOnlyMetricQuery: MetricQuery = {
+        ...baseMetricQuery,
+        metrics: ['orders_total_revenue_pop_12m'],
+        additionalMetrics: [
+            {
+                name: 'total_revenue_pop_12m',
+                table: 'orders',
+                sql: '${TABLE}.revenue',
+                type: 'sum' as never,
+                generationType: 'periodOverPeriod',
+                baseMetricId: 'orders_total_revenue',
+                timeDimensionId: 'orders_created_at',
+                granularity: 'MONTH' as never,
+                periodOffset: 12,
+            } as never,
+        ],
+    };
+
+    it('refuses a grand total for a dimension-only query', () => {
+        expect(() =>
+            new TotalQueryBuilder({
+                metricQuery: { ...baseMetricQuery, metrics: [] },
+                pivotConfiguration: null,
+                kind: 'grandTotal',
+            }).compileQuery(),
+        ).toThrow(NotSupportedError);
+    });
+
+    it('refuses a grand total when the only metrics are period-over-period', () => {
+        expect(() =>
+            new TotalQueryBuilder({
+                metricQuery: popOnlyMetricQuery,
+                pivotConfiguration: null,
+                kind: 'grandTotal',
+            }).compileQuery(),
+        ).toThrow(NotSupportedError);
+    });
+
+    it('refuses a grand total when the only table calc is not totalable', () => {
+        expect(() =>
+            new TotalQueryBuilder({
+                metricQuery: {
+                    ...baseMetricQuery,
+                    metrics: [],
+                    tableCalculations: [
+                        {
+                            name: 'status_length',
+                            displayName: 'Status length',
+                            sql: 'LENGTH(${orders.status})',
+                        } as never,
+                    ],
+                },
+                pivotConfiguration: null,
+                kind: 'grandTotal',
+            }).compileQuery(),
+        ).toThrow(NotSupportedError);
+    });
+
+    it('allows a query whose only value column is a sum-of-rows table calc', () => {
+        const result = new TotalQueryBuilder({
+            metricQuery: {
+                ...baseMetricQuery,
+                metrics: [],
+                tableCalculations: [
+                    {
+                        name: 'row_value',
+                        displayName: 'Row value',
+                        sql: '${orders.amount} * 2',
+                        totalMode: TableCalculationTotalMode.SUM_OF_ROWS,
+                    } as never,
+                ],
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery();
+
+        expect(result.metricQuery.metrics).toEqual([]);
+        expect(result.sourceQuery).toBeDefined();
+    });
+
+    it('refuses pivoted column and row totals for a dimension-only query', () => {
+        const metricQuery = { ...baseMetricQuery, metrics: [] };
+        const emptyValuesPivot: PivotConfiguration = {
+            ...pivotConfiguration,
+            valuesColumns: [],
+        };
+        expect(() =>
+            new TotalQueryBuilder({
+                metricQuery,
+                pivotConfiguration: emptyValuesPivot,
+                kind: 'columnTotal',
+            }).compileQuery(),
+        ).toThrow(NotSupportedError);
+        expect(() =>
+            new TotalQueryBuilder({
+                metricQuery,
+                pivotConfiguration: emptyValuesPivot,
+                kind: 'rowTotal',
+            }).compileQuery(),
+        ).toThrow(NotSupportedError);
+    });
+
+    it('refuses column and row subtotals when the only metrics are period-over-period', () => {
+        expect(() =>
+            new TotalQueryBuilder({
+                metricQuery: popOnlyMetricQuery,
+                pivotConfiguration: null,
+                subtotalDimensions: ['orders_status'],
+                kind: 'columnSubtotal',
+            }).compileQuery(),
+        ).toThrow(NotSupportedError);
+        expect(() =>
+            new TotalQueryBuilder({
+                metricQuery: popOnlyMetricQuery,
+                pivotConfiguration,
+                subtotalDimensions: ['orders_created_at'],
+                kind: 'rowSubtotal',
+            }).compileQuery(),
+        ).toThrow(NotSupportedError);
+    });
+});
+
 describe('TotalQueryBuilder: columnTotal', () => {
     describe('pivoted source', () => {
         it('keeps only groupBy dimensions and drops the index column', () => {

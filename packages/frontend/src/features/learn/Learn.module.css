@@ -1,0 +1,555 @@
+/* The library from learn.lightdash.com, brought in-app: the same shell,
+   sidebar, home cards, toolbar and module cards, on this app's neutrals. */
+.shell,
+.enableShell {
+    /* Neutrals come straight from the theme's `ldGray` ramp, which keeps the
+       same role per index in both schemes (0 canvas → 9 text), so no
+       light-dark() pair is needed for them. Only the green "done" pair and
+       the surface differ per scheme. */
+    --lu-accent: var(--mantine-color-ldBrandViolet-6);
+    --lu-track: var(--mantine-color-ldGray-2);
+    --lu-done-fg: light-dark(
+        var(--mantine-color-green-7),
+        var(--mantine-color-green-4)
+    );
+    --lu-surface: var(--mantine-color-background-0);
+    --lu-sunken: var(--mantine-color-ldGray-1);
+    --lu-border: var(--mantine-color-ldGray-2);
+    --lu-ink: var(--mantine-color-ldGray-9);
+    --lu-secondary: var(--mantine-color-ldGray-7);
+    --lu-muted: var(--mantine-color-ldGray-5);
+}
+
+.shell {
+    min-height: 100%;
+}
+
+/* The page before an org has enabled Learn (CS-257): one centred column. */
+.enableShell {
+    min-height: 100%;
+    padding: 56px 32px 64px;
+    display: flex;
+    justify-content: center;
+    color: var(--lu-ink);
+}
+
+.enableColumn {
+    width: 100%;
+    max-width: 880px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.enableTitle {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.15;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+}
+
+.enableLede {
+    margin: 8px 0 0;
+    max-width: 62ch;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--lu-secondary);
+}
+
+.enableGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+    gap: 20px;
+    align-items: stretch;
+}
+
+@media (max-width: 860px) {
+    .enableGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.enableGroups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 10px;
+}
+
+.enableGroup {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border: 1px solid var(--lu-border);
+    border-radius: 8px;
+    background: var(--lu-surface);
+}
+
+.enableGroupIcon {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--mi-band);
+    color: var(--mi-fg);
+}
+
+.enableGroup h3 {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 600;
+}
+
+.enableGroup p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--lu-muted);
+}
+
+.enableCard {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+    border: 1px solid var(--lu-border);
+    border-radius: 10px;
+    background: var(--lu-surface);
+    box-shadow: 0 8px 24px
+        light-dark(rgba(17, 20, 24, 0.06), rgba(0, 0, 0, 0.35));
+}
+
+.enableCard h2 {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.3;
+}
+
+.enableCard p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--lu-secondary);
+}
+
+.enableCard ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--lu-secondary);
+}
+
+.main {
+    max-width: 1040px;
+    margin: 0 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 72px 24px 56px;
+}
+
+/* The head in the homepage's shape: a centred greeting over a wide search,
+   the groups as quiet pills beneath, and the role and count as a small
+   line under those. */
+.homeHead {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.greeting {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    text-align: center;
+    text-wrap: balance;
+    color: var(--lu-ink);
+}
+
+/* Titled sections as on the homepage: a small icon, the title, and for a
+   group its description alongside. */
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sectionTitle {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--lu-ink);
+}
+
+.sectionDesc {
+    font-weight: 400;
+    color: var(--lu-muted);
+    margin-left: 4px;
+}
+
+/* The Up next card as a hero: the group's colour as a tile, the
+   walkthrough named and described, its length and one action. */
+.upNext {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.hero {
+    display: flex;
+    gap: 16px;
+    padding: 18px 20px;
+    background: var(--lu-surface);
+    border: 1px solid var(--lu-border);
+    border-radius: 10px;
+    min-width: 0;
+}
+
+.heroTile {
+    width: 44px;
+    height: 44px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--mi-band);
+    color: var(--mi-fg);
+}
+
+.heroBody {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+}
+
+.heroBody h3 {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.25;
+    font-weight: 600;
+    color: var(--lu-ink);
+}
+
+.heroBody p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--lu-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.heroFoot {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--lu-muted);
+}
+
+/* The library's header row, Linear's way: a title on the left, the Filter
+   and Display icon buttons on the right; chosen filters as removable chips
+   on the line beneath. */
+.libraryBar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-top: 6px;
+}
+
+/* What the shelf below is: what the learner can do, or everything, when
+   they have asked for the extras. */
+.libraryHeading {
+    margin-right: auto;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--lu-ink);
+}
+
+.libraryCount {
+    font-size: 12px;
+    color: var(--lu-muted);
+    margin-right: 6px;
+}
+
+.iconButton {
+    position: relative;
+    width: 30px;
+    height: 26px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid var(--lu-border);
+    border-radius: 6px;
+    background: var(--lu-surface);
+    color: var(--lu-muted);
+    cursor: pointer;
+}
+
+.iconButton:hover {
+    color: var(--lu-ink);
+}
+
+.iconButtonOn {
+    color: var(--lu-ink);
+    border-color: var(--lu-secondary);
+}
+
+/* Under the views, the groups as quiet tabs (All first) on the grid's
+   edge, the Filter button at the row's end. */
+.tabBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: -10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--lu-border);
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    margin-right: auto;
+}
+
+.tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 2px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--lu-muted);
+    background: transparent;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 120ms ease;
+}
+
+.tab:hover {
+    color: var(--lu-ink);
+}
+
+.tabOn {
+    color: var(--lu-ink);
+    font-weight: 600;
+    border-bottom-color: var(--lu-accent);
+}
+
+.focusCard {
+    background: var(--lu-surface);
+    border: 1px solid var(--lu-border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 150px;
+}
+
+.overline {
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 600;
+    color: var(--lu-muted);
+}
+
+.overlineAccent {
+    color: var(--lu-accent);
+}
+
+.focusCard h2 {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.25;
+}
+
+.focusCard p {
+    margin: 0;
+    color: var(--lu-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.search {
+    width: 100%;
+    max-width: 720px;
+}
+
+.group {
+    scroll-margin-top: 80px;
+}
+
+.chipSwatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 3px;
+    background: var(--mi-fg);
+    flex: none;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+.card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--lu-surface);
+    border: 1px solid var(--lu-border);
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 240px;
+    transition:
+        transform 0.12s ease,
+        box-shadow 0.12s ease;
+}
+
+.card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px
+        light-dark(rgba(16, 16, 20, 0.08), rgba(0, 0, 0, 0.4));
+}
+
+.band {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 86px;
+    flex: none;
+    margin: -15px -15px 12px;
+    padding: 0 14px;
+    background: var(--mi-band);
+}
+
+.blob {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    background: light-dark(
+        rgba(255, 255, 255, 0.55),
+        rgba(255, 255, 255, 0.08)
+    );
+    color: var(--mi-fg);
+    border-radius: 44% 56% 47% 53% / 53% 44% 56% 47%;
+}
+
+.grid > :nth-child(even) .blob {
+    border-radius: 55% 45% 52% 48% / 47% 55% 45% 53%;
+}
+
+.grid > :nth-child(3n) .blob {
+    border-radius: 48% 52% 56% 44% / 55% 48% 52% 45%;
+}
+
+.shot {
+    position: absolute;
+    top: 18px;
+    bottom: 0;
+    right: 0;
+    width: 190px;
+    overflow: hidden;
+    border-radius: 7px 0 0 0;
+    border: 1px solid var(--lu-border);
+    border-right: 0;
+    border-bottom: 0;
+    background: #fff;
+}
+
+.shot img {
+    display: block;
+    width: 360px;
+    height: auto;
+}
+
+.title {
+    margin: 0;
+    padding-right: 28px;
+    font-size: 14px;
+    line-height: 1.35;
+    font-weight: 600;
+    min-height: calc(2 * 1.35em);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.desc {
+    margin: 5px 0 0;
+    min-height: calc(2 * 1.45em);
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--lu-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* The foot sits on the card's bottom edge whatever the title and blurb
+   take above it, and both reserve their two lines, so a row of cards lines
+   up: band, title, blurb, then status and button at the same height. */
+.foot {
+    margin-top: auto;
+    padding-top: 14px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--lu-muted);
+}
+
+.footStatus {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.done {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--lu-done-fg);
+    font-weight: 600;
+}
+
+.empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--lu-muted);
+    border: 1px dashed var(--lu-border);
+    border-radius: 8px;
+}
+
+/* The completion page: the library's tokens and cards without its sidebar. */
+.overlineDone {
+    color: var(--lu-done-fg);
+}

@@ -2,14 +2,7 @@ import type {
     AiAgentMemoryEditableStatus,
     AiAgentMemoryStatus,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Menu,
-    Text,
-    UnstyledButton,
-} from '@mantine-8/core';
+import { Box, Button, Group, Menu, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useUpdateAiAgentMemoryStatus } from '../../hooks/useAiAgentMemory';
@@ -24,6 +17,10 @@ type Props = {
 };
 
 const editableStatuses: AiAgentMemoryEditableStatus[] = ['active', 'retired'];
+const isEditableStatus = (
+    status: AiAgentMemoryStatus,
+): status is AiAgentMemoryEditableStatus =>
+    status === 'active' || status === 'retired';
 
 export const MemoryStatusMenu: FC<Props> = ({
     projectUuid,
@@ -33,7 +30,7 @@ export const MemoryStatusMenu: FC<Props> = ({
 }) => {
     const updateStatus = useUpdateAiAgentMemoryStatus();
 
-    if (status === 'superseded') {
+    if (!isEditableStatus(status)) {
         return (
             <Group gap={8} wrap="nowrap">
                 <Box className={styles.statusDot} data-status={status} />
@@ -45,7 +42,7 @@ export const MemoryStatusMenu: FC<Props> = ({
     }
 
     return (
-        <Menu width={144} position="bottom-start" shadow="sm" withinPortal>
+        <Menu width={144} position="bottom-start">
             <Menu.Target>
                 <UnstyledButton
                     className={styles.statusTrigger}
@@ -100,7 +97,7 @@ export const MemoryStatusAction: FC<Props> = ({
 }) => {
     const updateStatus = useUpdateAiAgentMemoryStatus();
 
-    if (status === 'superseded') return null;
+    if (!isEditableStatus(status)) return null;
 
     const nextStatus = status === 'active' ? 'retired' : 'active';
     const label = status === 'active' ? 'Retire memory' : 'Reactivate memory';

@@ -1,10 +1,12 @@
 import { Ability } from '@casl/ability';
 import {
+    FeatureFlags,
     PromotionAction,
     type Account,
     type GroupAsCode,
     type PossibleAbilities,
 } from '@lightdash/common';
+import { type FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { GroupsService } from './GroupService';
 
 const createAuthentication = (
@@ -70,7 +72,7 @@ describe('GroupsService groups as code', () => {
         upsertGroupAsCode: vi.fn(),
     };
     const featureFlagService = {
-        get: vi.fn().mockResolvedValue({ enabled: true }),
+        get: vi.fn<FeatureFlagService['get']>(),
     };
     const service = new GroupsService({
         analytics: analytics as never,
@@ -87,7 +89,10 @@ describe('GroupsService groups as code', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        featureFlagService.get.mockResolvedValue({ enabled: true });
+        featureFlagService.get.mockResolvedValue({
+            id: FeatureFlags.UserGroupsEnabled,
+            enabled: true,
+        });
         groupsModel.upsertGroupAsCode.mockResolvedValue({
             action: PromotionAction.NO_CHANGES,
             groupUuid: 'group-uuid',
@@ -118,6 +123,30 @@ describe('GroupsService groups as code', () => {
                 members: ['a@example.com', 'z@example.com'],
             },
         ]);
+    });
+
+    it('uses the account organization when resolving the groups feature flag', async () => {
+        vi.mocked(featureFlagService.get).mockImplementationOnce(
+            async ({ user, featureFlagId }) => ({
+                id: featureFlagId,
+                enabled:
+                    user?.organizationUuid === 'organization-uuid' &&
+                    featureFlagId === FeatureFlags.UserGroupsEnabled,
+            }),
+        );
+        groupsModel.find.mockResolvedValue({ data: [] });
+        groupsModel.findGroupMembers.mockResolvedValue({ data: [] });
+
+        await expect(
+            service.getGroupsAsCode(createAccount('pat'), 'organization-uuid'),
+        ).resolves.toStrictEqual([]);
+        expect(featureFlagService.get).toHaveBeenCalledWith({
+            user: {
+                userUuid: 'actor-user-uuid',
+                organizationUuid: 'organization-uuid',
+            },
+            featureFlagId: FeatureFlags.UserGroupsEnabled,
+        });
     });
 
     it.each(['pat', 'service-account'] as const)(
@@ -191,7 +220,10 @@ describe('GroupsService groups as code', () => {
     });
 
     it('respects the existing groups feature flag', async () => {
-        featureFlagService.get.mockResolvedValueOnce({ enabled: false });
+        featureFlagService.get.mockResolvedValueOnce({
+            id: FeatureFlags.UserGroupsEnabled,
+            enabled: false,
+        });
 
         await expect(
             service.upsertGroupAsCode(

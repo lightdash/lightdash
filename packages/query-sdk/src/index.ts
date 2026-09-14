@@ -22,8 +22,10 @@ export { createPostMessageTransport } from './postMessageTransport';
 export {
     SDK_FEATURES,
     SDK_FEATURE_KEYS,
+    SDK_FEATURE_TARGETS,
     SDK_MANIFEST_MESSAGE_TYPE,
     type SdkFeature,
+    type SdkFeatureTarget,
     type SdkManifestMessage,
 } from './features';
 
@@ -31,6 +33,7 @@ export {
 export type {
     AdditionalMetric,
     Column,
+    ColumnType,
     CustomDimension,
     DownloadResultsFileType,
     DownloadResultsLimit,
@@ -98,15 +101,32 @@ export {
     useVizContext,
     getFormatted,
     getRaw,
+    resolveSeriesColor,
+    resolveValueColor,
 } from './vizContext';
 export type {
     VizContext,
     VizContextCell,
     VizContextOptionValue,
+    VizContextPivotDetails,
     VizContextRow,
+    VizUnderlyingData,
+    VizDrillDown,
     DataAppVizContextMessage,
     VizContextRequestMessage,
 } from './vizContext';
+
+// Host light/dark mode (seeded from the iframe URL, updated by the host)
+export { useColorScheme } from './colorScheme';
+export type {
+    HostColorScheme,
+    HostColorSchemeMessage,
+    HostColorSchemeRequestMessage,
+} from './colorScheme';
+
+// Delivery/preview capture flag (true when the host is capturing this render
+// for a scheduled delivery or its preview, not an interactive load)
+export { isDeliveryRender, useDeliveryRender } from './deliveryRender';
 
 // Shareable URL state (seeded from and written back to the host page URL)
 export { useUrlState } from './urlState';

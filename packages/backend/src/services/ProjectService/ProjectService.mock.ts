@@ -61,6 +61,8 @@ export const user: SessionUser = {
         { subject: 'Job', action: ['view'] },
         { subject: 'SqlRunner', action: ['manage'] },
         { subject: 'Explore', action: ['manage'] },
+        { subject: 'CustomSqlTableCalculations', action: ['manage'] },
+        { subject: 'CustomFields', action: ['manage'] },
     ]),
     isActive: true,
     abilityRules: [],
@@ -367,6 +369,7 @@ export const sessionAccount = buildAccount();
 export const projectWithSensitiveFields: Project = {
     organizationUuid: sessionAccount.organization.organizationUuid!,
     projectUuid: 'projectUuid',
+    slug: 'name',
     name: 'name',
     type: ProjectType.DEFAULT,
     dbtVersion: DefaultSupportedDbtVersion,
@@ -385,17 +388,20 @@ export const projectWithSensitiveFields: Project = {
     hasDefaultUserSpaces: false,
     colorPaletteUuid: null,
     expiresAt: null,
+    agentSqlScope: null,
 };
 
 export const projectSummary: ProjectSummary = {
     organizationUuid: sessionAccount.organization.organizationUuid!,
     projectUuid: 'projectUuid',
+    slug: 'name',
     name: 'name',
     type: ProjectType.DEFAULT,
     createdByUserUuid: sessionAccount.user.id,
 };
 export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',
+    slug: 'name',
     name: 'name',
     type: ProjectType.DEFAULT,
     createdByUserUuid: sessionAccount.user.id,

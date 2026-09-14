@@ -1,5 +1,7 @@
-import { ModalsProvider } from '@mantine-8/modals';
+import { ModalsProvider } from '@mantine/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
+import { lazy, Suspense } from 'react';
+import { flushSync } from 'react-dom';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { DocumentTitle } from './components/common/DocumentTitle';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
@@ -7,10 +9,10 @@ import {
     CommercialMobileRoutes,
     CommercialWebAppRoutes,
 } from './ee/CommercialRoutes';
-import { AgentOnboardingCompletionWatcher } from './ee/features/agentOnboarding/AgentOnboardingCompletionWatcher';
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
-import { installChunkLoadErrorHandler } from './features/chunkErrorHandler';
+import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher';
+import { installChunkLoadErrorHandler } from './features/chunkErrorHandler/chunkErrorHandler';
 import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
 import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
@@ -20,7 +22,6 @@ import AbilityProvider from './providers/Ability/AbilityProvider';
 import ActiveJobProvider from './providers/ActiveJob/ActiveJobProvider';
 import AppProvider from './providers/App/AppProvider';
 import FullscreenProvider from './providers/Fullscreen/FullscreenProvider';
-import Mantine8Provider from './providers/Mantine8Provider';
 import MantineProvider from './providers/MantineProvider';
 import ReactQueryProvider from './providers/ReactQuery/ReactQueryProvider';
 import SchedulerJobsProvider from './providers/SchedulerJobs/SchedulerJobsProvider';
@@ -30,6 +31,15 @@ import Routes from './Routes';
 import { IS_MOBILE } from './utils/isMobile';
 
 installChunkLoadErrorHandler();
+
+// Renders nothing — it only watches for a finished onboarding run and
+// redirects. Keeping it off the entry graph means a signed-out visitor never
+// pays for the agent-onboarding hooks just to see the login page.
+const AgentOnboardingCompletionWatcher = lazy(() =>
+    import('./ee/features/agentOnboarding/AgentOnboardingCompletionWatcher').then(
+        (module) => ({ default: module.AgentOnboardingCompletionWatcher }),
+    ),
+);
 
 // const isMobile =
 //     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -60,6 +70,7 @@ const router = sentryCreateBrowserRouter([
             <AppProvider>
                 <FullscreenProvider enabled={isMobile || !isMinimalPage}>
                     <VersionAutoUpdater />
+                    <BuildSkewRefresher />
                     <ThirdPartyProvider enabled={isMobile || !isMinimalPage}>
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             <TrackingProvider
@@ -72,7 +83,11 @@ const router = sentryCreateBrowserRouter([
                                                 <SourceCodeEditorProvider>
                                                     <AiAgentsGlobalProvider>
                                                         {!isMinimalPage && (
-                                                            <AgentOnboardingCompletionWatcher />
+                                                            <Suspense
+                                                                fallback={null}
+                                                            >
+                                                                <AgentOnboardingCompletionWatcher />
+                                                            </Suspense>
                                                         )}
                                                         <Outlet />
                                                     </AiAgentsGlobalProvider>
@@ -92,22 +107,24 @@ const router = sentryCreateBrowserRouter([
             : [...Routes, ...CommercialWebAppRoutes],
     },
 ]);
+
+const flushRouterUpdate = (callback: () => unknown) => {
+    flushSync(callback);
+    return undefined;
+};
+
 const App = () => (
     <>
         <DocumentTitle />
 
         <ReactQueryProvider>
-            <MantineProvider
-                withGlobalStyles
-                withNormalizeCSS
-                withCSSVariables
-                forceColorScheme={embedForcedColorScheme}
-            >
-                <Mantine8Provider forceColorScheme={embedForcedColorScheme}>
-                    <ModalsProvider>
-                        <RouterProvider router={router} />
-                    </ModalsProvider>
-                </Mantine8Provider>
+            <MantineProvider forceColorScheme={embedForcedColorScheme}>
+                <ModalsProvider>
+                    <RouterProvider
+                        router={router}
+                        flushSync={flushRouterUpdate}
+                    />
+                </ModalsProvider>
             </MantineProvider>
         </ReactQueryProvider>
     </>

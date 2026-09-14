@@ -25,12 +25,29 @@ pnpm -F api-tests lint
 pnpm -F api-tests typecheck
 ```
 
+## How the suite runs
+
+Files run in parallel (`parallel` project in `vitest.config.ts`). Files that
+mutate state every other file reads through (seed project timezone and embed
+config, admin user timezone and attributes, org-wide flags, seeded dashboards) are listed
+in `serialFiles` and run one at a time after the parallel group. Add a file
+there when it changes shared state; keep it out when it only creates its own
+resources.
+
+`vitest.global-setup.ts` creates one project per credentialed remote warehouse
+and kicks off its refresh before any test runs. Parity suites get it with
+`useSharedWarehouseProject(client, 'snowflake')` (`helpers/shared-projects.ts`),
+which waits for the refresh. Never change a shared project's settings from a
+test; create a dedicated project instead.
+
 ## Layout
 
 - `tests/**/*.test.ts` — the test files (Vitest auto-discovers them).
+- `vitest.global-setup.ts` — creates the shared warehouse projects once per run.
 - `helpers/api-client.ts` — `ApiClient` (cookie-aware `get`/`post`/…), the
   `Body<T>` response wrapper, and `SITE_URL`.
 - `helpers/auth.ts` — `login()` and friends, returning a logged-in `ApiClient`.
+- `helpers/shared-projects.ts` — `useSharedWarehouseProject()` for parity suites.
 - `fixtures/` — static request payloads used by some suites.
 
 ## Writing a test

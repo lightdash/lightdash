@@ -1,28 +1,15 @@
 import {
-    DimensionType,
     DownloadFileType,
     getErrorMessage,
     getItemLabel,
     getItemLabelWithoutTableName,
-    isMomentInput,
     ItemsMap,
 } from '@lightdash/common';
-import moment, { MomentInput } from 'moment/moment';
+import moment from 'moment/moment';
+import { validateHeaderValue } from 'node:http';
 import { Readable } from 'stream';
 import Logger from '../../logging/logger';
 import { splitJsonlStream } from '../streamUtils';
-
-export const isRowValueTimestamp = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.TIMESTAMP;
-
-export const isRowValueDate = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.DATE;
 
 export function sanitizeGenericFileName(name: string): string {
     return (
@@ -62,6 +49,32 @@ export function createContentDispositionHeader(filename: string): string {
 
     // Return both filename (ASCII fallback) and filename* (UTF-8 encoded)
     return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedFilename}`;
+}
+
+/**
+ * Prefers the Content-Disposition stored on the object, which carries the
+ * friendly download name. Falls back to a header built from `fallbackFilename`
+ * when nothing is stored or when the stored value would make `setHeader` throw
+ * `ERR_INVALID_CHAR` — Node rejects NUL, DEL, CR/LF and any code point above
+ * U+00FF, and that throw would turn the download into a JSON error response.
+ */
+export function getSafeContentDispositionHeader(
+    storedContentDisposition: string | null,
+    fallbackFilename: string,
+): string {
+    if (storedContentDisposition !== null) {
+        try {
+            validateHeaderValue(
+                'Content-Disposition',
+                storedContentDisposition,
+            );
+            return storedContentDisposition;
+        } catch {
+            // Unusable stored header; fall through to the generated one.
+        }
+    }
+
+    return createContentDispositionHeader(fallbackFilename);
 }
 
 export function generateGenericFileId({

@@ -36,8 +36,8 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconArrowBackUp,
     IconArrowDown,
@@ -60,6 +60,8 @@ import { Fragment, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { TIER_CLASS, traitFor } from './blockLayout';
 import { IconSquare } from './blocks/BlockShell';
 import {
@@ -120,6 +122,77 @@ const locateBlock = (
     return undefined;
 };
 
+// Dragging is reorder-only: dropping on a block moves the dragged block to
+// a new row above/below it. It never splits two blocks into a shared row —
+// columns are created deliberately via the explicit gutter affordance
+// (rail click / drop slot, which emit `slot:` ids). The one exception is
+// reordering columns *within* the dragged block's own multi-block row.
+const computeTarget = (
+    config: HomepageConfig,
+    event: DragOverEvent | DragEndEvent,
+    source: DragSource,
+): DropTarget | null => {
+    const draggedBlockId = source.kind === 'existing' ? source.blockId : null;
+    // Cell targets the guards would refuse are not advertised at all.
+    const legalise = (target: DropTarget): DropTarget | null =>
+        target.kind === 'cell' &&
+        !canPlaceBlockInRow(
+            config,
+            target.rowIndex,
+            source.definition.type,
+            draggedBlockId ?? undefined,
+        )
+            ? null
+            : target;
+    const over = event.over;
+    if (!over) return null;
+    const overId = String(over.id);
+    if (overId === END_ZONE_ID) return { kind: 'end' };
+    if (overId.startsWith('gap:')) {
+        return { kind: 'row', rowIndex: Number(overId.split(':')[1]) };
+    }
+    if (overId.startsWith('slot:')) {
+        const [, rowIdx, blockIdx] = overId.split(':');
+        return legalise({
+            kind: 'cell',
+            rowIndex: Number(rowIdx),
+            blockIndex: Number(blockIdx),
+        });
+    }
+    const location = locateBlock(config, overId);
+    if (!location) return null;
+    const activeRect = event.active.rect.current.translated;
+
+    const draggedLocation = draggedBlockId
+        ? locateBlock(config, draggedBlockId)
+        : undefined;
+    const sameMultiBlockRow =
+        !!draggedLocation &&
+        draggedLocation.rowIndex === location.rowIndex &&
+        config.rows[location.rowIndex].blocks.length > 1;
+
+    if (sameMultiBlockRow) {
+        const activeCenterX = activeRect
+            ? activeRect.left + activeRect.width / 2
+            : over.rect.left;
+        const relX = (activeCenterX - over.rect.left) / over.rect.width;
+        return {
+            kind: 'cell',
+            rowIndex: location.rowIndex,
+            blockIndex: location.blockIndex + (relX < 0.5 ? 0 : 1),
+        };
+    }
+
+    const activeCenterY = activeRect
+        ? activeRect.top + activeRect.height / 2
+        : over.rect.top;
+    const relY = (activeCenterY - over.rect.top) / over.rect.height;
+    return {
+        kind: 'row',
+        rowIndex: location.rowIndex + (relY < 0.5 ? 0 : 1),
+    };
+};
+
 // Prefer the zone the pointer is literally within; corners as a fallback so
 // the thin row gaps stay reachable while dragging fast.
 const collisionDetectionStrategy: CollisionDetection = (args) => {
@@ -127,6 +200,24 @@ const collisionDetectionStrategy: CollisionDetection = (args) => {
     return pointerCollisions.length > 0
         ? pointerCollisions
         : closestCorners(args);
+};
+
+/**
+ * Walkthrough action for manage:ProjectHomepage: publishing the draft. The
+ * publish dialog's confirm and the logo (back home) follow.
+ */
+const publishTourAction = {
+    'data-tour-scope': 'manage:ProjectHomepage',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/homepage-builder',
+    'data-tour-label': 'Click Publish',
+    'data-tour-title': 'Edit the project homepage',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="home"] >> [data-tour-anchor="customize-homepage"] >> [data-tour-anchor="homepage-block"][data-tour-value="Call to action"]',
+    'data-tour-then':
+        '[data-tour-anchor="modal-confirm"] >> [data-tour-nav="home"]',
+    'data-tour-docs': 'explore/homepage.mdx#preview-and-publish:p7:1-2',
 };
 
 const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
@@ -145,6 +236,12 @@ const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
             className={classes.railCard}
             data-dragging={isDragging}
             onClick={onAdd}
+            // Anchor for scope walkthroughs (data-tour-via): a block to add,
+            // by its label. The hint's {value} is the label:
+            //   data-tour-anchor="homepage-block" data-tour-hint="Add the {value} block"
+            data-tour-anchor="homepage-block"
+            data-tour-hint="Add the {value} block"
+            data-tour-value={definition.label}
         >
             <IconSquare icon={definition.icon} />
             <Box miw={0}>
@@ -169,7 +266,7 @@ const RowGap: FC<{
     return (
         <div
             ref={setNodeRef}
-            className={classes.rowDropZone}
+            className={`${classes.rowDropZone} ${classes.dropEnvelope}`}
             data-drag-active={isDragActive}
             data-menu-open={menuOpened}
         >
@@ -196,7 +293,7 @@ const RowGap: FC<{
                                     leftSection={
                                         <MantineIcon
                                             icon={definition.icon}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
                                     }
                                     onClick={() => onQuickAdd(definition)}
@@ -213,19 +310,12 @@ const RowGap: FC<{
     );
 };
 
-const EndDropZone: FC<{ isEmpty: boolean; active: boolean }> = ({
-    isEmpty,
-    active,
-}) => {
+const EndDropZone: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
     const { setNodeRef } = useDroppable({ id: END_ZONE_ID });
     return (
         <div
             ref={setNodeRef}
-            className={
-                active
-                    ? `${classes.endZone} ${classes.endZoneActive}`
-                    : classes.endZone
-            }
+            className={`${classes.endZone} ${classes.dropEnvelope}`}
         >
             <MantineIcon
                 icon={IconPlus}
@@ -292,7 +382,7 @@ const ColumnGutter: FC<{
                             leftSection={
                                 <MantineIcon
                                     icon={definition.icon}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             }
                             onClick={() => onAdd(definition)}
@@ -314,7 +404,7 @@ const ColIndicator: FC<{ active: boolean }> = ({ active }) => (
 // A translucent preview of the block, shown in the layout exactly where the
 // drop will land — held until release.
 const GhostBlock: FC<{ definition: BlockDefinition }> = ({ definition }) => (
-    <div className={classes.ghostBlock}>
+    <div className={`${classes.ghostBlock} ${classes.dropEnvelope}`}>
         <IconSquare icon={definition.icon} />
         <span className={classes.ghostBlockLabel}>{definition.label}</span>
     </div>
@@ -386,7 +476,7 @@ const BlockCard: FC<BlockCardProps> = ({
                     aria-label={`Drag ${definition.label} block`}
                 >
                     <span className={classes.blockHandle}>
-                        <MantineIcon icon={IconGripVertical} color="ldGray.6" />
+                        <MantineIcon icon={IconGripVertical} color="dimmed" />
                     </span>
                     <span className={classes.blockTypeLabel}>
                         {definition.label}
@@ -394,42 +484,24 @@ const BlockCard: FC<BlockCardProps> = ({
                 </div>
                 <Group gap={2} className={classes.blockActions} wrap="nowrap">
                     <Tooltip label="Move up">
-                        <ActionIcon
-                            variant="subtle"
-                            color="ldGray.6"
-                            disabled={!canUp}
-                            onClick={onUp}
-                        >
+                        <ActionIcon disabled={!canUp} onClick={onUp}>
                             <MantineIcon icon={IconArrowUp} />
                         </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Move down">
-                        <ActionIcon
-                            variant="subtle"
-                            color="ldGray.6"
-                            disabled={!canDown}
-                            onClick={onDown}
-                        >
+                        <ActionIcon disabled={!canDown} onClick={onDown}>
                             <MantineIcon icon={IconArrowDown} />
                         </ActionIcon>
                     </Tooltip>
                     {!definition.singleton && (
                         <Tooltip label="Duplicate">
-                            <ActionIcon
-                                variant="subtle"
-                                color="ldGray.6"
-                                onClick={onDuplicate}
-                            >
+                            <ActionIcon onClick={onDuplicate}>
                                 <MantineIcon icon={IconCopy} />
                             </ActionIcon>
                         </Tooltip>
                     )}
                     <Tooltip label="Remove">
-                        <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            onClick={onRemove}
-                        >
+                        <ActionIcon color="red" onClick={onRemove}>
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>
                     </Tooltip>
@@ -486,6 +558,7 @@ export const HomepageEditor: FC<Props> = ({
     // Admins of an agent-less project can still *see* AI, so gate the AI
     // blocks on an agent actually existing.
     const { canAskAi } = useHomepageAiState(projectUuid);
+    const { track } = useTracking();
 
     const [draft, setDraft] = useState<HomepageConfig>(() =>
         migrateHomepageConfig(homepage.draftConfig),
@@ -523,17 +596,26 @@ export const HomepageEditor: FC<Props> = ({
     const [justPlacedId, setJustPlacedId] = useState<string | null>(null);
 
     // Singleton blocks (e.g. metrics) drop out of the library once placed.
-    const usedSingletonTypes = new Set(
-        draft.rows.flatMap((row) => row.blocks).map((block) => block.type),
-    );
-    const availableBlocks = blockLibrary.filter(
-        (definition) =>
-            (!definition.requiresAi || canAskAi) &&
-            !(definition.singleton && usedSingletonTypes.has(definition.type)),
-    );
+    const availableBlocks = useMemo(() => {
+        const usedSingletonTypes = new Set(
+            draft.rows.flatMap((row) => row.blocks.map((block) => block.type)),
+        );
+        return blockLibrary.filter(
+            (definition) =>
+                (!definition.requiresAi || canAskAi) &&
+                !(
+                    definition.singleton &&
+                    usedSingletonTypes.has(definition.type)
+                ),
+        );
+    }, [draft.rows, canAskAi]);
     // Full-row blocks never appear in into-row (column) menus.
-    const columnBlocks = availableBlocks.filter(
-        (definition) => !traitFor(definition.type).fullRowOnly,
+    const columnBlocks = useMemo(
+        () =>
+            availableBlocks.filter(
+                (definition) => !traitFor(definition.type).fullRowOnly,
+            ),
+        [availableBlocks],
     );
 
     const { mutate: saveDraft } = updateMutation;
@@ -563,30 +645,38 @@ export const HomepageEditor: FC<Props> = ({
         );
     }, [debouncedDraft, hasConflict, activeDrag, saveDraft]);
 
+    // Re-entry guard: a fast double-click on Publish must not fire the save
+    // twice or open the modal before the first save settles.
+    const isOpeningPublishRef = useRef(false);
     const handleOpenPublish = async () => {
-        if (hasConflict) return;
-        if (draft !== lastSavedRef.current) {
-            lastSavedRef.current = draft;
-            try {
-                const saved = await updateMutation.mutateAsync(
-                    {
-                        draftConfig: draft,
-                        baseUpdatedAt: baseUpdatedAtRef.current,
-                    },
-                    {
-                        onError: (error) => {
-                            if (error.error.statusCode === 409) {
-                                setHasConflict(true);
-                            }
+        if (hasConflict || isOpeningPublishRef.current) return;
+        isOpeningPublishRef.current = true;
+        try {
+            if (draft !== lastSavedRef.current) {
+                lastSavedRef.current = draft;
+                try {
+                    const saved = await updateMutation.mutateAsync(
+                        {
+                            draftConfig: draft,
+                            baseUpdatedAt: baseUpdatedAtRef.current,
                         },
-                    },
-                );
-                baseUpdatedAtRef.current = saved.updatedAt;
-            } catch {
-                return;
+                        {
+                            onError: (error) => {
+                                if (error.error.statusCode === 409) {
+                                    setHasConflict(true);
+                                }
+                            },
+                        },
+                    );
+                    baseUpdatedAtRef.current = saved.updatedAt;
+                } catch {
+                    return;
+                }
             }
+            setIsPublishModalOpen(true);
+        } finally {
+            isOpeningPublishRef.current = false;
         }
-        setIsPublishModalOpen(true);
     };
 
     const handleDiscardDraft = () => {
@@ -618,78 +708,6 @@ export const HomepageEditor: FC<Props> = ({
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     );
 
-    // Dragging is reorder-only: dropping on a block moves the dragged block to
-    // a new row above/below it. It never splits two blocks into a shared row —
-    // columns are created deliberately via the explicit gutter affordance
-    // (rail click / drop slot, which emit `slot:` ids). The one exception is
-    // reordering columns *within* the dragged block's own multi-block row.
-    const computeTarget = (
-        config: HomepageConfig,
-        event: DragOverEvent | DragEndEvent,
-        source: DragSource,
-    ): DropTarget | null => {
-        const draggedBlockId =
-            source.kind === 'existing' ? source.blockId : null;
-        // Cell targets the guards would refuse are not advertised at all.
-        const legalise = (target: DropTarget): DropTarget | null =>
-            target.kind === 'cell' &&
-            !canPlaceBlockInRow(
-                config,
-                target.rowIndex,
-                source.definition.type,
-                draggedBlockId ?? undefined,
-            )
-                ? null
-                : target;
-        const over = event.over;
-        if (!over) return null;
-        const overId = String(over.id);
-        if (overId === END_ZONE_ID) return { kind: 'end' };
-        if (overId.startsWith('gap:')) {
-            return { kind: 'row', rowIndex: Number(overId.split(':')[1]) };
-        }
-        if (overId.startsWith('slot:')) {
-            const [, rowIdx, blockIdx] = overId.split(':');
-            return legalise({
-                kind: 'cell',
-                rowIndex: Number(rowIdx),
-                blockIndex: Number(blockIdx),
-            });
-        }
-        const location = locateBlock(config, overId);
-        if (!location) return null;
-        const activeRect = event.active.rect.current.translated;
-
-        const draggedLocation = draggedBlockId
-            ? locateBlock(config, draggedBlockId)
-            : undefined;
-        const sameMultiBlockRow =
-            !!draggedLocation &&
-            draggedLocation.rowIndex === location.rowIndex &&
-            config.rows[location.rowIndex].blocks.length > 1;
-
-        if (sameMultiBlockRow) {
-            const activeCenterX = activeRect
-                ? activeRect.left + activeRect.width / 2
-                : over.rect.left;
-            const relX = (activeCenterX - over.rect.left) / over.rect.width;
-            return {
-                kind: 'cell',
-                rowIndex: location.rowIndex,
-                blockIndex: location.blockIndex + (relX < 0.5 ? 0 : 1),
-            };
-        }
-
-        const activeCenterY = activeRect
-            ? activeRect.top + activeRect.height / 2
-            : over.rect.top;
-        const relY = (activeCenterY - over.rect.top) / over.rect.height;
-        return {
-            kind: 'row',
-            rowIndex: location.rowIndex + (relY < 0.5 ? 0 : 1),
-        };
-    };
-
     const handleDragStart = (event: DragStartEvent) => {
         const source = event.active.data.current as DragSource | undefined;
         setActiveDrag(source ?? null);
@@ -715,6 +733,10 @@ export const HomepageEditor: FC<Props> = ({
         if (!target) return;
         if (source.kind === 'new') {
             const block = source.definition.create();
+            track({
+                name: EventName.HOMEPAGE_BLOCK_ADDED,
+                properties: { blockType: block.type },
+            });
             setDraft((prev) => dropNewBlock(prev, block, target));
             setJustPlacedId(block.id);
             return;
@@ -769,7 +791,7 @@ export const HomepageEditor: FC<Props> = ({
                                 <MantineIcon
                                     icon={IconUsers}
                                     size={15}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                                 Editing:{' '}
                                 <strong>
@@ -781,7 +803,7 @@ export const HomepageEditor: FC<Props> = ({
                                 <MantineIcon
                                     icon={IconChevronDown}
                                     size={13}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             </button>
                         </Menu.Target>
@@ -863,6 +885,7 @@ export const HomepageEditor: FC<Props> = ({
                     className={classes.tbBtnPrimary}
                     disabled={publishMutation.isLoading}
                     onClick={handleOpenPublish}
+                    {...publishTourAction}
                 >
                     Publish
                     <MantineIcon icon={IconArrowRight} size={14} />
@@ -904,7 +927,15 @@ export const HomepageEditor: FC<Props> = ({
             >
                 <div className={classes.body}>
                     {!isPreviewing && (
-                        <aside className={classes.rail}>
+                        <aside
+                            className={classes.rail}
+                            // Walkthrough look at the block library.
+                            data-tour-scope="manage:ProjectHomepage"
+                            data-tour-look="1"
+                            data-tour-after='[data-tour-anchor="customize-homepage"]'
+                            data-tour-label="The block library"
+                            data-tour-docs="explore/homepage.mdx#build-a-homepage:li1"
+                        >
                             <div className={classes.railTitle}>Blocks</div>
                             <Stack gap={6}>
                                 {availableBlocks.map((definition) => (
@@ -948,18 +979,27 @@ export const HomepageEditor: FC<Props> = ({
                                                     rowIndex,
                                                 )}
                                                 blocks={availableBlocks}
-                                                onQuickAdd={(definition) =>
+                                                onQuickAdd={(definition) => {
+                                                    const block =
+                                                        definition.create();
+                                                    track({
+                                                        name: EventName.HOMEPAGE_BLOCK_ADDED,
+                                                        properties: {
+                                                            blockType:
+                                                                block.type,
+                                                        },
+                                                    });
                                                     setDraft((prev) =>
                                                         dropNewBlock(
                                                             prev,
-                                                            definition.create(),
+                                                            block,
                                                             {
                                                                 kind: 'row',
                                                                 rowIndex,
                                                             },
                                                         ),
-                                                    )
-                                                }
+                                                    );
+                                                }}
                                             />
                                             {activeDrag &&
                                                 rowIndicatorActive(
@@ -1119,7 +1159,17 @@ export const HomepageEditor: FC<Props> = ({
                                                                                         ),
                                                                                 )
                                                                             }
-                                                                            onRemove={() =>
+                                                                            onRemove={() => {
+                                                                                track(
+                                                                                    {
+                                                                                        name: EventName.HOMEPAGE_BLOCK_REMOVED,
+                                                                                        properties:
+                                                                                            {
+                                                                                                blockType:
+                                                                                                    block.type,
+                                                                                            },
+                                                                                    },
+                                                                                );
                                                                                 setDraft(
                                                                                     (
                                                                                         prev,
@@ -1128,8 +1178,8 @@ export const HomepageEditor: FC<Props> = ({
                                                                                             prev,
                                                                                             block.id,
                                                                                         ),
-                                                                                )
-                                                                            }
+                                                                                );
+                                                                            }}
                                                                             onChange={(
                                                                                 updated,
                                                                             ) =>
@@ -1171,12 +1221,22 @@ export const HomepageEditor: FC<Props> = ({
                                                             blocks={
                                                                 columnBlocks
                                                             }
-                                                            onAdd={(def) =>
+                                                            onAdd={(def) => {
+                                                                const newBlock =
+                                                                    def.create();
+                                                                track({
+                                                                    name: EventName.HOMEPAGE_BLOCK_ADDED,
+                                                                    properties:
+                                                                        {
+                                                                            blockType:
+                                                                                newBlock.type,
+                                                                        },
+                                                                });
                                                                 setDraft(
                                                                     (prev) =>
                                                                         dropNewBlock(
                                                                             prev,
-                                                                            def.create(),
+                                                                            newBlock,
                                                                             {
                                                                                 kind: 'cell',
                                                                                 rowIndex,
@@ -1186,8 +1246,8 @@ export const HomepageEditor: FC<Props> = ({
                                                                                         .length,
                                                                             },
                                                                         ),
-                                                                )
-                                                            }
+                                                                );
+                                                            }}
                                                         />
                                                     ) : (
                                                         activeDrag && (
@@ -1211,7 +1271,6 @@ export const HomepageEditor: FC<Props> = ({
                                     )}
                                     <EndDropZone
                                         isEmpty={draft.rows.length === 0}
-                                        active={false}
                                     />
                                 </Stack>
                             )}

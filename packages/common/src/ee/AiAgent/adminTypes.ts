@@ -1,6 +1,10 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
 import type { AiDeepResearchLimits } from '../aiDeepResearch/types';
-import type { DataAppModelVisibility } from '../apps/types';
+import type {
+    DataAppClaudeModel,
+    DataAppCodingAgent,
+    DataAppModelVisibility,
+} from '../apps/types';
 import type {
     AiAgentEvaluationRunSummary,
     AiAgentMemoryScope,
@@ -10,7 +14,11 @@ import type {
     AiAgentUser,
     AiModelOption,
 } from './index';
-import type { AiAgentModelConfig, AiThreadCreatedFrom } from './requestTypes';
+import type {
+    AiAgentModelConfig,
+    AiPromptTokenUsage,
+    AiThreadCreatedFrom,
+} from './requestTypes';
 
 export type AiAgentAdminFilters = {
     projectUuids?: string[];
@@ -66,6 +74,80 @@ export type AiAgentAdminConversationsSummary = {
 export type ApiAiAgentAdminConversationsResponse = ApiSuccess<
     KnexPaginatedData<AiAgentAdminConversationsSummary>
 >;
+
+export type AiAgentThreadDumpToolCall = {
+    toolCallId: string;
+    parentToolCallId: string | null;
+    name: string;
+    source: 'lightdash' | 'mcp';
+    args: unknown;
+    result: string | null;
+    resultOmitted: string | null;
+    isError: boolean;
+};
+
+export type AiAgentThreadDumpArtifact = {
+    artifactUuid: string;
+    versionUuid: string;
+    versionNumber: number;
+    artifactType: 'chart' | 'dashboard';
+    title: string | null;
+    description: string | null;
+    chartConfig: Record<string, unknown> | null;
+    dashboardConfig: Record<string, unknown> | null;
+};
+
+export type AiAgentThreadDumpTurn = {
+    promptUuid: string;
+    createdAt: string;
+    respondedAt: string | null;
+    hidden: boolean;
+    user: string;
+    assistant: string | null;
+    error: string | null;
+    interrupted: boolean;
+    feedback: { score: number; comment: string | null } | null;
+    steers: string[];
+    modelConfig: { modelName: string; modelProvider: string } | null;
+    tokenUsage: AiPromptTokenUsage | null;
+    toolCalls: AiAgentThreadDumpToolCall[];
+    artifacts: AiAgentThreadDumpArtifact[];
+};
+
+export type AiAgentThreadDumpAgent = Pick<
+    AiAgentSummary,
+    | 'uuid'
+    | 'name'
+    | 'instruction'
+    | 'tags'
+    | 'integrations'
+    | 'modelConfig'
+    | 'enableDataAccess'
+    | 'enableSelfImprovement'
+    | 'enableContentTools'
+    | 'enableUserContext'
+    | 'enableSqlMode'
+    | 'adminOnly'
+    | 'version'
+>;
+
+export type AiAgentThreadDump = {
+    schemaVersion: 1;
+    generatedAt: string;
+    lightdashVersion: string;
+    defaultProvider: string;
+    organizationUuid: string;
+    projectUuid: string;
+    threadUuid: string;
+    agentUuid: string | null;
+    userUuid: string | null;
+    createdFrom: AiThreadCreatedFrom;
+    title: string | null;
+    agent: AiAgentThreadDumpAgent | null;
+    turns: AiAgentThreadDumpTurn[];
+};
+
+export type ApiAiAgentThreadDumpResponse = ApiSuccess<AiAgentThreadDump>;
 
 export type AiAgentAdminEvalFilters = {
     projectUuids?: string[];
@@ -291,26 +373,19 @@ export type ComputedAiOrganizationSettings = {
 };
 
 // AI Organization Settings Types
-export const BYO_AI_PROVIDERS = ['anthropic', 'openai'] as const;
+export const BYO_AI_PROVIDERS = ['anthropic', 'google', 'openai'] as const;
 export type ByoAiProvider = (typeof BYO_AI_PROVIDERS)[number];
 
 export const isByoAiProvider = (provider: string): provider is ByoAiProvider =>
     (BYO_AI_PROVIDERS as readonly string[]).includes(provider);
 
-export type AiProviderApiKeysSet = {
-    anthropic: boolean;
-    openai: boolean;
-};
+export type AiProviderApiKeysSet = Record<ByoAiProvider, boolean>;
 
-export type AiProviderApiKeyHints = {
-    anthropic: string | null;
-    openai: string | null;
-};
+export type AiProviderApiKeyHints = Record<ByoAiProvider, string | null>;
 
-export type UpdateAiProviderApiKeys = {
-    anthropic?: string | null;
-    openai?: string | null;
-};
+export type UpdateAiProviderApiKeys = Partial<
+    Record<ByoAiProvider, string | null>
+>;
 
 export type AiOrgProviderModelVisibility = {
     enabled: boolean;
@@ -326,8 +401,11 @@ export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
     aiAgentReviewsEnabled: boolean;
+    aiAgentMemoryEnabled: boolean;
     deepResearchLimits: AiDeepResearchLimits;
+    deepResearchRawSqlEnabled: boolean;
     mcpContentWritesEnabled: boolean;
+    mcpAgentsEnabled: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
@@ -337,11 +415,12 @@ export type AiOrganizationSettings = {
     dataAppModelVisibility?: DataAppModelVisibility | null;
     providerApiKeysSet: AiProviderApiKeysSet;
     providerApiKeyHints: AiProviderApiKeyHints;
+    threadRetentionHours?: number | null;
 };
 
 export type CreateAiOrganizationSettings = Omit<
     AiOrganizationSettings,
-    'providerApiKeysSet' | 'providerApiKeyHints'
+    'providerApiKeysSet' | 'providerApiKeyHints' | 'aiAgentMemoryEnabled'
 > & {
     providerApiKeys?: UpdateAiProviderApiKeys;
 };
@@ -349,18 +428,54 @@ export type CreateAiOrganizationSettings = Omit<
 export type UpdateAiOrganizationSettings = {
     aiAgentsVisible?: boolean;
     aiAgentReviewsEnabled?: boolean;
+    aiAgentMemoryEnabled?: boolean;
     deepResearchLimits?: AiDeepResearchLimits;
+    deepResearchRawSqlEnabled?: boolean;
     mcpContentWritesEnabled?: boolean;
+    mcpAgentsEnabled?: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;
     dataAppModelVisibility?: DataAppModelVisibility | null;
     providerApiKeys?: UpdateAiProviderApiKeys;
+    threadRetentionHours?: number | null;
 };
 
 export type ApiAiOrganizationSettingsResponse = ApiSuccess<
     AiOrganizationSettings & ComputedAiOrganizationSettings
 >;
 
+export type AiOrganizationRuntimeSettings = {
+    isCopilotEnabled: boolean;
+    isTrial: boolean;
+    aiAgentsVisible: boolean;
+    aiAgentMemoryEnabled: boolean;
+    aiAgentReviewsEnabled: boolean;
+    aiAgentReviewsAvailable: boolean;
+    defaultAiAgentModelConfig: AiAgentModelConfig | null;
+    defaultAiAgentModelOptions: AiModelOption[];
+    dataAppCodingAgent: DataAppCodingAgent;
+    visibleDataAppModels: DataAppClaudeModel[];
+    // Org retention ceiling, surfaced so agent editors can see what caps
+    // their agent-level window. Optional for backwards compatibility.
+    threadRetentionHours?: number | null;
+};
+
+export type ApiAiOrganizationRuntimeSettingsResponse =
+    ApiSuccess<AiOrganizationRuntimeSettings>;
+
 export type ApiUpdateAiOrganizationSettingsResponse =
     ApiSuccess<AiOrganizationSettings>;
+
+/**
+ * What an org-level retention window of `retentionHours` would delete on the
+ * next cleanup run. Backs the confirmation dialog shown before lowering the
+ * org ceiling.
+ */
+export type AiThreadRetentionPreview = {
+    threadCount: number;
+    agentCount: number;
+};
+
+export type ApiAiThreadRetentionPreviewResponse =
+    ApiSuccess<AiThreadRetentionPreview>;

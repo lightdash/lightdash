@@ -4,8 +4,8 @@ import {
     QueryExecutionContext,
     type DeliveryCaptureManifest,
 } from '@lightdash/common';
-import { Box, Loader, Stack, Text } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { Box, Loader, Stack, Text } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconAppsOff } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router';
@@ -14,10 +14,12 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { createDeliveryCaptureAccumulator } from '../features/apps/deliveryCapture/deliveryCaptureAccumulator';
+import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { type QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 
 /**
@@ -48,10 +50,8 @@ const SDK_ALIVE_FALLBACK_MS = 8_000;
  * that signal before triggering the screenshot.
  */
 export default function MinimalApp() {
-    const { projectUuid, appUuid } = useParams<{
-        projectUuid: string;
-        appUuid: string;
-    }>();
+    const { appUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const captureModeParam = searchParams.get('captureMode');
     const captureMode: 'delivery' | 'preview' | null =
@@ -84,6 +84,7 @@ export default function MinimalApp() {
     const previewOrigin = usePreviewOrigin();
 
     const [iframeLoaded, setIframeLoaded] = useState(false);
+    const [loadEpoch, setLoadEpoch] = useState(0);
     const [sdkAlive, setSdkAlive] = useState(false);
     const [sdkAliveFallback, setSdkAliveFallback] = useState(false);
     const [activeQueryIds, setActiveQueryIds] = useState<Set<string>>(
@@ -93,6 +94,10 @@ export default function MinimalApp() {
 
     const handleIframeLoad = useCallback(() => {
         setIframeLoaded(true);
+        // Every load (initial or same-identity reload) starts a new quiet
+        // epoch: the deliveryRender flag was just re-sent, and publish must
+        // wait a full quiet window for the reloaded app to react to it.
+        setLoadEpoch((epoch) => epoch + 1);
         if (deliveryCapture) {
             deliveryCapture.reset();
             setManifest(null);
@@ -147,8 +152,24 @@ export default function MinimalApp() {
     // iframe load — keeps the indicator from mounting in the window
     // between iframe HTML load and the SDK bundle bootstrapping, which
     // was the root cause of blank/mid-animation screenshots.
+    // A load epoch "settles" once APP_QUIET_DEBOUNCE_MS has passed since the
+    // last iframe load event — i.e. the deliveryRender flag (sent on load)
+    // has had a full quiet window for the app to react to it.
+    const [settledLoadEpoch] = useDebouncedValue(
+        loadEpoch,
+        APP_QUIET_DEBOUNCE_MS,
+    );
+    const loadEpochSettled = iframeLoaded && settledLoadEpoch === loadEpoch;
+
     const [isReady] = useDebouncedValue(
         (sdkAlive || sdkAliveFallback) &&
+            // Capture modes: the deliveryRender flag rides the ready message
+            // sent on iframe load, but the SDK announces (and the quiet clock
+            // starts) at bundle boot — before load. Requiring a settled load
+            // epoch gives the app a full quiet window AFTER the flag on every
+            // load — including same-identity reloads, where sdkAlive never
+            // flips — else an empty just-reset manifest can publish first.
+            (!captureMode || loadEpochSettled) &&
             activeQueryIds.size === 0 &&
             // Always 0 outside capture modes (no accumulator, no subscription).
             pendingCaptureCount === 0,
@@ -157,8 +178,17 @@ export default function MinimalApp() {
 
     // Publishes the captured manifest to the window global exactly once per
     // settle, before the indicator (which UnfurlService waits on) can mount.
+    // The un-debounced guards matter on reload: `isReady` lags the underlying
+    // condition by the debounce window, so without them a stale `true` could
+    // publish the just-reset accumulator before the new epoch settles.
     useEffect(() => {
         if (!isReady || !captureMode || !deliveryCapture || manifest !== null)
+            return;
+        if (
+            !loadEpochSettled ||
+            activeQueryIds.size > 0 ||
+            pendingCaptureCount > 0
+        )
             return;
         let cancelled = false;
         void deliveryCapture
@@ -178,7 +208,15 @@ export default function MinimalApp() {
         return () => {
             cancelled = true;
         };
-    }, [isReady, captureMode, deliveryCapture, manifest]);
+    }, [
+        isReady,
+        captureMode,
+        deliveryCapture,
+        manifest,
+        loadEpochSettled,
+        activeQueryIds,
+        pendingCaptureCount,
+    ]);
     const indicatorReady = captureMode ? isReady && manifest !== null : isReady;
 
     if (dataAppsFlag.isLoading) return null;
@@ -189,16 +227,17 @@ export default function MinimalApp() {
         return <div>Missing route params</div>;
     }
 
+    const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
     const isForbidden =
         appQuery.error?.error?.statusCode === 403 ||
-        tokenError?.error?.statusCode === 403;
+        visibleTokenError?.error?.statusCode === 403;
     if (isForbidden) {
         return <ForbiddenPanel />;
     }
 
     const isNotFound =
         appQuery.error?.error?.statusCode === 404 ||
-        tokenError?.error?.statusCode === 404;
+        visibleTokenError?.error?.statusCode === 404;
     if (isNotFound) {
         return (
             <Box mt="30vh">
@@ -226,7 +265,7 @@ export default function MinimalApp() {
     const isLoading =
         appQuery.isLoading ||
         (latestReadyVersion !== undefined && isTokenLoading);
-    const error = appQuery.error ?? tokenError;
+    const error = appQuery.error ?? visibleTokenError;
 
     if (isLoading) {
         return (
@@ -249,12 +288,13 @@ export default function MinimalApp() {
     const previewUrl = token
         ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
-    if (!previewUrl) return null;
+    if (!previewUrl || !token) return null;
 
     return (
         <Box pos="relative" h="100vh" w="100%">
             <AppIframePreview
                 src={previewUrl}
+                previewToken={token}
                 expectedPreviewOrigin={previewOrigin}
                 projectUuid={projectUuid}
                 appUuid={appUuid}
@@ -263,6 +303,10 @@ export default function MinimalApp() {
                 onQueryEvent={handleQueryEvent}
                 onScreenshotAvailabilityChange={handleScreenshotAvailable}
                 deliveryCapture={deliveryCapture}
+                // Both capture modes need every tab's data mounted: the
+                // slice-2 picker preview must show the same query set the
+                // delivery would produce, not just the visible tab's.
+                captureRender={captureMode !== null ? true : undefined}
                 invalidateCache={captureMode === 'delivery' ? true : undefined}
                 queryContextOverride={
                     captureMode === 'delivery'
@@ -272,6 +316,9 @@ export default function MinimalApp() {
                 // Seeds the app from ?state= so scheduled deliveries with a
                 // saved app state screenshot that view, not the default one.
                 urlStateSync
+                // Scheduled renders must not depend on the headless browser's
+                // stored theme preference.
+                forceColorScheme="light"
             />
             {indicatorReady && (
                 <ScreenshotReadyIndicator

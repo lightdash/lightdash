@@ -5,7 +5,7 @@
 // Currently holds the SQL-mode toggle: when ON, the user is asking the
 // agent to use runSql + warehouse-introspection tools for this prompt.
 // Frontend state only — backend treats `enableSqlMode` as a request-time
-// parameter on each stream call, no DB persistence.
+// parameter on each stream call; the agent setting only supplies its default.
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
@@ -36,9 +36,9 @@ export const aiAgentThreadModeSlice = createSlice({
 export const { setThreadSqlMode } = aiAgentThreadModeSlice.actions;
 
 export const selectThreadSqlMode =
-    (threadUuid: string) =>
+    (threadUuid: string, defaultSqlMode = DEFAULT_SQL_MODE) =>
     (state: { aiAgentThreadMode: State }): boolean =>
-        state.aiAgentThreadMode[threadUuid]?.sqlMode ?? DEFAULT_SQL_MODE;
+        state.aiAgentThreadMode[threadUuid]?.sqlMode ?? defaultSqlMode;
 
 // Returns undefined when the thread has no stored toggle yet, so a caller can
 // apply its own default while everywhere else keeps DEFAULT_SQL_MODE.

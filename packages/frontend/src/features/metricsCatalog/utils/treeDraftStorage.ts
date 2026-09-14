@@ -1,4 +1,4 @@
-import { useLocalStorage } from '@mantine-8/hooks';
+import { useLocalStorage } from '@mantine/hooks';
 import { useCallback } from 'react';
 
 type TreeDraft = {

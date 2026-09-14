@@ -3,7 +3,7 @@ import {
     type EChartsSeries,
     type SavedChart,
 } from '@lightdash/common';
-import { Box, Center, Loader } from '@mantine-8/core';
+import { Box, Center, Loader } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';

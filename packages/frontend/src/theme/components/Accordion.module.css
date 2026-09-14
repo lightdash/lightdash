@@ -1,0 +1,20 @@
+.item {
+    border-color: var(--mantine-color-default-border);
+}
+
+.control {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+}
+
+.control:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.chevron {
+    color: var(--mantine-color-dimmed);
+}
+
+.transparentActiveItem[data-active] {
+    background-color: transparent;
+}

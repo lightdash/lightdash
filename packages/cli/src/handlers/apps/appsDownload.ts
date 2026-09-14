@@ -1,4 +1,5 @@
 import {
+    DATA_APP_VIZ_TEMPLATE,
     getErrorMessage,
     LightdashError,
     ParameterError,
@@ -70,15 +71,62 @@ export const matchedUploadRefs = (
     );
 
 /**
+ * Resolves a --app-space slug ref against the target project's spaces.
+ * UUID refs skip this (no listing needed); slug misses and ambiguity fail
+ * loudly — a space choice is explicit, so never guess.
+ */
+export const resolveAppSpaceUuid = (
+    ref: string,
+    spaces: { uuid: string; slug: string }[],
+): string => {
+    const matches = spaces.filter((space) => space.slug === ref);
+    if (matches.length === 1) return matches[0].uuid;
+    if (matches.length === 0) {
+        throw new ParameterError(
+            `--app-space: no space with slug "${ref}" in the target project. Create it first or pass the space UUID.`,
+        );
+    }
+    throw new ParameterError(
+        `--app-space: multiple spaces match slug "${ref}" — pass the space UUID instead.`,
+    );
+};
+
+/**
+ * Slug-identity bundles carry no uuid, so a uuid/URL upload ref can't match
+ * a local folder directly. Translate refs the target project's app listing
+ * knows into their slugs; unknown refs keep their original form (and fall
+ * through to the unmatched warning).
+ */
+export const resolveUploadFilterUuids = (
+    filter: Set<string>,
+    listedApps: { appUuid: string; slug?: string }[],
+): Set<string> => {
+    const slugByUuid = new Map(
+        listedApps
+            .filter(
+                (app): app is { appUuid: string; slug: string } =>
+                    app.slug !== undefined,
+            )
+            .map((app) => [app.appUuid, app.slug]),
+    );
+    return new Set(
+        [...filter].map((ref) =>
+            isUuid(ref) ? (slugByUuid.get(ref) ?? ref) : ref,
+        ),
+    );
+};
+
+/**
  * Warning for --apps references that matched no local app folder. Uuid-shaped
  * refs (including refs parsed out of app URLs) get the slug-identity
  * explanation: id-free bundles can only be selected by slug.
  */
 export const unmatchedUploadRefsWarning = (
     unmatched: string[],
+    noun: string = 'app',
 ): string | null => {
     if (unmatched.length === 0) return null;
-    const base = `No local app folder matched: ${unmatched.join(', ')}.`;
+    const base = `No local ${noun} folder matched: ${unmatched.join(', ')}.`;
     return unmatched.some((ref) => isUuid(ref))
         ? `${base} Bundles downloaded with slug identity carry no uuid — select them by slug (the folder name) instead of a UUID or app URL.`
         : base;
@@ -94,28 +142,37 @@ export const preSlugServerHint = (folder: string): string =>
     `This server predates slug-based app identity, so "${folder}" was matched by uuid only. If you expected to update an existing app, verify no duplicate was created, and upgrade the server (or use a matching CLI version).`;
 
 /**
- * Resolves the --apps-limit flag. Commander passes the raw string (or
- * undefined when the flag was not given, so an explicit flag is
- * distinguishable from the default). Throws ParameterError on anything
- * that is not a positive integer.
+ * Resolves a listing-cap flag (--apps-limit / --chart-types-limit).
+ * Commander passes the raw string (or undefined when the flag was not
+ * given, so an explicit flag is distinguishable from the default). Throws
+ * ParameterError on anything that is not a positive integer.
  */
 export const resolveAppsLimit = (
     rawLimit: string | undefined,
     includeApps: boolean,
+    flagNames: {
+        limitFlag: string;
+        includeFlag: string;
+        refsFlag: string;
+    } = {
+        limitFlag: '--apps-limit',
+        includeFlag: '--include-apps',
+        refsFlag: '--apps',
+    },
 ): { limit: number; noEffectWarning: string | null } => {
     if (rawLimit === undefined) {
         return { limit: DEFAULT_APPS_LIMIT, noEffectWarning: null };
     }
     if (!/^\d+$/.test(rawLimit) || parseInt(rawLimit, 10) < 1) {
         throw new ParameterError(
-            `--apps-limit must be a positive integer, got "${rawLimit}".`,
+            `${flagNames.limitFlag} must be a positive integer, got "${rawLimit}".`,
         );
     }
     return {
         limit: parseInt(rawLimit, 10),
         noEffectWarning: includeApps
             ? null
-            : '--apps-limit only applies to --include-apps; explicit --apps references are never capped.',
+            : `${flagNames.limitFlag} only applies to ${flagNames.includeFlag}; explicit ${flagNames.refsFlag} references are never capped.`,
     };
 };
 
@@ -182,12 +239,14 @@ export const computeLinkedAppSlugs = (args: {
  * Pre-context servers return a download payload without `context`.
  */
 export const ensureDownloadedAppContext = (
-    appUuid: string,
+    appRef: string,
     code: DataAppCodeDownload,
 ): DataAppCodeDownload => {
     if (code.context === undefined) {
         throw new Error(
-            `This Lightdash server does not support app context downloads (app ${appUuid}). Upgrade the server, or use a CLI version matching your server.`,
+            `This Lightdash server does not support app context downloads (app ${
+                code.manifest.slug ?? appRef
+            }). Upgrade the server, or use a CLI version matching your server.`,
         );
     }
     return code;
@@ -206,33 +265,6 @@ export const preSlugUploadHint = (args: {
             ? ` (or add \`slug: ${args.slug}\` to lightdash-app.yml)`
             : ''
     }. Uploads keep working via uuid matching meanwhile.`;
-
-export type AppPresence =
-    // Slugs the target project already has. Authoritative.
-    | { kind: 'known'; slugs: Set<string> }
-    // Listing unavailable or slug-less (older server): fall back to comparing
-    // the manifest's source project against the upload target.
-    | { kind: 'unknown'; targetProjectUuid: string };
-
-/**
- * Auto-pushed apps normally upload only when the folder changed, because every
- * upload triggers a sandbox rebuild. The exception is an app the target project
- * does not have yet — without it a dashboard moved to a new project or instance
- * lands with its tile skipped.
- */
-export const shouldAutoPushApp = (args: {
-    manifest: Pick<DataAppManifest, 'slug' | 'projectUuid'>;
-    presence: AppPresence;
-    folderChanged: boolean;
-    force: boolean;
-}): boolean => {
-    if (args.force || args.folderChanged) return true;
-    if (args.manifest.slug === undefined) return true;
-    if (args.presence.kind === 'known') {
-        return !args.presence.slugs.has(args.manifest.slug);
-    }
-    return args.manifest.projectUuid !== args.presence.targetProjectUuid;
-};
 
 export type AppDownloadFailure = { appRef: string; message: string };
 
@@ -271,9 +303,7 @@ export const classifyAppDownloadError = (
 };
 
 /**
- * Sums changes entries that represent actual upserts — excluding both
- * 'skipped' and 'failed' keys so that failures don't suppress the
- * "all content was skipped" warning.
+ * Sums changes entries that represent actual upserts, excluding skips and failures.
  */
 export const computeUpsertedTotal = (changes: Record<string, number>): number =>
     Object.entries(changes)
@@ -281,12 +311,22 @@ export const computeUpsertedTotal = (changes: Record<string, number>): number =>
         .reduce((sum, [, value]) => sum + value, 0);
 
 /**
- * Returns true when there is at least one skipped item and zero upserted
- * items — the condition that should display the "all skipped" warning.
+ * Show the --force hint only for unchanged content, not bundle skips or failures.
  */
 export const shouldWarnAllSkipped = (
     changes: Record<string, number>,
 ): boolean => {
+    if (
+        Object.entries(changes).some(
+            ([key, value]) =>
+                value > 0 &&
+                (key.includes('failed') ||
+                    key === 'data apps skipped' ||
+                    key === 'chart types skipped'),
+        )
+    ) {
+        return false;
+    }
     const totalSkipped = Object.entries(changes)
         .filter(([key]) => key.includes('skipped'))
         .reduce((sum, [, value]) => sum + value, 0);
@@ -299,13 +339,14 @@ export const appsDownloadSummary = (
     failures: AppDownloadFailure[],
     appsDir: string,
     skippedNotBuiltCount: number,
+    noun: string = 'data app',
 ): { ok: boolean; message: string; failureLines: string[] } => {
     const attempted = total - skippedNotBuiltCount;
     const skippedSuffix =
         skippedNotBuiltCount > 0
             ? ` (${skippedNotBuiltCount} skipped: no built version)`
             : '';
-    const base = `Downloaded ${successCount} of ${attempted} data app(s) to ${appsDir}${skippedSuffix}`;
+    const base = `Downloaded ${successCount} of ${attempted} ${noun}(s) to ${appsDir}${skippedSuffix}`;
     if (failures.length === 0) {
         return { ok: true, message: base, failureLines: [] };
     }
@@ -321,6 +362,7 @@ export const appsDownloadSummary = (
 export type AppsDownloadOutcome = {
     successCount: number;
     skippedNotBuiltCount: number;
+    skippedWrongKindCount: number;
     failures: AppDownloadFailure[];
 };
 
@@ -340,6 +382,10 @@ export const downloadAppsToDir = async (args: {
         projectId: string,
         appRef: string,
     ) => Promise<DataAppCodeDownload>;
+    // Post-fetch kind guard: return a reason to skip writing this bundle
+    // (e.g. a custom chart type fetched through a data-app flag), or null
+    // to accept it. Skips are reported, not failed.
+    skipBundle?: (manifest: DataAppManifest) => string | null;
     onProgress?: (processed: number, total: number) => void;
 }): Promise<AppsDownloadOutcome> => {
     const {
@@ -349,11 +395,13 @@ export const downloadAppsToDir = async (args: {
         takenFolders,
         cliVersion,
         fetchApp,
+        skipBundle,
         onProgress,
     } = args;
 
     let successCount = 0;
     let skippedNotBuiltCount = 0;
+    let skippedWrongKindCount = 0;
     const failures: AppDownloadFailure[] = [];
 
     for (const appRef of appRefs) {
@@ -363,6 +411,23 @@ export const downloadAppsToDir = async (args: {
                 // eslint-disable-next-line no-await-in-loop
                 await fetchApp(projectId, appRef),
             );
+
+            const skipReason = skipBundle?.(code.manifest) ?? null;
+            if (skipReason !== null) {
+                skippedWrongKindCount += 1;
+                GlobalState.log(
+                    styles.warning(`Skipped ${appRef}: ${skipReason}`),
+                );
+                onProgress?.(
+                    successCount +
+                        skippedNotBuiltCount +
+                        skippedWrongKindCount +
+                        failures.length,
+                    appRefs.length,
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+            }
 
             const folder = resolveAppFolderName(code.manifest, takenFolders);
             takenFolders.add(folder);
@@ -380,6 +445,12 @@ export const downloadAppsToDir = async (args: {
                 buildStaticAuthoringFiles({
                     appName: code.manifest.name,
                     sdkVersion: cliVersion,
+                    // Downloaded chart types get the viz authoring docs, not
+                    // the app SDK skills a viz must not use.
+                    flavor:
+                        code.manifest.template === DATA_APP_VIZ_TEMPLATE
+                            ? 'chart-type'
+                            : 'app',
                 }),
             );
             // Server-provided deps override the scaffold's
@@ -408,10 +479,18 @@ export const downloadAppsToDir = async (args: {
             }
         }
         onProgress?.(
-            successCount + skippedNotBuiltCount + failures.length,
+            successCount +
+                skippedNotBuiltCount +
+                skippedWrongKindCount +
+                failures.length,
             appRefs.length,
         );
     }
 
-    return { successCount, skippedNotBuiltCount, failures };
+    return {
+        successCount,
+        skippedNotBuiltCount,
+        skippedWrongKindCount,
+        failures,
+    };
 };

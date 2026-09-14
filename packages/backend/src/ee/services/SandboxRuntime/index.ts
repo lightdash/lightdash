@@ -6,6 +6,10 @@ import {
     AzureSandboxGroupControlPlane,
     type AzureSandboxesConfig,
 } from './AzureContainerAppsSandboxProvider';
+import {
+    CloudRunSandboxProvider,
+    type CloudRunSandboxesConfig,
+} from './CloudRunSandboxProvider';
 import { DockerSandboxProvider } from './DockerSandboxProvider';
 import { E2bSandboxProvider } from './E2bSandboxProvider';
 import {
@@ -18,6 +22,7 @@ import { type SnapshotStore } from './SnapshotStore';
 import { type SandboxLogger, type SandboxProvider } from './types';
 
 export * from './AzureContainerAppsSandboxProvider';
+export * from './CloudRunSandboxProvider';
 export * from './errors';
 export * from './SandboxManager';
 export * from './SnapshotStore';
@@ -27,7 +32,8 @@ export type SandboxProviderKind =
     | 'e2b'
     | 'docker'
     | 'lambda-microvm'
-    | 'azure-sandboxes';
+    | 'azure-sandboxes'
+    | 'gcp-cloud-run';
 
 /** Static, non-per-sandbox config the Lambda MicroVMs provider needs. */
 export interface LambdaMicroVmProviderConfig extends LambdaMicroVmConfig {
@@ -47,10 +53,16 @@ export interface CreateSandboxProviderOptions {
      */
     azureSandboxes: AzureSandboxesConfig | null;
     /**
-     * Backing store for object-store snapshots. Required only by the Docker
-     * provider (no native memory snapshot); native-pause providers (E2B, Lambda,
-     * Azure Sandboxes) keep the snapshot in the provider and pass `null` so no S3
-     * client is constructed on those paths.
+     * Required when `provider === 'gcp-cloud-run'`; ignored otherwise. The
+     * gateway URL + secret of the Cloud Run service deployed with
+     * `--sandbox-launcher` (toolchain image baked into that deployment).
+     */
+    gcpCloudRun: CloudRunSandboxesConfig | null;
+    /**
+     * Backing store for object-store snapshots. Required by the providers with
+     * no native memory snapshot (Docker, GCP Cloud Run); native-pause providers
+     * (E2B, Lambda, Azure Sandboxes) keep the snapshot in the provider and pass
+     * `null` so no S3 client is constructed on those paths.
      */
     snapshotStore: SnapshotStore | null;
     logger: SandboxLogger;
@@ -103,6 +115,24 @@ export const createSandboxProvider = (
                 options.logger,
             );
         }
+        case 'gcp-cloud-run': {
+            const config = options.gcpCloudRun;
+            if (!config) {
+                throw new MissingConfigError(
+                    'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
+                );
+            }
+            if (!options.snapshotStore) {
+                throw new MissingConfigError(
+                    'GCP Cloud Run sandbox provider requires an object store for snapshots',
+                );
+            }
+            return new CloudRunSandboxProvider(
+                config,
+                options.logger,
+                options.snapshotStore,
+            );
+        }
         case 'azure-sandboxes': {
             const config = options.azureSandboxes;
             if (!config || !config.sandboxGroup) {
@@ -137,7 +167,9 @@ export interface CreateSandboxManagerOptions {
     lambdaMicroVm: LambdaMicroVmProviderConfig | null;
     /** Required when `provider === 'azure-sandboxes'`. */
     azureSandboxes: AzureSandboxesConfig | null;
-    /** Forwarded to the provider; the Docker backend only (null otherwise). */
+    /** Required when `provider === 'gcp-cloud-run'`. */
+    gcpCloudRun: CloudRunSandboxesConfig | null;
+    /** Forwarded to the provider; object-store backends only (null otherwise). */
     snapshotStore: SnapshotStore | null;
     registryModel: SandboxRegistryStore;
     logger: SandboxLogger;
@@ -156,6 +188,7 @@ export const createSandboxManager = (
         dockerImage: options.dockerImage,
         lambdaMicroVm: options.lambdaMicroVm,
         azureSandboxes: options.azureSandboxes,
+        gcpCloudRun: options.gcpCloudRun,
         snapshotStore: options.snapshotStore,
         logger: options.logger,
     });

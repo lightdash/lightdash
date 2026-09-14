@@ -4,7 +4,7 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Button, Group, LoadingOverlay, Text } from '@mantine-8/core';
+import { Button, Group, LoadingOverlay, Text } from '@mantine/core';
 import { IconFolderShare, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, type ReactNode } from 'react';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
@@ -147,7 +147,9 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
 
     return (
         <MantineModal
-            title={title ?? `Move ${getItemsText(items).type}`}
+            title={
+                title ?? `Move ${getItemsText(items).type.replace(/_/g, ' ')}`
+            }
             opened={opened}
             onClose={onClose}
             icon={IconFolderShare}
@@ -182,6 +184,9 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                             !selectedSpaceUuid && !allSelectedItemsAreSpaces
                         }
                         onClick={handleConfirm}
+                        // Anchor for scope walkthroughs (data-tour-via)
+                        data-tour-anchor="transfer-confirm"
+                        data-tour-hint="Confirm the move"
                     >
                         {confirmLabel}
                     </Button>

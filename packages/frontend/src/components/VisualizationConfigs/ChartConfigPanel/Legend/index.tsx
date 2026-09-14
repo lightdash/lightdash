@@ -17,16 +17,15 @@ import {
     Stack,
     SegmentedControl,
     Switch,
-} from '@mantine-8/core';
-import { useDebouncedCallback } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedCallback } from '@mantine/hooks';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
-import compactStyles from '../../mantineTheme.module.css';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
 import classes from './Legend.module.css';
 import { ReferenceLines } from './ReferenceLines';
@@ -117,7 +116,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
                     checked={!isAutoPosition}
                     onChange={toggleAuto}
                     classNames={{
-                        label: `${compactStyles.compactCheckboxLabel} ${classes.leftPositionedSwitchLabel}`,
+                        label: classes.leftPositionedSwitchLabel,
                     }}
                 />
 
@@ -141,7 +140,7 @@ type Props = {
 };
 
 export const Legend: FC<Props> = ({ items }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const { visualizationConfig } = useVisualizationContext();
 
@@ -211,9 +210,6 @@ export const Legend: FC<Props> = ({ items }) => {
                         <Config.Heading>Legend</Config.Heading>
                         <Switch
                             size="xs"
-                            classNames={{
-                                label: compactStyles.compactCheckboxLabel,
-                            }}
                             checked={legendConfig.show ?? showDefault}
                             onChange={(e) =>
                                 handleChange('show', e.currentTarget.checked)
@@ -221,7 +217,7 @@ export const Legend: FC<Props> = ({ items }) => {
                         />
                     </Group>
 
-                    <Collapse in={legendConfig.show ?? showDefault}>
+                    <Collapse expanded={legendConfig.show ?? showDefault}>
                         <Stack gap="xs">
                             <Group gap="xs">
                                 <Config.Label>Placement</Config.Label>

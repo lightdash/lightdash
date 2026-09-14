@@ -12,10 +12,11 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
-import { useForm, zodResolver } from '@mantine/form';
-import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
+import { IconGitPullRequest, IconInfoCircle } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
 import Callout from '../../../components/common/Callout';
@@ -32,9 +33,11 @@ import { useProject } from '../../../hooks/useProject';
 import { useGithubDbtWriteBack } from '../hooks/useGithubDbtWriteBack';
 import { useGithubDbtWritePreview } from '../hooks/useGithubDbtWritePreview';
 import { useAppSelector } from '../store/hooks';
+import { isBitbucketCloudConnection } from '../utils/isBitbucketCloudConnection';
+import classes from './WriteBackToDbtModal.module.css';
 
 const validationSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
 });
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -66,31 +69,61 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
     const { data: health } = useHealth();
     const { data: githubUserCredential } = useGithubUserCredential();
 
-    const canWriteToDbtProject = !!(
-        health?.hasGithub &&
-        [DbtProjectType.GITHUB, DbtProjectType.GITLAB].includes(
-            project?.dbtConnection.type as DbtProjectType,
-        )
-    );
+    const canWriteToDbtProject =
+        isBitbucketCloudConnection(project?.dbtConnection) ||
+        !!(
+            health?.hasGithub &&
+            [DbtProjectType.GITHUB, DbtProjectType.GITLAB].includes(
+                project?.dbtConnection.type as DbtProjectType,
+            )
+        );
 
     const isGithubProject =
         project?.dbtConnection.type === DbtProjectType.GITHUB;
 
     useEffect(() => {
-        if (!opened || !projectUuid || !sql || !columns) return;
+        if (
+            !opened ||
+            !projectUuid ||
+            !sql ||
+            !columns ||
+            !canWriteToDbtProject
+        ) {
+            return;
+        }
+        let isCurrentPreview = true;
 
         const loadPreview = async () => {
-            const data = await getWritePreview({
-                projectUuid,
-                name: debouncedName || 'custom view',
-                sql,
-                columns,
-            });
-            setWritePreviewData(data);
+            try {
+                const data = await getWritePreview({
+                    projectUuid,
+                    name: debouncedName || 'custom view',
+                    sql,
+                    columns,
+                });
+                if (isCurrentPreview) {
+                    setWritePreviewData(data);
+                }
+            } catch {
+                if (isCurrentPreview) {
+                    setWritePreviewData(undefined);
+                }
+            }
         };
 
         void loadPreview();
-    }, [opened, projectUuid, debouncedName, sql, columns, getWritePreview]);
+        return () => {
+            isCurrentPreview = false;
+        };
+    }, [
+        opened,
+        projectUuid,
+        debouncedName,
+        sql,
+        columns,
+        getWritePreview,
+        canWriteToDbtProject,
+    ]);
 
     const handleSubmit = useCallback(
         async (data: { name: string }) => {
@@ -115,7 +148,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
             opened={opened}
             onClose={onClose}
             title="Write back to dbt"
-            icon={IconBrandGithub}
+            icon={IconGitPullRequest}
             cancelDisabled={isLoadingPullRequest}
             actions={
                 <Button
@@ -132,7 +165,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
             headerActions={
                 <Tooltip
                     label="Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request."
-                    multiline
                     maw={300}
                 >
                     <MantineIcon
@@ -159,19 +191,19 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                             Files to be created in{' '}
                             <Badge
                                 radius="md"
-                                variant="light"
                                 color="ldGray.9"
                                 fz="xs"
                                 leftSection={
-                                    <MantineIcon icon={IconBrandGithub} />
+                                    <MantineIcon icon={IconGitPullRequest} />
                                 }
                                 onClick={() => {
                                     window.open(
                                         writePreviewData?.url,
                                         '_blank',
+                                        'noopener,noreferrer',
                                     );
                                 }}
-                                style={{ cursor: 'pointer' }}
+                                className={classes.previewLink}
                                 title={`Open "${writePreviewData?.url}" in new tab`}
                             >
                                 {writePreviewData?.repo}
@@ -184,7 +216,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                     key={file}
                                     position="top-start"
                                     label={file}
-                                    multiline
                                     maw={300}
                                 >
                                     <List.Item fz="xs" ff="monospace">

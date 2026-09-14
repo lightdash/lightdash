@@ -5,12 +5,14 @@ import {
     ForbiddenError,
     loadProjectContextFile,
     NotFoundError,
+    ParameterError,
     ParseError,
     persistedAiAgentJudgeProjectContextEntrySchema,
     type AiAgentJudgeProjectContextEntry,
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
+import { createHash } from 'crypto';
 import {
     createBranch,
     createPullRequest,
@@ -62,6 +64,8 @@ type GithubAccess = {
     installationId: string;
     token: string;
 };
+
+type SourceCodeAction = 'view' | 'manage';
 
 type ProjectContextServiceDeps = {
     projectModel: ProjectModel;
@@ -115,12 +119,22 @@ export class ProjectContextService extends BaseService {
         };
     }
 
-    // Resolves the project's GitHub repo + an installation token, or null when
-    // the project isn't GitHub-backed / the org hasn't installed the app.
     private async resolveGithubAccess(
+        user: SessionUser,
         projectUuid: string,
+        action: SourceCodeAction,
     ): Promise<GithubAccess | null> {
         const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        const sourceCodeSubject = subject('SourceCode', {
+            organizationUuid: project.organizationUuid,
+            projectUuid,
+            ...(action === 'manage' ? { isProtectedBranch: false } : {}),
+        });
+        if (auditedAbility.cannot(action, sourceCodeSubject)) {
+            throw new ForbiddenError();
+        }
+
         const connection = ProjectContextService.resolveGithubConnection(
             project.dbtConnection,
         );
@@ -173,7 +187,11 @@ export class ProjectContextService extends BaseService {
     ): Promise<ProjectContextIngestResult> {
         await this.assertCanIngestProjectContext(user, projectUuid);
 
-        const access = await this.resolveGithubAccess(projectUuid);
+        const access = await this.resolveGithubAccess(
+            user,
+            projectUuid,
+            'view',
+        );
         if (!access) {
             return { ingested: false, reason: 'no_github_access' };
         }
@@ -222,6 +240,7 @@ export class ProjectContextService extends BaseService {
      * caller can show a before/after diff before committing to the PR.
      */
     async previewWriteback(args: {
+        user: SessionUser;
         projectUuid: string;
         entry: AiAgentJudgeProjectContextEntry;
     }): Promise<{
@@ -233,7 +252,11 @@ export class ProjectContextService extends BaseService {
         upgradesFileToV2: boolean;
     }> {
         const entry = parseWritebackEntry(args.entry);
-        const access = await this.resolveGithubAccess(args.projectUuid);
+        const access = await this.resolveGithubAccess(
+            args.user,
+            args.projectUuid,
+            'view',
+        );
         if (!access) {
             throw new NotFoundError(
                 'Project is not connected to GitHub or the GitHub App is not installed',
@@ -268,7 +291,9 @@ export class ProjectContextService extends BaseService {
     }
 
     async writebackEntry(args: {
+        user: SessionUser;
         projectUuid: string;
+        dbtSourceUuid?: string;
         entry: AiAgentJudgeProjectContextEntry;
         branchTimestamp: number;
         // The agent thread that motivated this entry, linked from the PR body
@@ -280,7 +305,21 @@ export class ProjectContextService extends BaseService {
         } | null;
     }): Promise<ProjectContextWritebackResult> {
         const entry = parseWritebackEntry(args.entry);
-        const access = await this.resolveGithubAccess(args.projectUuid);
+        if (args.dbtSourceUuid) {
+            const identity = await this.projectModel.getDbtSourceIdentity(
+                args.projectUuid,
+            );
+            if (args.dbtSourceUuid !== identity.dbtSourceUuid) {
+                throw new ParameterError(
+                    'Project context writeback currently supports only the primary dbt source',
+                );
+            }
+        }
+        const access = await this.resolveGithubAccess(
+            args.user,
+            args.projectUuid,
+            'manage',
+        );
         if (!access) {
             throw new NotFoundError(
                 'Project is not connected to GitHub or the GitHub App is not installed',
@@ -319,7 +358,14 @@ export class ProjectContextService extends BaseService {
             installationId,
             token,
         });
-        const headBranch = `lightdash-project-context/${entryId}-${args.branchTimestamp}`;
+        // Entry IDs may be derived from an entire context paragraph. Keep the
+        // GitHub ref below its 255-byte limit without changing the persisted ID
+        // or making entries with a shared long prefix target the same branch.
+        const branchEntryId =
+            Buffer.byteLength(entryId, 'utf8') > 160
+                ? createHash('sha256').update(entryId).digest('hex')
+                : entryId;
+        const headBranch = `lightdash-project-context/${branchEntryId}-${args.branchTimestamp}`;
         await createBranch({
             owner,
             repo,

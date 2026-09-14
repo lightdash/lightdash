@@ -2,8 +2,8 @@ import {
     getAppDisplayName,
     type ResourceViewDataAppItem,
 } from '@lightdash/common';
-import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine-8/core';
-import { useDisclosure, useHover } from '@mantine-8/hooks';
+import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine/core';
+import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import AppThumbnailHoverCard from '../../../../features/apps/components/AppThumbnailHoverCard';
@@ -50,10 +50,7 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
             projectUuid={projectUuid}
             appUuid={item.data.uuid}
             appName={displayName}
-            hasReadyVersion={
-                item.data.latestVersionStatus === 'ready' &&
-                !!item.data.latestVersionNumber
-            }
+            hasReadyVersion={item.data.latestReadyVersionNumber !== null}
             position="top"
             fullWidthTarget
             infoContent={
@@ -72,7 +69,6 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                     ref={ref}
                     pos="relative"
                     p={0}
-                    withBorder
                     className={classes.gridCard}
                     h="100%"
                 >
@@ -90,7 +86,6 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                             label={item.data.description}
                             position="top"
                             maw={400}
-                            multiline
                             disabled={
                                 hasThumbnailPreview || !item.data.description
                             }
@@ -122,7 +117,7 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                                     size={14}
                                 />
 
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     {item.data.views} views
                                 </Text>
                             </Flex>

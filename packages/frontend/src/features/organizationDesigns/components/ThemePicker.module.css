@@ -6,7 +6,7 @@
 /* Menu.Item's label is a flex row by default; theme options stack a name
    over a description, so the label needs to be a block. */
 .option :global(.mantine-Menu-itemLabel),
-.option :global(.mantine-8-Menu-itemLabel) {
+.option :global(.mantine-Menu-itemLabel) {
     display: block;
     min-width: 0;
 }

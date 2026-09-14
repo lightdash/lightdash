@@ -1,27 +1,32 @@
 import { subject } from '@casl/ability';
 import {
+    AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
     CommercialFeatureFlags,
-    FeatureFlags,
+    ConflictError,
     ForbiddenError,
     getAiProjectContextObjectKey,
     getErrorMessage,
     NotFoundError,
     ParameterError,
     ProjectType,
+    shouldReopenReviewItem,
     type AiAgentMemory,
     type AiAgentMemoryConsolidatePartitionJobPayload,
     type AiAgentMemoryConsolidationInputEntry,
     type AiAgentMemoryConsolidationOperation,
     type AiAgentMemoryConsolidationRejection,
+    type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryDistillJobPayload,
     type AiAgentMemoryEditableStatus,
     type AiAgentMemorySource,
+    type AiAgentReviewItemSummary,
     type AiAgentUserMemoriesSummary,
     type AiProjectContextTypedObjectRef,
     type Explore,
     type ExploreError,
     type KnexPaginateArgs,
     type KnexPaginatedData,
+    type ProjectContextEntry,
     type SessionUser,
     type UUID,
 } from '@lightdash/common';
@@ -35,11 +40,15 @@ import {
     type AiAgentMemoryConsolidationSkippedEvent,
     type AiAgentMemoryGeneratedEvent,
     type AiAgentMemoryGenerationFailedEvent,
+    type AiAgentMemoryPromotionAuthoringFailedEvent,
+    type AiAgentMemoryPromotionNominatedEvent,
     type AiAgentMemoryViewedEvent,
     type LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
+import { type LightdashConfig } from '../../../config/parseConfig';
 import { type GroupsModel } from '../../../models/GroupsModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { type UserModel } from '../../../models/UserModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import {
     type AiAgentMemoryConsolidateOutcome,
@@ -47,21 +56,34 @@ import {
 } from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
-import { type DbAiAgentMemory } from '../../database/entities/aiAgentMemory';
+import {
+    type DbAiAgentMemory,
+    type DbAiAgentMemoryConsolidationRun,
+} from '../../database/entities/aiAgentMemory';
 import {
     AI_AGENT_MEMORY_THREAD_SOURCES,
     AiAgentMemoryModel,
     type AiAgentMemoryThread,
 } from '../../models/AiAgentMemoryModel';
 import { type AiAgentModel } from '../../models/AiAgentModel';
+import { type AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
+import { type ProjectContextModel } from '../../models/ProjectContextModel';
 import { defaultAgentOptions } from '../ai/agents/agentV2';
 import { getModel } from '../ai/models';
-import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
+import {
+    authorMemoryProjectContextEntry,
+    type MemoryProjectContextAuthoringResult,
+} from '../ai/projectContext/authorMemoryProjectContextEntry';
+import {
+    resolveReviewJudgeModel,
+    type ReviewJudgeConfigResolver,
+} from '../ai/reviewJudgeModel';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
 import { canAccessAiAgentThread } from '../AiAgentService/aiAgentAccess';
+import { type AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import {
     AI_AGENT_MEMORY_CONSOLIDATION_CALL_TIMEOUT_MS,
     AI_AGENT_MEMORY_CONSOLIDATION_INPUT_LIMIT,
@@ -81,7 +103,14 @@ import {
 } from './consolidationSchema';
 import { distillOutputSchema, type DistillOutput } from './distillSchema';
 import { reportAiAgentMemoryFailure } from './failureReporting';
-import { validateMemoryObjects } from './memoryObjects';
+import {
+    shouldRetireForUnresolvedObjects,
+    validateMemoryObjects,
+} from './memoryObjects';
+import {
+    buildMemoryPromotionEntry,
+    getMemoryPromotionFingerprint,
+} from './memoryPromotion';
 import { sanitizeThread } from './transcriptSanitizer';
 import { serializeTranscript } from './transcriptSerializer';
 
@@ -98,10 +127,16 @@ const distillPromptHashPromise = distillPromptPromise.then((prompt) =>
     createHash('sha256').update(prompt).digest('hex'),
 );
 
+export const buildConsolidationPrompt = (template: string): string =>
+    template.replaceAll(
+        '{{PROMOTION_MIN_CITED_COUNT}}',
+        String(AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT),
+    );
+
 const consolidatePromptPromise = readFile(
     resolve(__dirname, 'consolidate-system.md'),
     'utf8',
-);
+).then(buildConsolidationPrompt);
 const consolidatePromptHashPromise = consolidatePromptPromise.then((prompt) =>
     createHash('sha256').update(prompt).digest('hex'),
 );
@@ -118,7 +153,30 @@ export type AiAgentMemoryConsolidateCall = (args: {
     abortSignal?: AbortSignal;
 }) => Promise<ConsolidationOutput>;
 
+export type AiAgentMemoryPromotionAuthoringCall = (args: {
+    memory: DbAiAgentMemory;
+    nominationReason: string | null;
+    currentEntries: ProjectContextEntry[];
+}) => Promise<MemoryProjectContextAuthoringResult>;
+
 export { type AiAgentMemoryConsolidateOutcome };
+
+/** Configuration shared by scheduled and manual consolidation runs. */
+type ConsolidationRunContext = {
+    trigger: AiAgentMemoryConsolidationTrigger;
+    triggeredByUserUuid: UUID | null;
+    dryRun: boolean;
+};
+
+type ConsolidationPartitionResult = {
+    outcome: AiAgentMemoryConsolidateOutcome;
+    /** Null for a partition that was skipped or aborted before it wrote a run. */
+    run: DbAiAgentMemoryConsolidationRun | null;
+};
+
+export type AiAgentMemoryManualConsolidationResult =
+    | { outcome: 'disabled'; run: null }
+    | ConsolidationPartitionResult;
 
 type MemorySchedulerClient = {
     aiAgentMemoryDistill: (
@@ -132,6 +190,8 @@ type MemorySchedulerClient = {
 type MemoryServiceAnalyticsEvent =
     | AiAgentMemoryGeneratedEvent
     | AiAgentMemoryGenerationFailedEvent
+    | AiAgentMemoryPromotionNominatedEvent
+    | AiAgentMemoryPromotionAuthoringFailedEvent
     | AiAgentMemoryViewedEvent
     | AiAgentMemoryConsolidatedEvent
     | AiAgentMemoryConsolidationFailedEvent
@@ -143,20 +203,68 @@ type ConsolidationFailureStage =
 type ConsolidationSkipReason =
     AiAgentMemoryConsolidationSkippedEvent['properties']['reason'];
 
+type MemoryReviewItemUpsert = Parameters<
+    AiAgentReviewClassifierModel['upsertMemoryReviewItem']
+>[0];
+
+type ConsolidationPromotionPreparation =
+    | { status: 'prepared'; reviewItem: MemoryReviewItemUpsert }
+    | {
+          status: 'rejected';
+          rejection: AiAgentMemoryConsolidationRejection;
+      };
+
+const isSuccessfulTurn = (
+    turn: AiAgentMemoryThread['turns'][number],
+): boolean =>
+    !turn.interrupted &&
+    turn.respondedAt !== null &&
+    turn.errorMessage === null &&
+    turn.assistantText !== null;
+
+const getLatestCompletedTurnActivity = (
+    thread: AiAgentMemoryThread,
+): Date | undefined =>
+    thread.turns.reduce<Date | undefined>(
+        (latest, turn) =>
+            isSuccessfulTurn(turn) &&
+            (latest === undefined || turn.createdAt > latest)
+                ? turn.createdAt
+                : latest,
+        undefined,
+    );
+
 type Dependencies = {
     analytics: LightdashAnalytics;
     aiAgentMemoryModel: AiAgentMemoryModel;
+    aiAgentReviewClassifierModel: Pick<
+        AiAgentReviewClassifierModel,
+        | 'findMemoryReviewItem'
+        | 'upsertMemoryReviewItem'
+        | 'upsertMemoryReviewItemInTransaction'
+    >;
     aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'findThreadOwnership'>;
     groupsModel: Pick<GroupsModel, 'findUserInGroups'>;
-    projectModel: Pick<ProjectModel, 'findExploresFromCache' | 'getSummary'>;
+    projectModel: Pick<
+        ProjectModel,
+        'findExploresFromCache' | 'getCachedExploreNames' | 'getSummary'
+    >;
+    projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
+    userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
     featureFlagService: FeatureFlagService;
+    aiOrganizationSettingsService: Pick<
+        AiOrganizationSettingsService,
+        'isAiAgentMemoryEnabled' | 'isAiAgentReviewsEnabled'
+    >;
     schedulerClient: MemorySchedulerClient;
+    /** Runs consolidation without applying its proposed operations. */
+    consolidationDryRun: boolean;
     prometheusMetrics?: PrometheusMetrics;
-    // Each LLM call is independently cannable for tests. A call that is not
-    // canned needs the resolver, which is guarded where the call is made.
-    orgAiCopilotConfigResolver?: OrgAiCopilotConfigResolver;
+    orgAiCopilotConfigResolver: ReviewJudgeConfigResolver;
     distillCall?: AiAgentMemoryDistillCall;
     consolidateCall?: AiAgentMemoryConsolidateCall;
+    projectContextEntryAuthoringCall?: AiAgentMemoryPromotionAuthoringCall;
+    lightdashConfig: LightdashConfig;
 };
 
 export class AiAgentMemoryService extends BaseService {
@@ -164,35 +272,54 @@ export class AiAgentMemoryService extends BaseService {
 
     private readonly aiAgentMemoryModel: AiAgentMemoryModel;
 
+    private readonly aiAgentReviewClassifierModel: Dependencies['aiAgentReviewClassifierModel'];
+
     private readonly aiAgentModel: Dependencies['aiAgentModel'];
 
     private readonly groupsModel: Dependencies['groupsModel'];
 
     private readonly projectModel: Dependencies['projectModel'];
 
+    private readonly projectContextModel: Dependencies['projectContextModel'];
+
+    private readonly userModel: Dependencies['userModel'];
+
     private readonly featureFlagService: FeatureFlagService;
+
+    private readonly aiOrganizationSettingsService: Dependencies['aiOrganizationSettingsService'];
 
     private readonly schedulerClient: MemorySchedulerClient;
 
+    private readonly consolidationDryRun: boolean;
+
     private readonly prometheusMetrics: PrometheusMetrics | undefined;
 
-    private readonly orgAiCopilotConfigResolver:
-        | OrgAiCopilotConfigResolver
-        | undefined;
+    private readonly orgAiCopilotConfigResolver: ReviewJudgeConfigResolver;
 
     private readonly distillCall: AiAgentMemoryDistillCall;
 
     private readonly consolidateCall: AiAgentMemoryConsolidateCall;
 
+    private readonly projectContextEntryAuthoringCall: AiAgentMemoryPromotionAuthoringCall;
+
+    private readonly lightdashConfig: LightdashConfig;
+
     constructor(dependencies: Dependencies) {
         super({ serviceName: 'AiAgentMemoryService' });
         this.analytics = dependencies.analytics;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
+        this.aiAgentReviewClassifierModel =
+            dependencies.aiAgentReviewClassifierModel;
         this.aiAgentModel = dependencies.aiAgentModel;
         this.groupsModel = dependencies.groupsModel;
         this.projectModel = dependencies.projectModel;
+        this.projectContextModel = dependencies.projectContextModel;
+        this.userModel = dependencies.userModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.aiOrganizationSettingsService =
+            dependencies.aiOrganizationSettingsService;
         this.schedulerClient = dependencies.schedulerClient;
+        this.consolidationDryRun = dependencies.consolidationDryRun;
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
@@ -200,6 +327,10 @@ export class AiAgentMemoryService extends BaseService {
             dependencies.distillCall ?? this.distillWithLlm.bind(this);
         this.consolidateCall =
             dependencies.consolidateCall ?? this.consolidateWithLlm.bind(this);
+        this.projectContextEntryAuthoringCall =
+            dependencies.projectContextEntryAuthoringCall ??
+            this.authorPromotionWithLlm.bind(this);
+        this.lightdashConfig = dependencies.lightdashConfig;
     }
 
     private track(event: MemoryServiceAnalyticsEvent): void {
@@ -216,6 +347,8 @@ export class AiAgentMemoryService extends BaseService {
     /** The pass is scheduled work, so the organization is the anonymous actor. */
     private trackConsolidationFailed(
         partition: AiAgentMemoryConsolidationPartition,
+        trigger: AiAgentMemoryConsolidationTrigger,
+        dryRun: boolean,
         failureStage: ConsolidationFailureStage,
         error: unknown,
     ): void {
@@ -226,6 +359,8 @@ export class AiAgentMemoryService extends BaseService {
                 organizationId: partition.organizationUuid,
                 projectId: partition.projectUuid,
                 ownerUserId: partition.ownerUserUuid,
+                trigger,
+                dryRun,
                 failureStage,
                 // Never the message: an AI SDK error quotes the model output.
                 errorType: error instanceof Error ? error.name : 'UnknownError',
@@ -233,26 +368,28 @@ export class AiAgentMemoryService extends BaseService {
         });
     }
 
-    /**
-     * One event per run that reached the apply transaction, and the applied and
-     * rejected operation mix on the metrics. Counts and closed enumerations
-     * only: no memory text, title, term, object name, slug or operation reason.
-     * Swallows its own failures — this runs inside the attempt's try, and an
-     * instrumentation error must not turn an applied run into a failed one.
-     */
-    private recordConsolidationApplied(args: {
+    /** Records operation counts without exposing memory content. */
+    private recordConsolidationOutcome(args: {
         partition: AiAgentMemoryConsolidationPartition;
+        trigger: AiAgentMemoryConsolidationTrigger;
         input: AiAgentMemoryConsolidationInputEntry[];
-        applied: AiAgentMemoryConsolidationOperation[];
+        /** Applied on a live run, merely proposed on a dry one. */
+        operations: AiAgentMemoryConsolidationOperation[];
         rejected: AiAgentMemoryConsolidationRejection[];
+        dryRun: boolean;
     }): void {
         try {
-            const appliedCounts = countConsolidationOperations(args.applied);
+            const operationCounts = countConsolidationOperations(
+                args.operations,
+            );
             const rejectedCounts = countConsolidationRejections(args.rejected);
-            this.prometheusMetrics?.trackAiAgentMemoryConsolidateOperations({
-                applied: appliedCounts,
-                rejected: rejectedCounts,
-            });
+            // A dry run wrote nothing, so its proposals must never land on the
+            // metric that counts what curation did.
+            if (!args.dryRun) {
+                this.prometheusMetrics?.trackAiAgentMemoryConsolidateOperations(
+                    { applied: operationCounts, rejected: rejectedCounts },
+                );
+            }
             this.track({
                 event: 'ai_agent_memory.consolidated',
                 anonymousId: args.partition.organizationUuid,
@@ -260,18 +397,20 @@ export class AiAgentMemoryService extends BaseService {
                     organizationId: args.partition.organizationUuid,
                     projectId: args.partition.projectUuid,
                     ownerUserId: args.partition.ownerUserUuid,
+                    trigger: args.trigger,
                     // A quiet run is not a skipped partition: it read the
                     // corpus, paid for the call and found nothing to do.
-                    outcome:
-                        args.applied.length > 0 ? 'applied' : 'no_operations',
+                    outcome: AiAgentMemoryService.getConsolidationOutcome(args),
+                    dryRun: args.dryRun,
                     inputCount: args.input.length,
-                    mergeCount: appliedCounts.merge,
-                    supersedeCount: appliedCounts.supersede,
-                    retireCount: appliedCounts.retire,
+                    mergeCount: operationCounts.merge,
+                    promoteCount: operationCounts.promote,
+                    supersedeCount: operationCounts.supersede,
+                    retireCount: operationCounts.retire,
                     rejectedCount: args.rejected.length,
                     ...countConsolidationScopes({
                         input: args.input,
-                        applied: args.applied,
+                        applied: args.operations,
                     }),
                 },
             });
@@ -283,8 +422,17 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
+    private static getConsolidationOutcome(args: {
+        operations: AiAgentMemoryConsolidationOperation[];
+        dryRun: boolean;
+    }): AiAgentMemoryConsolidatedEvent['properties']['outcome'] {
+        if (args.operations.length === 0) return 'no_operations';
+        return args.dryRun ? 'proposed' : 'applied';
+    }
+
     private trackConsolidationSkipped(
         partition: AiAgentMemoryConsolidationPartition,
+        trigger: AiAgentMemoryConsolidationTrigger,
         reason: ConsolidationSkipReason,
         inputCount: number,
     ): void {
@@ -295,6 +443,7 @@ export class AiAgentMemoryService extends BaseService {
                 organizationId: partition.organizationUuid,
                 projectId: partition.projectUuid,
                 ownerUserId: partition.ownerUserUuid,
+                trigger,
                 reason,
                 inputCount,
             },
@@ -328,17 +477,14 @@ export class AiAgentMemoryService extends BaseService {
 
     private async isEnabled(organizationUuid: UUID): Promise<boolean> {
         const user = { userUuid: 'system', organizationUuid };
-        const [copilot, memory] = await Promise.all([
+        const [copilot, memoryEnabled] = await Promise.all([
             this.featureFlagService.get({
                 user,
                 featureFlagId: CommercialFeatureFlags.AiCopilot,
             }),
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentMemory,
-            }),
+            this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(user),
         ]);
-        return copilot.enabled && memory.enabled;
+        return copilot.enabled && memoryEnabled;
     }
 
     private async filterByEnabledOrganizations<
@@ -394,8 +540,9 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
-    /** Shared gate for every memory read: project access + both feature flags. */
-    private async getMemoryAccessContext(
+    /** Read gate: project access + copilot flag. Stored memories stay readable
+     * after the org disables memory generation. */
+    private async getMemoryReadContext(
         user: SessionUser,
         projectUuid: string,
         notFoundMessage: string,
@@ -411,20 +558,36 @@ export class AiAgentMemoryService extends BaseService {
             throw new ForbiddenError('Cannot view project');
         }
 
-        const [copilot, memoryFlag] = await Promise.all([
-            this.featureFlagService.get({
-                user,
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
-            }),
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentMemory,
-            }),
-        ]);
-        if (!copilot.enabled || !memoryFlag.enabled) {
+        const copilot = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+        if (!copilot.enabled) {
             throw new NotFoundError(notFoundMessage);
         }
 
+        return organizationUuid;
+    }
+
+    /** Gate for generation paths (promotion, distill): read gate + the
+     * memory setting. */
+    private async getMemoryGenerationContext(
+        user: SessionUser,
+        projectUuid: string,
+        notFoundMessage: string,
+    ): Promise<string> {
+        const organizationUuid = await this.getMemoryReadContext(
+            user,
+            projectUuid,
+            notFoundMessage,
+        );
+        if (
+            !(await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
+                user,
+            ))
+        ) {
+            throw new NotFoundError(notFoundMessage);
+        }
         return organizationUuid;
     }
 
@@ -455,7 +618,7 @@ export class AiAgentMemoryService extends BaseService {
         projectUuid: string,
         slug: string,
     ): Promise<AiAgentMemory> {
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryReadContext(
             user,
             projectUuid,
             `Memory not found: ${slug}`,
@@ -475,6 +638,11 @@ export class AiAgentMemoryService extends BaseService {
             result.memory,
             slug,
         );
+        const promotionReviewItem =
+            await this.aiAgentReviewClassifierModel.findMemoryReviewItem({
+                organizationUuid,
+                memoryUuid: result.memory.ai_agent_memory_uuid,
+            });
 
         // Reading the memory grants its lineage: the check above already covers
         // the whole row, so there is nothing left to redact per source.
@@ -509,6 +677,16 @@ export class AiAgentMemoryService extends BaseService {
                     ? { type: 'source_thread', source: sources[0] }
                     : { type: 'consolidated', sources },
             replacementSlug: result.replacement?.slug ?? null,
+            promotionReviewItem: promotionReviewItem
+                ? {
+                      uuid: promotionReviewItem.ai_agent_review_item_uuid,
+                      status: promotionReviewItem.status,
+                      blocksNewNomination: !shouldReopenReviewItem(
+                          promotionReviewItem.status,
+                          promotionReviewItem.dismissed_reason,
+                      ),
+                  }
+                : null,
         };
 
         this.track({
@@ -529,13 +707,192 @@ export class AiAgentMemoryService extends BaseService {
         return response;
     }
 
+    private async authorPromotionWithLlm({
+        memory,
+        nominationReason,
+        currentEntries,
+    }: Parameters<AiAgentMemoryPromotionAuthoringCall>[0]): Promise<MemoryProjectContextAuthoringResult> {
+        const { copilotConfig, model } = await resolveReviewJudgeModel({
+            organizationUuid: memory.organization_uuid,
+            orgAiCopilotConfigResolver: this.orgAiCopilotConfigResolver,
+            instanceCopilotConfig: this.lightdashConfig.ai.copilot,
+        });
+
+        return authorMemoryProjectContextEntry({
+            memory: {
+                title: memory.title,
+                rawMemory: memory.raw_memory,
+            },
+            nominationReason,
+            currentEntries,
+            model,
+            telemetry: getAiCallTelemetry({
+                functionId: 'aiAgentMemoryPromoteProjectContextEntry',
+                feature: 'ai-agent-memory',
+                organizationUuid: memory.organization_uuid,
+                projectUuid: memory.project_uuid,
+                agentUuid: memory.agent_uuid,
+                recordIO: copilotConfig.telemetryEnabled,
+                keyManagement: model.keyManagement,
+                ...getLanguageModelAttribution(model.model),
+            }),
+        });
+    }
+
+    private async prepareMemoryPromotion(
+        user: SessionUser,
+        projectUuid: string,
+        memoryUuid: string,
+        reason?: string,
+    ): Promise<MemoryReviewItemUpsert> {
+        const nominationReason = reason?.trim() || null;
+        const organizationUuid = await this.getMemoryGenerationContext(
+            user,
+            projectUuid,
+            `Memory not found: ${memoryUuid}`,
+        );
+        const memory = await this.requireReadableMemory(
+            user,
+            organizationUuid,
+            projectUuid,
+            await this.aiAgentMemoryModel.findByProjectAndUuid({
+                projectUuid,
+                memoryUuid,
+            }),
+            memoryUuid,
+        );
+        if (memory.status !== 'active') {
+            throw new ParameterError(
+                'Only active memories can be nominated for project context',
+            );
+        }
+        if (
+            !(await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
+                user,
+            ))
+        ) {
+            throw new ParameterError(
+                'Project context review is not enabled for this organization',
+            );
+        }
+
+        const existing =
+            await this.aiAgentReviewClassifierModel.findMemoryReviewItem({
+                organizationUuid,
+                memoryUuid,
+            });
+        if (
+            existing &&
+            !shouldReopenReviewItem(existing.status, existing.dismissed_reason)
+        ) {
+            throw new ConflictError('This memory already has a review item', {
+                fingerprint: existing.fingerprint,
+            });
+        }
+
+        const currentEntries =
+            await this.projectContextModel.getDocument(projectUuid);
+        let authoringResult: MemoryProjectContextAuthoringResult;
+        try {
+            authoringResult = await this.projectContextEntryAuthoringCall({
+                memory,
+                nominationReason,
+                currentEntries,
+            });
+        } catch (error) {
+            const reasons = [getErrorMessage(error)];
+            this.logger.error('AI agent memory promotion authoring failed', {
+                organizationUuid,
+                projectUuid,
+                memoryUuid,
+                reasons,
+            });
+            this.track({
+                event: 'ai_agent_memory.promotion_authoring_failed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    memoryId: memoryUuid,
+                    attempts: 1,
+                    reasons,
+                },
+            });
+            throw new ParameterError(
+                "We couldn't automatically draft a project-context proposal from this memory. Try again.",
+                { attempts: 1 },
+            );
+        }
+        const projectContextEntry = buildMemoryPromotionEntry({
+            proposal: authoringResult.entry,
+            memory,
+            currentEntries,
+        });
+
+        const nominatorName = `${user.firstName} ${user.lastName}`.trim();
+        let nominator = user.userUuid;
+        if (user.email) {
+            nominator = nominatorName
+                ? `${nominatorName} (${user.email})`
+                : user.email;
+        } else if (nominatorName) {
+            nominator = nominatorName;
+        }
+        return {
+            organizationUuid,
+            projectUuid,
+            memoryUuid,
+            fingerprint: getMemoryPromotionFingerprint({
+                organizationUuid,
+                projectUuid,
+                memoryUuid,
+            }),
+            title: memory.title,
+            description: nominationReason
+                ? `${nominationReason}\n\nNominated by ${nominator}`
+                : `Nominated by ${nominator}`,
+            agentUuid: memory.agent_uuid,
+            projectContextEntry,
+            createdByUserUuid: user.userUuid,
+            nominationReason,
+        };
+    }
+
+    async promoteMemory(
+        user: SessionUser,
+        projectUuid: string,
+        memoryUuid: string,
+        reason?: string,
+    ): Promise<AiAgentReviewItemSummary> {
+        const reviewItem = await this.prepareMemoryPromotion(
+            user,
+            projectUuid,
+            memoryUuid,
+            reason,
+        );
+        const persistedReviewItem =
+            await this.aiAgentReviewClassifierModel.upsertMemoryReviewItem(
+                reviewItem,
+            );
+        this.track({
+            event: 'ai_agent_memory.promotion_nominated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: reviewItem.organizationUuid,
+                projectId: projectUuid,
+                memoryId: memoryUuid,
+            },
+        });
+        return persistedReviewItem;
+    }
+
     /** Own active memories in a project; ownership comes from the session. */
     async listMyMemories(
         user: SessionUser,
         projectUuid: string,
         paginateArgs: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<AiAgentUserMemoriesSummary>> {
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryReadContext(
             user,
             projectUuid,
             `Memories not found for project: ${projectUuid}`,
@@ -555,7 +912,7 @@ export class AiAgentMemoryService extends BaseService {
         memoryUuid: string,
         status: AiAgentMemoryEditableStatus,
     ): Promise<void> {
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryReadContext(
             user,
             projectUuid,
             `Memory not found: ${memoryUuid}`,
@@ -571,8 +928,10 @@ export class AiAgentMemoryService extends BaseService {
             memoryUuid,
         );
 
-        if (memory.status === 'superseded') {
-            throw new ParameterError('Superseded memories are read-only');
+        if (memory.status === 'superseded' || memory.status === 'promoted') {
+            const label =
+                memory.status.charAt(0).toUpperCase() + memory.status.slice(1);
+            throw new ParameterError(`${label} memories are read-only`);
         }
 
         if (status === 'active' && memory.source_thread_uuid) {
@@ -600,6 +959,11 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
+    /**
+     * Cron backfill behind the event triggers (turn saved, feedback changed):
+     * catches threads whose event jobs were lost (maxAttempts 1, worker
+     * restarts) and threads from before an org enabled memory.
+     */
     async sweep(now = new Date()): Promise<number> {
         const candidates =
             await this.aiAgentMemoryModel.findThreadsDueForDistill({
@@ -637,7 +1001,7 @@ export class AiAgentMemoryService extends BaseService {
         threadUuid: UUID,
     ): Promise<{ jobId: string }> {
         const notFoundMessage = `Thread not found: ${threadUuid}`;
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryGenerationContext(
             user,
             projectUuid,
             notFoundMessage,
@@ -676,6 +1040,90 @@ export class AiAgentMemoryService extends BaseService {
             sweptUpdatedAt: thread.latestActivity.toISOString(),
             force: true,
         });
+    }
+
+    /**
+     * Deterministic counterpart to the consolidation curator: retires every
+     * active memory whose objects have all left the catalog. Pure catalog
+     * resolution — no LLM call and no partition floor, so a one-memory
+     * partition is swept the same day as a large one. Runs before the
+     * consolidation sweep so the curator selects from the cleaned corpus.
+     */
+    async sweepUnresolvedObjectMemories(): Promise<number> {
+        const candidates =
+            await this.aiAgentMemoryModel.findObjectSweepCandidates();
+        const due = await this.filterByEnabledOrganizations(candidates);
+
+        let retired = 0;
+        for (const candidate of due) {
+            // eslint-disable-next-line no-await-in-loop
+            retired += await this.retireUnresolvedObjectMemoriesForProject(
+                candidate.projectUuid,
+            );
+        }
+        this.prometheusMetrics?.incrementAiAgentMemoryUnresolvedRetired(
+            retired,
+        );
+        return retired;
+    }
+
+    /** A project that cannot be swept is skipped, never the whole pass. */
+    private async retireUnresolvedObjectMemoriesForProject(
+        projectUuid: UUID,
+    ): Promise<number> {
+        try {
+            const memories =
+                await this.aiAgentMemoryModel.findActiveObjectMemoriesByProject(
+                    projectUuid,
+                );
+            if (memories.length === 0) return 0;
+
+            // An empty catalog — which a failed dbt refresh also produces —
+            // would read every object as unresolved; that is not evidence.
+            const catalogNames =
+                await this.projectModel.getCachedExploreNames(projectUuid);
+            if (catalogNames.length === 0) {
+                this.logger.warn(
+                    'Skipping AI agent memory object sweep: catalog is empty',
+                    { projectUuid },
+                );
+                return 0;
+            }
+
+            const explores = await this.projectModel.findExploresFromCache(
+                projectUuid,
+                'name',
+                memories.flatMap((memory) =>
+                    memory.objects.map((object) =>
+                        object.type === 'explore'
+                            ? object.name
+                            : object.explore,
+                    ),
+                ),
+            );
+            const toRetire = memories
+                .filter((memory) =>
+                    shouldRetireForUnresolvedObjects(memory.objects, explores),
+                )
+                .map((memory) => memory.ai_agent_memory_uuid);
+            if (toRetire.length === 0) return 0;
+
+            const retired =
+                await this.aiAgentMemoryModel.retireForUnresolvedObjects(
+                    toRetire,
+                );
+            this.logger.info(
+                'Retired AI agent memories with unresolved objects',
+                { projectUuid, retired },
+            );
+            return retired;
+        } catch (error) {
+            this.logger.warn('Dropping AI agent memory object sweep project', {
+                projectUuid,
+                error: getErrorMessage(error),
+            });
+            return 0;
+        }
     }
 
     /**
@@ -723,7 +1171,9 @@ export class AiAgentMemoryService extends BaseService {
             abortSignal,
         );
         this.prometheusMetrics?.trackAiAgentMemoryConsolidate(
-            outcome,
+            outcome === 'failed' && this.consolidationDryRun
+                ? 'dry_run_failed'
+                : outcome,
             Date.now() - startTime,
         );
         return outcome;
@@ -737,6 +1187,11 @@ export class AiAgentMemoryService extends BaseService {
             organizationUuid: payload.organizationUuid,
             projectUuid: payload.projectUuid,
             ownerUserUuid: payload.ownerUserUuid,
+        };
+        const context: ConsolidationRunContext = {
+            trigger: 'scheduled',
+            triggeredByUserUuid: null,
+            dryRun: this.consolidationDryRun,
         };
         try {
             if (!(await this.isEnabled(partition.organizationUuid))) {
@@ -764,10 +1219,12 @@ export class AiAgentMemoryService extends BaseService {
                 await this.aiAgentMemoryModel.findLatestConsolidationRun({
                     projectUuid: partition.projectUuid,
                     ownerUserUuid: partition.ownerUserUuid,
+                    dryRun: context.dryRun,
                 });
             if (latestRun?.input_hash === inputHash) {
                 this.trackConsolidationSkipped(
                     partition,
+                    context.trigger,
                     'clean',
                     memories.length,
                 );
@@ -782,20 +1239,23 @@ export class AiAgentMemoryService extends BaseService {
             if (explores === null) {
                 this.trackConsolidationSkipped(
                     partition,
+                    context.trigger,
                     'catalog_unavailable',
                     memories.length,
                 );
                 return 'skipped';
             }
 
-            return await this.consolidatePartition({
+            const { outcome } = await this.consolidatePartition({
                 partition,
+                context,
                 memories,
                 inputHash,
                 explores,
                 now: new Date(),
                 abortSignal,
             });
+            return outcome;
         } catch (error) {
             // A read that throws before the attempt records no run row, so the
             // partition is retried on the next sweep.
@@ -814,7 +1274,13 @@ export class AiAgentMemoryService extends BaseService {
                 projectUuid: partition.projectUuid,
                 ownerUserUuid: partition.ownerUserUuid,
             });
-            this.trackConsolidationFailed(partition, 'selection', error);
+            this.trackConsolidationFailed(
+                partition,
+                context.trigger,
+                context.dryRun,
+                'selection',
+                error,
+            );
             return 'failed';
         }
     }
@@ -849,15 +1315,93 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
+    private async prepareConsolidationPromotions(args: {
+        partition: AiAgentMemoryConsolidationPartition;
+        memories: DbAiAgentMemory[];
+        operations: AiAgentMemoryConsolidationOperation[];
+    }): Promise<Map<string, ConsolidationPromotionPreparation>> {
+        const promotions = args.operations.filter(
+            (operation) => operation.type === 'promote',
+        );
+        if (promotions.length === 0) return new Map();
+
+        const ownerPromise = this.userModel.findSessionUserAndOrgByUuid(
+            args.partition.ownerUserUuid,
+            args.partition.organizationUuid,
+        );
+        const memoryBySlug = new Map(
+            args.memories.map((memory) => [memory.slug, memory]),
+        );
+        const reviewItems = await Promise.all(
+            promotions.map(
+                async (
+                    operation,
+                ): Promise<
+                    readonly [string, ConsolidationPromotionPreparation]
+                > => {
+                    try {
+                        const memory = memoryBySlug.get(operation.slug);
+                        if (!memory) {
+                            return [
+                                operation.slug,
+                                {
+                                    status: 'rejected',
+                                    rejection: {
+                                        operation,
+                                        reason: 'unknown_slug',
+                                    },
+                                },
+                            ] as const;
+                        }
+                        const reviewItem = await this.prepareMemoryPromotion(
+                            await ownerPromise,
+                            args.partition.projectUuid,
+                            memory.ai_agent_memory_uuid,
+                            operation.reason,
+                        );
+                        return [
+                            operation.slug,
+                            { status: 'prepared', reviewItem },
+                        ] as const;
+                    } catch (error) {
+                        this.logger.warn(
+                            'Rejecting AI agent memory promotion during consolidation',
+                            {
+                                projectUuid: args.partition.projectUuid,
+                                slug: operation.slug,
+                                error: getErrorMessage(error),
+                            },
+                        );
+                        return [
+                            operation.slug,
+                            {
+                                status: 'rejected',
+                                rejection: {
+                                    operation,
+                                    reason:
+                                        error instanceof ConflictError
+                                            ? 'promotion_conflict'
+                                            : 'promotion_failed',
+                                },
+                            },
+                        ] as const;
+                    }
+                },
+            ),
+        );
+        return new Map(reviewItems);
+    }
+
     private async consolidatePartition(args: {
         partition: AiAgentMemoryConsolidationPartition;
+        context: ConsolidationRunContext;
         memories: DbAiAgentMemory[];
         inputHash: string;
         explores: Record<string, Explore | ExploreError>;
         now: Date;
         abortSignal?: AbortSignal;
-    }): Promise<AiAgentMemoryConsolidateOutcome> {
-        const { partition, memories, inputHash, explores } = args;
+    }): Promise<ConsolidationPartitionResult> {
+        const { partition, context, memories, inputHash, explores } = args;
 
         const input = buildConsolidationInput({
             memories,
@@ -878,16 +1422,19 @@ export class AiAgentMemoryService extends BaseService {
             );
             this.trackConsolidationSkipped(
                 partition,
+                context.trigger,
                 'objects_unresolved',
                 input.length,
             );
-            return 'skipped';
+            return { outcome: 'skipped', run: null };
         }
 
         const run = {
             organizationUuid: partition.organizationUuid,
             projectUuid: partition.projectUuid,
             ownerUserUuid: partition.ownerUserUuid,
+            trigger: context.trigger,
+            triggeredByUserUuid: context.triggeredByUserUuid,
             promptHash: await consolidatePromptHashPromise,
             inputHash,
             inputCount: input.length,
@@ -918,13 +1465,42 @@ export class AiAgentMemoryService extends BaseService {
             });
             rejectedOperations = rejected;
             failureStage = 'persistence';
+            const selection = memories.map((memory) => ({
+                memoryUuid: memory.ai_agent_memory_uuid,
+                slug: memory.slug,
+                generatedAt: memory.generated_at,
+            }));
+
+            // Nothing below this line touches a memory row. The hash is stored
+            // all the same, so one dry sample is taken per changed corpus.
+            if (context.dryRun) {
+                const result =
+                    await this.aiAgentMemoryModel.recordDryRunConsolidation({
+                        run,
+                        selection,
+                        operations: applied,
+                        rejected,
+                    });
+                this.recordConsolidationOutcome({
+                    partition,
+                    trigger: context.trigger,
+                    input,
+                    operations: result.proposed,
+                    rejected: result.rejected,
+                    dryRun: true,
+                });
+                return { outcome: 'dry_run', run: result.run };
+            }
+
+            const promotionReviewItems =
+                await this.prepareConsolidationPromotions({
+                    partition,
+                    memories,
+                    operations: applied,
+                });
             const result = await this.aiAgentMemoryModel.applyConsolidation({
                 run,
-                selection: memories.map((memory) => ({
-                    memoryUuid: memory.ai_agent_memory_uuid,
-                    slug: memory.slug,
-                    generatedAt: memory.generated_at,
-                })),
+                selection,
                 operations: applied,
                 rejected,
                 unresolvedObjectKeys: new Set(
@@ -934,16 +1510,54 @@ export class AiAgentMemoryService extends BaseService {
                             getAiProjectContextObjectKey(object.object),
                         ),
                 ),
+                applyPromotions: async ({ trx, operations }) => {
+                    const promotionRejections: AiAgentMemoryConsolidationRejection[] =
+                        [];
+                    for (const operation of operations) {
+                        const preparation = promotionReviewItems.get(
+                            operation.slug,
+                        );
+                        if (!preparation) {
+                            promotionRejections.push({
+                                operation,
+                                reason: 'promotion_failed',
+                            });
+                        } else if (preparation.status === 'rejected') {
+                            promotionRejections.push(preparation.rejection);
+                        } else {
+                            try {
+                                // eslint-disable-next-line no-await-in-loop
+                                await trx.transaction((promotionTrx) =>
+                                    this.aiAgentReviewClassifierModel.upsertMemoryReviewItemInTransaction(
+                                        preparation.reviewItem,
+                                        promotionTrx,
+                                    ),
+                                );
+                            } catch (error) {
+                                if (!(error instanceof ConflictError)) {
+                                    throw error;
+                                }
+                                promotionRejections.push({
+                                    operation,
+                                    reason: 'promotion_conflict',
+                                });
+                            }
+                        }
+                    }
+                    return promotionRejections;
+                },
             });
             // The apply's own audit, not validation's: it carries the rows the
             // transaction rejected for having moved since selection.
-            this.recordConsolidationApplied({
+            this.recordConsolidationOutcome({
                 partition,
+                trigger: context.trigger,
                 input,
-                applied: result.applied,
+                operations: result.applied,
                 rejected: result.rejected,
+                dryRun: false,
             });
-            return 'consolidated';
+            return { outcome: 'consolidated', run: result.run };
         } catch (error) {
             const errorMessage = getErrorMessage(error);
             // A partition the job was aborted out of never really attempted
@@ -953,15 +1567,17 @@ export class AiAgentMemoryService extends BaseService {
                     projectUuid: partition.projectUuid,
                     error: errorMessage,
                 });
-                return 'aborted';
+                return { outcome: 'aborted', run: null };
             }
-            await this.aiAgentMemoryModel.recordConsolidationRun({
-                ...run,
-                status: 'failed',
-                appliedOperations: [],
-                rejectedOperations,
-                errorMessage,
-            });
+            const failedRow =
+                await this.aiAgentMemoryModel.recordConsolidationRun({
+                    ...run,
+                    status: 'failed',
+                    dryRun: context.dryRun,
+                    appliedOperations: [],
+                    rejectedOperations,
+                    errorMessage,
+                });
             this.logger.warn('Dropping AI agent memory consolidation', {
                 projectUuid: partition.projectUuid,
                 error: errorMessage,
@@ -974,9 +1590,103 @@ export class AiAgentMemoryService extends BaseService {
                 projectUuid: partition.projectUuid,
                 ownerUserUuid: partition.ownerUserUuid,
             });
-            this.trackConsolidationFailed(partition, failureStage, error);
-            return 'failed';
+            this.trackConsolidationFailed(
+                partition,
+                context.trigger,
+                context.dryRun,
+                failureStage,
+                error,
+            );
+            return { outcome: 'failed', run: failedRow };
         }
+    }
+
+    /** Consolidates one partition without the scheduled floor or hash guards. */
+    async consolidatePartitionNow(args: {
+        projectUuid: UUID;
+        ownerUserUuid: UUID;
+        /** The operator asking for the run, never the partition owner. */
+        triggeredByUserUuid: UUID;
+        dryRun?: boolean;
+        now?: Date;
+        abortSignal?: AbortSignal;
+    }): Promise<AiAgentMemoryManualConsolidationResult> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            args.projectUuid,
+        );
+        const operator = await this.userModel.findSessionUserAndOrgByUuid(
+            args.triggeredByUserUuid,
+            organizationUuid,
+        );
+        if (
+            this.createAuditedAbility(operator).cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: args.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Cannot manage AI agents in this project');
+        }
+
+        const noActiveMemoriesMessage = `No active memories for owner ${args.ownerUserUuid} in project ${args.projectUuid}`;
+        const candidate =
+            await this.aiAgentMemoryModel.findConsolidationPartition({
+                projectUuid: args.projectUuid,
+                ownerUserUuid: args.ownerUserUuid,
+            });
+        if (!candidate) {
+            throw new NotFoundError(noActiveMemoriesMessage);
+        }
+
+        if (!(await this.isEnabled(candidate.organizationUuid))) {
+            return { outcome: 'disabled', run: null };
+        }
+
+        const partition: AiAgentMemoryConsolidationPartition = {
+            organizationUuid: candidate.organizationUuid,
+            projectUuid: candidate.projectUuid,
+            ownerUserUuid: candidate.ownerUserUuid,
+        };
+        // No row-floor or input-hash guard here: re-running a small or
+        // unchanged partition after a prompt change is the point of the trigger.
+        const memories = await this.aiAgentMemoryModel.findActiveForProject({
+            projectUuid: partition.projectUuid,
+            userUuid: partition.ownerUserUuid,
+            limit: AI_AGENT_MEMORY_CONSOLIDATION_INPUT_LIMIT,
+        });
+        if (memories.length === 0) {
+            throw new NotFoundError(noActiveMemoriesMessage);
+        }
+        const explores = await this.loadConsolidationCatalog(
+            partition.projectUuid,
+        );
+        if (explores === null) {
+            this.trackConsolidationSkipped(
+                partition,
+                'manual',
+                'catalog_unavailable',
+                memories.length,
+            );
+            return { outcome: 'skipped', run: null };
+        }
+
+        // Deliberately off the daily pass's duration and eligibility metrics: a
+        // manual run is not a sample of the cron's cost.
+        return this.consolidatePartition({
+            partition,
+            context: {
+                trigger: 'manual',
+                triggeredByUserUuid: operator.userUuid,
+                dryRun: args.dryRun ?? this.consolidationDryRun,
+            },
+            memories,
+            inputHash: computeConsolidationInputHash(memories),
+            explores,
+            now: args.now ?? new Date(),
+            abortSignal: args.abortSignal,
+        });
     }
 
     private async consolidateWithLlm(args: {
@@ -1012,6 +1722,7 @@ export class AiAgentMemoryService extends BaseService {
                     projectUuid: args.partition.projectUuid,
                     userUuid: args.partition.ownerUserUuid,
                     recordIO: copilotConfig.telemetryEnabled,
+                    keyManagement: model.keyManagement,
                     ...getLanguageModelAttribution(model.model),
                 }),
                 messages: [
@@ -1070,16 +1781,17 @@ export class AiAgentMemoryService extends BaseService {
         payload: AiAgentMemoryDistillJobPayload,
         abortSignal?: AbortSignal,
     ): Promise<AiAgentMemoryDistillOutcome> {
-        const sweptUpdatedAt =
-            typeof payload.sweptUpdatedAt === 'string'
-                ? new Date(payload.sweptUpdatedAt)
-                : undefined;
-        if (
-            !sweptUpdatedAt ||
-            Number.isNaN(sweptUpdatedAt.getTime()) ||
-            sweptUpdatedAt.toISOString() !== payload.sweptUpdatedAt
-        ) {
-            return 'skipped';
+        // Sweep/manual jobs carry a watermark; event jobs derive one from the
+        // latest successfully completed turn.
+        let payloadWatermark: Date | undefined;
+        if (payload.sweptUpdatedAt !== undefined) {
+            payloadWatermark = new Date(payload.sweptUpdatedAt);
+            if (
+                Number.isNaN(payloadWatermark.getTime()) ||
+                payloadWatermark.toISOString() !== payload.sweptUpdatedAt
+            ) {
+                return 'skipped';
+            }
         }
 
         if (!(await this.isEnabled(payload.organizationUuid))) {
@@ -1097,7 +1809,13 @@ export class AiAgentMemoryService extends BaseService {
             return 'skipped';
         }
 
-        if (sweptUpdatedAt.getTime() > thread.latestActivity.getTime()) {
+        const distillUpTo =
+            payloadWatermark ?? getLatestCompletedTurnActivity(thread);
+
+        if (
+            distillUpTo === undefined ||
+            distillUpTo.getTime() > thread.latestActivity.getTime()
+        ) {
             return 'skipped';
         }
 
@@ -1106,25 +1824,38 @@ export class AiAgentMemoryService extends BaseService {
         if (
             !payload.force &&
             thread.distilledUpTo !== null &&
-            thread.distilledUpTo.getTime() >= sweptUpdatedAt.getTime()
+            thread.distilledUpTo.getTime() >= distillUpTo.getTime()
         ) {
             return 'skipped';
         }
+
+        const threadThroughWatermark = {
+            ...thread,
+            turns: thread.turns.filter(
+                (turn) => turn.createdAt.getTime() <= distillUpTo.getTime(),
+            ),
+        };
 
         if (
             thread.projectType === ProjectType.PREVIEW ||
             !AI_AGENT_MEMORY_THREAD_SOURCES.some(
                 (createdFrom) => createdFrom === thread.createdFrom,
             ) ||
-            !thread.turns.some(
-                (turn) =>
-                    !turn.interrupted &&
-                    turn.respondedAt !== null &&
-                    turn.errorMessage === null &&
-                    turn.assistantText !== null,
-            )
+            !threadThroughWatermark.turns.some(isSuccessfulTurn)
         ) {
-            return this.recordSkip(thread.threadUuid, sweptUpdatedAt);
+            return this.recordSkip(thread.threadUuid, distillUpTo);
+        }
+
+        // The memory belongs to the thread's owner (its first prompter),
+        // not whoever happened to prompt last in a shared Slack thread.
+        // Service-account threads are automation, not a user learning — skip
+        // before paying for the LLM call.
+        const ownership = await this.aiAgentModel.findThreadOwnership({
+            organizationUuid: thread.organizationUuid,
+            threadUuid: thread.threadUuid,
+        });
+        if (ownership?.ownerIsServiceAccount) {
+            return this.recordSkip(thread.threadUuid, distillUpTo);
         }
 
         // A thread whose memory was consolidated away or retired stops feeding
@@ -1135,7 +1866,7 @@ export class AiAgentMemoryService extends BaseService {
                 thread.threadUuid,
             );
         if (memoryState === 'inactive') {
-            return this.recordSkip(thread.threadUuid, sweptUpdatedAt);
+            return this.recordSkip(thread.threadUuid, distillUpTo);
         }
 
         let failureStage: AiAgentMemoryGenerationFailedEvent['properties']['failureStage'] =
@@ -1144,7 +1875,7 @@ export class AiAgentMemoryService extends BaseService {
         try {
             abortSignal?.throwIfAborted();
             const transcript = serializeTranscript(
-                await sanitizeThread(thread, {
+                await sanitizeThread(threadThroughWatermark, {
                     onUnknownTool: (toolName) => {
                         this.logger.warn(
                             'Unknown AI agent tool uses fallback distill policy',
@@ -1155,7 +1886,7 @@ export class AiAgentMemoryService extends BaseService {
                 }),
             );
             const output = await this.distillCall({
-                thread,
+                thread: threadThroughWatermark,
                 transcript,
                 abortSignal,
             });
@@ -1168,7 +1899,7 @@ export class AiAgentMemoryService extends BaseService {
                     outcome: 'no_op',
                     noOpReason: output.result.reason,
                     distillPromptHash,
-                    distilledUpTo: sweptUpdatedAt,
+                    distilledUpTo: distillUpTo,
                 });
                 return 'no_op';
             }
@@ -1179,12 +1910,6 @@ export class AiAgentMemoryService extends BaseService {
             );
             abortSignal?.throwIfAborted();
             failureStage = 'persistence';
-            // The memory belongs to the thread's owner (its first prompter),
-            // not whoever happened to prompt last in a shared Slack thread.
-            const ownership = await this.aiAgentModel.findThreadOwnership({
-                organizationUuid: thread.organizationUuid,
-                threadUuid: thread.threadUuid,
-            });
             // Re-read: the status can flip while the LLM call is in flight, and
             // the upsert would then insert a second active row.
             if (
@@ -1192,7 +1917,7 @@ export class AiAgentMemoryService extends BaseService {
                     thread.threadUuid,
                 )) === 'inactive'
             ) {
-                return await this.recordSkip(thread.threadUuid, sweptUpdatedAt);
+                return await this.recordSkip(thread.threadUuid, distillUpTo);
             }
             const memory =
                 await this.aiAgentMemoryModel.upsertSourceThreadMemory({
@@ -1231,7 +1956,7 @@ export class AiAgentMemoryService extends BaseService {
                 aiThreadUuid: thread.threadUuid,
                 outcome: 'memory',
                 distillPromptHash,
-                distilledUpTo: sweptUpdatedAt,
+                distilledUpTo: distillUpTo,
             });
             return 'memory';
         } catch (error) {
@@ -1241,7 +1966,7 @@ export class AiAgentMemoryService extends BaseService {
                 outcome: 'failed',
                 errorMessage,
                 distillPromptHash: await distillPromptHashPromise,
-                distilledUpTo: sweptUpdatedAt,
+                distilledUpTo: distillUpTo,
             });
             this.logger.warn('Dropping AI agent memory distill', {
                 threadUuid: thread.threadUuid,
@@ -1308,6 +2033,7 @@ export class AiAgentMemoryService extends BaseService {
                 agentUuid: args.thread.agentUuid,
                 threadUuid: args.thread.threadUuid,
                 recordIO: copilotConfig.telemetryEnabled,
+                keyManagement: model.keyManagement,
                 ...getLanguageModelAttribution(model.model),
             }),
             messages: [

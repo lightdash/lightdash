@@ -4,7 +4,7 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Flex, Menu, Text } from '@mantine-8/core';
+import { ActionIcon, Flex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDots } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -61,7 +61,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
                         }}
                     >
                         Sort{' '}
-                        <Text span fz="inherit" lh="inherit" fw={500}>
+                        <Text span fw={500}>
                             {getSortLabel(item, sortDirection)}
                         </Text>
                     </Menu.Item>
@@ -122,7 +122,7 @@ const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
                     // Show the sort icon next to the title, and the dropdown menu on the right
                     iconSort ? <MantineIcon icon={iconSort} /> : <div></div>
                 }
-                <Menu withinPortal withArrow shadow="md">
+                <Menu withArrow>
                     <Menu.Target>
                         <ActionIcon
                             size="xs"

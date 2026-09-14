@@ -876,6 +876,41 @@
                                     "type": "string"
                                 }
                             },
+                            "table": {
+                                "type": "string",
+                                "minLength": 1,
+                                "pattern": "^(?:[A-Za-z_][A-Za-z0-9_$]*|\"(?:\"\"|[^\"\\u0000-\\u001F])+\"|`[^`\\u0000-\\u001F]+`)(?:\\.(?:[A-Za-z_][A-Za-z0-9_$]*|\"(?:\"\"|[^\"\\u0000-\\u001F])+\"|`[^`\\u0000-\\u001F]+`))*$",
+                                "description": "External table: a qualified identifier for a customer-managed warehouse table or view that Lightdash does not create or refresh. It must expose the pre-aggregate's generated column names. When set, Lightdash never materializes this pre-aggregate; materialization keys (refresh, sorts, max_rows, materialization_role) are ignored."
+                            },
+                            "sorts": {
+                                "description": "Materialization sort order. When omitted, Lightdash automatically sorts the time dimension first and descending, then all remaining materialized dimensions ascending. Set to false or [] to disable sorting, or provide canonical query sort entries with a compiled Lightdash fieldId and explicit descending value. Compiled time-dimension IDs include granularity (for example, orders_order_date_day) and must be updated when granularity changes. Sort order determines which rows are retained when max_rows truncates results.",
+                                "oneOf": [
+                                    {
+                                        "const": false
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "fieldId": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "descending": {
+                                                    "description": "Whether to sort descending. Must be an unquoted YAML boolean.",
+                                                    "enum": [true, false]
+                                                }
+                                            },
+                                            "required": [
+                                                "fieldId",
+                                                "descending"
+                                            ],
+                                            "additionalProperties": false
+                                        }
+                                    }
+                                ]
+                            },
                             "filters": {
                                 "type": "array",
                                 "items": {
@@ -1121,6 +1156,10 @@
                     "type": "array",
                     "description": "Alias for default_filters (deprecated, use default_filters instead)",
                     "items": { "$ref": "#/$defs/filterItem" }
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "When true, no explore is generated for the model itself. The model is still available as a join target and as the base table for explores defined under `explores`."
                 },
                 "explores": {
                     "type": "object",
@@ -1720,6 +1759,22 @@
                                 "label_dimension": {
                                     "type": "string",
                                     "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                                },
+                                "options_from_dimension": {
+                                    "type": "object",
+                                    "description": "Fetch autocomplete values from a dimension in another model. Cascading filters are not applied.",
+                                    "properties": {
+                                        "model": {
+                                            "type": "string"
+                                        },
+                                        "dimension": {
+                                            "type": "string"
+                                        },
+                                        "label_dimension": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["model", "dimension"]
                                 }
                             }
                         }
@@ -1976,6 +2031,22 @@
                                         "label_dimension": {
                                             "type": "string",
                                             "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                                        },
+                                        "options_from_dimension": {
+                                            "type": "object",
+                                            "description": "Fetch autocomplete values from a dimension in another model. Cascading filters are not applied.",
+                                            "properties": {
+                                                "model": {
+                                                    "type": "string"
+                                                },
+                                                "dimension": {
+                                                    "type": "string"
+                                                },
+                                                "label_dimension": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": ["model", "dimension"]
                                         }
                                     }
                                 }

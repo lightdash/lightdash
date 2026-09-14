@@ -1,16 +1,19 @@
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic, { NotFoundError } from '@anthropic-ai/sdk';
 import type {
     AgentCreateParams,
     AgentUpdateParams,
     BetaManagedAgentsAgent,
 } from '@anthropic-ai/sdk/resources/beta/agents';
-import { ParameterError } from '@lightdash/common';
+import { ParameterError, type ManagedAgentPolicy } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { createHash } from 'crypto';
+import { ANTHROPIC_PUBLIC_BASE_URL } from '../../config/aiGatewayConfig';
 import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { traceSpan, type TraceSpan } from '../../tracing/tracing';
 import {
     getManagedAgentConfigHash,
+    getManagedAgentMcpUrl,
     renderManagedAgentConfig,
 } from '../services/ManagedAgentService/config/agent';
 
@@ -19,15 +22,18 @@ type ManagedAgentClientConfig = {
 };
 
 export type ManagedAgentSessionConfig = {
+    projectUuid: string;
     serviceAccountPat: string;
     resourceName: string;
     skillIds: string[];
     toolSettings: Record<string, boolean>;
+    policy: ManagedAgentPolicy;
     persistedAgentId: string | null;
     persistedAgentConfigHash: string | null;
     persistedAgentVersion: number | null;
     persistedEnvironmentId: string | null;
     persistedVaultId: string | null;
+    persistedVaultConfigHash: string | null;
     onAgentSynced: (
         agentId: string,
         agentConfigHash: string,
@@ -36,6 +42,7 @@ export type ManagedAgentSessionConfig = {
     onResourcesCreated: (
         environmentId: string,
         vaultId: string,
+        vaultConfigHash: string,
     ) => Promise<void>;
 };
 
@@ -55,22 +62,35 @@ export class ManagedAgentClient {
         const { anthropicApiKey } = this.config.lightdashConfig.managedAgent;
         if (!anthropicApiKey) {
             throw new ParameterError(
-                'ANTHROPIC_API_KEY is required for managed agent',
+                this.config.lightdashConfig.ai.copilot.providers.anthropic
+                    ?.baseUrl
+                    ? 'MANAGED_AGENT_ANTHROPIC_API_KEY is required for managed agent when ANTHROPIC_BASE_URL is configured'
+                    : 'ANTHROPIC_API_KEY or MANAGED_AGENT_ANTHROPIC_API_KEY is required for managed agent',
             );
         }
 
-        return new Anthropic({ apiKey: anthropicApiKey });
+        return new Anthropic({
+            apiKey: anthropicApiKey,
+            authToken: null,
+            baseURL: ANTHROPIC_PUBLIC_BASE_URL,
+        });
     }
 
     private getRenderedAgentConfig(
+        projectUuid: string,
         resourceName: string,
         skillIds: string[],
         toolSettings: Record<string, boolean>,
+        policy: ManagedAgentPolicy,
     ): AgentCreateParams {
         const renderedAgentConfig = renderManagedAgentConfig({
             lightdashSiteUrl: this.config.lightdashConfig.siteUrl,
+            projectUuid,
             skillIds,
             toolSettings,
+            policy,
+            preAggregatesEnabled:
+                this.config.lightdashConfig.preAggregates.enabled,
         });
         return {
             ...renderedAgentConfig,
@@ -87,9 +107,11 @@ export class ManagedAgentClient {
         sessionConfig: ManagedAgentSessionConfig,
     ): Promise<string> {
         const desiredAgent = this.getRenderedAgentConfig(
+            sessionConfig.projectUuid,
             sessionConfig.resourceName,
             sessionConfig.skillIds,
             sessionConfig.toolSettings,
+            sessionConfig.policy,
         );
         const desiredHash = getManagedAgentConfigHash(desiredAgent);
 
@@ -144,7 +166,11 @@ export class ManagedAgentClient {
 
     async syncAgent(sessionConfig: ManagedAgentSessionConfig): Promise<string> {
         const client = this.getAnthropicClient();
-        return this.ensureAgent(client.beta, sessionConfig);
+        const { agentId } = await this.ensureAgentAndEnvironment(
+            client,
+            sessionConfig,
+        );
+        return agentId;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -177,12 +203,26 @@ export class ManagedAgentClient {
         vaultId: string;
     }> {
         const agentId = await this.ensureAgent(client.beta, sessionConfig);
+        const vaultConfigHash = this.getVaultConfigHash(sessionConfig);
 
         // Reuse persisted Anthropic resource IDs when available to avoid
         // creating duplicate environments and vaults on every restart.
-        const { persistedEnvironmentId, persistedVaultId } = sessionConfig;
+        const {
+            persistedEnvironmentId,
+            persistedVaultId,
+            persistedVaultConfigHash,
+        } = sessionConfig;
 
-        if (persistedEnvironmentId && persistedVaultId) {
+        if (
+            persistedEnvironmentId &&
+            persistedVaultId &&
+            persistedVaultConfigHash === vaultConfigHash &&
+            (await this.persistedResourcesAreUsable(
+                client.beta,
+                persistedEnvironmentId,
+                persistedVaultId,
+            ))
+        ) {
             Logger.info(
                 `[ManagedAgent] Reusing persisted resources: env=${persistedEnvironmentId}, vault=${persistedVaultId}`,
             );
@@ -203,7 +243,11 @@ export class ManagedAgentClient {
         const vault = await this.createVault(client.beta, sessionConfig);
 
         // Persist the IDs so they survive service restarts
-        await sessionConfig.onResourcesCreated(environment.id, vault.id);
+        await sessionConfig.onResourcesCreated(
+            environment.id,
+            vault.id,
+            vaultConfigHash,
+        );
 
         Logger.info(
             `Managed agent ready: agentId=${agentId}, environmentId=${environment.id}, vaultId=${vault.id}`,
@@ -214,6 +258,63 @@ export class ManagedAgentClient {
             environmentId: environment.id,
             vaultId: vault.id,
         };
+    }
+
+    // Reusing a resource the current API key cannot reach fails every run.
+    // eslint-disable-next-line class-methods-use-this
+    private async persistedResourcesAreUsable(
+        beta: Anthropic.Beta,
+        environmentId: string,
+        vaultId: string,
+    ): Promise<boolean> {
+        try {
+            const [, vault] = await Promise.all([
+                beta.environments.retrieve(environmentId),
+                beta.vaults.retrieve(vaultId),
+            ]);
+
+            if (vault.archived_at !== null) {
+                Logger.warn(
+                    `[ManagedAgent] Persisted vault ${vaultId} is archived, reprovisioning`,
+                );
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                Logger.warn(
+                    `[ManagedAgent] Persisted resources missing (env=${environmentId}, vault=${vaultId}), reprovisioning: ${error.message}`,
+                );
+                return false;
+            }
+            // Anything else is transient; the session call surfaces the real error.
+            Logger.warn(
+                `[ManagedAgent] Could not verify persisted resources (env=${environmentId}, vault=${vaultId}), reusing them: ${error instanceof Error ? error.message : 'Unknown'}`,
+            );
+            return true;
+        }
+    }
+
+    private getVaultConfigHash(
+        sessionConfig: Pick<
+            ManagedAgentSessionConfig,
+            'projectUuid' | 'serviceAccountPat'
+        >,
+    ): string {
+        const mcpUrl = getManagedAgentMcpUrl(
+            this.config.lightdashConfig.siteUrl,
+            sessionConfig.projectUuid,
+        );
+        // Vaults are workspace-scoped, so a rotated key invalidates them.
+        return createHash('sha256')
+            .update(
+                `${mcpUrl}\n${sessionConfig.serviceAccountPat}\n${
+                    this.config.lightdashConfig.managedAgent.anthropicApiKey ??
+                    ''
+                }`,
+            )
+            .digest('hex');
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -253,7 +354,7 @@ export class ManagedAgentClient {
         beta: Anthropic.Beta,
         sessionConfig: Pick<
             ManagedAgentSessionConfig,
-            'resourceName' | 'serviceAccountPat'
+            'projectUuid' | 'resourceName' | 'serviceAccountPat'
         >,
     ): Promise<{ id: string }> {
         const vaultName = `Vault ${sessionConfig.resourceName}`;
@@ -261,7 +362,10 @@ export class ManagedAgentClient {
             display_name: 'Lightdash PAT',
             auth: {
                 type: 'static_bearer' as const,
-                mcp_server_url: `${this.config.lightdashConfig.siteUrl}/api/v1/mcp`,
+                mcp_server_url: getManagedAgentMcpUrl(
+                    this.config.lightdashConfig.siteUrl,
+                    sessionConfig.projectUuid,
+                ),
                 token: sessionConfig.serviceAccountPat,
             },
         };

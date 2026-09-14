@@ -37,6 +37,9 @@ test('empty list => not breaking, no changes', () => {
     const r = summarizeBreaking([]);
     assert.strictEqual(r.breaking, false);
     assert.deepStrictEqual(r.changes, []);
+    assert.strictEqual(r.breakingCount, 0);
+    assert.deepStrictEqual(r.advisories, []);
+    assert.strictEqual(r.advisoryCount, 0);
 });
 
 test('non-empty list => breaking true, formatted "METHOD path — text"', () => {
@@ -57,12 +60,56 @@ test('renders gracefully when operation/path are absent', () => {
     assert.deepStrictEqual(r.changes, ['something broke']);
 });
 
-test('caps the list at 50 with an explicit overflow line (never silent truncation)', () => {
-    const many = Array.from({ length: 53 }, (_, i) => item({ path: `/api/v1/r${i}` }));
+test('WARN-only items are advisory and do not make the result breaking', () => {
+    const r = summarizeBreaking([
+        item({ id: 'response-property-enum-value-added', level: 2, text: 'response enum value added' }),
+    ]);
+    assert.strictEqual(r.breaking, false);
+    assert.strictEqual(r.breakingCount, 0);
+    assert.deepStrictEqual(r.changes, []);
+    assert.deepStrictEqual(r.advisories, [
+        'GET /api/v1/foo — response enum value added',
+    ]);
+    assert.strictEqual(r.advisoryCount, 1);
+});
+
+test('mixed ERR and WARN items are split into breaking changes and advisories', () => {
+    const r = summarizeBreaking([
+        item({ level: 3, text: 'response property removed' }),
+        item({ level: 2, text: 'response enum value added' }),
+    ]);
+    assert.strictEqual(r.breaking, true);
+    assert.deepStrictEqual(r.changes, ['GET /api/v1/foo — response property removed']);
+    assert.strictEqual(r.breakingCount, 1);
+    assert.deepStrictEqual(r.advisories, ['GET /api/v1/foo — response enum value added']);
+    assert.strictEqual(r.advisoryCount, 1);
+});
+
+test('an item with no level is conservatively treated as breaking', () => {
+    const r = summarizeBreaking([item({ level: undefined })]);
+    assert.strictEqual(r.breaking, true);
+    assert.strictEqual(r.breakingCount, 1);
+    assert.deepStrictEqual(r.advisories, []);
+});
+
+test('caps 60 breaking items at 50 plus overflow while preserving the total count', () => {
+    const many = Array.from({ length: 60 }, (_, i) => item({ path: `/api/v1/r${i}` }));
     const r = summarizeBreaking(many);
     assert.strictEqual(r.breaking, true);
     assert.strictEqual(r.changes.length, 51); // 50 + overflow line
-    assert.match(r.changes[50], /and 3 more breaking change\(s\)/);
+    assert.match(r.changes[50], /and 10 more breaking change\(s\)/);
+    assert.strictEqual(r.breakingCount, 60);
+});
+
+test('caps advisories independently while preserving the total count', () => {
+    const many = Array.from({ length: 60 }, (_, i) =>
+        item({ level: 2, path: `/api/v1/r${i}` }),
+    );
+    const r = summarizeBreaking(many);
+    assert.strictEqual(r.breaking, false);
+    assert.strictEqual(r.advisories.length, 51);
+    assert.match(r.advisories[50], /and 10 more advisory note\(s\)/);
+    assert.strictEqual(r.advisoryCount, 60);
 });
 
 test('exactly 50 changes => no overflow line', () => {
@@ -91,6 +138,9 @@ test('uses an explicit working-tree spec as the new side', () => {
             checked: true,
             breaking: false,
             changes: [],
+            breakingCount: 0,
+            advisories: [],
+            advisoryCount: 0,
         });
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
@@ -117,7 +167,14 @@ test('diffs an explicitly generated spec pair, touching no git ref', () => {
             oasdiffBin: oasdiffPath,
         });
 
-        assert.deepStrictEqual(result, { checked: true, breaking: false, changes: [] });
+        assert.deepStrictEqual(result, {
+            checked: true,
+            breaking: false,
+            changes: [],
+            breakingCount: 0,
+            advisories: [],
+            advisoryCount: 0,
+        });
         assert.strictEqual(fs.readFileSync(argsLog, 'utf-8'), '{"old":true}{"new":true}');
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
@@ -138,14 +195,28 @@ test('a missing generated spec stays unchecked rather than reporting no changes'
             newSpecPath: present,
             oasdiffBin: oasdiffPath,
         });
-        assert.deepStrictEqual(missingBase, { checked: false, breaking: false, changes: [] });
+        assert.deepStrictEqual(missingBase, {
+            checked: false,
+            breaking: false,
+            changes: [],
+            breakingCount: 0,
+            advisories: [],
+            advisoryCount: 0,
+        });
 
         const missingNew = diffRestApi({
             baseSpecPath: present,
             newSpecPath: path.join(dir, 'absent.json'),
             oasdiffBin: oasdiffPath,
         });
-        assert.deepStrictEqual(missingNew, { checked: false, breaking: false, changes: [] });
+        assert.deepStrictEqual(missingNew, {
+            checked: false,
+            breaking: false,
+            changes: [],
+            breakingCount: 0,
+            advisories: [],
+            advisoryCount: 0,
+        });
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
     }

@@ -8,10 +8,12 @@ import {
     PartialFailureType,
     sanitizeHtml,
     ThresholdOptions,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
+import { postSchedulerWebhook } from '../../utils/schedulerWebhookValidation';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
 // Google Chat renders a subset of HTML in textParagraph.text, and app delivery
@@ -22,18 +24,15 @@ const stripMarkup = (text: string): string =>
 /* eslint-disable class-methods-use-this */
 export class GoogleChatClient {
     private async sendWebhook(webhookUrl: string, payload: AnyType) {
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json; charset=UTF-8',
-            },
-            body: JSON.stringify(payload),
-        });
+        const response = await postSchedulerWebhook(
+            webhookUrl,
+            payload,
+            'application/json; charset=UTF-8',
+        );
 
-        if (!response.ok) {
-            const responseText = await response.text();
+        if (response.status < 200 || response.status >= 300) {
             Logger.error(
-                `Google Chat webhook returned an error: ${response.status} ${responseText}`,
+                `Google Chat webhook returned an error: ${response.status} ${response.bodyText}`,
             );
             Logger.debug(
                 `Google Chat webhook payload ${JSON.stringify(
@@ -238,6 +237,7 @@ export class GoogleChatClient {
         csvUrls,
         footer,
         failures,
+        notices,
     }: {
         webhookUrl: string;
         title: string;
@@ -247,6 +247,7 @@ export class GoogleChatClient {
         csvUrls: AttachmentUrl[];
         footer: string;
         failures?: PartialFailure[];
+        notices?: DeliveryNotice[];
     }): Promise<void> {
         Logger.info('Sending dashboard CSVs to Google Chat via webhook');
 
@@ -293,11 +294,7 @@ export class GoogleChatClient {
                         case PartialFailureType.APP_QUERY_MISSING:
                             return `- <b>${stripMarkup(
                                 f.label,
-                            )}:</b> did not run in this delivery${
-                                f.identityChanged
-                                    ? ' (query changed since it was selected)'
-                                    : ''
-                            }`;
+                            )}:</b> did not run in this delivery`;
                         case PartialFailureType.APP_CAPTURE_OVERFLOW:
                             return `- <b>${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})</b>`;
                         default:
@@ -324,6 +321,24 @@ export class GoogleChatClient {
                     },
                 });
             }
+        }
+
+        if (notices && notices.length > 0) {
+            const noticeLines = notices
+                .map(
+                    (notice) =>
+                        `- ${stripMarkup(
+                            notice.label,
+                        )} reached its query limit; additional rows may exist (${
+                            notice.rowCount
+                        } rows delivered)`,
+                )
+                .join('\n');
+            widgets.push({
+                textParagraph: {
+                    text: `ℹ️ ${noticeLines}`,
+                },
+            });
         }
 
         widgets.push({

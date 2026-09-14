@@ -1,12 +1,21 @@
 import {
+    APP_SDK_COLOR_SCHEME_MESSAGE,
+    APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    APP_SDK_VIZ_DRILL_DOWN_PATH,
+    APP_SDK_VIZ_UNDERLYING_DATA_PATH,
     extractAppSdkRouteProjectUuid,
     isAllowedAppSdkRoute,
+    isAppSdkScheduleDownloadRoute,
     JWT_HEADER_NAME,
+    LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
+    LightdashSignedDownloadHeader,
+    type AppColorScheme,
     type DashboardFilters,
     type DataAppVizContext,
+    type ExternalFetchResponse,
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
@@ -41,6 +50,11 @@ const resolveFetchUrl = (path: string): string => {
     // SDK persists with a trailing slash; `path` always starts with `/`.
     return `${instanceUrl.replace(/\/$/, '')}${path}`;
 };
+
+const getEmbedAuthHeaders = (
+    embedToken: string | undefined,
+): Record<string, string> =>
+    embedToken ? { [JWT_HEADER_NAME]: embedToken } : {};
 
 export type QueryEventTableCalculation = {
     name: string;
@@ -204,6 +218,8 @@ export type UseAppSdkBridgeParams = {
     projectUuid: string;
     /** App the proxied EE external-fetch calls are attributed to. */
     appUuid: string;
+    /** Signed token binding this bridge to the rendered app version. */
+    previewToken: string;
     onQueryEvent?: (event: QueryEvent) => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;
     onInspectorAvailable?: () => void;
@@ -247,15 +263,49 @@ export type UseAppSdkBridgeParams = {
     // When set, the host pushes this render context into the iframe over the
     // existing bridge — on load and on every change. Only set for data app vizs.
     dataAppVizContext?: DataAppVizContext;
+    /**
+     * Rewrites the viz underlying-data virtual route
+     * (`APP_SDK_VIZ_UNDERLYING_DATA_PATH`) into the real API request, which
+     * then flows through the standard pipeline (allowlist, project pinning,
+     * authenticated fetch). Absent = the capability is off and the virtual
+     * route answers with an error — availability is enforced here, not in the
+     * iframe's menu. Throws on invalid intent (untrusted iframe input).
+     */
+    rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
+        method: 'POST';
+        path: string;
+        body: unknown;
+    };
+    /**
+     * Handles the viz drill-down virtual route
+     * (`APP_SDK_VIZ_DRILL_DOWN_PATH`): resolves the click intent and opens the
+     * host drill dialog. Never forwarded to the API. Absent = the capability
+     * is off and the route answers with an error — availability is enforced
+     * here, not in the iframe's menu. Throws on invalid intent (untrusted
+     * iframe input).
+     */
+    onVizDrillDownIntent?: (intentBody: unknown) => void;
     // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
     // are validated and forwarded. Left undefined, they're ignored.
     onUrlStateChange?: (state: Record<string, unknown>) => void;
     /** When set, every metric/chart query POST is recorded into this accumulator
      *  (initiation, response, terminal) — the delivery/preview capture source. */
     deliveryCapture?: DeliveryCaptureAccumulator;
+    /** Rides as `deliveryRender: true` on the `lightdash:sdk:ready` handshake
+     *  so the iframe SDK's `useDeliveryRender()` reports true. Absent (never
+     *  `false`) on interactive loads, so old SDKs ignore the unknown field
+     *  and new SDKs on old hosts default to false. */
+    captureRender?: boolean;
     /** When set, stamped as `context` onto metric/chart POST bodies (delivery
      *  renders send SCHEDULED_DELIVERY for honest attribution). */
     queryContextOverride?: QueryExecutionContext;
+    /**
+     * The light/dark mode the app should render in — the host's resolved
+     * scheme. Pushed on load and on every change so a host theme toggle
+     * restyles the app without reloading the iframe. Bundles built before the
+     * SDK understood the message ignore it.
+     */
+    colorScheme: AppColorScheme;
 };
 
 export function useAppSdkBridge({
@@ -263,6 +313,7 @@ export function useAppSdkBridge({
     expectedPreviewOrigin,
     projectUuid,
     appUuid,
+    previewToken,
     onQueryEvent,
     onElementSelected,
     onInspectorAvailable,
@@ -274,10 +325,14 @@ export function useAppSdkBridge({
     onLineageSelected,
     onExternalRequestEvent,
     dataAppVizContext,
+    rewriteVizUnderlyingDataRequest,
+    onVizDrillDownIntent,
     onUrlStateChange,
     onSdkManifest,
     deliveryCapture,
+    captureRender,
     queryContextOverride,
+    colorScheme,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -315,6 +370,16 @@ export function useAppSdkBridge({
             '*',
         );
     }, [iframeRef, dataAppVizContext]);
+
+    // Tell the iframe which scheme to render in. Wildcard target for the same
+    // reason as every other outbound message: the sandboxed iframe has an
+    // opaque origin, and the payload is a single non-sensitive enum.
+    const pushColorScheme = useCallback(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+            { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme },
+            '*',
+        );
+    }, [iframeRef, colorScheme]);
 
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
@@ -372,6 +437,13 @@ export function useAppSdkBridge({
             // isn't a data app viz).
             if (data?.type === APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE) {
                 pushDataAppVizContext();
+                return;
+            }
+
+            // Same handshake for the color scheme: the SDK asks as soon as its
+            // listener is live, so it can't miss the load-time push.
+            if (data?.type === APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE) {
+                pushColorScheme();
                 return;
             }
 
@@ -553,21 +625,6 @@ export function useAppSdkBridge({
 
                 emitExternal({ status: 'pending' });
 
-                // External fetch is not available to embedded apps: the proxy
-                // endpoint requires a registered session, not an embed JWT.
-                // Fail clearly rather than make a doomed authenticated call.
-                if (embedToken) {
-                    const embedError =
-                        'External data access is not available in embedded apps';
-                    emitExternal({
-                        status: 'error',
-                        error: embedError,
-                        durationMs: Date.now() - startedAt,
-                    });
-                    respondExternal({ error: embedError });
-                    return;
-                }
-
                 // Build the EE request body from app-supplied fields ONLY.
                 // No URL, no headers, no connection UUID — the backend resolves
                 // the alias and attaches the connection's secrets. The
@@ -589,6 +646,7 @@ export function useAppSdkBridge({
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                ...getEmbedAuthHeaders(embedToken),
                             },
                             body: JSON.stringify(externalFetchBody),
                         },
@@ -596,12 +654,7 @@ export function useAppSdkBridge({
                     const json = await res.json();
                     if (json.status === 'ok') {
                         const result = json.results as
-                            | {
-                                  status?: number;
-                                  contentType?: string;
-                                  body?: unknown;
-                                  truncated?: boolean;
-                              }
+                            | ExternalFetchResponse
                             | undefined;
                         emitExternal({
                             status: 'ready',
@@ -638,7 +691,8 @@ export function useAppSdkBridge({
 
             if (data?.type !== 'lightdash:sdk:fetch') return;
 
-            const { id, method, path, body, metadata } = data;
+            const { id, metadata } = data;
+            let { method, path, body } = data;
 
             const respond = (response: {
                 result?: unknown;
@@ -653,6 +707,54 @@ export function useAppSdkBridge({
                     '*',
                 );
             };
+
+            // Bridge-only virtual route: the viz posts semantic click intent;
+            // the host rewrites it into the real underlying-data request, then
+            // the standard pipeline (allowlist, project pinning, auth) applies.
+            if (path === APP_SDK_VIZ_UNDERLYING_DATA_PATH) {
+                if (!rewriteVizUnderlyingDataRequest) {
+                    respond({
+                        error: 'Underlying data is not available for this visualization.',
+                    });
+                    return;
+                }
+                try {
+                    ({ method, path, body } =
+                        rewriteVizUnderlyingDataRequest(body));
+                } catch (err) {
+                    respond({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Invalid underlying-data request.',
+                    });
+                    return;
+                }
+            }
+
+            // Bridge-only virtual route: the viz posts a drill click intent;
+            // the host resolves it and opens its drill dialog. Answered here —
+            // nothing is forwarded to the API.
+            if (path === APP_SDK_VIZ_DRILL_DOWN_PATH) {
+                if (!onVizDrillDownIntent) {
+                    respond({
+                        error: 'Drill-down is not available for this visualization.',
+                    });
+                    return;
+                }
+                try {
+                    onVizDrillDownIntent(body);
+                    respond({ result: {} });
+                } catch (err) {
+                    respond({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Invalid drill-down request.',
+                    });
+                }
+                return;
+            }
 
             if (!isAllowedAppSdkRoute(method, path)) {
                 respond({ error: `Blocked: ${method} ${path}` });
@@ -808,13 +910,24 @@ export function useAppSdkBridge({
                     method,
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(embedToken
-                            ? { [JWT_HEADER_NAME]: embedToken }
-                            : {}),
+                        ...getEmbedAuthHeaders(embedToken),
                         // Self-reported app attribution; the backend tags
                         // warehouse queries with it. Tracking only.
                         ...(appUuid
                             ? { [LightdashAppUuidHeader]: appUuid }
+                            : {}),
+                        ...(isMetricQueryPost(method, path)
+                            ? {
+                                  [LightdashAppPreviewTokenHeader]:
+                                      previewToken,
+                              }
+                            : {}),
+                        // The SDK fetches the export's fileUrl from inside
+                        // the sandboxed iframe, where session cookies don't
+                        // attach — ask the backend for a SIGNED URL that
+                        // survives that credential-less fetch.
+                        ...(isAppSdkScheduleDownloadRoute(method, path)
+                            ? { [LightdashSignedDownloadHeader]: 'true' }
                             : {}),
                     },
                     ...(effectiveBody
@@ -976,6 +1089,7 @@ export function useAppSdkBridge({
             expectedPreviewOrigin,
             projectUuid,
             appUuid,
+            previewToken,
             onQueryEvent,
             onElementSelected,
             onInspectorAvailable,
@@ -989,6 +1103,9 @@ export function useAppSdkBridge({
             onLineageSelected,
             onExternalRequestEvent,
             pushDataAppVizContext,
+            rewriteVizUnderlyingDataRequest,
+            onVizDrillDownIntent,
+            pushColorScheme,
             onUrlStateChange,
             onSdkManifest,
             health.data,
@@ -1003,6 +1120,13 @@ export function useAppSdkBridge({
         return () => window.removeEventListener('message', handleMessage);
     }, [handleMessage]);
 
+    // Re-push on every host theme change so an already-loaded app restyles in
+    // place. The initial value also rides in the iframe URL hash, which the SDK
+    // applies as the app boots — this message would arrive too late for that.
+    useEffect(() => {
+        pushColorScheme();
+    }, [pushColorScheme]);
+
     const handleIframeLoad = useCallback(() => {
         // `*` because the load event fires once for the initial about:blank
         // (which inherits the parent's origin) and again after the iframe
@@ -1010,10 +1134,17 @@ export function useAppSdkBridge({
         // first call logs a noisy postMessage warning. The :ready signal
         // carries no sensitive data, so wildcard is safe here.
         iframeRef.current?.contentWindow?.postMessage(
-            { type: 'lightdash:sdk:ready' },
+            {
+                type: 'lightdash:sdk:ready',
+                // Omitted (not `false`) outside capture modes so old SDKs —
+                // which ignore unknown fields — and new SDKs on old hosts
+                // both default to `useDeliveryRender() === false`.
+                ...(captureRender ? { deliveryRender: true } : {}),
+            },
             '*',
         );
-    }, [iframeRef]);
+        pushColorScheme();
+    }, [iframeRef, pushColorScheme, captureRender]);
 
     // Re-push the render context whenever the host's field mapping or rows
     // change, so an already-loaded iframe re-renders live. The initial delivery

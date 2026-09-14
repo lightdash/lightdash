@@ -1,0 +1,17 @@
+.root {
+    --code-bg: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-5)
+    );
+    font-size: 0.875em;
+    padding: rem(2px) rem(5px);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.root[data-block] {
+    font-size: var(--mantine-font-size-xs);
+    line-height: var(--mantine-line-height-sm);
+    padding: var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-default-border);
+}

@@ -1,4 +1,4 @@
-import { Box, Group, Text, type MantineColor } from '@mantine-8/core';
+import { Box, Group, Text, type MantineColor } from '@mantine/core';
 import { type FC } from 'react';
 import styles from './StatusIndicator.module.css';
 

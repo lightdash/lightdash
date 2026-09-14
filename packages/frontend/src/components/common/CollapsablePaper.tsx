@@ -1,5 +1,5 @@
-import { Collapse, Group, Paper, Title, UnstyledButton } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Collapse, Group, Paper, Title, UnstyledButton } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconSelector } from '@tabler/icons-react';
 import { type PropsWithChildren } from 'react';
 import MantineIcon, { type MantineIconProps } from './MantineIcon';
@@ -21,12 +21,7 @@ export const CollapsablePaper = ({
     const [opened, { toggle }] = useDisclosure(defaultOpened);
 
     return (
-        <Paper
-            withBorder
-            p="xs"
-            radius="md"
-            shadow={opened ? 'none' : undefined}
-        >
+        <Paper p="xs" radius="md" shadow={opened ? 'none' : undefined}>
             <UnstyledButton onClick={toggle} w="100%" h="18px">
                 <Group justify="space-between" w="100%" h="100%">
                     <Group gap="xs">
@@ -47,12 +42,12 @@ export const CollapsablePaper = ({
                         <MantineIcon
                             icon={IconSelector}
                             size={12}
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                     </Group>
                 </Group>
             </UnstyledButton>
-            <Collapse in={opened}>{children}</Collapse>
+            <Collapse expanded={opened}>{children}</Collapse>
         </Paper>
     );
 };

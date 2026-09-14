@@ -1,5 +1,5 @@
 import { type ApiCatalogAnalyticsResults } from '@lightdash/common';
-import { Avatar, Box, Group, Stack, Text } from '@mantine-8/core';
+import { Avatar, Box, Group, Stack, Text } from '@mantine/core';
 import {
     IconDeviceAnalytics,
     IconEye,
@@ -38,7 +38,7 @@ const ChartList: FC<ChartListProps> = ({
                 <Box
                     key={chart.uuid}
                     component={Link}
-                    to={`/projects/${projectUuid}/saved/${chart.uuid}`}
+                    to={`/projects/${projectUuid}/saved/${chart.slug}`}
                     target="_blank"
                     className={styles.chartRow}
                     onClick={() => onChartClick(chart.uuid)}
@@ -57,39 +57,39 @@ const ChartList: FC<ChartListProps> = ({
                         )}
                         <Group gap={4} wrap="nowrap">
                             <MantineIcon
-                                color="ldGray.6"
+                                color="dimmed"
                                 icon={IconFolder}
                                 size={14}
                             />
-                            <Text fz="xs" c="ldGray.6">
+                            <Text fz="xs" c="dimmed">
                                 {chart.spaceName}
                             </Text>
                             {chart.dashboardUuid && (
                                 <>
-                                    <Text c="ldGray.6" fz="xs">
+                                    <Text c="dimmed" fz="xs">
                                         /
                                     </Text>
                                     <MantineIcon
-                                        color="ldGray.6"
+                                        color="dimmed"
                                         icon={IconLayoutDashboard}
                                         size={14}
                                     />
-                                    <Text fz="xs" c="ldGray.6">
+                                    <Text fz="xs" c="dimmed">
                                         {chart.dashboardName}
                                     </Text>
                                 </>
                             )}
                             {chart.viewsCount !== undefined && (
                                 <>
-                                    <Text c="ldGray.6" fz="xs">
+                                    <Text c="dimmed" fz="xs">
                                         ·
                                     </Text>
                                     <MantineIcon
-                                        color="ldGray.6"
+                                        color="dimmed"
                                         icon={IconEye}
                                         size={14}
                                     />
-                                    <Text fz="xs" c="ldGray.6">
+                                    <Text fz="xs" c="dimmed">
                                         {chart.viewsCount}
                                     </Text>
                                 </>

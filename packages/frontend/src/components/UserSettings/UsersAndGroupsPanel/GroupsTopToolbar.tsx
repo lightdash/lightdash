@@ -5,7 +5,7 @@ import {
     Tooltip,
     useMantineTheme,
     type GroupProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -25,13 +25,9 @@ export const GroupsTopToolbar: FC<GroupsTopToolbarProps> = memo(
                 wrap="nowrap"
                 {...props}
             >
-                <Tooltip
-                    withinPortal
-                    label="Search by name, members or member email"
-                >
+                <Tooltip label="Search by name, members or member email">
                     <TextInput
                         size="xs"
-                        radius="md"
                         type="search"
                         variant="default"
                         placeholder="Search groups by name, members or member email"
@@ -39,7 +35,7 @@ export const GroupsTopToolbar: FC<GroupsTopToolbarProps> = memo(
                         leftSection={
                             <MantineIcon
                                 size="md"
-                                color="ldGray.6"
+                                color="dimmed"
                                 icon={IconSearch}
                             />
                         }

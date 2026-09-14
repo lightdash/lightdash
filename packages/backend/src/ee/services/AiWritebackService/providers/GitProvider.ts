@@ -22,13 +22,6 @@ export type OpenPullRequestArgs = {
     /** The Lightdash user who triggered the run, credited as a commit co-author. */
     user: SessionUser;
     setStage: SetStage;
-    /**
-     * Reject the commit (no PR) if it touches CI/workflow files. Set for the
-     * general coding agent (R3); false for dbt writeback, which legitimately
-     * adds `.github/workflows` for preview-deploy setup. Secret files are denied
-     * regardless of this flag.
-     */
-    denyCiPaths: boolean;
 };
 
 export type UpdatePullRequestArgs = OpenPullRequestArgs & {
@@ -77,7 +70,10 @@ export interface GitProvider {
     /** Tag recorded on the `pull_requests` row. */
     readonly provider: PullRequestProvider;
 
-    resolveConnection(dbtConnection: DbtProjectConfig): GitConnection;
+    resolveConnection(
+        dbtConnection: DbtProjectConfig,
+        context?: { projectUuid: string; projectDbtSourceUuid: string | null },
+    ): GitConnection;
     /**
      * Resolve auth for the run's git host. When `options.user` and
      * `options.connection` are supplied and the user has linked their personal

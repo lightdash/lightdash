@@ -82,28 +82,26 @@ jobs:
           fi
           echo "action=$ACTION" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
+      - name: Read Node pin from checked-out revision
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
 
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
           cache-dependency-path: |
             pnpm-lock.yaml
             ${{ inputs.template_directory }}/pnpm-lock.yaml
+          install: false
 
       - name: Install root deps
         if: steps.plan.outputs.action == 'build' && inputs.install_root_deps
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
+        run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
 
       - name: Install sandbox deps
         working-directory: ${{ inputs.template_directory }}
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
+        run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
 
       - name: Build and publish template
         if: steps.plan.outputs.action == 'build'

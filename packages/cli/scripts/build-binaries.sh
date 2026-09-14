@@ -26,6 +26,10 @@ while [[ $# -gt 0 ]]; do
       TARGETS="node24-macos-x64,node24-macos-arm64"
       shift
       ;;
+    --linux-only)
+      TARGETS="node24-linux-x64"
+      shift
+      ;;
     --help)
       echo "Usage: $0 [OPTIONS]"
       echo ""
@@ -33,6 +37,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --sign        Sign and notarize macOS binaries (requires env vars)"
       echo "  --archive     Create tar.gz/zip archives and checksums for distribution"
       echo "  --mac-only    Build only macOS binaries"
+      echo "  --linux-only  Build only the Linux x64 binary"
       echo "  --help        Show this help message"
       echo ""
       echo "Required environment variables for signing:"

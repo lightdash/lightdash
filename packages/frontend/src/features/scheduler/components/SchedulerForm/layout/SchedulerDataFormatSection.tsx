@@ -1,16 +1,21 @@
 import {
     isAppScheduler,
+    isChartScheduler,
     isDashboardScheduler,
     SchedulerFormat,
     type Dashboard,
+    type DashboardFilterRule,
+    type FilterRule,
+    type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type SavedChart,
     type SchedulerAndTargets,
     type SchedulerAppState,
+    type UnmetFilterRequirement,
 } from '@lightdash/common';
 import {
     Anchor,
-    Badge,
     Box,
     Checkbox,
     Code,
@@ -23,40 +28,78 @@ import {
     Table,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { CsvFormattingOptions } from '../../CsvFormattingOptions';
-import { useSchedulerFormContext } from '../schedulerFormContext';
+import { Limit, Values } from '../../types';
+import { SchedulerFormChartFilterOverridesTab } from '../SchedulerFormChartFilterOverridesTab';
+import {
+    hasFileAttachmentTargets,
+    useSchedulerFormContext,
+} from '../schedulerFormContext';
 import { SchedulerFormFiltersTab } from '../SchedulerFormFiltersTab';
 import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
 import classes from './SchedulerDeliveryModal.module.css';
 
+// Counted from the interactive session (active tab only). Apps wired to load
+// every tab's data during deliveries can capture more queries than this — the
+// count is advisory, never a gate; the delivery itself fails if nothing runs.
+const getAppQueryCountCaption = (
+    capturedQueryCount: number | undefined,
+): string | null => {
+    if (capturedQueryCount === undefined) return null;
+    if (capturedQueryCount === 0)
+        return 'No data queries detected in the current view. Apps set up for full-data deliveries may still capture data — if none runs, the delivery fails.';
+    if (capturedQueryCount === 1)
+        return '1 data query detected in the current view — it becomes a file';
+    return `${capturedQueryCount} data queries detected in the current view — each query becomes a file`;
+};
+
 type Props = {
     dashboard: Dashboard | undefined;
+    /** Chart deliveries only: the chart whose saved filters can be adjusted. */
+    savedChart?: SavedChart;
+    /** Chart deliveries opened from the chart page: the explorer's fields. */
+    itemsMap?: ItemsMap;
+    /** Chart deliveries only: whether this user may replace the chart's saved filters. */
+    canAdjustChartFilters?: boolean;
+    chartFiltersWithUnmetRequirements?: FilterRule[];
     savedSchedulerData?: SchedulerAndTargets;
     isApp: boolean;
     appUuid?: string;
     /** App deliveries only: the app state currently reflected in the page URL. */
     currentAppState?: SchedulerAppState | null;
+    /** App deliveries only: count of ready queries captured by the live preview.
+     *  Undefined (no live data) leaves csv/xlsx enabled rather than gated shut. */
+    capturedQueryCount?: number;
     isDashboardTabsAvailable: boolean;
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
     loading: boolean;
+    unmetFilterRequirements: UnmetFilterRequirement[];
+    filtersWithUnmetRequirements: DashboardFilterRule[];
 };
 
 export const SchedulerDataFormatSection: FC<Props> = ({
     dashboard,
+    savedChart,
+    itemsMap,
+    canAdjustChartFilters = true,
+    chartFiltersWithUnmetRequirements = [],
     savedSchedulerData,
     isApp,
     appUuid,
     currentAppState,
+    capturedQueryCount,
     isDashboardTabsAvailable,
     currentParameterValues,
     availableParameters,
     loading,
+    unmetFilterRequirements,
+    filtersWithUnmetRequirements,
 }) => {
     const form = useSchedulerFormContext();
     const health = useHealth();
@@ -91,6 +134,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     );
 
     const format = form.values.format;
+    const appQueryCountCaption = getAppQueryCountCaption(capturedQueryCount);
 
     return (
         <Stack gap="lg">
@@ -98,12 +142,53 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 <Input.Label>Format</Input.Label>
                 <Group gap="xs" wrap="nowrap">
                     {isApp ? (
-                        <Badge variant="light" radius="sm" size="lg" px="sm">
-                            Image
-                        </Badge>
+                        <SegmentedControl
+                            fullWidth
+                            data={[
+                                {
+                                    label: '.csv',
+                                    value: SchedulerFormat.CSV,
+                                },
+                                {
+                                    label: '.xlsx',
+                                    value: SchedulerFormat.XLSX,
+                                },
+                                {
+                                    label: 'Image',
+                                    value: SchedulerFormat.IMAGE,
+                                    disabled: isImageDisabled,
+                                },
+                            ]}
+                            w="100%"
+                            value={format}
+                            onChange={(value) => {
+                                const previousFormat = form.values.format;
+                                form.setFieldValue(
+                                    'format',
+                                    value as SchedulerFormat,
+                                );
+                                if (
+                                    value === SchedulerFormat.CSV ||
+                                    value === SchedulerFormat.XLSX
+                                ) {
+                                    // CSV<->XLSX keeps its app-legal limit
+                                    // (table/all); other origins normalize.
+                                    const wasAlreadyCsvOrXlsx =
+                                        previousFormat ===
+                                            SchedulerFormat.CSV ||
+                                        previousFormat === SchedulerFormat.XLSX;
+                                    form.setFieldValue('options', {
+                                        ...form.values.options,
+                                        formatted: Values.FORMATTED,
+                                        limit: wasAlreadyCsvOrXlsx
+                                            ? form.values.options.limit
+                                            : Limit.TABLE,
+                                    });
+                                }
+                            }}
+                        />
                     ) : (
                         <SegmentedControl
-                            radius="md"
                             fullWidth
                             data={[
                                 { label: '.csv', value: SchedulerFormat.CSV },
@@ -129,8 +214,13 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         />
                     )}
                 </Group>
-                {isImageDisabled && !isApp && (
-                    <Text size="xs" c="ldGray.6">
+                {isApp && appQueryCountCaption && (
+                    <Text size="xs" c="dimmed">
+                        {appQueryCountCaption}
+                    </Text>
+                )}
+                {isImageDisabled && (
+                    <Text size="xs" c="dimmed">
                         You must enable the
                         <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
                             {' '}
@@ -194,23 +284,23 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                             })}
                         />
                     )}
-                {format === SchedulerFormat.CSV && (
+                {(format === SchedulerFormat.CSV ||
+                    format === SchedulerFormat.XLSX) && (
                     <Tooltip
-                        label="You must have at least one email recipient to attach a file to emails"
+                        label="Add an email or Slack recipient to attach the file"
                         position="top-start"
-                        withinPortal
-                        disabled={(form.values.emailTargets?.length || 0) > 0}
+                        disabled={hasFileAttachmentTargets(form.values)}
                     >
                         <Box display="flex" w="fit-content">
                             <Checkbox
                                 size="xs"
-                                label="Attach the file to emails"
+                                label="Attach the file to the delivery"
+                                description="Emails get it as an attachment, Slack channels get it in the message thread"
                                 {...form.getInputProps('options.asAttachment', {
                                     type: 'checkbox',
                                 })}
                                 disabled={
-                                    (form.values.emailTargets?.length || 0) ===
-                                    0
+                                    !hasFileAttachmentTargets(form.values)
                                 }
                             />
                         </Box>
@@ -254,6 +344,8 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     value,
                                 )
                             }
+                            limitVariant={isApp ? 'tableOrAll' : 'full'}
+                            hideExportPivotedData={isApp}
                         />
                     </Box>
                 )}
@@ -267,7 +359,11 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         <Checkbox
                             size="xs"
                             label="Send current app state"
-                            description="The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view."
+                            description={
+                                form.values.format === SchedulerFormat.IMAGE
+                                    ? 'The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view.'
+                                    : 'Filters and selections in this state shape the delivered data. Apps set up for full-data deliveries include every tab’s data regardless of the tab selected here.'
+                            }
                             checked={form.values.appState != null}
                             onChange={(e) => {
                                 form.setFieldValue(
@@ -332,6 +428,37 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 </>
             )}
 
+            {savedChart && (
+                <>
+                    <Divider />
+                    <Stack gap="xs">
+                        <span className={classes.subBlockLabel}>Filters</span>
+                        <SchedulerFormChartFilterOverridesTab
+                            savedChart={savedChart}
+                            itemsMap={itemsMap}
+                            readOnly={!canAdjustChartFilters}
+                            draftFilters={form.values.chartFilters}
+                            isEditMode={savedSchedulerData !== undefined}
+                            savedFilters={
+                                savedSchedulerData &&
+                                isChartScheduler(savedSchedulerData)
+                                    ? savedSchedulerData.filters
+                                    : undefined
+                            }
+                            onChange={(chartFilters) => {
+                                form.setFieldValue(
+                                    'chartFilters',
+                                    chartFilters,
+                                );
+                            }}
+                            filtersWithUnmetRequirements={
+                                chartFiltersWithUnmetRequirements
+                            }
+                        />
+                    </Stack>
+                </>
+            )}
+
             {isDashboard && (
                 <>
                     <Divider />
@@ -353,6 +480,10 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     schedulerFilters,
                                 );
                             }}
+                            unmetRequirements={unmetFilterRequirements}
+                            filtersWithUnmetRequirements={
+                                filtersWithUnmetRequirements
+                            }
                         />
                     </Stack>
 

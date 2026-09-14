@@ -1,4 +1,4 @@
-import { Box, Paper, Skeleton, Text } from '@mantine-8/core';
+import { Box, Paper, Skeleton, Text } from '@mantine/core';
 import type { FC } from 'react';
 import { useAiAgentAdminEmbedToken } from '../../hooks/useAiAgentAdmin';
 
@@ -9,7 +9,7 @@ export const AnalyticsEmbedDashboard: FC = () => {
     if (!embedData) {
         return (
             <Paper h={450}>
-                <Text c="ldGray.6">Unable to load analytics dashboard</Text>
+                <Text c="dimmed">Unable to load analytics dashboard</Text>
             </Paper>
         );
     }

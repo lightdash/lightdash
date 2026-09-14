@@ -29,6 +29,7 @@ export type PullRequestReviewContext = {
 export enum PullRequestProvider {
     GITHUB = 'github',
     GITLAB = 'gitlab',
+    BITBUCKET = 'bitbucket',
 }
 
 export enum PullRequestSource {
@@ -37,6 +38,7 @@ export enum PullRequestSource {
     SQL_RUNNER = 'sql_runner',
     SOURCE_EDITOR = 'source_editor',
     AI_AGENT = 'ai_agent',
+    CONTENT_AS_CODE = 'content_as_code',
 }
 
 export enum PullRequestState {
@@ -48,7 +50,7 @@ export enum PullRequestState {
 /**
  * A pull request created by a write-back. Only immutable identifiers are
  * persisted; the live title/state are resolved at runtime from the
- * GitHub/GitLab API using provider + owner + repo + prNumber.
+ * Git provider API using provider + owner + repo + prNumber.
  */
 export type PullRequest = {
     pullRequestUuid: string;
@@ -247,10 +249,9 @@ export type ApiProjectFilesResponse = {
 
 /**
  * The repositories the agent can read for a project, used by the chat input's
- * `@`-mention repository picker. This is the same union the agent's repo VFS
- * mounts (the org installation's repos plus the linked user's own), gated by the
- * project's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`
- * endpoint, it never exposes repo names to users without source-code access.
+ * `@`-mention repository picker. The organization installation authorizes only
+ * the project's configured repository; additional repositories require the
+ * linked user's own provider access.
  */
 export type ApiProjectRepositoriesResponse = {
     status: 'ok';

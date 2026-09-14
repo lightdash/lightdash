@@ -17,8 +17,8 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconLock,
@@ -42,8 +42,6 @@ import {
     InheritanceType,
     NestedInheritanceOptions,
     RootInheritanceOptions,
-    sortAccessList,
-    type SortOrder,
 } from './ShareSpaceModalUtils';
 import { UserAccessAction, UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
@@ -53,9 +51,10 @@ type UserAccessListProps = {
     accessList: SpaceShare[];
     sessionUser: LightdashUser | undefined;
     onAccessChange: (action: UserAccessAction, user: SpaceShare) => void;
-    pageSize?: number;
     disabled?: boolean;
-    sortOrder: SortOrder;
+    page: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
 };
 
 export const UserAccessList: FC<UserAccessListProps> = ({
@@ -63,30 +62,22 @@ export const UserAccessList: FC<UserAccessListProps> = ({
     accessList,
     sessionUser,
     onAccessChange,
-    pageSize,
     disabled = false,
-    sortOrder,
+    page,
+    totalPages,
+    onPageChange,
 }) => {
-    const [page, setPage] = useState(1);
-
-    const paginatedList: SpaceShare[][] = useMemo(() => {
-        const sorted = structuredClone(accessList).sort(
-            sortAccessList(sessionUser?.userUuid, sortOrder),
-        );
-        return chunk(sorted, pageSize ?? DEFAULT_PAGE_SIZE);
-    }, [accessList, pageSize, sessionUser?.userUuid, sortOrder]);
-
     const handleNextPage = useCallback(() => {
-        if (page < paginatedList.length) setPage((p) => p + 1);
-    }, [page, paginatedList.length]);
+        if (page < totalPages) onPageChange(page + 1);
+    }, [page, totalPages, onPageChange]);
 
     const handlePreviousPage = useCallback(() => {
-        if (page > 1) setPage((p) => p - 1);
-    }, [page]);
+        if (page > 1) onPageChange(page - 1);
+    }, [page, onPageChange]);
 
     return (
         <Stack gap="sm">
-            {paginatedList[page - 1]?.map((sharedUser) => {
+            {accessList.map((sharedUser) => {
                 const needsPromotion =
                     sharedUser.projectRole === ProjectMemberRole.VIEWER &&
                     sharedUser.role !== SpaceMemberRole.VIEWER;
@@ -141,7 +132,7 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                                     sharedUser.isInternal,
                                 )}
                                 {isSessionUser ? (
-                                    <Text fw={400} fz="sm" span c="ldGray.6">
+                                    <Text fw={400} fz="sm" span c="dimmed">
                                         {' '}
                                         (you)
                                     </Text>
@@ -155,7 +146,6 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                         {isSessionUser || !sharedUser.hasDirectAccess ? (
                             <Badge
                                 size="sm"
-                                variant="light"
                                 color={getAccessColor(sharedUser.role).join(
                                     '.',
                                 )}
@@ -169,10 +159,8 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                         ) : (
                             <Tooltip
                                 disabled={!needsPromotion}
-                                withinPortal
                                 label="User needs to be promoted to interactive viewer to have this space access"
                                 maw={350}
-                                multiline
                             >
                                 <Select
                                     classNames={{
@@ -228,15 +216,15 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                     </Group>
                 );
             })}
-            {paginatedList.length > 1 && (
+            {totalPages > 1 && (
                 <PaginateControl
                     currentPage={page}
-                    totalPages={paginatedList.length}
-                    hasNextPage={page < paginatedList.length}
+                    totalPages={totalPages}
+                    hasNextPage={page < totalPages}
                     hasPreviousPage={page > 1}
                     onNextPage={handleNextPage}
                     onPreviousPage={handlePreviousPage}
-                    style={{ alignSelf: 'flex-end' }}
+                    className={classes.pagination}
                 />
             )}
         </Stack>
@@ -357,7 +345,7 @@ export const GroupsAccessList: FC<GroupAccessListProps> = ({
                     hasPreviousPage={page > 1}
                     onNextPage={handleNextPage}
                     onPreviousPage={handlePreviousPage}
-                    style={{ alignSelf: 'flex-end' }}
+                    className={classes.pagination}
                 />
             )}
         </Stack>
@@ -419,12 +407,7 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
 
     return (
         <>
-            <Paper
-                withBorder
-                p="md"
-                radius="md"
-                className={classes.accessModelCard}
-            >
+            <Paper p="md" radius="md" className={classes.accessModelCard}>
                 <Group justify="space-between" wrap="nowrap">
                     <Group gap="sm" wrap="nowrap">
                         <Avatar
@@ -447,7 +430,7 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
                             <Text fw={600} fz="sm">
                                 {currentOption.title}
                             </Text>
-                            <Text c="ldGray.6" fz="xs">
+                            <Text c="dimmed" fz="xs">
                                 {inheritDescription ??
                                     currentOption.description}
                             </Text>
@@ -456,7 +439,6 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
 
                     <SegmentedControl
                         size="xs"
-                        radius="md"
                         value={currentValue}
                         classNames={{
                             root: classes.segmentedControl,
@@ -485,7 +467,28 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
                         }}
                         data={options.map((o) => ({
                             value: o.value,
-                            label: o.title,
+                            label:
+                                o.value === InheritanceType.OWN_ONLY ? (
+                                    // Scope-tour marker: the control that
+                                    // manage:Space unlocks for sharing. Path
+                                    // and follow-up declared here; see
+                                    // scripts/scope-tours/generate.ts.
+                                    <span
+                                        data-tour-scope="manage:Space"
+                                        data-tour-step="2"
+                                        data-tour-route="/projects/:projectUuid/spaces/:spaceUuid"
+                                        data-tour-label="Choose Restricted access"
+                                        data-tour-title="Share a space with the right people"
+                                        data-tour-docs="explore/spaces.mdx#managing-access-to-a-space:p2:2"
+                                        data-tour-interactive="true"
+                                        data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-spaces"] >> [data-tour-anchor="space-row"] >> [data-tour-anchor="space-actions"] >> [data-tour-anchor="space-share"]'
+                                        data-tour-then='[data-tour-anchor="modal-confirm"]'
+                                    >
+                                        {o.title}
+                                    </span>
+                                ) : (
+                                    o.title
+                                ),
                         }))}
                     />
                 </Group>

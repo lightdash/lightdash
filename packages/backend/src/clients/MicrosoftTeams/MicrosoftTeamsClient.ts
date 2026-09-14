@@ -9,12 +9,14 @@ import {
     PartialFailureType,
     sanitizeHtml,
     ThresholdOptions,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
+import { postSchedulerWebhook } from '../../utils/schedulerWebhookValidation';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
 // Adaptive Card TextBlocks render a markdown subset (links, emphasis, code) and
@@ -72,24 +74,17 @@ export class MicrosoftTeamsClient {
             throw new MissingConfigError('Microsoft Teams is not enabled');
         }
         const webhookIdentity = redactWebhookIdentity(webhookUrl);
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
+        const response = await postSchedulerWebhook(webhookUrl, payload);
 
         const classification = classifyHttpStatus(response.status);
 
         // Accept any 2xx status: legacy webhooks return 200, Power Automate Workflows return 202
-        if (!response.ok) {
-            const responseText = await response.text();
+        if (response.status < 200 || response.status >= 300) {
             Logger.error('msteams.webhook_failed', {
                 webhookIdentity,
                 httpStatus: response.status,
                 classification,
-                responseBody: responseText.slice(0, 500),
+                responseBody: response.bodyText.slice(0, 500),
             });
             Logger.info(
                 `Microsoft teams webhook payload ${JSON.stringify(
@@ -330,6 +325,7 @@ export class MicrosoftTeamsClient {
         csvUrls,
         footer,
         failures,
+        notices,
     }: {
         webhookUrl: string;
         title: string;
@@ -339,6 +335,7 @@ export class MicrosoftTeamsClient {
         csvUrls: AttachmentUrl[];
         footer: string;
         failures?: PartialFailure[];
+        notices?: DeliveryNotice[];
     }): Promise<void> {
         if (!this.lightdashConfig.microsoftTeams.enabled) {
             throw new MissingConfigError('Microsoft Teams is not enabled');
@@ -419,11 +416,7 @@ export class MicrosoftTeamsClient {
                                             type: 'TextBlock',
                                             text: `- **${stripMarkup(
                                                 f.label,
-                                            )}:** did not run in this delivery${
-                                                f.identityChanged
-                                                    ? ' (query changed since it was selected)'
-                                                    : ''
-                                            }`,
+                                            )}:** did not run in this delivery`,
                                             wrap: true,
                                             spacing: 'None',
                                         };
@@ -498,11 +491,7 @@ export class MicrosoftTeamsClient {
                                         type: 'TextBlock',
                                         text: `- **${stripMarkup(
                                             f.label,
-                                        )}:** did not run in this delivery${
-                                            f.identityChanged
-                                                ? ' (query changed since it was selected)'
-                                                : ''
-                                        }`,
+                                        )}:** did not run in this delivery`,
                                         wrap: true,
                                         spacing: 'None',
                                     };
@@ -524,6 +513,21 @@ export class MicrosoftTeamsClient {
                 },
             ];
         };
+
+        const getNoticeBlocks = (): {
+            type: string;
+            text: string;
+            wrap: boolean;
+        }[] =>
+            (notices ?? []).map((notice) => ({
+                type: 'TextBlock',
+                text: `ℹ️ ${stripMarkup(
+                    notice.label,
+                )} reached its query limit; additional rows may exist (${
+                    notice.rowCount
+                } rows delivered)`,
+                wrap: true,
+            }));
 
         // https://adaptivecards.io/explorer/
         const payload = {
@@ -575,6 +579,7 @@ export class MicrosoftTeamsClient {
                                   ]
                                 : []),
                             ...getFailureBlocks(),
+                            ...getNoticeBlocks(),
                             {
                                 type: 'TextBlock',
                                 text: footer,

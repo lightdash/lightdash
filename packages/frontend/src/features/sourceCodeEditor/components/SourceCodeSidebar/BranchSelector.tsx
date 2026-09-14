@@ -1,5 +1,5 @@
 import { type GitBranch } from '@lightdash/common';
-import { Button, Group, Select, Text } from '@mantine-8/core';
+import { Button, Group, Select, Text } from '@mantine/core';
 import { IconGitBranch, IconLock, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

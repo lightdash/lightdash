@@ -1,0 +1,26 @@
+.card {
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm);
+    background: var(--mantine-color-background-0);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    text-align: left;
+    transition:
+        transform 150ms,
+        box-shadow 150ms,
+        border-color 150ms;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    border-color: var(--mantine-color-ldGray-4);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.thumbnail {
+    display: block;
+    width: 100%;
+}

@@ -5,12 +5,19 @@ export default function mockHealthResponse(
 ): HealthState {
     return {
         healthy: true,
+        requiresMigration: false,
         license: {
             hasLicenseKey: false,
             valid: false,
         },
         mode: LightdashMode.CLOUD_BETA,
         version: '0.0.0',
+        mobile: {
+            minimumSupportedVersion: {
+                android: null,
+                ios: null,
+            },
+        },
         localDbtEnabled: true,
         isAuthenticated: true,
         requiresOrgRegistration: false,
@@ -104,6 +111,8 @@ export default function mockHealthResponse(
         hasExtendedUsageAnalytics: false,
         hasGithub: false,
         hasGitlab: false,
+        hasJira: false,
+        hasLinear: false,
         hasCacheAutocompleResults: false,
         hasMicrosoftTeams: false,
         appearance: {
@@ -124,6 +133,7 @@ export default function mockHealthResponse(
             analyticsProjectUuid: undefined,
             analyticsDashboardUuid: undefined,
             isAmbientAiEnabled: false,
+            threadDumpEnabled: false,
         },
         echarts6: {
             enabled: false,

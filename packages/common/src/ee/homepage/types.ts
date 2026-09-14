@@ -54,7 +54,8 @@ export type HomepageCollectionSource =
     | 'recently-updated'
     | 'pinned'
     | 'favorites'
-    | 'recently-viewed';
+    | 'recently-viewed'
+    | 'verified';
 
 /** Sources whose content differs for every viewer, so an admin previewing as
  * someone else must not see the target's data. */
@@ -84,6 +85,11 @@ export type HomepageCollectionBlock = {
         verifiedOnly?: boolean;
         /** How many items to show. Absent means DEFAULT_COLLECTION_LIMIT. */
         limit?: number;
+        // Optional for back-compat: undefined renders as 'card'.
+        layout?: HomepageContentLayout;
+        /** Narrows live sources to these content types. Ignored for `manual`
+         * (hand-picking is already the filter) and when absent or empty. */
+        contentTypes?: HomepageCollectionItemRef['contentType'][];
     };
 };
 
@@ -117,7 +123,12 @@ export type HomepageResourceItem = {
     appUuid?: string;
 };
 
-export type HomepageResourcesLayout = 'card' | 'list';
+/** Shared display vocabulary for content-listing blocks: media-rich cards, or
+ * a compact mode whose geometry (tile columns vs single-column rows) resolves
+ * from the block's width rather than being a third admin choice. */
+export type HomepageContentLayout = 'card' | 'list';
+
+export type HomepageResourcesLayout = HomepageContentLayout;
 
 export type HomepageResourcesBlock = {
     id: string;
@@ -127,6 +138,8 @@ export type HomepageResourcesBlock = {
         items: HomepageResourceItem[];
         // Optional for back-compat: undefined renders as 'list'.
         layout?: HomepageResourcesLayout;
+        // Optional for back-compat: undefined shows descriptions.
+        showDescriptions?: boolean;
     };
 };
 
@@ -142,7 +155,12 @@ export type HomepageAnnouncementsBlock = {
     id: string;
     type: 'announcements';
     /** Feed reference — items live in `project_announcements`. */
-    config: { title: string };
+    config: {
+        title: string;
+        // Optional for back-compat: undefined renders every recent
+        // announcement expanded.
+        collapseAfterFirst?: boolean;
+    };
 };
 
 export type HomepageQuickActionTarget =
@@ -150,7 +168,10 @@ export type HomepageQuickActionTarget =
     | { type: 'run-query' }
     | { type: 'browse-dashboards' }
     | { type: 'browse-spaces' }
-    | { type: 'dashboard'; dashboardUuid: string; label: string };
+    | { type: 'dashboard'; dashboardUuid: string; label: string }
+    | { type: 'space'; spaceUuid: string; label: string }
+    /** Resolves per viewer to their personal space; hidden when they have none. */
+    | { type: 'my-space' };
 
 /** Any quick action can be promoted to the row's primary one, which renders
  * as the same chip inverted. Optional so older configs still load. */
@@ -162,6 +183,48 @@ export type HomepageQuickActionsBlock = {
     id: string;
     type: 'quick-actions';
     config: { actions: HomepageQuickAction[] };
+};
+
+/** Where the CTA button leads: the quick-action vocabulary plus a free URL. */
+export type HomepageCtaTarget =
+    | HomepageQuickActionTarget
+    | { type: 'link'; url: string };
+
+/** Semantic theme tokens, resolved at render from the org's brand colors —
+ * a rebrand restyles every CTA without touching stored configs. `custom`
+ * reads the block's own `customColor`. */
+export type HomepageCtaTheme =
+    | 'brand'
+    | 'accent'
+    | 'dark'
+    | 'neutral'
+    | 'custom';
+
+/** The block's container: invisible (just the button on the page), a neutral
+ * card, or a surface painted with the theme (the button then inverts it). */
+export type HomepageCtaBackground = 'none' | 'card' | 'theme';
+
+/** Where a bare (title-less) CTA button sits in its row. */
+export type HomepageCtaAlign = 'left' | 'center' | 'right';
+
+export type HomepageCtaBlock = {
+    id: string;
+    type: 'cta';
+    config: {
+        /** Optional: without it the CTA is just its button. */
+        title?: string;
+        description?: string;
+        buttonLabel: string;
+        target: HomepageCtaTarget;
+        // Optional for back-compat: undefined renders as 'brand'.
+        theme?: HomepageCtaTheme;
+        /** Hex color used when `theme` is `custom`. */
+        customColor?: string;
+        // Optional: undefined renders as 'none' (chromeless).
+        background?: HomepageCtaBackground;
+        // Optional: undefined centres the bare button. Ignored with a title.
+        align?: HomepageCtaAlign;
+    };
 };
 
 export type HomepageMetricRef = {
@@ -230,6 +293,7 @@ export type HomepageBlock =
     | HomepageAnnouncementsBlock
     | HomepageMetricsBlock
     | HomepageQuickActionsBlock
+    | HomepageCtaBlock
     | HomepageFavoritesBlock
     | HomepageRecentBlock;
 
@@ -319,10 +383,14 @@ export const migrateHomepageConfig = (
     config: HomepageConfig,
 ): HomepageConfig => ({
     ...config,
-    rows: config.rows.map((row) => ({
-        ...row,
-        blocks: row.blocks.map(migrateBlock),
-    })),
+    // A row the read-path sanitizer emptied (all its blocks unparseable) has
+    // nothing left to edit or render — drop it rather than keep a ghost row.
+    rows: config.rows
+        .map((row) => ({
+            ...row,
+            blocks: row.blocks.map(migrateBlock),
+        }))
+        .filter((row) => row.blocks.length > 0),
 });
 
 export type ProjectHomepage = {
@@ -430,6 +498,11 @@ export type ProjectAnnouncement = {
      * are only visible to users who can manage announcements.
      */
     pendingSlackChannelId: string | null;
+    /**
+     * When set (and unpublished), the announcement publishes automatically at
+     * this UTC instant. Null once published or for plain drafts.
+     */
+    scheduledPublishAt: Date | null;
     createdByUserUuid: string | null;
     authorName: string | null;
     createdAt: Date;
@@ -450,6 +523,18 @@ export type CreateAnnouncementRequest = {
      * this Slack channel. Requires the org to have Slack installed.
      */
     slackChannelId?: string | null;
+    /**
+     * When true the announcement goes live immediately and its Slack
+     * notification (if any) fires now, instead of waiting for the next
+     * homepage publish. Used when posting from the published homepage.
+     * Mutually exclusive with `scheduledPublishAt`.
+     */
+    publishNow?: boolean;
+    /**
+     * Future UTC instant at which the announcement publishes automatically
+     * (Slack notification fires then). Mutually exclusive with `publishNow`.
+     */
+    scheduledPublishAt?: Date;
 };
 
 /** PATCH semantics: omitted fields are left unchanged */
@@ -460,6 +545,17 @@ export type UpdateAnnouncementRequest = {
     pinned?: boolean;
     /** Only drafts: set to retarget the Slack notification, null to cancel it */
     slackChannelId?: string | null;
+    /**
+     * Unpublished only: set a future UTC instant to schedule (or reschedule)
+     * automatic publishing, null to unschedule back to a plain draft.
+     */
+    scheduledPublishAt?: Date | null;
+    /**
+     * Unpublished only: publish immediately (fires the pending Slack
+     * notification, cancels any schedule). Cannot combine with
+     * `scheduledPublishAt`.
+     */
+    publishNow?: boolean;
 };
 
 /** Slack's markdown block rejects ~12k chars; cap bodies well under it */

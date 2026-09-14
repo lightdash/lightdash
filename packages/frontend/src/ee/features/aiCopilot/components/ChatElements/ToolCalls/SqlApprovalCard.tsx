@@ -1,5 +1,5 @@
 import { type ApiAiAgentSqlApprovalRequest } from '@lightdash/common';
-import { Button, Code, Group, Paper, Stack, Text } from '@mantine-8/core';
+import { Button, Code, Group, Paper, Stack, Text } from '@mantine/core';
 import {
     IconCheck,
     IconShieldCheck,
@@ -81,10 +81,8 @@ export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
 
     return (
         <Paper
-            withBorder
             radius="sm"
             p="sm"
-            shadow="none"
             style={{
                 borderColor: 'var(--mantine-color-ldGray-3)',
                 background: 'var(--mantine-color-body)',

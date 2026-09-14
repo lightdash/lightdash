@@ -3,6 +3,7 @@ import {
     IconApps,
     IconAppWindow,
     IconBolt,
+    IconBook2,
     IconBrain,
     IconBrowser,
     IconBrush,
@@ -10,10 +11,10 @@ import {
     IconCalendarStats,
     IconChecklist,
     IconClock,
-    IconBook2,
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconEyeCheck,
     IconFileExport,
     IconFolders,
     IconGauge,
@@ -32,6 +33,7 @@ import {
     IconReportAnalytics,
     IconRoad,
     IconRobotFace,
+    IconSend,
     IconSettings,
     IconShieldCheck,
     IconTableOptions,
@@ -43,8 +45,8 @@ import {
     IconUsers,
     IconUserShield,
     IconVariable,
-    IconWorldCog,
     IconWorldCheck,
+    IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -75,6 +77,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         isGroupManagementEnabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
@@ -83,19 +86,21 @@ export const useSettingsNavigation = (
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
-        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
-        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         embeddingEnabled,
         dataAppsFlag,
+        externalSourcesFlag,
+        isResultsCacheEnabled,
         isGitProject,
+        isContentReviewAvailable,
     } = context;
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
+    const isExternalSourcesEnabled = externalSourcesFlag?.enabled ?? false;
 
     return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;
@@ -292,7 +297,7 @@ export const useSettingsNavigation = (
         if (isDataAppsEnabled) {
             const dataAppChildren: SettingsNavigationItem[] = [];
 
-            if (ability?.can('view', 'OrganizationDesign')) {
+            if (ability?.can('manage', 'OrganizationDesign')) {
                 dataAppChildren.push({
                     label: 'Themes',
                     to: '/generalSettings/dataApps/themes',
@@ -337,7 +342,7 @@ export const useSettingsNavigation = (
                 label: 'Integrations',
                 to: '/generalSettings/integrations',
                 icon: IconPlug,
-                keywords: ['slack', 'github', 'gitlab'],
+                keywords: ['slack', 'github', 'gitlab', 'linear', 'jira'],
                 children: [],
                 exact: true,
             });
@@ -445,6 +450,18 @@ export const useSettingsNavigation = (
             });
         }
 
+        if (canAccessAnalyticsSettings) {
+            organizationItems.push({
+                label: 'Lightdash analytics',
+                to: '/generalSettings/lightdashAnalytics',
+                icon: IconReportAnalytics,
+                isBeta: true,
+                keywords: ['usage', 'analytics', 'tokens', 'queries'],
+                children: [],
+                exact: true,
+            });
+        }
+
         if (ability?.can('manage', 'Organization') && isScimEnabled) {
             organizationItems.push({
                 label: 'SCIM access tokens',
@@ -530,21 +547,18 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (shouldShowAiAgentMemories) {
-                aiChildren.push({
-                    label: 'Memories',
-                    to: '/generalSettings/ai/memories',
-                    icon: IconNotebook,
-                    keywords: ['memory', 'memories', 'learned', 'knowledge'],
-                    children: [],
-                    exact: true,
-                });
-            }
+            aiChildren.push({
+                label: 'Memories',
+                to: '/generalSettings/ai/memories',
+                icon: IconNotebook,
+                keywords: ['memory', 'memories', 'learned', 'knowledge'],
+                children: [],
+                exact: true,
+            });
 
             if (
                 canAccessDeepResearchSettings({
                     isAiCopilotEnabledOrTrial,
-                    isDeepResearchEnabled,
                     canManageOrgAiAgent,
                     hasAnyAiAgentAccess,
                 })
@@ -640,6 +654,27 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
+                // Only meaningful when the instance has AI agents at all —
+                // same gate as the org-level AI agents section.
+                ...(isAiCopilotEnabledOrTrial
+                    ? [
+                          {
+                              label: 'Agent data scope',
+                              to: `${base}/agentDataScope`,
+                              icon: IconDatabaseCog,
+                              keywords: [
+                                  'ai',
+                                  'agent',
+                                  'sql',
+                                  'schema',
+                                  'catalog',
+                                  'scope',
+                              ],
+                              children: [],
+                              exact: true,
+                          },
+                      ]
+                    : []),
                 {
                     label: 'Compilation history',
                     to: `${base}/compilationHistory`,
@@ -674,6 +709,23 @@ export const useSettingsNavigation = (
                             exact: true,
                         },
                     ],
+                });
+            }
+
+            if (isResultsCacheEnabled) {
+                projectItems.push({
+                    label: 'Results caching',
+                    to: `${base}/caching`,
+                    icon: IconDatabaseExport,
+                    keywords: [
+                        'cache',
+                        'results',
+                        'duration',
+                        'expire',
+                        'refresh',
+                    ],
+                    children: [],
+                    exact: true,
                 });
             }
 
@@ -740,6 +792,26 @@ export const useSettingsNavigation = (
                         exact: true,
                     },
                 );
+            }
+
+            if (
+                isExternalSourcesEnabled &&
+                ability?.can(
+                    'manage',
+                    subject('ExternalSource', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'External sources',
+                    to: `${base}/externalSources`,
+                    icon: IconDatabaseExport,
+                    keywords: ['csv', 'upload', 'files', 'google sheets'],
+                    children: [],
+                    exact: true,
+                });
             }
 
             if (
@@ -892,6 +964,31 @@ export const useSettingsNavigation = (
             }
 
             if (
+                isContentReviewAvailable &&
+                ability?.can(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'Review requests',
+                    to: `${base}/reviewRequests`,
+                    icon: IconSend,
+                    keywords: [
+                        'review',
+                        'personal space',
+                        'approve',
+                        'reviewers',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
                 ability?.can(
                     'promote',
                     subject('SavedChart', {
@@ -930,6 +1027,26 @@ export const useSettingsNavigation = (
                 });
             }
 
+            if (
+                isGitProject &&
+                ability?.can(
+                    'view',
+                    subject('SourceCode', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'Content review',
+                    to: `${base}/contentReview`,
+                    icon: IconEyeCheck,
+                    keywords: ['drafts', 'unpublished', 'review', 'write back'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             if (health?.softDelete?.enabled) {
                 projectItems.push({
                     label: 'Recently deleted',
@@ -959,6 +1076,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         isGroupManagementEnabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
@@ -967,14 +1085,15 @@ export const useSettingsNavigation = (
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
-        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
-        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isEmbeddingEnabled,
         isDataAppsEnabled,
+        isExternalSourcesEnabled,
+        isResultsCacheEnabled,
         isGitProject,
+        isContentReviewAvailable,
         track,
     ]);
 };

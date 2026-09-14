@@ -2,11 +2,13 @@ import {
     isFilterInteractivityEnabled,
     isParameterInteractivityEnabled,
     type Dashboard,
+    type DashboardTile,
     type InteractivityOptions,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { embedContractClass } from '../../styles/embedClassContract';
+import EmbedDashboardExportAll from './EmbedDashboardExportAll';
 import EmbedDashboardExportPdf from './EmbedDashboardExportPdf';
 import EmbedDashboardFilterBar from './EmbedDashboardFilterBar';
 import styles from './EmbedDashboardHeader.module.css';
@@ -16,15 +18,26 @@ type Props = {
     projectUuid: string;
     /** Tab switcher, pinned on top of the filters when the dashboard has tabs */
     tabs?: ReactNode;
+    /** Tiles rendered on the active tab */
+    activeTiles: DashboardTile[];
 };
 
-const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid, tabs }) => {
+const EmbedDashboardHeader: FC<Props> = ({
+    dashboard,
+    projectUuid,
+    tabs,
+    activeTiles,
+}) => {
     const hasFilterBar =
         dashboard.canDateZoom ||
         isParameterInteractivityEnabled(dashboard.parameterInteractivity) ||
         isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
 
-    if (!hasFilterBar && !tabs && !dashboard.canExportPagePdf) {
+    const hasHeaderActions = Boolean(
+        dashboard.canExportPagePdf || dashboard.canExportDashboardCsv,
+    );
+
+    if (!hasFilterBar && !tabs && !hasHeaderActions) {
         return null;
     }
 
@@ -40,6 +53,7 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid, tabs }) => {
         <EmbedDashboardFilterBar
             dashboard={dashboard}
             shouldShowFilters={shouldShowFilters}
+            activeTiles={activeTiles}
         />
     ) : null;
 
@@ -53,8 +67,12 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid, tabs }) => {
             data-has-tabs={Boolean(tabs)}
         >
             <Box className={styles.primary}>{tabs ?? filterBar}</Box>
-            {dashboard.canExportPagePdf && (
+            {hasHeaderActions && (
                 <Box className={styles.actions}>
+                    <EmbedDashboardExportAll
+                        dashboard={dashboard}
+                        projectUuid={projectUuid}
+                    />
                     <EmbedDashboardExportPdf
                         dashboard={dashboard}
                         projectUuid={projectUuid}

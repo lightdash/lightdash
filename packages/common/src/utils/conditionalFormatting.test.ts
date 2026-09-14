@@ -177,6 +177,158 @@ describe('hasMatchingConditionalRules', () => {
     });
 });
 
+describe('Boolean fields', () => {
+    const mockBooleanField = {
+        name: 'is_completed',
+        table: 'orders',
+        type: DimensionType.BOOLEAN,
+        fieldType: FieldType.DIMENSION,
+        sql: 'is_completed',
+        tableLabel: 'Orders',
+        label: 'Is completed',
+        hidden: false,
+    };
+
+    const makeConfig = (
+        operator: FilterOperator,
+        values: (number | string | boolean)[],
+    ) => {
+        const config =
+            createConditionalFormattingConfigWithSingleColor('#ff0000');
+        const rule = createConditionalFormattingRuleWithValues();
+        rule.operator = operator;
+        rule.values = values;
+        config.rules = [rule];
+        return config;
+    };
+
+    it('matches EQUALS when boolean value equals rule value', () => {
+        const config = makeConfig(FilterOperator.EQUALS, [true]);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, true, {}, config),
+        ).toBe(true);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, false, {}, config),
+        ).toBe(false);
+    });
+
+    it('matches EQUALS false', () => {
+        const config = makeConfig(FilterOperator.EQUALS, [false]);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, false, {}, config),
+        ).toBe(true);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, true, {}, config),
+        ).toBe(false);
+    });
+
+    it('matches NOT_EQUALS', () => {
+        const config = makeConfig(FilterOperator.NOT_EQUALS, [true]);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, false, {}, config),
+        ).toBe(true);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, true, {}, config),
+        ).toBe(false);
+    });
+
+    it('matches string-encoded boolean cell values', () => {
+        const config = makeConfig(FilterOperator.EQUALS, [true]);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, 'true', {}, config),
+        ).toBe(true);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, 'false', {}, config),
+        ).toBe(false);
+    });
+
+    it('does not match EQUALS false for null values', () => {
+        const config = makeConfig(FilterOperator.EQUALS, [false]);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, null, {}, config),
+        ).toBe(false);
+    });
+
+    it('matches NULL and NOT_NULL operators', () => {
+        const nullConfig = makeConfig(FilterOperator.NULL, []);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, null, {}, nullConfig),
+        ).toBe(true);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, true, {}, nullConfig),
+        ).toBe(false);
+
+        const notNullConfig = makeConfig(FilterOperator.NOT_NULL, []);
+        expect(
+            hasMatchingConditionalRules(
+                mockBooleanField,
+                false,
+                {},
+                notNullConfig,
+            ),
+        ).toBe(true);
+    });
+
+    it('compares boolean field to another boolean field via compare target', () => {
+        const otherBooleanField = {
+            ...mockBooleanField,
+            name: 'is_paid',
+            label: 'Is paid',
+        };
+        const config =
+            createConditionalFormattingConfigWithSingleColor('#ff0000');
+        config.rules = [
+            {
+                id: 'rule-1',
+                operator: FilterOperator.EQUALS,
+                compareTarget: { fieldId: 'orders_is_paid' },
+            },
+        ];
+
+        const rowFields = {
+            orders_is_paid: { field: otherBooleanField, value: true },
+        };
+
+        expect(
+            hasMatchingConditionalRules(
+                mockBooleanField,
+                true,
+                {},
+                config,
+                rowFields,
+            ),
+        ).toBe(true);
+        expect(
+            hasMatchingConditionalRules(
+                mockBooleanField,
+                false,
+                {},
+                config,
+                rowFields,
+            ),
+        ).toBe(false);
+    });
+
+    it('does not match numeric operators for boolean fields', () => {
+        const config = makeConfig(FilterOperator.GREATER_THAN, [0]);
+        expect(
+            hasMatchingConditionalRules(mockBooleanField, true, {}, config),
+        ).toBe(false);
+    });
+
+    it('is eligible in getConditionalFormattingConfig', () => {
+        const config = makeConfig(FilterOperator.EQUALS, [false]);
+        expect(
+            getConditionalFormattingConfig({
+                field: mockBooleanField,
+                value: false,
+                minMaxMap: {},
+                conditionalFormattings: [config],
+            }),
+        ).toBe(config);
+    });
+});
+
 describe('getConditionalFormattingConfig', () => {
     it('selects the last matching rule for a specific apply target', () => {
         const cellConfig =

@@ -1,17 +1,39 @@
-import { MantineProvider } from '@mantine-8/core';
+import { Ability } from '@casl/ability';
+import { MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import AppRoute from './AppRoute';
+
+const organizationUuid = '172a2270-000f-42be-9c68-c4752c23ae51';
 
 const state = vi.hoisted(() => ({
     needsProject: true,
     isHomepageBuilderEnabled: true,
     isNewOnboardingEnabled: true,
+    canCreateProject: true,
 }));
 
 vi.mock('../providers/App/useApp', () => ({
     default: () => ({
         health: { isInitialLoading: false, error: null, data: {} },
+        user: {
+            isInitialLoading: false,
+            data: {
+                organizationUuid,
+                ability: new Ability(
+                    state.canCreateProject
+                        ? [
+                              {
+                                  action: 'create',
+                                  subject: 'Project',
+                                  conditions: { organizationUuid },
+                              },
+                          ]
+                        : [],
+                ),
+            },
+        },
     }),
 }));
 
@@ -19,6 +41,7 @@ vi.mock('../hooks/organization/useOrganization', () => ({
     useOrganization: () => ({
         data: { needsProject: state.needsProject },
         isInitialLoading: false,
+        isFetchedAfterMount: true,
         error: null,
     }),
 }));
@@ -39,32 +62,34 @@ vi.mock('../ee/features/homepageBuilder/hooks/useProjectHomepage', () => ({
 
 const renderAppRoute = () =>
     render(
-        <MantineProvider>
-            <MemoryRouter initialEntries={['/']}>
-                <Routes>
-                    <Route
-                        path="/"
-                        element={
-                            <AppRoute>
-                                <div>app</div>
-                            </AppRoute>
-                        }
-                    />
-                    <Route
-                        path="/get-started"
-                        element={<div>get started</div>}
-                    />
-                    <Route
-                        path="/createProject"
-                        element={<div>create project</div>}
-                    />
-                    <Route
-                        path="/onboarding/data-source"
-                        element={<div>data source</div>}
-                    />
-                </Routes>
-            </MemoryRouter>
-        </MantineProvider>,
+        <QueryClientProvider client={new QueryClient()}>
+            <MantineProvider env="test">
+                <MemoryRouter initialEntries={['/']}>
+                    <Routes>
+                        <Route
+                            path="/"
+                            element={
+                                <AppRoute>
+                                    <div>app</div>
+                                </AppRoute>
+                            }
+                        />
+                        <Route
+                            path="/get-started"
+                            element={<div>get started</div>}
+                        />
+                        <Route
+                            path="/createProject"
+                            element={<div>create project</div>}
+                        />
+                        <Route
+                            path="/onboarding/data-source"
+                            element={<div>data source</div>}
+                        />
+                    </Routes>
+                </MemoryRouter>
+            </MantineProvider>
+        </QueryClientProvider>,
     );
 
 describe('AppRoute', () => {
@@ -72,6 +97,7 @@ describe('AppRoute', () => {
         state.needsProject = true;
         state.isHomepageBuilderEnabled = true;
         state.isNewOnboardingEnabled = true;
+        state.canCreateProject = true;
     });
 
     it('sends an organization with the homepage builder to the get started page', () => {
@@ -107,5 +133,23 @@ describe('AppRoute', () => {
         renderAppRoute();
 
         expect(screen.getByText('app')).toBeInTheDocument();
+    });
+
+    it('renders its children for a user who cannot create a project', () => {
+        state.canCreateProject = false;
+        renderAppRoute();
+
+        expect(screen.getByText('app')).toBeInTheDocument();
+        expect(screen.queryByText('get started')).not.toBeInTheDocument();
+    });
+
+    it('keeps the legacy project creation redirect away from users who cannot create a project', () => {
+        state.canCreateProject = false;
+        state.isNewOnboardingEnabled = false;
+        state.isHomepageBuilderEnabled = false;
+        renderAppRoute();
+
+        expect(screen.getByText('app')).toBeInTheDocument();
+        expect(screen.queryByText('create project')).not.toBeInTheDocument();
     });
 });

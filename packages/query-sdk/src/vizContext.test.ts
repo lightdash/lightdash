@@ -3,13 +3,20 @@ import {
     type DataAppVizContext,
     type DataAppVizOptionValue,
 } from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { Transport } from './types';
 import {
+    buildVizDrillDown,
+    buildVizUnderlyingData,
     getFormatted,
     getRaw,
+    resolveSeriesColor,
+    resolveValueColor,
+    resolveVizFixtureUrl,
     toVizContextState,
     type DataAppVizContextMessage,
     type VizContextOptionValue,
+    type VizContextPivotDetails,
     type VizContextRow,
 } from './vizContext';
 
@@ -49,6 +56,12 @@ const inboundOptionsRemainOptional: Assert<
 const inboundPaletteRemainsOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'colorPalette'>
 > = true;
+const inboundSeriesColorsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'seriesColors'>
+> = true;
+const inboundValueColorsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'valueColors'>
+> = true;
 void [
     messageKeysMatchHost,
     messageTypeMatchesHost,
@@ -56,6 +69,8 @@ void [
     hostPayloadIsAcceptedBySdk,
     inboundOptionsRemainOptional,
     inboundPaletteRemainsOptional,
+    inboundSeriesColorsRemainOptional,
+    inboundValueColorsRemainOptional,
 ];
 
 const row: VizContextRow = {
@@ -185,6 +200,38 @@ describe('toVizContextState', () => {
         ).toEqual(['#111', '#222']);
     });
 
+    it('normalizes host-resolved series and value colors', () => {
+        const state = toVizContextState(
+            message({
+                seriesColors: {
+                    count_completed: '#00ff00',
+                    invalid: 42 as never,
+                },
+                valueColors: {
+                    orders_status: {
+                        completed: '#00ff00',
+                        invalid: null as never,
+                    },
+                    invalid: [] as never,
+                },
+            }),
+        );
+
+        expect(state.seriesColors).toEqual({
+            count_completed: '#00ff00',
+        });
+        expect(state.valueColors).toEqual({
+            orders_status: { completed: '#00ff00' },
+        });
+    });
+
+    it('defaults resolved colors to empty maps for older hosts', () => {
+        const state = toVizContextState(message({}));
+
+        expect(state.seriesColors).toEqual({});
+        expect(state.valueColors).toEqual({});
+    });
+
     it('still normalises fieldMapping and rows', () => {
         expect(
             toVizContextState(
@@ -198,6 +245,339 @@ describe('toVizContextState', () => {
             rows: [],
             options: {},
             colorPalette: [],
+            seriesColors: {},
+            valueColors: {},
+            pivotDetails: null,
+            underlyingDataEnabled: false,
+            drillDownEnabled: false,
         });
+    });
+
+    it('normalizes pivot metadata used to resolve generated columns', () => {
+        const pivotDetails = {
+            totalColumnCount: 2,
+            indexColumn: {
+                reference: 'orders_created_date',
+                type: 'time',
+            },
+            valuesColumns: [
+                {
+                    referenceField: 'orders_total',
+                    pivotColumnName: 'orders_total__status_shipped',
+                    aggregation: 'any',
+                    pivotValues: [
+                        {
+                            referenceField: 'orders_status',
+                            value: 'shipped',
+                            formatted: 'Shipped',
+                        },
+                    ],
+                },
+            ],
+            groupByColumns: [{ reference: 'orders_status' }],
+            sortBy: [
+                {
+                    reference: 'orders_created_date',
+                    direction: 'ASC',
+                },
+            ],
+            originalColumns: {
+                orders_created_date: {
+                    reference: 'orders_created_date',
+                    type: 'date',
+                },
+            },
+            passthroughDimensions: [{ reference: 'orders_image_url' }],
+        } satisfies VizContextPivotDetails;
+
+        expect(
+            toVizContextState(message({ pivotDetails })).pivotDetails,
+        ).toEqual(pivotDetails);
+    });
+
+    it('defaults missing pivot metadata to null', () => {
+        expect(toVizContextState(message({})).pivotDetails).toBeNull();
+    });
+});
+
+describe('resolveVizFixtureUrl', () => {
+    const at = (parts: { hash?: string; search?: string }) => ({
+        hash: parts.hash ?? '',
+        search: parts.search ?? '',
+        origin: 'http://127.0.0.1:5173',
+    });
+
+    it('returns null when the param is absent', () => {
+        expect(resolveVizFixtureUrl(at({}))).toBeNull();
+        expect(resolveVizFixtureUrl(at({ search: '?other=1' }))).toBeNull();
+    });
+
+    it('resolves a relative path against the page origin', () => {
+        expect(
+            resolveVizFixtureUrl(at({ search: '?vizFixture=/my-fixture.json' })),
+        ).toBe('http://127.0.0.1:5173/my-fixture.json');
+    });
+
+    it('defaults a bare param to the conventional fixture path', () => {
+        expect(resolveVizFixtureUrl(at({ search: '?vizFixture=' }))).toBe(
+            'http://127.0.0.1:5173/viz-fixture.json',
+        );
+    });
+
+    it('prefers the hash over the search param (host-forwarded seed wins)', () => {
+        expect(
+            resolveVizFixtureUrl(
+                at({
+                    hash: '#vizFixture=/from-hash.json',
+                    search: '?vizFixture=/from-search.json',
+                }),
+            ),
+        ).toBe('http://127.0.0.1:5173/from-hash.json');
+    });
+
+    it('rejects a cross-origin fixture target', () => {
+        expect(
+            resolveVizFixtureUrl(
+                at({ search: '?vizFixture=https://evil.example/x.json' }),
+            ),
+        ).toBeNull();
+        expect(
+            resolveVizFixtureUrl(at({ search: '?vizFixture=//evil.example/x' })),
+        ).toBeNull();
+    });
+});
+
+describe('resolved color helpers', () => {
+    const context = {
+        colorPalette: ['#111111', '#222222'],
+        seriesColors: { count_completed: '#00ff00' },
+        valueColors: { orders_status: { completed: '#00ff00' } },
+    };
+
+    it('uses the host-resolved pivot-column color before the palette', () => {
+        expect(
+            resolveSeriesColor(
+                context,
+                { pivotColumnName: 'count_completed' },
+                1,
+            ),
+        ).toBe('#00ff00');
+        expect(
+            resolveSeriesColor(
+                context,
+                { pivotColumnName: 'count_pending' },
+                1,
+            ),
+        ).toBe('#222222');
+    });
+
+    it('uses the host-resolved raw-value color before the palette', () => {
+        expect(
+            resolveValueColor(context, 'orders_status', 'completed', 1),
+        ).toBe('#00ff00');
+        expect(resolveValueColor(context, 'orders_status', 'pending', 1)).toBe(
+            '#222222',
+        );
+    });
+
+    it('stringifies non-string raw values and tolerates an empty palette', () => {
+        expect(
+            resolveValueColor(
+                {
+                    colorPalette: [],
+                    seriesColors: {},
+                    valueColors: { orders_priority: { '1': '#abcdef' } },
+                },
+                'orders_priority',
+                1,
+                0,
+            ),
+        ).toBe('#abcdef');
+        expect(
+            resolveSeriesColor(
+                { colorPalette: [], seriesColors: {}, valueColors: {} },
+                { pivotColumnName: 'missing' },
+                0,
+            ),
+        ).toBeUndefined();
+    });
+});
+
+describe('toVizContextState — underlyingData', () => {
+    it('reads enabled:true from the host push', () => {
+        expect(
+            toVizContextState(message({ underlyingData: { enabled: true } }))
+                .underlyingDataEnabled,
+        ).toBe(true);
+    });
+
+    it('defaults to disabled when the host omits underlyingData (old host)', () => {
+        expect(toVizContextState(message({})).underlyingDataEnabled).toBe(
+            false,
+        );
+    });
+
+    it('treats non-boolean enabled values as disabled (untrusted payload)', () => {
+        expect(
+            toVizContextState(
+                message({ underlyingData: { enabled: 'yes' as never } }),
+            ).underlyingDataEnabled,
+        ).toBe(false);
+        expect(
+            toVizContextState(message({ underlyingData: {} as never }))
+                .underlyingDataEnabled,
+        ).toBe(false);
+    });
+});
+
+describe('buildVizUnderlyingData', () => {
+    const supportedTransport = {
+        getVizUnderlyingData: vi.fn(async () => ({
+            rows: [],
+            columns: [],
+            format: () => '',
+            queryUuid: 'q2',
+        })),
+        downloadVizUnderlyingData: vi.fn(async () => ({
+            queryUuid: 'q2',
+            jobId: 'j1',
+            fileUrl: 'https://files/x.csv',
+            fileType: 'csv' as const,
+            truncated: false,
+        })),
+    } as unknown as Transport;
+
+    const legacyTransport = {} as Transport;
+    // A custom transport implementing get but not download must not advertise
+    // the capability — the generated menu promises a Download button.
+    const partialTransport = {
+        getVizUnderlyingData: vi.fn(),
+    } as unknown as Transport;
+
+    it('enabled only when the host pushed enabled AND the transport supports it', () => {
+        expect(buildVizUnderlyingData(true, supportedTransport).enabled).toBe(
+            true,
+        );
+        expect(buildVizUnderlyingData(false, supportedTransport).enabled).toBe(
+            false,
+        );
+        expect(buildVizUnderlyingData(true, legacyTransport).enabled).toBe(
+            false,
+        );
+        expect(buildVizUnderlyingData(true, partialTransport).enabled).toBe(
+            false,
+        );
+        expect(buildVizUnderlyingData(true, null).enabled).toBe(false);
+    });
+
+    it('get() delegates to the transport with { row, metric, limit }', async () => {
+        const underlyingData = buildVizUnderlyingData(true, supportedTransport);
+        await underlyingData.get({ row, metric: 'value', limit: 100 });
+        expect(supportedTransport.getVizUnderlyingData).toHaveBeenCalledWith({
+            row,
+            metric: 'value',
+            limit: 100,
+        });
+    });
+
+    it('download() splits the intent from the download options', async () => {
+        const underlyingData = buildVizUnderlyingData(true, supportedTransport);
+        await underlyingData.download({
+            row,
+            metric: 'value',
+            fileType: 'xlsx',
+            autoDownload: false,
+        });
+        expect(
+            supportedTransport.downloadVizUnderlyingData,
+        ).toHaveBeenCalledWith(
+            { row, metric: 'value' },
+            { fileType: 'xlsx', autoDownload: false },
+        );
+    });
+
+    it('get() rejects with an actionable message when the host disabled it', async () => {
+        await expect(
+            buildVizUnderlyingData(false, supportedTransport).get({
+                row,
+                metric: 'value',
+            }),
+        ).rejects.toThrow(/not enabled/i);
+    });
+
+    it('get() rejects with an upgrade hint on a legacy transport', async () => {
+        await expect(
+            buildVizUnderlyingData(true, legacyTransport).get({
+                row,
+                metric: 'value',
+            }),
+        ).rejects.toThrow(/rebuild the app/i);
+    });
+});
+
+const drillMessage = (
+    drillDown?: Record<string, unknown>,
+): DataAppVizContextMessage =>
+    ({
+        type: 'lightdash:sdk:data-app-viz-context',
+        fieldMapping: {},
+        rows: [],
+        ...(drillDown !== undefined ? { drillDown } : {}),
+    }) as DataAppVizContextMessage;
+
+describe('toVizContextState drill-down flag', () => {
+    it('reads drillDown.enabled strictly', () => {
+        expect(
+            toVizContextState(drillMessage({ enabled: true })).drillDownEnabled,
+        ).toBe(true);
+        expect(toVizContextState(drillMessage()).drillDownEnabled).toBe(false);
+        expect(
+            toVizContextState(drillMessage({ enabled: 'yes' }))
+                .drillDownEnabled,
+        ).toBe(false);
+    });
+});
+
+describe('buildVizDrillDown', () => {
+    const transportWith = (open?: Transport['openVizDrillDown']) =>
+        ({ openVizDrillDown: open }) as unknown as Transport;
+
+    it('is enabled only when the host flag and transport method are both present', () => {
+        const open = vi.fn().mockResolvedValue(undefined);
+        expect(buildVizDrillDown(true, transportWith(open)).enabled).toBe(true);
+        expect(buildVizDrillDown(false, transportWith(open)).enabled).toBe(
+            false,
+        );
+        expect(buildVizDrillDown(true, transportWith(undefined)).enabled).toBe(
+            false,
+        );
+        expect(buildVizDrillDown(true, null).enabled).toBe(false);
+    });
+
+    it('open() forwards the intent through the transport', async () => {
+        const open = vi.fn().mockResolvedValue(undefined);
+        const row = { m: { value: { raw: 1, formatted: '1' } } };
+        await buildVizDrillDown(true, transportWith(open)).open({
+            row,
+            metric: 'value',
+        });
+        expect(open).toHaveBeenCalledWith({ row, metric: 'value' });
+    });
+
+    it('open() rejects with clear messages when disabled or unsupported', async () => {
+        await expect(
+            buildVizDrillDown(false, transportWith(vi.fn())).open({
+                row: {},
+                metric: 'value',
+            }),
+        ).rejects.toThrow('Drill-down is not enabled for this visualization.');
+        await expect(
+            buildVizDrillDown(true, transportWith(undefined)).open({
+                row: {},
+                metric: 'value',
+            }),
+        ).rejects.toThrow(
+            'This SDK build predates drill-down. Rebuild the app on the current template.',
+        );
     });
 });

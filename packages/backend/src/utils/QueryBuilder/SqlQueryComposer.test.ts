@@ -1,9 +1,11 @@
 import {
     DimensionType,
+    FilterOperator,
     PivotConfiguration,
     SortByDirection,
     VizAggregationOptions,
     VizIndexType,
+    type DashboardFilters,
 } from '@lightdash/common';
 import { warehouseClientMock } from './MetricQueryBuilder.mock';
 import {
@@ -79,5 +81,111 @@ describe('SqlQueryComposer', () => {
         expect(sql).not.toBe(composer.compile().query);
         expect(sql).toMatchSnapshot();
         expect(composer.getPivotConfiguration()).toBe(PIVOT_CONFIGURATION);
+    });
+
+    it('hoists leading scripting statements above the pivot query', () => {
+        const composer = new SqlQueryComposer({
+            ...baseArgs,
+            userSql: `DECLARE lookback_days INT64 DEFAULT 30;\n${USER_SQL} WHERE days > lookback_days;`,
+            pivotConfiguration: PIVOT_CONFIGURATION,
+        });
+
+        const sql = composer.getSql({ columnLimit: 100 });
+
+        expect(
+            sql.startsWith('DECLARE lookback_days INT64 DEFAULT 30;\nWITH'),
+        ).toBe(true);
+        expect(sql).not.toContain('(DECLARE');
+        expect(sql).toContain(
+            'original_query AS (SELECT category, region, revenue FROM sales WHERE days > lookback_days)',
+        );
+    });
+
+    it('hoists scripting statements before applying dashboard filters', () => {
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'filter-category',
+                    label: undefined,
+                    operator: FilterOperator.EQUALS,
+                    target: {
+                        fieldId: 'category',
+                        tableName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                        isSqlColumn: true,
+                        fallbackType: DimensionType.STRING,
+                    },
+                    values: ['hardware'],
+                    tileTargets: {
+                        tile_1: {
+                            fieldId: 'category',
+                            tableName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                            isSqlColumn: true,
+                            fallbackType: DimensionType.STRING,
+                        },
+                    },
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const composer = new SqlQueryComposer({
+            ...baseArgs,
+            userSql: `DECLARE lookback_days INT64 DEFAULT 30;\n${USER_SQL} WHERE days > lookback_days;`,
+            dashboardFilters,
+            tileUuid: 'tile_1',
+            pivotConfiguration: PIVOT_CONFIGURATION,
+        });
+
+        const sql = composer.getSql({ columnLimit: 100 });
+
+        expect(
+            sql.startsWith('DECLARE lookback_days INT64 DEFAULT 30;\nWITH'),
+        ).toBe(true);
+        expect(sql).not.toContain('(DECLARE');
+        expect(sql).toContain('("category") IN (\'hardware\')');
+    });
+
+    it('escapes active quote characters in raw SQL chart column references', () => {
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'filter-total-revenue',
+                    label: undefined,
+                    operator: FilterOperator.GREATER_THAN,
+                    target: {
+                        fieldId: 'total"revenue',
+                        tableName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                        isSqlColumn: true,
+                        fallbackType: DimensionType.NUMBER,
+                    },
+                    values: [100],
+                    tileTargets: {
+                        tile_1: {
+                            fieldId: 'total"revenue',
+                            tableName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                            isSqlColumn: true,
+                            fallbackType: DimensionType.NUMBER,
+                        },
+                    },
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const composer = new SqlQueryComposer({
+            ...baseArgs,
+            columns: [{ name: 'total"revenue', type: DimensionType.NUMBER }],
+            dashboardFilters,
+            tileUuid: 'tile_1',
+            pivotConfiguration: undefined,
+        });
+
+        expect(
+            composer.getExplore().tables[SQL_QUERY_MOCK_EXPLORER_NAME]
+                .dimensions['total"revenue'].sql,
+        ).toBe('"total""revenue"');
+        expect(composer.compile().query).toContain(
+            '("total""revenue") > (100)',
+        );
     });
 });

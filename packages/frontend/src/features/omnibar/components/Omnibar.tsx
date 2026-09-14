@@ -17,13 +17,13 @@ import {
     Text,
     TextInput,
     Transition,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     useDebouncedValue,
     useDisclosure,
     useHotkeys,
     useScrollIntoView,
-} from '@mantine-8/hooks';
+} from '@mantine/hooks';
 import {
     IconSearch,
     IconSettings,
@@ -42,10 +42,12 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { AiAgentIcon } from '../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProject } from '../../../hooks/useProject';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
+import { useRecentContent } from '../../../hooks/useRecentContent';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
-import Mantine8Provider from '../../../providers/Mantine8Provider';
+import MantineBaseProvider from '../../../providers/MantineBaseProvider';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useOmnibarSettingsItems } from '../hooks/useOmnibarSettingsItems';
@@ -55,6 +57,7 @@ import {
     type OmnibarGroup,
     type SearchItem,
 } from '../types/searchItem';
+import { getRecentContentSearchItems } from '../utils/getRecentContentSearchItems';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import classes from './Omnibar.module.css';
 import OmnibarEmptyState from './OmnibarEmptyState';
@@ -73,10 +76,24 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { data: projectData } = useProject(projectUuid);
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { track } = useTracking();
     const canUserManageValidation = useValidationUserAbility(projectUuid);
     const [searchFilters, setSearchFilters] = useState<SearchFilters>();
     const [query, setQuery] = useState<string>();
+    const hasEnteredQuery = query !== undefined && query !== '';
+    const hasEnteredMinQueryLength =
+        hasEnteredQuery && hasMinQueryLength(query);
+    const hasActiveFilters = Boolean(
+        searchFilters?.type ||
+        searchFilters?.verifiedOnly ||
+        searchFilters?.fromDate ||
+        searchFilters?.toDate ||
+        searchFilters?.createdByUuid,
+    );
+
     const [debouncedValue] = useDebouncedValue(query, 300);
     const { targetRef: scrollRef } = useScrollIntoView<HTMLDivElement>(); // couldn't get scroll to work with mantine's function
 
@@ -88,6 +105,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     const { data: searchResults, isFetching } = useSearch({
         projectUuid,
+        projectUrlIdentifier: projectRoute?.projectUrlIdentifier,
         query: debouncedValue,
         filters: searchFilters,
         source: 'omnibar',
@@ -97,6 +115,20 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     const [isOmnibarOpen, { open: openOmnibar, close: closeOmnibar }] =
         useDisclosure(false);
+
+    const { data: recentContent, isInitialLoading: isLoadingRecentContent } =
+        useRecentContent(
+            projectUuid,
+            isOmnibarOpen && !hasEnteredQuery && !hasActiveFilters,
+        );
+    const recentItems = useMemo(
+        () =>
+            getRecentContentSearchItems(
+                recentContent ?? [],
+                projectUrlIdentifier,
+            ),
+        [recentContent, projectUrlIdentifier],
+    );
 
     const { data: spaceSummaries } = useSpaceSummaries(projectUuid, true, {
         enabled: isOmnibarOpen,
@@ -171,6 +203,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             name: EventName.GLOBAL_SEARCH_CLOSED,
             properties: {
                 action: 'default',
+                verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
         setFocusedItemIndex(undefined);
@@ -184,7 +217,8 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             name: EventName.SEARCH_RESULT_CLICKED,
             properties: {
                 type: item.type,
-                id: getSearchResultId(item.item),
+                id: item.recentContent?.uuid ?? getSearchResultId(item.item),
+                verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
         // Settings pages always navigate in place, never a new tab.
@@ -192,6 +226,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             window.open(
                 item.location.pathname + (item.location.search || ''),
                 '_blank',
+                'noopener,noreferrer',
             );
             return;
         }
@@ -202,6 +237,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             name: EventName.GLOBAL_SEARCH_CLOSED,
             properties: {
                 action: 'result_click',
+                verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
 
@@ -217,23 +253,16 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         setQuery(undefined);
     };
 
-    const hasEnteredQuery = query !== undefined && query !== '';
-    const hasEnteredMinQueryLength =
-        hasEnteredQuery && hasMinQueryLength(query);
-    const hasActiveFilters = Boolean(
-        searchFilters?.type ||
-        searchFilters?.fromDate ||
-        searchFilters?.toDate ||
-        searchFilters?.createdByUuid,
-    );
-
     const searchGroups = useMemo<OmnibarGroup[]>(() => {
         const contentGroups = searchResults
             ? getSearchResultsGroupsSorted(searchResults)
             : [];
 
+        // Settings are client-side; hide them when a content type is selected
+        // or when Verified is on (settings aren't verifiable content).
         const showSettings =
             settingsItems.length > 0 &&
+            !searchFilters?.verifiedOnly &&
             (!searchFilters?.type ||
                 searchFilters.type === SearchItemType.SETTINGS);
 
@@ -254,7 +283,12 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             totalCount: items.length,
             collapsed: false,
         }));
-    }, [searchResults, settingsItems, searchFilters?.type]);
+    }, [
+        searchResults,
+        settingsItems,
+        searchFilters?.type,
+        searchFilters?.verifiedOnly,
+    ]);
 
     const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<string[]>([]);
 
@@ -265,10 +299,21 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     };
 
     const displayGroups = useMemo<OmnibarGroup[]>(() => {
-        const groups =
-            !hasEnteredQuery || !hasEnteredMinQueryLength || !searchResults
-                ? []
-                : searchGroups;
+        const groups: OmnibarGroup[] = !hasEnteredQuery
+            ? !hasActiveFilters && recentItems.length > 0
+                ? [
+                      {
+                          key: 'recently-viewed',
+                          label: 'Recently viewed',
+                          items: recentItems,
+                          totalCount: recentItems.length,
+                          collapsed: false,
+                      },
+                  ]
+                : []
+            : !hasEnteredMinQueryLength || !searchResults
+              ? []
+              : searchGroups;
 
         return groups.map((group) =>
             collapsedGroupKeys.includes(group.key)
@@ -278,6 +323,8 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     }, [
         hasEnteredQuery,
         hasEnteredMinQueryLength,
+        hasActiveFilters,
+        recentItems,
         searchResults,
         searchGroups,
         collapsedGroupKeys,
@@ -336,9 +383,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             >
                 {(style) => (
                     <OmnibarTarget
-                        placeholder={`Search ${
-                            projectData?.name ?? 'your project'
-                        }`}
+                        placeholder="Search"
                         style={style}
                         onOpen={handleOmnibarOpenInputClick}
                     />
@@ -349,13 +394,12 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 modal portals onto the page — re-anchor the subtree to the
                 app's real color scheme so JS-resolved component colors match
                 the page instead of the navbar. */}
-            <Mantine8Provider withCssVariables={false}>
+            <MantineBaseProvider withCssVariables={false}>
                 <Modal
                     withCloseButton={false}
                     size={rem(960)}
                     closeOnClickOutside
                     closeOnEscape
-                    radius="lg"
                     opened={isOmnibarOpen}
                     onClose={handleOmnibarClose}
                     yOffset={100}
@@ -370,13 +414,13 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             wrap="nowrap"
                             className={classes.inputRow}
                         >
-                            {isFetching ? (
+                            {isFetching || isLoadingRecentContent ? (
                                 <Loader size="xs" color="ldGray.5" />
                             ) : (
                                 <MantineIcon
                                     icon={IconSearch}
                                     size="lg"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             )}
                             <TextInput
@@ -397,9 +441,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             />
                             {query ? (
                                 <ActionIcon
-                                    variant="subtle"
                                     size="sm"
-                                    color="gray"
                                     onClick={() => setQuery('')}
                                 >
                                     <MantineIcon icon={IconX} size="md" />
@@ -416,7 +458,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
                         <Box className={classes.resultsArea}>
                             {displayGroups.length === 0 ? (
-                                !hasEnteredQuery && hasActiveFilters ? (
+                                !hasEnteredQuery &&
+                                !hasActiveFilters &&
+                                isLoadingRecentContent ? (
+                                    <OmnibarEmptyState
+                                        variant="loading"
+                                        title="Loading recently viewed..."
+                                    />
+                                ) : !hasEnteredQuery && hasActiveFilters ? (
                                     <OmnibarEmptyState
                                         title="Search with these filters"
                                         hint="Start typing to apply them."
@@ -542,7 +591,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                         }
                                         onClick={() =>
                                             handleQuickAction(
-                                                `/projects/${projectUuid}/tables`,
+                                                `/projects/${projectUrlIdentifier}/tables`,
                                             )
                                         }
                                     >
@@ -573,7 +622,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                         </Group>
                     </Stack>
                 </Modal>
-            </Mantine8Provider>
+            </MantineBaseProvider>
         </OmnibarKeyboardNav>
     );
 };

@@ -1,40 +1,16 @@
-/* eslint-disable class-methods-use-this, no-underscore-dangle, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-import {
-    isArr,
-    isNumber,
-    isObj,
-    isOptional,
-    isString,
-    isUnion,
-    SchemaCompatLayer,
-    type AllZodType,
-} from '@mastra/schema-compat';
-import {
-    z,
-    ZodDefault,
-    type ZodDiscriminatedUnion,
-    type ZodNullable,
-    type ZodTypeAny,
-} from 'zod';
-import { type AnyType } from '../../../types/any';
+/* eslint-disable class-methods-use-this */
+import { SchemaCompatLayer } from '@mastra/schema-compat';
+import { z } from 'zod';
+import { type ZodType as ZodTypeV3 } from 'zod/v3';
 
-const isNullable = (v: ZodTypeAny): v is ZodNullable<AnyType> =>
-    v._def.typeName === 'ZodNullable';
-
-const isDiscriminatedUnion = (
-    v: ZodTypeAny,
-): v is ZodDiscriminatedUnion<string, AnyType> =>
-    v._def.typeName === 'ZodDiscriminatedUnion';
-
-/**
- * Create a new Zod schema instance with the same _def but a distinct object
- * identity. zodToJsonSchema uses reference equality to detect shared schemas
- * and emits $ref pointers for them. The MCP Gateway cannot resolve those
- * pointers and returns 500 ERR_INVALID_URL. By cloning every node during
- * processZodType, we guarantee all output instances are unique.
- */
-const cloneZodInstance = (v: AnyType): AnyType =>
-    new (v.constructor as new (def: AnyType) => AnyType)({ ...v._def });
+const OPTIONAL_TYPES_TO_PROCESS = [
+    'ZodObject',
+    'ZodArray',
+    'ZodUnion',
+    'ZodNever',
+    'ZodUndefined',
+    'ZodTuple',
+] as const;
 
 export class McpSchemaCompatLayer extends SchemaCompatLayer {
     constructor() {
@@ -55,18 +31,26 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
         return true;
     }
 
-    processZodType(value: AnyType): AnyType {
-        // Clone the node so every processed schema has a unique identity.
-        // This prevents zodToJsonSchema from generating $ref pointers when
-        // the MCP SDK converts the schema for tool listing.
-        const v = cloneZodInstance(value);
+    processZodType(value: z.ZodType): z.ZodType;
+    processZodType(value: ZodTypeV3): ZodTypeV3;
+    processZodType(value: z.ZodType | ZodTypeV3): z.ZodType | ZodTypeV3;
+    processZodType(value: z.ZodType | ZodTypeV3): z.ZodType | ZodTypeV3 {
+        if (!(value instanceof z.ZodType)) {
+            throw new Error('MCP schema compatibility requires Zod 4');
+        }
 
+        return this.processZod4Type(value);
+    }
+
+    private processZod4Type(v: z.ZodType): z.ZodType {
         // Handle nullable types (e.g., z.string().nullable()) map them to optional but default to null
-        if (isNullable(v)) {
-            let innerType = this.processZodType(v._def.innerType);
+        if (v instanceof z.ZodNullable) {
+            const nullableInner = v.unwrap() as z.ZodType;
+            let innerType = this.processZod4Type(nullableInner);
+            const description = v.description ?? nullableInner.description;
 
             // fix for `.default(...).nullable()`
-            if (!(innerType instanceof ZodDefault)) {
+            if (!this.isDefault(innerType)) {
                 innerType = innerType.optional();
             }
 
@@ -74,67 +58,49 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
             // fields as "or null", so MCP clients send null as often as they
             // omit the key. Coerce it to undefined before validation and let
             // the transform below restore null on output.
-            return z
+            const normalized = z
                 .preprocess(
                     (val) => (val === null ? undefined : val),
-                    innerType.describe(
-                        [
-                            v.description ?? '',
-                            v._def.innerType.description ?? '',
-                        ].join(', '),
-                    ),
+                    description ? innerType.describe(description) : innerType,
                 )
-                .transform((val: AnyType) => (val === undefined ? null : val));
+                .transform((val) => (val === undefined ? null : val));
+
+            return description ? normalized.describe(description) : normalized;
         }
 
         // always coerce numbers
-        if (isNumber(v)) {
+        if (this.isNumber(v)) {
             return z.preprocess((val) => Number(val), v);
         }
 
         // Identical to @mastra/schema-compat/src/provider-compats/anthropic.ts
-        if (isOptional(v)) {
-            const handleTypes: AllZodType[] = [
-                'ZodObject',
-                'ZodArray',
-                'ZodUnion',
-                'ZodNever',
-                'ZodUndefined',
-                'ZodTuple',
-            ];
-            return this.defaultZodOptionalHandler(v, handleTypes);
+        if (this.isOptional(v)) {
+            return this.defaultZodOptionalHandler(v, OPTIONAL_TYPES_TO_PROCESS);
         }
-        if (isObj(v)) {
+        if (this.isObj(v)) {
             return this.defaultZodObjectHandler(v);
         }
-        if (isArr(v)) {
+        if (this.isArr(v)) {
             return this.defaultZodArrayHandler(v, []);
         }
-        if (isUnion(v)) {
+        if (this.isUnion(v)) {
             return this.defaultZodUnionHandler(v);
         }
-        // ZodDiscriminatedUnion is not recognized by isUnion() from
-        // @mastra/schema-compat, so handle it explicitly by converting to a
-        // regular union. This ensures its variants are recursively processed
-        // (and therefore cloned) to prevent $ref generation.
-        if (isDiscriminatedUnion(v)) {
-            return this.defaultZodUnionHandler(
-                z.union(
-                    v._def.options.map((opt: AnyType) =>
-                        this.processZodType(opt),
-                    ),
-                ),
-            );
-        }
-        if (isString(v)) {
+        if (this.isString(v)) {
             return v;
         }
 
-        return this.defaultUnsupportedZodTypeHandler(v, [
-            'ZodNever',
-            'ZodTuple',
-            'ZodUndefined',
-        ]);
+        if (
+            v instanceof z.ZodNever ||
+            v instanceof z.ZodTuple ||
+            v instanceof z.ZodUndefined
+        ) {
+            throw new Error(
+                `${this.getModel().modelId} does not support zod type: ${v.constructor.name}`,
+            );
+        }
+
+        return v;
     }
 }
 
@@ -142,13 +108,7 @@ const mcpSchemaCompatLayer = new McpSchemaCompatLayer();
 
 export type McpCompatibleInputSchema<
     TInput extends z.ZodObject<z.ZodRawShape>,
-> = z.ZodObject<
-    TInput['shape'],
-    z.UnknownKeysParam,
-    z.ZodTypeAny,
-    z.output<TInput>,
-    z.input<TInput>
->;
+> = z.ZodObject<TInput['shape']>;
 
 export const createMcpCompatibleInputSchema = <
     TInput extends z.ZodObject<z.ZodRawShape>,

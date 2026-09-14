@@ -1,13 +1,14 @@
 import {
     createConditionalFormattingConfigWithSingleColor,
     getItemId,
+    isBooleanItem,
     isFilterableItem,
     isNumericItem,
     isStringDimension,
     type ConditionalFormattingConfig,
     type FilterableItem,
 } from '@lightdash/common';
-import { Accordion } from '@mantine-8/core';
+import { Accordion } from '@mantine/core';
 import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,7 +47,9 @@ const ConditionalFormattingList = ({}) => {
             .filter((field) => activeFields.has(getItemId(field)))
             .filter(
                 (field) =>
-                    (isNumericItem(field) || isStringDimension(field)) &&
+                    (isNumericItem(field) ||
+                        isStringDimension(field) ||
+                        isBooleanItem(field)) &&
                     isFilterableItem(field),
             ) as FilterableItem[];
     }, [itemsMap, activeFields]);

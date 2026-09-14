@@ -12,8 +12,8 @@ import {
     SimpleGrid,
     Popover,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure, useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -77,7 +77,6 @@ const EditPopover: FC<EditPopoverProps> = ({
 
     return (
         <Popover
-            withinPortal
             position="top"
             opened={opened}
             closeOnClickOutside
@@ -86,12 +85,9 @@ const EditPopover: FC<EditPopoverProps> = ({
             onDismiss={handleClose}
             onClose={handleClose}
             trapFocus={opened}
-            shadow="sm"
         >
             <Popover.Target>
                 <ActionIcon
-                    variant="subtle"
-                    color="gray"
                     className={styles.editButton}
                     style={{
                         visibility: hovered || opened ? 'visible' : 'hidden',
@@ -105,7 +101,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                     }}
                     tabIndex={-1}
                 >
-                    <MantineIcon icon={IconDots} color="ldGray.6" size={14} />
+                    <MantineIcon icon={IconDots} color="dimmed" size={14} />
                 </ActionIcon>
             </Popover.Target>
             <Popover.Dropdown
@@ -116,13 +112,12 @@ const EditPopover: FC<EditPopoverProps> = ({
                 }}
             >
                 <Stack gap="xs">
-                    <Text size="xs" fw={500} c="ldGray.6">
+                    <Text size="xs" fw={500} c="dimmed">
                         Edit category
                     </Text>
                     <TextInput
                         placeholder="Category name"
                         size="xs"
-                        radius="md"
                         w="100%"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
@@ -165,11 +160,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                             </ActionIcon>
                         </Tooltip>
 
-                        <Button
-                            variant="dark"
-                            size="compact-xs"
-                            onClick={handleSave}
-                        >
+                        <Button size="compact-xs" onClick={handleSave}>
                             Save
                         </Button>
                     </Group>
@@ -222,6 +213,17 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 w="90%"
                 pos="absolute"
                 tabIndex={-1}
+                // Walkthrough action for manage:Tags: every category in the
+                // open form carries it; the first one is the pick. See
+                // scripts/scope-tours.
+                data-tour-scope="manage:Tags"
+                data-tour-step="2"
+                data-tour-route="/projects/:projectUuid/metrics"
+                data-tour-label="Choose a category"
+                data-tour-title="Put a metric in a category"
+                data-tour-interactive="true"
+                data-tour-via='[data-tour-nav="metrics"] >> [data-tour-anchor="metric-categories"][data-tour-value="Total revenue"]'
+                data-tour-docs="explore/metrics-catalog/curate-the-catalog.mdx#browsing-the-catalog:li3:3"
             />
             <CatalogCategory category={category} onClick={onClick} />
 
@@ -237,7 +239,6 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 <Tooltip
                     maw={200}
                     position="top"
-                    withinPortal
                     openDelay={200}
                     fz="xs"
                     label="This category was created in the .yml config and its properties cannot be edited"
@@ -248,11 +249,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                             visibility: hovered ? 'visible' : 'hidden',
                         }}
                     >
-                        <MantineIcon
-                            icon={IconCode}
-                            color="ldGray.6"
-                            size={14}
-                        />
+                        <MantineIcon icon={IconCode} color="dimmed" size={14} />
                     </Box>
                 </Tooltip>
             )}

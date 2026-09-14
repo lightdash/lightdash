@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    DEFAULT_PROJECT_DBT_SOURCE_NAME,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
@@ -14,6 +15,7 @@ import {
     PullRequestSource,
     RequestMethod,
     SupportedDbtVersions,
+    UnexpectedServerError,
     WarehouseTypes,
     type AiWritebackDbtSourceOption,
     type AiWritebackPipelineJobPayload,
@@ -67,6 +69,11 @@ import type {
 } from '../../models/AiWritebackThreadModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
+import {
+    anthropicClaudeCodeAllowedHosts,
+    buildAnthropicClaudeCodeEnv,
+} from '../AppGenerateService/claudeCodeEnv';
 import {
     createSandboxManager,
     S3SnapshotStore,
@@ -81,6 +88,7 @@ import {
 } from '../SandboxRuntime';
 import {
     ALLOWED_TOOLS,
+    ASSISTANT_TEXT_TAIL_CHARS,
     CLAUDE_MODEL,
     CLAUDE_SKILLS_DIR,
     COMPILE_STRIPPED_ENV_VARS,
@@ -93,9 +101,11 @@ import {
     GENERAL_SKILLS_DIR,
     GIT_TIMEOUT_MS,
     MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD,
+    NATIVE_ALLOWED_TOOLS,
     PR_DESCRIPTION_PATH,
     PR_TITLE_PATH,
     PROMPT_PATH,
+    REPO_CONTEXT_MAX_BYTES,
     REPO_CONTEXT_TIMEOUT_MS,
     RUN_TIMEOUT_MS,
     SANDBOX_TIMEOUT_MS,
@@ -109,16 +119,23 @@ import {
 import { DeniedPathError } from './deniedPaths';
 import {
     RepoTooLargeError,
+    WritebackCredentialCleanupError,
     WritebackGitNotConnectedError,
     WritebackRunAbortedError,
     WritebackThreadPrClosedError,
 } from './errors';
+import { validateNativeSandbox } from './nativeValidation';
+import { BitbucketProvider } from './providers/BitbucketProvider';
 import { GithubProvider } from './providers/GithubProvider';
 import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
 import { buildGatherRepoContextScript } from './scripts';
 import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
-import { buildGeneralSystemPrompt, buildSystemPrompt } from './templates';
+import {
+    buildGeneralSystemPrompt,
+    buildNativeSystemPrompt,
+    buildSystemPrompt,
+} from './templates';
 import type {
     AdoptedPullRequest,
     AiWritebackRunArgs,
@@ -129,6 +146,7 @@ import type {
     CodingAgentConfig,
     GitConnection,
     GitInstallation,
+    RepoContext,
     ResolvedTurnTarget,
     SetStage,
     TurnContext,
@@ -146,9 +164,11 @@ import {
     progressTextForStage,
     quoteShellArgument,
     resolvePrMetadataValue,
+    resolveSandboxAnthropicConfig,
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
+    summarizeRepoListing,
     summarizeToolInput,
 } from './utils';
 
@@ -226,8 +246,10 @@ type AiWritebackServiceDeps = {
     schedulerClient: CommercialSchedulerClient;
 };
 
-/** One repository in the source-code read union, plus the token that reads it. */
+/** One repository in the authorized source-code set, plus its scoped token. */
 export type SourceCodeRepoAccess = {
+    owner: string;
+    repo: string;
     defaultBranch: string;
     private: boolean;
     token: string;
@@ -265,32 +287,57 @@ type RepoListing = {
     private: boolean;
 };
 
+const getProjectRepositoryKey = (
+    dbtConnection: DbtProjectConfig,
+): string | null => {
+    if (dbtConnection.type === DbtProjectType.GITHUB) {
+        const { owner, repo } = parseGithubConnection(dbtConnection);
+        return `${owner}/${repo}`;
+    }
+    if (dbtConnection.type === DbtProjectType.GITLAB) {
+        const { owner, repo } = parseGitlabConnection(dbtConnection);
+        return `${owner}/${repo}`;
+    }
+    return null;
+};
+
 /**
- * Merge the repositories the linked user can reach (read with their own token)
- * with the repositories the org installation can reach (read with the
- * installation token), keyed by `owner/repo`. The org installation is applied
- * last so it **wins on collision** — org-level access takes priority over the
- * user's personal access for the same repo. `userToken` undefined (user not
- * linked / feature off) yields the installation set only.
+ * Build the repositories a project-scoped agent can read. A linked user's own
+ * token may read every repository that user can reach. The organization-wide
+ * installation token is restricted to the project's configured repository, so
+ * project source-code permission never widens to unrelated installation repos.
  */
 export const mergeSourceCodeRepoAccess = (
     userRepos: RepoListing[],
     userToken: string | undefined,
-    orgRepos: RepoListing[],
+    installationRepos: RepoListing[],
     installationToken: string,
+    projectRepoKeys: Iterable<string>,
 ): Map<string, SourceCodeRepoAccess> => {
     const map = new Map<string, SourceCodeRepoAccess>();
     if (userToken) {
         for (const r of userRepos) {
-            map.set(`${r.owner}/${r.repo}`, {
+            map.set(`${r.owner}/${r.repo}`.toLowerCase(), {
+                owner: r.owner,
+                repo: r.repo,
                 defaultBranch: r.defaultBranch,
                 private: r.private,
                 token: userToken,
             });
         }
     }
-    for (const r of orgRepos) {
-        map.set(`${r.owner}/${r.repo}`, {
+    const normalizedProjectRepoKeys = new Set(
+        [...projectRepoKeys].map((key) => key.toLowerCase()),
+    );
+    const projectRepos = installationRepos.filter((repo) =>
+        normalizedProjectRepoKeys.has(
+            `${repo.owner}/${repo.repo}`.toLowerCase(),
+        ),
+    );
+    for (const r of projectRepos) {
+        map.set(`${r.owner}/${r.repo}`.toLowerCase(), {
+            owner: r.owner,
+            repo: r.repo,
             defaultBranch: r.defaultBranch,
             private: r.private,
             token: installationToken,
@@ -324,16 +371,15 @@ export const parseOwnerRepo = (
  * The single predicate behind both the writable-repo list flag and the
  * {@link AiWritebackService.resolveWritableRepoTarget} chokepoint — they MUST
  * agree or the picker offers repos the backend then 403s (R5). A repo is
- * writable when the org installation can reach it (the app holds contents:write)
- * AND — when the user has linked a personal GitHub — they can reach it too
- * (user-intersection, R1). Unlinked users fall back to the installation scope,
- * gated by manage:SourceCode on the project. Denylisted repos are never
- * writable.
+ * writable when the org installation can reach it and either it is the current
+ * project's repository or the linked user's own GitHub account can also reach
+ * it. Denylisted repos are never writable.
  */
 export const computeWritableRepoKeys = (
     installationRepos: { owner: string; repo: string }[],
     userRepos: { owner: string; repo: string }[],
     intersectWithUser: boolean,
+    projectRepoKeys: Iterable<string>,
 ): Set<string> => {
     // GitHub/GitLab repo slugs are case-insensitive, and the installation vs
     // user listings can disagree on case — compare lowercased so the
@@ -342,12 +388,17 @@ export const computeWritableRepoKeys = (
     const userKeys = new Set(
         userRepos.map((r) => `${r.owner}/${r.repo}`.toLowerCase()),
     );
+    const normalizedProjectRepoKeys = new Set(
+        [...projectRepoKeys].map((key) => key.toLowerCase()),
+    );
     return new Set(
         installationRepos
             .map((r) => `${r.owner}/${r.repo}`)
             .filter((key) => !DENYLISTED_WRITE_REPOS.has(key.toLowerCase()))
             .filter(
-                (key) => !intersectWithUser || userKeys.has(key.toLowerCase()),
+                (key) =>
+                    normalizedProjectRepoKeys.has(key.toLowerCase()) ||
+                    (intersectWithUser && userKeys.has(key.toLowerCase())),
             ),
     );
 };
@@ -391,6 +442,36 @@ export const workstreamLockKey = (
         : `${aiThreadUuid}::new::${repository}`;
 };
 
+const getRepoContextAnalyticsProperties = (repoContext: RepoContext | null) => {
+    if (repoContext === null) {
+        return {
+            repoContextBytes: null,
+            repoContextCapped: null,
+            repoContextFileCount: null,
+        };
+    }
+    if (repoContext.kind === 'summarised') {
+        return {
+            repoContextBytes: repoContext.bytes,
+            repoContextCapped: true,
+            repoContextFileCount: repoContext.fileCount,
+        };
+    }
+    const { fileCount } = summarizeRepoListing(repoContext.listing);
+    if (fileCount === 0) {
+        return {
+            repoContextBytes: null,
+            repoContextCapped: null,
+            repoContextFileCount: null,
+        };
+    }
+    return {
+        repoContextBytes: Buffer.byteLength(repoContext.listing, 'utf8'),
+        repoContextCapped: false,
+        repoContextFileCount: fileCount,
+    };
+};
+
 export class AiWritebackService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -423,6 +504,8 @@ export class AiWritebackService extends BaseService {
     private readonly githubProvider: GithubProvider;
 
     private readonly gitlabProvider: GitlabProvider;
+
+    private readonly bitbucketProvider: BitbucketProvider;
 
     private readonly githubAppService: GithubAppService;
 
@@ -475,6 +558,11 @@ export class AiWritebackService extends BaseService {
         this.githubProvider = new GithubProvider({
             githubAppInstallationsModel,
             githubAppService,
+            logger: this.logger,
+        });
+        this.bitbucketProvider = new BitbucketProvider({
+            projectModel,
+            projectDbtSourcesModel,
             logger: this.logger,
         });
         this.gitlabProvider = new GitlabProvider({
@@ -539,6 +627,53 @@ export class AiWritebackService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
         this.assertCanManageSourceCode(user, project, projectUuid);
 
+        if (recorded.provider === PullRequestProvider.BITBUCKET) {
+            const workstream =
+                await this.aiWritebackThreadModel.findByAiThreadUuidAndPrUrl(
+                    aiThreadUuid,
+                    prUrl,
+                );
+            if (!workstream) {
+                throw new ForbiddenError(
+                    'Cannot resolve the Bitbucket source for this conversation',
+                );
+            }
+            const candidates = await this.listDbtTargetCandidates(
+                projectUuid,
+                project,
+            );
+            const source = candidates.find(
+                (candidate) =>
+                    candidate.sourceUuid === workstream.project_dbt_source_uuid,
+            );
+            if (
+                !source ||
+                source.connection.type !== DbtProjectType.BITBUCKET
+            ) {
+                throw new ForbiddenError(
+                    'The Bitbucket source for this conversation is no longer configured',
+                );
+            }
+            const connection = this.bitbucketProvider.resolveConnection(
+                source.connection,
+                {
+                    projectUuid,
+                    projectDbtSourceUuid: source.sourceUuid,
+                },
+            );
+            const installation =
+                await this.bitbucketProvider.resolveInstallation(
+                    project.organizationUuid,
+                    { user, connection },
+                );
+            return this.bitbucketProvider.closePullRequest({
+                prUrl: recorded.prUrl,
+                owner: recorded.owner,
+                repo: recorded.repo,
+                pullNumber: recorded.prNumber,
+                installation,
+            });
+        }
         const provider =
             recorded.provider === PullRequestProvider.GITLAB
                 ? this.gitlabProvider
@@ -723,9 +858,12 @@ export class AiWritebackService extends BaseService {
         if (connectionType === DbtProjectType.GITLAB) {
             return this.gitlabProvider;
         }
+        if (connectionType === DbtProjectType.BITBUCKET) {
+            return this.bitbucketProvider;
+        }
         throw new WritebackGitNotConnectedError(
             null,
-            `AI writeback requires a GitHub or GitLab dbt connection, but this project uses "${connectionType}"`,
+            `AI writeback requires a GitHub, GitLab or Bitbucket Cloud dbt connection, but this project uses "${connectionType}"`,
         );
     }
 
@@ -740,8 +878,8 @@ export class AiWritebackService extends BaseService {
      * Resolve the org's GitHub App installation for read-only source access,
      * gated by view:SourceCode. The dbt-independent core shared by
      * {@link getRepoReadAccess} (the dbt project repo) and
-     * {@link getInstallationRepoReadAccess} (any accessible repo): org check →
-     * view:SourceCode ability gate → installation token. GitHub-only for now.
+     * {@link getInstallationRepoReadAccess}: org check → view:SourceCode ability
+     * gate → installation token. GitHub-only for now.
      */
     /**
      * Org membership + view:SourceCode gate shared by every read-only source
@@ -889,20 +1027,10 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Generalized read-only access for the agent's repo discovery, gated by the
-     * same view:SourceCode check as {@link getRepoReadAccess} but independent of
-     * the project's dbt connection. Exposes the **union** of every repository the
-     * agent can read: the org installation's repos (read with the installation
-     * token) AND the repos the linked user can reach through their own GitHub
-     * (read with the user token, via {@link GithubAppService.getValidUserToken} —
-     * only when they've linked a personal account). Org installation access wins
-     * on collision. Each repo carries the token that reads it, so the VFS uses
-     * the right one per mount; whole-repo reads are guarded by the secrets
-     * denylist in the GitHub RepoSource.
-     *
-     * `resolveRepoAccess` resolves a single repo's branch + token; for a repo
-     * outside the discovered union (e.g. an explicitly targeted public repo) it
-     * falls back to the installation token.
+     * Read-only repository access for agent discovery. The organization-wide
+     * installation token is limited to this project's configured repository;
+     * additional repositories require the linked user's own GitHub token.
+     * `resolveRepoAccess` fails closed for anything outside that authorized set.
      */
     async getInstallationRepoReadAccess({
         user,
@@ -931,12 +1059,19 @@ export class AiWritebackService extends BaseService {
             repo: string,
         ) => Promise<{ branch: string; token: string }>;
     }> {
-        const { installationId, token: installationToken } =
-            await this.resolveSourceCodeInstallation({ user, projectUuid });
+        const {
+            installationId,
+            token: installationToken,
+            project,
+        } = await this.resolveSourceCodeInstallation({ user, projectUuid });
+        const projectRepoKeys = await this.getConfiguredRepositoryKeys(
+            projectUuid,
+            project,
+            DbtProjectType.GITHUB,
+        );
 
-        // The linked user's own GitHub token, if any, so the union also surfaces
-        // repos accessible to THEM — not just the org installation. Undefined
-        // when the user-credentials feature is off or they haven't linked.
+        // The linked user's own GitHub token, if any, authorizes additional
+        // repositories independently of the organization installation.
         const userToken = isUserWithOrg(user)
             ? await this.githubAppService.getValidUserToken(
                   user.userUuid,
@@ -944,8 +1079,8 @@ export class AiWritebackService extends BaseService {
               )
             : undefined;
 
-        // Build the union once per access object and memoise it — listRepos and
-        // resolveRepoAccess share it, so the GitHub listing happens at most once.
+        // Build the authorized set once per access object; listing and target
+        // resolution must use the same authorization decision.
         let repoMapPromise: Promise<Map<string, SourceCodeRepoAccess>> | null =
             null;
         const loadRepoMap = () => {
@@ -958,8 +1093,8 @@ export class AiWritebackService extends BaseService {
                                 token: userToken,
                             });
                         } catch (error) {
-                            // Degrade to org-only — a failed personal listing
-                            // must never block reading the org's repos.
+                            // Degrade to the project repository only; never widen
+                            // a failed personal check to installation scope.
                             this.logger.warn(
                                 `Failed to list user-accessible repos for source access: ${getErrorMessage(
                                     error,
@@ -975,6 +1110,7 @@ export class AiWritebackService extends BaseService {
                         userToken,
                         orgRepos,
                         installationToken,
+                        projectRepoKeys,
                     );
                 })();
             }
@@ -987,42 +1123,34 @@ export class AiWritebackService extends BaseService {
             userToken: userToken ?? null,
             listRepos: async () => {
                 const map = await loadRepoMap();
-                return [...map.entries()].map(([key, value]) => {
-                    const slash = key.indexOf('/');
-                    return {
-                        owner: key.slice(0, slash),
-                        repo: key.slice(slash + 1),
-                        defaultBranch: value.defaultBranch,
-                        private: value.private,
-                    };
-                });
+                return [...map.values()].map(
+                    ({ owner, repo, defaultBranch, private: isPrivate }) => ({
+                        owner,
+                        repo,
+                        defaultBranch,
+                        private: isPrivate,
+                    }),
+                );
             },
             resolveRepoAccess: async (owner, repo) => {
                 const map = await loadRepoMap();
-                const entry = map.get(`${owner}/${repo}`);
+                const normalizedKey = `${owner}/${repo}`.toLowerCase();
+                const entry = map.get(normalizedKey);
                 if (entry) {
                     return { branch: entry.defaultBranch, token: entry.token };
                 }
-                // Outside the discovered union — fall back to the installation
-                // token and fetch the default branch on demand.
-                const branch = await getRepoDefaultBranch({
-                    owner,
-                    repo,
-                    installationId,
-                });
-                return { branch, token: installationToken };
+                throw new ForbiddenError(
+                    'You do not have permission to access this repository',
+                );
             },
         };
     }
 
     /**
-     * GitLab analog of {@link getInstallationRepoReadAccess}: the repositories
-     * the org's GitLab app install can read, for the `@`-mention picker and the
-     * agent's repo VFS. GitLab has no per-user account linking yet (the install
-     * acts as a single identity), so there's one token and no user/installation
-     * union. Only two-segment `namespace/project` paths are listed — the mount
-     * layer keys on `owner/repo` (as does the existing dbt-connection parsing),
-     * so deeper subgroups are skipped until the mount model is generalised.
+     * GitLab analog of {@link getInstallationRepoReadAccess}, restricted to the
+     * invoking project's configured repository because GitLab has no per-user
+     * account linking. Only two-segment `namespace/project` paths fit the mount
+     * model; deeper subgroups remain unsupported.
      */
     async getGitlabInstallationRepoReadAccess({
         user,
@@ -1067,6 +1195,11 @@ export class AiWritebackService extends BaseService {
         // the connection's host_domain so gitlab.com and self-hosted both work.
         const bareHost = hostDomain.replace(/^https?:\/\//, '');
         const instanceUrl = `https://${bareHost}`;
+        const projectRepoKeys = await this.getConfiguredRepositoryKeys(
+            projectUuid,
+            project,
+            DbtProjectType.GITLAB,
+        );
 
         // Build the repo map once and memoise it — listRepos and
         // resolveRepoAccess share it, so the GitLab listing happens at most once.
@@ -1093,6 +1226,13 @@ export class AiWritebackService extends BaseService {
                             if (segments.length !== 2 || !p.defaultBranch)
                                 return;
                             const [owner, repo] = segments;
+                            if (
+                                !projectRepoKeys.has(
+                                    `${owner}/${repo}`.toLowerCase(),
+                                )
+                            ) {
+                                return;
+                            }
                             map.set(`${owner}/${repo}`, {
                                 owner,
                                 repo,
@@ -1168,24 +1308,17 @@ export class AiWritebackService extends BaseService {
 
     /**
      * List the repositories the agent can read, for the chat input's
-     * `@`-mention repository picker. Returns the same union the agent's repo VFS
-     * mounts — gated by the project's `view:SourceCode` ability via
-     * {@link getInstallationRepoReadAccess} — so a user without source-code
-     * access can't enumerate repo names (unlike the org-wide
-     * `/github/repos/list` endpoint).
+     * `@`-mention repository picker. Returns the same authorized repository set
+     * the agent's VFS mounts: the project repository plus repositories reachable
+     * through the linked user's own GitHub account.
      *
      * Each repo carries a `writable` flag from the SAME predicate the editRepo
      * authz chokepoint uses ({@link computeWritableRepoKeys}), so the picker can
-     * disable repos the backend would 403 (R5). GitLab uses a single install
-     * identity (no user-intersection), so every listed repo is writable bar the
-     * denylist.
+     * disable repos the backend would 403 (R5).
      *
      * The flag is advisory/display-only (L4): it is computed under view:SourceCode
-     * while a write needs manage:SourceCode, and on a transient user-listing
-     * failure it degrades to installation scope (more permissive). That drift is
-     * SAFE because {@link resolveWritableRepoTarget} is the authoritative gate and
-     * fails CLOSED on the same failure — at worst the picker shows a repo as
-     * writable that the backend then refuses.
+     * while a write needs manage:SourceCode. A transient linked-user listing
+     * failure degrades to the project repository, never the full installation.
      */
     async listProjectRepositories({
         user,
@@ -1198,6 +1331,13 @@ export class AiWritebackService extends BaseService {
             user,
             projectUuid,
         });
+        const projectRepoKeys = await this.getConfiguredRepositoryKeys(
+            projectUuid,
+            project,
+            project.dbtConnection.type === DbtProjectType.GITLAB
+                ? DbtProjectType.GITLAB
+                : DbtProjectType.GITHUB,
+        );
 
         if (project.dbtConnection.type === DbtProjectType.GITLAB) {
             const access = await this.getGitlabInstallationRepoReadAccess({
@@ -1210,6 +1350,7 @@ export class AiWritebackService extends BaseService {
                 [],
                 // GitLab: single install identity, no user-intersection.
                 false,
+                projectRepoKeys,
             );
             return repos.map(({ owner, repo, defaultBranch }) => ({
                 name: repo,
@@ -1221,12 +1362,12 @@ export class AiWritebackService extends BaseService {
             }));
         }
 
-        // GitHub: list installation + user repos once, build the read union for
-        // display and the writable set (installation ∩ user) from the same data.
-        const { installationId } = await this.resolveSourceCodeInstallation({
-            user,
-            projectUuid,
-        });
+        // GitHub: build the readable and writable sets from the same listings.
+        const { installationId, token: installationToken } =
+            await this.resolveSourceCodeInstallation({
+                user,
+                projectUuid,
+            });
         const userToken = isUserWithOrg(user)
             ? await this.githubAppService.getValidUserToken(
                   user.userUuid,
@@ -1251,7 +1392,7 @@ export class AiWritebackService extends BaseService {
             } catch (error) {
                 intersectWithUser = false;
                 this.logger.warn(
-                    `AiCodingAgent: user repo listing failed in picker — degrading writable flags to installation scope: ${getErrorMessage(
+                    `AiCodingAgent: user repo listing failed in picker — limiting repositories to the current project: ${getErrorMessage(
                         error,
                     )}`,
                 );
@@ -1262,29 +1403,35 @@ export class AiWritebackService extends BaseService {
             installationRepos,
             userRepos,
             intersectWithUser,
+            projectRepoKeys,
         );
 
-        // Read union for display (installation ∪ user), deduped by owner/repo.
-        const union = new Map<
-            string,
-            { owner: string; repo: string; defaultBranch: string }
-        >();
-        for (const r of [...installationRepos, ...userRepos]) {
-            union.set(`${r.owner}/${r.repo}`, {
-                owner: r.owner,
-                repo: r.repo,
-                defaultBranch: r.defaultBranch,
-            });
-        }
+        const readableRepos = mergeSourceCodeRepoAccess(
+            userRepos.map((repo) => ({ ...repo, private: repo.private })),
+            userToken,
+            installationRepos,
+            installationToken,
+            projectRepoKeys,
+        );
+        const normalizedWritableKeys = new Set(
+            [...writableKeys].map((key) => key.toLowerCase()),
+        );
 
-        return [...union.values()].map(({ owner, repo, defaultBranch }) => ({
-            name: repo,
-            ownerLogin: owner,
-            fullName: `${owner}/${repo}`,
-            defaultBranch,
-            provider: 'github',
-            writable: writableKeys.has(`${owner}/${repo}`),
-        }));
+        return [...readableRepos.values()].map(
+            ({ owner, repo, defaultBranch }) => {
+                const fullName = `${owner}/${repo}`;
+                return {
+                    name: repo,
+                    ownerLogin: owner,
+                    fullName,
+                    defaultBranch,
+                    provider: 'github',
+                    writable: normalizedWritableKeys.has(
+                        fullName.toLowerCase(),
+                    ),
+                };
+            },
+        );
     }
 
     private async assertEnabled(
@@ -1313,6 +1460,11 @@ export class AiWritebackService extends BaseService {
     private getSandboxManager(): SandboxManager {
         if (!this.sandboxManager) {
             const { sandboxProvider } = this.lightdashConfig.appRuntime;
+            if (sandboxProvider === 'gcp-cloud-run') {
+                throw new MissingConfigError(
+                    'AI writeback is not supported on the gcp-cloud-run sandbox provider yet (it needs its own gateway image)',
+                );
+            }
             this.sandboxManager = createSandboxManager({
                 provider: sandboxProvider,
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
@@ -1324,9 +1476,15 @@ export class AiWritebackService extends BaseService {
                     sandboxProvider === 'azure-sandboxes'
                         ? this.getAzureSandboxesConfig()
                         : null,
-                // Object-store snapshots are only for the Docker backend (no
-                // native pause); native-pause providers (E2B, Lambda, Azure
-                // Sandboxes) never touch S3, so don't construct a client.
+                // AI writeback on Cloud Run needs its own gateway service (the
+                // writeback toolchain image is baked into the gateway
+                // deployment); unsupported until one exists — the factory
+                // throws a clear config error if selected.
+                gcpCloudRun: null,
+                // Object-store snapshots are only for the backends with no
+                // native pause (Docker, GCP Cloud Run); native-pause providers
+                // (E2B, Lambda, Azure Sandboxes) never touch S3, so don't
+                // construct a client.
                 snapshotStore:
                     sandboxProvider === 'docker'
                         ? new S3SnapshotStore({
@@ -1345,7 +1503,15 @@ export class AiWritebackService extends BaseService {
             templateRef: templateRef ?? this.getSandboxTemplateRef(),
             timeoutMs: SANDBOX_TIMEOUT_MS,
             egress: {
-                allow: ['api.anthropic.com', 'github.com', 'gitlab.com'],
+                allow: [
+                    ...anthropicClaudeCodeAllowedHosts(
+                        this.lightdashConfig.ai.copilot.providers.anthropic
+                            ?.baseUrl,
+                    ),
+                    'github.com',
+                    'gitlab.com',
+                    'bitbucket.org',
+                ],
             },
         };
     }
@@ -1418,14 +1584,11 @@ export class AiWritebackService extends BaseService {
         };
     }
 
-    private getAnthropicApiKey(): string {
-        const key = this.lightdashConfig.aiWriteback.anthropicApiKey;
-        if (!key) {
-            throw new MissingConfigError(
-                'Anthropic API key is not configured (AI_WRITEBACK_ANTHROPIC_API_KEY)',
-            );
-        }
-        return key;
+    private getClaudeCodeEnv(): Record<string, string> {
+        const { apiKey, baseUrl } = resolveSandboxAnthropicConfig(
+            this.lightdashConfig,
+        );
+        return buildAnthropicClaudeCodeEnv(apiKey, baseUrl);
     }
 
     private static elapsed(start: number): number {
@@ -2126,6 +2289,7 @@ export class AiWritebackService extends BaseService {
 
         let sandbox: SandboxHandle | undefined;
         let sandboxUuid: string | undefined;
+        let repoContext: RepoContext | null = null;
         // Default to preserving a resumed sandbox through failures — its
         // sandbox_uuid is referenced by an ai_writeback_thread row and killing
         // it would poison the row for every future turn. Fresh turns have no
@@ -2198,11 +2362,22 @@ export class AiWritebackService extends BaseService {
                     cloneInstallation,
                 ),
                 existingRow: turn.existingRow,
-                adoptBranch: adoptedPr?.headRef ?? null,
+                adoptBranch:
+                    adoptedPr?.headRef ??
+                    (turn.gitConnection.provider ===
+                        PullRequestProvider.BITBUCKET ||
+                    (turn.gitConnection.provider ===
+                        PullRequestProvider.GITHUB &&
+                        turn.gitConnection.semanticLayer === 'lightdash')
+                        ? turn.gitConnection.branch || null
+                        : null),
                 setStage,
                 templateRef: config.resolveTemplateRef(),
                 cloneExtraOptions: config.cloneExtraOptions,
                 onAfterClone,
+                strictCredentialCleanup:
+                    turn.gitConnection.provider ===
+                    PullRequestProvider.BITBUCKET,
             }));
 
             setStage('agent');
@@ -2211,6 +2386,7 @@ export class AiWritebackService extends BaseService {
                 turn,
                 repository,
             });
+            repoContext = setup.repoContext;
             const agent = await this.runAgentInSandbox({
                 sandbox,
                 systemPrompt: setup.systemPrompt,
@@ -2271,6 +2447,24 @@ export class AiWritebackService extends BaseService {
                 );
             }
 
+            if (
+                hasChanges &&
+                (turn.gitConnection.provider === PullRequestProvider.GITHUB ||
+                    turn.gitConnection.provider ===
+                        PullRequestProvider.BITBUCKET) &&
+                turn.gitConnection.semanticLayer === 'lightdash'
+            ) {
+                recordStep({
+                    kind: 'compile',
+                    label: 'Compiling native models',
+                });
+                await validateNativeSandbox({
+                    sandbox,
+                    projectSubPath: turn.gitConnection.projectSubPath,
+                    warehouseType: turn.warehouseType,
+                });
+            }
+
             // Finalize claim: atomic arbitration with tasks/cancel before any
             // external side effect (commit/push/PR all happen inside
             // applyAgentChanges). Losing the claim means the run went terminal
@@ -2308,10 +2502,6 @@ export class AiWritebackService extends BaseService {
                 prDescription,
                 prSummary,
                 workstream: config.mode,
-                // The general agent must never commit CI/workflow files (R3);
-                // dbt writeback may (preview-deploy setup). Secrets are denied
-                // in both regardless.
-                denyCiPaths: config.mode === 'general',
             });
             pauseOnExit = applied.pauseOnExit;
 
@@ -2320,6 +2510,7 @@ export class AiWritebackService extends BaseService {
                 hasChanges,
                 prCreated: applied.prCreated,
                 usage: agent.usage,
+                repoContext,
             });
 
             this.logger.info('AI writeback run completed', {
@@ -2356,6 +2547,14 @@ export class AiWritebackService extends BaseService {
                 dbtSourceUuid: turn.projectDbtSourceUuid,
             };
         } catch (error) {
+            if (error instanceof WritebackCredentialCleanupError) {
+                pauseOnExit = false;
+                if (turn.existingRow) {
+                    await this.aiWritebackThreadModel.deleteByUuid(
+                        turn.existingRow.ai_writeback_thread_uuid,
+                    );
+                }
+            }
             // A deliberate abort of an already-terminal run is not a failure:
             // keep it out of Sentry, error metrics, and failure analytics.
             if (error instanceof WritebackRunAbortedError) {
@@ -2401,7 +2600,7 @@ export class AiWritebackService extends BaseService {
                     sandboxId: sandbox?.sandboxId ?? null,
                 },
             });
-            tracker.failed(failureStage, error);
+            tracker.failed(failureStage, error, repoContext);
             await persistRunFailed(error);
             throw error;
         } finally {
@@ -2596,6 +2795,10 @@ export class AiWritebackService extends BaseService {
             provider = this.getGitProvider(dbtTarget.candidate.connection.type);
             gitConnection = provider.resolveConnection(
                 dbtTarget.candidate.connection,
+                {
+                    projectUuid,
+                    projectDbtSourceUuid: dbtTarget.candidate.sourceUuid,
+                },
             );
             projectDbtSourceUuid = dbtTarget.candidate.sourceUuid;
             warehouseType = project.warehouseConnection?.type ?? null;
@@ -2724,25 +2927,23 @@ export class AiWritebackService extends BaseService {
         projectUuid: string,
         project: { projectUuid: string; dbtConnection: DbtProjectConfig },
     ): Promise<DbtTargetCandidate[]> {
+        const [identity, additional] = await Promise.all([
+            this.projectModel.getDbtSourceIdentity(projectUuid),
+            this.projectDbtSourcesModel.getSources(projectUuid),
+        ]);
         const primary: DbtTargetCandidate | null =
-            AiWritebackService.isWritebackTargetable(project.dbtConnection.type)
+            AiWritebackService.isWritebackTargetable(project.dbtConnection)
                 ? {
                       sourceUuid: null,
-                      // The primary's client-facing id is the project uuid — the
-                      // same id the project's dbt-sources list synthesises for it.
-                      optionUuid: project.projectUuid,
-                      name: 'Project dbt connection',
+                      optionUuid: identity.dbtSourceUuid,
+                      name: identity.dbtSourceName,
                       isPrimary: true,
                       connection: project.dbtConnection,
                   }
                 : null;
-        const additional =
-            await this.projectDbtSourcesModel.getSources(projectUuid);
         const extra = additional.flatMap<DbtTargetCandidate>((dbtSource) =>
             dbtSource.dbtConnection &&
-            AiWritebackService.isWritebackTargetable(
-                dbtSource.dbtConnection.type,
-            )
+            AiWritebackService.isWritebackTargetable(dbtSource.dbtConnection)
                 ? [
                       {
                           sourceUuid: dbtSource.projectDbtSourceUuid,
@@ -2757,12 +2958,32 @@ export class AiWritebackService extends BaseService {
         return primary ? [primary, ...extra] : extra;
     }
 
+    private async getConfiguredRepositoryKeys(
+        projectUuid: string,
+        project: { projectUuid: string; dbtConnection: DbtProjectConfig },
+        provider: DbtProjectType.GITHUB | DbtProjectType.GITLAB,
+    ): Promise<Set<string>> {
+        const candidates = await this.listDbtTargetCandidates(
+            projectUuid,
+            project,
+        );
+        return new Set(
+            candidates
+                .filter((candidate) => candidate.connection.type === provider)
+                .map((candidate) =>
+                    getProjectRepositoryKey(candidate.connection),
+                )
+                .filter((key): key is string => key !== null)
+                .map((key) => key.toLowerCase()),
+        );
+    }
+
     /**
      * Decide which dbt source a turn targets. Precedence:
      * 1. a resumed thread stays bound to its original source (never re-infer, or
      *    a follow-up could retarget the sandbox's already-cloned repo);
-     * 2. an explicit `dbtSourceUuid` (a UI picker, or an agent re-call);
-     * 3. the only source, when the project has one — unchanged behaviour;
+     * 2. the only source, when the project has one, unconditionally;
+     * 3. an explicit `dbtSourceUuid` (a UI picker, or an agent re-call);
      * 4. the source the prompt names, when exactly one matches;
      * otherwise return the candidates for the caller to choose from.
      */
@@ -2793,7 +3014,7 @@ export class AiWritebackService extends BaseService {
         if (candidates.length === 0) {
             throw new WritebackGitNotConnectedError(
                 null,
-                `AI writeback requires a GitHub or GitLab dbt source, but this project ("${project.dbtConnection.type}") has none`,
+                `AI writeback requires a GitHub, GitLab or Bitbucket Cloud dbt source, but this project ("${project.dbtConnection.type}") has none`,
             );
         }
 
@@ -2813,20 +3034,21 @@ export class AiWritebackService extends BaseService {
             return { kind: 'resolved', candidate: primary ?? candidates[0] };
         }
 
+        if (candidates.length === 1) {
+            return { kind: 'resolved', candidate: candidates[0] };
+        }
+
         if (dbtSourceUuid) {
             const chosen = candidates.find(
                 (c) => c.optionUuid === dbtSourceUuid,
             );
-            if (!chosen) {
-                throw new ParameterError(
-                    'The specified dbt source is not a valid writeback target for this project',
-                );
+            if (chosen) {
+                return { kind: 'resolved', candidate: chosen };
             }
-            return { kind: 'resolved', candidate: chosen };
-        }
-
-        if (candidates.length === 1) {
-            return { kind: 'resolved', candidate: candidates[0] };
+            return {
+                kind: 'select',
+                options: candidates.map(AiWritebackService.toDbtSourceOption),
+            };
         }
 
         // Score each candidate by how specifically the prompt names it (the
@@ -2859,9 +3081,10 @@ export class AiWritebackService extends BaseService {
         };
     }
 
-    private static isWritebackTargetable(type: DbtProjectType): boolean {
-        // Mirrors getGitProvider: only GitHub and GitLab can have a PR opened.
-        return type === DbtProjectType.GITHUB || type === DbtProjectType.GITLAB;
+    private static isWritebackTargetable(
+        connection: DbtProjectConfig,
+    ): boolean {
+        return getWritebackConnectionSupport(connection).editDbtProject;
     }
 
     /** Git identity safe to surface (repo/branch/subpath); nulls for non-git. */
@@ -2920,8 +3143,10 @@ export class AiWritebackService extends BaseService {
                 needles.push(repoName.toLowerCase());
             }
         }
-        // Skip the synthesised primary's generic name — it names nothing useful.
-        if (!candidate.isPrimary && candidate.name.trim().length >= 3) {
+        if (
+            candidate.name !== DEFAULT_PROJECT_DBT_SOURCE_NAME &&
+            candidate.name.trim().length >= 3
+        ) {
             needles.push(candidate.name.toLowerCase());
         }
         return needles
@@ -2969,8 +3194,8 @@ export class AiWritebackService extends BaseService {
      * arbitrary-repo {@link CloneTarget} is produced. Enforces, in order:
      *   1. `manage:SourceCode` on the project (`isProtectedBranch: false`);
      *   2. a hard denylist (`lightdash/lightdash`);
-     *   3. target ∈ (installation-accessible ∩ user-accessible) via the shared
-     *      {@link computeWritableRepoKeys} predicate (R5).
+     *   3. target is the project repo or belongs to the installation/user
+     *      intersection via {@link computeWritableRepoKeys} (R5).
      * Returns the GitHub target at repo root (`projectSubPath: '.'`). GitLab
      * targets are a later slice; the per-repo scoped clone token is Slice 3.
      */
@@ -3080,6 +3305,11 @@ export class AiWritebackService extends BaseService {
             installationRepos,
             userRepos,
             intersectWithUser,
+            await this.getConfiguredRepositoryKeys(
+                project.projectUuid,
+                project,
+                DbtProjectType.GITHUB,
+            ),
         );
         // Case-insensitive membership: `key` is user-supplied (repoTarget) and
         // may differ in case from the canonical installation listing (L1).
@@ -3161,6 +3391,11 @@ export class AiWritebackService extends BaseService {
             [],
             // GitLab: single install identity, no user-intersection.
             false,
+            await this.getConfiguredRepositoryKeys(
+                project.projectUuid,
+                project,
+                DbtProjectType.GITLAB,
+            ),
         );
         // Case-insensitive membership: `key` is user-supplied (L1).
         const writableLower = new Set(
@@ -3247,6 +3482,7 @@ export class AiWritebackService extends BaseService {
                 hasChanges: boolean;
                 prCreated: boolean;
                 usage: AiWritebackUsage | null;
+                repoContext: RepoContext | null;
             }) =>
                 this.analytics.track({
                     event: 'ai_writeback.completed',
@@ -3266,9 +3502,14 @@ export class AiWritebackService extends BaseService {
                             props.usage?.cacheCreationInputTokens ?? null,
                         numTurns: props.usage?.numTurns ?? null,
                         durationApiMs: props.usage?.durationApiMs ?? null,
+                        ...getRepoContextAnalyticsProperties(props.repoContext),
                     },
                 }),
-            failed: (stage: AiWritebackFailureStage, error: unknown) =>
+            failed: (
+                stage: AiWritebackFailureStage,
+                error: unknown,
+                repoContext: RepoContext | null,
+            ) =>
                 this.analytics.track({
                     event: 'ai_writeback.failed',
                     userId: user.userUuid,
@@ -3277,6 +3518,7 @@ export class AiWritebackService extends BaseService {
                         failureStage: stage,
                         errorMessage: getErrorMessage(error),
                         totalDurationMs: Date.now() - startedAt,
+                        ...getRepoContextAnalyticsProperties(repoContext),
                     },
                 }),
         };
@@ -3299,6 +3541,7 @@ export class AiWritebackService extends BaseService {
         templateRef,
         cloneExtraOptions,
         onAfterClone,
+        strictCredentialCleanup = false,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -3310,6 +3553,7 @@ export class AiWritebackService extends BaseService {
         cloneExtraOptions: Record<string, unknown>;
         /** Run after a fresh clone + .git scrub (e.g. revoke the scoped token). */
         onAfterClone?: () => Promise<void>;
+        strictCredentialCleanup?: boolean;
     }): Promise<{ sandbox: SandboxHandle; sandboxUuid: string }> {
         setStage('sandbox');
 
@@ -3355,15 +3599,25 @@ export class AiWritebackService extends BaseService {
         // tip to branch off) and `timeoutMs` overrides the E2B SDK's 60s
         // default, which a slow clone was exceeding with `deadline_exceeded`.
         const cloneStartedAt = Date.now();
-        await sandbox.git.clone(cloneTarget.url, {
-            path: CWD,
-            username: cloneTarget.username,
-            password: cloneTarget.password,
-            depth: 1,
-            timeoutMs: GIT_TIMEOUT_MS,
-            ...cloneExtraOptions,
-            ...(adoptBranch ? { branch: adoptBranch } : {}),
-        });
+        try {
+            await sandbox.git.clone(cloneTarget.url, {
+                path: CWD,
+                username: cloneTarget.username,
+                password: cloneTarget.password,
+                depth: 1,
+                timeoutMs: GIT_TIMEOUT_MS,
+                ...cloneExtraOptions,
+                ...(adoptBranch ? { branch: adoptBranch } : {}),
+            });
+        } catch (error) {
+            if (strictCredentialCleanup) {
+                await this.getSandboxManager().destroy({ sandboxUuid });
+                throw new ParameterError(
+                    'Could not clone the Bitbucket repository. Check the project API token, repository access and configured branch.',
+                );
+            }
+            throw error;
+        }
         this.logger.info(
             `AiWriteback: repo cloned (sandboxId=${sandbox.sandboxId}, ${
                 Date.now() - cloneStartedAt
@@ -3375,17 +3629,31 @@ export class AiWritebackService extends BaseService {
         // over the working tree — can't lift the token out of `.git/config` and
         // exfiltrate it via the PR (R4). The host commits via the API / explicit
         // push creds, so a credential-free remote URL is all the sandbox needs.
-        try {
-            await sandbox.commands.run(
-                `git -C ${CWD} remote set-url origin ${cloneTarget.url} && ` +
-                    `git -C ${CWD} config --remove-section credential 2>/dev/null; true`,
-            );
-        } catch (error) {
-            this.logger.warn(
-                `AiWriteback: failed to scrub clone credentials from .git (sandboxId=${sandbox.sandboxId}): ${getErrorMessage(
-                    error,
-                )}`,
-            );
+        if (strictCredentialCleanup) {
+            try {
+                await sandbox.commands.run(
+                    `git -C ${CWD} remote set-url origin ${quoteShellArgument(cloneTarget.url)} && ` +
+                        `if git -C ${CWD} config --local --get-regexp '^credential\\.' >/dev/null; then git -C ${CWD} config --local --remove-section credential; fi`,
+                );
+            } catch {
+                await this.getSandboxManager().destroy({ sandboxUuid });
+                throw new UnexpectedServerError(
+                    'Could not remove Bitbucket clone credentials from the sandbox',
+                );
+            }
+        } else {
+            try {
+                await sandbox.commands.run(
+                    `git -C ${CWD} remote set-url origin ${cloneTarget.url} && ` +
+                        `git -C ${CWD} config --remove-section credential 2>/dev/null; true`,
+                );
+            } catch (error) {
+                this.logger.warn(
+                    `AiWriteback: failed to scrub clone credentials from .git (sandboxId=${sandbox.sandboxId}): ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            }
         }
 
         // Revoke the scoped clone token now the checkout exists (general agent).
@@ -3475,7 +3743,7 @@ export class AiWritebackService extends BaseService {
     private async gatherRepoContext(
         sandbox: SandboxHandle,
         projectSubPath: string,
-    ): Promise<string | null> {
+    ): Promise<RepoContext | null> {
         const start = performance.now();
         try {
             await sandbox.files.write(
@@ -3495,11 +3763,45 @@ export class AiWritebackService extends BaseService {
                 );
                 return null;
             }
+            // An empty listing is worse than no listing: the `full` branch
+            // would emit an empty <repo_context> block alongside the "do NOT
+            // run find/ls/Glob" instruction, leaving the agent with an empty
+            // index and no sanctioned way to search. Fall through to null so
+            // the block is omitted entirely.
+            if (!result.stdout.trim()) {
+                return null;
+            }
             const bytes = Buffer.byteLength(result.stdout, 'utf8');
+            // Past the cap the listing no longer fits the model's context
+            // window alongside the prompt and the agent's own file reads, and
+            // the run dies before doing any work. Hand over a directory digest
+            // instead — the prompt then points the agent at Glob/Grep.
+            if (bytes > REPO_CONTEXT_MAX_BYTES) {
+                const { digest, fileCount } = summarizeRepoListing(
+                    result.stdout,
+                );
+                this.logger.warn(
+                    `AiWriteback: repo context too large to inject — summarising (sandboxId=${sandbox.sandboxId}, bytes=${bytes}, cap=${REPO_CONTEXT_MAX_BYTES}, files=${fileCount}, ${AiWritebackService.elapsed(start)}ms)`,
+                    {
+                        event: 'ai_writeback.repo_context.summarised',
+                        sandboxId: sandbox.sandboxId,
+                        bytes,
+                        capBytes: REPO_CONTEXT_MAX_BYTES,
+                        fileCount,
+                        digestBytes: Buffer.byteLength(digest, 'utf8'),
+                    },
+                );
+                return {
+                    kind: 'summarised',
+                    listing: digest,
+                    fileCount,
+                    bytes,
+                };
+            }
             this.logger.info(
                 `AiWriteback: repo context gathered (sandboxId=${sandbox.sandboxId}, bytes=${bytes}, ${AiWritebackService.elapsed(start)}ms)`,
             );
-            return result.stdout;
+            return { kind: 'full', listing: result.stdout };
         } catch (error) {
             this.logger.warn(
                 `AiWriteback: gatherRepoContext failed — running without context: ${getErrorMessage(error)}`,
@@ -3581,6 +3883,15 @@ export class AiWritebackService extends BaseService {
             stderrTail = (stderrTail + chunk).slice(-STDERR_TAIL_BYTES);
         };
 
+        // The CLI's own verdict on the run, kept so the failure path can report
+        // *why* `claude -p` exited non-zero. The `result` event arrives and is
+        // parsed moments before the subprocess exit propagates, so on a failed
+        // run this is populated by the time the catch block reads it.
+        let agentResult: { isError: boolean | null; subtype: string | null } = {
+            isError: null,
+            subtype: null,
+        };
+
         const handleEvent = (event: unknown): void => {
             const interpreted = interpretAgentEvent(event);
             if (interpreted.type === 'result') {
@@ -3594,6 +3905,10 @@ export class AiWritebackService extends BaseService {
                     interpreted.durationApiMs !== null
                         ? interpreted.durationMs - interpreted.durationApiMs
                         : null;
+                agentResult = {
+                    isError: interpreted.isError,
+                    subtype: interpreted.subtype,
+                };
                 agentUsage = {
                     costUsd: interpreted.costUsd,
                     inputTokens: interpreted.inputTokens,
@@ -3620,6 +3935,8 @@ export class AiWritebackService extends BaseService {
                         event: 'ai_writeback.run.summary',
                         source,
                         sandboxId: sandbox.sandboxId,
+                        resultIsError: interpreted.isError,
+                        resultSubtype: interpreted.subtype,
                         costUsd: interpreted.costUsd,
                         durationMs: interpreted.durationMs,
                         durationApiMs: interpreted.durationApiMs,
@@ -3698,7 +4015,7 @@ export class AiWritebackService extends BaseService {
                 {
                     cwd: CWD,
                     timeoutMs: RUN_TIMEOUT_MS,
-                    envs: { ANTHROPIC_API_KEY: this.getAnthropicApiKey() },
+                    envs: this.getClaudeCodeEnv(),
                     onStdout: (chunk) => {
                         buffer += chunk;
                         flushBuffer();
@@ -3732,6 +4049,12 @@ export class AiWritebackService extends BaseService {
             const stderrSnippet = (errStderr || stderrTail).slice(
                 -STDERR_TAIL_BYTES,
             );
+            // On the dominant failure mode (agent gives up, CLI exits 1) stderr
+            // is empty and the only account of what happened is the CLI's own
+            // result classification plus the agent's closing message.
+            const assistantTextTail = assistantText
+                ? assistantText.slice(-ASSISTANT_TEXT_TAIL_CHARS)
+                : null;
             this.logger.error('AI writeback agent subprocess failed', {
                 event: 'ai_writeback.run.agent_failed',
                 sandboxId: sandbox.sandboxId,
@@ -3741,11 +4064,16 @@ export class AiWritebackService extends BaseService {
                 exitCode,
                 errorMessage: getErrorMessage(error),
                 stderrTail: stderrSnippet || null,
+                resultIsError: agentResult.isError,
+                resultSubtype: agentResult.subtype,
+                assistantTextTail,
+                toolCounts,
             });
             Sentry.captureException(error, {
                 tags: {
                     errorType: 'AiWritebackAgentSubprocessFailed',
                     timedOut: String(timedOut),
+                    resultSubtype: agentResult.subtype ?? 'unknown',
                 },
                 extra: {
                     sandboxId: sandbox.sandboxId,
@@ -3753,6 +4081,9 @@ export class AiWritebackService extends BaseService {
                     runTimeoutMs: RUN_TIMEOUT_MS,
                     exitCode,
                     stderrTail: stderrSnippet,
+                    resultIsError: agentResult.isError,
+                    resultSubtype: agentResult.subtype,
+                    assistantTextTail,
                     toolCounts,
                 },
             });
@@ -3932,6 +4263,13 @@ export class AiWritebackService extends BaseService {
             );
         }
 
+        await this.prepareWarehouseSkills(sandbox, turn);
+    }
+
+    private async prepareWarehouseSkills(
+        sandbox: SandboxHandle,
+        turn: TurnContext,
+    ): Promise<void> {
         // Push the warehouse skill files alongside the prompts. `shared.md`
         // always; the dialect file only when one exists for this warehouse.
         // The system prompt points the agent here before any `type:`/SQL edit.
@@ -3963,6 +4301,43 @@ export class AiWritebackService extends BaseService {
                     sandbox,
                     turn.gitConnection.projectSubPath,
                 );
+                if (
+                    (turn.gitConnection.provider ===
+                        PullRequestProvider.GITHUB ||
+                        turn.gitConnection.provider ===
+                            PullRequestProvider.BITBUCKET) &&
+                    turn.gitConnection.semanticLayer === 'lightdash'
+                ) {
+                    return {
+                        systemPrompt: buildNativeSystemPrompt(
+                            turn.gitConnection.projectSubPath,
+                            {
+                                projectName: turn.projectName,
+                                repository,
+                                repoContext,
+                                warehouseType: turn.warehouseType,
+                                hasWarehouseSkill:
+                                    warehouseTypeToSkillKey(
+                                        turn.warehouseType,
+                                    ) !== null,
+                            },
+                        ),
+                        repoContext,
+                        allowedTools: NATIVE_ALLOWED_TOOLS,
+                        disallowedTools:
+                            turn.gitConnection.provider ===
+                            PullRequestProvider.BITBUCKET
+                                ? [
+                                      GENERAL_DISALLOWED_TOOLS,
+                                      ...['Edit', 'Write'].map(
+                                          (tool) => `${tool}(/${CWD}/.git/**)`,
+                                      ),
+                                  ].join(',')
+                                : GENERAL_DISALLOWED_TOOLS,
+                        addDirs: ['/tmp', SKILLS_DIR, CLAUDE_SKILLS_DIR],
+                        model: CLAUDE_MODEL,
+                    };
+                }
                 // Stage a credential-free profiles copy host-side so the agent
                 // doesn't burn turns discovering profiles.yml and hand-stripping
                 // Jinja (mkdir + cp + edit). Deterministic string work — no
@@ -3985,13 +4360,26 @@ export class AiWritebackService extends BaseService {
                 );
                 return {
                     systemPrompt,
+                    repoContext,
                     allowedTools: ALLOWED_TOOLS,
+                    disallowedTools:
+                        turn.gitConnection.provider ===
+                        PullRequestProvider.BITBUCKET
+                            ? ['Read', 'Grep', 'Edit', 'Write']
+                                  .map((tool) => `${tool}(/${CWD}/.git/**)`)
+                                  .join(',')
+                            : undefined,
                     addDirs: ['/tmp', SKILLS_DIR, CLAUDE_SKILLS_DIR],
                     model: CLAUDE_MODEL,
                 };
             },
             beforeAgentRun: (sandbox, turn) =>
-                this.prepareDbtAgentRun(sandbox, turn),
+                (turn.gitConnection.provider === PullRequestProvider.GITHUB ||
+                    turn.gitConnection.provider ===
+                        PullRequestProvider.BITBUCKET) &&
+                turn.gitConnection.semanticLayer === 'lightdash'
+                    ? this.prepareWarehouseSkills(sandbox, turn)
+                    : this.prepareDbtAgentRun(sandbox, turn),
             afterAgentRun: (sandbox) => this.reportCompileTimings(sandbox),
         };
     }
@@ -4156,6 +4544,7 @@ export class AiWritebackService extends BaseService {
                         repository,
                         repoContext,
                     }),
+                    repoContext,
                     allowedTools: GENERAL_ALLOWED_TOOLS,
                     disallowedTools: GENERAL_DISALLOWED_TOOLS,
                     addDirs: ['/tmp', GENERAL_SKILLS_DIR],
@@ -4177,7 +4566,7 @@ export class AiWritebackService extends BaseService {
      */
     private async gatherGeneralRepoContext(
         sandbox: SandboxHandle,
-    ): Promise<string | null> {
+    ): Promise<RepoContext | null> {
         const MAX_FILES = 600;
         try {
             const result = await sandbox.commands.run(
@@ -4188,7 +4577,34 @@ export class AiWritebackService extends BaseService {
             if (!listing) {
                 return null;
             }
-            return listing;
+            const bytes = Buffer.byteLength(listing, 'utf8');
+            // `head` truncates silently, so on any repo with more than
+            // MAX_FILES files the agent was being handed a partial listing and
+            // told to treat it as the index — it would conclude a file simply
+            // did not exist. Summarise instead, which flips the prompt to
+            // "explore with Glob/Grep" and stops the false negatives.
+            const truncated = listing.split('\n').length >= MAX_FILES;
+            if (truncated || bytes > REPO_CONTEXT_MAX_BYTES) {
+                const { digest, fileCount } = summarizeRepoListing(listing);
+                this.logger.warn(
+                    `AiCodingAgent: repo listing truncated at ${MAX_FILES} files — summarising (sandboxId=${sandbox.sandboxId}, bytes=${bytes}, files=${fileCount})`,
+                    {
+                        event: 'ai_writeback.repo_context.summarised',
+                        sandboxId: sandbox.sandboxId,
+                        bytes,
+                        capBytes: REPO_CONTEXT_MAX_BYTES,
+                        fileCount,
+                        digestBytes: Buffer.byteLength(digest, 'utf8'),
+                    },
+                );
+                return {
+                    kind: 'summarised',
+                    listing: digest,
+                    fileCount,
+                    bytes,
+                };
+            }
+            return { kind: 'full', listing };
         } catch (error) {
             this.logger.warn(
                 `AiCodingAgent: gatherGeneralRepoContext failed — running without context: ${getErrorMessage(
@@ -4227,7 +4643,6 @@ export class AiWritebackService extends BaseService {
         prDescription,
         prSummary,
         workstream,
-        denyCiPaths,
     }: {
         sandbox: SandboxHandle;
         sandboxUuid: string;
@@ -4243,8 +4658,6 @@ export class AiWritebackService extends BaseService {
         prDescription: string | null;
         prSummary: string | null;
         workstream: CodingAgentConfig['mode'];
-        /** Reject the commit if it touches CI/workflow paths (general agent). */
-        denyCiPaths: boolean;
     }): Promise<AppliedChanges> {
         if (!hasChanges) {
             this.logger.info(
@@ -4284,7 +4697,6 @@ export class AiWritebackService extends BaseService {
                     ),
                     user,
                     setStage,
-                    denyCiPaths,
                 });
             this.logger.info(
                 `AiWriteback: updated PR ${targetPrUrl} (sandboxId=${sandbox.sandboxId})`,
@@ -4330,7 +4742,6 @@ export class AiWritebackService extends BaseService {
                 ),
                 user,
                 setStage,
-                denyCiPaths,
             });
         this.logger.info(
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,

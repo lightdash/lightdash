@@ -11,12 +11,9 @@ import {
     Text,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconDots,
     IconEdit,
     IconInfoCircle,
@@ -86,27 +83,25 @@ const UserAttributesPanel: FC = () => {
                                 </Text>
                                 {attribute.description && (
                                     <Tooltip
-                                        multiline
                                         maw={300}
-                                        withArrow
                                         label={attribute.description}
                                     >
                                         <Box>
                                             <MantineIcon
                                                 icon={IconInfoCircle}
-                                                color="ldGray.6"
+                                                color="dimmed"
                                             />
                                         </Box>
                                     </Tooltip>
                                 )}
                             </Group>
                             <Group gap="sm">
-                                <Text fz="xs" c="ldGray.6">
+                                <Text fz="xs" c="dimmed">
                                     {attribute.users.length} user
                                     {attribute.users.length !== 1 ? 's' : ''}
                                 </Text>
                                 {isGroupManagementEnabled && (
-                                    <Text fz="xs" c="ldGray.6">
+                                    <Text fz="xs" c="dimmed">
                                         {attribute.groups.length} group
                                         {attribute.groups.length !== 1
                                             ? 's'
@@ -135,13 +130,9 @@ const UserAttributesPanel: FC = () => {
                                 e.preventDefault();
                             }}
                         >
-                            <Menu withinPortal position="bottom-end">
+                            <Menu position="bottom-end">
                                 <Menu.Target>
-                                    <ActionIcon
-                                        variant="transparent"
-                                        size="sm"
-                                        color="ldGray.6"
-                                    >
+                                    <ActionIcon variant="transparent" size="sm">
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
@@ -192,33 +183,10 @@ const UserAttributesPanel: FC = () => {
         columns,
         data: tableData,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: false,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 420px)' },
         },
@@ -270,11 +238,11 @@ const UserAttributesPanel: FC = () => {
         ),
         renderEmptyRowsFallback: () =>
             searchQuery.trim() ? (
-                <Text fz="sm" c="ldGray.6" ta="center" py="xl">
+                <Text fz="sm" c="dimmed" ta="center" py="xl">
                     No attributes match your search.
                 </Text>
             ) : (
-                <Text fz="sm" c="ldGray.6" ta="center" py="xl">
+                <Text fz="sm" c="dimmed" ta="center" py="xl">
                     There's no user attributes defined yet. <br /> To learn how
                     to define user attributes, check out our{' '}
                     <Anchor
@@ -289,17 +257,6 @@ const UserAttributesPanel: FC = () => {
                     .
                 </Text>
             ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             isLoading: isInitialLoading,
             density: 'md',

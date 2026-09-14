@@ -1,8 +1,16 @@
-import { GetObjectCommand, S3, S3ServiceException } from '@aws-sdk/client-s3';
+import { GetObjectCommand, S3ServiceException } from '@aws-sdk/client-s3';
 import express, { type Router } from 'express';
 import path from 'path';
 import { validate as isValidUuid } from 'uuid';
-import { type AppRuntimeConfig } from '../config/parseConfig';
+import { createS3ClientFromConfig } from '../clients/Aws/S3BaseClient';
+import {
+    type AppRuntimeConfig,
+    type LightdashSecrets,
+} from '../config/parseConfig';
+import {
+    appVersionAssetKey,
+    appVersionIndexHtmlKey,
+} from '../ee/services/AppGenerateService/appBundleStorage';
 import Logger from '../logging/logger';
 import {
     verifyPreviewToken,
@@ -28,9 +36,10 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
     '.map': 'application/json',
 };
 
-const buildCspHeader = (
+export const buildCspHeader = (
     config: AppRuntimeConfig,
     frameAncestors: string[],
+    browserImageOrigins: string[] = [],
 ): string => {
     const { cdnOrigin, cspAllowedOrigins, previewOrigin, lightdashOrigin } =
         config;
@@ -72,7 +81,7 @@ const buildCspHeader = (
         // worker fallback on older Safari.
         `worker-src ${sources('blob:')}`,
         `child-src ${sources('blob:')}`,
-        `img-src ${sources('data:')}`,
+        `img-src ${sources('data:', ...browserImageOrigins)}`,
         `font-src ${sources(...cspAllowedOrigins)}`,
         `frame-ancestors ${frameAncestors.join(' ')}`,
         `object-src 'none'`,
@@ -106,7 +115,7 @@ const isPlausibleToken = (token: string): boolean =>
 
 export const createAppPreviewRouter = (
     config: AppRuntimeConfig,
-    lightdashSecret: string,
+    lightdashSecrets: LightdashSecrets,
     /**
      * Frame-ancestor allowlist applied to every preview iframe. Matches the
      * `/embed/*` policy (`'self' https://*`) plus the explicit domains in
@@ -141,26 +150,16 @@ export const createAppPreviewRouter = (
         });
     }
 
-    const s3 =
-        config.s3 !== null
-            ? new S3({
-                  region: config.s3.region,
-                  endpoint: config.s3.endpoint,
-                  forcePathStyle: config.s3.forcePathStyle,
-                  credentials:
-                      config.s3.accessKey && config.s3.secretKey
-                          ? {
-                                accessKeyId: config.s3.accessKey,
-                                secretAccessKey: config.s3.secretKey,
-                            }
-                          : undefined,
-              })
-            : null;
+    const s3 = config.s3 !== null ? createS3ClientFromConfig(config.s3) : null;
 
-    const cspHeader = buildCspHeader(config, frameAncestors);
-
-    const setSecurityHeaders = (res: express.Response): void => {
-        res.setHeader('Content-Security-Policy', cspHeader);
+    const setSecurityHeaders = (
+        res: express.Response,
+        payload: PreviewTokenPayload,
+    ): void => {
+        res.setHeader(
+            'Content-Security-Policy',
+            buildCspHeader(config, frameAncestors, payload.browserImageOrigins),
+        );
         res.removeHeader('X-Frame-Options');
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -239,8 +238,14 @@ export const createAppPreviewRouter = (
             return;
         }
 
+        // Canonical form only: "0002" and "2.0" both parse to 2, so the URL
+        // would disagree with the version the token authorises.
         const versionNum = Number(version);
-        if (!Number.isInteger(versionNum) || versionNum < 1) {
+        if (
+            !Number.isInteger(versionNum) ||
+            versionNum < 1 ||
+            String(versionNum) !== version
+        ) {
             res.status(400).json({
                 status: 'error',
                 error: { message: 'Version must be a positive integer' },
@@ -258,7 +263,7 @@ export const createAppPreviewRouter = (
 
         const result = verifyPreviewToken(
             token,
-            lightdashSecret,
+            lightdashSecrets,
             appUuid,
             versionNum,
         );
@@ -299,8 +304,14 @@ export const createAppPreviewRouter = (
         '/:appUuid/versions/:version/t/:token/',
         requireToken,
         async (req, res) => {
-            const { appUuid, version } = req.params;
-            const s3Key = `apps/${appUuid}/versions/${version}/index.html`;
+            const previewTokenPayload = res.locals
+                .previewTokenPayload as PreviewTokenPayload;
+            // Key off the token's version, not the URL's: it is the one the
+            // middleware validated and the token authorises.
+            const s3Key = appVersionIndexHtmlKey(
+                previewTokenPayload.appUuid,
+                previewTokenPayload.version,
+            );
             const result = await fetchFromS3(s3Key);
 
             if (!result.ok) {
@@ -311,13 +322,11 @@ export const createAppPreviewRouter = (
                 return;
             }
 
-            setSecurityHeaders(res);
+            setSecurityHeaders(res, previewTokenPayload);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Cache-Control', 'no-store');
 
-            onPreviewView?.(
-                res.locals.previewTokenPayload as PreviewTokenPayload,
-            );
+            onPreviewView?.(previewTokenPayload);
 
             result.body.pipe(res);
         },
@@ -374,8 +383,13 @@ export const createAppPreviewRouter = (
                 return;
             }
 
-            const { appUuid, version } = req.params;
-            const s3Key = `apps/${appUuid}/versions/${version}/assets/${filename}`;
+            const previewTokenPayload = res.locals
+                .previewTokenPayload as PreviewTokenPayload;
+            const s3Key = appVersionAssetKey(
+                previewTokenPayload.appUuid,
+                previewTokenPayload.version,
+                filename,
+            );
             const result = await fetchFromS3(s3Key);
 
             if (!result.ok) {

@@ -6,7 +6,7 @@ import {
     Text,
     TextInput,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconNotebook, IconSearch } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
@@ -18,8 +18,8 @@ import {
     useMyAiAgentMemories,
     useMyAiAgentMemory,
 } from '../../hooks/useAiAgentMemory';
+import { MemoryActions } from '../MemoryDetails/MemoryActions';
 import { MemoryDetails } from '../MemoryDetails/MemoryDetails';
-import { MemoryStatusAction } from '../MemoryDetails/MemoryStatusControls';
 import styles from './MyMemoriesModal.module.css';
 
 type MyMemoriesModalProps = {
@@ -73,11 +73,9 @@ const MemoryDetailPane: FC<{
                     {memory.title}
                 </Text>
                 {memoryQuery.data ? (
-                    <MemoryStatusAction
+                    <MemoryActions
                         projectUuid={projectUuid}
-                        memoryUuid={memoryQuery.data.uuid}
-                        slug={memoryQuery.data.slug}
-                        status={memoryQuery.data.status}
+                        memory={memoryQuery.data}
                     />
                 ) : null}
             </Group>
@@ -144,7 +142,7 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
     } else if (memories.length === 0) {
         content = (
             <Stack gap="xs" className={styles.emptyState}>
-                <Text size="sm" fw={550}>
+                <Text size="sm" fw={500}>
                     No memories yet
                 </Text>
                 <Text size="sm" c="dimmed">
@@ -155,12 +153,11 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
         );
     } else {
         content = (
-            <Box className={styles.layout}>
+            <Box className={styles.layout} data-tour="my-memories-modal">
                 <Stack gap={0} className={styles.list}>
                     <Box className={styles.search}>
                         <TextInput
                             size="xs"
-                            radius="md"
                             placeholder="Search memories"
                             value={search}
                             onChange={(event) =>

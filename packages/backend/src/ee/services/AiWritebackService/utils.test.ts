@@ -38,6 +38,7 @@ import {
     progressTextForStage,
     redactTokens,
     resolvePrMetadataValue,
+    resolveSandboxAnthropicConfig,
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
@@ -137,6 +138,28 @@ describe('parseGitlabConnection', () => {
 });
 
 describe('buildCloneTarget', () => {
+    it('keeps the Bitbucket API token out of the clone URL', () => {
+        expect(
+            buildCloneTarget(
+                {
+                    provider: PullRequestProvider.BITBUCKET,
+                    owner: 'acme',
+                    repo: 'analytics',
+                    projectUuid: 'project',
+                    projectDbtSourceUuid: 'source',
+                    username: 'developer',
+                    projectSubPath: '.',
+                    branch: 'release/dbt',
+                },
+                'project-token',
+            ),
+        ).toEqual({
+            url: 'https://bitbucket.org/acme/analytics.git',
+            username: 'x-bitbucket-api-token-auth',
+            password: 'project-token',
+        });
+    });
+
     it('builds a GitHub x-access-token target', () => {
         expect(
             buildCloneTarget(parseGithubConnection(githubConfig()), 'tok'),
@@ -422,6 +445,8 @@ describe('interpretAgentEvent', () => {
                 duration_ms: 90000,
                 duration_api_ms: 30000,
                 num_turns: 7,
+                subtype: 'success',
+                is_error: false,
                 usage: {
                     input_tokens: 12,
                     output_tokens: 345,
@@ -432,6 +457,8 @@ describe('interpretAgentEvent', () => {
         ).toEqual({
             type: 'result',
             costUsd: 0.42,
+            isError: false,
+            subtype: 'success',
             durationMs: 90000,
             durationApiMs: 30000,
             numTurns: 7,
@@ -448,9 +475,34 @@ describe('interpretAgentEvent', () => {
         ).toEqual({
             type: 'result',
             costUsd: 0.42,
+            isError: null,
+            subtype: null,
             durationMs: null,
             durationApiMs: null,
             numTurns: null,
+            inputTokens: null,
+            outputTokens: null,
+            cacheReadInputTokens: null,
+            cacheCreationInputTokens: null,
+        });
+    });
+
+    it('reads the failure classification from an errored result event', () => {
+        expect(
+            interpretAgentEvent({
+                type: 'result',
+                subtype: 'error_during_execution',
+                is_error: true,
+                num_turns: 2,
+            }),
+        ).toEqual({
+            type: 'result',
+            costUsd: null,
+            isError: true,
+            subtype: 'error_during_execution',
+            durationMs: null,
+            durationApiMs: null,
+            numTurns: 2,
             inputTokens: null,
             outputTokens: null,
             cacheReadInputTokens: null,
@@ -727,6 +779,46 @@ describe('resolveSandboxDbtVersion', () => {
     it('resolves `latest` to the newest supported version', () => {
         expect(resolveSandboxDbtVersion(DbtVersionOptionLatest.LATEST)).toBe(
             getLatestSupportDbtVersion(),
+        );
+    });
+});
+
+describe('resolveSandboxAnthropicConfig', () => {
+    const config = (
+        anthropicApiKey: string | null,
+        legacyAnthropicApiKey: string | null,
+    ) =>
+        ({
+            ai: {
+                copilot: {
+                    providers: anthropicApiKey
+                        ? {
+                              anthropic: {
+                                  apiKey: anthropicApiKey,
+                                  baseUrl: 'https://gateway.example',
+                              },
+                          }
+                        : {},
+                },
+            },
+            aiWriteback: { legacyAnthropicApiKey },
+        }) as Parameters<typeof resolveSandboxAnthropicConfig>[0];
+
+    it('prefers the shared data-apps credentials, base URL included', () => {
+        expect(
+            resolveSandboxAnthropicConfig(config('shared', 'legacy')),
+        ).toEqual({ apiKey: 'shared', baseUrl: 'https://gateway.example' });
+    });
+
+    it('falls back to the deprecated writeback key when the shared one is unset', () => {
+        expect(resolveSandboxAnthropicConfig(config(null, 'legacy'))).toEqual({
+            apiKey: 'legacy',
+        });
+    });
+
+    it('throws when neither is configured', () => {
+        expect(() => resolveSandboxAnthropicConfig(config(null, null))).toThrow(
+            'ANTHROPIC_API_KEY',
         );
     });
 });

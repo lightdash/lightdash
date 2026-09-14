@@ -20,8 +20,8 @@ import {
     Select,
     Switch,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import {
     useEffect,
@@ -191,12 +191,7 @@ export const BigQuerySchemaInput: FC<{
                         {option.value}
                     </Text>
                     {option.value === recommendedDataset ? (
-                        <Badge
-                            size="xs"
-                            color="green"
-                            variant="light"
-                            radius="sm"
-                        >
+                        <Badge size="xs" color="green">
                             Recommended · largest
                         </Badge>
                     ) : null}
@@ -569,8 +564,6 @@ const BigQueryForm: FC<{
                                                     <Badge
                                                         size="xs"
                                                         color="green"
-                                                        variant="light"
-                                                        radius="sm"
                                                     >
                                                         Recommended · largest
                                                     </Badge>

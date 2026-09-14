@@ -2,6 +2,7 @@ import {
     AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES,
     AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS,
     AnyType,
+    assertUnreachable,
     PreAggregateMissReason,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -9,6 +10,7 @@ import {
     type AiAgentMemoryConsolidationRejectionReason,
     type WarehousePhaseTimings,
 } from '@lightdash/common';
+import type { MotherduckCacheEvent } from '@lightdash/warehouses';
 import { EventEmitter } from 'events';
 import express from 'express';
 import * as fs from 'fs';
@@ -73,6 +75,8 @@ export type AiAgentMemoryDistillOutcome =
 
 export const AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES = [
     'consolidated',
+    // Proposed and applied nothing: never counted as a consolidated partition.
+    'dry_run',
     'skipped',
     'failed',
     'aborted',
@@ -80,6 +84,14 @@ export const AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES = [
 
 export type AiAgentMemoryConsolidateOutcome =
     (typeof AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES)[number];
+
+const AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES = [
+    ...AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES,
+    'dry_run_failed',
+] as const;
+
+type AiAgentMemoryConsolidateMetricOutcome =
+    (typeof AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES)[number];
 
 export function getQueryContextLabel(
     context: string,
@@ -135,6 +147,9 @@ export default class PrometheusMetrics {
         null;
 
     public aiAgentMemoryCitedCounter: prometheus.Counter | null = null;
+
+    public aiAgentMemoryUnresolvedRetiredCounter: prometheus.Counter | null =
+        null;
 
     public aiDeepResearchReportCleanupCounter: prometheus.Counter<'outcome'> | null =
         null;
@@ -227,6 +242,26 @@ export default class PrometheusMetrics {
 
     public queryCacheHitCounter: prometheus.Counter<string> | null = null;
 
+    public motherduckCacheAcquisitionCounter: prometheus.Counter<
+        'result' | 'project_uuid'
+    > | null = null;
+
+    public motherduckCacheInstanceCreatedCounter: prometheus.Counter<'project_uuid'> | null =
+        null;
+
+    public motherduckCacheEvictionCounter: prometheus.Counter<
+        'reason' | 'project_uuid'
+    > | null = null;
+
+    public motherduckCacheSizeGauge: prometheus.Gauge | null = null;
+
+    public motherduckCacheRetryCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    public motherduckCacheAcquireDurationHistogram: prometheus.Histogram<
+        'result' | 'project_uuid'
+    > | null = null;
+
     // Usage event stream writer metrics
     public usageEventsPushedCounter: prometheus.Counter | null = null;
 
@@ -296,6 +331,9 @@ export default class PrometheusMetrics {
     private warehouseDurationHistogram: prometheus.Histogram | null = null;
 
     private warehousePhaseDurationHistogram: prometheus.Histogram | null = null;
+
+    private projectQueryPhaseDurationHistogram: prometheus.Histogram | null =
+        null;
 
     private overheadDurationHistogram: prometheus.Histogram | null = null;
 
@@ -400,6 +438,22 @@ export default class PrometheusMetrics {
                         ...rest,
                     },
                 );
+
+                this.projectQueryPhaseDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_query_warehouse_phase_duration_by_project_seconds',
+                        help: 'Warehouse query duration by phase, attributed per project for allowlisted projects',
+                        labelNames: [
+                            'project_uuid',
+                            'phase',
+                            'warehouse_type',
+                            'context',
+                        ],
+                        buckets: [
+                            0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120,
+                        ],
+                        ...rest,
+                    });
 
                 this.overheadDurationHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_overhead_duration_seconds',
@@ -569,6 +623,13 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
+                this.aiAgentMemoryUnresolvedRetiredCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_unresolved_retired_total',
+                        help: 'Memories retired by the sweep because every object they name left the catalog',
+                        ...rest,
+                    });
+
                 this.aiDeepResearchReportCleanupCounter =
                     new prometheus.Counter({
                         name: 'ai_deep_research_report_cleanup_total',
@@ -580,7 +641,7 @@ export default class PrometheusMetrics {
                 // AI agent memory consolidation pass
                 this.aiAgentMemoryConsolidateCounter = new prometheus.Counter({
                     name: 'ai_agent_memory_consolidate_total',
-                    help: 'AI agent memory consolidation runs by outcome (consolidated | skipped | failed | aborted)',
+                    help: 'AI agent memory consolidation runs by outcome (consolidated | dry_run | skipped | failed | dry_run_failed | aborted)',
                     labelNames: ['outcome'],
                     ...rest,
                 });
@@ -778,6 +839,7 @@ export default class PrometheusMetrics {
                 this.aiAgentMemorySweepEnqueuedCounter?.inc(0);
                 this.aiAgentMemoryUnknownToolPolicyCounter?.inc(0);
                 this.aiAgentMemoryCitedCounter?.inc(0);
+                this.aiAgentMemoryUnresolvedRetiredCounter?.inc(0);
                 (['scanned', 'expired', 'failed'] as const).forEach(
                     (outcome) => {
                         this.aiDeepResearchReportCleanupCounter?.inc(
@@ -786,12 +848,17 @@ export default class PrometheusMetrics {
                         );
                     },
                 );
-                AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES.forEach((outcome) => {
-                    this.aiAgentMemoryConsolidateCounter?.inc({ outcome }, 0);
-                    this.aiAgentMemoryConsolidateDurationHistogram?.zero({
-                        outcome,
-                    });
-                });
+                AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES.forEach(
+                    (outcome) => {
+                        this.aiAgentMemoryConsolidateCounter?.inc(
+                            { outcome },
+                            0,
+                        );
+                        this.aiAgentMemoryConsolidateDurationHistogram?.zero({
+                            outcome,
+                        });
+                    },
+                );
                 AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES.forEach(
                     (operation) => {
                         this.aiAgentMemoryConsolidateOperationCounter?.inc(
@@ -980,6 +1047,55 @@ export default class PrometheusMetrics {
                     ],
                     ...rest,
                 });
+
+                this.motherduckCacheAcquisitionCounter = new prometheus.Counter(
+                    {
+                        name: 'lightdash_motherduck_instance_cache_acquisitions_total',
+                        help: 'Total MotherDuck instance cache acquisitions',
+                        labelNames: ['result', 'project_uuid'],
+                        ...rest,
+                    },
+                );
+
+                this.motherduckCacheInstanceCreatedCounter =
+                    new prometheus.Counter({
+                        name: 'lightdash_motherduck_instance_cache_instances_created_total',
+                        help: 'Total MotherDuck instances created by the cache',
+                        labelNames: ['project_uuid'],
+                        ...rest,
+                    });
+
+                this.motherduckCacheEvictionCounter = new prometheus.Counter({
+                    name: 'lightdash_motherduck_instance_cache_evictions_total',
+                    help: 'Total MotherDuck instance cache evictions',
+                    labelNames: ['reason', 'project_uuid'],
+                    ...rest,
+                });
+
+                this.motherduckCacheSizeGauge = new prometheus.Gauge({
+                    name: 'lightdash_motherduck_instance_cache_entries',
+                    help: 'Current MotherDuck instance cache entry count',
+                    ...rest,
+                });
+
+                this.motherduckCacheRetryCounter = new prometheus.Counter({
+                    name: 'lightdash_motherduck_instance_cache_retries_total',
+                    help: 'Total MotherDuck instance cache retries',
+                    labelNames: ['outcome'],
+                    ...rest,
+                });
+
+                this.motherduckCacheAcquireDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_motherduck_instance_cache_acquire_duration_seconds',
+                        help: 'MotherDuck instance cache acquisition duration',
+                        labelNames: ['result', 'project_uuid'],
+                        buckets: [
+                            0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1,
+                            2.5, 5,
+                        ],
+                        ...rest,
+                    });
 
                 // Usage event stream writer metrics
                 this.usageEventsPushedCounter = new prometheus.Counter({
@@ -1373,6 +1489,48 @@ export default class PrometheusMetrics {
         });
     }
 
+    public observeMotherduckCacheEvent(event: MotherduckCacheEvent) {
+        switch (event.type) {
+            case 'acquire': {
+                const labels = {
+                    result: event.result,
+                    project_uuid: event.projectUuid ?? 'unknown',
+                };
+                this.motherduckCacheAcquisitionCounter?.inc(labels);
+                if (event.result === 'miss') {
+                    this.motherduckCacheInstanceCreatedCounter?.inc({
+                        project_uuid: event.projectUuid ?? 'unknown',
+                    });
+                }
+                this.motherduckCacheAcquireDurationHistogram?.observe(
+                    labels,
+                    (event.waitMs + event.instanceCreateMs + event.connectMs) /
+                        1000,
+                );
+                return;
+            }
+            case 'evict':
+                this.motherduckCacheEvictionCounter?.inc({
+                    reason: event.reason,
+                    project_uuid: event.projectUuid ?? 'unknown',
+                });
+                return;
+            case 'retry':
+                this.motherduckCacheRetryCounter?.inc({
+                    outcome: event.outcome,
+                });
+                return;
+            case 'size':
+                this.motherduckCacheSizeGauge?.set(event.entries);
+                return;
+            default:
+                assertUnreachable(
+                    event,
+                    'Unknown MotherDuck instance cache event',
+                );
+        }
+    }
+
     public monitorPreAggregates(knex: Knex) {
         const { enabled, ...rest } = this.config;
         if (!enabled) {
@@ -1466,6 +1624,26 @@ export default class PrometheusMetrics {
         Object.entries(phaseTimings).forEach(([phase, durationMs]) => {
             this.warehousePhaseDurationHistogram?.observe(
                 {
+                    phase,
+                    warehouse_type: warehouseType,
+                    context: contextLabel,
+                },
+                durationMs / 1000,
+            );
+        });
+    }
+
+    public observeProjectQueryPhaseDurations(
+        projectUuid: string,
+        phaseTimings: WarehousePhaseTimings,
+        warehouseType: string,
+        context: string,
+    ) {
+        const contextLabel = getQueryContextLabel(context);
+        Object.entries(phaseTimings).forEach(([phase, durationMs]) => {
+            this.projectQueryPhaseDurationHistogram?.observe(
+                {
+                    project_uuid: projectUuid,
                     phase,
                     warehouse_type: warehouseType,
                     context: contextLabel,
@@ -1652,6 +1830,10 @@ export default class PrometheusMetrics {
         this.aiAgentMemoryCitedCounter?.inc(count);
     }
 
+    public incrementAiAgentMemoryUnresolvedRetired(count: number) {
+        this.aiAgentMemoryUnresolvedRetiredCounter?.inc(count);
+    }
+
     public incrementAiDeepResearchReportCleanup(
         outcome: 'scanned' | 'expired' | 'failed',
         count: number,
@@ -1660,7 +1842,7 @@ export default class PrometheusMetrics {
     }
 
     public trackAiAgentMemoryConsolidate(
-        outcome: AiAgentMemoryConsolidateOutcome,
+        outcome: AiAgentMemoryConsolidateMetricOutcome,
         durationMs: number,
     ) {
         this.aiAgentMemoryConsolidateCounter?.inc({ outcome });
@@ -1834,7 +2016,7 @@ export default class PrometheusMetrics {
                 Logger.error(
                     `Invalid PrometheusEventMetricManager config from ${resolvedPath}`,
                     {
-                        errors: parsedConfig.error.errors.map((issue) => ({
+                        errors: parsedConfig.error.issues.map((issue) => ({
                             message: issue.message,
                             path: issue.path.join('.'),
                         })),

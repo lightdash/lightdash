@@ -22,8 +22,8 @@ This enables ITGC compliance by tracking:
 ## Key Components
 
 | Component                            | Location                                                   | Purpose                                                            |
-|--------------------------------------|------------------------------------------------------------|--------------------------------------------------------------------|
-| `AuditLogEvent` schema               | `packages/backend/src/logging/auditLog.ts`                 | Zod-validated event structure                                      |
+| ------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| `AuditLogEvent` schema               | `packages/backend/src/logging/auditLog.ts`                 | Event type and validation schema                                   |
 | `CaslAuditWrapper`                   | `packages/backend/src/logging/caslAuditWrapper.ts`         | Wraps CASL Ability to intercept `can`/`cannot` calls               |
 | `BaseService.createAuditedAbility()` | `packages/backend/src/services/BaseService.ts`             | Helper that creates a CaslAuditWrapper with logging pre-configured |
 | `logAuditEvent()`                    | `packages/backend/src/logging/winston.ts`                  | Emits audit events to Winston at the `audit` level                 |
@@ -36,7 +36,7 @@ This enables ITGC compliance by tracking:
 Audit actors are modeled as a discriminated union on the `type` field:
 
 | Actor Type          | `type` values             | Description                            | Key Fields                                                                      |
-|---------------------|---------------------------|----------------------------------------|---------------------------------------------------------------------------------|
+| ------------------- | ------------------------- | -------------------------------------- | ------------------------------------------------------------------------------- |
 | **User**            | `session`, `pat`, `oauth` | Human users via browser, PAT, or OAuth | `uuid`, `email`, `firstName`, `lastName`, `organizationRole`, `impersonatedBy?` |
 | **Service Account** | `service-account`         | Machine-to-machine CI/CD accounts      | `uuid`, `email`, `organizationRole`                                             |
 | **Anonymous**       | `anonymous`               | Embedded dashboard viewers (JWT auth)  | `uuid`, `organizationUuid`                                                      |
@@ -58,8 +58,7 @@ Every audit event contains:
     action: string;          // CASL action: 'view', 'create', 'update', 'delete', 'manage'
     resource: {
         type: string;          // CASL subject: 'Dashboard', 'SavedChart', 'Space', etc.
-        uuid ? : string;         // Resource identifier
-        name ? : string;         // Human-readable name
+        metadata ? : Record<string, unknown>; // Resource identifiers and display names
         organizationUuid: string;
         projectUuid ? : string;
     }
@@ -126,16 +125,16 @@ import { subject } from '@casl/ability';
 import { ForbiddenError } from '@lightdash/common';
 
 class MyService extends BaseService {
-    async getResource(user: SessionUser, resourceUuid: string) {
-        const resource = await this.model.get(resourceUuid);
+  async getResource(user: SessionUser, resourceUuid: string) {
+    const resource = await this.model.get(resourceUuid);
 
-        // Direct ability check - NOT audit logged
-        if (user.ability.cannot('view', subject('MyResource', resource))) {
-            throw new ForbiddenError();
-        }
-
-        return resource;
+    // Direct ability check - NOT audit logged
+    if (user.ability.cannot('view', subject('MyResource', resource))) {
+      throw new ForbiddenError();
     }
+
+    return resource;
+  }
 }
 ```
 
@@ -146,17 +145,17 @@ import { subject } from '@casl/ability';
 import { ForbiddenError } from '@lightdash/common';
 
 class MyService extends BaseService {
-    async getResource(user: SessionUser, resourceUuid: string) {
-        const resource = await this.model.get(resourceUuid);
+  async getResource(user: SessionUser, resourceUuid: string) {
+    const resource = await this.model.get(resourceUuid);
 
-        // Audited ability - every can/cannot call is logged
-        const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('view', subject('MyResource', resource))) {
-            throw new ForbiddenError();
-        }
-
-        return resource;
+    // Audited ability - every can/cannot call is logged
+    const auditedAbility = this.createAuditedAbility(user);
+    if (auditedAbility.cannot('view', subject('MyResource', resource))) {
+      throw new ForbiddenError();
     }
+
+    return resource;
+  }
 }
 ```
 
@@ -166,29 +165,51 @@ If a method makes multiple permission checks, create the audited ability once an
 
 ```typescript
 class MyService extends BaseService {
-    async updateResource(user: SessionUser, uuid: string, data: UpdateData) {
-        const resource = await this.model.get(uuid);
-        const auditedAbility = this.createAuditedAbility(user);
+  async updateResource(user: SessionUser, uuid: string, data: UpdateData) {
+    const resource = await this.model.get(uuid);
+    const auditedAbility = this.createAuditedAbility(user);
 
-        // Check 1: Can user update in current space?
-        if (auditedAbility.cannot('update', subject('MyResource', resource))) {
-            throw new ForbiddenError();
-        }
-
-        // Check 2: If moving to new space, can user update there?
-        if (data.spaceUuid && data.spaceUuid !== resource.spaceUuid) {
-            const newSpace = await this.spaceModel.get(data.spaceUuid);
-            if (auditedAbility.cannot('update', subject('MyResource', newSpace))) {
-                throw new ForbiddenError("No access to the target space");
-            }
-        }
-
-        return this.model.update(uuid, data);
+    // Check 1: Can user update in current space?
+    if (auditedAbility.cannot('update', subject('MyResource', resource))) {
+      throw new ForbiddenError();
     }
+
+    // Check 2: If moving to new space, can user update there?
+    if (data.spaceUuid && data.spaceUuid !== resource.spaceUuid) {
+      const newSpace = await this.spaceModel.get(data.spaceUuid);
+      if (auditedAbility.cannot('update', subject('MyResource', newSpace))) {
+        throw new ForbiddenError('No access to the target space');
+      }
+    }
+
+    return this.model.update(uuid, data);
+  }
 }
 ```
 
-### Step 3: Works with Account Type Too
+### Step 3: Use Bulk Checks for Collections
+
+Use `canBulk()` when checking the same action across a collection. It evaluates each resource once and emits one summary event per matched CASL rule instead of one event per item. Summary events omit rule conditions and enumerate the resources using the `metadata` from each subject under `resource.metadata.resources`.
+
+Every bulk subject must include identifying metadata, such as `{ spaceUuid, spaceName }` or `{ projectUuid, projectName }`, so each decision remains attributable.
+
+```typescript
+const subjects = spaces.map((space) =>
+  subject('Space', {
+    organizationUuid,
+    projectUuid,
+    metadata: { spaceUuid: space.uuid, spaceName: space.name },
+  }),
+);
+const accessResults = auditedAbility.canBulk('view', subjects);
+const accessibleSpaces = spaces.filter((_, index) => accessResults[index]);
+```
+
+Bulk summaries use `resource.metadata.resources` instead of one event per resource. Operators that parse audit events for SIEM ingestion should support this array. Plain and pretty log formats serialize the array as JSON so every identifier remains visible; JSON log output retains the structured array.
+
+A summary is split by matched rule, resource type, and organization. Its top-level `projectUuid` is present only when every listed resource belongs to the same project.
+
+### Step 4: Works with Account Type Too
 
 For services that receive the `Account` type (newer pattern), the same method works:
 
@@ -204,7 +225,7 @@ class MyService extends BaseService {
 }
 ```
 
-### Step 4: Always Use `subject()` for Typed Subjects
+### Step 5: Always Use `subject()` for Typed Subjects
 
 Always wrap permission checks with CASL's `subject()` helper. This ensures the audit log captures the correct resource
 type name. Without `subject()`, the `__caslSubjectType__` field is missing and the resource type in the audit log will
@@ -212,15 +233,18 @@ be `"unknown"`.
 
 ```typescript
 // Good - audit log will show resource.type = "Dashboard"
-auditedAbility.cannot('view', subject('Dashboard', { organizationUuid, projectUuid, uuid: dashboardUuid }))
+auditedAbility.cannot(
+  'view',
+  subject('Dashboard', { organizationUuid, projectUuid, uuid: dashboardUuid }),
+);
 
 // Bad - audit log will show resource.type = "unknown"
-auditedAbility.cannot('view', { organizationUuid, projectUuid })
+auditedAbility.cannot('view', { organizationUuid, projectUuid });
 ```
 
-### Step 5: Generate UUIDs Before Permission Checks on Create Actions
+### Step 6: Generate UUIDs Before Permission Checks on Create Actions
 
-For create operations, generate the resource UUID *before* the permission check so the audit log includes the UUID of
+For create operations, generate the resource UUID _before_ the permission check so the audit log includes the UUID of
 the resource that will be created. This makes it possible to correlate the permission check with the resulting resource.
 
 ```typescript
@@ -267,7 +291,9 @@ When a developer with PAT authentication views a dashboard:
   "action": "view",
   "resource": {
     "type": "Dashboard",
-    "uuid": "abc-123-uuid",
+    "metadata": {
+      "dashboardUuid": "abc-123-uuid"
+    },
     "organizationUuid": "org-001",
     "projectUuid": "proj-001"
   },
@@ -305,7 +331,9 @@ When a denied access attempt occurs (e.g., viewer trying to delete):
   "action": "delete",
   "resource": {
     "type": "Dashboard",
-    "uuid": "abc-123-uuid",
+    "metadata": {
+      "dashboardUuid": "abc-123-uuid"
+    },
     "organizationUuid": "org-001",
     "projectUuid": "proj-001"
   },

@@ -4,6 +4,7 @@ import {
     type Explore,
     type ExploreError,
     type PreAggregateDef,
+    type WeekDay,
 } from '@lightdash/common';
 import { buildPreAggregateExplore } from './buildPreAggregateExplore';
 
@@ -13,9 +14,11 @@ const shouldGeneratePreAggregatesForExplore = (explore: Explore): boolean =>
 export const generatePreAggregateExplores = ({
     compiledExplores,
     parsedPreAggregates,
+    startOfWeek,
 }: {
     compiledExplores: Array<Explore | ExploreError>;
     parsedPreAggregates: PreAggregateDef[];
+    startOfWeek: WeekDay | null;
 }): Array<Explore | ExploreError> => {
     if (process.env.PRE_AGGREGATES_ENABLED !== 'true') {
         return compiledExplores;
@@ -40,7 +43,11 @@ export const generatePreAggregateExplores = ({
         parsedPreAggregates.forEach((preAggregateDef) => {
             try {
                 generatedPreAggregateExplores.push(
-                    buildPreAggregateExplore(compiled, preAggregateDef),
+                    buildPreAggregateExplore(
+                        compiled,
+                        preAggregateDef,
+                        startOfWeek,
+                    ),
                 );
                 validPreAggregates.push(preAggregateDef);
             } catch (error) {

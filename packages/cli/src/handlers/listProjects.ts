@@ -39,6 +39,9 @@ export const listProjectsHandler = async (options: ListProjectsOptions) => {
             filteredProjects.forEach((project) => {
                 console.error(`  ${styles.bold(project.name)}`);
                 console.error(`    UUID: ${project.projectUuid}`);
+                if (project.slug) {
+                    console.error(`    Slug: ${project.slug}`);
+                }
                 if (project.warehouseType) {
                     console.error(`    Warehouse: ${project.warehouseType}`);
                 }

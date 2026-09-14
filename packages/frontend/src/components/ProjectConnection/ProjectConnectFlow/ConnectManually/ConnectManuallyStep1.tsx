@@ -1,5 +1,5 @@
 import { type WarehouseTypes } from '@lightdash/common';
-import { Button, Stack, Text, Tooltip } from '@mantine-8/core';
+import { Button, Stack, Text, Tooltip } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useTracking from '../../../../providers/Tracking/useTracking';

@@ -1,3 +1,4 @@
+import { isField } from '@lightdash/common';
 import { useEffect, useRef, type FC, type HTMLAttributes } from 'react';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useAccount } from '../../hooks/user/useAccount';
@@ -10,12 +11,21 @@ import BigNumberContextMenu from './BigNumberContextMenu';
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
+    /**
+     * When the tile title is hidden it no longer carries the description
+     * tooltip, so the big number and its label take it over instead.
+     */
+    isTitleHidden?: boolean;
+    /** Chart description, used when the tile title is hidden. */
+    description?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 }
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
+    isTitleHidden = false,
+    description,
     onScreenshotReady,
     onScreenshotError,
     ...wrapperProps
@@ -57,7 +67,18 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
         comparisonValue,
         comparisonDiff,
         flipColors,
+        getField,
+        selectedField,
     } = visualizationConfig.chartConfig;
+
+    const selectedItem = selectedField ? getField(selectedField) : undefined;
+    // Fall back to the metric's own description when the chart has none.
+    const hoverDescription = isTitleHidden
+        ? (description ??
+          (selectedItem && isField(selectedItem)
+              ? selectedItem.description
+              : undefined))
+        : undefined;
 
     if (isLoading) return <LoadingChart />;
 
@@ -72,6 +93,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             value={bigNumber}
             label={resolvedBigNumberLabel || defaultLabel || ''}
             showLabel={!!showBigNumberLabel}
+            description={hoverDescription}
             valueColor={bigNumberTextColor}
             flipColors={!!flipColors}
             comparison={

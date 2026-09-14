@@ -8,7 +8,7 @@ import {
     type DashboardMarkdownTile,
     type DashboardMarkdownTileProperties,
 } from '@lightdash/common';
-import { Button, Stack, type ModalProps } from '@mantine-8/core';
+import { Button, Stack, type ModalProps } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import {
     IconAppWindow,

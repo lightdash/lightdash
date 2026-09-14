@@ -54,3 +54,7 @@
 :global([data-mantine-color-scheme='dark']) .zapIndicator[data-settled] svg {
     color: var(--mantine-color-ldDark-6) !important;
 }
+
+.draftsBadge {
+    cursor: pointer;
+}

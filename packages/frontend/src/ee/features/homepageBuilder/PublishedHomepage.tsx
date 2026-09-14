@@ -3,12 +3,12 @@ import {
     type HomepageBlock,
     type HomepageConfig,
 } from '@lightdash/common';
-import { Box, Paper, Text } from '@mantine-8/core';
-import { type FC, type ReactNode } from 'react';
+import { Box, Paper, Text } from '@mantine/core';
+import { useMemo, type FC, type ReactNode } from 'react';
 import { TIER_CLASS } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';
-import { type BlockPresentation } from './blocks/types';
 import layout from './homepageLayout.module.css';
+import { HomepageConfigFactsContext } from './hooks/useHomepageConfigFacts';
 import { useRuntimeEmptyBlocks } from './hooks/useRuntimeEmptyBlocks';
 import {
     resolveHomepageLayout,
@@ -16,33 +16,36 @@ import {
 } from './resolveHomepageLayout';
 import { RuntimeEmptyBlocksProvider } from './RuntimeEmptyBlocks';
 
-const PERSONAL_BLOCK_TYPES: HomepageBlock['type'][] = ['favorites', 'recent'];
-
 // Unknown block types render nothing so newer configs degrade gracefully
+
+/**
+ * Walkthrough result for manage:ProjectHomepage: the published call to
+ * action, live on the homepage.
+ */
+const ctaTourProps = {
+    'data-tour-scope': 'manage:ProjectHomepage',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/home',
+    'data-tour-label': 'The banner is live for everyone',
+    'data-tour-docs': 'explore/homepage.mdx#build-a-homepage:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs': 'explore/homepage.mdx#build-a-homepage:p2:1-2',
+};
+
 const BlockRenderer: FC<{
     block: HomepageBlock;
     projectUuid: string;
     personalPlaceholders: boolean;
-    presentation?: BlockPresentation;
     itemSpan: number | null;
     standalone: boolean;
-}> = ({
-    block,
-    projectUuid,
-    personalPlaceholders,
-    presentation,
-    itemSpan,
-    standalone,
-}) => {
+}> = ({ block, projectUuid, personalPlaceholders, itemSpan, standalone }) => {
     const definition = getBlockDefinition(block.type);
     if (!definition) return null;
-    if (personalPlaceholders && PERSONAL_BLOCK_TYPES.includes(block.type)) {
+    if (personalPlaceholders && definition.personal) {
         return (
-            <Paper withBorder p="md" h="100%">
+            <Paper p="md" h="100%">
                 <Text size="sm" fw={600}>
-                    {block.type === 'favorites'
-                        ? 'Favorites'
-                        : 'Recently viewed'}
+                    {definition.label}
                 </Text>
                 <Text size="xs" c="dimmed">
                     Personal to each viewer — the target user sees their own
@@ -56,9 +59,9 @@ const BlockRenderer: FC<{
         <View
             block={block}
             projectUuid={projectUuid}
-            presentation={presentation}
             itemSpan={itemSpan}
             standalone={standalone}
+            personalPlaceholders={personalPlaceholders}
         />
     );
 };
@@ -96,6 +99,7 @@ const RowRenderer: FC<{
                     className={layout.col}
                     data-weight={column.weight}
                     data-hug-units={column.hugUnits ?? undefined}
+                    {...(column.block.type === 'cta' ? ctaTourProps : {})}
                 >
                     <BlockRenderer
                         block={column.block}
@@ -126,57 +130,67 @@ export const PublishedHomepage: FC<Props> = ({
     personalPlaceholders = false,
     topBar = null,
 }) => {
-    const { hero, rows } = resolveHomepageLayout(migrateHomepageConfig(config));
+    const migrated = migrateHomepageConfig(config);
+    const { hero, rows } = resolveHomepageLayout(migrated);
+    const configFacts = useMemo(
+        () => ({
+            hasQuickActionsBlock: config.rows.some((row) =>
+                row.blocks.some((block) => block.type === 'quick-actions'),
+            ),
+        }),
+        [config],
+    );
 
     return (
-        <RuntimeEmptyBlocksProvider>
-            <div className={layout.page}>
-                {topBar}
-                {hero && (
-                    <div
-                        className={layout.heroSection}
-                        data-presentation={hero.presentation}
-                        data-density={hero.density}
-                    >
-                        {hero.companions.length > 0 && (
-                            <div className={layout.heroCompanions}>
-                                {hero.companions.map((row) => (
-                                    <RowRenderer
-                                        key={row.id}
-                                        row={row}
-                                        projectUuid={projectUuid}
-                                        personalPlaceholders={
-                                            personalPlaceholders
-                                        }
-                                    />
-                                ))}
+        <HomepageConfigFactsContext.Provider value={configFacts}>
+            <RuntimeEmptyBlocksProvider>
+                <div className={layout.page}>
+                    {topBar}
+                    {hero && (
+                        <div
+                            className={layout.heroSection}
+                            data-presentation={hero.presentation}
+                            data-density={hero.density}
+                        >
+                            {hero.companions.length > 0 && (
+                                <div className={layout.heroCompanions}>
+                                    {hero.companions.map((row) => (
+                                        <RowRenderer
+                                            key={row.id}
+                                            row={row}
+                                            projectUuid={projectUuid}
+                                            personalPlaceholders={
+                                                personalPlaceholders
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                            <div className={layout.hero}>
+                                <BlockRenderer
+                                    block={hero.row.columns[0].block}
+                                    projectUuid={projectUuid}
+                                    personalPlaceholders={personalPlaceholders}
+                                    itemSpan={hero.row.columns[0].itemSpan}
+                                    standalone={hero.row.columns.length === 1}
+                                />
                             </div>
-                        )}
-                        <div className={layout.hero}>
-                            <BlockRenderer
-                                block={hero.row.columns[0].block}
-                                projectUuid={projectUuid}
-                                personalPlaceholders={personalPlaceholders}
-                                presentation="hero"
-                                itemSpan={hero.row.columns[0].itemSpan}
-                                standalone={hero.row.columns.length === 1}
-                            />
                         </div>
-                    </div>
-                )}
-                {rows.length > 0 && (
-                    <div className={layout.secondary}>
-                        {rows.map((row) => (
-                            <RowRenderer
-                                key={row.id}
-                                row={row}
-                                projectUuid={projectUuid}
-                                personalPlaceholders={personalPlaceholders}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
-        </RuntimeEmptyBlocksProvider>
+                    )}
+                    {rows.length > 0 && (
+                        <div className={layout.secondary}>
+                            {rows.map((row) => (
+                                <RowRenderer
+                                    key={row.id}
+                                    row={row}
+                                    projectUuid={projectUuid}
+                                    personalPlaceholders={personalPlaceholders}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </RuntimeEmptyBlocksProvider>
+        </HomepageConfigFactsContext.Provider>
     );
 };

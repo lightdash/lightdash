@@ -1,5 +1,5 @@
 import type { AgentSuggestion } from '@lightdash/common';
-import { Box, Button } from '@mantine-8/core';
+import { Box, Button } from '@mantine/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -70,6 +70,15 @@ export const AgentSuggestionChips = ({
                             showPromptAffordance,
                         )}
                         onClick={() => onChipClick(chip, idx)}
+                        // Walkthrough anchor: a question the learner can ask
+                        // without typing. Navigate chips (continue a thread)
+                        // carry no anchor. See scripts/scope-tours/generate.ts.
+                        {...(chip.kind === 'prompt'
+                            ? {
+                                  'data-tour-anchor': 'ai-suggestion',
+                                  'data-tour-hint': 'Pick a suggested question',
+                              }
+                            : {})}
                     >
                         {chip.label}
                     </Button>

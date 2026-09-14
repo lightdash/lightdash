@@ -4,6 +4,7 @@ import {
     ScopeGroup,
     type RoleLevel,
     type Scope,
+    type ScopeName,
 } from '@lightdash/common';
 import startCase from 'lodash/startCase';
 
@@ -14,6 +15,7 @@ const GROUP_DISPLAY_NAMES: Record<ScopeGroup, string> = {
     [ScopeGroup.DATA]: 'Data Access',
     [ScopeGroup.SHARING]: 'Sharing & Export',
     [ScopeGroup.AI]: 'AI Features',
+    [ScopeGroup.EMBED]: 'Embedding',
     [ScopeGroup.SPOTLIGHT]: 'Spotlight Features',
 };
 
@@ -108,7 +110,9 @@ export const getScopeDependencies = (scopeName: string): ScopeDependency[] => {
     return dependencies;
 };
 
-export const getScopeNamesWithDependencies = (scopeName: string): string[] => [
+export const getScopeNamesWithDependencies = (
+    scopeName: ScopeName,
+): ScopeName[] => [
     scopeName,
     ...getScopeDependencies(scopeName).map((dependency) => dependency.name),
 ];

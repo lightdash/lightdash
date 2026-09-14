@@ -39,11 +39,15 @@ import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
+import { timeFrameConfigs } from './utils/timeFrames';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
+export { getPermissionsFromAbilityRules } from './authorization/abilityPermissions';
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
+export { canMutateVerifiedContent } from './authorization/canMutateVerifiedContent';
+export { getDashboardDeleteAccess } from './authorization/getDashboardDeleteAccess';
 export {
     defineUserAbility,
     getUserAbilityBuilder,
@@ -51,9 +55,12 @@ export {
     type ProjectAbilityProfile,
 } from './authorization/index';
 export * from './authorization/jwtAbility';
+export * from './authorization/embedPermissions';
+export { getOrganizationMemberRolePermissions } from './authorization/organizationMemberAbility';
 export { projectMemberAbilities } from './authorization/projectMemberAbility';
 export * from './authorization/parseAccount';
 export * from './authorization/roleToScopeMapping';
+export * from './authorization/rolePresets';
 export * from './authorization/scopeAbilityBuilder';
 export * from './authorization/scopes';
 export * from './authorization/serviceAccountAbility';
@@ -63,8 +70,10 @@ export * from './authorization/types';
 export * from './compiler/compilationReport';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
+export * from './compiler/joinInflation';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
+export * from './compiler/referenceLookup';
 export * from './compiler/translator';
 export * from './parameters/reservedParameters';
 export * from './constants/screenshot';
@@ -74,10 +83,14 @@ export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
 export * from './dbt/manifest';
 export * from './dbt/metricFlow';
-export * from './dbt/validation';
+export * from './dbt/projectMergedManifest';
+// './dbt/validation' is not re-exported: it eagerly imports ~3.6 MB of dbt JSON
+// schemas. Import it from '@lightdash/common/dbt/validation' instead.
 export * from './ee';
 export * from './preAggregates';
 export * from './pivot/derivePivotConfigFromChart';
+export * from './pivot/deriveDataAppVizPivotConfig';
+export * from './pivot/pivotColumnName';
 export * from './pivot/pivotConfig';
 export * from './pivot/pivotQueryResults';
 export * from './pivot/utils';
@@ -96,6 +109,7 @@ export * from './types/any';
 export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
+export * from './types/api/mobilePushNotifications';
 export * from './types/api/notifications';
 export * from './types/api/paginatedQuery';
 export * from './types/api/parameters';
@@ -111,8 +125,11 @@ export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/content';
+export * from './types/contentSlug';
+export * from './types/contentReviewRequests';
 export * from './types/contentVerification';
 export * from './types/dashboard';
+export * from './types/directAccess';
 export * from './types/emailWhitelabel';
 export * from './types/dataTimezonePreview';
 export * from './types/fieldImpact';
@@ -122,11 +139,14 @@ export * from './types/downloadFile';
 export * from './types/email';
 export * from './types/errors';
 export * from './types/explore';
+export * from './types/externalSources';
 export * from './types/favorites';
 export * from './featureFlags/previewFeatureFlags';
+export * from './types/dataRetention';
 export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
 export * from './types/previewExpirationProjectSettings';
+export * from './types/resultsCacheProjectSettings';
 export * from './types/upstreamDiff';
 export * from './types/field';
 export * from './types/ci';
@@ -136,10 +156,14 @@ export * from './types/funnel';
 export * from './types/gdrive';
 export * from './types/gitIntegration';
 export * from './types/groups';
+export * from './types/jira';
+export * from './types/linear';
 export * from './types/job';
 export * from './types/knex-paginate';
 export * from './types/lightdashModel';
 export * from './types/lightdashProjectConfig';
+export * from './types/managedSignIn';
+export * from './types/mergeQuery';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
 export * from './types/notifications';
@@ -157,6 +181,7 @@ export * from './types/paginateResults';
 export * from './types/parameters';
 export * from './types/periodOverPeriodComparison';
 export * from './types/personalAccessToken';
+export * from './types/persistentDownloadFile';
 export * from './types/pinning';
 export * from './types/pivot';
 export * from './types/preAggregate';
@@ -168,8 +193,10 @@ export * from './types/projectMemberRole';
 export {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
+    buildSafeDbtEnvironmentVariables,
     DatabricksAuthenticationType,
     DBT_VERSION_SUPPORTED_WAREHOUSES,
+    DEFAULT_PROJECT_DBT_SOURCE_NAME,
     DbtProjectType,
     DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
@@ -182,6 +209,9 @@ export {
     getInvalidDbtEnvironmentVariableKeys,
     getLatestSupportDbtVersion,
     isDbtVersion110OrHigher,
+    PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
+    PROJECT_DBT_SOURCE_NAME_PATTERN,
+    validateProjectDbtSourceName,
     isGitProjectType,
     isSafeDbtEnvironmentVariableKey,
     isWarehouseSupportedByDbtVersion,
@@ -195,17 +225,29 @@ export {
     RedshiftAuthenticationType,
     resolveDbtVersion,
     playgroundProjectTriggers,
+    fillOmittedSecrets,
+    isMissingBigqueryKeyfile,
+    omitEmptySecrets,
     sensitiveCredentialsFieldNames,
     SnowflakeAuthenticationType,
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
+    supportsOptionalUserCredentials,
+    WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
 } from './types/projects';
 export type {
+    AgentSqlScope,
+    ApiCreateTrainingPreviewResponse,
     ApiEnsurePlaygroundProjectResponse,
+    ApiEnableLearnResponse,
+    ApiLearnAccessResponse,
+    EnableLearnResults,
+    LearnAccess,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
     EnsurePlaygroundProjectRequest,
+    CreateTrainingPreviewResults,
     EnsurePlaygroundProjectResults,
     PlaygroundProjectTrigger,
     AthenaCredentials,
@@ -276,6 +318,7 @@ export type {
     ProjectDbtSourceWithConnection,
     ProjectSummary,
     RedshiftCredentials,
+    SafeDbtEnvironmentVariables,
     SensitiveCredentialsFieldNames,
     SnowflakeCredentials,
     SshTunnelConfiguration,
@@ -283,12 +326,17 @@ export type {
     TrinoCredentials,
     UpdateProjectDbtSource,
     UpdateProjectDetails,
+    UpdateAgentSqlScope,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
+    CreateWarehouseCredentialsWithOptionalSecrets,
     WarehouseCredentials,
+    WarehouseLocation,
 } from './types/projects';
 export * from './types/promotion';
 export * from './types/queryHistory';
+export * from './types/queryHistoryList';
+export * from './types/querySources';
 export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
@@ -308,6 +356,7 @@ export * from './types/space';
 export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
+export * from './types/sshTunnel';
 export * from './types/table';
 export * from './types/tags';
 export * from './types/timeFrames';
@@ -315,6 +364,7 @@ export * from './types/timezone';
 export * from './types/user';
 export * from './types/userAvatars';
 export * from './types/userAttributes';
+export * from './types/userOnboarding';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';
 export * from './types/warehouse';
@@ -340,6 +390,7 @@ export * from './utils/dependencyGraph';
 export * from './utils/email';
 export * from './utils/exportTabs';
 export * from './utils/fields';
+export * from './utils/filterLabels';
 export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
@@ -347,7 +398,11 @@ export * from './utils/i18n/chartAsCode';
 export * from './utils/i18n/dashboardAsCode';
 export * from './utils/i18n/merge';
 export * from './utils/i18n/types';
+export * from './utils/i18n/uiStrings';
 export * from './utils/item';
+export * from './utils/mergeQueryItems';
+export * from './utils/queryHistoryList';
+export * from './utils/resultColumns';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/lightdashSqlVariables';
 export * from './utils/metricsExplorer';
@@ -370,8 +425,11 @@ export * from './utils/tableCalculationFunctions';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';
+export * from './utils/externalSourceExplore';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
+export * from './utils/warehouseLocation';
+export * from './utils/warehouseResourceLimits';
 export * from './visualizations/BigNumberDataModel';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/helpers/getCartesianAxisFormatterConfig';
@@ -402,6 +460,13 @@ export const validateEmail = (email: string): boolean => {
     return re.test(String(email).toLowerCase());
 };
 
+export const validateUserName = (name: string): boolean => !/[<>]/u.test(name);
+
+export const getUserNameSchema = () =>
+    z.string().trim().min(1, { message: 'Required' }).refine(validateUserName, {
+        message: 'Name cannot contain < or >',
+    });
+
 export const getEmailSchema = () =>
     z
         .string()
@@ -412,12 +477,18 @@ export const getEmailSchema = () =>
             message: 'Email address must not contain whitespaces',
         });
 
+export const PASSWORD_REQUIREMENT_MESSAGES = [
+    'must be at least 8 characters long',
+    'must contain a letter',
+    'must contain a number or symbol',
+] as const;
+
 export const getPasswordSchema = () =>
     z
         .string()
-        .min(8, { message: 'must be at least 8 characters long' })
-        .regex(/[a-zA-Z]/, { message: 'must contain a letter' })
-        .regex(/[\d\W_]/, { message: 'must contain a number or symbol' });
+        .min(8, { error: PASSWORD_REQUIREMENT_MESSAGES[0] })
+        .regex(/[a-zA-Z]/, { error: PASSWORD_REQUIREMENT_MESSAGES[1] })
+        .regex(/[\d\W_]/, { error: PASSWORD_REQUIREMENT_MESSAGES[2] });
 
 export const validatePassword = (password: string): boolean =>
     getPasswordSchema().safeParse(password).success;
@@ -567,6 +638,12 @@ export const SEED_PROJECT = {
     copied_from_project_uuid: null,
     organization_warehouse_credentials_uuid: null,
 };
+export const SEED_DATA_APP_VIZ = {
+    appUuid: '9d7fbd5e-2d45-4f4f-b930-3d8d12b81b80',
+    name: 'Seed data app visualization',
+    chartName: 'Orders by status data app visualization',
+    version: 1,
+};
 export const SEED_SPACE = {
     name: SEED_PROJECT.name,
 };
@@ -608,11 +685,14 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
     jobTitle: z.string().min(0),
+    // Only collected from the person creating the organization; invited
+    // members skip it (their onboarding omits this field from the schema).
     howDidYouHearAboutUs: z
         .string()
         .trim()
         .min(1, 'Please let us know how you heard about Lightdash')
-        .max(1000),
+        .max(1000)
+        .optional(),
     enableEmailDomainAccess: z.boolean().default(false),
     isMarketingOptedIn: z.boolean().default(true),
     isTrackingAnonymized: z.boolean().default(false),
@@ -626,6 +706,7 @@ export const isLightdashMode = (x: string): x is LightdashMode =>
 export enum LightdashInstallType {
     DOCKER_IMAGE = 'docker_image',
     BASH_INSTALL = 'bash_install',
+    HELM = 'helm',
     HEROKU = 'heroku',
     UNKNOWN = 'unknown',
 }
@@ -689,13 +770,19 @@ export const getDateGroupLabel = (axisItem: ItemsMap[string]) => {
         axisItem.timeInterval
     ) {
         const timeFrame =
-            TimeFrames[axisItem.timeInterval]?.toLowerCase() || '';
+            axisItem.timeIntervalLabel ??
+            TimeFrames[axisItem.timeInterval]?.toLowerCase() ??
+            '';
 
-        if (timeFrame && axisItem.label.endsWith(` ${timeFrame}`)) {
+        const timeFrameSuffix = ` ${timeFrame}`;
+        if (
+            timeFrame &&
+            axisItem.label.toLowerCase().endsWith(timeFrameSuffix.toLowerCase())
+        ) {
             // Remove the time frame from the end of the label - e.g. from 'Order created day' to 'Order created'.
-            return getItemLabelWithoutTableName(axisItem).replace(
-                new RegExp(`\\s+${timeFrame}$`),
-                '',
+            return getItemLabelWithoutTableName(axisItem).slice(
+                0,
+                -timeFrameSuffix.length,
             );
         }
 
@@ -703,6 +790,33 @@ export const getDateGroupLabel = (axisItem: ItemsMap[string]) => {
     }
 
     return undefined;
+};
+
+export const getDateGroupLabelWithGranularity = (
+    axisItem: ItemsMap[string],
+): string | undefined => {
+    if (!isDimension(axisItem) || !axisItem.timeIntervalBaseDimensionName) {
+        return undefined;
+    }
+
+    if (axisItem.customTimeInterval) {
+        const fieldLabel = axisItem.groups?.at(-1);
+        return fieldLabel ? `${fieldLabel} (${axisItem.label})` : undefined;
+    }
+
+    if (!axisItem.timeInterval) {
+        return undefined;
+    }
+
+    const fieldLabel = getDateGroupLabel(axisItem);
+    if (!fieldLabel) {
+        return undefined;
+    }
+
+    const granularityLabel =
+        axisItem.timeIntervalLabel ??
+        timeFrameConfigs[axisItem.timeInterval].getLabel();
+    return `${fieldLabel} (${granularityLabel})`;
 };
 
 export const getAxisName = ({
@@ -1122,3 +1236,10 @@ export const SPACE_TREE_2: TreeCreateSpace[] = [
         ],
     },
 ] as const;
+
+export * from './compiler/compileLightdashModels';
+
+export * from './lightdash/LightdashModelEditor';
+export * from './lightdash/convertCustomMetricToLightdash';
+export * from './types/analyticsProject';
+export * from './types/recentContent';

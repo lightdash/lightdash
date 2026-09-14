@@ -19,7 +19,7 @@ import {
     Text,
     Tooltip,
     type ComboboxItem,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
@@ -85,9 +85,8 @@ const CopyableCommand: FC<{ command: string; onCopy?: () => void }> = ({
         </Code>
         <CopyButton value={command}>
             {({ copied, copy }) => (
-                <Tooltip label={copied ? 'Copied' : 'Copy'} withArrow>
+                <Tooltip label={copied ? 'Copied' : 'Copy'}>
                     <ActionIcon
-                        variant="subtle"
                         color={copied ? 'green' : 'gray'}
                         onClick={() => {
                             copy();
@@ -134,7 +133,7 @@ const twoLineOption = (
 );
 
 const defaultBadge = (
-    <Badge size="xs" color="blue" variant="light" radius="sm">
+    <Badge size="xs" color="blue">
         Your Snowflake default
     </Badge>
 );
@@ -298,7 +297,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 option.value === connectedCredentials.database ? (
                     defaultBadge
                 ) : option.value === recommendedDatabase ? (
-                    <Badge size="xs" color="green" variant="light" radius="sm">
+                    <Badge size="xs" color="green">
                         Recommended · largest
                     </Badge>
                 ) : null,
@@ -313,7 +312,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 option.value === connectedCredentials.warehouse ? (
                     defaultBadge
                 ) : option.value === recommendedWarehouse ? (
-                    <Badge size="xs" color="green" variant="light" radius="sm">
+                    <Badge size="xs" color="green">
                         Recommended · cheapest
                     </Badge>
                 ) : null;

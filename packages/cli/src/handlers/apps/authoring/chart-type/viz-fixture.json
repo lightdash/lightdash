@@ -1,0 +1,50 @@
+{
+    "fieldMapping": {
+        "category": "orders_status",
+        "value": "orders_total_revenue"
+    },
+    "rows": [
+        {
+            "orders_status": {
+                "value": { "raw": "completed", "formatted": "Completed" }
+            },
+            "orders_total_revenue": {
+                "value": { "raw": 42800, "formatted": "$42,800" }
+            }
+        },
+        {
+            "orders_status": {
+                "value": { "raw": "shipped", "formatted": "Shipped" }
+            },
+            "orders_total_revenue": {
+                "value": { "raw": 31500, "formatted": "$31,500" }
+            }
+        },
+        {
+            "orders_status": {
+                "value": { "raw": "placed", "formatted": "Placed" }
+            },
+            "orders_total_revenue": {
+                "value": { "raw": 18200, "formatted": "$18,200" }
+            }
+        },
+        {
+            "orders_status": {
+                "value": { "raw": "returned", "formatted": "Returned" }
+            },
+            "orders_total_revenue": {
+                "value": { "raw": 6400, "formatted": "$6,400" }
+            }
+        }
+    ],
+    "options": {
+        "showLabels": true,
+        "maxBars": 10
+    },
+    "colorPalette": ["#7162FF", "#1A9AAA", "#E5A800", "#DA5D2B", "#3B82F6"],
+    "seriesColors": {},
+    "valueColors": {},
+    "pivotDetails": null,
+    "underlyingData": { "enabled": false },
+    "drillDown": { "enabled": false }
+}

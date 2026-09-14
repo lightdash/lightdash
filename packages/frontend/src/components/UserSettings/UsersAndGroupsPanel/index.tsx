@@ -1,5 +1,5 @@
 import { FeatureFlags, type GroupWithMembers } from '@lightdash/common';
-import { Button, Tabs } from '@mantine-8/core';
+import { Button, Tabs } from '@mantine/core';
 import { IconPlus, IconUsers, IconUsersGroup } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';

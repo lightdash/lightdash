@@ -1,4 +1,4 @@
-import { getDefaultZIndex, Loader, Stack, Text } from '@mantine-8/core';
+import { getDefaultZIndex, Loader, Stack, Text } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineModal, {

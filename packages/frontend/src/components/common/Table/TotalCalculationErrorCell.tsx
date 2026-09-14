@@ -1,5 +1,5 @@
 import { getErrorMessage, isApiError } from '@lightdash/common';
-import { Group, Text, Tooltip } from '@mantine-8/core';
+import { Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -10,7 +10,7 @@ const TotalCalculationErrorCell: FC<{ error: unknown }> = ({ error }) => {
         : getErrorMessage(error);
 
     return (
-        <Tooltip withinPortal multiline maw={500} label={message}>
+        <Tooltip maw={500} label={message}>
             <Group
                 component="span"
                 gap={4}

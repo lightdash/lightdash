@@ -1,5 +1,9 @@
-import { ContentType, type SummaryContent } from '@lightdash/common';
-import { Skeleton, Stack } from '@mantine-8/core';
+import {
+    ContentType,
+    contentToResourceViewItem,
+    type SummaryContent,
+} from '@lightdash/common';
+import { Skeleton, Stack } from '@mantine/core';
 import {
     IconChartBar,
     IconClock,
@@ -7,28 +11,30 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
 import TruncatedText from '../../../../components/common/TruncatedText';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import { useRecentContents } from '../hooks/useRecentContents';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
-const contentUrl = (projectUuid: string, content: SummaryContent): string =>
-    content.contentType === ContentType.DASHBOARD
-        ? `/projects/${projectUuid}/dashboards/${content.uuid}/view`
-        : `/projects/${projectUuid}/saved/${content.uuid}`;
-
 const RecentRow: FC<{
     content: SummaryContent;
     projectUuid: string;
     viewedAt: Date | undefined;
 }> = ({ content, projectUuid, viewedAt }) => {
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const timeAgo = useTimeAgo(viewedAt ?? new Date(0));
     const isDashboard = content.contentType === ContentType.DASHBOARD;
     return (
         <Link
-            to={contentUrl(projectUuid, content)}
+            to={getResourceUrl(
+                projectUuid,
+                contentToResourceViewItem(content),
+                projectUrlIdentifier,
+            )}
             className={`${classes.listRow} ${classes.clickable} ${classes.plainLink}`}
         >
             <div className={classes.iconSquare}>

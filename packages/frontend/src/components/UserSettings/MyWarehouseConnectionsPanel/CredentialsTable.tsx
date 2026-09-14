@@ -7,7 +7,7 @@ import {
     Paper,
     Table,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
@@ -47,7 +47,7 @@ const CredentialsItem: FC<
                 <Group gap="xs" wrap="nowrap">
                     <Text size="sm">{credentials.project.name}</Text>
                     {credentials.project.type === ProjectType.PREVIEW && (
-                        <Badge size="xs" variant="light" color="orange">
+                        <Badge size="xs" color="orange">
                             Preview
                         </Badge>
                     )}
@@ -59,13 +59,9 @@ const CredentialsItem: FC<
             )}
         </Table.Td>
         <Table.Td w="1%">
-            <Menu withinPortal position="bottom-end">
+            <Menu position="bottom-end">
                 <Menu.Target>
-                    <ActionIcon
-                        variant="transparent"
-                        size="sm"
-                        color="ldGray.6"
-                    >
+                    <ActionIcon variant="transparent" size="sm">
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>
@@ -99,7 +95,7 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
     setWarehouseCredentialsToBeDeleted,
 }) => {
     return (
-        <Paper withBorder style={{ overflow: 'hidden' }}>
+        <Paper className={tableStyles.paper}>
             <Table
                 className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
             >

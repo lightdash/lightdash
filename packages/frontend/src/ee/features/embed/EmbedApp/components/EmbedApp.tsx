@@ -1,10 +1,12 @@
-import { Box, Loader, Stack } from '@mantine-8/core';
+import { Box, Loader, Stack } from '@mantine/core';
 import { IconAppsOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
+import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useEmbedAppPreviewToken } from '../../../../../features/apps/hooks/useEmbedAppPreviewToken';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
+import styles from './EmbedApp.module.css';
 
 type Props = {
     appUuid: string;
@@ -25,12 +27,16 @@ const EmbedApp: FC<Props> = ({ appUuid, projectUuid }) => {
         ? `${previewOrigin}/api/apps/${appUuid}/versions/${tokenQuery.data.version}/t/${tokenQuery.data.token}/#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
 
-    const statusCode = tokenQuery.error?.error?.statusCode;
+    const visibleTokenError = getVisiblePreviewTokenError(
+        tokenQuery.error,
+        !!tokenQuery.data,
+    );
+    const statusCode = visibleTokenError?.error?.statusCode;
     const isNotFound = statusCode === 404;
     const isForbidden = statusCode === 403;
 
     return (
-        <Box h="100vh" w="100%">
+        <Box h="100vh" w="100%" className={styles.previewContainer}>
             {isNotFound ? (
                 <SuboptimalState
                     icon={IconAppsOff}
@@ -43,17 +49,18 @@ const EmbedApp: FC<Props> = ({ appUuid, projectUuid }) => {
                     title="No access"
                     description="This data app isn't authorized for this embed."
                 />
-            ) : tokenQuery.isLoading || !previewUrl ? (
+            ) : tokenQuery.isLoading || !previewUrl || !tokenQuery.data ? (
                 <Stack align="center" justify="center" h="100%">
                     <Loader size="sm" />
                 </Stack>
             ) : (
                 <AppIframePreview
                     src={previewUrl}
+                    previewToken={tokenQuery.data.token}
                     expectedPreviewOrigin={previewOrigin}
                     projectUuid={projectUuid}
                     appUuid={appUuid}
-                    identityKey={`${appUuid}:${tokenQuery.data!.version}`}
+                    identityKey={`${appUuid}:${tokenQuery.data.version}`}
                     dashboardFilters={undefined}
                     urlStateSync
                 />

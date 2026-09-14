@@ -1,4 +1,4 @@
-import { Collapse } from '@mantine-8/core';
+import { Collapse } from '@mantine/core';
 import React, { type FC } from 'react';
 
 interface FormSectionProps {
@@ -9,6 +9,6 @@ interface FormSectionProps {
 const FormSection: FC<React.PropsWithChildren<FormSectionProps>> = ({
     isOpen = true,
     children,
-}) => <Collapse in={isOpen}>{children}</Collapse>;
+}) => <Collapse expanded={isOpen}>{children}</Collapse>;
 
 export default FormSection;

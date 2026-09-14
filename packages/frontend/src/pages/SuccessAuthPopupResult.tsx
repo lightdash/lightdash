@@ -1,4 +1,4 @@
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { useMount } from 'react-use';
 import { DocumentTitle } from '../components/common/DocumentTitle';

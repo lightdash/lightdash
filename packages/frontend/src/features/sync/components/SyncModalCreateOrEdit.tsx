@@ -1,4 +1,4 @@
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
@@ -9,17 +9,16 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import { useSyncModalForm } from '../hooks/useSyncModalForm';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
+import { type SyncResource } from '../types';
 import { SyncModalForm } from './SyncModalForm';
 import { SyncModalFormProvider } from './syncModalFormContext';
 
 type Props = {
-    chartUuid: string;
-    projectUuid?: string;
+    resource: SyncResource;
 } & Pick<MantineModalProps, 'opened' | 'onClose'>;
 
 export const SyncModalCreateOrEdit: FC<Props> = ({
-    chartUuid,
-    projectUuid,
+    resource,
     opened,
     onClose,
 }) => {
@@ -32,7 +31,7 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
         isLoadingSchedulerData,
         isSchedulerError,
         schedulerError,
-    } = useSyncModalForm(chartUuid, projectUuid);
+    } = useSyncModalForm(resource);
 
     const hasSetGoogleSheet = form.values.options.gdriveId !== '';
 
@@ -69,7 +68,12 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
                     </Button>
                 }
             >
-                <SyncModalForm id={formId} onSubmit={handleSubmit} />
+                <SyncModalForm
+                    id={formId}
+                    onSubmit={handleSubmit}
+                    isApp={resource.type === 'app'}
+                    supportsFilters={resource.type !== 'sqlChart'}
+                />
             </MantineModal>
         </SyncModalFormProvider>
     );

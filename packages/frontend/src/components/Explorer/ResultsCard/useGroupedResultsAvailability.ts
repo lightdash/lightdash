@@ -3,6 +3,7 @@ import {
     selectPivotConfig,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import useApp from '../../../providers/App/useApp';
 
@@ -18,14 +19,25 @@ export function useGroupedResultsAvailability() {
     const pivotConfig = useExplorerSelector(selectPivotConfig);
     const chartConfig = useExplorerSelector(selectChartConfig);
     const { queryResults } = useExplorerQuery();
+    const merge = useMergeSafe();
+    const mergeResults = merge?.mergeResults;
+    const activeResults = mergeResults?.results ?? queryResults;
 
     const hasPivotColumns = !!pivotConfig?.columns?.length;
     const isTableViz = chartConfig.type === 'table';
-    const hasNoResults = queryResults.rows.length === 0;
+    const mergeIsPendingOrFailed =
+        !!merge?.isMerging &&
+        !mergeResults &&
+        (merge.wasRestored ||
+            merge.isRunning ||
+            !!merge.runError ||
+            merge.runErrors.length > 0);
+    const hasNoResults =
+        mergeIsPendingOrFailed || activeResults.rows.length === 0;
 
     // Check if pivot column limit is exceeded
     const maxColumnLimit = health.data?.pivotTable?.maxColumnLimit;
-    const totalColumnCount = queryResults.pivotDetails?.totalColumnCount;
+    const totalColumnCount = activeResults.pivotDetails?.totalColumnCount;
     const exceedsColumnLimit =
         maxColumnLimit !== undefined &&
         totalColumnCount !== undefined &&

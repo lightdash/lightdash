@@ -12,7 +12,7 @@ import {
     type SchedulerRun,
     type SchedulerWithLogs,
 } from '@lightdash/common';
-import { type MantineTheme } from '@mantine-8/core';
+import { type MantineTheme } from '@mantine/core';
 import {
     IconAlertCircle,
     IconAlertTriangleFilled,

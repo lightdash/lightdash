@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import { Button, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -32,8 +32,6 @@ const SsoMissingDomainsWarning: FC<Props> = ({ providerLabel }) => {
                 </Stack>
                 <Tooltip
                     label="SSO routing is based on verified email domains."
-                    withArrow
-                    multiline
                     maw={260}
                 >
                     <Button

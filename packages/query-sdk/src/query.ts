@@ -6,6 +6,7 @@
  *     .dimensions(['customer_segment', 'order_date'])
  *     .metrics(['total_revenue', 'order_count'])
  *     .filters([{ field: 'order_date', operator: 'inThePast', value: 90, unit: 'days' }])
+ *     .metricFilters([{ field: 'total_revenue', operator: 'greaterThan', value: 1000 }])
  *     .sorts([{ field: 'total_revenue', direction: 'desc' }])
  *     .limit(100)
  *
@@ -29,6 +30,7 @@ type BuilderState = {
     dimensions: string[];
     metrics: string[];
     filters: InternalFilterDefinition[];
+    metricFilters: InternalFilterDefinition[];
     sorts: { fieldId: string; descending: boolean }[];
     tableCalculations: TableCalculation[];
     additionalMetrics: AdditionalMetric[];
@@ -63,6 +65,7 @@ export class QueryBuilder {
                 dimensions: [],
                 metrics: [],
                 filters: [],
+                metricFilters: [],
                 sorts: [],
                 tableCalculations: [],
                 additionalMetrics: [],
@@ -113,10 +116,20 @@ export class QueryBuilder {
         });
     }
 
-    /** Add filters */
+    /** Add dimension (WHERE) filters */
     filters(filters: Filter[]): QueryBuilder {
         return this._clone({
             filters: [...this._state.filters, ...toInternalFilters(filters)],
+        });
+    }
+
+    /** Add metric (HAVING) filters. The metrics do not need to be selected. */
+    metricFilters(filters: Filter[]): QueryBuilder {
+        return this._clone({
+            metricFilters: [
+                ...this._state.metricFilters,
+                ...toInternalFilters(filters),
+            ],
         });
     }
 
@@ -183,6 +196,7 @@ export class QueryBuilder {
             dimensions: this._state.dimensions,
             metrics: this._state.metrics,
             filters: this._state.filters,
+            metricFilters: this._state.metricFilters,
             sorts: this._state.sorts,
             tableCalculations: this._state.tableCalculations,
             additionalMetrics: this._state.additionalMetrics,

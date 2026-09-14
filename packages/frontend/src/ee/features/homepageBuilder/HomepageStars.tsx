@@ -1,6 +1,6 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Box, Group, Text } from '@mantine-8/core';
-import { useMediaQuery, useReducedMotion } from '@mantine-8/hooks';
+import { Box, Group, Text } from '@mantine/core';
+import { useMediaQuery, useReducedMotion } from '@mantine/hooks';
 import {
     IconChartArea,
     IconChartBar,
@@ -200,7 +200,7 @@ const StaticChips: FC<{ types: ChipKey[] }> = ({ types }) => (
                 <MantineIcon
                     icon={CHIP_DEFS[type].icon}
                     size={14}
-                    color="ldGray.6"
+                    color="dimmed"
                 />
                 {CHIP_DEFS[type].title}
             </span>
@@ -444,7 +444,7 @@ const STAR_DEFS: StarDef[] = [
                     <Text size="xs" c="dimmed" lineClamp={1}>
                         {kpi.label}
                     </Text>
-                    <Text fw={700} size="xl" mb={4}>
+                    <Text fw={600} size="xl" mb={4}>
                         {kpi.value}
                     </Text>
                     <StarSparkline

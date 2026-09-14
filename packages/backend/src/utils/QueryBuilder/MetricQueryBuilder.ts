@@ -53,11 +53,12 @@ import {
     MetricFilterRule,
     MetricQuery,
     MetricType,
-    naiveTimestampRebaseAdapters,
     parseAllReferences,
     parseTableCalculationFunctions,
     PivotConfiguration,
+    QueryExecutionContext,
     QueryWarning,
+    quoteFieldReference,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
     resolveTimestampFilterContext,
@@ -96,6 +97,7 @@ import {
     findDateGrainTableCalcWarnings,
     findMetricInflationWarnings,
     findTablesWithMetricInflation,
+    findUnnestCrossProductWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getDimensionFromFilterTargetId,
@@ -146,6 +148,8 @@ export type BuildQueryProps = {
      * invalid filters. Useful for debugging/viewing SQL even with errors.
      */
     continueOnError?: boolean;
+    /** Model required filters are skipped only for pre-aggregate materialization. */
+    skipModelRequiredFilters?: boolean;
     /**
      * The original explore before date zoom modifications.
      * When date zoom changes granularity, the explore's dimension compiledSql
@@ -166,14 +170,12 @@ export type BuildQueryProps = {
      *  Derived from warehouse credentials via `getColumnTimezone`. */
     columnTimezone?: string;
     /** Raw project data timezone from the warehouse credentials. Differs from
-     *  `columnTimezone` only on Snowflake, whose compile-time wrap normalizes
-     *  dimension columns to UTC while bare columns (aggregate inputs) remain
-     *  in the data timezone. */
+     *  `columnTimezone` only when the compiler wraps timestamp dimensions
+     *  into UTC at compile time: the wrapped dimension SQL is then in UTC
+     *  while raw column references (aggregate inputs) remain in the data
+     *  timezone. */
     dataTimezone?: string;
-    /** Rebase RAW timestamp filter columns to instants so predicates match the
-     *  SELECT. Gated behind NaiveTimestampFilterRebase (the wrap defeats
-     *  partition pruning). */
-    rebaseRawTimestampFilters?: boolean;
+    queryExecutionContext?: QueryExecutionContext;
     /**
      * Turns this into a totals query: the builder collapses
      * `compiledMetricQuery` + `pivotConfiguration` to the requested grain (via
@@ -432,8 +434,12 @@ export class MetricQueryBuilder {
         return this.args.columnTimezone ?? 'UTC';
     }
 
-    /** Falls back to `columnTimezone`, which is equal on every warehouse
-     *  except Snowflake (see BuildQueryProps.dataTimezone). */
+    private get shouldApplyModelRequiredFilters() {
+        return !this.args.skipModelRequiredFilters;
+    }
+
+    /** Falls back to `columnTimezone`, which is equal unless the compiler
+     *  wraps timestamp dimensions (see BuildQueryProps.dataTimezone). */
     private get dataTimezone(): string {
         return this.args.dataTimezone ?? this.columnTimezone;
     }
@@ -748,7 +754,7 @@ export class MetricQueryBuilder {
             return this.isFilterOnPopComparisonTimeDimension(
                 item,
                 timeDimensionId,
-            )
+            ) && item.operator !== FilterOperator.IN_PERIOD_TO_DATE
                 ? acc
                 : [...acc, item];
         }, []);
@@ -846,17 +852,9 @@ export class MetricQueryBuilder {
             if (this.columnTimezone === 'UTC') {
                 return { sql: dimension.compiledSql, lhsMode: 'legacy' };
             }
-            // Filter LHS: a known domain keeps the bare column (the literal
-            // side carries the conversion, so predicates stay sargable); the
-            // flag-gated session wrap remains only as the unknown-domain
-            // fallback.
-            if (
-                !respectConvertTimezone &&
-                (timestampDomain !== undefined ||
-                    !this.args.rebaseRawTimestampFilters ||
-                    baseDimension.skipTimezoneConversion ||
-                    !naiveTimestampRebaseAdapters.has(adapterType))
-            ) {
+            // Filter LHS keeps the bare column — the literal side carries the
+            // conversion, so predicates stay sargable.
+            if (!respectConvertTimezone) {
                 return { sql: dimension.compiledSql, lhsMode: 'legacy' };
             }
             const { castToInstant, castNaiveToInstant, castAwareToInstant } =
@@ -1174,10 +1172,9 @@ export class MetricQueryBuilder {
         }
         // A MIN/MAX over a naive TIMESTAMP column aggregates the bare wall
         // clock, which the wire stamps as UTC — rebase to a true instant:
-        // explicitly from the data timezone when the base is known-naive (on
-        // Snowflake that differs from columnTimezone, which only describes the
-        // compile-time-wrapped dimension SQL), via the session cast (identity
-        // in value for aware columns) as the unknown-domain fallback.
+        // explicitly from the timezone the operand carries when the base is
+        // known-naive, via the session cast (identity in value for aware
+        // columns) as the unknown-domain fallback.
         if (metric.baseDimensionType === DimensionType.TIMESTAMP) {
             const baseDimension = this.resolveMinMaxBaseDimension(
                 metricId,
@@ -1189,10 +1186,23 @@ export class MetricQueryBuilder {
                 castNaiveAggregateToInstant,
                 castAwareToInstant,
             } = dateTruncTimezoneConversions[adapterType];
+            const operand = this.resolveMinMaxOperand(
+                metric,
+                baseDimension,
+                baseSql,
+            );
+            // The operand form decides which timezone the aggregate reads: the
+            // dimension's compiled SQL is in columnTimezone, a raw column in
+            // dataTimezone. When the compiler wrapped the dimension, a metric
+            // that inherited its SQL already aggregates the UTC expression.
+            const operandTimezone =
+                operand !== undefined && operand === baseDimension?.compiledSql
+                    ? this.columnTimezone
+                    : this.dataTimezone;
             const explicitNaive =
                 baseDimension?.timestampDomain === 'naive' &&
                 castNaiveAggregateToInstant !== null &&
-                this.dataTimezone !== 'UTC';
+                operandTimezone !== 'UTC';
             const explicitAware =
                 baseDimension?.timestampDomain === 'aware' &&
                 castAwareToInstant !== null &&
@@ -1207,7 +1217,7 @@ export class MetricQueryBuilder {
             let convert: (sql: string) => string;
             if (explicitNaive) {
                 convert = (sql: string) =>
-                    castNaiveAggregateToInstant!(sql, this.dataTimezone);
+                    castNaiveAggregateToInstant!(sql, operandTimezone);
             } else if (explicitAware) {
                 convert = castAwareToInstant!;
             } else {
@@ -1218,11 +1228,6 @@ export class MetricQueryBuilder {
             // can disagree. Falls back to the output wrap when the operand
             // isn't found, or when metric filters may repeat the column
             // reference inside compiled predicates.
-            const operand = this.resolveMinMaxOperand(
-                metric,
-                baseDimension,
-                baseSql,
-            );
             if (operand && !metric.filters?.length) {
                 return baseSql.replace(
                     MetricQueryBuilder.sqlReferenceBoundary(operand),
@@ -1287,10 +1292,11 @@ export class MetricQueryBuilder {
 
     /**
      * The column expression a MIN/MAX metric aggregates, as it appears inside
-     * the compiled metric SQL. The dimension's compiledSql matches everywhere
-     * except wrap-enabled Snowflake, where the metric aggregates the bare
-     * column while the dimension SQL is compile-time wrapped — the bare
-     * reference is reconstructed from the table and dimension name.
+     * the compiled metric SQL. The dimension's compiledSql matches unless the
+     * compiler wrapped the dimension: then only a metric that inherited the
+     * dimension SQL aggregates the wrapped expression, while one written
+     * against the source column aggregates the raw column, which is
+     * reconstructed from the table and dimension name.
      */
     private resolveMinMaxOperand(
         metric: CompiledMetric,
@@ -2011,6 +2017,8 @@ export class MetricQueryBuilder {
         table: CompiledTable,
         dimensionsFilterGroup: FilterGroup | undefined,
     ): string | undefined {
+        if (!this.shouldApplyModelRequiredFilters) return undefined;
+
         const { explore } = this.args;
         // We only force required filters that are not explicitly set to false
         // requiredFilters with required:false will be added on the UI, but not enforced on the backend
@@ -2223,6 +2231,16 @@ export class MetricQueryBuilder {
               )
             : undefined;
         const filterField = resolvedFilterDimension?.field ?? field;
+        const filterFieldWithUserAttributes = {
+            ...filterField,
+            compiledSql: replaceUserAttributesAsStrings(
+                filterField.compiledSql,
+                this.args.intrinsicUserAttributes,
+                this.args.userAttributes ?? {},
+                warehouseSqlBuilder,
+                { noWrap: true },
+            ),
+        };
 
         // For period-to-date filters on truncated dimensions, resolve the
         // base (raw) dimension SQL so EXTRACT operates on the actual date
@@ -2242,7 +2260,13 @@ export class MetricQueryBuilder {
                     }),
             );
             if (baseDimension) {
-                baseDimensionSql = baseDimension.compiledSql;
+                baseDimensionSql = replaceUserAttributesAsStrings(
+                    baseDimension.compiledSql,
+                    this.args.intrinsicUserAttributes,
+                    this.args.userAttributes ?? {},
+                    warehouseSqlBuilder,
+                    { noWrap: true },
+                );
             }
         }
 
@@ -2251,7 +2275,7 @@ export class MetricQueryBuilder {
 
             return renderFilterRuleSqlFromField(
                 filterRuleWithParamReplacedValues,
-                filterField,
+                filterFieldWithUserAttributes,
                 fieldQuoteChar,
                 stringQuoteChar,
                 escapeString,
@@ -2350,7 +2374,11 @@ export class MetricQueryBuilder {
 
         // Apply default sort if no sorts are specified
         let effectiveSorts: SortField[] = sorts;
-        if (sorts.length === 0) {
+        if (
+            sorts.length === 0 &&
+            this.args.queryExecutionContext !==
+                QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+        ) {
             const defaultSort = this.getDefaultSort();
             effectiveSorts = defaultSort ? [defaultSort] : [];
         }
@@ -2388,8 +2416,11 @@ export class MetricQueryBuilder {
                 requiresQueryInCTE = true;
 
                 fieldSort = sortMonthName(
-                    sortedDimension,
-                    warehouseSqlBuilder.getFieldQuoteChar(),
+                    quoteFieldReference(
+                        getItemId(sortedDimension),
+                        warehouseSqlBuilder.getFieldQuoteChar(),
+                        warehouseSqlBuilder.getAdapterType(),
+                    ),
                     sort.descending,
                 );
             } else if (
@@ -2401,9 +2432,12 @@ export class MetricQueryBuilder {
                 // for consistency, we do it for all warehouses
                 requiresQueryInCTE = true;
                 fieldSort = sortDayOfWeekName(
-                    sortedDimension,
+                    quoteFieldReference(
+                        getItemId(sortedDimension),
+                        warehouseSqlBuilder.getFieldQuoteChar(),
+                        warehouseSqlBuilder.getAdapterType(),
+                    ),
                     startOfWeek,
-                    warehouseSqlBuilder.getFieldQuoteChar(),
                     sort.descending,
                 );
             } else if (
@@ -2505,15 +2539,16 @@ export class MetricQueryBuilder {
             ? tableSqlWhereTableReferences.map((ref) => ref.refTable)
             : [];
 
-        const requiredFilterJoinedTables =
-            explore.tables[explore.baseTable].requiredFilters
-                ?.map((filter) => {
-                    if (isJoinModelRequiredFilter(filter)) {
-                        return filter.target.tableName;
-                    }
-                    return undefined;
-                })
-                .filter((s): s is string => Boolean(s)) || [];
+        const requiredFilterJoinedTables = this.shouldApplyModelRequiredFilters
+            ? explore.tables[explore.baseTable].requiredFilters
+                  ?.map((filter) => {
+                      if (isJoinModelRequiredFilter(filter)) {
+                          return filter.target.tableName;
+                      }
+                      return undefined;
+                  })
+                  .filter((s): s is string => Boolean(s)) || []
+            : [];
 
         const joinedTables = new Set([
             ...selectedTables,
@@ -2540,6 +2575,11 @@ export class MetricQueryBuilder {
                     warehouseSqlBuilder,
                 );
 
+                // An unnested table's FROM item already carries its alias
+                // (and the offset alias that must follow it).
+                if (explore.tables[join.table].nestedFrom) {
+                    return `${joinType} ${joinTable}\n  ON ${parsedSqlOn}`;
+                }
                 return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
             })
             .join('\n');
@@ -2700,6 +2740,7 @@ export class MetricQueryBuilder {
         const { tablesWithMetricInflation, joinWithoutRelationship } =
             findTablesWithMetricInflation({
                 tables: explore.tables,
+                warnings: explore.warnings,
                 possibleJoins: explore.joinedTables,
                 baseTable: explore.baseTable,
                 joinedTables,
@@ -2754,6 +2795,7 @@ export class MetricQueryBuilder {
         const nonAggReferencingDd =
             this.getNonAggregateMetricsReferencingDistinct();
         const metricsWithCteReferences: Array<CompiledMetric> = [];
+        const skippedDimensionReferences: Array<CompiledDimension> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
                 const referencesAnotherTable =
@@ -2779,35 +2821,33 @@ export class MetricQueryBuilder {
                         metricObject.table,
                     );
                     metricReferences.forEach((metricReference) => {
+                        const referenceId = getItemId({
+                            table: metricReference.refTable,
+                            name: metricReference.refName,
+                        });
+                        // Dimension references are resolved by the raw scan, so
+                        // they must not go through the metric lookup. Validated
+                        // below once every referenced metric is known.
+                        const referencedDimension =
+                            this.exploreDimensions[referenceId];
+                        if (referencedDimension) {
+                            skippedDimensionReferences.push(
+                                referencedDimension,
+                            );
+                            return;
+                        }
                         const isInMetricsObjects = metricsObjects.some(
-                            (metric) =>
-                                getItemId(metric) ===
-                                getItemId({
-                                    table: metricReference.refTable,
-                                    name: metricReference.refName,
-                                }),
+                            (metric) => getItemId(metric) === referenceId,
                         );
                         const isInReferencedMetricObjects = acc.some(
-                            (metric) =>
-                                getItemId(metric) ===
-                                getItemId({
-                                    table: metricReference.refTable,
-                                    name: metricReference.refName,
-                                }),
+                            (metric) => getItemId(metric) === referenceId,
                         );
                         // Only add if doesn't exist in metricsObjects or referencedMetricObjects
                         if (
                             !isInMetricsObjects &&
                             !isInReferencedMetricObjects
                         ) {
-                            acc.push(
-                                this.getMetricFromId(
-                                    getItemId({
-                                        table: metricReference.refTable,
-                                        name: metricReference.refName,
-                                    }),
-                                ),
-                            );
+                            acc.push(this.getMetricFromId(referenceId));
                         }
                     });
                 }
@@ -2815,6 +2855,26 @@ export class MetricQueryBuilder {
             },
             [],
         );
+
+        // A dimension reference only resolves when its table has no metric CTE.
+        // Once one exists, the reference is rewritten to that CTE, which never
+        // projects the dimension. Keep failing loudly rather than emit bad SQL.
+        const tablesWithMetricCte = new Set(
+            [...metricsObjects, ...referencedMetricObjects].map(
+                (metric) => metric.table,
+            ),
+        );
+        skippedDimensionReferences.forEach((dimension) => {
+            if (tablesWithMetricCte.has(dimension.table)) {
+                throw new FieldReferenceError(
+                    `Tried to reference dimension "${getItemId(
+                        dimension,
+                    )}" from a metric on a table that is aggregated separately. Reference a metric on "${
+                        dimension.table
+                    }" instead.`,
+                );
+            }
+        });
 
         // Warn user about metrics with fanouts which we don't have a solution for yet.
         const warnings: QueryWarning[] = [];
@@ -2866,14 +2926,19 @@ export class MetricQueryBuilder {
             const metricsInCte: CompiledMetric[] = [];
 
             if (table?.primaryKey === undefined) {
-                // We can't handle deduplication if table doesn't have primary key
-                warnings.push({
-                    message: `Table **"${tableName}"** is missing a primary key definition. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
-                    tables: [tableName],
-                });
+                // Deduplication needs a primary key. An unnested table cannot
+                // declare one, so its metrics only get the inflation notice.
+                if (!table?.nestedFrom) {
+                    warnings.push({
+                        message: `Table **"${tableName}"** is missing a primary key definition. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+                        tables: [tableName],
+                    });
+                }
                 metricsFromTable.forEach((metric) => {
                     warnings.push({
-                        message: `Metric **"${metric.label}"** could be inflated due to table missing primary key definition. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+                        message: table?.nestedFrom
+                            ? `Metric **"${metric.label}"** could be inflated by another unnested repeated column. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`
+                            : `Metric **"${metric.label}"** could be inflated due to table missing primary key definition. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
                         fields: [getItemId(metric)],
                         tables: [metric.table],
                     });
@@ -3492,6 +3557,18 @@ export class MetricQueryBuilder {
         return `${name} AS (\n${MetricQueryBuilder.assembleSqlParts(parts)}\n)`;
     }
 
+    private static getTableCalculationCteName(name: string): string {
+        if (/^\w+$/.test(name)) {
+            return `tc_${name}`;
+        }
+
+        const encodedName = Array.from(name)
+            .map((char) => (char.codePointAt(0) ?? 0).toString(36))
+            .join('_');
+
+        return `tc_${encodedName}`;
+    }
+
     /**
      * Builds CTE(s) for distinct metrics (sum_distinct, average_distinct) using ROW_NUMBER deduplication.
      *
@@ -3541,6 +3618,14 @@ export class MetricQueryBuilder {
             }
             return s;
         };
+        const replaceUserAttributesInSql = (sql: string) =>
+            replaceUserAttributesAsStrings(
+                sql,
+                this.args.intrinsicUserAttributes,
+                this.args.userAttributes ?? {},
+                warehouseSqlBuilder,
+                { noWrap: true },
+            );
         const dimensionAlias = Object.keys(dimensionSelects).map(
             (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
         );
@@ -3567,12 +3652,16 @@ export class MetricQueryBuilder {
                 const ddCteName = `dd_${snakeCaseName(metricId)}`;
                 // Re-evaluate any relative date metric filters at query time; the
                 // baked predicate lives inside compiledValueSql for distinct metrics.
-                const valueSql = this.swapRelativeDateMetricFilters(
-                    metric,
-                    metric.compiledValueSql,
+                const valueSql = replaceUserAttributesInSql(
+                    this.swapRelativeDateMetricFilters(
+                        metric,
+                        metric.compiledValueSql,
+                    ),
                 );
 
-                const partitionExprs = [...metric.compiledDistinctKeys];
+                const partitionExprs = metric.compiledDistinctKeys.map(
+                    replaceUserAttributesInSql,
+                );
                 for (const dimensionExpr of dimensionExprs) {
                     if (
                         !partitionExprs.some(
@@ -4371,13 +4460,15 @@ export class MetricQueryBuilder {
                 // because each CTE does SELECT * from the previous one
                 const mostRecentIndex = currentIndex - 1;
                 if (mostRecentIndex >= 0) {
-                    return `tc_${sortedTableCalcs[mostRecentIndex].name}`;
+                    return MetricQueryBuilder.getTableCalculationCteName(
+                        sortedTableCalcs[mostRecentIndex].name,
+                    );
                 }
                 // If no previous CTE, it should be in table_calculations
                 return 'table_calculations';
             }
 
-            return `tc_${refName}`;
+            return MetricQueryBuilder.getTableCalculationCteName(refName);
         }
 
         // Otherwise, it's a simple table calc in the shared table_calculations CTE
@@ -4392,7 +4483,9 @@ export class MetricQueryBuilder {
 
             if (currentIndex > 0) {
                 // It should be available from the previous CTE
-                return `tc_${sortedTableCalcs[currentIndex - 1].name}`;
+                return MetricQueryBuilder.getTableCalculationCteName(
+                    sortedTableCalcs[currentIndex - 1].name,
+                );
             }
             return 'table_calculations';
         }
@@ -4416,7 +4509,9 @@ export class MetricQueryBuilder {
         let lastCteName = currentName;
 
         for (const tc of sortedTableCalcs) {
-            const cteName = `tc_${tc.name}`;
+            const cteName = MetricQueryBuilder.getTableCalculationCteName(
+                tc.name,
+            );
 
             // Replace total()/row_total() refs with column aliases before function parsing
             let compiledSql: string | null = this.replaceTotalReferences(
@@ -4873,6 +4968,7 @@ export class MetricQueryBuilder {
               leadingCtes: string[];
               binCtes: string[];
               joins: string[];
+              tables: string[];
               aggregations: SourceQueryAggregations | undefined;
               aggregationFields: ItemsMap;
               warnings: QueryWarning[];
@@ -4914,14 +5010,14 @@ export class MetricQueryBuilder {
         const binJoinDimensions = compiledCustomDimensions
             .filter(isCustomBinDimension)
             .filter((cd) => allJoinDimensions.has(cd.id));
-        const binExprs =
-            getCustomBinDimensionSql({
-                warehouseSqlBuilder,
-                explore,
-                customDimensions: binJoinDimensions,
-                intrinsicUserAttributes,
-                userAttributes,
-            })?.exprs ?? {};
+        const binJoinDimensionSql = getCustomBinDimensionSql({
+            warehouseSqlBuilder,
+            explore,
+            customDimensions: binJoinDimensions,
+            intrinsicUserAttributes,
+            userAttributes,
+        });
+        const binExprs = binJoinDimensionSql?.exprs ?? {};
         const unselectedBinSql = getCustomBinDimensionSql({
             warehouseSqlBuilder,
             explore,
@@ -4931,6 +5027,31 @@ export class MetricQueryBuilder {
             intrinsicUserAttributes,
             userAttributes,
         });
+        const customDimensionIds = new Set(
+            compiledCustomDimensions.map((dimension) => dimension.id),
+        );
+        const tables = [
+            ...[...allJoinDimensions]
+                .filter((dimensionId) => !customDimensionIds.has(dimensionId))
+                .flatMap((dimensionId) => {
+                    const dimension = getDimensionFromId({
+                        dimId: dimensionId,
+                        dimensions: this.exploreDimensions,
+                        dimensionsWithoutAccess:
+                            this.exploreDimensionsWithoutAccess,
+                        adapterType,
+                        startOfWeek,
+                        timezone: this.timezoneForDateTrunc,
+                        columnTimezone: this.columnTimezone,
+                    });
+                    return dimension.tablesReferences || [dimension.table];
+                }),
+            ...compiledCustomDimensions
+                .filter(isCompiledCustomSqlDimension)
+                .filter((dimension) => allJoinDimensions.has(dimension.id))
+                .flatMap((dimension) => dimension.tablesReferences),
+            ...(binJoinDimensionSql?.tables ?? []),
+        ];
 
         const getJoinDimensionExpr = (dimId: string): string => {
             const customDimension = compiledCustomDimensions.find(
@@ -5047,13 +5168,17 @@ export class MetricQueryBuilder {
                 (dimId) =>
                     `  ${fieldQuoteChar}${dimId}${fieldQuoteChar} AS ${fieldQuoteChar}${SOURCE_AGGREGATIONS_GRAIN_PREFIX}${dimId}${fieldQuoteChar}`,
             );
-            const aggregationSelects = aggregations.columns.map(
-                (column) =>
-                    `  ${getSourceAggregationSql(
-                        column.aggregation,
-                        `${fieldQuoteChar}${column.reference}${fieldQuoteChar}`,
-                    )} AS ${fieldQuoteChar}${column.reference}${fieldQuoteChar}`,
-            );
+            const aggregationSelects = aggregations.columns.map((column) => {
+                const quotedReference = quoteFieldReference(
+                    column.reference,
+                    fieldQuoteChar,
+                    this.args.warehouseSqlBuilder.getAdapterType(),
+                );
+                return `  ${getSourceAggregationSql(
+                    column.aggregation,
+                    quotedReference,
+                )} AS ${quotedReference}`;
+            });
             leadingCtes.push(
                 `${SOURCE_AGGREGATIONS_CTE_NAME} AS (\n${MetricQueryBuilder.assembleSqlParts(
                     [
@@ -5085,6 +5210,7 @@ export class MetricQueryBuilder {
             leadingCtes,
             binCtes: unselectedBinSql?.ctes ?? [],
             joins,
+            tables,
             aggregations,
             aggregationFields,
             warnings,
@@ -5114,11 +5240,6 @@ export class MetricQueryBuilder {
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
 
-        const joins = this.getJoinsSQL({
-            tablesReferencedInDimensions: dimensionsSQL.tables,
-            tablesReferencedInMetrics: metricsSQL.tables,
-        });
-
         // Mutates dimensionsSQL before any consumer reads it, so the
         // source-query restriction joins reach every raw scan (main select,
         // fan-out, distinct-metric, nested-aggregate and totals CTEs).
@@ -5127,8 +5248,14 @@ export class MetricQueryBuilder {
             dimensionsSQL.ctes.unshift(...sourceQuerySQL.leadingCtes);
             dimensionsSQL.ctes.push(...sourceQuerySQL.binCtes);
             dimensionsSQL.joins.push(...sourceQuerySQL.joins);
+            dimensionsSQL.tables.push(...sourceQuerySQL.tables);
             Object.assign(fields, sourceQuerySQL.aggregationFields);
         }
+
+        const joins = this.getJoinsSQL({
+            tablesReferencedInDimensions: dimensionsSQL.tables,
+            tablesReferencedInMetrics: metricsSQL.tables,
+        });
 
         const sqlSelect = `SELECT\n${[
             ...Object.values(dimensionsSQL.selects),
@@ -5338,6 +5465,12 @@ export class MetricQueryBuilder {
             // Log error but don't block code execution
             Logger.error('Error during date-grain table calc detection', e);
         }
+        warnings.push(
+            ...findUnnestCrossProductWarnings({
+                tables: explore.tables,
+                joinedTables: joins.tables,
+            }),
+        );
 
         // Deduplicated distinct CTE: build separate CTEs for distinct metrics (sum_distinct, average_distinct), joined on dimensions
         const ddMetricIds = this.getSelectedAndReferencedMetricIds().filter(
@@ -5669,8 +5802,14 @@ export class MetricQueryBuilder {
                     return column;
                 });
                 const aggregationColumns = aggregations.columns.map(
-                    ({ reference }) =>
-                        `  ${SOURCE_AGGREGATIONS_CTE_NAME}.${fieldQuoteChar}${reference}${fieldQuoteChar} AS ${fieldQuoteChar}${reference}${fieldQuoteChar}`,
+                    ({ reference }) => {
+                        const quotedReference = quoteFieldReference(
+                            reference,
+                            fieldQuoteChar,
+                            this.args.warehouseSqlBuilder.getAdapterType(),
+                        );
+                        return `  ${SOURCE_AGGREGATIONS_CTE_NAME}.${quotedReference} AS ${quotedReference}`;
+                    },
                 );
                 const aggregationsJoin =
                     aggregations.grainDimensions.length > 0
@@ -5747,7 +5886,13 @@ export class MetricQueryBuilder {
         };
     }
 
-    public compileQuery(): CompiledQuery {
+    public compileQuery(options?: {
+        /**
+         * Omit ORDER BY and LIMIT, for embedding as the body of a CTE in an
+         * outer query that orders and limits once for the whole statement.
+         */
+        excludeOrderByAndLimit?: boolean;
+    }): CompiledQuery {
         const {
             fields,
             warnings,
@@ -5760,8 +5905,7 @@ export class MetricQueryBuilder {
         const query = MetricQueryBuilder.assembleSqlParts([
             MetricQueryBuilder.buildCtesSQL(ctes),
             ...finalSelectParts,
-            sqlOrderBy,
-            sqlLimit,
+            ...(options?.excludeOrderByAndLimit ? [] : [sqlOrderBy, sqlLimit]),
         ]);
 
         const {

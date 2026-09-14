@@ -8,15 +8,18 @@ import { formatElapsedClock } from '../utils/formatElapsedClock';
  * static "Building…" says nothing about whether it moved.
  */
 export const useElapsedClock = (startedAt: Date | null): string | null => {
+    // Keyed on the instant, not the object: callers derive the start from
+    // server data and hand over a fresh Date every render.
+    const startedAtMs = startedAt?.getTime() ?? null;
     const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
-        if (startedAt === null) return;
+        if (startedAtMs === null) return;
         setNow(Date.now());
         const id = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(id);
-    }, [startedAt]);
+    }, [startedAtMs]);
 
-    if (startedAt === null) return null;
-    return formatElapsedClock(now - startedAt.getTime());
+    if (startedAtMs === null) return null;
+    return formatElapsedClock(now - startedAtMs);
 };

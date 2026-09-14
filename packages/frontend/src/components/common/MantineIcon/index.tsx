@@ -1,4 +1,4 @@
-import type { MantineColor, MantineSpacing } from '@mantine-8/core';
+import type { MantineColor, MantineSpacing } from '@mantine/core';
 import {
     type TablerIconsProps,
     type Icon as TablerIconType,
@@ -75,7 +75,7 @@ const MantineIcon = forwardRef<SVGSVGElement, MantineIconProps>(
         {
             icon: TablerIcon,
             size = 'md',
-            stroke,
+            stroke = 1.5,
             color,
             fill,
             display = 'block',

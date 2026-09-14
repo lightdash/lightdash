@@ -6,7 +6,7 @@ import {
     type SchedulerRun,
     type SchedulerRunLog,
 } from '@lightdash/common';
-import { Group, Modal, Paper, Stack, Text } from '@mantine-8/core';
+import { Group, Modal, Paper, Stack, Text } from '@mantine/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseInfiniteQueryResult } from '@tanstack/react-query';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
@@ -38,8 +38,10 @@ const SchedulersModal: FC<
         | 'isChart'
         | 'isApp'
         | 'currentAppState'
+        | 'capturedQueryCount'
         | 'currentParameterValues'
         | 'availableParameters'
+        | 'filterableFieldsByTileUuid'
     > & {
         name: string;
         onClose?: () => void;
@@ -72,8 +74,10 @@ const SchedulersModal: FC<
     isThresholdAlert,
     itemsMap,
     currentAppState,
+    capturedQueryCount,
     currentParameterValues,
     availableParameters,
+    filterableFieldsByTileUuid,
     onClose = () => {},
     initialSchedulerUuid,
     defaultCreate = false,
@@ -180,7 +184,7 @@ const SchedulersModal: FC<
                             wrap="nowrap"
                         >
                             <Group gap="sm" wrap="nowrap">
-                                <Paper p="6px" withBorder radius="md">
+                                <Paper p="6px" radius="md">
                                     <MantineIcon
                                         icon={
                                             isThresholdAlert
@@ -252,8 +256,10 @@ const SchedulersModal: FC<
                 isThresholdAlert={isThresholdAlert}
                 itemsMap={itemsMap}
                 currentAppState={currentAppState}
+                capturedQueryCount={capturedQueryCount}
                 currentParameterValues={currentParameterValues}
                 availableParameters={availableParameters}
+                filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             />
         );
     }

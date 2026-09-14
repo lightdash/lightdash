@@ -1,18 +1,28 @@
 import { type DataAppCode } from '@lightdash/common';
+import execa from 'execa';
 import { promises as fs } from 'fs';
+import inquirer from 'inquirer';
 import * as os from 'os';
 import * as path from 'path';
+import type { Mock } from 'vitest';
+import GlobalState from '../../globalState';
 import { getAuthHeader } from '../utils';
 import { writeBundleToDir } from './appCodeFiles';
 import {
     assertNodeModulesPresent,
     assertScaffoldingSupportsPreviewProxy,
     buildPreviewChildEnv,
+    ensureNodeModules,
+    fetchBrowserImageOrigins,
     preflightPreviewRequest,
     projectNotFoundMessage,
     removeLegacyPreviewCredential,
+    resolvePreviewPort,
     resolvePreviewTarget,
 } from './preview';
+
+vi.mock('execa');
+vi.mock('inquirer', () => ({ default: { prompt: vi.fn() } }));
 
 const previewBundle: DataAppCode = {
     manifest: {
@@ -45,6 +55,7 @@ describe('buildPreviewChildEnv', () => {
             projectUuid: 'proj-uuid-1',
             proxyPort: 45678,
             proxyNonce: 'nonce-abc',
+            browserImageOrigins: ['https://tiles.example.com'],
             parentEnv: {
                 HOME: '/home/developer',
                 PATH: '/usr/bin',
@@ -62,6 +73,8 @@ describe('buildPreviewChildEnv', () => {
             VITE_LIGHTDASH_PROJECT_UUID: 'proj-uuid-1',
             LIGHTDASH_PREVIEW_PROXY_TARGET: 'http://127.0.0.1:45678',
             LIGHTDASH_PREVIEW_PROXY_NONCE: 'nonce-abc',
+            LIGHTDASH_PREVIEW_BROWSER_IMAGE_ORIGINS:
+                '["https://tiles.example.com"]',
         });
         expect(env).not.toHaveProperty('LIGHTDASH_API_KEY');
         expect(env).not.toHaveProperty('LIGHTDASH_PROXY_AUTHORIZATION');
@@ -79,6 +92,95 @@ describe('buildPreviewChildEnv', () => {
             proxyNonce: 'n',
         });
         expect(env.VITE_LIGHTDASH_URL).toBe('http://localhost:3000');
+    });
+});
+
+describe('fetchBrowserImageOrigins', () => {
+    it('returns opted-in no-auth origins linked by manifest slug', async () => {
+        const connection = {
+            slug: 'public-tiles',
+            type: 'none',
+            origin: 'https://tiles.example.com',
+            allowBrowserImages: true,
+        };
+        const origins = await fetchBrowserImageOrigins({
+            manifest: {
+                ...previewBundle.manifest,
+                externalConnections: [
+                    { alias: 'tiles', connectionSlug: 'public-tiles' },
+                ],
+            },
+            projectUuid: 'proj-uuid-1',
+            serverUrl: 'https://lightdash.example.com',
+            authorization: 'ApiKey token',
+            fetchFn: vi.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({ results: [connection] }),
+            }) as unknown as typeof fetch,
+        });
+        expect(origins).toEqual(['https://tiles.example.com']);
+    });
+
+    it('fails closed for malformed response shapes', async () => {
+        const origins = await fetchBrowserImageOrigins({
+            manifest: {
+                ...previewBundle.manifest,
+                externalConnections: [
+                    { alias: 'tiles', connectionSlug: 'public-tiles' },
+                ],
+            },
+            projectUuid: 'proj-uuid-1',
+            serverUrl: 'https://lightdash.example.com',
+            authorization: 'ApiKey token',
+            fetchFn: vi.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({ results: 'not-an-array' }),
+            }) as unknown as typeof fetch,
+        });
+
+        expect(origins).toEqual([]);
+    });
+
+    it('ignores malformed connections and unsafe origins', async () => {
+        const origins = await fetchBrowserImageOrigins({
+            manifest: {
+                ...previewBundle.manifest,
+                externalConnections: [
+                    { alias: 'tiles', connectionSlug: 'public-tiles' },
+                ],
+            },
+            projectUuid: 'proj-uuid-1',
+            serverUrl: 'https://lightdash.example.com',
+            authorization: 'ApiKey token',
+            fetchFn: vi.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    results: [
+                        null,
+                        {
+                            slug: 'public-tiles',
+                            type: 'none',
+                            origin: 'not-a-url',
+                            allowBrowserImages: true,
+                        },
+                        {
+                            slug: 'public-tiles',
+                            type: 'none',
+                            origin: 'https://tiles.example.com/path',
+                            allowBrowserImages: true,
+                        },
+                        {
+                            slug: 'public-tiles',
+                            type: 'none',
+                            origin: 'https://tiles.example.com',
+                            allowBrowserImages: true,
+                        },
+                    ],
+                }),
+            }) as unknown as typeof fetch,
+        });
+
+        expect(origins).toEqual(['https://tiles.example.com']);
     });
 });
 
@@ -107,25 +209,37 @@ describe('assertScaffoldingSupportsPreviewProxy', () => {
 });
 
 describe('resolvePreviewTarget', () => {
-    it('defaults appDir to cwd and project to the manifest projectUuid', async () => {
+    it('defaults appDir to cwd and project to the current CLI project', async () => {
         const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
         await writeBundleToDir(dir, previewBundle);
-        const target = await resolvePreviewTarget({ cwd: dir });
+        const target = await resolvePreviewTarget({
+            cwd: dir,
+            currentProjectUuid: 'current-proj',
+        });
         expect(target.appDir).toBe(dir);
-        expect(target.projectUuid).toBe('proj-uuid-1');
+        expect(target.projectUuid).toBe('current-proj');
     });
 
-    it('resolves a relative path arg against cwd and honors --project override', async () => {
+    it('resolves a relative path arg and prefers --project over the current project', async () => {
         const parent = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
         const appDir = path.join(parent, 'apps', 'my-app');
         await writeBundleToDir(appDir, previewBundle);
         const target = await resolvePreviewTarget({
             pathArg: 'apps/my-app',
             projectFlag: 'other-proj',
+            currentProjectUuid: 'current-proj',
             cwd: parent,
         });
         expect(target.appDir).toBe(appDir);
         expect(target.projectUuid).toBe('other-proj');
+    });
+
+    it('requires --project when the CLI has no current project', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        await writeBundleToDir(dir, previewBundle);
+        await expect(resolvePreviewTarget({ cwd: dir })).rejects.toThrow(
+            /Pass '--project <uuid or slug>'/,
+        );
     });
 
     it('errors clearly when the folder has no manifest', async () => {
@@ -146,8 +260,94 @@ describe('assertNodeModulesPresent', () => {
     it('errors telling the user to npm install, without installing', async () => {
         const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
         await expect(assertNodeModulesPresent(dir)).rejects.toThrow(
-            /Run 'npm install' in .* \(preview does not auto-install\)/,
+            /Run 'npm install' in .*, or rerun with --assume-yes/,
         );
+    });
+});
+
+describe('resolvePreviewPort', () => {
+    it('returns undefined when no port is given', () => {
+        expect(resolvePreviewPort(undefined)).toBeUndefined();
+    });
+
+    it('parses a valid port', () => {
+        expect(resolvePreviewPort('4000')).toBe(4000);
+    });
+
+    it.each(['0', '-1', '65536', 'abc', '1.5'])(
+        'rejects invalid port %s',
+        (raw) => {
+            expect(() => resolvePreviewPort(raw)).toThrow(
+                /--port must be an integer/,
+            );
+        },
+    );
+});
+
+describe('ensureNodeModules', () => {
+    const promptMock = inquirer.prompt as unknown as Mock;
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        vi.mocked(execa).mockReset();
+        promptMock.mockReset();
+        vi.spyOn(GlobalState, 'log').mockImplementation(() => {});
+        vi.spyOn(GlobalState, 'isNonInteractive').mockReturnValue(false);
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(dir, { recursive: true, force: true });
+    });
+
+    it('does nothing when node_modules exists', async () => {
+        await fs.mkdir(path.join(dir, 'node_modules'));
+        await ensureNodeModules({ appDir: dir, assumeYes: false });
+        expect(execa).not.toHaveBeenCalled();
+        expect(promptMock).not.toHaveBeenCalled();
+    });
+
+    it('fails fast without installing when not interactive', async () => {
+        vi.spyOn(GlobalState, 'isNonInteractive').mockReturnValue(true);
+        await expect(
+            ensureNodeModules({ appDir: dir, assumeYes: false }),
+        ).rejects.toThrow(/Run 'npm install'/);
+        expect(execa).not.toHaveBeenCalled();
+        expect(promptMock).not.toHaveBeenCalled();
+    });
+
+    it('installs without prompting with --assume-yes', async () => {
+        await ensureNodeModules({ appDir: dir, assumeYes: true });
+        expect(promptMock).not.toHaveBeenCalled();
+        expect(execa).toHaveBeenCalledWith(
+            'npm',
+            [
+                'install',
+                '--include=dev',
+                '--ignore-scripts',
+                '--no-package-lock',
+            ],
+            expect.objectContaining({ cwd: dir }),
+        );
+    });
+
+    it('cancels without installing when the warning prompt is declined', async () => {
+        const stdinTty = process.stdin.isTTY;
+        const stdoutTty = process.stdout.isTTY;
+        process.stdin.isTTY = true;
+        process.stdout.isTTY = true;
+        promptMock.mockResolvedValueOnce({ confirmed: false });
+        try {
+            await expect(
+                ensureNodeModules({ appDir: dir, assumeYes: false }),
+            ).rejects.toThrow('Preview cancelled.');
+        } finally {
+            process.stdin.isTTY = stdinTty;
+            process.stdout.isTTY = stdoutTty;
+        }
+        expect(promptMock).toHaveBeenCalledTimes(1);
+        expect(execa).not.toHaveBeenCalled();
     });
 });
 

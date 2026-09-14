@@ -4,7 +4,7 @@ import {
     validateEmail,
     type InviteLink,
 } from '@lightdash/common';
-import { Button, Group, Select } from '@mantine-8/core';
+import { Button, Group, Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -168,7 +168,6 @@ const CreateProjectAccessModal: FC<Props> = ({
                             allowDeselect={false}
                             name="email"
                             comboboxProps={{ withinPortal: true }}
-                            radius="md"
                             label="Enter user email address"
                             placeholder="example@gmail.com"
                             nothingFoundMessage={
@@ -205,7 +204,6 @@ const CreateProjectAccessModal: FC<Props> = ({
                             data={groupComboboxItems(roles)}
                             disabled={isSubmitting}
                             required
-                            radius="md"
                             placeholder="Select role"
                             comboboxProps={{
                                 withinPortal: true,

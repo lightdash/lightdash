@@ -1,9 +1,15 @@
 import {
+    APP_SDK_COLOR_SCHEME_MESSAGE,
+    APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     FilterOperator,
+    JWT_HEADER_NAME,
+    LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
+    LightdashSignedDownloadHeader,
     QueryExecutionContext,
+    type AppColorScheme,
     type DashboardFilters,
     type DataAppVizContext,
 } from '@lightdash/common';
@@ -112,17 +118,23 @@ function pollQueryResult(id: string = GET_ID) {
 }
 
 const APP_UUID = 'app-uuid';
+const PREVIEW_TOKEN = 'signed-preview-token';
 
-function renderBridge(onQueryEvent: (event: QueryEvent) => void) {
+function renderBridge(
+    onQueryEvent: (event: QueryEvent) => void,
+    previewToken = PREVIEW_TOKEN,
+) {
     const iframeRef = {
         current: { contentWindow: window } as unknown as HTMLIFrameElement,
     } as RefObject<HTMLIFrameElement | null>;
     renderHook(() =>
         useAppSdkBridge({
+            colorScheme: 'light',
             iframeRef,
             expectedPreviewOrigin: window.location.origin,
             projectUuid: PROJECT_UUID,
             appUuid: APP_UUID,
+            previewToken,
             onQueryEvent,
         }),
     );
@@ -273,7 +285,8 @@ describe('useAppSdkBridge', () => {
     });
 
     it('attaches the app UUID header to metric-query requests for warehouse attribution', async () => {
-        renderBridge(() => undefined);
+        const previewToken = 'signed-preview-token';
+        renderBridge(() => undefined, previewToken);
 
         mockFetchOk({
             status: 'ok',
@@ -290,6 +303,7 @@ describe('useAppSdkBridge', () => {
 
         const [, init] = (fetch as Mock).mock.calls[0];
         expect(init.headers).toMatchObject({
+            [LightdashAppPreviewTokenHeader]: previewToken,
             [LightdashAppUuidHeader]: APP_UUID,
         });
         // App attribution rides on the header, not the request body.
@@ -501,6 +515,13 @@ describe('useAppSdkBridge', () => {
             ),
         );
 
+        // The final fileUrl fetch happens inside the sandboxed iframe with no
+        // session cookies, so the bridge must ask for a SIGNED download URL.
+        const [, scheduleInit] = (fetch as Mock).mock.calls[0];
+        expect(scheduleInit.headers).toMatchObject({
+            [LightdashSignedDownloadHeader]: 'true',
+        });
+
         mockFetchOk({
             status: 'ok',
             results: {
@@ -522,6 +543,13 @@ describe('useAppSdkBridge', () => {
                 expect.objectContaining({ method: 'GET' }),
             ),
         );
+
+        // Job-status polling rides the bridge with real credentials — no
+        // signed-download request there.
+        const [, pollInit] = (fetch as Mock).mock.calls[1];
+        expect(pollInit.headers).not.toHaveProperty(
+            LightdashSignedDownloadHeader,
+        );
     });
 });
 
@@ -542,10 +570,12 @@ describe('lineage message routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageSelected,
             }),
         );
@@ -565,10 +595,12 @@ describe('lineage message routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageAvailable,
             }),
         );
@@ -588,10 +620,12 @@ describe('lineage message routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageAvailable,
             }),
         );
@@ -610,10 +644,12 @@ describe('lineage message routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageAvailable,
             }),
         );
@@ -647,10 +683,12 @@ describe('url-state-change routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onUrlStateChange,
             }),
         );
@@ -771,10 +809,12 @@ describe('chart-query routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 dashboardFilters,
             }),
         );
@@ -863,10 +903,12 @@ describe('external-fetch branch', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onExternalRequestEvent,
             }),
         );
@@ -889,6 +931,7 @@ describe('external-fetch branch', () => {
             results: {
                 status: 200,
                 contentType: 'application/json',
+                headers: {},
                 body: { ok: true },
                 truncated: false,
             },
@@ -916,33 +959,40 @@ describe('external-fetch branch', () => {
             query: { limit: '10' },
             body: { amount: 500 },
         });
-        // No app-supplied headers leak through; external fetch never sends the
-        // embed JWT (it is not supported in embed mode).
+        // No app-supplied headers leak through.
         expect(Object.keys(init.headers)).toEqual(['Content-Type']);
     });
 
-    it('rejects external fetch in embed mode without calling the backend', async () => {
+    it('authenticates external fetches in embed mode with the embed JWT', async () => {
         mockUseEmbed.mockReturnValue({
             embedToken: 'embed-jwt',
-            projectUuid: undefined,
+            projectUuid: PROJECT_UUID,
         });
         renderBridge(() => undefined);
-        const { responses } = captureResponses();
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                status: 200,
+                contentType: 'application/json',
+                headers: {},
+                body: { temperature: 18 },
+                truncated: false,
+            },
+        });
 
         postExternalFetch({ alias: 'weather', path: '/today' });
 
         await vi.waitFor(() =>
-            expect(
-                responses.find(
-                    (r) =>
-                        r['type'] === 'lightdash:sdk:external-fetch-response',
-                ),
-            ).toMatchObject({
-                id: POST_ID,
-                error: 'External data access is not available in embedded apps',
-            }),
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/ee/projects/${PROJECT_UUID}/apps/${APP_UUID}/external-fetch`,
+                expect.objectContaining({ method: 'POST' }),
+            ),
         );
-        expect(fetch).not.toHaveBeenCalled();
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(init.headers).toEqual({
+            'Content-Type': 'application/json',
+            [JWT_HEADER_NAME]: 'embed-jwt',
+        });
     });
 
     it('posts back the result on success', async () => {
@@ -951,6 +1001,7 @@ describe('external-fetch branch', () => {
         const result = {
             status: 200,
             contentType: 'application/json',
+            headers: { 'retry-after': '2' },
             body: 1,
             truncated: false,
         };
@@ -1131,6 +1182,11 @@ describe('data-app-viz-context push', () => {
         ],
         options: { showLegend: true, barColor: '#ff0000' },
         colorPalette: ['#7162FF', '#1A1B1E'],
+        seriesColors: {},
+        valueColors: {},
+        pivotDetails: null,
+        underlyingData: { enabled: false },
+        drillDown: { enabled: false },
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
@@ -1139,10 +1195,12 @@ describe('data-app-viz-context push', () => {
         } as RefObject<HTMLIFrameElement | null>;
         return renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 dataAppVizContext: ctx,
             }),
         );
@@ -1158,6 +1216,7 @@ describe('data-app-viz-context push', () => {
                 rows: dataAppVizContext.rows,
                 options: dataAppVizContext.options,
                 colorPalette: dataAppVizContext.colorPalette,
+                pivotDetails: null,
             }),
             '*',
         );
@@ -1171,10 +1230,12 @@ describe('data-app-viz-context push', () => {
         const { rerender } = renderHook(
             ({ ctx }: { ctx: DataAppVizContext }) =>
                 useAppSdkBridge({
+                    colorScheme: 'light',
                     iframeRef,
                     expectedPreviewOrigin: window.location.origin,
                     projectUuid: PROJECT_UUID,
                     appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
                     dataAppVizContext: ctx,
                 }),
             { initialProps: { ctx: dataAppVizContext } },
@@ -1205,10 +1266,12 @@ describe('data-app-viz-context push', () => {
         const { rerender } = renderHook(
             ({ ctx }: { ctx: DataAppVizContext }) =>
                 useAppSdkBridge({
+                    colorScheme: 'light',
                     iframeRef,
                     expectedPreviewOrigin: window.location.origin,
                     projectUuid: PROJECT_UUID,
                     appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
                     dataAppVizContext: ctx,
                 }),
             { initialProps: { ctx: dataAppVizContext } },
@@ -1298,9 +1361,11 @@ describe('delivery capture accumulator integration', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 dashboardFilters,
                 invalidateCache: true,
                 deliveryCapture,
+                colorScheme: 'light',
             }),
         );
 
@@ -1371,7 +1436,9 @@ describe('delivery capture accumulator integration', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 deliveryCapture,
+                colorScheme: 'light',
             }),
         );
 
@@ -1433,8 +1500,10 @@ describe('delivery capture accumulator integration', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 invalidateCache: true,
                 queryContextOverride: QueryExecutionContext.SCHEDULED_DELIVERY,
+                colorScheme: 'light',
             }),
         );
 
@@ -1465,5 +1534,401 @@ describe('delivery capture accumulator integration', () => {
         const sentBody = JSON.parse(String(init?.body));
         // No deliveryCapture/queryContextOverride passed — body is untouched.
         expect(sentBody).toEqual({ query: METRIC_QUERY });
+    });
+});
+
+describe('color scheme push', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    const iframeRef = {
+        current: { contentWindow: window } as unknown as HTMLIFrameElement,
+    } as RefObject<HTMLIFrameElement | null>;
+
+    const renderWithColorScheme = (colorScheme: AppColorScheme) =>
+        renderHook(
+            ({ scheme }: { scheme: AppColorScheme }) =>
+                useAppSdkBridge({
+                    iframeRef,
+                    expectedPreviewOrigin: window.location.origin,
+                    projectUuid: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
+                    colorScheme: scheme,
+                }),
+            { initialProps: { scheme: colorScheme } },
+        );
+
+    it('pushes the host scheme to the iframe on mount', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithColorScheme('dark');
+        expect(postSpy).toHaveBeenCalledWith(
+            { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
+            '*',
+        );
+    });
+
+    it('re-pushes when the host toggles theme', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const { rerender } = renderWithColorScheme('light');
+        postSpy.mockClear();
+        rerender({ scheme: 'dark' });
+        expect(postSpy).toHaveBeenCalledWith(
+            { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
+            '*',
+        );
+    });
+
+    it('re-sends the scheme on iframe load, after the ready signal', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const { result } = renderWithColorScheme('dark');
+        postSpy.mockClear();
+        result.current.handleIframeLoad();
+        expect(postSpy.mock.calls.map(([message]) => message)).toEqual([
+            { type: 'lightdash:sdk:ready' },
+            { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
+        ]);
+    });
+
+    // The recovery path: an app whose SDK mounted after the load-time push (its
+    // `createClient()` isn't at module scope) asks, and gets an answer. Without
+    // this the app would keep the seed forever and silently ignore toggles.
+    it('answers a theme request from an app that missed the load-time push', async () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithColorScheme('dark');
+        postSpy.mockClear();
+
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data: { type: APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE },
+                source: window,
+                origin: window.location.origin,
+            }),
+        );
+        await vi.waitFor(() =>
+            expect(postSpy).toHaveBeenCalledWith(
+                { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
+                '*',
+            ),
+        );
+    });
+
+    it('ignores a theme request from a window that is not the iframe', async () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithColorScheme('dark');
+        postSpy.mockClear();
+
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data: { type: APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE },
+                source: null,
+                origin: window.location.origin,
+            }),
+        );
+        await new Promise((resolve) => {
+            setTimeout(resolve, 0);
+        });
+        expect(postSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe('delivery-render flag on the ready handshake', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    const iframeRef = {
+        current: { contentWindow: window } as unknown as HTMLIFrameElement,
+    } as RefObject<HTMLIFrameElement | null>;
+
+    const renderWithCaptureRender = (captureRender?: boolean) =>
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                colorScheme: 'light',
+                captureRender,
+            }),
+        );
+
+    it('rides deliveryRender: true on the ready message when captureRender is set', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const { result } = renderWithCaptureRender(true);
+        postSpy.mockClear();
+        result.current.handleIframeLoad();
+        expect(postSpy.mock.calls[0][0]).toEqual({
+            type: 'lightdash:sdk:ready',
+            deliveryRender: true,
+        });
+    });
+
+    // Absent, not `false` — old SDKs ignore unknown fields either way, and a
+    // new SDK on an old host that never sets captureRender must default false.
+    it('omits deliveryRender entirely when captureRender is not set', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const { result } = renderWithCaptureRender(undefined);
+        postSpy.mockClear();
+        result.current.handleIframeLoad();
+        expect(postSpy.mock.calls[0][0]).toEqual({
+            type: 'lightdash:sdk:ready',
+        });
+    });
+});
+
+describe('viz underlying-data virtual route', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    const VIRTUAL_PATH = '/__sdk/viz/underlying-data';
+    const INTENT = {
+        row: {
+            orders_status: {
+                value: { raw: 'completed', formatted: 'Completed' },
+            },
+        },
+        metric: 'value',
+    };
+
+    function renderBridgeWithRewrite(
+        rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
+            method: 'POST';
+            path: string;
+            body: unknown;
+        },
+    ) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                rewriteVizUnderlyingDataRequest,
+            }),
+        );
+    }
+
+    function postVirtualRoute() {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: VIRTUAL_PATH,
+            body: INTENT,
+        });
+    }
+
+    it('rewrites the virtual route and continues through the standard pipeline', async () => {
+        const rewrite = vi.fn((intentBody: unknown) => ({
+            method: 'POST' as const,
+            path: UNDERLYING_DATA_PATH,
+            body: { rewritten: true, original: intentBody },
+        }));
+        renderBridgeWithRewrite(rewrite);
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID },
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                UNDERLYING_DATA_PATH,
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({ rewritten: true, original: INTENT }),
+                }),
+            ),
+        );
+        expect(rewrite).toHaveBeenCalledWith(INTENT);
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    result: { queryUuid: QUERY_UUID },
+                }),
+                '*',
+            ),
+        );
+    });
+
+    it('answers the virtual route with an error when no rewrite callback is installed', async () => {
+        renderBridgeWithRewrite(undefined);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: expect.stringMatching(/not available/i),
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('answers with the thrown message when the rewrite callback rejects the intent', async () => {
+        renderBridgeWithRewrite(() => {
+            throw new Error(
+                '"nope" is not bound to a query field on this chart.',
+            );
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: '"nope" is not bound to a query field on this chart.',
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('a rewritten path is still subject to the allowlist', async () => {
+        renderBridgeWithRewrite(() => ({
+            method: 'POST' as const,
+            path: '/api/v1/org/projects',
+            body: {},
+        }));
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: expect.stringMatching(/^Blocked:/),
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+});
+
+describe('viz drill-down virtual route', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    const VIRTUAL_PATH = '/__sdk/viz/drill-down';
+    const INTENT = { row: {}, metric: 'x' };
+
+    function renderBridgeWithDrillDown(
+        onVizDrillDownIntent?: (intentBody: unknown) => void,
+    ) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onVizDrillDownIntent,
+            }),
+        );
+    }
+
+    function postVirtualRoute() {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: VIRTUAL_PATH,
+            body: INTENT,
+        });
+    }
+
+    it('answers with an error when no handler is mounted', async () => {
+        renderBridgeWithDrillDown(undefined);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: 'Drill-down is not available for this visualization.',
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('invokes the handler and acks without forwarding to the API', async () => {
+        const handler = vi.fn();
+        renderBridgeWithDrillDown(handler);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    result: {},
+                }),
+                '*',
+            ),
+        );
+        expect(handler).toHaveBeenCalledWith(INTENT);
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('answers with the thrown message when the handler rejects the intent', async () => {
+        renderBridgeWithDrillDown(() => {
+            throw new Error('"x" is not a metric on this chart.');
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: '"x" is not a metric on this chart.',
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
     });
 });

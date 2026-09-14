@@ -33,9 +33,15 @@ import { type SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import {
     interpretAgentEvent,
+    resolveSandboxAnthropicConfig,
     resolveSandboxTemplateRef,
     summarizeToolInput,
 } from '../AiWritebackService/utils';
+import {
+    anthropicClaudeCodeAllowedHosts,
+    buildAnthropicClaudeCodeEnv,
+    type ClaudeCodeAnthropicConfig,
+} from '../AppGenerateService/claudeCodeEnv';
 import {
     createSandboxManager,
     S3SnapshotStore,
@@ -374,6 +380,11 @@ export class OnboardingAgentService extends BaseService {
     private getSandboxManager(): SandboxManager {
         if (!this.sandboxManager) {
             const { sandboxProvider } = this.lightdashConfig.appRuntime;
+            if (sandboxProvider === 'gcp-cloud-run') {
+                throw new MissingConfigError(
+                    'The onboarding agent is not supported on the gcp-cloud-run sandbox provider yet (it needs its own gateway image)',
+                );
+            }
             this.sandboxManager = createSandboxManager({
                 provider: sandboxProvider,
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
@@ -382,6 +393,9 @@ export class OnboardingAgentService extends BaseService {
                         .sandboxAgentOnboardingDockerImage,
                 lambdaMicroVm: null,
                 azureSandboxes: null,
+                // Onboarding on Cloud Run would need its own gateway service
+                // (toolchain baked into the gateway image); unsupported for now.
+                gcpCloudRun: null,
                 snapshotStore:
                     sandboxProvider === 'docker'
                         ? new S3SnapshotStore({
@@ -421,16 +435,6 @@ export class OnboardingAgentService extends BaseService {
             .replace('://127.0.0.1', '://host.docker.internal');
     }
 
-    private getAnthropicApiKey(): string {
-        const key = this.lightdashConfig.aiWriteback.anthropicApiKey;
-        if (!key) {
-            throw new MissingConfigError(
-                'Anthropic API key is not configured (AI_WRITEBACK_ANTHROPIC_API_KEY)',
-            );
-        }
-        return key;
-    }
-
     private buildSandboxSpec(): SandboxSpec {
         return {
             templateRef: this.getSandboxTemplateRef(),
@@ -438,7 +442,10 @@ export class OnboardingAgentService extends BaseService {
             egress: {
                 allow: [
                     new URL(this.getSandboxFacingSiteUrl()).hostname,
-                    'api.anthropic.com',
+                    ...anthropicClaudeCodeAllowedHosts(
+                        this.lightdashConfig.ai.copilot.providers.anthropic
+                            ?.baseUrl,
+                    ),
                     'registry.npmjs.org',
                 ],
             },
@@ -587,13 +594,13 @@ export class OnboardingAgentService extends BaseService {
         run: DbAgentOnboardingRun;
         sandbox: SandboxHandle;
         patToken: string;
-        anthropicApiKey: string;
+        anthropic: ClaudeCodeAnthropicConfig;
     }): Promise<{
         assistantText: string;
         files: DbAgentOnboardingFile[];
         usage: AgentOnboardingUsage | null;
     }> {
-        const { run, sandbox, patToken, anthropicApiKey } = args;
+        const { run, sandbox, patToken, anthropic } = args;
         this.fileStore.assertConfigured();
         const { warehouseConnection } =
             await this.projectModel.getWithSensitiveFields(run.project_uuid);
@@ -609,7 +616,7 @@ export class OnboardingAgentService extends BaseService {
             database: connectionDefaults.database,
             schema: connectionDefaults.schema,
         });
-        const sensitiveValues = [patToken, anthropicApiKey];
+        const sensitiveValues = [patToken, anthropic.apiKey];
 
         await sandbox.commands.run(
             `mkdir -p ${WORKDIR}/lightdash/models ${WORKDIR}/lightdash/charts ${WORKDIR}/lightdash/dashboards && chmod -R a+rwX ${WORKDIR}`,
@@ -773,7 +780,10 @@ export class OnboardingAgentService extends BaseService {
                 {
                     cwd: WORKDIR,
                     envs: {
-                        ANTHROPIC_API_KEY: anthropicApiKey,
+                        ...buildAnthropicClaudeCodeEnv(
+                            anthropic.apiKey,
+                            anthropic.baseUrl,
+                        ),
                         LIGHTDASH_URL: this.getSandboxFacingSiteUrl(),
                         LIGHTDASH_API_KEY: patToken,
                         LIGHTDASH_PROJECT: run.project_uuid,
@@ -890,7 +900,8 @@ export class OnboardingAgentService extends BaseService {
         const sensitiveValues = (): string[] =>
             [
                 pat?.token,
-                this.lightdashConfig.aiWriteback.anthropicApiKey,
+                this.lightdashConfig.ai.copilot.providers.anthropic?.apiKey,
+                this.lightdashConfig.aiWriteback.legacyAnthropicApiKey,
             ].filter((value): value is string => Boolean(value));
 
         const destroySandbox = (): Promise<void> => {
@@ -989,13 +1000,14 @@ export class OnboardingAgentService extends BaseService {
                 throw new Error('Onboarding run cancelled');
             }
 
-            const anthropicApiKey = this.getAnthropicApiKey();
             const { assistantText, files, usage } =
                 await this.runAgentInSandbox({
                     run,
                     sandbox: sandbox.handle,
                     patToken: pat.token,
-                    anthropicApiKey,
+                    anthropic: resolveSandboxAnthropicConfig(
+                        this.lightdashConfig,
+                    ),
                 });
             const handoff = this.buildHandoff(assistantText, sensitiveValues());
             if (!hasCompleteOnboardingOutput(files) || !handoff.dashboardUrl) {

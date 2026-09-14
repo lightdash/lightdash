@@ -1,5 +1,5 @@
 import { SortByDirection, type VizSortBy } from '@lightdash/common';
-import { Box, Text, Select, Tooltip } from '@mantine-8/core';
+import { Box, Text, Select, Tooltip } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -18,7 +18,7 @@ const SortIcon: FC<{ sortByDirection: VizSortBy['direction'] }> = ({
             break;
     }
 
-    return icon ? <MantineIcon color="ldGray.6" icon={icon} /> : null;
+    return icon ? <MantineIcon color="dimmed" icon={icon} /> : null;
 };
 
 type Props = {
@@ -67,7 +67,7 @@ export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
     ];
 
     return (
-        <Tooltip label="Sort by" withinPortal>
+        <Tooltip label="Sort by">
             <Select
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}

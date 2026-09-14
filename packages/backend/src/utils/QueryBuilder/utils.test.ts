@@ -18,8 +18,6 @@ import {
 import {
     bigqueryClientMock,
     COMPILED_DIMENSION,
-    COMPILED_MONTH_NAME_DIMENSION,
-    COMPILED_WEEK_NAME_DIMENSION,
     CUSTOM_SQL_DIMENSION,
     EXPLORE,
     INTRINSIC_USER_ATTRIBUTES,
@@ -35,6 +33,7 @@ import {
     assertValidDimensionRequiredAttribute,
     findDateGrainTableCalcWarnings,
     findMetricInflationWarnings,
+    findUnnestCrossProductWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getJoinedTables,
@@ -43,6 +42,7 @@ import {
     replaceUserAttributesInSqlTable,
     sortDayOfWeekName,
     sortMonthName,
+    sortQuarterName,
 } from './utils';
 
 describe('getSumOfRowsTableCalculations', () => {
@@ -578,39 +578,25 @@ const ignoreIndentation = (sql: string) => sql.replace(/\s+/g, ' ');
 describe('Time frame sorting', () => {
     it('sortMonthName SQL', () => {
         expect(
-            ignoreIndentation(
-                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"', false),
-            ),
+            ignoreIndentation(sortMonthName('"table1_dim1"', false)),
         ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_SQL));
     });
     it('sortMonthName Descending SQL', () => {
         expect(
-            ignoreIndentation(
-                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"', true),
-            ),
+            ignoreIndentation(sortMonthName('"table1_dim1"', true)),
         ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_DESCENDING_SQL));
     });
     it('sortDayOfWeekName SQL for Saturday startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(
-                    COMPILED_WEEK_NAME_DIMENSION,
-                    undefined,
-                    `"`,
-                    true,
-                ),
+                sortDayOfWeekName('"table1_dim1"', undefined, true),
             ),
         ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_DESCENDING_SQL));
     });
     it('sortDayOfWeekName SQL for Sunday startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(
-                    COMPILED_WEEK_NAME_DIMENSION,
-                    WeekDay.SUNDAY,
-                    `"`,
-                    false,
-                ),
+                sortDayOfWeekName('"table1_dim1"', WeekDay.SUNDAY, false),
             ),
         ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL)); // same as undefined
     });
@@ -618,12 +604,7 @@ describe('Time frame sorting', () => {
     it('sortDayOfWeekName SQL for Wednesday startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(
-                    COMPILED_WEEK_NAME_DIMENSION,
-                    WeekDay.WEDNESDAY,
-                    `"`,
-                    false,
-                ),
+                sortDayOfWeekName('"table1_dim1"', WeekDay.WEDNESDAY, false),
             ),
         ).toStrictEqual(
             ignoreIndentation(`(
@@ -639,6 +620,18 @@ describe('Time frame sorting', () => {
             END
         )`),
         );
+    });
+
+    it('uses an already-rendered identifier without changing its escaping', () => {
+        const fieldSql = '"table1_""month"""';
+
+        const monthSql = sortMonthName(fieldSql, false);
+        const daySql = sortDayOfWeekName(fieldSql, undefined, false);
+        const quarterSql = sortQuarterName(fieldSql, false);
+
+        expect(monthSql.match(/"table1_""month"""/g)).toHaveLength(12);
+        expect(daySql.match(/"table1_""month"""/g)).toHaveLength(7);
+        expect(quarterSql.match(/"table1_""month"""/g)).toHaveLength(4);
     });
 });
 
@@ -956,6 +949,51 @@ describe('applyLimitToSqlQuery', () => {
 });
 
 describe('findMetricInflationWarnings', () => {
+    it('does not ask unnested tables for a primary key but still flags parent metrics', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                sessions: { primaryKey: ['id'] },
+                sessions__hits: {
+                    nestedFrom: { parentTable: 'sessions', columnPath: 'hits' },
+                },
+            },
+            possibleJoins: [
+                {
+                    table: 'sessions__hits',
+                    sqlOn: 'TRUE',
+                    compiledSqlOn: 'TRUE',
+                    tablesReferences: ['sessions'],
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                },
+            ],
+            baseTable: 'sessions',
+            joinedTables: new Set(['sessions__hits']),
+            metrics: [
+                {
+                    name: 'total_pageviews',
+                    type: MetricType.SUM,
+                    table: 'sessions',
+                    label: 'Total pageviews',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'sessions__hits',
+                    label: 'Total revenue',
+                },
+            ],
+        });
+
+        expect(
+            result.some((warning) =>
+                warning.message.includes('missing a primary key definition'),
+            ),
+        ).toBe(false);
+        expect(result.map((warning) => warning.fields)).toEqual([
+            ['sessions_total_pageviews'],
+        ]);
+    });
+
     it('should return no warnings when there are no metrics', () => {
         const result = findMetricInflationWarnings({
             tables: {
@@ -1604,6 +1642,77 @@ describe('getJoinedTables', () => {
         const result = getJoinedTables(explore, ['orders', 'users']);
 
         expect(result).toContain('intermediary_table');
+    });
+});
+
+describe('findUnnestCrossProductWarnings', () => {
+    const tables = {
+        sessions: {},
+        sessions__hits: {
+            nestedFrom: { parentTable: 'sessions', columnPath: 'hits' },
+        },
+        sessions__hits__product: {
+            nestedFrom: {
+                parentTable: 'sessions__hits',
+                columnPath: 'hits.product',
+            },
+        },
+        sessions__hits__promotion: {
+            nestedFrom: {
+                parentTable: 'sessions__hits',
+                columnPath: 'hits.promotion',
+            },
+        },
+        sessions__customDimensions: {
+            nestedFrom: {
+                parentTable: 'sessions',
+                columnPath: 'customDimensions',
+            },
+        },
+        users: {},
+    };
+
+    it('does not warn for a single ancestry chain of unnests', () => {
+        expect(
+            findUnnestCrossProductWarnings({
+                tables,
+                joinedTables: new Set([
+                    'sessions__hits',
+                    'sessions__hits__product',
+                ]),
+            }),
+        ).toEqual([]);
+    });
+
+    it('does not warn when only regular joins are present', () => {
+        expect(
+            findUnnestCrossProductWarnings({
+                tables,
+                joinedTables: new Set(['users', 'sessions__hits']),
+            }),
+        ).toEqual([]);
+    });
+
+    it('warns once naming the independent unnests, not their shared ancestors', () => {
+        const result = findUnnestCrossProductWarnings({
+            tables,
+            joinedTables: new Set([
+                'sessions__hits',
+                'sessions__hits__product',
+                'sessions__hits__promotion',
+                'sessions__customDimensions',
+            ]),
+        });
+        expect(result).toHaveLength(1);
+        expect(result[0].tables).toEqual([
+            'sessions__hits__product',
+            'sessions__hits__promotion',
+            'sessions__customDimensions',
+        ]);
+        expect(result[0].message).toContain(
+            'Repeated columns **"sessions__hits__product"**, **"sessions__hits__promotion"** and **"sessions__customDimensions"** are unnested together',
+        );
+        expect(result[0].message).not.toContain('"sessions__hits"');
     });
 });
 

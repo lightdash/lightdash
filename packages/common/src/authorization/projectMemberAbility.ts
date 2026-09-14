@@ -3,7 +3,11 @@ import { type ProjectMemberProfile } from '../types/projectMemberProfile';
 import { type ProjectMemberRole } from '../types/projectMemberRole';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
-import { type MemberAbility } from './types';
+import {
+    INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+    VIEWER_EMBED_SUBJECTS,
+    type MemberAbility,
+} from './types';
 
 // eslint-disable-next-line import/prefer-default-export
 export const projectMemberAbilities: Record<
@@ -14,6 +18,11 @@ export const projectMemberAbilities: Record<
     ) => void
 > = {
     viewer(member, { can }) {
+        VIEWER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
+                projectUuid: member.projectUuid,
+            });
+        });
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
             inheritsFromOrgOrProject: true,
@@ -75,6 +84,11 @@ export const projectMemberAbilities: Record<
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
+        INTERACTIVE_VIEWER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
+                projectUuid: member.projectUuid,
+            });
+        });
         can('view', 'UnderlyingData', {
             projectUuid: member.projectUuid,
         });
@@ -175,10 +189,11 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             createdByUserUuid: member.userUuid,
         });
-        // View external connections to select and link them when building a
+        // View admin-enabled external connections to link them when building a
         // data app. Managing (create/edit/delete) stays admin-only.
         can('view', 'ExternalConnection', {
             projectUuid: member.projectUuid,
+            allowDataAppBuilderLinking: true,
         });
 
         can('manage', 'Space', {
@@ -228,6 +243,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'MetricsTree', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'ExternalSource', {
             projectUuid: member.projectUuid,
         });
 
@@ -322,6 +340,16 @@ export const projectMemberAbilities: Record<
             type: ProjectType.PREVIEW,
             createdByUserUuid: member.userUuid,
         });
+        can('create', 'DataApp', {
+            projectUuid: member.projectUuid,
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: member.userUuid,
+        });
+        can('manage', 'DataApp', {
+            projectUuid: member.projectUuid,
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: member.userUuid,
+        });
         can('view', 'JobStatus', {
             projectUuid: member.projectUuid,
         });
@@ -332,6 +360,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'ContentVerification', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'VerifiedContent', {
             projectUuid: member.projectUuid,
         });
         can('create', 'AiDeepResearch', {

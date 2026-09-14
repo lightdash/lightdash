@@ -1,4 +1,4 @@
-import { Anchor } from '@mantine-8/core';
+import { Anchor } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -26,15 +26,14 @@ export const OmnibarItemIcon: FC<Props> = ({ item, boxSize }) => {
     );
 };
 
-type OmnibarItemIconWithIndicatorProps = {
-    item: SearchItem;
+type OmnibarItemIconWithIndicatorProps = Props & {
     projectUuid: string;
     canUserManageValidation: boolean;
 };
 
 export const OmnibarItemIconWithIndicator: FC<
     OmnibarItemIconWithIndicatorProps
-> = ({ item, projectUuid, canUserManageValidation }) =>
+> = ({ item, boxSize, projectUuid, canUserManageValidation }) =>
     item.item && 'validationErrors' in item.item ? (
         <ResourceIndicator
             iconProps={{
@@ -77,6 +76,6 @@ export const OmnibarItemIconWithIndicator: FC<
                 )
             }
         >
-            <OmnibarItemIcon item={item} />
+            <OmnibarItemIcon item={item} boxSize={boxSize} />
         </ResourceIndicator>
     ) : null;

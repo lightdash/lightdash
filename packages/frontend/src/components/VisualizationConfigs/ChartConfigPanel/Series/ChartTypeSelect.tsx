@@ -1,5 +1,5 @@
 import { CartesianSeriesType } from '@lightdash/common';
-import { type SelectProps, Select } from '@mantine-8/core';
+import { type SelectProps, Select } from '@mantine/core';
 import {
     IconChartArea,
     IconChartAreaLine,

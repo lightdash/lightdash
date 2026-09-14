@@ -18,39 +18,45 @@ const chartAsCodeSchema = z.object({
             type: z.literal(ChartType.CARTESIAN),
             config: z
                 .object({
-                    eChartsConfig: z.object({
-                        xAxis: z
-                            .array(
-                                z.object({
-                                    name: z.string().optional(),
-                                }),
-                            )
-                            .optional(),
-                        yAxis: z
-                            .array(
-                                z.object({
-                                    name: z.string().optional(),
-                                }),
-                            )
-                            .optional(),
-                        // chartConfig.config?.eChartsConfig.series[0].markLine?.data[0].name
-                        series: z
-                            .array(
-                                z.object({
-                                    name: z.string().optional(),
-                                    markLine: z
-                                        .object({
-                                            data: z.array(
-                                                z.object({
-                                                    name: z.string().optional(),
-                                                }),
-                                            ),
-                                        })
-                                        .optional(),
-                                }),
-                            )
-                            .optional(),
-                    }),
+                    eChartsConfig: z
+                        .object({
+                            xAxis: z
+                                .array(
+                                    z.object({
+                                        name: z.string().optional(),
+                                    }),
+                                )
+                                .optional(),
+                            yAxis: z
+                                .array(
+                                    z.object({
+                                        name: z.string().optional(),
+                                    }),
+                                )
+                                .optional(),
+                            // chartConfig.config?.eChartsConfig.series[0].markLine?.data[0].name
+                            series: z
+                                .array(
+                                    z.object({
+                                        name: z.string().optional(),
+                                        markLine: z
+                                            .object({
+                                                data: z
+                                                    .array(
+                                                        z.object({
+                                                            name: z
+                                                                .string()
+                                                                .optional(),
+                                                        }),
+                                                    )
+                                                    .optional(),
+                                            })
+                                            .optional(),
+                                    }),
+                                )
+                                .optional(),
+                        })
+                        .optional(),
                 })
                 .nullable()
                 .optional()
@@ -106,8 +112,15 @@ const chartAsCodeSchema = z.object({
                         .record(
                             z.string(),
                             z.object({
-                                name: z.string(),
+                                name: z.string().optional(),
                             }),
+                        )
+                        .transform((columns) =>
+                            Object.fromEntries(
+                                Object.entries(columns).filter(
+                                    ([, column]) => column.name !== undefined,
+                                ),
+                            ),
                         )
                         .optional(),
                 })
@@ -121,7 +134,7 @@ const chartAsCodeSchema = z.object({
             type: z.literal(ChartType.CUSTOM),
             config: z
                 .object({
-                    spec: z.record(z.unknown()).optional(),
+                    spec: z.record(z.string(), z.unknown()).optional(),
                 })
                 .nullable()
                 .optional()
@@ -139,7 +152,7 @@ export class ChartAsCodeInternalization extends AsCodeInternalization<
     }
 
     public getLanguageMap(chartAsCode: ChartAsCode) {
-        const languageMapSchema = this.schema.deepPartial().strip();
+        const languageMapSchema = this.schema.partial().strip();
         type ChartAsCodeLanguageMapEntry = z.infer<typeof languageMapSchema>;
 
         const parsedChartAsCode = languageMapSchema.safeParse(chartAsCode);

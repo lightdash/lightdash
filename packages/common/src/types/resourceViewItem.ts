@@ -47,6 +47,7 @@ export type ResourceViewDashboardItem = {
     data: Pick<
         DashboardBasicDetails,
         | 'uuid'
+        | 'slug'
         | 'spaceUuid'
         | 'description'
         | 'name'
@@ -58,6 +59,7 @@ export type ResourceViewDashboardItem = {
         | 'updatedByUser'
         | 'validationErrors'
         | 'verification'
+        | 'owner'
     >;
     category?: ResourceItemCategory;
 };
@@ -103,6 +105,7 @@ export type ResourceViewDataAppItem = {
         firstViewedAt: Date | null;
         latestVersionNumber: number | null;
         latestVersionStatus: AppVersionStatus | null;
+        latestReadyVersionNumber: number | null;
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
     };
@@ -243,6 +246,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     userUuid: updatedByUser.uuid,
                 },
                 verification: content.verification,
+                owner: content.owner,
                 projectUuid: content.project.uuid,
                 organizationUuid: content.organization.uuid,
             };
@@ -284,26 +288,12 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 firstViewedAt: content.firstViewedAt,
                 latestVersionNumber: content.latestVersionNumber,
                 latestVersionStatus: content.latestVersionStatus,
+                latestReadyVersionNumber: content.latestReadyVersionNumber,
                 pinnedListUuid: content.pinnedList?.uuid || null,
                 pinnedListOrder: content.pinnedList?.order || null,
             };
             return wrapResource(dataAppViewItem, ResourceViewItemType.DATA_APP);
         default:
             return assertUnreachable(content, `Unsupported content type`);
-    }
-};
-
-export const resourceToContent = (resource: ResourceViewItem) => {
-    switch (resource.type) {
-        case ResourceViewItemType.CHART:
-            return resource.data;
-        case ResourceViewItemType.DASHBOARD:
-            return resource.data;
-        case ResourceViewItemType.SPACE:
-            return resource.data;
-        case ResourceViewItemType.DATA_APP:
-            return resource.data;
-        default:
-            return assertUnreachable(resource, `Unsupported resource type`);
     }
 };

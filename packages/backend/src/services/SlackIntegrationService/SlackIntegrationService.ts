@@ -101,6 +101,7 @@ export class SlackIntegrationService<
                 installation.scopes,
             ),
             unfurlsEnabled: installation.unfurlsEnabled,
+            aiAgentsEnabled: installation.aiAgentsEnabled,
         };
 
         return response;

@@ -12,7 +12,10 @@ import {
 import lightdashDbtYamlSchema from '../schemas/json/lightdash-dbt-2.0.json';
 import { CompileError } from '../types/errors';
 import type { CompiledTable, Explore, Table } from '../types/explore';
-import type { LightdashProjectParameter } from '../types/lightdashProjectConfig';
+import {
+    isLightdashParameterOption,
+    type LightdashProjectParameter,
+} from '../types/lightdashProjectConfig';
 import type {
     ParameterDefinitions,
     ParametersValuesMap,
@@ -200,6 +203,28 @@ export const getExploreParameterDefinitions = (
         : {};
 
 /**
+ * Every parameter name referenced anywhere in an explore's compiled SQL —
+ * joins, table sql_where, and each field's SQL. These are the parameters whose
+ * values can change what a query against the explore returns.
+ */
+export const getExploreParameterReferences = (explore: Explore): string[] => {
+    const references = new Set<string>();
+    explore.joinedTables.forEach((join) => {
+        join.parameterReferences?.forEach((name) => references.add(name));
+    });
+    Object.values(explore.tables).forEach((table) => {
+        table.parameterReferences?.forEach((name) => references.add(name));
+        [
+            ...Object.values(table.dimensions),
+            ...Object.values(table.metrics),
+        ].forEach((field) => {
+            field.parameterReferences?.forEach((name) => references.add(name));
+        });
+    });
+    return [...references];
+};
+
+/**
  * The subset of user parameter definitions that are actually referenced. A referenced
  * name with no user definition (e.g. a reserved system variable referenced on its own)
  * is excluded, so callers only surface user-editable parameters.
@@ -213,6 +238,29 @@ export const getReferencedParameterDefinitions = (
             references?.includes(key),
         ),
     );
+
+/** Project- and model-level definitions merged (model wins), filtered to the parameters the explore actually references. */
+export const getReferencedExploreParameterDefinitions = (
+    explore: Explore,
+    projectParameterDefinitions: ParameterDefinitions = {},
+): ParameterDefinitions =>
+    getReferencedParameterDefinitions(
+        {
+            ...projectParameterDefinitions,
+            ...getExploreParameterDefinitions(explore),
+        },
+        getExploreParameterReferences(explore),
+    );
+
+/** A definition's option values as raw values, or null when options aren't statically declared. */
+export const getParameterOptionValues = (
+    definition: LightdashProjectParameter,
+): (string | number)[] | null =>
+    definition.options
+        ? definition.options.map((option) =>
+              isLightdashParameterOption(option) ? option.value : option,
+          )
+        : null;
 
 /**
  * Validate parameter names. Only bad-pattern names are invalid; names colliding with a

@@ -416,8 +416,15 @@
 }
 
 .reasoningRow {
+    /* Header padding + icon slot + gap; the body indents to the label. */
+    --reasoning-icon-size: 13px;
+    --reasoning-inset: calc(12px + var(--reasoning-icon-size) + 8px);
     border-radius: 10px;
     font-family: var(--mantine-font-family);
+}
+
+.reasoningRow[data-live='true'] {
+    --reasoning-icon-size: 20px;
 }
 
 .reasoningRow:hover .chevron {
@@ -491,7 +498,7 @@
 }
 
 .reasoningBody {
-    padding: 6px 8px 4px;
+    padding: 2px 12px 6px var(--reasoning-inset);
     font-style: italic;
     color: var(--mantine-color-ldGray-7);
 }

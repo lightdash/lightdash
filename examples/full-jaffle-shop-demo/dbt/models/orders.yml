@@ -18,6 +18,9 @@ models:
               - total_order_amount
             time_dimension: order_date
             granularity: day
+            sorts:
+              - fieldId: orders_order_date_day
+                descending: true
           - name: orders_daily_avg_demo_2
             dimensions:
               - status
@@ -26,6 +29,28 @@ models:
               - customers.first_name
             metrics:
               - average_order_size
+              - total_order_amount
+              - total_completed_order_amount
+            time_dimension: order_date
+            granularity: day
+          # External pre-aggregate candidates. Enable create_external_pre_aggregate_tables
+          # in dbt_project.yml before testing them locally.
+          - name: orders_ext_daily_status
+            table: '"jaffle"."orders_ext_daily_status_mv"'
+            dimensions:
+              - status
+              - order_source
+            metrics:
+              - total_order_amount
+              - average_order_size
+            time_dimension: order_date
+            granularity: day
+          - name: orders_ext_daily_joined
+            table: '"jaffle"."orders_ext_daily_joined_mv"'
+            dimensions:
+              - status
+              - customers.first_name
+            metrics:
               - total_order_amount
               - total_completed_order_amount
             time_dimension: order_date
@@ -46,6 +71,38 @@ models:
               - average_expression_metric
             time_dimension: order_date
             granularity: day
+          # e2e fixtures: count_distinct defs served on exact matches only,
+          # plus day/month twins for the grain-preference tie-break.
+          - name: orders_daily_unique_demo
+            dimensions:
+              - status
+            metrics:
+              - unique_order_count
+              - total_order_amount
+            time_dimension: order_date
+            granularity: day
+          - name: orders_ext_daily_unique
+            table: '"jaffle"."orders_ext_daily_unique_mv"'
+            dimensions:
+              - order_source
+            metrics:
+              - unique_order_count
+            time_dimension: order_date
+            granularity: day
+          - name: orders_source_daily_twin
+            dimensions:
+              - order_source
+            metrics:
+              - total_shipping_revenue
+            time_dimension: order_date
+            granularity: day
+          - name: orders_source_monthly_twin
+            dimensions:
+              - order_source
+            metrics:
+              - total_shipping_revenue
+            time_dimension: order_date
+            granularity: month
           - name: orders_daily_number_metric_refs_demo
             dimensions:
               - shipping_method
@@ -560,6 +617,9 @@ models:
         description: Promotional code applied to the order
         config:
           meta:
+            dimension:
+              filter_autocomplete:
+                fetch_from_warehouse: false
             metrics:
               promo_usage_rate:
                 type: number

@@ -2,15 +2,17 @@ import {
     hashStringToBase36,
     type DashboardDataAppTile,
 } from '@lightdash/common';
-import { Box, Loader, Stack } from '@mantine-8/core';
+import { Box, Loader, Stack } from '@mantine/core';
 import { IconAppsOff } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, type FC } from 'react';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
+import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useEmbedAppPreviewToken } from '../../../../../features/apps/hooks/useEmbedAppPreviewToken';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
 import useDashboardFiltersForTile from '../../../../../hooks/dashboard/useDashboardFiltersForTile';
+import useDashboardTileStatusContext from '../../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { convertDateDashboardFilters } from '../../../../../utils/dateFilter';
 
 type Props = {
@@ -61,9 +63,25 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
         ? `${previewOrigin}/api/apps/${appUuid}/versions/${tokenQuery.data.version}/t/${tokenQuery.data.token}/?f=${filtersKey}#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
 
-    const statusCode = tokenQuery.error?.error?.statusCode;
+    const visibleTokenError = getVisiblePreviewTokenError(
+        tokenQuery.error,
+        !!tokenQuery.data,
+    );
+    const statusCode = visibleTokenError?.error?.statusCode;
     const isNotFound = !!appDeletedAt || statusCode === 404;
     const isForbidden = statusCode === 403;
+    const hasLoadError = isNotFound || isForbidden || !!visibleTokenError;
+    const markEmbedTileComplete = useDashboardTileStatusContext(
+        (c) => c.markEmbedTileComplete,
+    );
+    const handleIframeLoad = useCallback(
+        () => markEmbedTileComplete(uuid),
+        [markEmbedTileComplete, uuid],
+    );
+
+    useEffect(() => {
+        if (hasLoadError) markEmbedTileComplete(uuid);
+    }, [hasLoadError, markEmbedTileComplete, uuid]);
 
     return (
         <TileBase
@@ -73,7 +91,7 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
             onDelete={() => {}}
             onEdit={() => {}}
         >
-            <Box className="non-draggable" style={{ flex: 1, minHeight: 0 }}>
+            <Box className="non-draggable" flex={1} mih={0}>
                 {isNotFound ? (
                     <SuboptimalState
                         icon={IconAppsOff}
@@ -86,18 +104,20 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
                         title="No access"
                         description="This data app isn't authorized for this embed."
                     />
-                ) : tokenQuery.isLoading || !previewUrl ? (
+                ) : tokenQuery.isLoading || !previewUrl || !tokenQuery.data ? (
                     <Stack align="center" justify="center" h="100%">
                         <Loader size="sm" />
                     </Stack>
                 ) : (
                     <AppIframePreview
                         src={previewUrl}
+                        previewToken={tokenQuery.data.token}
                         expectedPreviewOrigin={previewOrigin}
                         projectUuid={projectUuid}
                         appUuid={appUuid}
-                        identityKey={`${appUuid}:${tokenQuery.data!.version}`}
+                        identityKey={`${appUuid}:${tokenQuery.data.version}`}
                         dashboardFilters={dashboardFiltersForApp}
+                        onIframeLoad={handleIframeLoad}
                     />
                 )}
             </Box>

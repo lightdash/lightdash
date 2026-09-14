@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     getAiAgentMemoryConsolidationOperationSlugs,
     getAiProjectContextObjectKey,
+    hasSufficientPromotionCitations,
     ProjectType,
     type AiAgentAdminMemoriesSummary,
     type AiAgentAdminMemoryFilters,
@@ -11,6 +12,7 @@ import {
     type AiAgentMemoryConsolidationOperation,
     type AiAgentMemoryConsolidationRejection,
     type AiAgentMemoryConsolidationRunStatus,
+    type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
     type AiAgentUserMemoriesSummary,
     type AiAgentUserMemoryItem,
@@ -148,6 +150,12 @@ export type AiAgentMemoryWithLineage = {
     replacement: Pick<DbAiAgentMemory, 'slug'> | null;
 };
 
+/** A project holding active memories that name catalog objects. */
+export type AiAgentMemoryObjectSweepCandidate = {
+    organizationUuid: UUID;
+    projectUuid: UUID;
+};
+
 /** A `(project, owner)` partition with enough active rows to be worth curating. */
 export type AiAgentMemoryConsolidationCandidate = {
     organizationUuid: UUID;
@@ -161,6 +169,11 @@ export type AiAgentMemoryConsolidationRunInput = {
     projectUuid: UUID;
     ownerUserUuid: UUID;
     status: AiAgentMemoryConsolidationRunStatus;
+    /** Proposals rather than curation: nothing this run named was written. */
+    dryRun: boolean;
+    trigger: AiAgentMemoryConsolidationTrigger;
+    /** The operator behind a manual run; null on the daily pass. */
+    triggeredByUserUuid: UUID | null;
     promptHash: string;
     inputHash: string;
     inputCount: number;
@@ -180,6 +193,12 @@ export type AiAgentMemoryConsolidationSelectedRow = {
 export type AiAgentMemoryConsolidationApplyResult = {
     run: DbAiAgentMemoryConsolidationRun;
     applied: AiAgentMemoryConsolidationOperation[];
+    rejected: AiAgentMemoryConsolidationRejection[];
+};
+
+export type AiAgentMemoryConsolidationProposalResult = {
+    run: DbAiAgentMemoryConsolidationRun;
+    proposed: AiAgentMemoryConsolidationOperation[];
     rejected: AiAgentMemoryConsolidationRejection[];
 };
 
@@ -555,6 +574,7 @@ export class AiAgentMemoryModel {
                 'unresolved_objects',
                 'status',
                 'scope',
+                'retired_reason',
                 'superseded_by_uuid',
                 'generated_at',
                 'cited_count',
@@ -1022,10 +1042,55 @@ export class AiAgentMemoryModel {
             .whereIn('status', ['active', 'retired'])
             .update({
                 status: args.status,
+                retired_reason: args.status === 'retired' ? 'owner' : null,
                 updated_at: this.database.fn.now(),
             });
 
         return updated > 0;
+    }
+
+    async findObjectSweepCandidates(): Promise<
+        AiAgentMemoryObjectSweepCandidate[]
+    > {
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('status', 'active')
+            .whereRaw('jsonb_array_length(objects) > 0')
+            .distinct<AiAgentMemoryObjectSweepCandidate[]>({
+                organizationUuid: 'organization_uuid',
+                projectUuid: 'project_uuid',
+            });
+    }
+
+    async findActiveObjectMemoriesByProject(
+        projectUuid: UUID,
+    ): Promise<
+        Array<Pick<DbAiAgentMemory, 'ai_agent_memory_uuid' | 'objects'>>
+    > {
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('project_uuid', projectUuid)
+            .where('status', 'active')
+            .whereRaw('jsonb_array_length(objects) > 0')
+            .select('ai_agent_memory_uuid', 'objects');
+    }
+
+    /**
+     * The active-status guard makes the sweep race-safe against the curator: a
+     * row consolidation moved since selection is simply not retired here, and
+     * a row this retires is rejected as `row_moved` inside the curator's lock.
+     * `unresolved_objects` snapshots the full object list as the evidence.
+     */
+    async retireForUnresolvedObjects(memoryUuids: UUID[]): Promise<number> {
+        if (memoryUuids.length === 0) return 0;
+
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .whereIn('ai_agent_memory_uuid', memoryUuids)
+            .where('status', 'active')
+            .update({
+                status: 'retired',
+                retired_reason: 'unresolved_objects',
+                unresolved_objects: this.database.raw('objects'),
+                updated_at: this.database.fn.now(),
+            } as never);
     }
 
     async incrementPulledForActiveMemories(args: {
@@ -1105,15 +1170,50 @@ export class AiAgentMemoryModel {
         }));
     }
 
+    /** Finds one active partition without the scheduled row floor. */
+    async findConsolidationPartition(args: {
+        projectUuid: UUID;
+        ownerUserUuid: UUID;
+    }): Promise<AiAgentMemoryConsolidationCandidate | undefined> {
+        const { rows } = await this.database.raw<{
+            rows: Array<{
+                organization_uuid: UUID;
+                active_count: string;
+            }>;
+        }>(
+            `
+                SELECT organization_uuid, COUNT(*) AS active_count
+                FROM ${AiAgentMemoryTableName}
+                WHERE status = 'active'
+                  AND project_uuid = ?
+                  AND user_uuid = ?
+                GROUP BY organization_uuid
+            `,
+            [args.projectUuid, args.ownerUserUuid],
+        );
+
+        const [row] = rows;
+        if (!row) return undefined;
+
+        return {
+            organizationUuid: row.organization_uuid,
+            projectUuid: args.projectUuid,
+            ownerUserUuid: args.ownerUserUuid,
+            activeCount: Number(row.active_count),
+        };
+    }
+
     async findLatestConsolidationRun(args: {
-        projectUuid: string;
-        ownerUserUuid: string;
+        projectUuid: UUID;
+        ownerUserUuid: UUID;
+        dryRun: boolean;
     }): Promise<DbAiAgentMemoryConsolidationRun | undefined> {
         return this.database<AiAgentMemoryConsolidationRunTable>(
             AiAgentMemoryConsolidationRunTableName,
         )
             .where('project_uuid', args.projectUuid)
             .where('user_uuid', args.ownerUserUuid)
+            .where('dry_run', args.dryRun)
             .orderBy('created_at', 'desc')
             .first();
     }
@@ -1130,6 +1230,9 @@ export class AiAgentMemoryModel {
                 project_uuid: run.projectUuid,
                 user_uuid: run.ownerUserUuid,
                 status: run.status,
+                dry_run: run.dryRun,
+                trigger: run.trigger,
+                triggered_by_user_uuid: run.triggeredByUserUuid,
                 prompt_hash: run.promptHash,
                 input_hash: run.inputHash,
                 input_count: run.inputCount,
@@ -1255,6 +1358,125 @@ export class AiAgentMemoryModel {
         return { ...args.operation, slug };
     }
 
+    private static async lockAndRevalidateConsolidation(
+        trx: Knex,
+        args: {
+            run: Pick<
+                AiAgentMemoryConsolidationRunInput,
+                'projectUuid' | 'ownerUserUuid'
+            >;
+            selection: AiAgentMemoryConsolidationSelectedRow[];
+            operations: AiAgentMemoryConsolidationOperation[];
+            rejected: AiAgentMemoryConsolidationRejection[];
+        },
+    ): Promise<{
+        accepted: AiAgentMemoryConsolidationOperation[];
+        rejected: AiAgentMemoryConsolidationRejection[];
+        currentBySlug: Map<string, ConsolidationSourceRow>;
+    }> {
+        await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+            CONSOLIDATION_LOCK_CLASS,
+            `${args.run.projectUuid}:${args.run.ownerUserUuid}`,
+        ]);
+
+        const namedSlugs = [
+            ...new Set(
+                args.operations.flatMap(
+                    getAiAgentMemoryConsolidationOperationSlugs,
+                ),
+            ),
+        ];
+        const currentRows: ConsolidationSourceRow[] =
+            namedSlugs.length === 0
+                ? []
+                : await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+                      .where('project_uuid', args.run.projectUuid)
+                      .where('user_uuid', args.run.ownerUserUuid)
+                      .whereIn('slug', namedSlugs)
+                      .forUpdate()
+                      .select(
+                          'ai_agent_memory_uuid',
+                          'slug',
+                          'status',
+                          'generated_at',
+                          'agent_uuid',
+                          'scope',
+                          'cited_count',
+                          'last_cited_at',
+                          'pulled_count',
+                          'last_pulled_at',
+                      );
+        const currentBySlug = new Map(
+            currentRows.map((row) => [row.slug, row]),
+        );
+        const selectedBySlug = new Map(
+            args.selection.map((row) => [row.slug, row]),
+        );
+        const isUnmoved = (slug: string): boolean => {
+            const current = currentBySlug.get(slug);
+            const selected = selectedBySlug.get(slug);
+            return (
+                current !== undefined &&
+                selected !== undefined &&
+                current.ai_agent_memory_uuid === selected.memoryUuid &&
+                current.status === 'active' &&
+                current.generated_at.getTime() ===
+                    selected.generatedAt.getTime()
+            );
+        };
+
+        const accepted: AiAgentMemoryConsolidationOperation[] = [];
+        const rejected = [...args.rejected];
+        for (const operation of args.operations) {
+            if (
+                !getAiAgentMemoryConsolidationOperationSlugs(operation).every(
+                    isUnmoved,
+                )
+            ) {
+                rejected.push({ operation, reason: 'row_moved' });
+            } else if (
+                operation.type === 'promote' &&
+                !hasSufficientPromotionCitations(
+                    currentBySlug.get(operation.slug)!.cited_count,
+                )
+            ) {
+                rejected.push({
+                    operation,
+                    reason: 'insufficient_citations',
+                });
+            } else {
+                accepted.push(operation);
+            }
+        }
+        return { accepted, rejected, currentBySlug };
+    }
+
+    async recordDryRunConsolidation(args: {
+        run: Omit<
+            AiAgentMemoryConsolidationRunInput,
+            'appliedOperations' | 'rejectedOperations' | 'status' | 'dryRun'
+        >;
+        selection: AiAgentMemoryConsolidationSelectedRow[];
+        operations: AiAgentMemoryConsolidationOperation[];
+        rejected: AiAgentMemoryConsolidationRejection[];
+    }): Promise<AiAgentMemoryConsolidationProposalResult> {
+        return this.database.transaction(async (trx) => {
+            const { accepted, rejected } =
+                await AiAgentMemoryModel.lockAndRevalidateConsolidation(
+                    trx,
+                    args,
+                );
+            const run = await AiAgentMemoryModel.insertConsolidationRun(trx, {
+                ...args.run,
+                status: 'succeeded',
+                dryRun: true,
+                appliedOperations: accepted,
+                rejectedOperations: rejected,
+            });
+            return { run, proposed: accepted, rejected };
+        });
+    }
+
     /**
      * Applies operations and writes the run row in one transaction, under a
      * per-partition advisory lock. The slug-to-uuid resolution inside the lock
@@ -1262,81 +1484,47 @@ export class AiAgentMemoryModel {
      * body was rewritten since selection, is rejected instead of applied.
      */
     async applyConsolidation(args: {
+        // A dry run cannot reach this write path.
         run: Omit<
             AiAgentMemoryConsolidationRunInput,
-            'appliedOperations' | 'rejectedOperations' | 'status'
+            'appliedOperations' | 'rejectedOperations' | 'status' | 'dryRun'
         >;
         selection: AiAgentMemoryConsolidationSelectedRow[];
         operations: AiAgentMemoryConsolidationOperation[];
         rejected: AiAgentMemoryConsolidationRejection[];
         /** Object keys this run resolved against the live catalog and did not find. */
         unresolvedObjectKeys: Set<string>;
+        applyPromotions: (args: {
+            trx: Knex.Transaction;
+            operations: Extract<
+                AiAgentMemoryConsolidationOperation,
+                { type: 'promote' }
+            >[];
+        }) => Promise<AiAgentMemoryConsolidationRejection[]>;
     }): Promise<AiAgentMemoryConsolidationApplyResult> {
         return this.database.transaction(async (trx) => {
-            await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
-                CONSOLIDATION_LOCK_CLASS,
-                `${args.run.projectUuid}:${args.run.ownerUserUuid}`,
-            ]);
-
-            const namedSlugs = [
-                ...new Set(
-                    args.operations.flatMap(
-                        getAiAgentMemoryConsolidationOperationSlugs,
-                    ),
-                ),
-            ];
-            const currentRows =
-                namedSlugs.length === 0
-                    ? []
-                    : await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
-                          .where('project_uuid', args.run.projectUuid)
-                          .where('user_uuid', args.run.ownerUserUuid)
-                          .whereIn('slug', namedSlugs)
-                          .forUpdate()
-                          .select(
-                              'ai_agent_memory_uuid',
-                              'slug',
-                              'status',
-                              'generated_at',
-                              'agent_uuid',
-                              'scope',
-                              'cited_count',
-                              'last_cited_at',
-                              'pulled_count',
-                              'last_pulled_at',
-                          );
-            const currentBySlug = new Map(
-                currentRows.map((row) => [row.slug, row]),
-            );
-            const selectedBySlug = new Map(
-                args.selection.map((row) => [row.slug, row]),
-            );
-            const isUnmoved = (slug: string): boolean => {
-                const current = currentBySlug.get(slug);
-                const selected = selectedBySlug.get(slug);
-                return (
-                    current !== undefined &&
-                    selected !== undefined &&
-                    current.ai_agent_memory_uuid === selected.memoryUuid &&
-                    current.status === 'active' &&
-                    current.generated_at.getTime() ===
-                        selected.generatedAt.getTime()
+            const { accepted, rejected, currentBySlug } =
+                await AiAgentMemoryModel.lockAndRevalidateConsolidation(
+                    trx,
+                    args,
                 );
-            };
-
-            const accepted: AiAgentMemoryConsolidationOperation[] = [];
-            const rejected = [...args.rejected];
-            for (const operation of args.operations) {
-                if (
-                    getAiAgentMemoryConsolidationOperationSlugs(
+            const promotionRejections = await args.applyPromotions({
+                trx,
+                operations: accepted.filter(
+                    (
                         operation,
-                    ).every(isUnmoved)
-                ) {
-                    accepted.push(operation);
-                } else {
-                    rejected.push({ operation, reason: 'row_moved' });
-                }
-            }
+                    ): operation is Extract<
+                        AiAgentMemoryConsolidationOperation,
+                        { type: 'promote' }
+                    > => operation.type === 'promote',
+                ),
+            });
+            rejected.push(...promotionRejections);
+            const rejectedPromotionSlugs = new Set(
+                promotionRejections.flatMap(({ operation }) =>
+                    operation.type === 'promote' ? [operation.slug] : [],
+                ),
+            );
 
             const applied: AiAgentMemoryConsolidationOperation[] = [];
             for (const operation of accepted) {
@@ -1355,6 +1543,11 @@ export class AiAgentMemoryModel {
                                 unresolvedObjectKeys: args.unresolvedObjectKeys,
                             }),
                         );
+                        break;
+                    case 'promote':
+                        if (!rejectedPromotionSlugs.has(operation.slug)) {
+                            applied.push(operation);
+                        }
                         break;
                     case 'supersede':
                         // eslint-disable-next-line no-await-in-loop
@@ -1383,6 +1576,7 @@ export class AiAgentMemoryModel {
                             )
                             .update({
                                 status: 'retired',
+                                retired_reason: 'consolidation',
                                 updated_at: this.database.fn.now(),
                             });
                         applied.push(operation);
@@ -1398,6 +1592,7 @@ export class AiAgentMemoryModel {
             const run = await AiAgentMemoryModel.insertConsolidationRun(trx, {
                 ...args.run,
                 status: 'succeeded',
+                dryRun: false,
                 appliedOperations: applied,
                 rejectedOperations: rejected,
             });

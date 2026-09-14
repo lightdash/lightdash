@@ -1,12 +1,18 @@
-import { AuthorizationError, type DataAppManifest } from '@lightdash/common';
+import {
+    AuthorizationError,
+    ParameterError,
+    type DataAppManifest,
+} from '@lightdash/common';
 import { randomBytes } from 'crypto';
 import execa from 'execa';
 import { promises as fs } from 'fs';
+import inquirer from 'inquirer';
 import * as path from 'path';
 import { getConfig } from '../../config';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { checkLightdashVersion } from '../dbt/apiClient';
+import { resolveProjectFlag } from '../resolveProjectFlag';
 import { getAuthHeader } from '../utils';
 import { readManifestFromDir } from './appCodeFiles';
 import { startPreviewProxy } from './previewProxy';
@@ -23,6 +29,7 @@ export const buildPreviewChildEnv = (args: {
     projectUuid: string;
     proxyPort: number;
     proxyNonce: string;
+    browserImageOrigins?: string[];
     parentEnv?: NodeJS.ProcessEnv;
 }): Record<string, string> => {
     const parentEnv = args.parentEnv ?? process.env;
@@ -66,7 +73,96 @@ export const buildPreviewChildEnv = (args: {
         VITE_LIGHTDASH_PROJECT_UUID: args.projectUuid,
         LIGHTDASH_PREVIEW_PROXY_TARGET: `http://127.0.0.1:${args.proxyPort}`,
         LIGHTDASH_PREVIEW_PROXY_NONCE: args.proxyNonce,
+        LIGHTDASH_PREVIEW_BROWSER_IMAGE_ORIGINS: JSON.stringify(
+            args.browserImageOrigins ?? [],
+        ),
     };
+};
+
+export const fetchBrowserImageOrigins = async (args: {
+    manifest: DataAppManifest;
+    projectUuid: string;
+    serverUrl: string;
+    authorization: string;
+    proxyAuthorization?: string;
+    fetchFn?: typeof fetch;
+}): Promise<string[]> => {
+    const linkedSlugs = new Set(
+        (args.manifest.externalConnections ?? []).map(
+            ({ connectionSlug }) => connectionSlug,
+        ),
+    );
+    if (linkedSlugs.size === 0) return [];
+
+    const response = await (args.fetchFn ?? fetch)(
+        new URL(
+            `/api/v1/ee/projects/${args.projectUuid}/external-connections`,
+            args.serverUrl,
+        ),
+        {
+            headers: {
+                Authorization: args.authorization,
+                ...(args.proxyAuthorization
+                    ? { 'Proxy-Authorization': args.proxyAuthorization }
+                    : {}),
+            },
+        },
+    );
+    if (!response.ok) {
+        throw new Error(
+            `Could not resolve browser image origins for local preview (${response.status}).`,
+        );
+    }
+    const payload: unknown = await response.json();
+    if (
+        typeof payload !== 'object' ||
+        payload === null ||
+        !('results' in payload) ||
+        !Array.isArray(payload.results)
+    ) {
+        return [];
+    }
+
+    return [
+        ...new Set(
+            payload.results.flatMap((connection) => {
+                if (
+                    typeof connection !== 'object' ||
+                    connection === null ||
+                    !('slug' in connection) ||
+                    typeof connection.slug !== 'string' ||
+                    !linkedSlugs.has(connection.slug) ||
+                    !('allowBrowserImages' in connection) ||
+                    connection.allowBrowserImages !== true ||
+                    !('type' in connection) ||
+                    connection.type !== 'none' ||
+                    !('origin' in connection) ||
+                    typeof connection.origin !== 'string'
+                ) {
+                    return [];
+                }
+
+                let originUrl: URL;
+                try {
+                    originUrl = new URL(connection.origin);
+                } catch {
+                    return [];
+                }
+                if (
+                    originUrl.protocol !== 'https:' ||
+                    originUrl.username ||
+                    originUrl.password ||
+                    (originUrl.pathname && originUrl.pathname !== '/') ||
+                    originUrl.search ||
+                    originUrl.hash ||
+                    !originUrl.hostname
+                ) {
+                    return [];
+                }
+                return [originUrl.origin];
+            }),
+        ),
+    ].sort();
 };
 
 /**
@@ -82,7 +178,9 @@ export const assertScaffoldingSupportsPreviewProxy = async (
         .catch(() => '');
     if (!viteConfig.includes('LIGHTDASH_PREVIEW_PROXY_TARGET')) {
         throw new Error(
-            `This app's scaffolding predates the secure preview proxy. Re-download the app ('lightdash download --apps <appUuid>') to refresh vite.config.js, then run preview again.`,
+            `This app's scaffolding predates the secure preview proxy. Re-download the app ('lightdash download --apps ${path.basename(
+                appDir,
+            )}') to refresh vite.config.js, then run preview again.`,
         );
     }
 };
@@ -90,15 +188,15 @@ export const assertScaffoldingSupportsPreviewProxy = async (
 export const resolvePreviewTarget = async (args: {
     pathArg?: string;
     projectFlag?: string;
+    currentProjectUuid?: string;
     cwd: string;
 }): Promise<{ appDir: string; projectUuid: string }> => {
     const appDir = args.pathArg
         ? path.resolve(args.cwd, args.pathArg)
         : args.cwd;
 
-    let manifest: DataAppManifest;
     try {
-        manifest = await readManifestFromDir(appDir);
+        await readManifestFromDir(appDir);
     } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
             throw new Error(
@@ -108,24 +206,137 @@ export const resolvePreviewTarget = async (args: {
         throw err;
     }
 
+    const projectUuid = args.projectFlag ?? args.currentProjectUuid;
+    if (projectUuid === undefined) {
+        throw new Error(
+            `No project selected. Pass '--project <uuid or slug>' or run 'lightdash config set-project' first.`,
+        );
+    }
+
     return {
         appDir,
-        projectUuid: args.projectFlag ?? manifest.projectUuid,
+        projectUuid,
     };
 };
+
+const hasNodeModules = async (appDir: string): Promise<boolean> =>
+    fs
+        .stat(path.join(appDir, 'node_modules'))
+        .then((s) => s.isDirectory())
+        .catch(() => false);
 
 export const assertNodeModulesPresent = async (
     appDir: string,
 ): Promise<void> => {
-    const isDir = await fs
-        .stat(path.join(appDir, 'node_modules'))
-        .then((s) => s.isDirectory())
-        .catch(() => false);
-    if (!isDir) {
+    if (!(await hasNodeModules(appDir))) {
         throw new Error(
-            `Dependencies are not installed. Run 'npm install' in ${appDir} first (preview does not auto-install).`,
+            `Dependencies are not installed. Run 'npm install' in ${appDir} first, or rerun with --assume-yes to approve the install.`,
         );
     }
+};
+
+const readDirectPackages = async (appDir: string): Promise<string[]> => {
+    let raw: string;
+    try {
+        raw = await fs.readFile(path.join(appDir, 'package.json'), 'utf-8');
+    } catch {
+        return [];
+    }
+    try {
+        const parsed = JSON.parse(raw) as {
+            dependencies?: Record<string, string>;
+            devDependencies?: Record<string, string>;
+        };
+        return Object.entries({
+            ...parsed.dependencies,
+            ...parsed.devDependencies,
+        })
+            .map(([packageName, version]) => `${packageName}@${version}`)
+            .sort();
+    } catch {
+        return [];
+    }
+};
+
+/**
+ * Preview needs the app's packages on disk. Mirrors the `apps create`
+ * approval posture: a strong warning plus a two-step confirm (both
+ * defaulting to No) before anything is downloaded to this machine.
+ */
+export const ensureNodeModules = async (args: {
+    appDir: string;
+    assumeYes: boolean;
+}): Promise<void> => {
+    if (await hasNodeModules(args.appDir)) return;
+
+    const interactive =
+        !GlobalState.isNonInteractive() &&
+        process.stdin.isTTY === true &&
+        process.stdout.isTTY === true;
+    if (!args.assumeYes && !interactive) {
+        await assertNodeModulesPresent(args.appDir);
+        return;
+    }
+
+    GlobalState.log(
+        styles.warning(
+            [
+                '⚠ Local package installation',
+                'Previewing this app requires its npm packages, which are not installed yet. Continuing downloads third-party packages through npm into the app folder.',
+                'Dependency lifecycle scripts are disabled, but npm will access the network and write files on this machine.',
+                'Only continue if you trust the packages this app declares.',
+            ].join('\n'),
+        ),
+    );
+    if (!args.assumeYes) {
+        const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([
+            {
+                type: 'confirm',
+                name: 'confirmed',
+                message: 'Continue and review the packages to be installed?',
+                default: false,
+            },
+        ]);
+        if (!confirmed) {
+            throw new Error('Preview cancelled.');
+        }
+    }
+
+    const directPackages = await readDirectPackages(args.appDir);
+    GlobalState.log(
+        [
+            'Previewing this data app will install these direct npm packages:',
+            ...directPackages.map((packageSpec) => `  - ${packageSpec}`),
+            '\nDependency lifecycle scripts will be disabled.',
+        ].join('\n'),
+    );
+    if (!args.assumeYes) {
+        const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([
+            {
+                type: 'confirm',
+                name: 'confirmed',
+                message: 'Install these packages and start the preview?',
+                default: false,
+            },
+        ]);
+        if (!confirmed) {
+            throw new Error('Preview cancelled.');
+        }
+    }
+
+    await execa(
+        'npm',
+        ['install', '--include=dev', '--ignore-scripts', '--no-package-lock'],
+        {
+            cwd: args.appDir,
+            env: {
+                ...process.env,
+                npm_config_ignore_scripts: 'true',
+                npm_config_package_lock: 'false',
+            },
+            stdio: 'inherit',
+        },
+    );
 };
 
 /**
@@ -213,7 +424,22 @@ type AppsPreviewOptions = {
     project?: string;
     url?: string;
     token?: string;
+    port?: string;
+    assumeYes: boolean;
     verbose: boolean;
+};
+
+export const resolvePreviewPort = (
+    raw: string | undefined,
+): number | undefined => {
+    if (raw === undefined) return undefined;
+    const port = Number(raw);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new ParameterError(
+            `--port must be an integer between 1 and 65535, got "${raw}".`,
+        );
+    }
+    return port;
 };
 
 export const appsPreviewHandler = async (
@@ -221,6 +447,7 @@ export const appsPreviewHandler = async (
     options: AppsPreviewOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+    const devServerPort = resolvePreviewPort(options.port);
 
     const config = await getConfig();
     const serverUrl = options.url ?? config.context?.serverUrl;
@@ -246,10 +473,17 @@ export const appsPreviewHandler = async (
 
     const target = await resolvePreviewTarget({
         pathArg,
-        projectFlag: options.project,
+        projectFlag: options.project
+            ? await resolveProjectFlag(options.project)
+            : undefined,
+        currentProjectUuid: config.context?.project,
         cwd: process.cwd(),
     });
-    await assertNodeModulesPresent(target.appDir);
+    const manifest = await readManifestFromDir(target.appDir);
+    await ensureNodeModules({
+        appDir: target.appDir,
+        assumeYes: options.assumeYes,
+    });
 
     await assertScaffoldingSupportsPreviewProxy(target.appDir);
 
@@ -280,6 +514,13 @@ export const appsPreviewHandler = async (
             }),
         );
     }
+    const browserImageOrigins = await fetchBrowserImageOrigins({
+        manifest,
+        projectUuid: target.projectUuid,
+        serverUrl,
+        authorization,
+        proxyAuthorization,
+    });
 
     // Previous versions persisted this credential in .env.local. Remove only
     // that obsolete entry, preserving any unrelated user-managed settings.
@@ -301,27 +542,42 @@ export const appsPreviewHandler = async (
     });
 
     GlobalState.log(
-        `Preview proxy on 127.0.0.1:${proxy.port} — your credential is not passed to the app; SDK traffic is restricted to project ${target.projectUuid}.`,
+        `Auth proxy on 127.0.0.1:${proxy.port} (not the app URL) — your credential is not passed to the app; SDK traffic is restricted to project ${target.projectUuid}.`,
     );
     GlobalState.log(
         styles.warning(
             `Preview renders YOUR data with YOUR permissions and user attributes — viewers of the deployed app may see different data.`,
         ),
     );
-    GlobalState.log(`Starting dev server (Ctrl-C to stop)…`);
+    GlobalState.log(
+        devServerPort !== undefined
+            ? `Starting dev server — open http://localhost:${devServerPort} when it's ready (Ctrl-C to stop)…`
+            : `Starting dev server — open the "Local" URL it prints below (Ctrl-C to stop)…`,
+    );
 
     try {
-        await execa('npm', ['run', 'dev'], {
-            cwd: target.appDir,
-            stdio: 'inherit',
-            extendEnv: false,
-            env: buildPreviewChildEnv({
-                serverUrl,
-                projectUuid: target.projectUuid,
-                proxyPort: proxy.port,
-                proxyNonce,
-            }),
-        });
+        await execa(
+            'npm',
+            [
+                'run',
+                'dev',
+                ...(devServerPort !== undefined
+                    ? ['--', '--port', String(devServerPort), '--strictPort']
+                    : []),
+            ],
+            {
+                cwd: target.appDir,
+                stdio: 'inherit',
+                extendEnv: false,
+                env: buildPreviewChildEnv({
+                    serverUrl,
+                    projectUuid: target.projectUuid,
+                    proxyPort: proxy.port,
+                    proxyNonce,
+                    browserImageOrigins,
+                }),
+            },
+        );
     } catch (e) {
         if (!isUserStoppedDevServer(e)) {
             throw e;

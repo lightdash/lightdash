@@ -1,22 +1,23 @@
 import { type PinnedItems } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine-8/core';
-import { IconClock, IconPin } from '@tabler/icons-react';
+import { Box, Stack } from '@mantine/core';
+import { IconClock, IconFlame, IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
-import useApp from '../../../providers/App/useApp';
 import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { BlockHeader } from './blocks/BlockShell';
 import { ContentCard } from './blocks/ContentCard';
 import { PersonalFavoritesBar } from './blocks/FavoritesBlock';
+import { GreetingHero } from './blocks/GreetingHero';
 import { KeySpaces } from './blocks/KeySpaces';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { QuickActionCards } from './blocks/QuickActionsBlock';
 import { RecentList } from './blocks/RecentBlock';
 import classes from './DayOneHomepage.module.css';
-import { getGreeting } from './greeting';
+import { DEFAULT_GREETING_SUBTITLE } from './greeting';
 import layout from './homepageLayout.module.css';
 import { useCollectionContent } from './hooks/useCollectionContent';
-import { useHomepageAiState } from './hooks/useHomepageAiState';
+import { useCollectionSourceContent } from './hooks/useCollectionSourceContent';
 import { useKeySpaces } from './hooks/useKeySpaces';
+import { useHomepageOpening } from './hooks/useOrgHomepageSettings';
 import { useRecentContents } from './hooks/useRecentContents';
 
 type Props = {
@@ -36,10 +37,61 @@ const PinnedCollection: FC<{
     if (!contents || contents.length === 0) return null;
 
     return (
+        <Box
+            // Scope-tour marker: the same pinned surface as PinnedItemsPanel
+            // on the legacy homepage, so both mark step 1 of manage:PinnedItems
+            // (the generator treats agreeing markers as alternates).
+            data-tour-scope="manage:PinnedItems"
+            data-tour-step="1"
+            data-tour-route="/projects/:projectUuid/home"
+            data-tour-label="Pinned content appears on the homepage"
+            data-tour-docs="explore/homepage.mdx#pin-content:1"
+            data-tour-resultdocs="explore/homepage.mdx#pin-content:p2:1"
+        >
+            {/* Inner surface: the same block is the result of view:PinnedItems
+                (reading what was pinned), one scope per element. */}
+            <Box
+                data-tour-scope="view:PinnedItems"
+                data-tour-step="1"
+                data-tour-route="/projects/:projectUuid/home"
+                data-tour-label="Pinned content is where your data team wants you to start"
+                data-tour-docs="explore/search.mdx#browsing-instead-of-searching:1-2"
+                data-tour-return='[data-tour-nav="home"]'
+                data-tour-resultdocs="explore/homepage.mdx#pin-content:1"
+            >
+                <BlockHeader icon={IconPin} title="Pinned" />
+                <Stack gap={8}>
+                    {contents.map((content) => (
+                        <ContentCard
+                            key={content.uuid}
+                            content={content}
+                            projectUuid={projectUuid}
+                            tourAnchor="pinned-item"
+                        />
+                    ))}
+                </Stack>
+            </Box>
+        </Box>
+    );
+};
+
+/** The project's most viewed content, resolved through the same live source
+ * the Collection block offers — day-0 shows what the org actually uses. */
+const MostPopularSection: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const { items } = useCollectionSourceContent(projectUuid, {
+        title: 'Most popular',
+        source: 'most-viewed',
+        items: [],
+        limit: 4,
+    });
+
+    if (items.length === 0) return null;
+
+    return (
         <Box>
-            <BlockHeader icon={IconPin} title="Pinned" />
+            <BlockHeader icon={IconFlame} title="Most popular" />
             <Stack gap={8}>
-                {contents.map((content) => (
+                {items.map((content) => (
                     <ContentCard
                         key={content.uuid}
                         content={content}
@@ -56,8 +108,7 @@ const PinnedCollection: FC<{
 const MAX_KEY_SPACES = 4;
 
 export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
-    const { user } = useApp();
-    const { canAskAi } = useHomepageAiState(projectUuid);
+    const { opening } = useHomepageOpening(projectUuid);
     const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_KEY_SPACES);
     const recent = useRecentContents(projectUuid);
     // Keep the header while loading so the section doesn't pop in under the
@@ -77,7 +128,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                 data-presentation="shared"
                 data-density="compact"
             >
-                {canAskAi ? (
+                {opening === 'ask-first' ? (
                     <div className={layout.hero}>
                         <AskAiHero
                             projectUuid={projectUuid}
@@ -88,24 +139,14 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                 ) : (
                     // Same hero shell and type scale as the Ask AI variant, so
                     // both day-0 openings sit identically in the fold
-                    <Stack className={layout.hero} gap={16} align="center">
-                        <Box ta="center">
-                            <Text
-                                component="h1"
-                                className={layout.heroGreeting}
-                            >
-                                {getGreeting(user.data?.firstName)}
-                            </Text>
-                            <Text className={layout.heroGreetingSub}>
-                                Pick up where you left off, or start something
-                                new.
-                            </Text>
-                        </Box>
-                        <QuickActionCards
-                            actions={getDefaultQuickActions(false)}
-                            projectUuid={projectUuid}
-                        />
-                    </Stack>
+                    <div className={layout.hero}>
+                        <GreetingHero subtitle={DEFAULT_GREETING_SUBTITLE}>
+                            <QuickActionCards
+                                actions={getDefaultQuickActions()}
+                                projectUuid={projectUuid}
+                            />
+                        </GreetingHero>
+                    </div>
                 )}
             </div>
 
@@ -130,6 +171,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                             <RecentList projectUuid={projectUuid} />
                         </Box>
                     )}
+                    <MostPopularSection projectUuid={projectUuid} />
                     <PinnedCollection
                         projectUuid={projectUuid}
                         pinnedItems={pinnedItems}

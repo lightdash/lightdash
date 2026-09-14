@@ -1,4 +1,4 @@
-import { Button, Card, LoadingOverlay } from '@mantine-8/core';
+import { Button, Card, LoadingOverlay } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
@@ -33,7 +33,7 @@ const CompilationHistory: FC<CompilationHistoryProps> = ({ projectUuid }) => {
 
             <SettingsPage
                 title="Compilation history"
-                description="Review recent dbt compilation runs for this project."
+                description="Review recent compilation runs for this project."
                 actions={
                     <Button
                         onClick={handleRefresh}

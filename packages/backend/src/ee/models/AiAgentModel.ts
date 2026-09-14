@@ -1,5 +1,9 @@
 import {
     AgentToolOutput,
+    AI_DATA_APP_BUILD_PENDING_GRACE_MS,
+    AI_DEEP_RESEARCH_TERMINAL_STATUSES,
+    AI_WRITEBACK_PENDING_GRACE_MS,
+    AI_WRITEBACK_RUN_TERMINAL_STATUSES,
     AiAgentAdminConversationsSummary,
     AiAgentAdminEvalFilters,
     AiAgentAdminEvalPrompt,
@@ -30,6 +34,7 @@ import {
     AiAgentUserPreferences,
     AiArtifact,
     AiClonedThreadCreatedFrom,
+    AiDuplicateSlackPromptError,
     AiEvalRunResultAssessment,
     AiMcpCredentialScope,
     AiMcpServer,
@@ -39,6 +44,7 @@ import {
     AiPromptContext,
     AiPromptContextInput,
     AiPromptContextItem,
+    AiPromptExternalSourceSnapshot,
     AiPromptProposedChangePayload,
     AiPromptSteer,
     AiResultType,
@@ -61,10 +67,18 @@ import {
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
+    elementReferenceToWireString,
     generateSlug,
+    getAppDisplayName,
+    getExpiredGenerateDataAppBuildOutcome,
+    getExternalSourceDisplayName,
+    getGenerateDataAppBuildOutcome,
     isAiAgentMcpToolName,
     isAiAgentToolName,
+    isAiWritebackRunInProgress,
     isThreadPrompt,
+    isToolDataAppBuildResult,
+    isToolEditDbtProjectResult,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -86,6 +100,8 @@ import {
     type AiAgentIntegration,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
+    type ToolEditDbtProjectOutput,
+    type ToolGenerateDataAppOutput,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -93,10 +109,22 @@ import moment from 'moment';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
 import {
+    AppsTableName,
+    AppVersionsTableName,
+    type DbApp,
+    type DbAppVersion,
+} from '../../database/entities/apps';
+import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
 import { DbEmail, EmailTableName } from '../../database/entities/emails';
+import {
+    DbExternalSource,
+    DbExternalSourceTable,
+    ExternalSourcesTableName,
+    ExternalSourceTablesTableName,
+} from '../../database/entities/externalSources';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
 import {
     SavedChartsTableName,
@@ -114,8 +142,12 @@ import {
     AiAgentToolCallErrorTableName,
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
+    AiOrganizationSettingsTableName,
     AiPromptContextEntityType,
     AiPromptContextTableName,
+    AiPromptDataAppElementSnapshot,
+    AiPromptDataAppRestoreSnapshot,
+    AiPromptDataAppSnapshot,
     AiPromptInterruptTableName,
     AiPromptSteerTableName,
     AiPromptTableName,
@@ -127,6 +159,7 @@ import {
     AiThreadTableName,
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
+    AiWritebackRunTableName,
     DbAiAgentToolCall,
     DbAiAgentToolResult,
     DbAiPrompt,
@@ -140,6 +173,9 @@ import {
     DbAiThreadCompaction,
     DbAiThreadShare,
     DbAiWebAppPrompt,
+    DbAiWritebackRun,
+    type AiPromptClassifierNeedsUserInputMetadata,
+    type AiPromptStructuredNeedsUserInputMetadata,
     type AiSqlApprovalDecision,
 } from '../database/entities/ai';
 import {
@@ -167,6 +203,7 @@ import {
     DbAiMcpServerCredential,
     DbAiMcpServerTool,
 } from '../database/entities/aiAgent';
+import { AiAgentMemoryTableName } from '../database/entities/aiAgentMemory';
 import { AiAgentUserPreferencesTableName } from '../database/entities/aiAgentUserPreferences';
 import {
     AiArtifactsTable,
@@ -178,6 +215,7 @@ import {
     DbAiArtifact,
     DbAiArtifactVersion,
 } from '../database/entities/aiArtifacts';
+import { AiDeepResearchRunsTableName } from '../database/entities/aiDeepResearch';
 import {
     AiEvalPromptTableName,
     AiEvalRunResultAssessmentTableName,
@@ -190,8 +228,40 @@ import {
     DbAiEvalRunResult,
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
+import { ServiceAccountsTableName } from '../database/entities/serviceAccounts';
 import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
+import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
+import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
+import { AI_AGENT_THREAD_PENDING_TIMEOUT_MS } from './aiAgentConstants';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
+import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
+
+export type AiPromptResponseState = {
+    respondedAt: string | null;
+    response: string | null;
+    errorMessage: string | null;
+};
+
+const wherePromptResponseState = (
+    query: Knex.QueryBuilder,
+    state: AiPromptResponseState,
+): void => {
+    if (state.respondedAt === null) {
+        query.whereNull('responded_at');
+    } else {
+        query.where('responded_at', state.respondedAt);
+    }
+    if (state.response === null) {
+        query.whereNull('response');
+    } else {
+        query.where('response', state.response);
+    }
+    if (state.errorMessage === null) {
+        query.whereNull('error_message');
+    } else {
+        query.where('error_message', state.errorMessage);
+    }
+};
 
 type Dependencies = {
     database: Knex;
@@ -274,6 +344,52 @@ type DbAiAgentToolCallWithMcpServer = DbAiAgentToolCall & {
     mcp_server_icon_url: string | null;
 };
 
+export type AiAgentThreadDumpData = {
+    thread: {
+        threadUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string | null;
+        createdFrom: AiThreadCreatedFrom;
+        title: string | null;
+        createdAt: Date;
+        userUuid: string | null;
+    };
+    turns: Array<{
+        promptUuid: string;
+        createdAt: Date;
+        respondedAt: Date | null;
+        hidden: boolean;
+        userText: string;
+        assistantText: string | null;
+        errorMessage: string | null;
+        interrupted: boolean;
+        feedback: { score: number; comment: string | null } | null;
+        steers: string[];
+        modelConfig: DbAiPrompt['model_config'];
+        tokenUsage: DbAiPrompt['token_usage'];
+        toolCalls: Array<{
+            toolCallId: string;
+            parentToolCallId: string | null;
+            name: string;
+            args: unknown;
+            result: string | null;
+            isError: boolean;
+            source: 'lightdash' | 'mcp';
+        }>;
+        artifacts: Array<{
+            artifactUuid: string;
+            versionUuid: string;
+            versionNumber: number;
+            artifactType: 'chart' | 'dashboard';
+            title: string | null;
+            description: string | null;
+            chartConfig: Record<string, unknown> | null;
+            dashboardConfig: Record<string, unknown> | null;
+        }>;
+    }>;
+};
+
 export type CreateAiThreadShareResult = {
     uuid: string;
     nanoid: string;
@@ -295,6 +411,7 @@ type AiThreadSummaryRow = Pick<
     | 'created_from'
     | 'title'
     | 'title_generated_at'
+    | 'pinned_at'
 > &
     Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> & {
         user_uuid: DbUser['user_uuid'] | null;
@@ -303,6 +420,25 @@ type AiThreadSummaryRow = Pick<
         agent_name: string | null;
         agent_image_url: string | null;
     };
+
+type AiAgentThreadLiveStateRow = {
+    thread_uuid: string;
+    thread_created_at: Date;
+    prompt_created_at: Date | null;
+    prompt_retried_at: Date | null;
+    prompt_responded_at: Date | null;
+    prompt_response: string | null;
+    prompt_error_message: string | null;
+    prompt_interrupted_at: Date | null;
+    prompt_needs_user_input: boolean | null;
+    run_sql_tool_call_created_at: Date | null;
+    run_sql_tool_result_uuid: string | null;
+    run_sql_approval_decision: AiSqlApprovalDecision | null;
+    pending_writeback_created_at: Date | null;
+    deep_research_status: 'queued' | 'running' | null;
+    deep_research_created_at: Date | null;
+    deep_research_started_at: Date | null;
+};
 
 // Tool names persisted before a tool was renamed. Normalised at the read
 // boundary so historical rows parse as the current tool name and everything
@@ -340,6 +476,84 @@ const toAiPromptSteer = (row: AiPromptSteerRow): AiPromptSteer => ({
     consumedAt: row.consumed_at?.toISOString() ?? null,
     consumedStep: row.consumed_step,
 });
+
+const getWritebackResultKey = (promptUuid: string, toolCallId: string) =>
+    JSON.stringify([promptUuid, toolCallId]);
+
+type EditDbtProjectToolResult = AiAgentToolResult & {
+    toolType: 'built-in';
+    toolName: 'editDbtProject';
+    metadata: ToolEditDbtProjectOutput['metadata'];
+};
+
+type PendingEditDbtProjectToolResult = EditDbtProjectToolResult & {
+    metadata: Extract<
+        ToolEditDbtProjectOutput['metadata'],
+        { status: 'pending' }
+    >;
+};
+
+type TerminalEditDbtProjectResult = {
+    result: string;
+    metadata: Exclude<
+        ToolEditDbtProjectOutput['metadata'],
+        { status: 'pending' }
+    >;
+};
+
+const isEditDbtProjectToolResult = (
+    result: AiAgentToolResult,
+): result is EditDbtProjectToolResult => isToolEditDbtProjectResult(result);
+
+const isPendingEditDbtProjectToolResult = (
+    result: AiAgentToolResult,
+): result is PendingEditDbtProjectToolResult =>
+    isEditDbtProjectToolResult(result) && result.metadata.status === 'pending';
+
+type PendingDataAppBuildToolResult = AiAgentToolResult & {
+    toolType: 'built-in';
+    toolName: 'generateDataApp' | 'iterateDataApp';
+    metadata: Extract<
+        ToolGenerateDataAppOutput['metadata'],
+        { status: 'pending' }
+    >;
+};
+
+const isPendingDataAppBuildToolResult = (
+    result: AiAgentToolResult,
+): result is PendingDataAppBuildToolResult =>
+    isToolDataAppBuildResult(result) && result.metadata.status === 'pending';
+
+const getTerminalWritebackFallback = (
+    run: DbAiWritebackRun,
+): TerminalEditDbtProjectResult | null => {
+    switch (run.status) {
+        case 'ready':
+            return {
+                result: run.pr_url
+                    ? 'The writeback finished and opened a pull request.'
+                    : 'The writeback finished without opening a pull request.',
+                metadata: {
+                    status: 'success',
+                    prUrl: run.pr_url,
+                },
+            };
+        case 'cancelled':
+            return {
+                result: 'The writeback was cancelled.',
+                metadata: { status: 'error', errorCode: 'unknown' },
+            };
+        case 'error':
+            return {
+                result:
+                    run.error_message ??
+                    'The writeback stopped unexpectedly before it finished.',
+                metadata: { status: 'error', errorCode: 'unknown' },
+            };
+        default:
+            return null;
+    }
+};
 
 export class AiAgentModel {
     // Cap stored raw args of invalid tool calls (they can be arbitrarily large)
@@ -483,9 +697,11 @@ export class AiAgentModel {
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
+                enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
+                threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -621,9 +837,11 @@ export class AiAgentModel {
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
+                enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
+                threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -706,6 +924,8 @@ export class AiAgentModel {
                 | 'enableSelfImprovement'
                 | 'enableContentTools'
                 | 'enableUserContext'
+                | 'enableSqlMode'
+                | 'threadRetentionHours'
                 | 'modelConfig'
                 | 'updatedAt'
             > & { uuid: string }
@@ -736,6 +956,8 @@ export class AiAgentModel {
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
+                enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
+                threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 instruction: this.database.raw(`
@@ -1896,10 +2118,12 @@ export class AiAgentModel {
             | 'enableSelfImprovement'
             | 'enableContentTools'
             | 'enableUserContext'
+            | 'enableSqlMode'
             | 'adminOnly'
             | 'modelConfig'
             | 'version'
             | 'mcpServerUuids'
+            | 'threadRetentionHours'
         > & {
             organizationUuid: string;
             isSystem?: boolean;
@@ -1930,10 +2154,12 @@ export class AiAgentModel {
                     enable_self_improvement: args.enableSelfImprovement,
                     enable_content_tools: args.enableContentTools ?? false,
                     enable_user_context: args.enableUserContext ?? false,
+                    enable_sql_mode: args.enableSqlMode ?? true,
                     admin_only: args.adminOnly ?? false,
                     model_config: args.modelConfig ?? null,
                     version: args.version,
                     is_system: args.isSystem ?? false,
+                    thread_retention_hours: args.threadRetentionHours ?? null,
                 })
                 .returning('*');
 
@@ -2034,9 +2260,11 @@ export class AiAgentModel {
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
                 enableUserContext: agent.enable_user_context,
+                enableSqlMode: agent.enable_sql_mode,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 version: agent.version,
+                threadRetentionHours: agent.thread_retention_hours,
             };
         });
     }
@@ -2089,6 +2317,7 @@ export class AiAgentModel {
                 enableSelfImprovement: false,
                 enableContentTools: false,
                 enableUserContext: false,
+                enableSqlMode: true,
                 modelConfig: null,
                 version: 1,
                 mcpServerUuids: [],
@@ -2153,6 +2382,9 @@ export class AiAgentModel {
                     ...(args.enableUserContext !== undefined
                         ? { enable_user_context: args.enableUserContext }
                         : {}),
+                    ...(args.enableSqlMode !== undefined
+                        ? { enable_sql_mode: args.enableSqlMode }
+                        : {}),
                     ...(args.adminOnly !== undefined
                         ? { admin_only: args.adminOnly }
                         : {}),
@@ -2161,6 +2393,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.version !== undefined
                         ? { version: args.version }
+                        : {}),
+                    ...(args.threadRetentionHours !== undefined
+                        ? { thread_retention_hours: args.threadRetentionHours }
                         : {}),
                 })
                 .returning('*');
@@ -2327,9 +2562,11 @@ export class AiAgentModel {
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
                 enableUserContext: agent.enable_user_context,
+                enableSqlMode: agent.enable_sql_mode,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 version: agent.version,
+                threadRetentionHours: agent.thread_retention_hours,
             };
         });
     }
@@ -2788,6 +3025,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.created_from`,
                 `${AiThreadTableName}.title`,
                 `${AiThreadTableName}.title_generated_at`,
+                `${AiThreadTableName}.pinned_at`,
                 `${AiPromptTableName}.prompt`,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${UserTableName}.user_uuid`,
@@ -2815,6 +3053,7 @@ export class AiAgentModel {
             createdFrom: row.created_from,
             title: row.title,
             titleGeneratedAt: row.title_generated_at?.toString() ?? null,
+            pinnedAt: row.pinned_at?.toString() ?? null,
             firstMessage: {
                 uuid: row.ai_prompt_uuid,
                 message: row.prompt,
@@ -2824,7 +3063,194 @@ export class AiAgentModel {
                 name: row.user_name || 'Unknown user',
                 slackUserId: row.slack_user_id,
             },
+            liveStatus: null,
         };
+    }
+
+    async findThreadLiveStateSignals({
+        organizationUuid,
+        threadUuids,
+        projectUuid,
+        userUuid,
+        agentUuids,
+    }: {
+        organizationUuid: string;
+        threadUuids: string[];
+        projectUuid: string | null;
+        userUuid: string | null;
+        agentUuids: string[] | null;
+    }): Promise<AiAgentThreadLiveStateSignals[]> {
+        if (threadUuids.length === 0) {
+            return [];
+        }
+
+        const writebackTerminalStatusPlaceholders =
+            AI_WRITEBACK_RUN_TERMINAL_STATUSES.map(() => '?').join(', ');
+        const query = this.database(`${AiThreadTableName} as live_thread`)
+            .joinRaw(
+                `LEFT JOIN LATERAL (
+                    SELECT first_prompt.created_by_user_uuid
+                    FROM ${AiPromptTableName} as first_prompt
+                    WHERE first_prompt.ai_thread_uuid = live_thread.ai_thread_uuid
+                    ORDER BY first_prompt.created_at ASC
+                    LIMIT 1
+                ) as owner_prompt ON true`,
+            )
+            .joinRaw(
+                `LEFT JOIN LATERAL (
+                    SELECT
+                        latest_prompt.ai_prompt_uuid,
+                        latest_prompt.created_at,
+                        latest_prompt.retried_at,
+                        latest_prompt.responded_at,
+                        latest_prompt.response,
+                        latest_prompt.error_message,
+                        latest_prompt.needs_user_input,
+                        prompt_interrupt.created_at as interrupted_at,
+                        latest_prompt.created_by_user_uuid
+                    FROM ${AiPromptTableName} as latest_prompt
+                    LEFT JOIN ${AiPromptInterruptTableName} as prompt_interrupt
+                        ON prompt_interrupt.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
+                    WHERE latest_prompt.ai_thread_uuid = live_thread.ai_thread_uuid
+                    ORDER BY latest_prompt.created_at DESC
+                    LIMIT 1
+                ) as latest_prompt ON true`,
+            )
+            .joinRaw(
+                `LEFT JOIN LATERAL (
+                    SELECT
+                        tool_call.created_at,
+                        tool_result.ai_agent_tool_result_uuid,
+                        sql_approval.decision
+                    FROM ${AiAgentToolCallTableName} as tool_call
+                    LEFT JOIN ${AiAgentToolResultTableName} as tool_result
+                        ON tool_result.ai_prompt_uuid = tool_call.ai_prompt_uuid
+                        AND tool_result.tool_call_id = tool_call.tool_call_id
+                    LEFT JOIN ${AiSqlApprovalTableName} as sql_approval
+                        ON sql_approval.tool_call_id = tool_call.tool_call_id
+                    WHERE tool_call.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
+                        AND tool_call.tool_name = 'runSql'
+                    ORDER BY tool_call.created_at DESC
+                ) as run_sql_tool_calls ON true`,
+            )
+            .joinRaw(
+                `LEFT JOIN LATERAL (
+                    SELECT
+                        deep_research_run.status,
+                        deep_research_run.created_at,
+                        deep_research_run.started_at
+                    FROM ${AiDeepResearchRunsTableName} as deep_research_run
+                    WHERE deep_research_run.ai_thread_uuid = live_thread.ai_thread_uuid
+                        AND (
+                            (
+                                deep_research_run.status = 'queued'
+                                AND deep_research_run.created_at >= now() - (? * interval '1 minute')
+                            )
+                            OR (
+                                deep_research_run.status = 'running'
+                                AND deep_research_run.updated_at >= now() - (? * interval '1 minute')
+                            )
+                        )
+                    ORDER BY deep_research_run.created_at DESC
+                    LIMIT 1
+                ) as active_deep_research ON true`,
+                [
+                    AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES,
+                    AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES,
+                ],
+            )
+            .joinRaw(
+                `LEFT JOIN LATERAL (
+                    SELECT tool_result.created_at
+                    FROM ${AiAgentToolResultTableName} as tool_result
+                    INNER JOIN ${AiWritebackRunTableName} as writeback_run
+                        ON writeback_run.ai_writeback_run_uuid::text = tool_result.metadata->>'aiWritebackRunUuid'
+                        AND writeback_run.tool_call_id = tool_result.tool_call_id
+                    WHERE tool_result.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
+                        AND tool_result.tool_name IN ('editDbtProject', 'proposeWriteback')
+                        AND tool_result.metadata->>'status' = 'pending'
+                        AND writeback_run.status NOT IN (${writebackTerminalStatusPlaceholders})
+                    ORDER BY tool_result.created_at DESC
+                    LIMIT 1
+                ) as pending_writeback ON true`,
+                [...AI_WRITEBACK_RUN_TERMINAL_STATUSES],
+            )
+            .select<AiAgentThreadLiveStateRow[]>(
+                'live_thread.ai_thread_uuid as thread_uuid',
+                'live_thread.created_at as thread_created_at',
+                'latest_prompt.created_at as prompt_created_at',
+                'latest_prompt.retried_at as prompt_retried_at',
+                'latest_prompt.responded_at as prompt_responded_at',
+                'latest_prompt.response as prompt_response',
+                'latest_prompt.error_message as prompt_error_message',
+                'latest_prompt.interrupted_at as prompt_interrupted_at',
+                'latest_prompt.needs_user_input as prompt_needs_user_input',
+                'run_sql_tool_calls.created_at as run_sql_tool_call_created_at',
+                'run_sql_tool_calls.ai_agent_tool_result_uuid as run_sql_tool_result_uuid',
+                'run_sql_tool_calls.decision as run_sql_approval_decision',
+                'pending_writeback.created_at as pending_writeback_created_at',
+                'active_deep_research.status as deep_research_status',
+                'active_deep_research.created_at as deep_research_created_at',
+                'active_deep_research.started_at as deep_research_started_at',
+            )
+            .where('live_thread.organization_uuid', organizationUuid)
+            .whereIn('live_thread.ai_thread_uuid', threadUuids);
+
+        if (projectUuid !== null) {
+            void query.where('live_thread.project_uuid', projectUuid);
+        }
+        if (userUuid !== null) {
+            void query.where('owner_prompt.created_by_user_uuid', userUuid);
+        }
+        if (agentUuids !== null) {
+            void query.whereIn('live_thread.agent_uuid', agentUuids);
+        }
+
+        const rows = await query;
+
+        const signalsByThreadUuid = new Map<
+            string,
+            AiAgentThreadLiveStateSignals
+        >();
+        rows.forEach((row) => {
+            const signals = signalsByThreadUuid.get(row.thread_uuid) ?? {
+                threadUuid: row.thread_uuid,
+                threadCreatedAt: row.thread_created_at,
+                latestPrompt:
+                    row.prompt_created_at === null
+                        ? null
+                        : {
+                              createdAt: row.prompt_created_at,
+                              retriedAt: row.prompt_retried_at,
+                              respondedAt: row.prompt_responded_at,
+                              response: row.prompt_response,
+                              errorMessage: row.prompt_error_message,
+                              interruptedAt: row.prompt_interrupted_at,
+                              needsUserInput: row.prompt_needs_user_input,
+                          },
+                runSqlToolCalls: [],
+                pendingWritebackCreatedAt: row.pending_writeback_created_at,
+                activeDeepResearchRun:
+                    row.deep_research_status === null ||
+                    row.deep_research_created_at === null
+                        ? null
+                        : {
+                              status: row.deep_research_status,
+                              createdAt: row.deep_research_created_at,
+                              startedAt: row.deep_research_started_at,
+                          },
+            };
+            if (row.run_sql_tool_call_created_at !== null) {
+                signals.runSqlToolCalls.push({
+                    createdAt: row.run_sql_tool_call_created_at,
+                    toolResultUuid: row.run_sql_tool_result_uuid,
+                    approvalDecision: row.run_sql_approval_decision,
+                });
+            }
+            signalsByThreadUuid.set(row.thread_uuid, signals);
+        });
+
+        return [...signalsByThreadUuid.values()];
     }
 
     async findPinnedThreadContextUuids(threadUuid: string): Promise<string[]> {
@@ -2859,6 +3285,8 @@ export class AiAgentModel {
               projectUuid: string;
               agentUuid: string | null;
               ownerUserUuid: string | null;
+              createdFrom: AiThreadCreatedFrom;
+              ownerIsServiceAccount: boolean;
           }
         | undefined
     > {
@@ -2885,13 +3313,23 @@ export class AiAgentModel {
                     project_uuid: string;
                     agent_uuid: string | null;
                     owner_user_uuid: string | null;
+                    created_from: AiThreadCreatedFrom;
+                    owner_is_service_account: boolean;
                 }[]
             >(
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiThreadTableName}.project_uuid`,
                 `${AiThreadTableName}.agent_uuid`,
+                `${AiThreadTableName}.created_from`,
                 this.database.raw(
                     `COALESCE(first_prompt.created_by_user_uuid, ${AiWebAppThreadTableName}.user_uuid) as owner_user_uuid`,
+                ),
+                this.database.raw(
+                    `EXISTS (
+                        select 1 from ${ServiceAccountsTableName}
+                        where ${ServiceAccountsTableName}.service_account_user_uuid =
+                            COALESCE(first_prompt.created_by_user_uuid, ${AiWebAppThreadTableName}.user_uuid)
+                    ) as owner_is_service_account`,
                 ),
             )
             .first();
@@ -2902,6 +3340,8 @@ export class AiAgentModel {
             projectUuid: row.project_uuid,
             agentUuid: row.agent_uuid,
             ownerUserUuid: row.owner_user_uuid,
+            createdFrom: row.created_from,
+            ownerIsServiceAccount: row.owner_is_service_account,
         };
     }
 
@@ -2974,7 +3414,16 @@ export class AiAgentModel {
     > {
         const query = this.buildThreadSummaryQuery(organizationUuid)
             .andWhere(`${AiThreadTableName}.project_uuid`, projectUuid)
-            .andWhere(`${UserTableName}.user_uuid`, userUuid);
+            .andWhere(`${UserTableName}.user_uuid`, userUuid)
+            .clearOrder()
+            .orderBy([
+                {
+                    column: `${AiThreadTableName}.pinned_at`,
+                    order: 'desc',
+                    nulls: 'last',
+                },
+                { column: `${AiThreadTableName}.created_at`, order: 'desc' },
+            ]);
 
         if (agentUuids) {
             void query.whereIn(`${AiThreadTableName}.agent_uuid`, agentUuids);
@@ -3607,6 +4056,243 @@ export class AiAgentModel {
         return rows[0];
     }
 
+    async findThreadForDump({
+        threadUuid,
+        organizationUuid,
+    }: {
+        threadUuid: string;
+        organizationUuid: string;
+    }): Promise<AiAgentThreadDumpData | undefined> {
+        const threadRow = await this.database(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .where('organization_uuid', organizationUuid)
+            .first<
+                | {
+                      threadUuid: string;
+                      organizationUuid: string;
+                      projectUuid: string;
+                      agentUuid: string | null;
+                      createdFrom: AiThreadCreatedFrom;
+                      title: string | null;
+                      createdAt: Date;
+                  }
+                | undefined
+            >({
+                threadUuid: 'ai_thread_uuid',
+                organizationUuid: 'organization_uuid',
+                projectUuid: 'project_uuid',
+                agentUuid: 'agent_uuid',
+                createdFrom: 'created_from',
+                title: 'title',
+                createdAt: 'created_at',
+            });
+        if (!threadRow) return undefined;
+
+        const promptRows = await this.database(`${AiPromptTableName} as prompt`)
+            .leftJoin(
+                `${AiPromptInterruptTableName} as interrupt`,
+                'interrupt.ai_prompt_uuid',
+                'prompt.ai_prompt_uuid',
+            )
+            .where('prompt.ai_thread_uuid', threadUuid)
+            .orderBy('prompt.created_at', 'asc')
+            .select<
+                Array<{
+                    promptUuid: string;
+                    createdAt: Date;
+                    respondedAt: Date | null;
+                    hidden: boolean;
+                    userUuid: string | null;
+                    prompt: string;
+                    response: string | null;
+                    errorMessage: string | null;
+                    humanScore: number | null;
+                    humanFeedback: string | null;
+                    modelConfig: DbAiPrompt['model_config'];
+                    tokenUsage: DbAiPrompt['token_usage'];
+                    interruptUuid: string | null;
+                }>
+            >({
+                promptUuid: 'prompt.ai_prompt_uuid',
+                createdAt: 'prompt.created_at',
+                respondedAt: 'prompt.responded_at',
+                hidden: 'prompt.hidden',
+                userUuid: 'prompt.created_by_user_uuid',
+                prompt: 'prompt.prompt',
+                response: 'prompt.response',
+                errorMessage: 'prompt.error_message',
+                humanScore: 'prompt.human_score',
+                humanFeedback: 'prompt.human_feedback',
+                modelConfig: 'prompt.model_config',
+                tokenUsage: 'prompt.token_usage',
+                interruptUuid: 'interrupt.ai_prompt_uuid',
+            });
+        const promptUuids = promptRows.map((row) => row.promptUuid);
+
+        type DumpSteerRow = { promptUuid: string; message: string };
+        const steerRows =
+            promptUuids.length > 0
+                ? await this.database(AiPromptSteerTableName)
+                      .whereIn('ai_prompt_uuid', promptUuids)
+                      .orderBy('created_at', 'asc')
+                      .select<DumpSteerRow[]>({
+                          promptUuid: 'ai_prompt_uuid',
+                          message: 'message',
+                      })
+                : [];
+        const steersByPrompt = steerRows.reduce((map, row) => {
+            map.set(row.promptUuid, [
+                ...(map.get(row.promptUuid) ?? []),
+                row.message,
+            ]);
+            return map;
+        }, new Map<string, string[]>());
+
+        type DumpToolRow = {
+            promptUuid: string;
+            toolCallId: string;
+            parentToolCallId: string | null;
+            name: string;
+            args: unknown;
+            result: string | null;
+            isError: boolean;
+            mcpServerUuid: string | null;
+        };
+        const toolRows: DumpToolRow[] =
+            promptUuids.length > 0
+                ? await this.database(
+                      `${AiAgentToolCallTableName} as tool_call`,
+                  )
+                      .leftJoin(
+                          `${AiAgentToolResultTableName} as tool_result`,
+                          function joinToolResult() {
+                              this.on(
+                                  'tool_result.tool_call_id',
+                                  '=',
+                                  'tool_call.tool_call_id',
+                              ).andOn(
+                                  'tool_result.ai_prompt_uuid',
+                                  '=',
+                                  'tool_call.ai_prompt_uuid',
+                              );
+                          },
+                      )
+                      .whereIn('tool_call.ai_prompt_uuid', promptUuids)
+                      .orderBy('tool_call.created_at', 'asc')
+                      .select({
+                          promptUuid: 'tool_call.ai_prompt_uuid',
+                          toolCallId: 'tool_call.tool_call_id',
+                          parentToolCallId: 'tool_call.parent_tool_call_id',
+                          name: 'tool_call.tool_name',
+                          args: 'tool_call.tool_args',
+                          result: 'tool_result.result',
+                          isError: this.database.raw(
+                              "COALESCE(tool_result.metadata->>'status' = 'error', false)",
+                          ),
+                          mcpServerUuid: 'tool_call.ai_mcp_server_uuid',
+                      })
+                : [];
+        const toolsByPrompt = toolRows.reduce((map, row) => {
+            map.set(row.promptUuid, [...(map.get(row.promptUuid) ?? []), row]);
+            return map;
+        }, new Map<string, DumpToolRow[]>());
+
+        type DumpArtifactRow = {
+            promptUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            versionNumber: number;
+            artifactType: 'chart' | 'dashboard';
+            title: string | null;
+            description: string | null;
+            chartConfig: Record<string, unknown> | null;
+            dashboardConfig: Record<string, unknown> | null;
+        };
+        const artifactRows =
+            promptUuids.length > 0
+                ? await this.database(
+                      `${AiArtifactVersionsTableName} as artifact_version`,
+                  )
+                      .join(
+                          `${AiArtifactsTableName} as artifact`,
+                          'artifact.ai_artifact_uuid',
+                          'artifact_version.ai_artifact_uuid',
+                      )
+                      .whereIn('artifact_version.ai_prompt_uuid', promptUuids)
+                      .orderBy('artifact_version.created_at', 'asc')
+                      .select<DumpArtifactRow[]>({
+                          promptUuid: 'artifact_version.ai_prompt_uuid',
+                          artifactUuid: 'artifact.ai_artifact_uuid',
+                          versionUuid:
+                              'artifact_version.ai_artifact_version_uuid',
+                          versionNumber: 'artifact_version.version_number',
+                          artifactType: 'artifact.artifact_type',
+                          title: 'artifact_version.title',
+                          description: 'artifact_version.description',
+                          chartConfig: 'artifact_version.chart_config',
+                          dashboardConfig: 'artifact_version.dashboard_config',
+                      })
+                : [];
+        const artifactsByPrompt = artifactRows.reduce((map, row) => {
+            map.set(row.promptUuid, [...(map.get(row.promptUuid) ?? []), row]);
+            return map;
+        }, new Map<string, DumpArtifactRow[]>());
+
+        return {
+            thread: {
+                ...threadRow,
+                userUuid:
+                    promptRows.find((row) => row.userUuid !== null)?.userUuid ??
+                    null,
+            },
+            turns: promptRows.map((row) => ({
+                promptUuid: row.promptUuid,
+                createdAt: row.createdAt,
+                respondedAt: row.respondedAt,
+                hidden: row.hidden,
+                userText: row.prompt,
+                assistantText: row.response,
+                errorMessage: row.errorMessage,
+                interrupted: row.interruptUuid !== null,
+                feedback:
+                    row.humanScore !== null && row.humanScore !== 0
+                        ? {
+                              score: row.humanScore,
+                              comment: row.humanFeedback,
+                          }
+                        : null,
+                steers: steersByPrompt.get(row.promptUuid) ?? [],
+                modelConfig: row.modelConfig,
+                tokenUsage: row.tokenUsage,
+                toolCalls: (toolsByPrompt.get(row.promptUuid) ?? []).map(
+                    (tool) => ({
+                        toolCallId: tool.toolCallId,
+                        parentToolCallId: tool.parentToolCallId,
+                        name: tool.name,
+                        args: tool.args,
+                        result: tool.result,
+                        isError: tool.isError,
+                        source: (tool.mcpServerUuid !== null
+                            ? 'mcp'
+                            : 'lightdash') as 'lightdash' | 'mcp',
+                    }),
+                ),
+                artifacts: (artifactsByPrompt.get(row.promptUuid) ?? []).map(
+                    (artifact) => ({
+                        artifactUuid: artifact.artifactUuid,
+                        versionUuid: artifact.versionUuid,
+                        versionNumber: artifact.versionNumber ?? 1,
+                        artifactType: artifact.artifactType,
+                        title: artifact.title,
+                        description: artifact.description,
+                        chartConfig: artifact.chartConfig,
+                        dashboardConfig: artifact.dashboardConfig,
+                    }),
+                ),
+            })),
+        };
+    }
+
     async findThreadMessages({
         organizationUuid,
         threadUuid,
@@ -3648,6 +4334,7 @@ export class AiAgentModel {
                     | 'saved_query_uuid'
                     | 'model_config'
                     | 'token_usage'
+                    | 'response_timing'
                     | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -3672,6 +4359,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
+                `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -3714,6 +4402,7 @@ export class AiAgentModel {
         );
         const contextMap = await this.getContextForPromptUuids(promptUuids);
         const steersMap = await this.findPromptSteers(promptUuids);
+        const latestPromptUuid = promptUuids.at(-1);
 
         const messagesPromises = promptRows.map(async (row) => {
             const messages: AiAgentMessage<{
@@ -3755,6 +4444,17 @@ export class AiAgentModel {
                 row.ai_prompt_uuid,
             );
 
+            if (
+                !AiAgentModel.hasAssistantMessage({
+                    row,
+                    isLatestPrompt: row.ai_prompt_uuid === latestPromptUuid,
+                    toolCallCount: toolCalls.length,
+                    reasoningCount: reasoning.length,
+                })
+            ) {
+                return messages;
+            }
+
             messages.push({
                 role: 'assistant',
                 status: AiAgentModel.getThreadMessageStatus({
@@ -3777,6 +4477,7 @@ export class AiAgentModel {
                 referencedArtifacts: referencedArtifacts ?? null,
                 modelConfig: row.model_config,
                 tokenUsage: row.token_usage,
+                responseTiming: row.response_timing,
                 toolCalls: toolCalls
                     .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
@@ -4288,6 +4989,35 @@ export class AiAgentModel {
         }));
     }
 
+    /**
+     * Slack backfills messages posted before the agent was mentioned as prompts
+     * that never get answered. Once a later prompt exists the agent can no
+     * longer answer them, so they must not render an assistant message.
+     */
+    static hasAssistantMessage({
+        row,
+        isLatestPrompt,
+        toolCallCount,
+        reasoningCount,
+    }: {
+        row: Pick<DbAiPrompt, 'responded_at' | 'response' | 'error_message'> & {
+            interrupted: boolean;
+        };
+        isLatestPrompt: boolean;
+        toolCallCount: number;
+        reasoningCount: number;
+    }): boolean {
+        return (
+            isLatestPrompt ||
+            row.response != null ||
+            row.responded_at != null ||
+            row.error_message != null ||
+            row.interrupted ||
+            toolCallCount > 0 ||
+            reasoningCount > 0
+        );
+    }
+
     static getThreadMessageStatus(
         row: Pick<
             DbAiPrompt,
@@ -4300,7 +5030,11 @@ export class AiAgentModel {
 
         if (row.responded_at == null || row.response == null) {
             // if the message was created more than 5 minutes ago, return error
-            if (moment(row.created_at).add(5, 'minutes').isBefore(moment())) {
+            if (
+                moment(row.created_at)
+                    .add(AI_AGENT_THREAD_PENDING_TIMEOUT_MS, 'milliseconds')
+                    .isBefore(moment())
+            ) {
                 return 'error';
             }
             return 'pending';
@@ -4362,6 +5096,7 @@ export class AiAgentModel {
                     | 'saved_query_uuid'
                     | 'model_config'
                     | 'token_usage'
+                    | 'response_timing'
                     | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -4386,6 +5121,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
+                `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -4531,6 +5267,7 @@ export class AiAgentModel {
                     referencedArtifacts,
                     modelConfig: row.model_config,
                     tokenUsage: row.token_usage,
+                    responseTiming: row.response_timing,
                     toolCalls: toolCalls
                         .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),
@@ -4775,63 +5512,99 @@ export class AiAgentModel {
         );
     }
 
+    // Serialises concurrent deliveries of the same Slack event so redeliveries queue
+    // behind the first writer instead of racing the Slack unique constraints.
+    private static async lockSlackChannel(
+        trx: Knex.Transaction,
+        slackChannelId: string,
+    ): Promise<void> {
+        await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+            slackChannelId,
+        ]);
+    }
+
+    // Callers treat a duplicate Slack prompt as "already answered" and stay silent,
+    // so the raw constraint violation must never escape a Slack write.
+    private static toSlackPromptWriteError(error: unknown): unknown {
+        return isUniqueConstraintViolation(error)
+            ? new AiDuplicateSlackPromptError('Slack prompt already exists')
+            : error;
+    }
+
     async createSlackThread(data: CreateSlackThread) {
-        return this.database.transaction(async (trx) => {
-            const [row] = await trx(AiThreadTableName)
-                .insert({
-                    organization_uuid: data.organizationUuid,
-                    project_uuid: data.projectUuid,
-                    created_from: data.createdFrom,
-                    agent_uuid: data.agentUuid,
-                })
-                .returning('ai_thread_uuid');
-            if (row === undefined) {
-                throw new Error('Failed to create thread');
-            }
-            await trx(AiSlackThreadTableName).insert({
-                ai_thread_uuid: row.ai_thread_uuid,
-                slack_user_id: data.slackUserId,
-                slack_channel_id: data.slackChannelId,
-                slack_thread_ts: data.slackThreadTs,
+        try {
+            return await this.database.transaction(async (trx) => {
+                const [row] = await trx(AiThreadTableName)
+                    .insert({
+                        organization_uuid: data.organizationUuid,
+                        project_uuid: data.projectUuid,
+                        created_from: data.createdFrom,
+                        agent_uuid: data.agentUuid,
+                    })
+                    .returning('ai_thread_uuid');
+                if (row === undefined) {
+                    throw new Error('Failed to create thread');
+                }
+                await trx(AiSlackThreadTableName).insert({
+                    ai_thread_uuid: row.ai_thread_uuid,
+                    slack_user_id: data.slackUserId,
+                    slack_channel_id: data.slackChannelId,
+                    slack_thread_ts: data.slackThreadTs,
+                });
+                return row.ai_thread_uuid;
             });
-            return row.ai_thread_uuid;
-        });
+        } catch (error) {
+            throw AiAgentModel.toSlackPromptWriteError(error);
+        }
     }
 
     async createSlackPrompt(data: CreateSlackPrompt) {
-        return this.database.transaction(async (trx) => {
-            const [row] = await trx(AiPromptTableName)
-                .insert({
-                    ai_thread_uuid: data.threadUuid,
-                    created_by_user_uuid: data.createdByUserUuid,
-                    prompt: data.prompt,
-                    model_config: data.modelConfig,
-                })
-                .returning(['ai_prompt_uuid', 'created_at']);
+        try {
+            return await this.database.transaction(async (trx) => {
+                await AiAgentModel.lockSlackChannel(trx, data.slackChannelId);
 
-            if (row === undefined) {
-                throw new Error('Failed to create prompt');
-            }
+                const [row] = await trx(AiPromptTableName)
+                    .insert({
+                        ai_thread_uuid: data.threadUuid,
+                        created_by_user_uuid: data.createdByUserUuid,
+                        prompt: data.prompt,
+                        model_config: data.modelConfig,
+                    })
+                    .returning(['ai_prompt_uuid', 'created_at']);
 
-            await AiAgentModel.bumpThreadUpdatedAt(
-                data.threadUuid,
-                row.created_at,
-                { trx },
-            );
+                if (row === undefined) {
+                    throw new Error('Failed to create prompt');
+                }
 
-            await trx(AiSlackPromptTableName).insert({
-                ai_prompt_uuid: row.ai_prompt_uuid,
-                slack_user_id: data.slackUserId,
-                slack_channel_id: data.slackChannelId,
-                prompt_slack_ts: data.promptSlackTs,
+                await AiAgentModel.bumpThreadUpdatedAt(
+                    data.threadUuid,
+                    row.created_at,
+                    { trx },
+                );
+
+                await trx(AiSlackPromptTableName).insert({
+                    ai_prompt_uuid: row.ai_prompt_uuid,
+                    slack_user_id: data.slackUserId,
+                    slack_channel_id: data.slackChannelId,
+                    prompt_slack_ts: data.promptSlackTs,
+                });
+
+                return row.ai_prompt_uuid;
             });
-
-            return row.ai_prompt_uuid;
-        });
+        } catch (error) {
+            throw AiAgentModel.toSlackPromptWriteError(error);
+        }
     }
 
     async updateModelResponse(
         data: UpdateSlackResponse | UpdateWebAppResponse,
+        {
+            onlyIfPending = false,
+            onlyIfUnfinalized = false,
+        }: {
+            onlyIfPending?: boolean;
+            onlyIfUnfinalized?: boolean;
+        } = {},
     ) {
         // A new response supersedes any previous error for this prompt
         const outcome: {
@@ -4849,7 +5622,7 @@ export class AiAgentModel {
                           : {}),
                   };
 
-        await this.database(AiPromptTableName)
+        const query = this.database(AiPromptTableName)
             .update({
                 responded_at: this.database.fn.now(),
                 ...outcome,
@@ -4859,11 +5632,124 @@ export class AiAgentModel {
                 ...(data.tokenUsage !== undefined
                     ? { token_usage: data.tokenUsage }
                     : {}),
+                ...(data.responseTiming !== undefined
+                    ? { response_timing: data.responseTiming }
+                    : {}),
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,
+            });
+
+        if (onlyIfPending) {
+            query
+                .whereNull('responded_at')
+                .whereNull('response')
+                .whereNull('error_message');
+        }
+        if (onlyIfUnfinalized) {
+            query.whereNull('token_usage').whereNull('error_message');
+        }
+
+        const rows =
+            await query.returning<{ ai_prompt_uuid: string }[]>(
+                'ai_prompt_uuid',
+            );
+
+        return rows.length > 0;
+    }
+
+    async updatePromptNeedsUserInput({
+        promptUuid,
+        needsUserInput,
+        metadata,
+    }: {
+        promptUuid: string;
+        needsUserInput: boolean;
+        metadata: AiPromptClassifierNeedsUserInputMetadata;
+    }): Promise<boolean> {
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                needs_user_input: needsUserInput,
+                needs_user_input_metadata: metadata,
             })
-            .returning('ai_prompt_uuid');
+            .where('ai_prompt_uuid', promptUuid)
+            .whereNull('needs_user_input')
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.length > 0;
+    }
+
+    async setPromptNeedsUserInput({
+        promptUuid,
+        needsUserInput,
+        metadata,
+    }: {
+        promptUuid: string;
+        needsUserInput: boolean;
+        metadata: AiPromptStructuredNeedsUserInputMetadata;
+    }): Promise<boolean> {
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                needs_user_input: needsUserInput,
+                needs_user_input_metadata: metadata,
+            })
+            .where('ai_prompt_uuid', promptUuid)
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.length > 0;
+    }
+
+    async resetPromptResponseForRetry(
+        promptUuid: string,
+        previousState: AiPromptResponseState,
+    ): Promise<boolean> {
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                responded_at: this.database.raw('NULL'),
+                error_message: null,
+                token_usage: null,
+                needs_user_input: null,
+                needs_user_input_metadata: null,
+                retried_at: this.database.fn.now(),
+            })
+            .where('ai_prompt_uuid', promptUuid)
+            .modify((query) => wherePromptResponseState(query, previousState))
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.length > 0;
+    }
+
+    async claimPromptExecutionMode(
+        promptUuid: string,
+        executionMode: 'standard' | 'deep_research',
+    ): Promise<boolean> {
+        return claimAiPromptExecutionMode(
+            this.database,
+            promptUuid,
+            executionMode,
+        );
+    }
+
+    async failPendingPrompts(
+        promptUuids: string[],
+        errorMessage: string,
+    ): Promise<string[]> {
+        if (promptUuids.length === 0) {
+            return [];
+        }
+
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                responded_at: this.database.fn.now(),
+                error_message: errorMessage,
+            })
+            .whereIn('ai_prompt_uuid', promptUuids)
+            .whereNull('responded_at')
+            .whereNull('response')
+            .whereNull('error_message')
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.map(({ ai_prompt_uuid }) => ai_prompt_uuid);
     }
 
     async createAiPromptInterrupt(data: {
@@ -4900,6 +5786,14 @@ export class AiAgentModel {
             .first();
 
         return row !== undefined;
+    }
+
+    // An interrupt targets one in-flight generation; a retry must start
+    // clean or the stale row would stop it after its first step, forever.
+    async deleteAiPromptInterrupt(promptUuid: string): Promise<void> {
+        await this.database(AiPromptInterruptTableName)
+            .where('ai_prompt_uuid', promptUuid)
+            .delete();
     }
 
     async createAiPromptSteer(data: {
@@ -5191,6 +6085,7 @@ export class AiAgentModel {
                     .ref(`${SavedChartsTableName}.saved_query_uuid`)
                     .as('content_uuid'),
                 `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.slug`,
                 `${SavedChartsTableName}.description`,
                 `${SavedChartsTableName}.views_count`,
                 `${SavedChartsTableName}.last_version_chart_kind`,
@@ -5256,6 +6151,7 @@ export class AiAgentModel {
                     .ref(`${DashboardsTableName}.dashboard_uuid`)
                     .as('content_uuid'),
                 `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.description`,
                 `${DashboardsTableName}.views_count`,
                 this.database(DashboardVersionsTableName)
@@ -5307,6 +6203,7 @@ export class AiAgentModel {
         const charts: VerifiedContentListItem[] = chartRows.map((row) => ({
             ...toBaseItem(row),
             contentType: ContentType.CHART,
+            slug: row.slug,
             chartKind: row.last_version_chart_kind,
             exploreName: row.explore_name ?? null,
         }));
@@ -5315,6 +6212,7 @@ export class AiAgentModel {
             (row) => ({
                 ...toBaseItem(row),
                 contentType: ContentType.DASHBOARD,
+                slug: row.slug,
             }),
         );
 
@@ -5517,7 +6415,7 @@ export class AiAgentModel {
 
     async findWebAppPrompt(
         promptUuid: string,
-    ): Promise<AiWebAppPrompt | undefined> {
+    ): Promise<(AiWebAppPrompt & AiPromptResponseState) | undefined> {
         return this.database(AiPromptTableName)
             .join(
                 AiWebAppPromptTableName,
@@ -5546,7 +6444,9 @@ export class AiAgentModel {
                 createdAt: `${AiPromptTableName}.created_at`,
                 response: `${AiPromptTableName}.response`,
                 errorMessage: `${AiPromptTableName}.error_message`,
-                respondedAt: `${AiPromptTableName}.responded_at`,
+                respondedAt: this.database.raw('??::text', [
+                    `${AiPromptTableName}.responded_at`,
+                ]),
                 humanScore: `${AiPromptTableName}.human_score`,
                 humanFeedback: `${AiPromptTableName}.human_feedback`,
                 filtersOutput: `${AiPromptTableName}.filters_output`,
@@ -5669,6 +6569,41 @@ export class AiAgentModel {
         const dashboardUuids = context.flatMap((c) =>
             c.type === 'dashboard' ? [c.dashboardUuid] : [],
         );
+        const appUuids = context.flatMap((c) =>
+            c.type === 'data_app_element' ||
+            c.type === 'data_app_restore' ||
+            c.type === 'data_app'
+                ? [c.appUuid]
+                : [],
+        );
+
+        const appNameByUuid = new Map(
+            (
+                await trx(AppsTableName)
+                    .whereIn('app_id', appUuids)
+                    .whereNull('deleted_at')
+                    .select<{ app_id: string; name: string }[]>(
+                        'app_id',
+                        'name',
+                    )
+            ).map((r) => [r.app_id, r.name] as const),
+        );
+
+        const pinnedAppUuids = context.flatMap((c) =>
+            c.type === 'data_app' ? [c.appUuid] : [],
+        );
+        const latestReadyVersionByAppUuid = new Map(
+            (
+                await trx(AppVersionsTableName)
+                    .whereIn('app_id', pinnedAppUuids)
+                    .where('status', 'ready')
+                    .groupBy('app_id')
+                    .select<{ app_id: string; version: number }[]>(
+                        'app_id',
+                        trx.raw('max(version) as version'),
+                    )
+            ).map((r) => [r.app_id, r.version] as const),
+        );
 
         const chartLookup = new Map(
             (
@@ -5781,6 +6716,30 @@ export class AiAgentModel {
             ).map((r) => [r.ai_thread_uuid, r] as const),
         );
 
+        const externalSourceUuids = context.flatMap((item) =>
+            item.type === 'external_source' ? [item.sourceUuid] : [],
+        );
+        const externalSources = await trx(ExternalSourcesTableName)
+            .whereIn('external_source_uuid', externalSourceUuids)
+            .select<DbExternalSource[]>('*');
+        const externalSourceTables = await trx(ExternalSourceTablesTableName)
+            .whereIn('external_source_uuid', externalSourceUuids)
+            .orderBy('name')
+            .select<DbExternalSourceTable[]>('*');
+        const externalSourceLookup = new Map(
+            externalSources.map((source) => [
+                source.external_source_uuid,
+                {
+                    source,
+                    tables: externalSourceTables.filter(
+                        (table) =>
+                            table.external_source_uuid ===
+                            source.external_source_uuid,
+                    ),
+                },
+            ]),
+        );
+
         const rows = context.map((ctx) => {
             switch (ctx.type) {
                 case 'chart': {
@@ -5837,6 +6796,35 @@ export class AiAgentModel {
                         entity_ref: ctx.fullName,
                         display_name: ctx.fullName,
                     };
+                case 'external_source': {
+                    const externalSource = externalSourceLookup.get(
+                        ctx.sourceUuid,
+                    );
+                    if (!externalSource) {
+                        throw new NotFoundError(
+                            `External source ${ctx.sourceUuid} not found`,
+                        );
+                    }
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'external_source' as AiPromptContextEntityType,
+                        entity_uuid: ctx.sourceUuid,
+                        entity_ref: null,
+                        pinned_version_uuid: null,
+                        display_name: getExternalSourceDisplayName(
+                            externalSource.source,
+                        ),
+                        runtime_overrides: {
+                            sourceType: externalSource.source.type,
+                            tables: externalSource.tables.map((table) => ({
+                                tableUuid: table.external_source_table_uuid,
+                                tableName: table.name,
+                                displayName: table.label,
+                            })),
+                        } satisfies AiPromptExternalSourceSnapshot,
+                    };
+                }
                 // Review-remediation references store their natural key
                 // (PR url / finding fingerprint) in entity_ref and resolve the
                 // live data at read time. preview_environment keys off a real
@@ -5876,6 +6864,64 @@ export class AiAgentModel {
                         entity_uuid: ctx.previewProjectUuid,
                         display_name: null,
                     };
+                // entity_ref is the natural key, so one prompt can hold
+                // several references to the same app.
+                case 'data_app_element': {
+                    const appName = appNameByUuid.get(ctx.appUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'data_app_element' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: `${ctx.appUuid}:${ctx.version}:${elementReferenceToWireString(ctx)}`,
+                        display_name:
+                            appName === undefined
+                                ? null
+                                : getAppDisplayName(appName, ctx.appUuid),
+                        runtime_overrides: {
+                            appUuid: ctx.appUuid,
+                            version: ctx.version,
+                            tag: ctx.tag,
+                            text: ctx.text,
+                            loc: ctx.loc,
+                        } satisfies AiPromptDataAppElementSnapshot,
+                    };
+                }
+                case 'data_app_restore': {
+                    const appName = appNameByUuid.get(ctx.appUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'data_app_restore' as AiPromptContextEntityType,
+                        entity_uuid: ctx.appUuid,
+                        entity_ref: null,
+                        display_name:
+                            appName === undefined
+                                ? null
+                                : getAppDisplayName(appName, ctx.appUuid),
+                        runtime_overrides: {
+                            version: ctx.version,
+                            restoredFromVersion: ctx.restoredFromVersion,
+                        } satisfies AiPromptDataAppRestoreSnapshot,
+                    };
+                }
+                case 'data_app': {
+                    const appName = appNameByUuid.get(ctx.appUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'data_app' as AiPromptContextEntityType,
+                        entity_uuid: ctx.appUuid,
+                        display_name:
+                            appName === undefined
+                                ? null
+                                : getAppDisplayName(appName, ctx.appUuid),
+                        runtime_overrides: {
+                            version:
+                                latestReadyVersionByAppUuid.get(ctx.appUuid) ??
+                                null,
+                        } satisfies AiPromptDataAppSnapshot,
+                    };
+                }
                 default:
                     return assertUnreachable(
                         ctx,
@@ -6012,6 +7058,48 @@ export class AiAgentModel {
             }),
         );
 
+        const appUuids = rows.flatMap((r) => {
+            if (r.entity_type === 'data_app_element') {
+                return [
+                    (r.runtime_overrides as AiPromptDataAppElementSnapshot)
+                        .appUuid,
+                ];
+            }
+            if (
+                (r.entity_type === 'data_app_restore' ||
+                    r.entity_type === 'data_app') &&
+                r.entity_uuid !== null
+            ) {
+                return [r.entity_uuid];
+            }
+            return [];
+        });
+        const appDataByUuid = new Map(
+            (
+                await this.database(AppsTableName)
+                    .whereIn('app_id', appUuids)
+                    .whereNull('deleted_at')
+                    .select<
+                        {
+                            app_id: string;
+                            slug: string;
+                            name: string;
+                            space_uuid: string | null;
+                        }[]
+                    >('app_id', 'slug', 'name', 'space_uuid')
+            ).map(
+                (r) =>
+                    [
+                        r.app_id,
+                        {
+                            slug: r.slug,
+                            name: r.name,
+                            spaceUuid: r.space_uuid,
+                        },
+                    ] as const,
+            ),
+        );
+
         const previewProjectUuids = rows
             .filter((r) => r.entity_type === 'preview_environment')
             .map((r) => r.entity_uuid)
@@ -6044,6 +7132,7 @@ export class AiAgentModel {
                     dashboardSlugByUuid,
                     reviewItem,
                     projectNameByUuid,
+                    appDataByUuid,
                 ),
             );
             grouped.set(row.ai_prompt_uuid, existing);
@@ -6088,6 +7177,10 @@ export class AiAgentModel {
         dashboardSlugByUuid: Map<string, string>,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
+        appDataByUuid: Map<
+            string,
+            { slug: string; name: string; spaceUuid: string | null }
+        >,
     ): AiPromptContextItem {
         // chart/dashboard/thread are uuid-keyed: entity_uuid is a non-null
         // invariant (only file/repository leave it null, using entity_ref).
@@ -6141,6 +7234,17 @@ export class AiAgentModel {
                 return { type: 'file', path: row.entity_ref ?? '' };
             case 'repository':
                 return { type: 'repository', fullName: row.entity_ref ?? '' };
+            case 'external_source': {
+                const snapshot =
+                    row.runtime_overrides as AiPromptExternalSourceSnapshot | null;
+                return {
+                    type: 'external_source',
+                    sourceUuid: requireEntityUuid(),
+                    displayName: row.display_name ?? 'External source',
+                    sourceType: snapshot?.sourceType ?? null,
+                    tables: snapshot?.tables ?? [],
+                };
+            }
             case 'pull_request': {
                 const prUrl = row.entity_ref ?? '';
                 return {
@@ -6176,6 +7280,65 @@ export class AiAgentModel {
                     previewThreadUuid: null,
                     status: null,
                     projectName: projectNameByUuid.get(entityUuid) ?? null,
+                };
+            }
+            case 'data_app_element': {
+                if (row.runtime_overrides === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'data_app_element' is missing runtime_overrides`,
+                    );
+                }
+                const snapshot =
+                    row.runtime_overrides as AiPromptDataAppElementSnapshot;
+                const app = appDataByUuid.get(snapshot.appUuid);
+                return {
+                    type: 'data_app_element',
+                    appUuid: snapshot.appUuid,
+                    version: snapshot.version,
+                    tag: snapshot.tag,
+                    text: snapshot.text,
+                    loc: snapshot.loc,
+                    appSlug: app?.slug ?? null,
+                    displayName: app
+                        ? getAppDisplayName(app.name, snapshot.appUuid)
+                        : row.display_name,
+                };
+            }
+            case 'data_app_restore': {
+                const appUuid = requireEntityUuid();
+                if (row.runtime_overrides === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'data_app_restore' is missing runtime_overrides`,
+                    );
+                }
+                const snapshot =
+                    row.runtime_overrides as AiPromptDataAppRestoreSnapshot;
+                const app = appDataByUuid.get(appUuid);
+                return {
+                    type: 'data_app_restore',
+                    appUuid,
+                    version: snapshot.version,
+                    restoredFromVersion: snapshot.restoredFromVersion,
+                    appSlug: app?.slug ?? null,
+                    displayName: app
+                        ? getAppDisplayName(app.name, appUuid)
+                        : row.display_name,
+                };
+            }
+            case 'data_app': {
+                const appUuid = requireEntityUuid();
+                const app = appDataByUuid.get(appUuid);
+                const snapshot =
+                    row.runtime_overrides as AiPromptDataAppSnapshot | null;
+                return {
+                    type: 'data_app',
+                    appUuid,
+                    appSlug: app?.slug ?? null,
+                    displayName: app
+                        ? getAppDisplayName(app.name, appUuid)
+                        : row.display_name,
+                    pinnedVersion: snapshot?.version ?? null,
+                    isPersonal: app !== undefined && app.spaceUuid === null,
                 };
             }
             default:
@@ -6470,6 +7633,271 @@ export class AiAgentModel {
         }
     }
 
+    private async getPromptThreadScope(
+        promptUuid: string,
+    ): Promise<Pick<DbAiThread, 'organization_uuid' | 'project_uuid'> | null> {
+        const threadScope = await this.database(AiPromptTableName)
+            .innerJoin(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .select<Pick<DbAiThread, 'organization_uuid' | 'project_uuid'>>(
+                `${AiThreadTableName}.organization_uuid`,
+                `${AiThreadTableName}.project_uuid`,
+            )
+            .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
+            .first();
+        return threadScope ?? null;
+    }
+
+    // Read-only self-heal: a pending generateDataApp result resolves to its
+    // version's outcome, or to an error once past the grace period.
+    private async resolvePendingDataAppBuildToolResults(
+        promptUuid: string,
+        results: AiAgentToolResult[],
+        now = Date.now(),
+    ): Promise<AiAgentToolResult[]> {
+        const pendingResults = results.filter(isPendingDataAppBuildToolResult);
+        if (pendingResults.length === 0) {
+            return results;
+        }
+        const threadScope = await this.getPromptThreadScope(promptUuid);
+        if (!threadScope) {
+            return results;
+        }
+
+        const versionRows = await this.database(AppVersionsTableName)
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppVersionsTableName}.app_id`,
+            )
+            .select<
+                Array<
+                    Pick<DbApp, 'app_id' | 'name' | 'slug'> &
+                        Pick<
+                            DbAppVersion,
+                            'version' | 'status' | 'error' | 'status_message'
+                        >
+                >
+            >(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.name`,
+                `${AppsTableName}.slug`,
+                `${AppVersionsTableName}.version`,
+                `${AppVersionsTableName}.status`,
+                `${AppVersionsTableName}.error`,
+                `${AppVersionsTableName}.status_message`,
+            )
+            .where(`${AppsTableName}.project_uuid`, threadScope.project_uuid)
+            .where((query) => {
+                pendingResults.forEach((result) => {
+                    void query.orWhere((versionQuery) => {
+                        void versionQuery
+                            .where(
+                                `${AppsTableName}.app_id`,
+                                result.metadata.appUuid,
+                            )
+                            .where(
+                                `${AppVersionsTableName}.version`,
+                                result.metadata.version,
+                            );
+                    });
+                });
+            });
+        const versionsByKey = new Map(
+            versionRows.map((row) => [`${row.app_id}:${row.version}`, row]),
+        );
+
+        return results.map((result) => {
+            if (!isPendingDataAppBuildToolResult(result)) {
+                return result;
+            }
+            const { appUuid, version } = result.metadata;
+            const row = versionsByKey.get(`${appUuid}:${version}`);
+            const outcome = row
+                ? getGenerateDataAppBuildOutcome({
+                      siteUrl: this.lightdashConfig.siteUrl,
+                      projectUuid: threadScope.project_uuid,
+                      appUuid,
+                      version,
+                      name: row.name,
+                      slug: row.slug,
+                      status: row.status,
+                      error: row.error,
+                      statusMessage: row.status_message,
+                  })
+                : null;
+            if (outcome) {
+                return { ...result, ...outcome };
+            }
+            if (
+                result.createdAt.getTime() +
+                    AI_DATA_APP_BUILD_PENDING_GRACE_MS >
+                now
+            ) {
+                return result;
+            }
+            return {
+                ...result,
+                ...getExpiredGenerateDataAppBuildOutcome(appUuid),
+            };
+        });
+    }
+
+    private async resolvePendingToolResults(
+        promptUuid: string,
+        results: AiAgentToolResult[],
+    ): Promise<AiAgentToolResult[]> {
+        return this.resolvePendingDataAppBuildToolResults(
+            promptUuid,
+            await this.resolvePendingWritebackToolResults(promptUuid, results),
+        );
+    }
+
+    private async resolvePendingWritebackToolResults(
+        promptUuid: string,
+        results: AiAgentToolResult[],
+    ): Promise<AiAgentToolResult[]> {
+        const pendingResults = results.filter(
+            isPendingEditDbtProjectToolResult,
+        );
+        if (pendingResults.length === 0) {
+            return results;
+        }
+
+        const threadScope = await this.getPromptThreadScope(promptUuid);
+        if (!threadScope) {
+            return results;
+        }
+
+        const runRows = await this.database(AiWritebackRunTableName)
+            .select<DbAiWritebackRun[]>('*')
+            .where('organization_uuid', threadScope.organization_uuid)
+            .where('project_uuid', threadScope.project_uuid)
+            .whereIn(
+                'ai_writeback_run_uuid',
+                pendingResults.map(
+                    (result) => result.metadata.aiWritebackRunUuid,
+                ),
+            );
+        const terminalRuns = runRows.filter(
+            (run) => !isAiWritebackRunInProgress(run.status),
+        );
+        if (terminalRuns.length === 0) {
+            return results;
+        }
+
+        const linkedRuns = terminalRuns.filter(
+            (
+                run,
+            ): run is DbAiWritebackRun & {
+                prompt_uuid: string;
+                tool_call_id: string;
+            } => run.prompt_uuid !== null && run.tool_call_id !== null,
+        );
+        const canonicalRows =
+            linkedRuns.length === 0
+                ? []
+                : await this.database(AiAgentToolResultTableName)
+                      .innerJoin(
+                          AiPromptTableName,
+                          `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                          `${AiPromptTableName}.ai_prompt_uuid`,
+                      )
+                      .innerJoin(
+                          AiThreadTableName,
+                          `${AiPromptTableName}.ai_thread_uuid`,
+                          `${AiThreadTableName}.ai_thread_uuid`,
+                      )
+                      .select<DbAiAgentToolResult[]>(
+                          `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
+                          `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                          `${AiAgentToolResultTableName}.tool_call_id`,
+                          `${AiAgentToolResultTableName}.tool_name`,
+                          `${AiAgentToolResultTableName}.result`,
+                          `${AiAgentToolResultTableName}.metadata`,
+                          `${AiAgentToolResultTableName}.created_at`,
+                      )
+                      .where(
+                          `${AiThreadTableName}.organization_uuid`,
+                          threadScope.organization_uuid,
+                      )
+                      .where(
+                          `${AiThreadTableName}.project_uuid`,
+                          threadScope.project_uuid,
+                      )
+                      .where((query) => {
+                          linkedRuns.forEach((run) => {
+                              void query.orWhere((linkedResultQuery) => {
+                                  void linkedResultQuery
+                                      .where(
+                                          `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                                          run.prompt_uuid,
+                                      )
+                                      .where(
+                                          `${AiAgentToolResultTableName}.tool_call_id`,
+                                          run.tool_call_id,
+                                      );
+                              });
+                          });
+                      });
+        const terminalRunsByUuid = new Map(
+            terminalRuns.map((run) => [run.ai_writeback_run_uuid, run]),
+        );
+        const canonicalResultsByKey = new Map(
+            canonicalRows.map((row) => [
+                getWritebackResultKey(row.ai_prompt_uuid, row.tool_call_id),
+                this.parseToolResult(row),
+            ]),
+        );
+
+        return results.map((result) => {
+            if (!isPendingEditDbtProjectToolResult(result)) {
+                return result;
+            }
+
+            const run = terminalRunsByUuid.get(
+                result.metadata.aiWritebackRunUuid,
+            );
+            if (!run || run.tool_call_id !== result.toolCallId) {
+                return result;
+            }
+
+            const canonicalResult =
+                run.prompt_uuid && run.tool_call_id
+                    ? canonicalResultsByKey.get(
+                          getWritebackResultKey(
+                              run.prompt_uuid,
+                              run.tool_call_id,
+                          ),
+                      )
+                    : undefined;
+            if (
+                canonicalResult &&
+                isEditDbtProjectToolResult(canonicalResult) &&
+                canonicalResult.metadata.status !== 'pending'
+            ) {
+                return {
+                    ...result,
+                    result: canonicalResult.result,
+                    metadata: canonicalResult.metadata,
+                };
+            }
+
+            if (
+                result.createdAt.getTime() + AI_WRITEBACK_PENDING_GRACE_MS >
+                Date.now()
+            ) {
+                return result;
+            }
+
+            const fallback = getTerminalWritebackFallback(run);
+            return fallback ? { ...result, ...fallback } : result;
+        });
+    }
+
     async getToolCallsAndResultsForPrompt(
         promptUuid: string,
         options: { includeSubagentToolCalls?: boolean } = {},
@@ -6499,11 +7927,17 @@ export class AiAgentModel {
                 `${AiAgentToolResultTableName}.created_at as result_created_at`,
                 `${AiSqlApprovalTableName}.decision as approval_decision`,
             )
-            .leftJoin(
-                AiAgentToolResultTableName,
-                `${AiAgentToolCallTableName}.tool_call_id`,
-                `${AiAgentToolResultTableName}.tool_call_id`,
-            )
+            .leftJoin(AiAgentToolResultTableName, function joinToolResult() {
+                this.on(
+                    `${AiAgentToolCallTableName}.tool_call_id`,
+                    '=',
+                    `${AiAgentToolResultTableName}.tool_call_id`,
+                ).andOn(
+                    `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                    '=',
+                    `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                );
+            })
             // Tool calls awaiting/granted SQL approval may have no result yet —
             // join the decision so history reconstruction can replay the
             // native approval request/response parts.
@@ -6526,7 +7960,7 @@ export class AiAgentModel {
         }
         const rows = await query;
 
-        return rows
+        const toolCallsAndResults = rows
             .filter(
                 (row) =>
                     (row.result !== null || row.approval_decision !== null) &&
@@ -6555,6 +7989,23 @@ export class AiAgentModel {
                     approvalDecision: row.approval_decision,
                 };
             });
+        const resolvedResults = await this.resolvePendingToolResults(
+            promptUuid,
+            toolCallsAndResults.flatMap(({ toolResult }) =>
+                toolResult ? [toolResult] : [],
+            ),
+        );
+        const resolvedResultsByUuid = new Map(
+            resolvedResults.map((result) => [result.uuid, result]),
+        );
+
+        return toolCallsAndResults.map((entry) => ({
+            ...entry,
+            toolResult: entry.toolResult
+                ? (resolvedResultsByUuid.get(entry.toolResult.uuid) ??
+                  entry.toolResult)
+                : null,
+        }));
     }
 
     // A runSql call the agent suspended on awaiting approval: it has no result
@@ -6775,9 +8226,11 @@ export class AiAgentModel {
             .where('ai_prompt_uuid', promptUuid)
             .orderBy('created_at', 'asc');
 
-        return rows
+        const parsedResults = rows
             .filter((row) => isParseableToolName(row.tool_name))
             .map((row) => this.parseToolResult(row));
+
+        return this.resolvePendingToolResults(promptUuid, parsedResults);
     }
 
     async createToolResults(
@@ -6887,6 +8340,27 @@ export class AiAgentModel {
                 result: data.result,
                 metadata: data.metadata,
             });
+    }
+
+    // Terminal-once transition: updates only while the stored result is still
+    // pending, so racing terminal writers (job timeout vs late pipeline exit)
+    // resolve to exactly one winner. Returns whether this call won.
+    async updateToolResultIfPending(
+        promptUuid: string,
+        toolCallId: string,
+        data: { result: string; metadata: AgentToolOutput['metadata'] },
+    ): Promise<boolean> {
+        const updated = await this.database(AiAgentToolResultTableName)
+            .where({
+                ai_prompt_uuid: promptUuid,
+                tool_call_id: toolCallId,
+            })
+            .whereRaw(`metadata->>'status' = ?`, ['pending'])
+            .update({
+                result: data.result,
+                metadata: data.metadata,
+            });
+        return updated > 0;
     }
 
     async hasToolResult(
@@ -7292,6 +8766,18 @@ export class AiAgentModel {
                 title,
                 title_generated_at: new Date(),
             });
+    }
+
+    async setThreadPinned({
+        threadUuid,
+        pinned,
+    }: {
+        threadUuid: string;
+        pinned: boolean;
+    }): Promise<void> {
+        await this.database(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .update({ pinned_at: pinned ? new Date() : null });
     }
 
     async appendInstruction(data: {
@@ -8273,13 +9759,24 @@ export class AiAgentModel {
                     )
                     .where('ai_prompt_uuid', sourcePromptUuid);
 
-                const toolResultUpdates = toolResults.map((toolResult) => ({
-                    ai_prompt_uuid: newPromptUuid,
-                    tool_call_id: toolResult.tool_call_id,
-                    tool_name: toolResult.tool_name,
-                    result: toolResult.result,
-                    metadata: toolResult.metadata,
-                }));
+                const toolResultUpdates = toolResults.map((toolResult) => {
+                    const preservePendingStartedAt =
+                        toolResult.tool_name === 'editDbtProject' &&
+                        toolResult.metadata !== null &&
+                        'status' in toolResult.metadata &&
+                        toolResult.metadata.status === 'pending';
+
+                    return {
+                        ai_prompt_uuid: newPromptUuid,
+                        tool_call_id: toolResult.tool_call_id,
+                        tool_name: toolResult.tool_name,
+                        result: toolResult.result,
+                        metadata: toolResult.metadata,
+                        ...(preservePendingStartedAt
+                            ? { created_at: toolResult.created_at }
+                            : {}),
+                    };
+                });
 
                 await Promise.all([
                     toolCallUpdates.length > 0 &&
@@ -8733,5 +10230,246 @@ export class AiAgentModel {
 
             return newThreadUuid;
         });
+    }
+
+    async findOrganizationsWithThreadRetention(): Promise<string[]> {
+        const rows = await this.database
+            .select<{ organization_uuid: string }[]>('organization_uuid')
+            .from(AiOrganizationSettingsTableName)
+            .whereNotNull('thread_retention_hours')
+            .union((builder) =>
+                builder
+                    .select('organization_uuid')
+                    .from(AiAgentTableName)
+                    .whereNotNull('thread_retention_hours'),
+            );
+        return rows.map((row) => row.organization_uuid);
+    }
+
+    /**
+     * Shared predicate for retention sweeps: the effective window (LEAST of
+     * agent/org values — nulls ignored, so agentless threads inherit the org
+     * value) must have elapsed since the last activity, and nothing may be
+     * in flight: an unanswered prompt under 24h old, a runSql call awaiting
+     * human approval at any age, or a non-terminal deep research/writeback
+     * run (their stale-run sweepers guarantee eventual termination).
+     */
+    private static expiredThreadsFilterSql(
+        retentionJoinSql: string,
+        orgRetentionSql: string,
+    ): string {
+        return `
+            FROM ${AiThreadTableName} t
+            LEFT JOIN ${AiAgentTableName} a
+                ON a.ai_agent_uuid = t.agent_uuid
+            ${retentionJoinSql}
+            WHERE t.organization_uuid = :organizationUuid
+                AND LEAST(
+                    a.thread_retention_hours,
+                    ${orgRetentionSql}
+                ) IS NOT NULL
+                AND GREATEST(
+                    t.created_at,
+                    COALESCE(t.updated_at, t.created_at),
+                    COALESCE((
+                        SELECT max(p.created_at)
+                        FROM ${AiPromptTableName} p
+                        WHERE p.ai_thread_uuid = t.ai_thread_uuid
+                    ), t.created_at)
+                ) < now() - make_interval(hours => LEAST(
+                    a.thread_retention_hours,
+                    ${orgRetentionSql}
+                ))
+                AND NOT EXISTS (
+                    SELECT 1 FROM ${AiPromptTableName} p
+                    WHERE p.ai_thread_uuid = t.ai_thread_uuid
+                        AND p.response IS NULL
+                        AND p.error_message IS NULL
+                        AND p.created_at > now() - interval '24 hours'
+                )
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM ${AiPromptTableName} p
+                    JOIN ${AiAgentToolCallTableName} tc
+                        ON tc.ai_prompt_uuid = p.ai_prompt_uuid
+                    LEFT JOIN ${AiAgentToolResultTableName} tr
+                        ON tr.tool_call_id = tc.tool_call_id
+                    LEFT JOIN ${AiSqlApprovalTableName} ap
+                        ON ap.tool_call_id = tc.tool_call_id
+                    WHERE p.ai_thread_uuid = t.ai_thread_uuid
+                        AND t.sql_auto_approved_at IS NULL
+                        AND tc.tool_name = 'runSql'
+                        AND tr.ai_agent_tool_result_uuid IS NULL
+                        AND ap.tool_call_id IS NULL
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM ${AiDeepResearchRunsTableName} r
+                    WHERE r.ai_thread_uuid = t.ai_thread_uuid
+                        AND NOT (r.status = ANY(:deepResearchTerminalStatuses))
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM ${AiWritebackRunTableName} w
+                    WHERE w.ai_thread_uuid = t.ai_thread_uuid
+                        AND NOT (w.status = ANY(:writebackTerminalStatuses))
+                )
+        `;
+    }
+
+    private static inFlightGuardBindings() {
+        return {
+            deepResearchTerminalStatuses: [
+                ...AI_DEEP_RESEARCH_TERMINAL_STATUSES,
+            ],
+            writebackTerminalStatuses: [...AI_WRITEBACK_RUN_TERMINAL_STATUSES],
+        };
+    }
+
+    /**
+     * Preview for the org settings confirmation dialog: how many threads (and
+     * across how many agents) an org-level window of `orgRetentionHours`
+     * would delete on the next cleanup run.
+     */
+    async countThreadsExpiredByOrgRetention(
+        organizationUuid: string,
+        orgRetentionHours: number,
+    ): Promise<{ threadCount: number; agentCount: number }> {
+        const filterSql = AiAgentModel.expiredThreadsFilterSql(
+            '',
+            'CAST(:orgRetentionHours AS integer)',
+        );
+        const {
+            rows: [row],
+        } = await this.database.raw<{
+            rows: { thread_count: string; agent_count: string }[];
+        }>(
+            `SELECT
+                count(*) AS thread_count,
+                count(DISTINCT t.agent_uuid) AS agent_count
+            ${filterSql}`,
+            {
+                organizationUuid,
+                orgRetentionHours,
+                ...AiAgentModel.inFlightGuardBindings(),
+            },
+        );
+        return {
+            threadCount: Number(row?.thread_count ?? 0),
+            agentCount: Number(row?.agent_count ?? 0),
+        };
+    }
+
+    /** Deletes one batch of expired threads via the shared cascade. */
+    async deleteExpiredThreads(
+        organizationUuid: string,
+        batchSize: number,
+    ): Promise<{
+        deletedThreadUuids: string[];
+        deletedMemoriesCount: number;
+    }> {
+        const filterSql = AiAgentModel.expiredThreadsFilterSql(
+            `LEFT JOIN ${AiOrganizationSettingsTableName} s
+                ON s.organization_uuid = t.organization_uuid`,
+            's.thread_retention_hours',
+        );
+
+        return this.database.transaction(async (trx) => {
+            const { rows: candidates } = await trx.raw<{
+                rows: { ai_thread_uuid: string }[];
+            }>(
+                `SELECT t.ai_thread_uuid
+                ${filterSql}
+                LIMIT :batchSize
+                FOR UPDATE OF t SKIP LOCKED`,
+                {
+                    organizationUuid,
+                    batchSize,
+                    ...AiAgentModel.inFlightGuardBindings(),
+                },
+            );
+            const deletedThreadUuids = candidates.map(
+                (row) => row.ai_thread_uuid,
+            );
+            if (deletedThreadUuids.length === 0) {
+                return { deletedThreadUuids, deletedMemoriesCount: 0 };
+            }
+
+            const { deletedMemoriesCount } =
+                await AiAgentModel.deleteThreadsCascade(
+                    trx,
+                    deletedThreadUuids,
+                );
+
+            return { deletedThreadUuids, deletedMemoriesCount };
+        });
+    }
+
+    /**
+     * Deletes a single thread on demand with the same cascade as retention
+     * cleanup. Returns undefined when the thread does not exist in the org.
+     */
+    async deleteThread({
+        organizationUuid,
+        threadUuid,
+    }: {
+        organizationUuid: string;
+        threadUuid: string;
+    }): Promise<{ deletedMemoriesCount: number } | undefined> {
+        return this.database.transaction(async (trx) => {
+            const locked = await trx(AiThreadTableName)
+                .where({
+                    ai_thread_uuid: threadUuid,
+                    organization_uuid: organizationUuid,
+                })
+                .forUpdate()
+                .first('ai_thread_uuid');
+            if (!locked) return undefined;
+
+            const { deletedMemoriesCount } =
+                await AiAgentModel.deleteThreadsCascade(trx, [threadUuid]);
+            return { deletedMemoriesCount };
+        });
+    }
+
+    /**
+     * Removes the derived rows the FK graph does not cascade — memories
+     * distilled from a thread, runSql approval decisions (keyed by tool call
+     * id), and pinned-context references — then the threads themselves.
+     * Everything else is covered by ON DELETE CASCADE.
+     */
+    private static async deleteThreadsCascade(
+        trx: Knex.Transaction,
+        deletedThreadUuids: string[],
+    ): Promise<{ deletedMemoriesCount: number }> {
+        await trx(AiSqlApprovalTableName)
+            .whereIn('tool_call_id', (builder) =>
+                builder
+                    .select(`${AiAgentToolCallTableName}.tool_call_id`)
+                    .from(AiAgentToolCallTableName)
+                    .join(
+                        AiPromptTableName,
+                        `${AiPromptTableName}.ai_prompt_uuid`,
+                        `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                    )
+                    .whereIn(
+                        `${AiPromptTableName}.ai_thread_uuid`,
+                        deletedThreadUuids,
+                    ),
+            )
+            .delete();
+
+        await trx(AiPromptContextTableName)
+            .where('entity_type', 'thread')
+            .whereIn('entity_uuid', deletedThreadUuids)
+            .delete();
+
+        const deletedMemoriesCount = await trx(AiAgentMemoryTableName)
+            .whereIn('source_thread_uuid', deletedThreadUuids)
+            .delete();
+
+        await trx(AiThreadTableName)
+            .whereIn('ai_thread_uuid', deletedThreadUuids)
+            .delete();
+
+        return { deletedMemoriesCount };
     }
 }

@@ -12,7 +12,7 @@ import {
     Stack,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconArrowLeft,
@@ -36,6 +36,7 @@ import {
 } from '../../hooks/useSpaces';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import classes from './AddTilesToDashboardModal.module.css';
 
 interface AddTilesToDashboardModalProps {
     isOpen: boolean;
@@ -185,7 +186,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             return acc;
         }, {});
 
-        // Convert to Mantine 8 grouped format
+        // Convert to Mantine grouped format
         return Object.entries(groupedBySpace).map(([group, items]) => ({
             group,
             items,
@@ -367,7 +368,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             placeholder="A few words to give your team some context"
                             autosize
                             maxRows={3}
-                            style={{ overflowY: 'auto' }}
+                            className={classes.descriptionInput}
                             {...form.getInputProps('dashboardDescription')}
                         />
                         {!isLoadingSpaces && !showNewSpaceInput ? (

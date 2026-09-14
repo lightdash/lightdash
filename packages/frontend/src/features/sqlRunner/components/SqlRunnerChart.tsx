@@ -5,7 +5,7 @@ import {
     type VizCartesianChartConfig,
     type VizPieChartConfig,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { type SerializedError } from '@reduxjs/toolkit';
 import { type FC } from 'react';
 import BigNumberView from '../../../components/DataViz/visualizations/BigNumberView';

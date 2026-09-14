@@ -30,6 +30,32 @@
     }
 }
 
+.mobileSidebarContent {
+    display: flex;
+    flex-direction: column;
+
+    @mixin light {
+        background: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background: var(--mantine-color-ldDark-2);
+    }
+}
+
+.mobileSidebarHeader {
+    background: transparent;
+    min-height: 0;
+    padding-bottom: var(--mantine-spacing-xs);
+}
+
+.mobileSidebarBody {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding: 0 var(--mantine-spacing-sm) var(--mantine-spacing-sm);
+}
+
 .sidebarTransition {
     transition: all 300ms ease-in-out;
 }

@@ -1,0 +1,4 @@
+/* Fully qualified table names overflow Monaco's 430px suggest widget. */
+.editor :global(.monaco-editor .suggest-widget) {
+    min-width: rem(640px);
+}

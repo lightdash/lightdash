@@ -71,7 +71,10 @@ const execute = async (
         NonNullable<ReturnType<typeof getGetMetadata>['execute']>
     >[0]['requests'],
 ): Promise<ExecuteResult> => {
-    const tool = getGetMetadata({ availableExplores: [explore] });
+    const tool = getGetMetadata({
+        availableExplores: [explore],
+        projectParameterDefinitions: {},
+    });
     const result = await tool.execute!(
         { requests },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -241,7 +244,10 @@ describe('getMetadata explore field listing', () => {
             },
         };
 
-        const tool = getGetMetadata({ availableExplores: [billing, sales] });
+        const tool = getGetMetadata({
+            availableExplores: [billing, sales],
+            projectParameterDefinitions: {},
+        });
         const result = (await tool.execute!(
             {
                 requests: [
@@ -360,12 +366,129 @@ describe('getMetadata default time dimensions', () => {
                     },
                 ],
             },
-            { availableExplores: [explore] },
+            { availableExplores: [explore], projectParameterDefinitions: {} },
         );
         expect(structured.structuredContent.fields[0]).toMatchObject({
             status: 'found',
             defaultTimeDimension: 'orders_created_at',
             defaultTimeDimensionGranularity: 'orders_created_at_month',
+        });
+    });
+});
+
+describe('getMetadata parameters', () => {
+    const makeParameterizedExplore = (): Explore => {
+        const explore = makeExplore({});
+        explore.tables.orders.parameters = {
+            metric: {
+                label: 'Metric',
+                description: 'Switches what Selected Metric returns',
+                options: ['revenue', 'active_users'],
+                default: 'revenue',
+            },
+        };
+        explore.tables.orders.dimensions.selected_metric = {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.NUMBER,
+            name: 'selected_metric',
+            label: 'Selected Metric',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: "${ld.parameters.orders.metric} = 'revenue'",
+            hidden: false,
+            source: undefined,
+            compiledSql: "'revenue' = 'revenue'",
+            tablesReferences: ['orders'],
+            parameterReferences: ['orders.metric'],
+        };
+        return explore;
+    };
+
+    it('renders referenced parameter definitions on the explore', async () => {
+        const result = await execute(makeParameterizedExplore(), [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+
+        expect(result.result).toContain('⚠ parameters');
+        expect(result.result).toContain('orders.metric');
+        expect(result.result).toContain('default: "revenue"');
+        expect(result.result).toContain('options: revenue, active_users');
+    });
+
+    it('omits the parameters block when nothing references one', async () => {
+        const result = await execute(makeExplore({}), [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+
+        expect(result.result).not.toContain('⚠ parameters');
+    });
+
+    it('includes referenced project-level parameter definitions', () => {
+        const explore = makeExplore({});
+        explore.tables.orders.dimensions.status.parameterReferences = [
+            'region',
+        ];
+
+        const structured = executeGetMetadata(
+            { requests: [{ type: 'explore', exploreIds: ['sales'] }] },
+            {
+                availableExplores: [explore],
+                projectParameterDefinitions: {
+                    region: {
+                        label: 'Region',
+                        type: 'string',
+                        default: 'emea',
+                    },
+                },
+            },
+        );
+
+        expect(structured.structuredContent.explores[0]).toMatchObject({
+            status: 'found',
+            parameters: [
+                {
+                    name: 'region',
+                    label: 'Region',
+                    type: 'string',
+                    default: 'emea',
+                    options: null,
+                },
+            ],
+        });
+    });
+
+    it('marks parameter-driven fields with their required parameters', async () => {
+        const explore = makeParameterizedExplore();
+        const result = await execute(explore, [
+            {
+                type: 'field',
+                fields: [
+                    { exploreId: 'sales', fieldId: 'orders_selected_metric' },
+                ],
+            },
+        ]);
+
+        expect(result.result).toContain('⚠ requires parameters: orders.metric');
+
+        const structured = executeGetMetadata(
+            {
+                requests: [
+                    {
+                        type: 'field',
+                        fields: [
+                            {
+                                exploreId: 'sales',
+                                fieldId: 'orders_selected_metric',
+                            },
+                        ],
+                    },
+                ],
+            },
+            { availableExplores: [explore], projectParameterDefinitions: {} },
+        );
+        expect(structured.structuredContent.fields[0]).toMatchObject({
+            status: 'found',
+            requiredParameters: ['orders.metric'],
         });
     });
 });

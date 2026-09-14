@@ -1,5 +1,5 @@
 import { type GroupWithMembers } from '@lightdash/common';
-import { ActionIcon, Menu } from '@mantine-8/core';
+import { ActionIcon, Menu } from '@mantine/core';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useGroupDeleteMutation } from '../../../hooks/useOrganizationGroups';
@@ -28,21 +28,15 @@ const GroupsActionMenu: FC<GroupsActionMenuProps> = ({
     return (
         <>
             <Menu
-                withinPortal
                 position="bottom-start"
                 withArrow
                 arrowPosition="center"
-                shadow="md"
                 offset={-4}
                 closeOnItemClick
                 closeOnClickOutside
             >
                 <Menu.Target>
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        disabled={disabled}
-                    >
+                    <ActionIcon disabled={disabled}>
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>

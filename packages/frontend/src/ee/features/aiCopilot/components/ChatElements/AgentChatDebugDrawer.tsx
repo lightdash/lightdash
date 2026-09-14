@@ -4,6 +4,7 @@ import type {
     AiAgentToolResult,
 } from '@lightdash/common';
 import {
+    Badge,
     Box,
     Collapse,
     Drawer,
@@ -12,7 +13,7 @@ import {
     ScrollArea,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconBug,
     IconChevronDown,
@@ -97,7 +98,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
         <Drawer
             title={
                 <Group gap={6}>
-                    <Paper p="xxs" withBorder radius="sm">
+                    <Paper p="xxs" radius="sm">
                         <MantineIcon icon={IconBug} size="sm" />
                     </Paper>
                     <Text fw={500} size="md">
@@ -189,6 +190,12 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                     toolCall.toolArgs,
                                     2,
                                 );
+                                const toolResult = toolResultsMap.get(
+                                    toolCall.toolCallId,
+                                );
+                                const isError =
+                                    toolResult?.metadata?.status === 'error';
+
                                 return (
                                     <Box
                                         key={callId}
@@ -224,10 +231,18 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                         {toolCall.toolName ||
                                                             'Unknown'}
                                                     </Text>
+                                                    {isError && (
+                                                        <Badge
+                                                            color="red"
+                                                            size="xs"
+                                                        >
+                                                            Error
+                                                        </Badge>
+                                                    )}
                                                 </Group>
                                             </Group>
                                         </Box>
-                                        <Collapse in={isExpanded}>
+                                        <Collapse expanded={isExpanded}>
                                             <Stack gap="sm" p="sm">
                                                 {/* Tool Arguments */}
                                                 {argsJson ? (
@@ -271,9 +286,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
 
                                                 <ToolResults
                                                     toolCall={toolCall}
-                                                    toolResult={toolResultsMap.get(
-                                                        toolCall.toolCallId,
-                                                    )}
+                                                    toolResult={toolResult}
                                                 />
                                             </Stack>
                                         </Collapse>

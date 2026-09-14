@@ -1,0 +1,22 @@
+.dropzone {
+    border: 1px dashed var(--mantine-color-gray-4);
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-xl);
+    cursor: pointer;
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease;
+}
+
+.dropzoneActive {
+    border-color: var(--mantine-color-blue-5);
+    background-color: var(--mantine-color-blue-0);
+}
+
+.dropzone {
+    display: block;
+}
+
+.hiddenInput {
+    display: none;
+}

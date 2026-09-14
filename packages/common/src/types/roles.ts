@@ -1,7 +1,23 @@
 import type { ApiSuccessEmpty } from './api/success';
+import type { OrganizationMemberRole } from './organizationMemberProfile';
+import type { ProjectMemberRole } from './projectMemberRole';
 import type { PromotionAction } from './promotion';
 
 export type RoleLevel = 'project' | 'organization';
+
+/**
+ * Complete set of roles held at one level: at most one system role plus any
+ * number of custom roles. Permissions are the union of all held roles.
+ */
+export type OrganizationRoleSet = {
+    systemRole: OrganizationMemberRole | null;
+    customRoleUuids: string[];
+};
+
+export type ProjectRoleSet = {
+    systemRole: ProjectMemberRole | null;
+    customRoleUuids: string[];
+};
 
 export type ProjectAccess = {
     projectUuid: string;
@@ -10,6 +26,7 @@ export type ProjectAccess = {
     roleName: string;
     firstName: string;
     lastName: string;
+    hasMultipleRoles?: boolean;
 };
 
 export type GroupProjectAccess = {
@@ -18,6 +35,7 @@ export type GroupProjectAccess = {
     roleUuid: string;
     roleName: string;
     groupName: string;
+    hasMultipleRoles?: boolean;
 };
 
 export type Role = {
@@ -123,6 +141,18 @@ export type RoleAssignment = {
     projectId?: string; // for project-level assignments
     createdAt: Date;
     updatedAt: Date;
+    /** True when the assignee holds extra custom roles beyond `roleId` (see role sets). */
+    hasMultipleRoles?: boolean;
+};
+
+export type ApiOrganizationRoleSetResponse = {
+    status: 'ok';
+    results: OrganizationRoleSet;
+};
+
+export type ApiProjectRoleSetResponse = {
+    status: 'ok';
+    results: ProjectRoleSet;
 };
 
 export type CreateRoleAssignmentRequest = {

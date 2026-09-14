@@ -2,7 +2,7 @@ import {
     hasChartsInDashboard,
     isDashboardChartTileType,
 } from '@lightdash/common';
-import { List, ScrollArea, type ModalProps } from '@mantine-8/core';
+import { List, ScrollArea, type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
 import {
     useDashboardDeleteMutation,

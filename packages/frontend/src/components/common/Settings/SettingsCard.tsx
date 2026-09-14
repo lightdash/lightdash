@@ -1,4 +1,4 @@
-import { Paper, type PaperProps } from '@mantine-8/core';
+import { Paper, type PaperProps } from '@mantine/core';
 import { type FC, type PropsWithChildren } from 'react';
 import classes from './SettingsCard.module.css';
 
@@ -7,7 +7,7 @@ const SettingsCard: FC<PropsWithChildren<PaperProps>> = ({
     ...rest
 }) => {
     return (
-        <Paper shadow="subtle" withBorder p="lg" radius="md" {...rest}>
+        <Paper p="lg" radius="md" {...rest}>
             {children}
         </Paper>
     );

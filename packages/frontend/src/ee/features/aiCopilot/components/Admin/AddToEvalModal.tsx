@@ -2,14 +2,7 @@ import {
     type ApiAppendEvaluationRequest,
     type ApiCreateEvaluationRequest,
 } from '@lightdash/common';
-import {
-    Button,
-    Loader,
-    Select,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine-8/core';
+import { Button, Loader, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';

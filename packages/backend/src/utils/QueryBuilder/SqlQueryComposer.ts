@@ -4,6 +4,7 @@ import {
     createVirtualView,
     getDashboardFilterRulesForTileAndReferences,
     getItemMap,
+    quoteFieldReference,
     type DashboardFilters,
     type DimensionType,
     type Explore,
@@ -125,17 +126,26 @@ export class SqlQueryComposer extends QueryComposer {
             warehouseClient,
         );
 
+        // Only the columns the SQL actually selects — the virtual view also
+        // holds the generated time interval dimensions
         const dimensions = Object.values(
             virtualView.tables[virtualView.baseTable].dimensions,
-        ).map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
+        )
+            .filter((d) => d.timeInterval === undefined)
+            .map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
 
         const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+        const adapterType = warehouseClient.getAdapterType();
 
         const referenceMap: ReferenceMap = {};
         vizColumns.forEach((col) => {
             referenceMap[col.reference] = {
                 type: col.type,
-                sql: `${fieldQuoteChar}${col.reference}${fieldQuoteChar}`,
+                sql: quoteFieldReference(
+                    col.reference,
+                    fieldQuoteChar,
+                    adapterType,
+                ),
             };
         });
 

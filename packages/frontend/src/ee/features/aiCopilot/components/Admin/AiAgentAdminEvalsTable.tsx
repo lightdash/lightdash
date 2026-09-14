@@ -10,14 +10,12 @@ import {
     Divider,
     Group,
     Stack,
+    Switch,
     Text,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconBox,
     IconClock,
     IconHistory,
@@ -26,14 +24,7 @@ import {
     IconTextCaption,
     IconTrash,
 } from '@tabler/icons-react';
-import {
-    useCallback,
-    useDeferredValue,
-    useEffect,
-    useMemo,
-    useRef,
-    type UIEvent,
-} from 'react';
+import { useCallback, useDeferredValue, useMemo, useRef } from 'react';
 import {
     ContentTable,
     useContentTable,
@@ -42,6 +33,7 @@ import {
     type ContentTableVirtualizer,
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useInfiniteScroll } from '../../../../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { useInfiniteAiAgentAdminEvals } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
@@ -72,6 +64,8 @@ const AiAgentAdminEvalsTable = ({
         setSelectedProjectUuids,
         setSelectedAgentUuids,
         setSorting,
+        hidePreviewProjects,
+        setHidePreviewProjects,
         hasActiveFilters,
         resetFilters,
     } = useAiAgentAdminFilters();
@@ -117,7 +111,6 @@ const AiAgentAdminEvalsTable = ({
         [sorting, setSorting],
     );
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -144,26 +137,11 @@ const AiAgentAdminEvalsTable = ({
         return lastPage.pagination?.totalResults ?? 0;
     }, [data]);
 
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                if (
-                    scrollHeight - scrollTop - clientHeight < 200 &&
-                    !isFetching &&
-                    hasNextPage
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const columns: ContentTableColumnDef<AiAgentAdminEvalSummary>[] = [
         {
@@ -174,7 +152,7 @@ const AiAgentAdminEvalsTable = ({
             size: 240,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconTextCaption} color="ldGray.6" />
+                    <MantineIcon icon={IconTextCaption} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -184,10 +162,8 @@ const AiAgentAdminEvalsTable = ({
                 return (
                     <Stack gap={0} miw={0}>
                         <Tooltip
-                            withinPortal
                             label={evalSummary.title}
                             disabled={!isTruncated.isTruncated}
-                            multiline
                             maw={300}
                         >
                             <Text
@@ -200,7 +176,7 @@ const AiAgentAdminEvalsTable = ({
                             </Text>
                         </Tooltip>
                         {evalSummary.description && (
-                            <Text fz="xs" c="ldGray.6" truncate>
+                            <Text fz="xs" c="dimmed" truncate>
                                 {evalSummary.description}
                             </Text>
                         )}
@@ -216,7 +192,7 @@ const AiAgentAdminEvalsTable = ({
             size: 120,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconRobotFace} color="ldGray.6" />
+                    <MantineIcon icon={IconRobotFace} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -235,12 +211,12 @@ const AiAgentAdminEvalsTable = ({
             size: 110,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconBox} color="ldGray.6" />
+                    <MantineIcon icon={IconBox} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
             Cell: ({ row }) => (
-                <Text c="ldGray.9" fz="sm" fw={400}>
+                <Text fz="sm" fw={400}>
                     {row.original.project.name}
                 </Text>
             ),
@@ -253,7 +229,7 @@ const AiAgentAdminEvalsTable = ({
             size: 80,
             Header: ({ column }) => (
                 <Group gap="two" wrap="nowrap">
-                    <MantineIcon icon={IconMessages} color="ldGray.6" />
+                    <MantineIcon icon={IconMessages} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -269,7 +245,7 @@ const AiAgentAdminEvalsTable = ({
             size: 180,
             Header: ({ column }) => (
                 <Group gap="two" wrap="nowrap">
-                    <MantineIcon icon={IconHistory} color="ldGray.6" />
+                    <MantineIcon icon={IconHistory} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -288,7 +264,7 @@ const AiAgentAdminEvalsTable = ({
                         <TimeAgo
                             date={latestRun.completedAt ?? latestRun.createdAt}
                             fz="xs"
-                            c="ldGray.6"
+                            c="dimmed"
                         />
                     </Stack>
                 );
@@ -302,7 +278,7 @@ const AiAgentAdminEvalsTable = ({
             size: 100,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconClock} color="ldGray.6" />
+                    <MantineIcon icon={IconClock} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -319,16 +295,8 @@ const AiAgentAdminEvalsTable = ({
         data: flatData,
         getRowId: (row) => row.evalUuid,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enableRowVirtualization: true,
         enablePagination: false,
-        enableFilters: true,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
             setSearch(s);
         },
@@ -336,40 +304,24 @@ const AiAgentAdminEvalsTable = ({
         manualSorting: true,
         onSortingChange: handleSortingChange,
         enableTopToolbar: true,
-        positionGlobalFilter: 'left',
         emptyState: {
             entityName: 'evals',
-            emptyMessage:
-                "No evals yet. Create one from an agent's Evals tab to benchmark its answers.",
+            title: 'No evals yet',
+            description:
+                "Create one from an agent's Evals tab to benchmark its answers.",
             search,
             hasActiveFilters,
             onClearFilters: resetFilters,
-        },
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: {
                 maxHeight: 'calc(100dvh - 320px)',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
         },
         mantineTableBodyRowProps: ({ row, table: tableInstance }) => {
             if (tableInstance.getState().showSkeletons) {
@@ -410,35 +362,33 @@ const AiAgentAdminEvalsTable = ({
                             setSearch={setSearch}
                             placeholder="Search evals by title"
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{ alignSelf: 'center' }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{ alignSelf: 'center' }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
                             selectedProjectUuids={selectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
+                        />
+                        <Divider orientation="vertical" w={1} h={20} />
+                        <Switch
+                            size="xs"
+                            label="Hide preview projects"
+                            checked={hidePreviewProjects}
+                            onChange={(event) =>
+                                setHidePreviewProjects(
+                                    event.currentTarget.checked,
+                                )
+                            }
                         />
                         {hasActiveFilters && (
                             <>
-                                <Divider
-                                    orientation="vertical"
-                                    w={1}
-                                    h={20}
-                                    style={{ alignSelf: 'center' }}
-                                />
+                                <Divider orientation="vertical" w={1} h={20} />
                                 <Button
                                     variant="subtle"
                                     size="xs"
@@ -500,7 +450,7 @@ const AiAgentAdminEvalsTable = ({
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}
@@ -509,17 +459,6 @@ const AiAgentAdminEvalsTable = ({
                 )}
             </Box>
         ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             sorting,
             showProgressBars: false,
@@ -537,7 +476,6 @@ const AiAgentAdminEvalsTable = ({
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 52, overscan: 40 },
-        enableFilterMatchHighlighting: true,
         enableRowActions: false,
     });
 

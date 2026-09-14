@@ -1,5 +1,5 @@
 import type { AiAgentMessageAssistant } from '@lightdash/common';
-import { Box, Paper } from '@mantine-8/core';
+import { Box, Paper } from '@mantine/core';
 import { type FC } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { AiArtifactPanel } from './AiArtifactPanel';
@@ -43,13 +43,7 @@ export const AiArtifactInline: FC<AiArtifactInlineProps> = ({
     }
 
     return (
-        <Paper
-            variant="dotted"
-            p="xs"
-            radius="md"
-            style={{ height: '400px' }}
-            shadow={'none'}
-        >
+        <Paper variant="dotted" p="xs" radius="md" h="400px" shadow={'none'}>
             {artifactJsx}
         </Paper>
     );

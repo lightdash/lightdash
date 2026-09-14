@@ -8,8 +8,8 @@ import {
     Table,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -59,19 +59,15 @@ const TableRow: FC<{
                 </Tooltip>
             </Table.Td>
             <Table.Td>
-                <Badge variant="light" color="gray">
+                <Badge>
                     {level === 'organization' ? 'Organization' : 'Project'}
                 </Badge>
             </Table.Td>
             <Table.Td>{createdAt ? formatDate(createdAt) : '-'}</Table.Td>
             <Table.Td w="1%">
-                <Menu withinPortal position="bottom-end">
+                <Menu position="bottom-end">
                     <Menu.Target>
-                        <ActionIcon
-                            variant="transparent"
-                            size="sm"
-                            color="ldGray.6"
-                        >
+                        <ActionIcon variant="transparent" size="sm">
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
                     </Menu.Target>
@@ -136,7 +132,7 @@ export const CustomRolesTable: FC<TableProps> = ({
 
     return (
         <>
-            <Paper withBorder style={{ overflow: 'hidden' }}>
+            <Paper className={tableStyles.paper}>
                 <Table
                     className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 >

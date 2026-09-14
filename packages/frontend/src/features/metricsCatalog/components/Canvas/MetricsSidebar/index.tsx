@@ -8,12 +8,13 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconBook,
     IconGripVertical,
     IconHierarchy3,
     IconInfoCircle,
+    IconPlus,
 } from '@tabler/icons-react';
 import React, { useCallback, type DragEvent, type FC } from 'react';
 import { Panel, PanelResizeHandle } from 'react-resizable-panels';
@@ -25,6 +26,7 @@ import classes from './MetricsSidebar.module.css';
 
 type MetricsSidebarProps = {
     nodes: ExpandedNodeData[];
+    onAddMetric: (node: ExpandedNodeData) => void;
     yamlDriversByTarget: Map<string, YamlDriverInfo[]>;
     hasMore?: boolean;
     isLoadingMore?: boolean;
@@ -34,6 +36,7 @@ type MetricsSidebarProps = {
 type DraggableMetricItemProps = {
     node: ExpandedNodeData;
     hasYamlDrivers: boolean;
+    onAddMetric: (node: ExpandedNodeData) => void;
     onDragStart: (
         event: DragEvent<HTMLDivElement>,
         node: ExpandedNodeData,
@@ -41,7 +44,7 @@ type DraggableMetricItemProps = {
 };
 
 const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
-    ({ node, hasYamlDrivers, onDragStart }) => {
+    ({ node, hasYamlDrivers, onDragStart, onAddMetric }) => {
         const title = node.data.label;
 
         const { ref, isTruncated } = useIsTruncated();
@@ -68,11 +71,25 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
                             c="ldGray.7"
                             fw={500}
                             truncate
-                            style={{ flex: 1 }}
+                            flex={1}
                             ref={ref}
                         >
                             {title}
                         </Text>
+                    </Tooltip>
+                    <Tooltip label={`Add ${title} to canvas`}>
+                        <ActionIcon
+                            aria-label={`Add ${title} to canvas`}
+                            size="sm"
+                            variant="subtle"
+                            onClick={() => onAddMetric(node)}
+                            data-tour-anchor="tree-add-metric"
+                            data-tour-hint="Add {value} to canvas"
+                            data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#creating-a-saved-tree:li3"
+                            data-tour-value={title}
+                        >
+                            <MantineIcon icon={IconPlus} size={14} />
+                        </ActionIcon>
                     </Tooltip>
                     {hasYamlDrivers && (
                         <Tooltip
@@ -109,7 +126,14 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
 );
 
 const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
-    ({ nodes, yamlDriversByTarget, hasMore, isLoadingMore, onLoadMore }) => {
+    ({
+        nodes,
+        yamlDriversByTarget,
+        hasMore,
+        isLoadingMore,
+        onLoadMore,
+        onAddMetric,
+    }) => {
         const handleDragStart = useCallback(
             (event: DragEvent<HTMLDivElement>, node: ExpandedNodeData) => {
                 event.dataTransfer.setData('application/reactflow', node.id);
@@ -163,7 +187,7 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
                                 </ActionIcon>
                             </Group>
 
-                            <ScrollArea style={{ flex: 1 }} offsetScrollbars>
+                            <ScrollArea flex={1} offsetScrollbars>
                                 <Stack gap="xs">
                                     {nodes.length > 0
                                         ? nodes.map((node) => (
@@ -174,6 +198,7 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
                                                       node.id,
                                                   )}
                                                   onDragStart={handleDragStart}
+                                                  onAddMetric={onAddMetric}
                                               />
                                           ))
                                         : !hasMore && (

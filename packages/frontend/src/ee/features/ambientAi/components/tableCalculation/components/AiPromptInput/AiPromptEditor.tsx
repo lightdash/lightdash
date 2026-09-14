@@ -6,8 +6,8 @@ import {
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { RichTextEditor } from '@mantine-8/tiptap';
+import { Box } from '@mantine/core';
+import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
@@ -111,6 +111,9 @@ export const AiPromptEditor: FC<Props> = ({
                 blockquote: false,
                 codeBlock: false,
                 horizontalRule: false,
+                link: false,
+                underline: false,
+                trailingNode: false,
             }),
             MentionWithLabel.configure({
                 suggestion: generateFieldSuggestion(fieldSuggestions),
@@ -152,7 +155,7 @@ export const AiPromptEditor: FC<Props> = ({
 
     // Clear editor when shouldClear changes to true
     useEffect(() => {
-        if (shouldClear && editor) {
+        if (shouldClear && editor && !editor.isDestroyed) {
             editor.commands.clearContent();
             onCleared?.();
         }
@@ -160,7 +163,7 @@ export const AiPromptEditor: FC<Props> = ({
 
     // Update suggestions when fields change
     useEffect(() => {
-        if (editor && fieldSuggestions.length > 0) {
+        if (editor && !editor.isDestroyed && fieldSuggestions.length > 0) {
             // Update the mention extension's suggestion config
             editor.extensionManager.extensions.forEach((ext) => {
                 if (ext.name === 'mention') {

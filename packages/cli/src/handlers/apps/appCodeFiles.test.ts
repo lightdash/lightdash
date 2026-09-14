@@ -1,20 +1,9 @@
-import {
-    type AnyType,
-    type DataAppCode,
-    type DataAppDependencies,
-} from '@lightdash/common';
-import {
-    promises as fs,
-    mkdirSync,
-    mkdtempSync,
-    utimesSync,
-    writeFileSync,
-} from 'fs';
+import { type DataAppCode, type DataAppDependencies } from '@lightdash/common';
+import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import {
     appFolderName,
-    appFolderNeedsUpdating,
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
     buildDepsWarningLines,
@@ -255,6 +244,60 @@ it('writes context files under .lightdash/context and skips null parameters', as
     ).rejects.toThrow();
 });
 
+it('writes sharded semantic layer files and clears the previous context snapshot', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-ctx-'));
+    await fs.mkdir(path.join(dir, '.lightdash/context/models'), {
+        recursive: true,
+    });
+    await fs.writeFile(
+        path.join(dir, '.lightdash/context/models/deleted_model.yml'),
+        'models: []',
+    );
+    await fs.writeFile(
+        path.join(dir, '.lightdash/context/parameters.yml'),
+        'parameters: {}',
+    );
+    await fs.mkdir(path.join(dir, 'src'), { recursive: true });
+    await fs.writeFile(path.join(dir, 'src/App.tsx'), '// keep');
+
+    await writeContextToDir(dir, {
+        semanticLayer: {
+            path: '.lightdash/context/semantic-layer.yml',
+            contentBase64: Buffer.from('# see models/').toString('base64'),
+        },
+        semanticLayerFiles: [
+            {
+                path: '.lightdash/context/models/orders.yml',
+                contentBase64: Buffer.from('models: []').toString('base64'),
+            },
+        ],
+        parameters: null,
+        promptHistory: {
+            path: '.lightdash/context/prompt-history.md',
+            contentBase64: Buffer.from('# prompts').toString('base64'),
+        },
+        theme: { instructions: null, assets: [], skippedAssetCount: 0 },
+    });
+
+    expect(
+        await fs.readFile(
+            path.join(dir, '.lightdash/context/models/orders.yml'),
+            'utf-8',
+        ),
+    ).toBe('models: []');
+    await expect(
+        fs.access(
+            path.join(dir, '.lightdash/context/models/deleted_model.yml'),
+        ),
+    ).rejects.toThrow();
+    await expect(
+        fs.access(path.join(dir, '.lightdash/context/parameters.yml')),
+    ).rejects.toThrow();
+    expect(await fs.readFile(path.join(dir, 'src/App.tsx'), 'utf-8')).toBe(
+        '// keep',
+    );
+});
+
 describe('appFolderName', () => {
     it('returns the slugified name when no collision', () => {
         const taken = new Set<string>();
@@ -405,6 +448,7 @@ describe('readDependenciesFromDir', () => {
         expect(result).not.toBeNull();
         expect(result?.packageJson).toBe(makePackageJson());
         expect(result?.lockfile).toBe(LOCKFILE_CONTENT);
+        expect(result?.hasNpmLockfile).toBe(false);
     });
 
     // The download scaffold always writes package.json but never a lockfile,
@@ -423,6 +467,14 @@ describe('readDependenciesFromDir', () => {
         await expect(readDependenciesFromDir(dir)).rejects.toThrow(
             /package\.json/,
         );
+    });
+
+    it('flags a stray package-lock.json when the pnpm lockfile is absent', async () => {
+        await fs.writeFile(path.join(dir, 'package.json'), makePackageJson());
+        await fs.writeFile(path.join(dir, 'package-lock.json'), '{}');
+        const result = await readDependenciesFromDir(dir);
+        expect(result?.lockfile).toBeNull();
+        expect(result?.hasNpmLockfile).toBe(true);
     });
 });
 
@@ -524,90 +576,5 @@ describe('applySdkMirrorToTemplateDeps', () => {
         expect(applySdkMirrorToTemplateDeps(template, 'not-json')).toEqual(
             template,
         );
-    });
-});
-
-// ─── appFolderNeedsUpdating ────────────────────────────────────────────────────
-
-describe('appFolderNeedsUpdating', () => {
-    const DOWNLOADED_AT = '2026-07-30T12:00:00.000Z';
-    const manifest = { downloadedAt: DOWNLOADED_AT } as AnyType;
-
-    const buildFolder = () => {
-        const dir = mkdtempSync(path.join(os.tmpdir(), 'ld-app-folder-'));
-        mkdirSync(path.join(dir, 'src'), { recursive: true });
-        writeFileSync(path.join(dir, 'src', 'App.tsx'), 'x');
-        writeFileSync(path.join(dir, 'lightdash-app.yml'), 'slug: x');
-        mkdirSync(path.join(dir, '.lightdash', 'context'), {
-            recursive: true,
-        });
-        writeFileSync(
-            path.join(dir, '.lightdash', 'context', 'semantic-layer.yml'),
-            'models: []',
-        );
-        const at = new Date(DOWNLOADED_AT);
-        [
-            path.join(dir, 'src', 'App.tsx'),
-            path.join(dir, 'lightdash-app.yml'),
-            path.join(dir, '.lightdash', 'context', 'semantic-layer.yml'),
-        ].forEach((file) => utimesSync(file, at, at));
-        return dir;
-    };
-
-    it('is false for a freshly downloaded folder', async () => {
-        await expect(
-            appFolderNeedsUpdating(buildFolder(), manifest),
-        ).resolves.toBe(false);
-    });
-
-    it('is true when a src file was edited', async () => {
-        const dir = buildFolder();
-        const later = new Date('2026-07-30T13:00:00.000Z');
-        utimesSync(path.join(dir, 'src', 'App.tsx'), later, later);
-        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(true);
-    });
-
-    it('is true when the manifest was edited', async () => {
-        const dir = buildFolder();
-        const later = new Date('2026-07-30T13:00:00.000Z');
-        utimesSync(path.join(dir, 'lightdash-app.yml'), later, later);
-        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(true);
-    });
-
-    it('ignores regenerated context files', async () => {
-        const dir = buildFolder();
-        const later = new Date('2026-07-30T13:00:00.000Z');
-        utimesSync(
-            path.join(dir, '.lightdash', 'context', 'semantic-layer.yml'),
-            later,
-            later,
-        );
-        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(
-            false,
-        );
-    });
-
-    it('is true when downloadedAt is missing', async () => {
-        await expect(
-            appFolderNeedsUpdating(buildFolder(), {} as AnyType),
-        ).resolves.toBe(true);
-    });
-
-    it('is true when downloadedAt is unparseable', async () => {
-        await expect(
-            appFolderNeedsUpdating(buildFolder(), {
-                downloadedAt: 'not-a-date',
-            } as AnyType),
-        ).resolves.toBe(true);
-    });
-
-    it('is true when a nested src file was edited', async () => {
-        const dir = buildFolder();
-        mkdirSync(path.join(dir, 'src', 'components'), { recursive: true });
-        const nested = path.join(dir, 'src', 'components', 'Chart.tsx');
-        writeFileSync(nested, 'x');
-        const later = new Date('2026-07-30T13:00:00.000Z');
-        utimesSync(nested, later, later);
-        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(true);
     });
 });

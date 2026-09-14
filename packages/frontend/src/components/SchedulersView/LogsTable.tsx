@@ -14,8 +14,8 @@ import {
     Text,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertTriangleFilled,
     IconClock,
@@ -30,7 +30,6 @@ import {
     useRef,
     useState,
     type FC,
-    type UIEvent,
 } from 'react';
 import { Link } from 'react-router';
 import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSendNowModal';
@@ -41,6 +40,7 @@ import {
     useSchedulerRuns,
     useSendNowSchedulerByUuid,
 } from '../../features/scheduler/hooks/useScheduler';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import {
     ContentTable,
     useContentTable,
@@ -93,7 +93,6 @@ const LogsTable: FC<LogsTableProps> = ({
     onSelectRun,
 }) => {
     const isResourceScoped = !!resourceScope;
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -180,36 +179,21 @@ const LogsTable: FC<LogsTableProps> = ({
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = schedulerRunsData?.length ?? 0;
 
-    // Callback to fetch more data when scrolling
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                // Fetch more when within 400px of bottom
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
+    const {
+        containerRef: tableContainerRef,
+        onScroll,
+        scrollToTop,
+    } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: totalFetched < totalDBRowCount,
+        threshold: 400,
+    });
 
     // Scroll to top when filters change
     useEffect(() => {
-        if (tableContainerRef.current) {
-            tableContainerRef.current.scrollTop = 0;
-        }
-    }, [debouncedSearchAndFilters]);
-
-    // Check on mount if table needs initial fetch
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+        scrollToTop();
+    }, [debouncedSearchAndFilters, scrollToTop]);
 
     // Re-measure virtualizer when container becomes visible (fixes virtualization when switching tabs)
     // Note: depends on isLoading because the table container only exists after loading completes
@@ -227,7 +211,7 @@ const LogsTable: FC<LogsTableProps> = ({
 
         resizeObserver.observe(container);
         return () => resizeObserver.disconnect();
-    }, [isLoading]);
+    }, [isLoading, tableContainerRef]);
 
     const theme = useMantineTheme();
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -313,7 +297,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 size: 250,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
+                        <MantineIcon icon={IconTextCaption} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -368,7 +352,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         </Text>
                                     </Tooltip>
                                 </Anchor>
-                                <Text fz="xs" c="ldGray.6" maw="190px" truncate>
+                                <Text fz="xs" c="dimmed" maw="190px" truncate>
                                     {run.resourceName}
                                 </Text>
                             </Stack>
@@ -451,14 +435,14 @@ const LogsTable: FC<LogsTableProps> = ({
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const { run } = row.original;
                     return (
-                        <Text fz="xs" c="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             {formatTime(run.scheduledTime)}
                         </Text>
                     );
@@ -471,14 +455,14 @@ const LogsTable: FC<LogsTableProps> = ({
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const { run } = row.original;
                     return (
-                        <Text fz="xs" c="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             {formatTime(run.createdAt)}
                         </Text>
                     );
@@ -508,19 +492,15 @@ const LogsTable: FC<LogsTableProps> = ({
                                     }}
                                 >
                                     <Menu
-                                        withinPortal
                                         position="bottom-start"
                                         withArrow
                                         arrowPosition="center"
-                                        shadow="md"
                                         offset={-4}
                                         closeOnItemClick
                                         closeOnClickOutside
                                     >
                                         <Menu.Target>
                                             <ActionIcon
-                                                variant="subtle"
-                                                color="gray"
                                                 style={{
                                                     ':hover': {
                                                         backgroundColor:
@@ -573,15 +553,7 @@ const LogsTable: FC<LogsTableProps> = ({
         columns,
         data: tableData,
         enableColumnResizing: true,
-        enableRowNumbers: false,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: false,
         enableRowVirtualization: true,
         enableTopToolbar: true,
@@ -609,16 +581,6 @@ const LogsTable: FC<LogsTableProps> = ({
                 hideSearchFilter={isResourceScoped}
             />
         ),
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: {
@@ -626,8 +588,7 @@ const LogsTable: FC<LogsTableProps> = ({
                     ? 'calc(80vh - 220px)'
                     : 'calc(100dvh - 420px)',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
@@ -673,18 +634,6 @@ const LogsTable: FC<LogsTableProps> = ({
                         : {},
                 },
             };
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-                'th > div > div:last-child': {
-                    top: -10,
-                    right: -5,
-                },
-                'th > div > div:last-child > .mantine-Divider-root': {
-                    border: 'none',
-                },
-            },
         },
         mantineTableBodyCellProps: () => {
             return {

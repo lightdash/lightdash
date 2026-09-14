@@ -1,4 +1,4 @@
-import { Menu, type MenuProps } from '@mantine-8/core';
+import { Menu, type MenuProps } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -19,10 +19,8 @@ const TotalCellMenu: FC<React.PropsWithChildren<TotalCellMenuProps>> = ({
             opened={opened}
             onOpen={onOpen}
             onClose={onClose}
-            withinPortal
             closeOnItemClick
             closeOnEscape
-            shadow="md"
             radius={0}
             position="bottom-end"
             offset={{

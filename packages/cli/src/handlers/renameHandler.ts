@@ -17,6 +17,7 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProject } from './dbt/refresh';
+import { resolveProjectOverride } from './selectProject';
 import {
     getJobState,
     getValidation,
@@ -89,8 +90,12 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         );
     }
 
+    const overrideProjectUuid = await resolveProjectOverride(
+        config,
+        options.project,
+    );
     const projectUuid =
-        options.project ||
+        overrideProjectUuid ||
         config.context.previewProject ||
         config.context.project;
     if (!projectUuid) {
@@ -103,7 +108,7 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
     }
 
     // Log current project info
-    if (options.project) {
+    if (overrideProjectUuid) {
         console.error(
             `\n${styles.success('Renaming in project:')} ${projectUuid}\n`,
         );

@@ -73,8 +73,16 @@ export const writeContextToDir = async (
     dir: string,
     context: DataAppContext,
 ): Promise<void> => {
+    // Server-owned snapshot: clear it so files from a previous download
+    // (removed models, parameters, theme assets) don't linger.
+    await fs.rm(path.join(dir, '.lightdash', 'context'), {
+        recursive: true,
+        force: true,
+    });
     const files: DataAppContextFile[] = [
         context.semanticLayer,
+        // Absent on pre-sharding servers — semanticLayer is then the whole layer.
+        ...(context.semanticLayerFiles ?? []),
         ...(context.parameters ? [context.parameters] : []),
         context.promptHistory,
         ...(context.theme.instructions ? [context.theme.instructions] : []),
@@ -209,6 +217,10 @@ export type LocalAppDependencies = {
     // freshly downloaded folder; it only becomes an error if the declared
     // set differs from the template baseline (the caller decides).
     lockfile: string | null;
+    // A stray package-lock.json — custom deps require pnpm's lockfile, so
+    // the caller can give a targeted hint when this is set and lockfile
+    // is null.
+    hasNpmLockfile: boolean;
 };
 
 /**
@@ -222,17 +234,23 @@ export const readDependenciesFromDir = async (
 ): Promise<LocalAppDependencies | null> => {
     const pkgJsonPath = path.join(dir, 'package.json');
     const lockfilePath = path.join(dir, 'pnpm-lock.yaml');
+    const npmLockfilePath = path.join(dir, 'package-lock.json');
 
-    const [pkgJsonExists, lockfileExists] = await Promise.all([
-        fs
-            .stat(pkgJsonPath)
-            .then(() => true)
-            .catch(() => false),
-        fs
-            .stat(lockfilePath)
-            .then(() => true)
-            .catch(() => false),
-    ]);
+    const [pkgJsonExists, lockfileExists, npmLockfileExists] =
+        await Promise.all([
+            fs
+                .stat(pkgJsonPath)
+                .then(() => true)
+                .catch(() => false),
+            fs
+                .stat(lockfilePath)
+                .then(() => true)
+                .catch(() => false),
+            fs
+                .stat(npmLockfilePath)
+                .then(() => true)
+                .catch(() => false),
+        ]);
 
     if (!pkgJsonExists && !lockfileExists) return null;
 
@@ -247,7 +265,7 @@ export const readDependenciesFromDir = async (
         lockfileExists ? fs.readFile(lockfilePath, 'utf-8') : null,
     ]);
 
-    return { packageJson, lockfile };
+    return { packageJson, lockfile, hasNpmLockfile: npmLockfileExists };
 };
 
 /**
@@ -304,57 +322,6 @@ export const attachDependenciesToCode = (
     deps: DataAppDependencies,
 ): DataAppCode =>
     Object.keys(customDeps).length > 0 ? { ...code, dependencies: deps } : code;
-
-const CHANGE_TOLERANCE_MS = 30_000;
-
-const collectMtimes = async (dir: string): Promise<number[]> => {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    const nested = await Promise.all(
-        entries.map(async (entry) => {
-            const entryPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) return collectMtimes(entryPath);
-            const stats = await fs.stat(entryPath);
-            return [stats.mtime.getTime()];
-        }),
-    );
-    return nested.flat();
-};
-
-const statMtime = async (file: string): Promise<number[]> =>
-    fs
-        .stat(file)
-        .then((stats) => [stats.mtime.getTime()])
-        .catch(() => []);
-
-/**
- * Mirrors the chart/dashboard rule: changed when a file that actually gets
- * uploaded has drifted more than 30s from the manifest's downloadedAt.
- */
-export const appFolderNeedsUpdating = async (
-    dir: string,
-    manifest: DataAppManifest,
-): Promise<boolean> => {
-    if (!manifest.downloadedAt) return true;
-    const downloadedAt = new Date(manifest.downloadedAt).getTime();
-    if (Number.isNaN(downloadedAt)) return true;
-
-    const srcDir = path.join(dir, 'src');
-    const srcExists = await fs
-        .stat(srcDir)
-        .then((s) => s.isDirectory())
-        .catch(() => false);
-
-    const mtimes = [
-        ...(srcExists ? await collectMtimes(srcDir) : []),
-        ...(await statMtime(path.join(dir, 'package.json'))),
-        ...(await statMtime(path.join(dir, 'pnpm-lock.yaml'))),
-        ...(await statMtime(path.join(dir, MANIFEST_FILENAME))),
-    ];
-
-    return mtimes.some(
-        (mtime) => Math.abs(mtime - downloadedAt) > CHANGE_TOLERANCE_MS,
-    );
-};
 
 export const readManifestFromDir = async (
     dir: string,

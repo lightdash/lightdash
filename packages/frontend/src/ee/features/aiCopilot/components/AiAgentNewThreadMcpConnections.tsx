@@ -3,8 +3,8 @@ import {
     type AiMcpCredentialScope,
     type AiMcpServer,
 } from '@lightdash/common';
-import { Box, Button, Group, Paper, Stack, Text } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconBrandGithub,
     IconCircleCheck,
@@ -16,6 +16,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
     useAgentAiMcpServers,
+    useConnectGithubMcpServerAppMutation,
     useConnectGithubMcpServerMutation,
     useGithubMcpAvailability,
     useStartMcpOAuthConnectionMutation,
@@ -155,6 +156,10 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
     );
     const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
         useConnectGithubMcpServerMutation(projectUuid);
+    const {
+        mutateAsync: connectGithubMcpApp,
+        isLoading: isConnectingGithubMcpApp,
+    } = useConnectGithubMcpServerAppMutation(projectUuid);
     const { mutateAsync: updateAgentMcpServers, isLoading: isAttachingGithub } =
         useProjectUpdateAiAgentMutation(projectUuid, {
             showSuccessToast: false,
@@ -169,8 +174,10 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
             ),
         [mcpServers],
     );
+    const githubConnectModes = githubMcpAvailability?.availableModes ?? [];
+    const canGithubAppConnect = githubConnectModes.includes('github_app');
     const canOneClickConnectGithub =
-        githubMcpAvailability?.available === true &&
+        githubConnectModes.length > 0 &&
         githubMcpAvailability?.alreadyConnected === false;
 
     const appNames = useMemo(() => {
@@ -208,6 +215,28 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         [refetchAgentMcpServers, startMcpOAuthConnection],
     );
 
+    const attachGithubMcpServer = useCallback(
+        async (server: Pick<AiMcpServer, 'uuid'>) => {
+            const attachedUuids = (mcpServers ?? []).map(
+                (mcpServer) => mcpServer.uuid,
+            );
+            if (!attachedUuids.includes(server.uuid)) {
+                await updateAgentMcpServers({
+                    uuid: agentUuid,
+                    mcpServerUuids: [...attachedUuids, server.uuid],
+                });
+            }
+            githubConfirmModalHandlers.close();
+            setJustConnectedGithub(true);
+        },
+        [
+            agentUuid,
+            githubConfirmModalHandlers,
+            mcpServers,
+            updateAgentMcpServers,
+        ],
+    );
+
     const handleConnectGithubMcp = useCallback(
         async (
             personalAccessToken: string,
@@ -221,52 +250,48 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                 if (!server) {
                     return;
                 }
-                const attachedUuids = (mcpServers ?? []).map(
-                    (mcpServer) => mcpServer.uuid,
-                );
-                if (!attachedUuids.includes(server.uuid)) {
-                    await updateAgentMcpServers({
-                        uuid: agentUuid,
-                        mcpServerUuids: [...attachedUuids, server.uuid],
-                    });
-                }
-                githubConfirmModalHandlers.close();
-                setJustConnectedGithub(true);
+                await attachGithubMcpServer(server);
             } catch {
             } finally {
                 await refetchAgentMcpServers();
             }
         },
-        [
-            agentUuid,
-            connectGithubMcp,
-            githubConfirmModalHandlers,
-            mcpServers,
-            refetchAgentMcpServers,
-            updateAgentMcpServers,
-        ],
+        [attachGithubMcpServer, connectGithubMcp, refetchAgentMcpServers],
     );
+
+    const handleConnectGithubMcpApp = useCallback(async () => {
+        try {
+            const server = await connectGithubMcpApp();
+            if (!server) {
+                return;
+            }
+            await attachGithubMcpServer(server);
+        } catch {
+            // Errors surface via the mutation's onError toast.
+        } finally {
+            await refetchAgentMcpServers();
+        }
+    }, [attachGithubMcpServer, connectGithubMcpApp, refetchAgentMcpServers]);
 
     if (isLoading) return null;
 
     if (justConnectedGithub) {
         return (
             <Paper
-                withBorder
                 radius="md"
                 p="md"
                 component="section"
                 aria-label={GITHUB_MCP_CONNECTED_HEADLINE}
             >
                 <Group align="flex-start" gap="sm" wrap="nowrap">
-                    <Paper p="xxs" withBorder radius="sm">
+                    <Paper p="xxs" radius="sm">
                         <MantineIcon
                             icon={IconCircleCheck}
                             size="sm"
                             color="var(--mantine-color-green-6)"
                         />
                     </Paper>
-                    <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                    <Stack gap="xs" flex={1} miw={0}>
                         <Stack gap={2}>
                             <Text size="sm" fw={600}>
                                 {GITHUB_MCP_CONNECTED_HEADLINE}
@@ -327,8 +352,16 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
             variant="subtle"
             color="gray"
             leftSection={<MantineIcon icon={IconBrandGithub} />}
-            loading={isConnectingGithubMcp || isAttachingGithub}
-            onClick={githubConfirmModalHandlers.open}
+            loading={
+                isConnectingGithubMcp ||
+                isConnectingGithubMcpApp ||
+                isAttachingGithub
+            }
+            onClick={
+                canGithubAppConnect
+                    ? () => void handleConnectGithubMcpApp()
+                    : githubConfirmModalHandlers.open
+            }
         >
             GitHub
         </Button>
@@ -350,9 +383,9 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                     color="ldGray.5"
                     className={styles.connectionIcon}
                 />
-                <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                <Stack gap="xs" flex={1} miw={0}>
                     <Stack gap={2}>
-                        <Text id={sectionTitleId} size="xs" c="ldGray.6">
+                        <Text id={sectionTitleId} size="xs" c="dimmed">
                             {sectionSummary}
                         </Text>
                         {connectionNote && (

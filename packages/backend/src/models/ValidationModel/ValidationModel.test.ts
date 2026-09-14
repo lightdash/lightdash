@@ -1,6 +1,10 @@
 import { DashboardFilterValidationErrorType } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import {
+    AppsTableName,
+    AppVersionsTableName,
+} from '../../database/entities/apps';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { ValidationTableName } from '../../database/entities/validation';
@@ -72,14 +76,75 @@ describe('ValidationModel', () => {
             const joinedContentQueries = tracker.history.select.filter(
                 ({ sql }) =>
                     sql.includes(`join "${SavedChartsTableName}"`) ||
-                    sql.includes(`join "${DashboardsTableName}"`),
+                    sql.includes(`join "${DashboardsTableName}"`) ||
+                    sql.includes(`join "${AppsTableName}"`),
             );
-            expect(joinedContentQueries).toHaveLength(2);
+            expect(joinedContentQueries).toHaveLength(3);
             joinedContentQueries.forEach(({ sql }) => {
                 expect(sql).toContain(
                     `"${ValidationTableName}"."project_uuid"`,
                 );
             });
+        });
+
+        it('reads data app update metadata from the latest version regardless of status', async () => {
+            tracker.on.select(({ sql }) => sql.length > 0).response([]);
+
+            await model.get('22222222-2222-4222-8222-222222222222');
+
+            const appQuery = tracker.history.select.find(({ sql }) =>
+                sql.includes(`join "${AppsTableName}"`),
+            );
+            expect(appQuery).toBeDefined();
+            expect(appQuery!.sql).toContain(
+                `distinct on ("app_id") "app_id", "created_at", "created_by_user_uuid" from "${AppVersionsTableName}"`,
+            );
+            expect(appQuery!.sql).toContain(
+                'order by "app_id" asc, "version" desc',
+            );
+            expect(appQuery!.sql).not.toContain('where "status"');
+            expect(appQuery!.sql).toContain(
+                '"latest_app_version"."created_at" as "last_updated_at"',
+            );
+            expect(appQuery!.sql).toContain(
+                '"app_version_author"."first_name"',
+            );
+        });
+    });
+
+    describe('getPaginated filters', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const model = new ValidationModel({ database });
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        it('matches the table name rows without table_name still expose, and filters by field', async () => {
+            tracker.on.select(({ sql }) => sql.length > 0).response([]);
+
+            await model.getPaginated(
+                '22222222-2222-4222-8222-222222222222',
+                { page: 1, pageSize: 20 },
+                { tableName: 'orders', fieldName: 'orders_status' },
+            );
+
+            const [query] = tracker.history.select;
+            // Dashboards recover the table from the error message, table and
+            // data app rows from model_name
+            expect(query.sql).toContain("WHEN source = 'dashboard'");
+            expect(query.sql).toContain('substring(error from');
+            expect(query.sql).toContain(
+                'ELSE COALESCE(table_name, model_name)',
+            );
+            expect(query.bindings).toContain('orders');
+            expect(query.sql).toContain('"field_name" = ');
+            expect(query.bindings).toContain('orders_status');
         });
     });
 

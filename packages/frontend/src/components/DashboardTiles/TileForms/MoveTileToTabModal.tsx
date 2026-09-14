@@ -1,5 +1,5 @@
 import { type Dashboard, type DashboardTab } from '@lightdash/common';
-import { Button, Select, Text, type ModalProps } from '@mantine-8/core';
+import { Button, Select, Text, type ModalProps } from '@mantine/core';
 import { IconArrowAutofitContent } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import MantineModal from '../../common/MantineModal';

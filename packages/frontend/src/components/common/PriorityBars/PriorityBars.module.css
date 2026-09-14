@@ -1,0 +1,16 @@
+.bars {
+    display: block;
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-5);
+}
+/* Urgent shares three bars with high; a darker ink keeps it readable without color. */
+.urgent {
+    color: var(--mantine-color-ldGray-9);
+}
+.filled {
+    fill: currentColor;
+}
+.empty {
+    fill: currentColor;
+    opacity: 0.22;
+}

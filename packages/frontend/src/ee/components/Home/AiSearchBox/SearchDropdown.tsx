@@ -6,8 +6,8 @@ import {
     ScrollArea,
     TextInput,
     useCombobox,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -19,6 +19,7 @@ import useSearch, {
 } from '../../../../features/omnibar/hooks/useSearch';
 import { type SearchItem } from '../../../../features/omnibar/types/searchItem';
 import { getSearchItemLabel } from '../../../../features/omnibar/utils/getSearchItemLabel';
+import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
 import styles from './SearchDropdown.module.css';
 
@@ -44,6 +45,7 @@ export const SearchDropdown: FC<Props> = ({
     onHeaderClick,
 }) => {
     const navigate = useNavigate();
+    const projectRoute = useOptionalProjectRoute();
     const canUserManageValidation = useValidationUserAbility(projectUuid);
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
@@ -52,6 +54,7 @@ export const SearchDropdown: FC<Props> = ({
     const [debouncedQuery] = useDebouncedValue(value, 200);
     const { data: searchResults, isFetching } = useSearch({
         projectUuid,
+        projectUrlIdentifier: projectRoute?.projectUrlIdentifier,
         query: debouncedQuery,
         keepPreviousData: true,
         source: 'ai_search_box',
@@ -191,7 +194,7 @@ export const SearchDropdown: FC<Props> = ({
                     </ScrollArea.Autosize>
                 </Combobox.Options>
                 {footer && (
-                    <Combobox.Footer p={0} style={{ overflow: 'hidden' }}>
+                    <Combobox.Footer p={0} className={styles.comboboxFooter}>
                         {footer}
                     </Combobox.Footer>
                 )}

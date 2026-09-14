@@ -1,4 +1,3 @@
-import { DeprecatedRouteError } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Request, Response } from 'express';
 import Logger from '../../logging/logger';
@@ -92,26 +91,44 @@ describe('getDeprecatedRouteMiddleware', () => {
 
     it('logs a warning and does not report to Sentry when the removal date is far in the future', () => {
         const { res } = buildResponse();
-        getDeprecatedRouteMiddleware(new Date(Date.now()), {
-            removeOn: new Date(Date.now() + 365 * DAY_MS),
-        })(req, res, next);
+        const deprecatedOn = new Date(Date.now());
+        const removeOn = new Date(Date.now() + 365 * DAY_MS);
+        getDeprecatedRouteMiddleware(deprecatedOn, { removeOn })(
+            req,
+            res,
+            next,
+        );
 
         expect(Logger.warn).toHaveBeenCalledTimes(1);
+        expect(Logger.warn).toHaveBeenCalledWith(
+            'Deprecated endpoint called.',
+            {
+                route: 'GET /api/v1/old',
+                deprecatedOn: deprecatedOn.toISOString(),
+                removeOn: removeOn.toISOString(),
+            },
+        );
         expect(Logger.error).not.toHaveBeenCalled();
         expect(Sentry.captureException).not.toHaveBeenCalled();
     });
 
-    it('logs an error and reports a DeprecatedRouteError to Sentry when the removal date has passed', () => {
+    it('logs an error and does not report to Sentry when the removal date has passed', () => {
         const { res } = buildResponse();
         getDeprecatedRouteMiddleware(new Date('2020-01-01T00:00:00Z'), {
             removeOn: new Date('2020-04-01T00:00:00Z'),
+            suffixMessage: 'Use X instead.',
         })(req, res, next);
 
         expect(Logger.error).toHaveBeenCalledTimes(1);
+        expect(Logger.error).toHaveBeenCalledWith(
+            'Deprecated endpoint called. Use X instead.',
+            {
+                route: 'GET /api/v1/old',
+                deprecatedOn: '2020-01-01T00:00:00.000Z',
+                removeOn: '2020-04-01T00:00:00.000Z',
+            },
+        );
         expect(Logger.warn).not.toHaveBeenCalled();
-        expect(Sentry.captureException).toHaveBeenCalledTimes(1);
-        expect(
-            (Sentry.captureException as import('vitest').Mock).mock.calls[0][0],
-        ).toBeInstanceOf(DeprecatedRouteError);
+        expect(Sentry.captureException).not.toHaveBeenCalled();
     });
 });

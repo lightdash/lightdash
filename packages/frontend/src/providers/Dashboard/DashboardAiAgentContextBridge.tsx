@@ -21,6 +21,7 @@ import {
 } from '../../ee/features/aiCopilot/store/hooks';
 import { useActiveAiAgentThreadStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
 import { planDashboardAiAgentChanges } from './dashboardAiAgentChangePlanner';
 import useDashboardContext from './useDashboardContext';
@@ -44,15 +45,8 @@ const isDashboardChartReadyQueryForCharts = (
 const DashboardAiAgentContextBridge = () => {
     const queryClient = useQueryClient();
     // useDashboardQuery/saved_dashboard_query use UUID-or-slug; useDashboardChartReadyQuery/dashboard_chart_ready_query uses dashboard.uuid.
-    const {
-        projectUuid,
-        dashboardUuid: dashboardUuidOrSlug,
-        mode,
-    } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-        mode: string;
-    }>();
+    const { dashboardUuid: dashboardUuidOrSlug, mode } = useParams();
+    const projectUuid = useProjectUuid();
     const isEditMode = mode === 'edit';
     const dispatch = useAiAgentStoreDispatch();
     const dashboardRefreshRequest = useAiAgentStoreSelector(

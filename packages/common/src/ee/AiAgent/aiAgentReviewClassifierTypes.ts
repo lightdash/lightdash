@@ -71,6 +71,26 @@ export type AiAgentRootCause =
     | 'not_a_failure'
     | 'ambiguous';
 
+// Root causes the judge keeps assigning but that are never surfaced as issues:
+// a Lightdash capability gap is not something a customer can action on their
+// board. Findings are still classified and persisted for internal analysis.
+export const HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES: readonly AiAgentRootCause[] = [
+    'product_capability',
+];
+
+export const isHiddenAiAgentReviewRootCause = (
+    rootCause: AiAgentRootCause | null,
+): boolean =>
+    rootCause !== null &&
+    HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES.includes(rootCause);
+
+export const getVisibleAiAgentReviewRootCauses = (
+    rootCauses: AiAgentRootCause[],
+): AiAgentRootCause[] =>
+    rootCauses.filter(
+        (rootCause) => !isHiddenAiAgentReviewRootCause(rootCause),
+    );
+
 export type AiAgentFixTarget =
     | 'semantic_yaml_patch'
     | 'project_context_rule'
@@ -379,8 +399,10 @@ export type AiAgentReviewItemWritebackBlockedReason =
     | 'missing_agent'
     | 'missing_project_context_entry'
     | 'project_context_disabled'
+    | 'insufficient_source_code_access'
     | 'unsupported_source_control'
     | 'git_app_not_installed'
+    | 'bitbucket_token_missing'
     | 'missing_writeback_config'
     | 'pull_request_open'
     | 'source_thread_writeback_exists'
@@ -484,7 +506,7 @@ export const aiAgentJudgeProjectContextEntrySchema = z
     .superRefine((entry, ctx) => {
         if (entry.op === 'update' && !entry.id) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'id is required when op is update',
                 path: ['id'],
             });
@@ -662,7 +684,7 @@ const judgeOutputRefinement = (
         output.primaryRootCause === 'not_a_failure'
     ) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message:
                 'promotedToFinding must be false when primaryRootCause is not_a_failure',
             path: ['promotedToFinding'],
@@ -670,7 +692,7 @@ const judgeOutputRefinement = (
     }
     if (output.promotedToFinding && NOT_A_FAILURE_SIGNALS.has(output.signal)) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: `promotedToFinding must be false when signal is ${output.signal}; promoted findings need a failure signal`,
             path: ['signal'],
         });
@@ -680,7 +702,7 @@ const judgeOutputRefinement = (
         output.recommendation?.actionType === 'no_action'
     ) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message:
                 'promoted findings must carry an actionable recommendation, not no_action',
             path: ['recommendation', 'actionType'],
@@ -740,6 +762,7 @@ export type AiAgentReviewItem = {
     statusUpdatedAt: Date;
     statusUpdatedByUserUuid: string | null;
     linkedIssueUrl: string | null;
+    linkedJiraIssueUrl?: string | null;
     linkedPrUrl: string | null;
     prState: AiAgentReviewItemPrState | null;
     prWritebackStatus: AiAgentReviewItemWritebackStatus | null;
@@ -751,7 +774,7 @@ export type AiAgentReviewItem = {
     updatedAt: Date;
 };
 
-export type AiAgentReviewItemSource = 'ai_finding' | 'manual';
+export type AiAgentReviewItemSource = 'ai_finding' | 'manual' | 'memory';
 
 export type AiAgentReviewItemPriority =
     | 'urgent'
@@ -761,6 +784,10 @@ export type AiAgentReviewItemPriority =
     | 'none';
 
 export type AiAgentReviewItemSummary = AiAgentReviewItem & {
+    projectContextEntry: AiAgentJudgeProjectContextEntry | null;
+    sourceMemory: { uuid: string; slug: string } | null;
+    nominationReason: string | null;
+    nominator: { name: string | null; email: string | null } | null;
     /**
      * Legacy boolean kept for current clients. New clients should use
      * writebackEligibility for the blocking reason and provider.
@@ -783,6 +810,13 @@ export type AiAgentReviewItemSummary = AiAgentReviewItem & {
         createdAt: Date;
     } | null;
 };
+
+export const getReviewItemProjectContextEntry = (
+    item: AiAgentReviewItemSummary,
+): AiAgentJudgeProjectContextEntry | null =>
+    item.source === 'memory'
+        ? item.projectContextEntry
+        : (item.latestFinding?.projectContextEntry ?? null);
 
 export type ApiAiAgentReviewItemsResponse = ApiSuccess<
     AiAgentReviewItemSummary[]
@@ -827,6 +861,12 @@ export type ReorderAiAgentReviewItems = {
 };
 
 export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;
+
+export type PromoteAiAgentMemory = { reason?: string };
+
+export type ApiPromoteAiAgentMemoryResponse = ApiSuccess<
+    Pick<AiAgentReviewItemSummary, 'uuid' | 'fingerprint' | 'status'>
+>;
 
 /**
  * Preview of the file change a writeback PR would make, computed deterministically

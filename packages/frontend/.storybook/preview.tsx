@@ -1,18 +1,19 @@
-import '@mantine-8/core/styles.css';
-import '@mantine-8/code-highlight/styles.css';
-import '@mantine-8/notifications/styles.css';
-import '@mantine-8/tiptap/styles.css';
-
-import { ActionIcon, Group } from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
+import '@mantine/core/styles.css';
+import '@mantine/dates/styles.css';
+import '@mantine/code-highlight/styles.css';
+import '@mantine/notifications/styles.css';
+import '@mantine/tiptap/styles.css';
+import '../src/styles/global.css';
+import { ActionIcon, Group } from '@mantine/core';
+import { ModalsProvider } from '@mantine/modals';
 import { IconMoon, IconSun } from '@tabler/icons-react';
 import React from 'react';
-import Mantine8Provider from '../src/providers/Mantine8Provider';
+import { useAppColorScheme } from '../src/providers/ColorSchemeContext';
 import MantineProvider from '../src/providers/MantineProvider';
 
 // Theme toggle button component
 const ThemeToggle = () => {
-    const { colorScheme, toggleColorScheme } = useMantineColorScheme();
+    const { colorScheme, toggleColorScheme } = useAppColorScheme();
 
     return (
         <Group
@@ -31,7 +32,11 @@ const ThemeToggle = () => {
                 size="lg"
                 aria-label="Toggle color scheme"
             >
-                {colorScheme === 'dark' ? <IconSun size={20} /> : <IconMoon size={20} />}
+                {colorScheme === 'dark' ? (
+                    <IconSun size={20} />
+                ) : (
+                    <IconMoon size={20} />
+                )}
             </ActionIcon>
         </Group>
     );
@@ -40,11 +45,11 @@ const ThemeToggle = () => {
 // All stories will have the Mantine theme applied with a theme toggle
 const ThemeWrapper = (props: { children: React.ReactNode }) => {
     return (
-        <MantineProvider withGlobalStyles withNormalizeCSS>
-            <Mantine8Provider>
+        <MantineProvider>
+            <ModalsProvider>
                 <ThemeToggle />
                 {props.children}
-            </Mantine8Provider>
+            </ModalsProvider>
         </MantineProvider>
     );
 };

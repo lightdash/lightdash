@@ -9,8 +9,11 @@ const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
+    addBreadcrumb: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
+    startSpan: (_options: unknown, callback: CallableFunction) =>
+        callback({ spanContext: () => ({ spanId: 'span-id' }) }),
     startSpanManual: (_options: unknown, callback: CallableFunction) =>
         callback({ spanContext: () => ({ spanId: 'span-id' }) }, vi.fn()),
     wrapMcpServerWithSentry: (server: unknown) => server,
@@ -21,6 +24,10 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer() {
             return {
+                server: {
+                    registerCapabilities: vi.fn(),
+                    setRequestHandler: vi.fn(),
+                },
                 registerResource: vi.fn(),
                 registerPrompt: vi.fn(),
                 registerTool: vi.fn(
@@ -56,7 +63,7 @@ const user = {
     ability: {
         can: vi.fn(() => true),
         cannot: vi.fn(() => false),
-        relevantRuleFor: vi.fn(() => undefined),
+        relevantRuleFor: vi.fn(() => ({ inverted: false })),
         rules: [],
     },
 };
@@ -119,6 +126,7 @@ const makeMcpService = ({
         tags: null,
     },
     agent = null,
+    availableAgents = [],
     spaces = [],
     contentResults = { data: [], pagination: undefined },
 }: {
@@ -135,6 +143,13 @@ const makeMcpService = ({
         tags: string[] | null;
         spaceAccess: string[];
     } | null;
+    availableAgents?: Array<{
+        uuid: string;
+        name: string;
+        description: string | null;
+        tags: string[] | null;
+        projectUuid: string;
+    }>;
     spaces?: TestSpace[];
     contentResults?: {
         data: TestContentItem[];
@@ -149,6 +164,8 @@ const makeMcpService = ({
     };
 } = {}) => {
     const aiAgentService = {
+        getIsCopilotEnabled: vi.fn().mockResolvedValue(true),
+        listAgents: vi.fn().mockResolvedValue(availableAgents),
         getAgent: vi.fn().mockImplementation(async () => {
             if (!agent) throw new Error('Agent not mocked');
             return {
@@ -251,7 +268,7 @@ const makeMcpService = ({
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
-            getSettings: vi.fn().mockResolvedValue({ aiAgentsVisible: true }),
+            isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
         },
         aiRouterService: {},
         aiWritebackService: {},
@@ -275,7 +292,16 @@ const makeMcpService = ({
         mcpContextModel: {
             getContext: vi.fn().mockResolvedValue({ context }),
         },
-        projectModel: {},
+        projectModel: {
+            getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+                {
+                    projectUuid,
+                    name: 'Project',
+                    type: 'DEFAULT',
+                    expiresAt: null,
+                },
+            ]),
+        },
         projectService,
         searchModel: {},
         shareService: {},
@@ -284,6 +310,7 @@ const makeMcpService = ({
     } as unknown as ConstructorParameters<typeof McpService>[0]);
 
     return {
+        aiAgentService,
         aiAgentToolsService,
         projectService,
         service,
@@ -306,6 +333,97 @@ const getTextResult = (result: unknown) => {
 describe('MCP list_content', () => {
     beforeEach(() => {
         mockRegisteredMcpTools.clear();
+    });
+
+    it('returns bootstrap context without changing it', async () => {
+        makeMcpService();
+
+        const result = (await getToolCallback(McpToolName.GET_CONTEXT)(
+            {},
+            extra,
+        )) as {
+            structuredContent: Record<string, unknown>;
+        };
+
+        expect(result.structuredContent).toEqual({
+            activeProject: {
+                projectUuid,
+                projectName: 'Project',
+                selectedTags: null,
+            },
+            activeAgent: null,
+            availableProjects: [
+                {
+                    projectUuid,
+                    name: 'Project',
+                    type: 'DEFAULT',
+                    expiresAt: null,
+                    availableAgents: [],
+                },
+            ],
+        });
+    });
+
+    it('omits an active agent that is no longer accessible', async () => {
+        makeMcpService({
+            context: {
+                projectUuid,
+                projectName: 'Project',
+                agentUuid: 'blocked-agent-uuid',
+                agentName: 'Blocked agent',
+                tags: ['blocked'],
+            },
+        });
+
+        const result = (await getToolCallback(McpToolName.GET_CONTEXT)(
+            {},
+            extra,
+        )) as {
+            structuredContent: Record<string, unknown>;
+        };
+
+        expect(result.structuredContent).toMatchObject({
+            activeAgent: null,
+            availableProjects: [{ availableAgents: [] }],
+        });
+    });
+
+    it('lists only accessible agents within accessible projects', async () => {
+        const { aiAgentService } = makeMcpService({
+            availableAgents: [
+                {
+                    uuid: 'available-agent-uuid',
+                    name: 'Available agent',
+                    description: 'Accessible to the current user',
+                    tags: ['finance'],
+                    projectUuid,
+                },
+            ],
+        });
+
+        const result = (await getToolCallback(McpToolName.GET_CONTEXT)(
+            {},
+            extra,
+        )) as {
+            structuredContent: Record<string, unknown>;
+        };
+
+        expect(aiAgentService.listAgents).toHaveBeenCalledWith(user);
+        expect(result.structuredContent).toMatchObject({
+            availableProjects: [
+                {
+                    projectUuid,
+                    availableAgents: [
+                        {
+                            agentUuid: 'available-agent-uuid',
+                            name: 'Available agent',
+                            description: 'Accessible to the current user',
+                            tags: ['finance'],
+                        },
+                    ],
+                },
+            ],
+        });
     });
 
     it('lists root content spaces with active agent space access', async () => {
@@ -350,7 +468,12 @@ describe('MCP list_content', () => {
         });
 
         const result = await getToolCallback(McpToolName.LIST_CONTENT)(
-            { spaceSlug: null, page: 1 },
+            {
+                projectUuid,
+                agentUuid: 'agent-uuid',
+                spaceSlug: null,
+                page: 1,
+            },
             extra,
         );
         const text = getTextResult(result);
@@ -363,6 +486,33 @@ describe('MCP list_content', () => {
         );
         expect(text).toContain('chartCount="2"');
         expect(text).not.toContain('Blocked Space');
+    });
+
+    it('uses the explicit project instead of stored context', async () => {
+        const explicitProjectUuid = 'explicit-project-uuid';
+        const { aiAgentToolsService, projectService } = makeMcpService();
+
+        await getToolCallback(McpToolName.LIST_CONTENT)(
+            {
+                projectUuid: explicitProjectUuid,
+                spaceSlug: null,
+                page: 1,
+            },
+            extra,
+        );
+
+        expect(projectService.getProject).toHaveBeenCalledWith(
+            explicitProjectUuid,
+            account,
+        );
+        expect(aiAgentToolsService.createRuntime).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: explicitProjectUuid,
+                agentUuid: undefined,
+                tags: null,
+                spaceAccess: null,
+            }),
+        );
     });
 
     it('lists direct content inside a space slug', async () => {
@@ -410,7 +560,7 @@ describe('MCP list_content', () => {
         });
 
         const result = await getToolCallback(McpToolName.LIST_CONTENT)(
-            { spaceSlug: 'allowed-space', page: 1 },
+            { projectUuid, spaceSlug: 'allowed-space', page: 1 },
             extra,
         );
         const text = getTextResult(result);

@@ -51,6 +51,8 @@ const connection: ExternalConnection = {
     slug: 'stripe-api',
     type: 'api_key',
     origin: 'https://api.stripe.com',
+    allowBrowserImages: false,
+    allowDataAppBuilderLinking: true,
     instructions: null,
     allowedPathPrefixes: ['/v2/', '/v1/'],
     allowedMethods: ['POST', 'GET'],
@@ -77,6 +79,8 @@ const connectionAsCode: ExternalConnectionAsCode = {
     name: 'Stripe API',
     authType: 'api_key',
     origin: 'https://api.stripe.com',
+    allowBrowserImages: false,
+    allowDataAppBuilderLinking: true,
     instructions: null,
     allowedPathPrefixes: ['/v1/', '/v2/'],
     allowedMethods: ['GET', 'POST'],
@@ -174,6 +178,33 @@ describe('ExternalConnectionCoderService downloads', () => {
             'stripe-api',
         ]);
         expect(result.missingSlugs).toEqual(['not-there']);
+    });
+
+    it('exports OAuth client configuration without the client secret', async () => {
+        const oauthConnection: ExternalConnection = {
+            ...connection,
+            type: 'oauth_client_credentials',
+            oauthTokenUrl: 'https://auth.example.com/oauth/token',
+            oauthClientId: 'client-1',
+            oauthClientAuthMethod: 'body',
+            oauthScopes: ['read:data'],
+        };
+        const { service } = buildService({ connections: [oauthConnection] });
+        mockAbility(service, fullAbility);
+
+        const result = await service.downloadExternalConnections(
+            account,
+            projectUuid,
+        );
+
+        expect(result.externalConnections[0]).toMatchObject({
+            authType: 'oauth_client_credentials',
+            oauthTokenUrl: 'https://auth.example.com/oauth/token',
+            oauthClientId: 'client-1',
+            oauthClientAuthMethod: 'body',
+            oauthScopes: ['read:data'],
+        });
+        expect(result.externalConnections[0]).not.toHaveProperty('secret');
     });
 });
 
@@ -278,7 +309,47 @@ describe('ExternalConnectionCoderService upserts', () => {
             expect.objectContaining({
                 name: 'Stripe API',
                 type: 'api_key',
+                allowDataAppBuilderLinking: true,
                 secret: 'sk-secret',
+            }),
+            { slug: 'stripe-api' },
+        );
+    });
+
+    it('restores OAuth client configuration through the domain service', async () => {
+        const oauthDocument: ExternalConnectionAsCode = {
+            ...connectionAsCode,
+            authType: 'oauth_client_credentials',
+            apiKeyName: null,
+            apiKeyLocation: null,
+            oauthTokenUrl: 'https://auth.example.com/oauth/token',
+            oauthClientId: 'client-1',
+            oauthClientAuthMethod: 'basic',
+            oauthScopes: ['read:data'],
+        };
+        const { service, externalConnectionService } = buildService({
+            existing: null,
+        });
+        mockAbility(service, fullAbility);
+
+        await service.upsertExternalConnection(
+            account,
+            projectUuid,
+            'stripe-api',
+            oauthDocument,
+            'client-secret',
+        );
+
+        expect(externalConnectionService.create).toHaveBeenCalledWith(
+            account,
+            projectUuid,
+            expect.objectContaining({
+                type: 'oauth_client_credentials',
+                oauthTokenUrl: 'https://auth.example.com/oauth/token',
+                oauthClientId: 'client-1',
+                oauthClientAuthMethod: 'basic',
+                oauthScopes: ['read:data'],
+                secret: 'client-secret',
             }),
             { slug: 'stripe-api' },
         );

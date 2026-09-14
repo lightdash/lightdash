@@ -1,5 +1,5 @@
-import { Box } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Box } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconFilterOff } from '@tabler/icons-react';
 import { type ECElementEvent } from 'echarts';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
@@ -41,12 +41,18 @@ type FunnelChartProps = Omit<EChartsReactProps, 'option'> & {
     className?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
+    enableContextMenu?: boolean;
 };
 
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const FunnelChart: FC<FunnelChartProps> = memo(
-    ({ onScreenshotReady, onScreenshotError, ...props }) => {
+    ({
+        onScreenshotReady,
+        onScreenshotError,
+        enableContextMenu = true,
+        ...props
+    }) => {
         const { chartRef, isLoading, resultsData, minimal } =
             useVisualizationContext();
         const { selectedLegends, onLegendChange } =
@@ -124,11 +130,15 @@ const FunnelChart: FC<FunnelChartProps> = memo(
 
         const onEvents = useMemo(
             () => ({
-                click: handleOpenContextMenu,
-                oncontextmenu: handleOpenContextMenu,
+                ...(enableContextMenu
+                    ? {
+                          click: handleOpenContextMenu,
+                          oncontextmenu: handleOpenContextMenu,
+                      }
+                    : {}),
                 legendselectchanged: onLegendChange,
             }),
-            [handleOpenContextMenu, onLegendChange],
+            [enableContextMenu, handleOpenContextMenu, onLegendChange],
         );
 
         if (isLoading) return <LoadingChart />;
@@ -159,7 +169,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                     onEvents={onEvents}
                 />
 
-                {shouldShowMenu && (
+                {enableContextMenu && shouldShowMenu && (
                     <FunnelChartContextMenu
                         value={menuProps?.value}
                         menuPosition={menuProps?.position}

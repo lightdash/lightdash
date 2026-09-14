@@ -12,7 +12,7 @@ import {
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type FunnelSeriesDataPoint } from './echarts/useEchartsFunnelConfig';
 import { type InfiniteQueryResults } from './useQueryResults';
@@ -136,8 +136,8 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         setFieldId(allNumericFieldIds[0] ?? null);
     }, [allNumericFieldIds, fieldId, isLoading, tableCalculationsMetadata]);
 
-    // Max value is the value at the top of the funnel. This is used to calculate
-    // the percentage of the funnel that each step represents
+    // Max value is the largest step value, used to calculate the percentage
+    // each step represents
     const {
         data,
         maxValue = 0,

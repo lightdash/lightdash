@@ -60,6 +60,11 @@ const triggerDatabricksLogin = async (
     });
 };
 
+export const useIsDatabricksSsoEnabled = () => {
+    const health = useHealth();
+    return !!health.data?.auth.databricks.enabled;
+};
+
 export function useDatabricksLoginPopup({
     onLogin: _onLogin,
     projectUuid,

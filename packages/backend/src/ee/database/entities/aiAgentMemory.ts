@@ -2,6 +2,7 @@ import type {
     AiAgentMemoryConsolidationOperation,
     AiAgentMemoryConsolidationRejection,
     AiAgentMemoryConsolidationRunStatus,
+    AiAgentMemoryConsolidationTrigger,
     AiAgentMemoryScope,
     AiAgentMemoryStatus,
     AiProjectContextTypedObjectRef,
@@ -19,6 +20,12 @@ export type AiAgentThreadDistillOutcome =
     | 'skipped'
     | 'failed';
 
+/** Which path retired the row; null while the row is not retired. */
+export type AiAgentMemoryRetiredReason =
+    | 'owner'
+    | 'consolidation'
+    | 'unresolved_objects';
+
 export type DbAiAgentMemory = {
     ai_agent_memory_uuid: string;
     organization_uuid: string;
@@ -35,6 +42,7 @@ export type DbAiAgentMemory = {
     unresolved_objects: AiProjectContextTypedObjectRef[];
     status: AiAgentMemoryStatus;
     scope: AiAgentMemoryScope;
+    retired_reason: AiAgentMemoryRetiredReason | null;
     superseded_by_uuid: string | null;
     generated_at: Date;
     cited_count: number;
@@ -58,6 +66,7 @@ export type AiAgentMemoryTable = Knex.CompositeTableType<
         | keyof AiAgentMemoryJsonbWrite
         | 'ai_agent_memory_uuid'
         | 'status'
+        | 'retired_reason'
         | 'superseded_by_uuid'
         | 'cited_count'
         | 'last_cited_at'
@@ -71,6 +80,7 @@ export type AiAgentMemoryTable = Knex.CompositeTableType<
             Pick<
                 DbAiAgentMemory,
                 | 'status'
+                | 'retired_reason'
                 | 'superseded_by_uuid'
                 | 'cited_count'
                 | 'last_cited_at'
@@ -122,6 +132,11 @@ export type DbAiAgentMemoryConsolidationRun = {
     project_uuid: string;
     user_uuid: string;
     status: AiAgentMemoryConsolidationRunStatus;
+    /** A dry run applied nothing: its operation columns hold proposals. */
+    dry_run: boolean;
+    trigger: AiAgentMemoryConsolidationTrigger;
+    /** The operator who triggered the run, never the partition owner. */
+    triggered_by_user_uuid: string | null;
     prompt_hash: string;
     input_hash: string;
     input_count: number;

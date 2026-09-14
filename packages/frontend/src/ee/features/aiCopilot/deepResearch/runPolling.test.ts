@@ -1,8 +1,15 @@
+import { type ApiError } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     DEEP_RESEARCH_TERMINAL_REFETCH_MAX_MS,
     getDeepResearchRunRefetchInterval,
 } from './runPolling';
+
+const apiError = (statusCode: number): ApiError =>
+    ({
+        error: { statusCode, name: 'ApiError', message: 'failed', data: {} },
+        status: 'error',
+    }) as ApiError;
 
 const now = Date.parse('2026-07-30T12:00:00.000Z');
 
@@ -58,5 +65,47 @@ describe('getDeepResearchRunRefetchInterval', () => {
                 now,
             ),
         ).toBe(false);
+    });
+
+    it.each([403, 404])('stops polling after a %s response', (statusCode) => {
+        expect(
+            getDeepResearchRunRefetchInterval(undefined, 2_000, now, {
+                error: apiError(statusCode),
+                failureCount: 1,
+            }),
+        ).toBe(false);
+    });
+
+    it('backs off transient polling failures with a cap', () => {
+        expect(
+            getDeepResearchRunRefetchInterval(undefined, 2_000, now, {
+                error: apiError(500),
+                failureCount: 2,
+            }),
+        ).toBe(8_000);
+        expect(
+            getDeepResearchRunRefetchInterval(undefined, 2_000, now, {
+                error: apiError(500),
+                failureCount: 20,
+            }),
+        ).toBe(30_000);
+    });
+
+    it('backs off transient failures even when a terminal run is cached', () => {
+        expect(
+            getDeepResearchRunRefetchInterval(
+                {
+                    status: 'completed',
+                    isReportExpired: false,
+                    reportExpiresAt: '2026-08-29T12:00:00.000Z',
+                },
+                2_000,
+                now,
+                {
+                    error: apiError(500),
+                    failureCount: 2,
+                },
+            ),
+        ).toBe(8_000);
     });
 });

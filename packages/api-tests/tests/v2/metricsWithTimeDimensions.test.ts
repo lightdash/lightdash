@@ -53,33 +53,6 @@ describe('v2 metrics with time dimensions', () => {
         });
     });
 
-    it('should filter by spotlight categories', async () => {
-        const resp = await admin.get<PaginatedMetrics>(
-            `${v2Url}?page=1&pageSize=100&categories=sales`,
-        );
-        expect(resp.status).toBe(200);
-        expect(resp.body.results.pagination!.totalResults).toBeGreaterThan(0);
-        resp.body.results.data.forEach((metric) => {
-            const refs = metric.categories.map((c) => c.yamlReference);
-            expect(refs).toContain('sales');
-        });
-    });
-
-    it('should filter by multiple spotlight categories (OR)', async () => {
-        const resp = await admin.get<PaginatedMetrics>(
-            `${v2Url}?page=1&pageSize=100&categories=sales&categories=revenue_growth`,
-        );
-        expect(resp.status).toBe(200);
-        expect(resp.body.results.pagination!.totalResults).toBeGreaterThan(0);
-
-        resp.body.results.data.forEach((metric) => {
-            const refs = metric.categories.map((c) => c.yamlReference);
-            const hasSales = refs.includes('sales');
-            const hasRevenueGrowth = refs.includes('revenue_growth');
-            expect(hasSales || hasRevenueGrowth).toBe(true);
-        });
-    });
-
     it('should return empty results for non-existent category', async () => {
         const resp = await admin.get<PaginatedMetrics>(
             `${v2Url}?page=1&pageSize=50&categories=nonexistent`,

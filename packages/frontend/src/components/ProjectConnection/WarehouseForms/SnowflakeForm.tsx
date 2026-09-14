@@ -16,7 +16,7 @@ import {
     Select,
     PasswordInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import {
     useCallback,
@@ -271,7 +271,7 @@ const SnowflakeForm: FC<{
 
     return (
         <>
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
                 {snowflakeOrgCredentials?.length > 0 && (
                     <Radio.Group
                         value={useOrgCredentials ? 'org' : 'manual'}
@@ -646,7 +646,7 @@ const SnowflakeForm: FC<{
                                 />
 
                                 <FormSection isOpen={isOpen} name="advanced">
-                                    <Stack style={{ marginTop: '8px' }}>
+                                    <Stack mt="xs">
                                         {!isNoneAuth && (
                                             <BooleanSwitch
                                                 name="warehouse.requireUserCredentials"

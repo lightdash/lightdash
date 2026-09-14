@@ -1,7 +1,16 @@
-import { SchedulerJobStatus, ValidationTarget } from '@lightdash/common';
+import {
+    SchedulerJobStatus,
+    ValidationErrorType,
+    ValidationSourceType,
+    ValidationTarget,
+} from '@lightdash/common';
 import { compile } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
-import { validateHandler } from './validate';
+import {
+    resolveValidateSeverity,
+    SHOW_CHART_CONFIGURATION_WARNINGS_DEPRECATION,
+    validateHandler,
+} from './validate';
 
 vi.mock('../analytics/analytics');
 vi.mock('../config', () => ({
@@ -14,11 +23,11 @@ vi.mock('./timestampConversion');
 type ValidateOptions = Parameters<typeof validateHandler>[0];
 
 const baseOptions: ValidateOptions = {
-    project: 'test-project-uuid',
+    project: '11111111-1111-4111-8111-111111111111',
     preview: false,
     only: Object.values(ValidationTarget),
     validateWarehouseColumns: false,
-    showChartConfigurationWarnings: false,
+    severity: 'error',
     projectDir: '.',
     profilesDir: '.',
     target: undefined,
@@ -48,8 +57,41 @@ const baseOptions: ValidateOptions = {
 const TARGET_SKIP_WARNING =
     'Skipping warehouse column validation because --only does not include the tables validation target';
 
-describe('validateHandler warehouse column validation', () => {
+const chartConfigurationWarning = {
+    validationUuid: 'warning-uuid',
+    validationId: null,
+    createdAt: new Date('2026-08-26T12:00:00Z'),
+    projectUuid: '11111111-1111-4111-8111-111111111111',
+    name: 'Orders over time',
+    error: 'dimension is not used in the chart configuration',
+    errorType: ValidationErrorType.ChartConfiguration,
+    source: ValidationSourceType.Chart,
+    chartUuid: 'chart-uuid',
+    fieldName: 'orders.unused_dim',
+    chartViews: 3,
+    lastUpdatedBy: 'Ada Lovelace',
+    lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
+};
+
+const brokenChartError = {
+    validationUuid: 'error-uuid',
+    validationId: null,
+    createdAt: new Date('2026-08-26T12:00:00Z'),
+    projectUuid: '11111111-1111-4111-8111-111111111111',
+    name: 'Broken chart',
+    error: 'Dimension does not exist',
+    errorType: ValidationErrorType.Dimension,
+    source: ValidationSourceType.Chart,
+    chartUuid: 'broken-chart-uuid',
+    fieldName: 'orders.missing',
+    chartViews: 1,
+    lastUpdatedBy: 'Ada Lovelace',
+    lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
+};
+
+describe('validateHandler', () => {
     let errorOutput: string[];
+    let validationResults: unknown[] = [];
 
     const skipWarnings = () =>
         errorOutput.filter((line) =>
@@ -68,12 +110,13 @@ describe('validateHandler warehouse column validation', () => {
                 return { status: SchedulerJobStatus.COMPLETED, details: null };
             }
             if (url.includes('/validate?jobId=')) {
-                return [];
+                return validationResults;
             }
             throw new Error(`Unexpected API call: ${method} ${url}`);
         });
 
         errorOutput = [];
+        validationResults = [];
         vi.spyOn(console, 'error').mockImplementation((...args) => {
             errorOutput.push(args.map(String).join(' '));
         });
@@ -172,5 +215,191 @@ describe('validateHandler warehouse column validation', () => {
             expect.objectContaining({ validateWarehouseColumns: false }),
         );
         expect(skipWarnings()).toEqual([]);
+    });
+
+    test.each([
+        { select: ['orders'] },
+        { models: ['orders'] },
+        { exclude: ['customers'] },
+        { selector: 'marts' },
+    ])('validates data apps with model selection %j', async (selection) => {
+        const only = [ValidationTarget.CHARTS, ValidationTarget.APPS];
+        await validateHandler({
+            ...baseOptions,
+            ...selection,
+            only,
+        });
+
+        expect(compile).toHaveBeenCalledTimes(1);
+        expect(compile).toHaveBeenCalledWith(
+            expect.objectContaining(selection),
+        );
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'POST',
+                url: `/api/v1/projects/${baseOptions.project}/validate`,
+                body: JSON.stringify({ explores: [], validationTargets: only }),
+            }),
+        );
+    });
+
+    test.each([
+        { only: [] },
+        { only: Object.values(ValidationTarget) },
+        { only: [ValidationTarget.APPS] },
+    ])(
+        'preserves validation targets %j with model selection',
+        async ({ only }) => {
+            await validateHandler({
+                ...baseOptions,
+                only,
+                select: ['orders'],
+            });
+
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'POST',
+                    url: `/api/v1/projects/${baseOptions.project}/validate`,
+                    body: JSON.stringify({
+                        explores: [],
+                        validationTargets: only,
+                    }),
+                }),
+            );
+        },
+    );
+
+    test('fails selected apps-only validation and prints the latest version author and date', async () => {
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => {
+            if (method === 'POST' && url.endsWith('/validate')) {
+                return { jobId: 'test-job-id' };
+            }
+            if (url.includes('/schedulers/job/')) {
+                return {
+                    status: SchedulerJobStatus.COMPLETED,
+                    details: null,
+                };
+            }
+            if (url.includes('/validate?jobId=')) {
+                return [
+                    {
+                        validationUuid: 'validation-uuid',
+                        validationId: null,
+                        createdAt: new Date('2026-08-07T09:00:00Z'),
+                        projectUuid: '11111111-1111-4111-8111-111111111111',
+                        name: 'Broken data app',
+                        error: 'Dimension does not exist',
+                        errorType: ValidationErrorType.Dimension,
+                        source: ValidationSourceType.DataApp,
+                        appUuid: 'app-uuid',
+                        lastUpdatedBy: 'Ada Lovelace',
+                        lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
+                    },
+                ];
+            }
+            throw new Error(`Unexpected API call: ${method} ${url}`);
+        });
+
+        await validateHandler({
+            ...baseOptions,
+            only: [ValidationTarget.APPS],
+            select: ['orders'],
+        });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Dimension does not exist');
+        expect(output).toContain('Ada Lovelace');
+        expect(output).toContain('2026-08-06');
+    });
+
+    test('succeeds when only chart configuration warnings exist at default severity', async () => {
+        validationResults = [chartConfigurationWarning];
+        const exitSpy = vi
+            .spyOn(process, 'exit')
+            .mockImplementation(() => undefined as never);
+
+        await validateHandler({ ...baseOptions });
+
+        expect(exitSpy).not.toHaveBeenCalled();
+        expect(errorOutput.join('\n')).not.toContain('orders.unused_dim');
+    });
+
+    test('fails when --severity warning is set and warnings exist', async () => {
+        validationResults = [chartConfigurationWarning];
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+        await validateHandler({
+            ...baseOptions,
+            severity: 'warning',
+        });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Chart configuration warning');
+        expect(output).toContain('orders.unused_dim');
+        expect(output).toContain('1 warning');
+    });
+
+    test('fails when deprecated --show-chart-configuration-warnings is set and warnings exist', async () => {
+        validationResults = [chartConfigurationWarning];
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+        await validateHandler({
+            ...baseOptions,
+            showChartConfigurationWarnings: true,
+        });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        const output = errorOutput.join('\n');
+        expect(output).toContain(SHOW_CHART_CONFIGURATION_WARNINGS_DEPRECATION);
+        expect(output).toContain('Chart configuration warning');
+        expect(output).toContain('orders.unused_dim');
+        expect(output).toContain('1 warning');
+    });
+
+    test('treats the deprecated flag as --severity warning even when severity defaults to error', async () => {
+        expect(
+            resolveValidateSeverity({
+                severity: 'error',
+                showChartConfigurationWarnings: true,
+            }),
+        ).toBe('warning');
+        expect(
+            resolveValidateSeverity({
+                severity: 'error',
+            }),
+        ).toBe('error');
+    });
+
+    test('fails on blocking errors even when warnings stay hidden', async () => {
+        validationResults = [brokenChartError, chartConfigurationWarning];
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+        await validateHandler({ ...baseOptions });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Broken chart');
+        expect(output).not.toContain('orders.unused_dim');
+        expect(output).toContain('chart configuration warning hidden');
+    });
+
+    test('reports errors and warnings together when severity is warning', async () => {
+        validationResults = [brokenChartError, chartConfigurationWarning];
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+        await validateHandler({
+            ...baseOptions,
+            severity: 'warning',
+        });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Broken chart');
+        expect(output).toContain('orders.unused_dim');
+        expect(output).toContain('1 error');
+        expect(output).toContain('1 warning');
     });
 });

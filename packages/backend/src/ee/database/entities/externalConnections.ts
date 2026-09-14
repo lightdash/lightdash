@@ -2,6 +2,7 @@ import {
     type ApiKeyLocation,
     type ExternalConnectionAuthType,
     type ExternalConnectionMethod,
+    type OAuthClientAuthMethod,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 
@@ -21,6 +22,8 @@ export type DbExternalConnection = {
     slug: string;
     type: ExternalConnectionAuthType;
     origin: string;
+    allow_browser_images: boolean;
+    allow_data_app_builder_linking: boolean;
     instructions: string | null;
     allowed_path_prefixes: string[];
     allowed_methods: ExternalConnectionMethod[];
@@ -32,6 +35,9 @@ export type DbExternalConnection = {
     api_key_name: string | null;
     api_key_location: ApiKeyLocation | null;
     oauth_scopes: string[] | null;
+    oauth_token_url: string | null;
+    oauth_client_id: string | null;
+    oauth_client_auth_method: OAuthClientAuthMethod | null;
     custom_headers: Record<string, string> | null;
     created_by_user_uuid: string | null;
     updated_by_user_uuid: string | null;
@@ -68,6 +74,11 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
                 | 'rate_limit_per_minute'
                 | 'api_key_name'
                 | 'api_key_location'
+                | 'oauth_token_url'
+                | 'oauth_client_id'
+                | 'oauth_client_auth_method'
+                | 'allow_browser_images'
+                | 'allow_data_app_builder_linking'
                 | 'created_by_user_uuid'
                 | 'updated_by_user_uuid'
             >
@@ -85,6 +96,11 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             | 'rate_limit_per_minute'
             | 'api_key_name'
             | 'api_key_location'
+            | 'oauth_token_url'
+            | 'oauth_client_id'
+            | 'oauth_client_auth_method'
+            | 'allow_browser_images'
+            | 'allow_data_app_builder_linking'
             | 'updated_by_user_uuid'
             | 'updated_at'
             | 'deleted_at'

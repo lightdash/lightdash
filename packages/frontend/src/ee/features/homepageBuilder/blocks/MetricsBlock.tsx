@@ -21,18 +21,10 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartDots, IconHash, IconPlus, IconX } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -44,6 +36,7 @@ import {
     useRunMetricSeries,
     useRunMetricTotal,
 } from '../../../../features/metricsCatalog/hooks/useRunMetricExplorerQuery';
+import { useInfiniteScroll } from '../../../../hooks/useInfiniteScroll';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import MetricSparkline from './MetricSparkline';
@@ -202,39 +195,26 @@ const MetricsPickerModal: FC<{
         sortDirection: 'desc',
         pageSize: 25,
     });
-    const results = (data?.pages ?? [])
-        .flatMap((page) => page.data)
-        .filter(
-            (metric) =>
-                !selected.some(
-                    (ref) =>
-                        ref.tableName === metric.tableName &&
-                        ref.metricName === metric.name,
+    const results = useMemo(
+        () =>
+            (data?.pages ?? [])
+                .flatMap((page) => page.data)
+                .filter(
+                    (metric) =>
+                        !selected.some(
+                            (ref) =>
+                                ref.tableName === metric.tableName &&
+                                ref.metricName === metric.name,
+                        ),
                 ),
-        );
-
-    const scrollRef = useRef<HTMLDivElement>(null);
-
-    const fetchMoreOnBottomReached = useCallback(
-        (el: HTMLDivElement | null) => {
-            if (!el) return;
-            const { scrollHeight, scrollTop, clientHeight } = el;
-            if (
-                scrollHeight - scrollTop - clientHeight < 200 &&
-                !isFetching &&
-                hasNextPage
-            ) {
-                void fetchNextPage();
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
+        [data, selected],
     );
 
-    // Fetch more when the current results don't fill the scroll area, so the
-    // list is never capped at a single page just because it hasn't scrolled.
-    useEffect(() => {
-        fetchMoreOnBottomReached(scrollRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: scrollRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     return (
         <MantineModal
@@ -262,9 +242,7 @@ const MetricsPickerModal: FC<{
                     mah={360}
                     className={classes.pickerScrollList}
                     ref={scrollRef}
-                    onScroll={(e: UIEvent<HTMLDivElement>) =>
-                        fetchMoreOnBottomReached(e.currentTarget)
-                    }
+                    onScroll={onScroll}
                 >
                     {!atLimit &&
                         results.map((metric) => (
@@ -282,7 +260,7 @@ const MetricsPickerModal: FC<{
                                     })
                                 }
                             >
-                                <MantineIcon icon={IconHash} color="ldGray.6" />
+                                <MantineIcon icon={IconHash} color="dimmed" />
                                 <Box flex={1} miw={0}>
                                     <Text size="sm" fw={500} truncate>
                                         {metric.label ?? metric.name}
@@ -291,7 +269,7 @@ const MetricsPickerModal: FC<{
                                         {metric.tableLabel ?? metric.tableName}
                                     </Text>
                                 </Box>
-                                <MantineIcon icon={IconPlus} color="ldGray.6" />
+                                <MantineIcon icon={IconPlus} color="dimmed" />
                             </Group>
                         ))}
                     {!atLimit && results.length === 0 && !isFetching && (
@@ -370,7 +348,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                     <PageGridItem
                         key={`${metricRef.tableName}-${metricRef.metricName}`}
                     >
-                        <Card withBorder p="sm" h="100%">
+                        <Card p="sm" h="100%">
                             <Group
                                 gap="xs"
                                 wrap="nowrap"
@@ -385,8 +363,6 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                                     </Text>
                                 </Box>
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="ldGray.6"
                                     size="sm"
                                     aria-label={`Remove metric ${metricRef.label}`}
                                     onClick={() =>

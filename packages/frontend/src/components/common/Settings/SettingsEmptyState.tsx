@@ -1,4 +1,4 @@
-import { Stack, Text, Title } from '@mantine-8/core';
+import { Stack, Text, Title } from '@mantine/core';
 import { type Icon as TablerIconType } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -28,7 +28,7 @@ const SettingsEmptyState: FC<PropsWithChildren<SettingsEmptyStateProps>> = ({
                 <Title order={5} ta="center">
                     {title}
                 </Title>
-                <Text fz="sm" c="ldGray.6" ta="center">
+                <Text fz="sm" c="dimmed" ta="center">
                     {description}
                 </Text>
             </Stack>

@@ -1,6 +1,8 @@
-import { Box, Image, Popover, Stack } from '@mantine-8/core';
+import { Box, Image, Popover, Stack } from '@mantine/core';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { useAppThumbnailUrl } from '../hooks/useAppThumbnail';
+
+const THUMBNAIL_HOVER_DELAY_MS = 300;
 
 type AppThumbnailHoverCardState = {
     hasThumbnailPreview: boolean;
@@ -37,7 +39,9 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
     );
     const [isTargetHovered, setIsTargetHovered] = useState(false);
     const [isClosestRowHovered, setIsClosestRowHovered] = useState(false);
-    const isActive = active ?? (isClosestRowHovered || isTargetHovered);
+    const isHovered = isClosestRowHovered || isTargetHovered;
+    const [isHoverIntentActive, setIsHoverIntentActive] = useState(false);
+    const isActive = active ?? isHoverIntentActive;
     const thumbnail = useAppThumbnailUrl(
         projectUuid,
         appUuid,
@@ -61,6 +65,20 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
             : children;
 
     useEffect(() => {
+        if (active !== undefined || !isHovered) {
+            setIsHoverIntentActive(false);
+            return;
+        }
+
+        const timeout = window.setTimeout(
+            () => setIsHoverIntentActive(true),
+            THUMBNAIL_HOVER_DELAY_MS,
+        );
+
+        return () => window.clearTimeout(timeout);
+    }, [active, isHovered]);
+
+    useEffect(() => {
         if (!activateOnClosestRow || !targetElement) return;
 
         const row = targetElement.closest('tr');
@@ -82,13 +100,7 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
     }, [activateOnClosestRow, targetElement]);
 
     return (
-        <Popover
-            opened={isActive && showPreview}
-            position={position}
-            withArrow
-            shadow="md"
-            withinPortal
-        >
+        <Popover opened={isActive && showPreview} position={position} withArrow>
             <Popover.Target>
                 <Box
                     ref={setTargetElement}

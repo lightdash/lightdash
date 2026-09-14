@@ -1,4 +1,5 @@
 import {
+    ActionIcon,
     Badge,
     Box,
     Button,
@@ -13,10 +14,11 @@ import {
     TextInput,
     Tooltip,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconSearch,
+    IconX,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { useCallback, useRef, type ReactNode } from 'react';
@@ -57,6 +59,17 @@ export type FilterFacetProps = {
     searchPlaceholder?: string;
     onScrollEnd?: () => void;
     scrollEndOffset?: number;
+    /** Shows a row that selects/deselects every listed option at once */
+    enableSelectAll?: boolean;
+    /** Rendered at the top of the dropdown, above the search input */
+    headerSection?: ReactNode;
+    /** Walkthrough markers for the button that opens the facet. */
+    triggerProps?: Record<`data-tour-${string}`, string>;
+    /** Walkthrough anchor name for each option, picked by its search label. */
+    optionAnchor?: string;
+    /** Shows a clear button next to the trigger while there is a selection */
+    clearable?: boolean;
+    showSelectionCount?: boolean;
 };
 
 const isOptionVisible = (
@@ -86,6 +99,12 @@ const FilterFacet = ({
     searchPlaceholder = 'Search…',
     onScrollEnd,
     scrollEndOffset = 50,
+    enableSelectAll = false,
+    headerSection,
+    clearable = false,
+    showSelectionCount = true,
+    triggerProps,
+    optionAnchor,
 }: FilterFacetProps) => {
     const selectedSet = new Set(selected);
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -132,6 +151,34 @@ const FilterFacet = ({
 
     const hasSelection = selected.length > 0;
 
+    const selectableValues = [
+        ...visibleFlatOptions,
+        ...visibleGroups.flatMap((group) => group.options),
+    ]
+        .filter((option) => option.disabled !== true)
+        .map((option) => option.value);
+
+    const showSelectAll =
+        enableSelectAll && mode === 'multi' && selectableValues.length > 0;
+    const allSelected = selectableValues.every((value) =>
+        selectedSet.has(value),
+    );
+    const someSelected =
+        !allSelected &&
+        selectableValues.some((value) => selectedSet.has(value));
+
+    const toggleAll = () => {
+        const selectableSet = new Set(selectableValues);
+        if (allSelected) {
+            onChange(selected.filter((value) => !selectableSet.has(value)));
+        } else {
+            onChange([
+                ...selected,
+                ...selectableValues.filter((value) => !selectedSet.has(value)),
+            ]);
+        }
+    };
+
     const renderOption = (option: FilterFacetOption) => {
         const isChecked = selectedSet.has(option.value);
         const disabled = option.disabled === true;
@@ -139,6 +186,17 @@ const FilterFacet = ({
             <UnstyledButton
                 key={option.value}
                 onClick={() => toggle(option.value, disabled)}
+                {...(optionAnchor
+                    ? {
+                          'data-tour-anchor': optionAnchor,
+                          'data-tour-hint': 'Choose {value}',
+                          'data-tour-value':
+                              option.searchLabel ??
+                              (typeof option.label === 'string'
+                                  ? option.label
+                                  : option.value),
+                      }
+                    : {})}
                 px="xs"
                 py={6}
                 className={`${classes.option} ${
@@ -165,9 +223,9 @@ const FilterFacet = ({
                                 disabled={disabled}
                             />
                         )}
-                        <Box maw={200} style={{ overflow: 'hidden' }}>
+                        <Box maw={200} className={classes.optionLabel}>
                             {typeof option.label === 'string' ? (
-                                <Text fz="xs" c="ldGray.9" truncate>
+                                <Text fz="xs" truncate>
                                     {option.label}
                                 </Text>
                             ) : (
@@ -176,7 +234,7 @@ const FilterFacet = ({
                         </Box>
                     </Group>
                     {option.count !== undefined && (
-                        <Text fz="xs" c="ldGray.6" fw={500}>
+                        <Text fz="xs" c="dimmed" fw={500}>
                             {option.count}
                         </Text>
                     )}
@@ -189,8 +247,8 @@ const FilterFacet = ({
         <Button
             variant="default"
             size="xs"
-            radius="md"
             loading={loading}
+            {...triggerProps}
             className={
                 hasSelection
                     ? classes.filterButtonSelected
@@ -201,7 +259,7 @@ const FilterFacet = ({
                     <MantineIcon
                         icon={icon}
                         size="md"
-                        color={hasSelection ? 'indigo.5' : 'ldGray.5'}
+                        color={hasSelection ? 'ldGray.7' : 'ldGray.5'}
                     />
                 ) : undefined
             }
@@ -209,20 +267,16 @@ const FilterFacet = ({
                 <MantineIcon
                     icon={IconChevronDown}
                     size="sm"
-                    color={hasSelection ? 'indigo.5' : 'ldGray.5'}
+                    color={hasSelection ? 'ldGray.7' : 'ldGray.5'}
                 />
             }
         >
             <Group gap={6} wrap="nowrap">
-                <Text
-                    fz="xs"
-                    fw={500}
-                    c={hasSelection ? 'indigo.7' : 'ldGray.7'}
-                >
+                <Text fz="xs" fw={500} c="ldGray.7">
                     {label}
                 </Text>
-                {hasSelection && (
-                    <Badge size="xs" radius="xl" variant="light" color="indigo">
+                {hasSelection && showSelectionCount && (
+                    <Badge size="xs" radius="xl" variant="filled">
                         {selected.length}
                     </Badge>
                 )}
@@ -230,18 +284,21 @@ const FilterFacet = ({
         </Button>
     );
 
-    return (
-        <Popover position="bottom-start" withArrow shadow="md" radius="md">
+    const popover = (
+        <Popover position="bottom-start" withArrow>
             <Popover.Target>
                 {tooltipLabel ? (
-                    <Tooltip withinPortal label={tooltipLabel}>
-                        {trigger}
-                    </Tooltip>
+                    <Tooltip label={tooltipLabel}>{trigger}</Tooltip>
                 ) : (
                     trigger
                 )}
             </Popover.Target>
             <Popover.Dropdown p={4} miw={240}>
+                {headerSection && (
+                    <Box px="xs" pt={4} pb={6}>
+                        {headerSection}
+                    </Box>
+                )}
                 {helperText && (
                     <Text fz="xs" c="dimmed" px="xs" py={4}>
                         {helperText}
@@ -268,8 +325,29 @@ const FilterFacet = ({
                         />
                     </Box>
                 )}
+                {showSelectAll && (
+                    <UnstyledButton
+                        onClick={toggleAll}
+                        px="xs"
+                        py={6}
+                        className={classes.option}
+                    >
+                        <Group gap="xs" wrap="nowrap">
+                            <Checkbox
+                                size="xs"
+                                checked={allSelected}
+                                indeterminate={someSelected}
+                                readOnly
+                                tabIndex={-1}
+                            />
+                            <Text fz="xs" fw={500}>
+                                {allSelected ? 'Deselect all' : 'Select all'}
+                            </Text>
+                        </Group>
+                    </UnstyledButton>
+                )}
                 {!hasAnyOption ? (
-                    <Text fz="xs" c="ldGray.6" p="xs">
+                    <Text fz="xs" c="dimmed" p="xs">
                         {emptyLabel}
                     </Text>
                 ) : (
@@ -297,6 +375,26 @@ const FilterFacet = ({
                 )}
             </Popover.Dropdown>
         </Popover>
+    );
+
+    if (!clearable) return popover;
+
+    return (
+        <Group gap={2} wrap="nowrap">
+            {popover}
+            {hasSelection && (
+                <Tooltip label="Clear">
+                    <ActionIcon
+                        size="xs"
+                        color="ldGray.5"
+                        aria-label={`Clear ${label} filter`}
+                        onClick={() => onChange([])}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+        </Group>
     );
 };
 

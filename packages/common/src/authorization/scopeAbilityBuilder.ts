@@ -5,6 +5,10 @@ import { parseScope, parseScopes } from './parseScopes';
 import { getAllScopeMap } from './scopes';
 import { type MemberAbility } from './types';
 
+/**
+ * Compatibility grant so a scope set doesn't strip already-granted PAT access.
+ * Skipped for every set while the org's PAT opt-in is authoritative, applied otherwise.
+ */
 const handlePatConfigApplication = (
     context: ScopeContext,
     builder: AbilityBuilder<MemberAbility>,
@@ -34,6 +38,7 @@ const handlePatConfigApplication = (
 const applyScopeAbilities = (
     context: ScopeContext,
     builder: AbilityBuilder<MemberAbility>,
+    applyPatConfigFallback: boolean,
 ): void => {
     const scopeMap = getAllScopeMap({ isEnterprise: context.isEnterprise });
 
@@ -60,7 +65,9 @@ const applyScopeAbilities = (
         }
     });
 
-    handlePatConfigApplication(context, builder);
+    if (applyPatConfigFallback) {
+        handlePatConfigApplication(context, builder);
+    }
 };
 
 type OptionalIdContext =
@@ -88,6 +95,11 @@ type BuilderOptions = {
             allowedOrgRoles: string[];
         };
     };
+    /**
+     * Whether an omitted `manage:PersonalAccessToken` still inherits from config.
+     * False for every set when the org opted into authoritative PAT scopes, true otherwise.
+     */
+    applyPatConfigFallback?: boolean;
 } & OptionalIdContext;
 
 /**
@@ -101,18 +113,19 @@ export const buildAbilityFromScopes = (
     context: BuilderOptions,
     builder: AbilityBuilder<MemberAbility>,
 ): string[] => {
+    const { applyPatConfigFallback = true, ...scopeContext } = context;
     const isEnterprise = context.isEnterprise ?? false;
     const { valid, invalid } = parseScopes({
         scopes: context.scopes,
         isEnterprise,
     });
     const parsedContext = {
-        ...context,
+        ...scopeContext,
         scopes: valid,
         isEnterprise,
     };
 
-    applyScopeAbilities(parsedContext, builder);
+    applyScopeAbilities(parsedContext, builder, applyPatConfigFallback);
 
     return invalid;
 };

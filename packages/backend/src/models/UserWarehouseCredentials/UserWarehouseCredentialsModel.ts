@@ -15,6 +15,7 @@ import {
     SnowflakeAuthenticationType,
     snowflakeSsoUserCredentialsSchema,
     SnowflakeTokenError,
+    snowflakeUserCredentialsSchema,
     UnexpectedServerError,
     UpsertUserWarehouseCredentials,
     UserWarehouseCredentials,
@@ -98,9 +99,16 @@ export class UserWarehouseCredentialsModel {
                             : {}),
                     };
                     break;
+                case WarehouseTypes.SNOWFLAKE:
+                    credentials = {
+                        type: credentialsWithSecrets.type,
+                        user: credentialsWithSecrets.user,
+                        authenticationType:
+                            credentialsWithSecrets.authenticationType,
+                    };
+                    break;
                 case WarehouseTypes.POSTGRES:
                 case WarehouseTypes.TRINO:
-                case WarehouseTypes.SNOWFLAKE:
                 case WarehouseTypes.CLICKHOUSE:
                     credentials = {
                         type: credentialsWithSecrets.type,
@@ -109,10 +117,15 @@ export class UserWarehouseCredentialsModel {
                     break;
                 case WarehouseTypes.BIGQUERY:
                 case WarehouseTypes.DATABRICKS:
-                case WarehouseTypes.ATHENA:
                 case WarehouseTypes.DUCKDB:
                     credentials = {
                         type: credentialsWithSecrets.type,
+                    };
+                    break;
+                case WarehouseTypes.ATHENA:
+                    credentials = {
+                        type: credentialsWithSecrets.type,
+                        accessKeyId: credentialsWithSecrets.accessKeyId,
                     };
                     break;
                 default:
@@ -518,9 +531,11 @@ export class UserWarehouseCredentialsModel {
     // persist an empty shell (e.g. a masked BigQuery placeholder keyfile that
     // overwrites a working credential). Per-user BigQuery credentials are
     // always SSO, so the refresh_token requirement applies to all of them.
-    private static validateCredentialsForPersistence(
+    // Returns the credentials to persist, normalized where an omitted field
+    // would otherwise be resolved from the project connection at query time.
+    static normalizeCredentialsForPersistence(
         data: UpsertUserWarehouseCredentials,
-    ): void {
+    ): UpsertUserWarehouseCredentials {
         if (data.credentials.type === WarehouseTypes.BIGQUERY) {
             const result = bigquerySsoUserCredentialsSchema.safeParse(
                 data.credentials,
@@ -530,6 +545,26 @@ export class UserWarehouseCredentialsModel {
                     'BigQuery credentials require a valid keyfile. Please reauthenticate with Google.',
                 );
             }
+        }
+
+        if (data.credentials.type === WarehouseTypes.SNOWFLAKE) {
+            // Persist an explicit authentication type. Without one, the project
+            // connection's own type survives the merge at query time and the
+            // warehouse client picks an authenticator the user never chose.
+            const credentials = {
+                ...data.credentials,
+                authenticationType:
+                    data.credentials.authenticationType ??
+                    SnowflakeAuthenticationType.PASSWORD,
+            };
+            const result =
+                snowflakeUserCredentialsSchema.safeParse(credentials);
+            if (!result.success) {
+                throw new ParameterError(
+                    'Snowflake credentials require a username and a valid password, private key, or OAuth token.',
+                );
+            }
+            return { ...data, credentials };
         }
 
         if (
@@ -549,6 +584,45 @@ export class UserWarehouseCredentialsModel {
                 );
             }
         }
+
+        return data;
+    }
+
+    static mergeCredentialsForUpdate(
+        data: UpsertUserWarehouseCredentials,
+        existingCredentials: UserWarehouseCredentialsWithSecrets['credentials'],
+    ): UpsertUserWarehouseCredentials {
+        if (
+            data.credentials.type !== WarehouseTypes.ATHENA ||
+            data.credentials.secretAccessKey
+        ) {
+            return data;
+        }
+
+        if (existingCredentials.type !== WarehouseTypes.ATHENA) {
+            throw new ParameterError(
+                'Athena credentials require an AWS secret access key.',
+            );
+        }
+
+        const submittedAccessKeyId = data.credentials.accessKeyId?.trim();
+        if (
+            submittedAccessKeyId &&
+            submittedAccessKeyId !== existingCredentials.accessKeyId
+        ) {
+            throw new ParameterError(
+                'Enter the AWS secret access key when changing the access key ID.',
+            );
+        }
+
+        return {
+            ...data,
+            credentials: {
+                ...data.credentials,
+                accessKeyId: existingCredentials.accessKeyId,
+                secretAccessKey: existingCredentials.secretAccessKey,
+            },
+        };
     }
 
     async create(
@@ -556,11 +630,14 @@ export class UserWarehouseCredentialsModel {
         data: UpsertUserWarehouseCredentials,
         projectUuid?: string,
     ): Promise<string> {
-        UserWarehouseCredentialsModel.validateCredentialsForPersistence(data);
+        const normalized =
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                data,
+            );
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
-                JSON.stringify(data.credentials),
+                JSON.stringify(normalized.credentials),
             );
         } catch (e) {
             throw new UnexpectedServerError('Could not save credentials.');
@@ -568,8 +645,8 @@ export class UserWarehouseCredentialsModel {
         const [result] = await this.database(UserWarehouseCredentialsTableName)
             .insert({
                 user_uuid: userUuid,
-                name: data.name,
-                warehouse_type: data.credentials.type,
+                name: normalized.name,
+                warehouse_type: normalized.credentials.type,
                 encrypted_credentials: encryptedCredentials,
                 project_uuid: projectUuid ?? null,
             })
@@ -586,19 +663,50 @@ export class UserWarehouseCredentialsModel {
         userWarehouseCredentialsUuid: string,
         data: UpsertUserWarehouseCredentials,
     ): Promise<string> {
-        UserWarehouseCredentialsModel.validateCredentialsForPersistence(data);
+        let dataToPersist = data;
+        if (
+            data.credentials.type === WarehouseTypes.ATHENA &&
+            !data.credentials.secretAccessKey
+        ) {
+            const existingRow = await this.database(
+                UserWarehouseCredentialsTableName,
+            )
+                .where(
+                    'user_warehouse_credentials_uuid',
+                    userWarehouseCredentialsUuid,
+                )
+                .andWhere('user_uuid', userUuid)
+                .first();
+
+            if (!existingRow) {
+                throw new UnexpectedServerError('Could not save credentials.');
+            }
+
+            dataToPersist =
+                UserWarehouseCredentialsModel.mergeCredentialsForUpdate(
+                    data,
+                    this.convertToUserWarehouseCredentialsWithSecrets(
+                        existingRow,
+                    ).credentials,
+                );
+        }
+
+        const normalized =
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                dataToPersist,
+            );
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
-                JSON.stringify(data.credentials),
+                JSON.stringify(normalized.credentials),
             );
         } catch (e) {
             throw new UnexpectedServerError('Could not save credentials.');
         }
         const [result] = await this.database(UserWarehouseCredentialsTableName)
             .update({
-                name: data.name,
-                warehouse_type: data.credentials.type,
+                name: normalized.name,
+                warehouse_type: normalized.credentials.type,
                 encrypted_credentials: encryptedCredentials,
                 updated_at: new Date(),
             })

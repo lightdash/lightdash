@@ -16,6 +16,7 @@ import {
     Explore,
     FieldId,
     FieldReferenceError,
+    findTablesWithMetricInflation,
     flattenFilterGroup,
     ForbiddenError,
     getCustomGroupOrderSql,
@@ -26,10 +27,12 @@ import {
     getFixedWidthBinSelectSql,
     getIntrinsicUserAttributeRegex,
     getItemId,
+    getJoinedTables,
     getSqlForTruncatedDate,
     getUserAttributeRegex,
     IntrinsicUserAttributes,
     isCompiledCustomSqlDimension,
+    isInflationProofMetric,
     isSqlTableCalculation,
     JoinRelationship,
     lightdashVariablePattern,
@@ -43,10 +46,18 @@ import {
     TableCalculationType,
     UserAttributeValueMap,
     WeekDay,
+    type EscapedParameterValue,
+    type FindTablesWithMetricInflationArgs,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { intersection, isArray } from 'lodash';
+import { isArray } from 'lodash';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
+
+export {
+    findTablesWithMetricInflation,
+    getJoinedTables,
+    isInflationProofMetric,
+};
 
 export type TotalQueryKind =
     | 'grandTotal'
@@ -203,7 +214,7 @@ const getWrapChars = (wrapChar: string): [string, string] => {
 export const replaceLightdashValues = (
     regex: RegExp,
     sql: string,
-    valuesMap: Record<string, string | number | string[] | number[]>,
+    valuesMap: Record<string, EscapedParameterValue>,
     quoteChar: string | '',
     wrapChar: string | '',
     {
@@ -445,71 +456,54 @@ export const getJoinType = (type: DbtModelJoinType = 'left') => {
     }
 };
 
-export const sortMonthName = (
-    dimension: Dimension,
-    fieldQuoteChar: string,
-    descending: Boolean,
-) => {
-    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
-
-    return `(
+export const sortMonthName = (fieldSql: string, descending: boolean) => `(
         CASE
-            WHEN ${fieldId} = 'January' THEN 1
-            WHEN ${fieldId} = 'February' THEN 2
-            WHEN ${fieldId} = 'March' THEN 3
-            WHEN ${fieldId} = 'April' THEN 4
-            WHEN ${fieldId} = 'May' THEN 5
-            WHEN ${fieldId} = 'June' THEN 6
-            WHEN ${fieldId} = 'July' THEN 7
-            WHEN ${fieldId} = 'August' THEN 8
-            WHEN ${fieldId} = 'September' THEN 9
-            WHEN ${fieldId} = 'October' THEN 10
-            WHEN ${fieldId} = 'November' THEN 11
-            WHEN ${fieldId} = 'December' THEN 12
+            WHEN ${fieldSql} = 'January' THEN 1
+            WHEN ${fieldSql} = 'February' THEN 2
+            WHEN ${fieldSql} = 'March' THEN 3
+            WHEN ${fieldSql} = 'April' THEN 4
+            WHEN ${fieldSql} = 'May' THEN 5
+            WHEN ${fieldSql} = 'June' THEN 6
+            WHEN ${fieldSql} = 'July' THEN 7
+            WHEN ${fieldSql} = 'August' THEN 8
+            WHEN ${fieldSql} = 'September' THEN 9
+            WHEN ${fieldSql} = 'October' THEN 10
+            WHEN ${fieldSql} = 'November' THEN 11
+            WHEN ${fieldSql} = 'December' THEN 12
             ELSE 0
         END
     )${descending ? ' DESC' : ''}`;
-};
 export const sortDayOfWeekName = (
-    dimension: Dimension,
+    fieldSql: string,
     startOfWeek: WeekDay | null | undefined,
-    fieldQuoteChar: string,
-    descending: Boolean,
+    descending: boolean,
 ) => {
-    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
     const calculateDayIndex = (dayNumber: number) => {
         if (startOfWeek === null || startOfWeek === undefined) return dayNumber; // startOfWeek can be 0, so don't do !startOfWeek
         return ((dayNumber + 7 - (startOfWeek + 2)) % 7) + 1;
     };
     return `(
         CASE
-            WHEN ${fieldId} = 'Sunday' THEN ${calculateDayIndex(1)}
-            WHEN ${fieldId} = 'Monday' THEN ${calculateDayIndex(2)}
-            WHEN ${fieldId} = 'Tuesday' THEN ${calculateDayIndex(3)}
-            WHEN ${fieldId} = 'Wednesday' THEN ${calculateDayIndex(4)}
-            WHEN ${fieldId} = 'Thursday' THEN ${calculateDayIndex(5)}
-            WHEN ${fieldId} = 'Friday' THEN ${calculateDayIndex(6)}
-            WHEN ${fieldId} = 'Saturday' THEN ${calculateDayIndex(7)}
+            WHEN ${fieldSql} = 'Sunday' THEN ${calculateDayIndex(1)}
+            WHEN ${fieldSql} = 'Monday' THEN ${calculateDayIndex(2)}
+            WHEN ${fieldSql} = 'Tuesday' THEN ${calculateDayIndex(3)}
+            WHEN ${fieldSql} = 'Wednesday' THEN ${calculateDayIndex(4)}
+            WHEN ${fieldSql} = 'Thursday' THEN ${calculateDayIndex(5)}
+            WHEN ${fieldSql} = 'Friday' THEN ${calculateDayIndex(6)}
+            WHEN ${fieldSql} = 'Saturday' THEN ${calculateDayIndex(7)}
             ELSE 0
         END
     )${descending ? ' DESC' : ''}`;
 };
-export const sortQuarterName = (
-    dimension: Dimension,
-    fieldQuoteChar: string,
-    descending: boolean,
-) => {
-    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
-    return `(
+export const sortQuarterName = (fieldSql: string, descending: boolean) => `(
         CASE
-            WHEN ${fieldId} = 'Q1' THEN 1
-            WHEN ${fieldId} = 'Q2' THEN 2
-            WHEN ${fieldId} = 'Q3' THEN 3
-            WHEN ${fieldId} = 'Q4' THEN 4
+            WHEN ${fieldSql} = 'Q1' THEN 1
+            WHEN ${fieldSql} = 'Q2' THEN 2
+            WHEN ${fieldSql} = 'Q3' THEN 3
+            WHEN ${fieldSql} = 'Q4' THEN 4
             ELSE 0
         END
     )${descending ? ' DESC' : ''}`;
-};
 // Remove comments and limit clauses from SQL
 export const removeComments = (sql: string): string => {
     let s = sql.trim();
@@ -961,231 +955,7 @@ export const getCustomBinDimensionSql = ({
     };
 };
 
-/*
- * Returns list of intermediary/extra joined tables based on the current joined tables
- */
-export const getJoinedTables = (
-    explore: Explore,
-    tableNames: string[],
-): string[] => {
-    if (tableNames.length === 0) {
-        return [];
-    }
-    const allNewReferences = explore.joinedTables.reduce<string[]>(
-        (sum, joinedTable) => {
-            if (tableNames.includes(joinedTable.table)) {
-                const joinTableReferences =
-                    joinedTable.tablesReferences ||
-                    parseAllReferences(
-                        // fallback for old explores, it might be incorrect when the join as an alias
-                        joinedTable.sqlOn,
-                        joinedTable.table,
-                    ).map(({ refTable }) => refTable);
-
-                const newReferencesInJoin = joinTableReferences.reduce<
-                    string[]
-                >(
-                    (acc, refTable) =>
-                        !tableNames.includes(refTable)
-                            ? [...acc, refTable]
-                            : acc,
-                    [],
-                );
-                return [...sum, ...newReferencesInJoin];
-            }
-            return sum;
-        },
-        [],
-    );
-    return [...allNewReferences, ...getJoinedTables(explore, allNewReferences)];
-};
-
-/**
- * Determines if a metric type is "inflation-proof" (not affected by join inflation)
- */
-export const isInflationProofMetric = (metricType: MetricType): boolean =>
-    [
-        MetricType.COUNT_DISTINCT,
-        MetricType.SUM_DISTINCT,
-        MetricType.AVERAGE_DISTINCT,
-        MetricType.MIN,
-        MetricType.MAX,
-    ].includes(metricType);
-
-const findTablesWithInflationFromJoin = (join: CompiledExploreJoin) => {
-    const tablesWithInflation = new Set<string>();
-    if (!join.tablesReferences) {
-        // Skip, as we can't detect inflation without knowing table references in join SQL
-        return tablesWithInflation;
-    }
-    if (join.relationship === JoinRelationship.ONE_TO_MANY) {
-        // The tables used to join the table can have metric inflation
-        const joinFrom = join.tablesReferences.filter(
-            (table) => table !== join.table,
-        );
-        joinFrom.forEach(tablesWithInflation.add.bind(tablesWithInflation));
-    } else if (join.relationship === JoinRelationship.MANY_TO_ONE) {
-        // The table being joined can have metric inflation
-        tablesWithInflation.add(join.table);
-    }
-
-    return tablesWithInflation;
-};
-
-const findChainedOneToOneTableJoins = ({
-    tables,
-    possibleJoins,
-}: {
-    tables: Set<string>;
-    possibleJoins: CompiledExploreJoin[];
-}) => {
-    const result = new Set<string>();
-    // Keep track of visited tables to avoid infinite recursion
-    const visited = new Set<string>();
-
-    const findReferences = (currentTables: Set<string>) => {
-        const newTables = new Set<string>();
-
-        for (const tableName of currentTables) {
-            if (!visited.has(tableName)) {
-                visited.add(tableName);
-                possibleJoins.forEach((join) => {
-                    if (
-                        join.tablesReferences &&
-                        join.tablesReferences.includes(tableName) &&
-                        (!join.relationship ||
-                            join.relationship === JoinRelationship.ONE_TO_ONE)
-                    ) {
-                        join.tablesReferences.forEach((from) => {
-                            if (!result.has(from)) {
-                                result.add(from);
-                                newTables.add(from);
-                            }
-                        });
-                    }
-                });
-            }
-        }
-
-        // Recursively process newly found tables
-        if (newTables.size > 0) {
-            findReferences(newTables);
-        }
-    };
-
-    findReferences(tables);
-    return result;
-};
-
-export const findTablesWithMetricInflation = ({
-    baseTable,
-    joinedTables,
-    possibleJoins,
-    tables,
-}: Pick<
-    FindMetricInflationWarningsProps,
-    'baseTable' | 'joinedTables' | 'possibleJoins' | 'tables'
->): {
-    tablesWithMetricInflation: Set<string>;
-    joinWithoutRelationship: Set<string>;
-    tablesWithoutPrimaryKey: Set<string>;
-} => {
-    const tablesWithMetricInflation = new Set<string>();
-    const joinWithoutRelationship = new Set<string>();
-    const tablesWithoutPrimaryKey = new Set<string>();
-
-    // Check if any join has a many-to-many relationship
-    const hasManyToManyJoin = Array.from(joinedTables).some((joinedTable) => {
-        if (joinedTable === baseTable) return false;
-
-        const join = possibleJoins.find(
-            (possibleJoin) => possibleJoin.table === joinedTable,
-        );
-        return join?.relationship === JoinRelationship.MANY_TO_MANY;
-    });
-
-    // If there's a many-to-many join, all tables (including base table) have inflation
-    if (hasManyToManyJoin) {
-        joinedTables.forEach(
-            tablesWithMetricInflation.add.bind(tablesWithMetricInflation),
-        );
-        // Also add the base table
-        tablesWithMetricInflation.add(baseTable);
-    } else {
-        joinedTables.forEach((joinedTable) => {
-            if (!tables[joinedTable]?.primaryKey) {
-                // Warn the user about missing primary key so we can detect possible metric inflation
-                tablesWithoutPrimaryKey.add(joinedTable);
-            }
-
-            if (joinedTable === baseTable) {
-                // skip base table
-                return;
-            }
-
-            const join = possibleJoins.find(
-                (possibleJoin) => possibleJoin.table === joinedTable,
-            );
-            if (!join) {
-                throw new Error(`Join ${joinedTable} not found`);
-            }
-            if (!join.tablesReferences) {
-                // Skip, as we can't detect inflation without knowing table references in join SQL
-                return;
-            }
-            if (!join.relationship) {
-                // Warn the user about missing relationship so we can detect possible metric inflation
-                joinWithoutRelationship.add(joinedTable);
-            } else {
-                // Finds tables with inflation in this join
-                const tablesWithInflationFromJoin =
-                    findTablesWithInflationFromJoin(join);
-                // Finds chained joins with one-to-one relationship
-                const chainedTablesWithInflation =
-                    findChainedOneToOneTableJoins({
-                        tables: tablesWithInflationFromJoin,
-                        possibleJoins,
-                    });
-                const newTablesWithInflation = new Set([
-                    ...tablesWithInflationFromJoin,
-                    ...chainedTablesWithInflation,
-                ]);
-                if (
-                    intersection(
-                        Array.from(tablesWithMetricInflation),
-                        Array.from(newTablesWithInflation),
-                    ).length > 0
-                ) {
-                    // if there are multiple one-to-many or many-to-one joins affecting the same table, all tables in the query can have metric inflation
-                    joinedTables.forEach(
-                        tablesWithMetricInflation.add.bind(
-                            tablesWithMetricInflation,
-                        ),
-                    );
-                } else {
-                    // otherwise, add tables with inflation related to this join
-                    newTablesWithInflation.forEach(
-                        tablesWithMetricInflation.add.bind(
-                            tablesWithMetricInflation,
-                        ),
-                    );
-                }
-            }
-        });
-    }
-
-    return {
-        tablesWithMetricInflation,
-        joinWithoutRelationship,
-        tablesWithoutPrimaryKey,
-    };
-};
-
-type FindMetricInflationWarningsProps = {
-    tables: { [tableName: string]: Pick<CompiledTable, 'primaryKey'> };
-    possibleJoins: Explore['joinedTables']; // all joins metadata
-    baseTable: Explore['baseTable']; // query table
-    joinedTables: Set<string>; // query joined tables
+type FindMetricInflationWarningsProps = FindTablesWithMetricInflationArgs & {
     metrics: Pick<CompiledMetric, 'name' | 'table' | 'type' | 'label'>[]; // metrics in query
 };
 
@@ -1345,4 +1115,53 @@ export const findMetricInflationWarnings = ({
         });
     });
     return warnings;
+};
+
+type FindUnnestCrossProductWarningsProps = {
+    tables: { [tableName: string]: Pick<CompiledTable, 'nestedFrom'> };
+    joinedTables: Set<string>;
+};
+
+const getUnnestAncestors = (
+    tables: FindUnnestCrossProductWarningsProps['tables'],
+    tableName: string,
+    visited: Set<string> = new Set(),
+): string[] => {
+    const parent = tables[tableName]?.nestedFrom?.parentTable;
+    if (parent === undefined || visited.has(parent)) {
+        return [];
+    }
+    return [parent, ...getUnnestAncestors(tables, parent, visited.add(parent))];
+};
+
+/**
+ * Unnested tables that are not on one ancestry chain pair every element of
+ * one array with every element of the other, so the row count multiplies.
+ */
+export const findUnnestCrossProductWarnings = ({
+    tables,
+    joinedTables,
+}: FindUnnestCrossProductWarningsProps): QueryWarning[] => {
+    const unnestedTables = Array.from(joinedTables).filter(
+        (tableName) => tables[tableName]?.nestedFrom !== undefined,
+    );
+    const ancestors = new Set(
+        unnestedTables.flatMap((tableName) =>
+            getUnnestAncestors(tables, tableName),
+        ),
+    );
+    const independentTables = unnestedTables.filter(
+        (tableName) => !ancestors.has(tableName),
+    );
+    if (independentTables.length < 2) {
+        return [];
+    }
+    const quoted = independentTables.map((tableName) => `**"${tableName}"**`);
+    const tableList = `${quoted.slice(0, -1).join(', ')} and ${quoted.at(-1)}`;
+    return [
+        {
+            message: `Repeated columns ${tableList} are unnested together, so each row pairs their elements and metrics can be inflated. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+            tables: independentTables,
+        },
+    ];
 };

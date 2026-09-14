@@ -1025,6 +1025,7 @@ test('Should compile template table calculations using _order for custom bin dim
                 template: {
                     type: TableCalculationTemplateType.RUNNING_TOTAL,
                     fieldId: 'table_3_metric_1',
+                    orderBy: [{ fieldId: 'age_range', order: 'asc' }],
                 },
             } as TableCalculation,
             {
@@ -1452,5 +1453,215 @@ describe('compilePostCalculationMetric', () => {
         expect(result).toBe(
             '(CAST("metric" AS FLOAT) / CAST(NULLIF(LAG("metric") OVER(PARTITION BY "employee"ORDER BY "week"), 0) AS FLOAT)) - 1',
         );
+    });
+});
+
+describe('compileMetricQuery rejects injected sort field ids (PROD-9482)', () => {
+    const injectedFieldIds = [
+        'table1_dim_1" DESC --', // double-quote break-out
+        'table1_dim_1` DESC --', // backtick break-out (BigQuery/Databricks)
+        'table1_dim_1\\', // trailing backslash (BigQuery escape break-out)
+    ];
+
+    it.each(injectedFieldIds)(
+        'throws a CompileError for sort field id %j',
+        (fieldId) => {
+            expect(() =>
+                compileMetricQuery({
+                    explore: EXPLORE,
+                    metricQuery: {
+                        ...METRIC_QUERY_NO_CALCS,
+                        sorts: [{ fieldId, descending: false }],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    availableParameters: [],
+                }),
+            ).toThrow(/quote or backslash/);
+        },
+    );
+
+    it('rejects an injected sort before compiling a running-total table calculation that consumes it', () => {
+        expect(() =>
+            compileMetricQuery({
+                explore: EXPLORE,
+                metricQuery: {
+                    ...METRIC_QUERY_NO_CALCS,
+                    sorts: [
+                        { fieldId: 'table1_dim_1" DESC --', descending: false },
+                    ],
+                    tableCalculations: [
+                        {
+                            name: 'running_total',
+                            displayName: 'Running total',
+                            template: {
+                                type: TableCalculationTemplateType.RUNNING_TOTAL,
+                                fieldId: 'table_3_metric_1',
+                            },
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                availableParameters: [],
+            }),
+        ).toThrow(/quote or backslash/);
+    });
+
+    it('preserves valid dimension, metric, and table-calculation sorts', () => {
+        expect(() =>
+            compileMetricQuery({
+                explore: EXPLORE,
+                metricQuery: {
+                    ...METRIC_QUERY_VALID_REFERENCES,
+                    sorts: [
+                        { fieldId: 'table1_dim_1', descending: false },
+                        { fieldId: 'table_3_metric_1', descending: true },
+                        { fieldId: 'calc2', descending: false },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                availableParameters: [],
+            }),
+        ).not.toThrow();
+    });
+});
+
+describe('compileMetricQuery rejects injected generated identifiers and template refs (PROD-9485)', () => {
+    const injectedIdentifiers = [
+        'injected" DESC --',
+        'injected` DESC --',
+        'injected\\',
+    ];
+
+    it.each(injectedIdentifiers)(
+        'throws a CompileError for custom dimension id %j',
+        (id) => {
+            expect(() =>
+                compileMetricQuery({
+                    explore: EXPLORE,
+                    metricQuery: {
+                        ...METRIC_QUERY_NO_CALCS,
+                        dimensions: [...METRIC_QUERY_NO_CALCS.dimensions, id],
+                        customDimensions: [
+                            {
+                                id,
+                                name: 'Injected custom dimension',
+                                table: 'table1',
+                                type: CustomDimensionType.SQL,
+                                sql: '${TABLE}.dim_1',
+                                dimensionType: DimensionType.STRING,
+                            },
+                        ],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    availableParameters: [],
+                }),
+            ).toThrow(/quote or backslash/);
+        },
+    );
+
+    it.each(injectedIdentifiers)(
+        'throws a CompileError for additional metric name %j',
+        (name) => {
+            expect(() =>
+                compileMetricQuery({
+                    explore: EXPLORE,
+                    metricQuery: {
+                        ...METRIC_QUERY_NO_CALCS,
+                        metrics: [
+                            ...METRIC_QUERY_NO_CALCS.metrics,
+                            `table1_${name}`,
+                        ],
+                        additionalMetrics: [
+                            {
+                                name,
+                                table: 'table1',
+                                type: MetricType.COUNT,
+                                sql: '${TABLE}.dim_1',
+                            },
+                        ],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    availableParameters: [],
+                }),
+            ).toThrow(/quote or backslash/);
+        },
+    );
+
+    it.each(injectedIdentifiers)(
+        'throws a CompileError for table calculation name %j',
+        (name) => {
+            expect(() =>
+                compileMetricQuery({
+                    explore: EXPLORE,
+                    metricQuery: {
+                        ...METRIC_QUERY_NO_CALCS,
+                        tableCalculations: [
+                            {
+                                name,
+                                displayName: 'Injected table calculation',
+                                sql: '${table1.dim_1}',
+                            },
+                        ],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    availableParameters: [],
+                }),
+            ).toThrow(/quote or backslash/);
+        },
+    );
+
+    test('throws a CompileError for unknown template field references', () => {
+        expect(() =>
+            compileMetricQuery({
+                explore: EXPLORE,
+                metricQuery: {
+                    ...METRIC_QUERY_NO_CALCS,
+                    tableCalculations: [
+                        {
+                            name: 'percent_of_total',
+                            displayName: 'Percent of total',
+                            template: {
+                                type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
+                                fieldId: 'not_in_query',
+                                partitionBy: [],
+                            },
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                availableParameters: [],
+            }),
+        ).toThrow(/isn't included in the query/);
+    });
+
+    test('throws a CompileError for injected template order and partition references', () => {
+        expect(() =>
+            compileMetricQuery({
+                explore: EXPLORE,
+                metricQuery: {
+                    ...METRIC_QUERY_NO_CALCS,
+                    tableCalculations: [
+                        {
+                            name: 'windowed_total',
+                            displayName: 'Windowed total',
+                            template: {
+                                type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                                windowFunction: WindowFunctionType.SUM,
+                                fieldId: 'table_3_metric_1',
+                                orderBy: [
+                                    {
+                                        fieldId: 'table1_dim_1" DESC --',
+                                        order: 'asc',
+                                    },
+                                ],
+                                partitionBy: ['table1_dim_1" DESC --'],
+                            },
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                availableParameters: [],
+            }),
+        ).toThrow(/quote or backslash/);
     });
 });

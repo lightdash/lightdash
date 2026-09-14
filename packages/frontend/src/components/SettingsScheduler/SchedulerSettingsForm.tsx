@@ -7,10 +7,11 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedCallback } from '@mantine-8/hooks';
-import { useForm, zodResolver } from '@mantine/form';
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { useDebouncedCallback } from '@mantine/hooks';
 import { IconHelp } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { type z } from 'zod';
 import MantineIcon from '../common/MantineIcon';
@@ -77,7 +78,7 @@ export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
                         >
                             <MantineIcon
                                 icon={IconHelp}
-                                color="ldGray.6"
+                                color="dimmed"
                                 size="sm"
                             />
                         </Tooltip>

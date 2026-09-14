@@ -1,4 +1,4 @@
-import { Box, Image, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Image, Stack, Text, Title } from '@mantine/core';
 import LightdashLogo from '../../svgs/lightdash-black.svg';
 import MantineLinkButton from '../common/MantineLinkButton';
 import classes from './Mobile.module.css';
@@ -13,7 +13,7 @@ const MobileView = () => (
             <Title ta="center" order={4}>
                 This page is not available to view on mobile yet.
             </Title>
-            <Text ta="center" c="ldGray.6">
+            <Text ta="center" c="dimmed">
                 Sign in on a laptop or desktop to access this page!
             </Text>
             <MantineLinkButton href="/">Back to home page</MantineLinkButton>

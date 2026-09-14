@@ -12,6 +12,7 @@ export type DbPreAggregateDailyStat = {
     query_context: string;
     hit_count: number;
     miss_count: number;
+    fallback_count: number;
     miss_reason: string | null;
     pre_aggregate_name: string | null;
     created_at: Date;

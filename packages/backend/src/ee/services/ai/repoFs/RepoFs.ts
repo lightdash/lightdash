@@ -26,8 +26,6 @@ export interface RepoSource {
     searchCode?(query: string): Promise<RepoCodeSearchMatch[]>;
 }
 
-export class RepoNotFoundError extends Error {}
-
 const normalizePath = (input: string): string => {
     // Strip a leading "./" or "/", drop a trailing "/", collapse "//".
     let path = input.trim();

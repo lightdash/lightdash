@@ -14,12 +14,22 @@ export {
     PreAggregateNumberMetricDependencyIneligibilityReason,
     type PreAggregateNumberMetricDependencies,
 } from './numberMetricDependencies';
-export { applyUserBypass, findMatch } from './matcher';
+export {
+    applyUserBypass,
+    findMatch,
+    getActiveCustomDimensions,
+} from './matcher';
 export {
     getMetricRepresentation,
     isSupportedMetricType,
     supportedMetricTypes,
 } from './metricRepresentation';
+export {
+    getEffectiveDimensionTimeFrame,
+    getPreAggregateGranularityRank,
+    getTimeFrameDerivability,
+    TimeFrameDerivability,
+} from './timeFrameDerivability';
 export {
     getDimensionBaseName,
     getDimensionReferences,

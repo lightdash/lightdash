@@ -1,8 +1,7 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType, ProjectType } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { type FC } from 'react';
-import { useParams } from 'react-router';
+import { Stack } from '@mantine/core';
+import { useState, type FC, type ReactNode } from 'react';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
@@ -22,6 +21,10 @@ import {
     useResolvedHomepage,
 } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { PublishedHomepage } from '../ee/features/homepageBuilder/PublishedHomepage';
+import {
+    TryNewHomepageCard,
+    TryNewHomepageModal,
+} from '../ee/features/homepageBuilder/TryNewHomepagePromo';
 import { ManagedAgentHomeCard } from '../ee/features/managedAgent/ManagedAgentHomeCard';
 import { useFavorites } from '../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
@@ -30,13 +33,15 @@ import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
+import { getProjectUrlIdentifier } from '../utils/projectUrl';
 
 const Home: FC = () => {
-    const params = useParams<{ projectUuid: string }>();
-    const selectedProjectUuid = params.projectUuid;
+    const [isTryNewHomepageOpen, setIsTryNewHomepageOpen] = useState(false);
+    const selectedProjectUuid = useProjectUuid();
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
     const pinnedItems = usePinnedItems(
@@ -74,8 +79,24 @@ const Home: FC = () => {
 
     useUnmount(() => onboarding.remove());
 
+    // Rendered in the loading state too: opting in triggers the resolved
+    // homepage's first fetch, which sends Home through this spinner — the
+    // modal must survive that or its success screen is lost mid-flow.
+    const tryNewHomepageModal = selectedProjectUuid ? (
+        <TryNewHomepageModal
+            opened={isTryNewHomepageOpen}
+            onClose={() => setIsTryNewHomepageOpen(false)}
+            projectUuid={selectedProjectUuid}
+        />
+    ) : null;
+
     if (isLoading) {
-        return <PageSpinner />;
+        return (
+            <>
+                <PageSpinner />
+                {tryNewHomepageModal}
+            </>
+        );
     }
 
     if (error) {
@@ -93,7 +114,9 @@ const Home: FC = () => {
     const isGitHubProject =
         project.data.type !== ProjectType.PREVIEW &&
         project.data.dbtConnection.type === DbtProjectType.GITHUB;
+    const projectUrlIdentifier = getProjectUrlIdentifier(project.data);
 
+    let body: ReactNode;
     if (
         isHomepageBuilderEnabled &&
         resolvedHomepage.data?.type === 'homepage'
@@ -102,7 +125,7 @@ const Home: FC = () => {
         const hasFavoritesBlock = homepage.config.rows.some((row) =>
             row.blocks.some((block) => block.type === 'favorites'),
         );
-        return (
+        body = (
             <Page withFooter noContentPadding>
                 <AdminHomepageControls
                     projectUuid={project.data.projectUuid}
@@ -122,14 +145,12 @@ const Home: FC = () => {
                 />
             </Page>
         );
-    }
-
-    if (
+    } else if (
         isHomepageBuilderEnabled &&
         resolvedHomepage.data === null &&
         onboarding.data.ranQuery
     ) {
-        return (
+        body = (
             <Page withFooter noContentPadding>
                 <AdminHomepageControls
                     projectUuid={project.data.projectUuid}
@@ -150,58 +171,85 @@ const Home: FC = () => {
                 </FavoritesProvider>
             </Page>
         );
+    } else {
+        body = (
+            <Page withFixedContent withPaddedContent withFooter>
+                <Stack gap="xl">
+                    {!onboarding.data.ranQuery ? (
+                        <OnboardingPanel
+                            projectUrlIdentifier={projectUrlIdentifier}
+                            userName={user.data?.firstName}
+                        />
+                    ) : (
+                        <FavoritesProvider
+                            projectUuid={project.data.projectUuid}
+                        >
+                            <LandingPanel
+                                userName={user.data?.firstName}
+                                projectUuid={project.data.projectUuid}
+                                projectUrlIdentifier={projectUrlIdentifier}
+                            />
+                            {/* Below the greeting on purpose: an admin-only promo
+                            shouldn't outrank the page's own hero */}
+                            {!isHomepageBuilderEnabled && (
+                                <TryNewHomepageCard
+                                    organizationUuid={
+                                        project.data.organizationUuid
+                                    }
+                                    onTryNow={() =>
+                                        setIsTryNewHomepageOpen(true)
+                                    }
+                                />
+                            )}
+                            {project.data.type !== ProjectType.PREVIEW && (
+                                <ManagedAgentHomeCard
+                                    projectUuid={project.data.projectUuid}
+                                />
+                            )}
+                            {isAiAgentsEnabled && (
+                                <AiSearchBox
+                                    projectUuid={project.data.projectUuid}
+                                    showAiReviewsPromo={isGitHubProject}
+                                />
+                            )}
+                            <PinnedItemsProvider
+                                organizationUuid={project.data.organizationUuid}
+                                projectUuid={project.data.projectUuid}
+                                pinnedListUuid={
+                                    project.data.pinnedListUuid || ''
+                                }
+                                allowDelete={false}
+                            >
+                                <PinnedAndFavoritesSection
+                                    pinnedItems={pinnedItems.data ?? []}
+                                    favoriteItems={favorites.data ?? []}
+                                    pinnedIsEnabled={Boolean(
+                                        mostPopularAndRecentlyUpdated
+                                            ?.mostPopular.length ||
+                                        mostPopularAndRecentlyUpdated
+                                            ?.recentlyUpdated.length,
+                                    )}
+                                />
+                            </PinnedItemsProvider>
+                            <HomepageContentPanel
+                                data={mostPopularAndRecentlyUpdated}
+                                projectUuid={project.data.projectUuid}
+                                projectUrlIdentifier={projectUrlIdentifier}
+                            />
+                        </FavoritesProvider>
+                    )}
+                </Stack>
+            </Page>
+        );
     }
 
     return (
-        <Page withFixedContent withPaddedContent withFooter>
-            <Stack gap="xl">
-                {!onboarding.data.ranQuery ? (
-                    <OnboardingPanel
-                        projectUuid={project.data.projectUuid}
-                        userName={user.data?.firstName}
-                    />
-                ) : (
-                    <FavoritesProvider projectUuid={project.data.projectUuid}>
-                        <LandingPanel
-                            userName={user.data?.firstName}
-                            projectUuid={project.data.projectUuid}
-                        />
-                        {project.data.type !== ProjectType.PREVIEW && (
-                            <ManagedAgentHomeCard
-                                projectUuid={project.data.projectUuid}
-                            />
-                        )}
-                        {isAiAgentsEnabled && (
-                            <AiSearchBox
-                                projectUuid={project.data.projectUuid}
-                                showAiReviewsPromo={isGitHubProject}
-                            />
-                        )}
-                        <PinnedItemsProvider
-                            organizationUuid={project.data.organizationUuid}
-                            projectUuid={project.data.projectUuid}
-                            pinnedListUuid={project.data.pinnedListUuid || ''}
-                            allowDelete={false}
-                        >
-                            <PinnedAndFavoritesSection
-                                pinnedItems={pinnedItems.data ?? []}
-                                favoriteItems={favorites.data ?? []}
-                                pinnedIsEnabled={Boolean(
-                                    mostPopularAndRecentlyUpdated?.mostPopular
-                                        .length ||
-                                    mostPopularAndRecentlyUpdated
-                                        ?.recentlyUpdated.length,
-                                )}
-                            />
-                        </PinnedItemsProvider>
-                        <HomepageContentPanel
-                            data={mostPopularAndRecentlyUpdated}
-                            projectUuid={project.data.projectUuid}
-                        />
-                    </FavoritesProvider>
-                )}
-            </Stack>
-        </Page>
+        <>
+            {body}
+            {/* Page-level so it survives the org-wide flip: the success
+                screen then shows over the new homepage it is describing */}
+            {tryNewHomepageModal}
+        </>
     );
 };
 

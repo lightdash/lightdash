@@ -1,4 +1,9 @@
-import { capitalize } from '@lightdash/common';
+import {
+    capitalize,
+    getJiraIssueIdentifier,
+    getLinearIssueIdentifier,
+    type AiAgentReviewItemSummary,
+} from '@lightdash/common'; // pragma: allowlist secret
 import {
     Anchor,
     Box,
@@ -8,8 +13,8 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconArrowRight,
     IconExternalLink,
@@ -32,6 +37,7 @@ import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { getRenderableExcerpts } from './evidenceExcerptHelpers';
 import { EvidenceExcerpts } from './EvidenceExcerpts';
 import styles from './IssueDetailModal.module.css';
+import { MemoryProvenance } from './MemoryProvenance';
 import { RemediationActivityTimeline } from './RemediationActivityTimeline';
 import { ReviewAssigneeMenu } from './ReviewAssigneeMenu';
 import { ReviewItemActions } from './ReviewItemActions';
@@ -63,6 +69,11 @@ type Props = {
     isOpen: boolean;
     onClose: () => void;
 };
+
+const isMemoryReviewItem = (
+    item: AiAgentReviewItemSummary,
+): item is AiAgentReviewItemSummary & { source: 'memory' } =>
+    item.source === 'memory';
 
 const RailRow: FC<{ label: string; children: React.ReactNode }> = ({
     label,
@@ -130,7 +141,6 @@ export const IssueDetailModal: FC<Props> = ({
     const targetAnchor = item ? getTargetAnchor(item) : null;
     const excerpts = item?.latestFinding?.evidenceExcerpts ?? [];
     const hasExcerpts = getRenderableExcerpts(excerpts).length > 0;
-
     const blockedReason =
         item && !item.writebackEligibility.eligible
             ? item.writebackEligibility.reason
@@ -206,9 +216,7 @@ export const IssueDetailModal: FC<Props> = ({
                                 {targetAnchor && (
                                     <Tooltip
                                         label={targetAnchor}
-                                        withArrow
                                         openDelay={300}
-                                        multiline
                                         maw={340}
                                     >
                                         <Text className={styles.targetChip}>
@@ -254,71 +262,80 @@ export const IssueDetailModal: FC<Props> = ({
                                     </Box>
                                 </Stack>
 
-                                {/* Evidence — the curated turns the review cited.
-                                The full conversation opens in a stacked modal so
-                                a long thread keeps the room it needs to read.
-                                Manual issues have neither, so the section is
-                                omitted. */}
-                                {(hasThread || hasExcerpts) && (
-                                    <Stack
-                                        gap="md"
-                                        className={styles.evidenceSection}
-                                    >
-                                        <Group
-                                            justify="space-between"
-                                            align="center"
-                                            wrap="nowrap"
+                                {isMemoryReviewItem(item) && (
+                                    <MemoryProvenance
+                                        item={item}
+                                        projectUuid={projectUuid}
+                                    />
+                                )}
+
+                                {item.source !== 'memory' &&
+                                    (hasThread || hasExcerpts) && (
+                                        <Stack
+                                            gap="md"
+                                            className={styles.evidenceSection}
                                         >
-                                            <Text
-                                                className={styles.sectionLabel}
+                                            <Group
+                                                justify="space-between"
+                                                align="center"
+                                                wrap="nowrap"
                                             >
-                                                Evidence
-                                            </Text>
-                                            {hasThread && (
-                                                <Button
-                                                    variant="subtle"
-                                                    color="gray"
-                                                    size="compact-xs"
+                                                <Text
                                                     className={
-                                                        styles.conversationButton
-                                                    }
-                                                    onClick={openThread}
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconMessages}
-                                                            size={14}
-                                                            stroke={1.6}
-                                                        />
-                                                    }
-                                                    rightSection={
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconArrowRight
-                                                            }
-                                                            size={13}
-                                                            stroke={1.6}
-                                                        />
+                                                        styles.sectionLabel
                                                     }
                                                 >
-                                                    Read full conversation
-                                                </Button>
+                                                    Evidence
+                                                </Text>
+                                                {hasThread && (
+                                                    <Button
+                                                        variant="subtle"
+                                                        color="gray"
+                                                        size="compact-xs"
+                                                        className={
+                                                            styles.conversationButton
+                                                        }
+                                                        onClick={openThread}
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconMessages
+                                                                }
+                                                                size={14}
+                                                                stroke={1.6}
+                                                            />
+                                                        }
+                                                        rightSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconArrowRight
+                                                                }
+                                                                size={13}
+                                                                stroke={1.6}
+                                                            />
+                                                        }
+                                                    >
+                                                        Read full conversation
+                                                    </Button>
+                                                )}
+                                            </Group>
+                                            {hasExcerpts ? (
+                                                <EvidenceExcerpts
+                                                    excerpts={excerpts}
+                                                />
+                                            ) : (
+                                                <Text
+                                                    className={
+                                                        styles.evidenceEmpty
+                                                    }
+                                                >
+                                                    No excerpts were captured —
+                                                    open the full conversation
+                                                    to see what triggered this.
+                                                </Text>
                                             )}
-                                        </Group>
-                                        {hasExcerpts ? (
-                                            <EvidenceExcerpts
-                                                excerpts={excerpts}
-                                            />
-                                        ) : (
-                                            <Text
-                                                className={styles.evidenceEmpty}
-                                            >
-                                                No excerpts were captured — open
-                                                the full conversation to see
-                                                what triggered this.
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                )}
+                                        </Stack>
+                                    )}
                             </Stack>
                         </Stack>
 
@@ -396,6 +413,44 @@ export const IssueDetailModal: FC<Props> = ({
                                             <Text className={styles.railText}>
                                                 {seenValue}
                                             </Text>
+                                        </RailRow>
+                                    )}
+                                    {item.linkedIssueUrl && (
+                                        <RailRow label="Linear">
+                                            <Anchor
+                                                href={item.linkedIssueUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={styles.railLink}
+                                            >
+                                                <MantineIcon
+                                                    icon={IconExternalLink}
+                                                    size={14}
+                                                    stroke={1.4}
+                                                />
+                                                {getLinearIssueIdentifier(
+                                                    item.linkedIssueUrl,
+                                                ) ?? 'Open in Linear'}
+                                            </Anchor>
+                                        </RailRow>
+                                    )}
+                                    {item.linkedJiraIssueUrl && (
+                                        <RailRow label="Jira">
+                                            <Anchor
+                                                href={item.linkedJiraIssueUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={styles.railLink}
+                                            >
+                                                <MantineIcon
+                                                    icon={IconExternalLink}
+                                                    size={14}
+                                                    stroke={1.4}
+                                                />
+                                                {getJiraIssueIdentifier(
+                                                    item.linkedJiraIssueUrl,
+                                                ) ?? 'Open in Jira'}
+                                            </Anchor>
                                         </RailRow>
                                     )}
                                     {item.linkedPrUrl && (

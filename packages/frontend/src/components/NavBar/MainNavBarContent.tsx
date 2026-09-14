@@ -1,8 +1,10 @@
-import { ActionIcon, Box, Button, Group } from '@mantine-8/core';
+import { ActionIcon, Box, Button, Group } from '@mantine/core';
 import { lazy, Suspense, type FC } from 'react';
 import { Link } from 'react-router';
+import { LearnLink } from '../../features/learn/LearnLink';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
 import Logo from '../../svgs/logo-icon.svg?react';
 import { AutopilotNavButton } from './AutopilotNavButton';
@@ -26,15 +28,20 @@ const AiAgentsButton = lazy(() =>
 
 type Props = {
     activeProjectUuid: string | undefined;
+    activeProjectUrlIdentifier: string | undefined;
     isLoadingActiveProject: boolean;
 };
 
 export const MainNavBarContent: FC<Props> = ({
     activeProjectUuid,
+    activeProjectUrlIdentifier,
     isLoadingActiveProject,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? activeProjectUrlIdentifier;
     const homeUrl = activeProjectUuid
-        ? `/projects/${activeProjectUuid}/home`
+        ? `/projects/${projectUrlIdentifier}/home`
         : '/';
     const { data: hasMetrics } = useHasMetricsInCatalog({
         projectUuid: activeProjectUuid,
@@ -48,6 +55,22 @@ export const MainNavBarContent: FC<Props> = ({
                 <ActionIcon
                     component={Link}
                     to={homeUrl}
+                    // Navigation anchor for scope walkthroughs (data-tour-via)
+                    data-tour-nav="home"
+                    data-tour-hint="Click the Lightdash logo to go back home"
+                    // Also the action of the view:PinnedItems walkthrough:
+                    // the homepage is where pinned content waits, and the
+                    // pinned item picked after it is what gets opened.
+                    // See scripts/scope-tours.
+                    data-tour-scope="view:PinnedItems"
+                    data-tour-step="2"
+                    data-tour-route="/projects/:projectUuid/dashboards"
+                    data-tour-label="Click the Lightdash logo to go back home"
+                    data-tour-title="Find pinned content on the homepage"
+                    data-tour-interactive="true"
+                    data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"]'
+                    data-tour-then='[data-tour-anchor="pinned-item"][data-tour-value="Jaffle Shop overview"]'
+                    data-tour-docs="explore/search.mdx#browsing-instead-of-searching:p2:1"
                     title="Home"
                     className={classes.logoButton}
                 >
@@ -57,7 +80,10 @@ export const MainNavBarContent: FC<Props> = ({
                 {!isLoadingActiveProject && activeProjectUuid && (
                     <>
                         <Button.Group>
-                            <ExploreMenu projectUuid={activeProjectUuid} />
+                            <ExploreMenu
+                                projectUuid={activeProjectUuid}
+                                projectUrlIdentifier={projectUrlIdentifier}
+                            />
                             <BrowseMenu projectUuid={activeProjectUuid} />
                             {hasMetrics && (
                                 <MetricsLink projectUuid={activeProjectUuid} />
@@ -83,7 +109,12 @@ export const MainNavBarContent: FC<Props> = ({
                     <SettingsMenu />
 
                     {!isLoadingActiveProject && activeProjectUuid && (
-                        <NotificationsMenu projectUuid={activeProjectUuid} />
+                        <>
+                            <LearnLink projectUuid={activeProjectUuid} />
+                            <NotificationsMenu
+                                projectUuid={activeProjectUuid}
+                            />
+                        </>
                     )}
 
                     <HelpMenu />
@@ -94,7 +125,7 @@ export const MainNavBarContent: FC<Props> = ({
                             <HeadwayMenuItem projectUuid={activeProjectUuid} />
                         )}
 
-                    <ProjectSwitcher />
+                    <ProjectSwitcher portalTarget="#navbar-header" />
 
                     <UserCredentialsSwitcher />
                 </Button.Group>

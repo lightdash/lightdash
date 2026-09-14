@@ -32,6 +32,7 @@ const base = {
     options: { formatted: true, limit: 'table' as const },
     enabled: true,
     includeLinks: true,
+    plainTextEmail: false,
     projectUuid: PROJECT_UUID,
     targets: [],
 };

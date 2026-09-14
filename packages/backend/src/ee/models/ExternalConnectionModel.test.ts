@@ -1,3 +1,4 @@
+import { ConflictError } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -32,6 +33,8 @@ const makeDbConnection = (overrides: Record<string, unknown> = {}) => ({
     slug: 'acme-api',
     type: 'bearer_token',
     origin: 'https://api.acme.com',
+    allow_browser_images: false,
+    allow_data_app_builder_linking: false,
     instructions: null,
     allowed_path_prefixes: ['/v1/'],
     allowed_methods: ['GET'],
@@ -43,6 +46,9 @@ const makeDbConnection = (overrides: Record<string, unknown> = {}) => ({
     api_key_name: null,
     api_key_location: null,
     oauth_scopes: null,
+    oauth_token_url: null,
+    oauth_client_id: null,
+    oauth_client_auth_method: null,
     created_by_user_uuid: USER_UUID,
     updated_by_user_uuid: USER_UUID,
     created_at: new Date('2026-01-01T00:00:00Z'),
@@ -82,9 +88,11 @@ describe('ExternalConnectionModel', () => {
         it('encrypts the secret before inserting it and never returns plaintext', async () => {
             // Slug-uniqueness lookup before the insert
             tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
-            tracker.on
-                .insert(ExternalConnectionsTableName)
-                .responseOnce([makeDbConnection()]);
+            tracker.on.insert(ExternalConnectionsTableName).responseOnce([
+                makeDbConnection({
+                    allow_data_app_builder_linking: true,
+                }),
+            ]);
             tracker.on
                 .insert(ExternalConnectionSecretsTableName)
                 .responseOnce([{}]);
@@ -97,6 +105,7 @@ describe('ExternalConnectionModel', () => {
                     name: 'Acme API',
                     type: 'bearer_token',
                     origin: 'https://api.acme.com',
+                    allowDataAppBuilderLinking: true,
                     allowedPathPrefixes: ['/v1/'],
                     allowedMethods: ['GET'],
                     allowedContentTypes: ['application/json'],
@@ -106,6 +115,7 @@ describe('ExternalConnectionModel', () => {
 
             // Read shape exposes hasSecret, not the value, and has no `secret` key.
             expect(result.hasSecret).toBe(true);
+            expect(result.allowDataAppBuilderLinking).toBe(true);
             expect(result).not.toHaveProperty('secret');
 
             const secretInsert = tracker.history.insert.find(
@@ -123,6 +133,10 @@ describe('ExternalConnectionModel', () => {
             );
             expect(secretInsert).toBeDefined();
             expect(anyRawPlaintext).toBe(false);
+            const connectionInsert = tracker.history.insert.find((query) =>
+                query.sql.includes(ExternalConnectionsTableName),
+            );
+            expect(connectionInsert?.bindings).toContain(true);
         });
 
         it('does not insert a secret row for type "none"', async () => {
@@ -311,10 +325,17 @@ describe('ExternalConnectionModel', () => {
     });
 
     describe('copyConnectionsToProject', () => {
-        it('carries the source slug onto the cloned connection', async () => {
-            tracker.on
-                .select(ExternalConnectionsTableName)
-                .responseOnce([makeDbConnection()]);
+        it('carries portable OAuth config onto the cloned connection', async () => {
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([
+                makeDbConnection({
+                    type: 'oauth_client_credentials',
+                    allow_data_app_builder_linking: true,
+                    oauth_scopes: ['read:data'],
+                    oauth_token_url: 'https://auth.example.com/oauth/token',
+                    oauth_client_id: 'client-1',
+                    oauth_client_auth_method: 'basic',
+                }),
+            ]);
             tracker.on
                 .insert(ExternalConnectionsTableName)
                 .responseOnce([
@@ -337,6 +358,15 @@ describe('ExternalConnectionModel', () => {
                 q.sql.includes(ExternalConnectionsTableName),
             );
             expect(cloneInsert?.bindings).toContain('acme-api');
+            expect(cloneInsert?.bindings).toContain(true);
+            expect(cloneInsert?.bindings).toContain(
+                'https://auth.example.com/oauth/token',
+            );
+            expect(cloneInsert?.bindings).toContain('client-1');
+            expect(cloneInsert?.bindings).toContain('basic');
+            expect(cloneInsert?.bindings).toContain(
+                JSON.stringify(['read:data']),
+            );
         });
     });
 
@@ -365,7 +395,97 @@ describe('ExternalConnectionModel', () => {
         });
     });
 
+    describe('listLinkedApps', () => {
+        it('groups aliases by active app and distinguishes project chart types', async () => {
+            tracker.on.select(AppExternalConnectionsTableName).responseOnce([
+                {
+                    app_id: 'chart-type-1',
+                    name: 'Region map',
+                    slug: 'region-map',
+                    template: 'data_app_viz',
+                    space_uuid: null,
+                    space_name: null,
+                    alias: 'maps',
+                },
+                {
+                    app_id: APP_ID,
+                    name: 'Revenue dashboard',
+                    slug: 'revenue-dashboard',
+                    template: 'dashboard',
+                    space_uuid: 'space-1',
+                    space_name: 'Sales',
+                    alias: 'acme',
+                },
+                {
+                    app_id: APP_ID,
+                    name: 'Revenue dashboard',
+                    slug: 'revenue-dashboard',
+                    template: 'dashboard',
+                    space_uuid: 'space-1',
+                    space_name: 'Sales',
+                    alias: 'acme-v2',
+                },
+            ]);
+
+            await expect(
+                model.listLinkedApps(CONNECTION_UUID),
+            ).resolves.toEqual({
+                items: [
+                    {
+                        appUuid: APP_ID,
+                        name: 'Revenue dashboard',
+                        slug: 'revenue-dashboard',
+                        kind: 'data_app',
+                        spaceUuid: 'space-1',
+                        spaceName: 'Sales',
+                        aliases: ['acme', 'acme-v2'],
+                    },
+                    {
+                        appUuid: 'chart-type-1',
+                        name: 'Region map',
+                        slug: 'region-map',
+                        kind: 'project_chart_type',
+                        spaceUuid: null,
+                        spaceName: null,
+                        aliases: ['maps'],
+                    },
+                ],
+                total: 2,
+            });
+
+            const query = tracker.history.select[0];
+            expect(query.bindings).toContain(CONNECTION_UUID);
+            expect(query.sql).toContain('"apps"."deleted_at" is null');
+        });
+    });
+
     describe('update', () => {
+        it('updates builder linking independently of the stored secret', async () => {
+            tracker.on.select(ExternalConnectionsTableName).response([
+                {
+                    ...makeDbConnection({
+                        allow_data_app_builder_linking: true,
+                    }),
+                    encrypted_payload: Buffer.from('enc:tok', 'utf-8'),
+                },
+            ]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+
+            const result = await model.update(CONNECTION_UUID, USER_UUID, {
+                allowDataAppBuilderLinking: true,
+            });
+
+            expect(result.allowDataAppBuilderLinking).toBe(true);
+            expect(tracker.history.update[0].bindings).toContain(true);
+            const secretWrites = [
+                ...tracker.history.insert,
+                ...tracker.history.update,
+            ].filter((query) =>
+                query.sql.includes(ExternalConnectionSecretsTableName),
+            );
+            expect(secretWrites).toHaveLength(0);
+        });
+
         it('leaves the stored secret unchanged when secret is blank', async () => {
             tracker.on
                 .select(ExternalConnectionsTableName)
@@ -406,6 +526,58 @@ describe('ExternalConnectionModel', () => {
                 ),
             );
             expect(wroteEncrypted).toBe(true);
+        });
+
+        it('deletes the stored secret when the origin changes without a replacement', async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .response([makeDbConnection()]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+            tracker.on.delete(ExternalConnectionSecretsTableName).response(1);
+
+            await model.update(CONNECTION_UUID, USER_UUID, {
+                origin: 'https://attacker.example.com',
+            });
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].sql).toContain(
+                ExternalConnectionSecretsTableName,
+            );
+        });
+
+        it('deletes the stored secret when an OAuth credential destination changes without a replacement', async () => {
+            tracker.on.select(ExternalConnectionsTableName).response([
+                makeDbConnection({
+                    type: 'oauth_client_credentials',
+                    oauth_token_url: 'https://auth.example.com/oauth/token',
+                    oauth_client_id: 'client-1',
+                    oauth_client_auth_method: 'basic',
+                }),
+            ]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+            tracker.on.delete(ExternalConnectionSecretsTableName).response(1);
+
+            await model.update(CONNECTION_UUID, USER_UUID, {
+                oauthTokenUrl: 'https://other.example.com/oauth/token',
+            });
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].sql).toContain(
+                ExternalConnectionSecretsTableName,
+            );
+        });
+
+        it('keeps the stored secret for a normalized-equivalent origin', async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .response([makeDbConnection()]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+
+            await model.update(CONNECTION_UUID, USER_UUID, {
+                origin: 'https://API.ACME.COM./',
+            });
+
+            expect(tracker.history.delete).toHaveLength(0);
         });
     });
 
@@ -490,6 +662,30 @@ describe('ExternalConnectionModel', () => {
             expect(bindings).toEqual(
                 expect.arrayContaining([APP_ID, CONNECTION_UUID, 'acme']),
             );
+        });
+
+        it('keeps retries of the same app alias and connection idempotent', async () => {
+            tracker.on.insert(AppExternalConnectionsTableName).responseOnce([]);
+            tracker.on
+                .select(AppExternalConnectionsTableName)
+                .responseOnce([{ external_connection_uuid: CONNECTION_UUID }]);
+
+            await expect(
+                model.linkToApp(APP_ID, CONNECTION_UUID, 'acme'),
+            ).resolves.toBeUndefined();
+        });
+
+        it('rejects an app alias already owned by another connection', async () => {
+            tracker.on.insert(AppExternalConnectionsTableName).responseOnce([]);
+            tracker.on
+                .select(AppExternalConnectionsTableName)
+                .responseOnce([
+                    { external_connection_uuid: 'another-connection' },
+                ]);
+
+            await expect(
+                model.linkToApp(APP_ID, CONNECTION_UUID, 'acme'),
+            ).rejects.toThrow(ConflictError);
         });
 
         it('replaceAppLinks deletes stale aliases and upserts with repoint-on-conflict', async () => {

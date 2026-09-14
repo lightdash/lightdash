@@ -87,6 +87,7 @@ async function backfillProjectUuids(knex: Knex): Promise<void> {
             ), batch AS (
                 SELECT scheduler_uuid, project_uuid
                 FROM resource_projects
+                WHERE project_uuid IS NOT NULL
                 LIMIT ${BatchSize}
             )
             UPDATE ${SchedulerTableName} AS scheduler

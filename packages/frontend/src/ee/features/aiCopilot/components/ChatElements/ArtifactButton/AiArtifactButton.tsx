@@ -2,7 +2,7 @@ import {
     assertUnreachable,
     type AiAgentMessageAssistant,
 } from '@lightdash/common';
-import { Box, Loader, Text, UnstyledButton } from '@mantine-8/core';
+import { Box, Loader, Text, UnstyledButton } from '@mantine/core';
 import {
     IconArtboard,
     IconChartBar,

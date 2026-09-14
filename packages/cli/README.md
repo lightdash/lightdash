@@ -22,6 +22,22 @@ Commands:
 
 eg: `ligthdash test` Runs `dbt test`
 
+## Project validation
+
+`lightdash validate` checks existing project content against locally compiled
+models. Data apps are included by default, or use `--only apps` to check only
+their stored data references:
+
+```shell
+lightdash validate --profiles-dir ../profiles/ --select path:models/marts --only apps
+```
+
+With `--select`, `--models`, `--exclude`, or `--selector`, data apps are checked
+against the compiled selection. App references to models outside that selection
+fail validation, as do broken references within it. The command exits non-zero
+on errors. It does not fall back to a full-project compile or require additional
+warehouse access for app validation.
+
 ## AI agents as code
 
 AI-agent project configuration can be downloaded into
@@ -64,9 +80,19 @@ Build and upload it with:
 
 ```shell
 cd lightdash/apps/revenue-explorer
-npm run build
+lightdash apps validate --live --build
 lightdash upload --apps revenue-explorer
 ```
+
+`lightdash apps validate [paths...]` checks app source, manifests,
+dependencies, external-connection aliases, and semantic references. It uses
+the downloaded semantic-layer snapshot by default; `--live` fetches the
+project's current explores, and `--format json` provides CI output. Add
+`--build` to run the same bare Vite production build as Lightdash Cloud against
+the CLI's vendored template. Standard apps need `npm install` to have populated
+`node_modules`; custom dependencies are restored with `pnpm install` using
+`--frozen-lockfile --ignore-scripts` first. Build failures include the Vite
+output and make validation exit non-zero.
 
 The local build is a pre-flight check; Lightdash rebuilds the source when it is
 uploaded. Existing apps can still be checked out with
@@ -126,28 +152,45 @@ The `--non-interactive` flag is designed for environments where interactive prom
 
 ### Global Options
 
-| Flag | Description |
-|------|-------------|
+| Flag                | Description                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `--non-interactive` | Disable all interactive prompts. Commands auto-select defaults where possible. Designed for CI/CD and agentic coding tools. |
 
 ### Command-Specific Options
 
-| Command | Flag | Description |
-|---------|------|-------------|
-| `login` | `--token <token>` | Authenticate with personal access token (bypasses OAuth) |
-| `login` | `--email <email>` | Login with email and password |
-| `login` | `--project <uuid>` | Select a specific project by UUID after login |
-| `deploy` | `-y, --assume-yes` | Answer yes to all confirmation prompts |
-| `generate` | `-y, --assume-yes` | Answer yes to prompts |
-| `dbt run` | `-y, --assume-yes` | Answer yes to prompts |
-| `rename` | `-y, --assume-yes` | Answer yes to prompts |
+| Command    | Flag               | Description                                              |
+| ---------- | ------------------ | -------------------------------------------------------- |
+| `login`    | `--token <token>`  | Authenticate with personal access token (bypasses OAuth) |
+| `login`    | `--email <email>`  | Login with email and password                            |
+| `login`    | `--project <uuid>` | Select a specific project by UUID after login            |
+| `deploy`   | `-y, --assume-yes` | Answer yes to all confirmation prompts                   |
+| `generate` | `-y, --assume-yes` | Answer yes to prompts                                    |
+| `dbt run`  | `-y, --assume-yes` | Answer yes to prompts                                    |
+| `rename`   | `-y, --assume-yes` | Answer yes to prompts                                    |
 
 ### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `CI=true` | Equivalent to `--non-interactive` |
-| `LIGHTDASH_API_KEY` | API token for authentication (can be used instead of `--token`) |
+| Variable            | Description                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| `CI=true`           | Equivalent to `--non-interactive`                                                                |
+| `LIGHTDASH_API_KEY` | API token for authentication (can be used instead of `--token`)                                  |
+| `LIGHTDASH_PROJECT` | Target project UUID; overrides the saved default and active preview unless `--project` is passed |
+
+For project selection in commands such as `deploy`, `download`, and `upload`,
+`--project` takes precedence over `LIGHTDASH_PROJECT`. Either override bypasses
+active-preview selection in both interactive and non-interactive runs, without
+clearing the saved preview. When `LIGHTDASH_PROJECT` overrides an active preview
+the CLI warns which preview it ignored, so a variable left in a shell profile or
+`.env` does not silently redirect commands you meant to run against the preview.
+If neither override is set (or `LIGHTDASH_PROJECT` is empty), an active preview
+remains the default in non-interactive runs; interactive runs prompt when both a
+default project and a preview are available.
+
+```bash
+LIGHTDASH_PROJECT=<target-project-uuid> lightdash deploy --non-interactive
+```
+
+Credentials resolve in the usual order: command flags, then environment variables, then the config file written by `lightdash login`. So a `LIGHTDASH_API_KEY` left in your shell profile is used ahead of your saved login — `lightdash login` warns when this is the case, and `unset LIGHTDASH_API_KEY` restores the saved token.
 
 ### Example Automation Scripts
 
@@ -191,6 +234,7 @@ lightdash deploy \
 ### Behavior in Non-Interactive Mode
 
 When `--non-interactive` is set (or `CI=true`):
+
 - **Project selection**: Automatically selects the first available project
 - **Confirmation prompts**: Fail with descriptive error unless `--assume-yes` is provided
 - **OAuth login**: Not available - use `--token` or `--email` with `LIGHTDASH_CLI_PASSWORD` env var instead
@@ -241,7 +285,7 @@ rm /tmp/lightdash_pass.txt
 
 The CLI supports these environment variables for authentication:
 
-| Variable | Description |
-|----------|-------------|
-| `LIGHTDASH_CLI_EMAIL` | Email for login (alternative to `--email`) |
+| Variable                 | Description                                    |
+| ------------------------ | ---------------------------------------------- |
+| `LIGHTDASH_CLI_EMAIL`    | Email for login (alternative to `--email`)     |
 | `LIGHTDASH_CLI_PASSWORD` | Password for email login (used with `--email`) |

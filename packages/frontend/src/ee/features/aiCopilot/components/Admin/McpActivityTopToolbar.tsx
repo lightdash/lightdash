@@ -7,7 +7,7 @@ import {
     Text,
     useMantineTheme,
     type GroupProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -63,26 +63,15 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{ alignSelf: 'center' }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
                             selectedProjectUuids={selectedProjectUuids}
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{ alignSelf: 'center' }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <SegmentedControl
                             size="xs"
-                            radius="md"
                             value={selectedStatus}
                             onChange={(value) =>
                                 setSelectedStatus(
@@ -98,12 +87,7 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
 
                         {hasActiveFilters && onClearFilters && (
                             <>
-                                <Divider
-                                    orientation="vertical"
-                                    w={1}
-                                    h={20}
-                                    style={{ alignSelf: 'center' }}
-                                />
+                                <Divider orientation="vertical" w={1} h={20} />
                                 <Button
                                     variant="subtle"
                                     size="xs"

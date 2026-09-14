@@ -4,6 +4,7 @@ import type {
     ApiKeyLocation,
     ExternalConnectionAuthType,
     ExternalConnectionMethod,
+    OAuthClientAuthMethod,
 } from './types';
 
 /**
@@ -19,6 +20,10 @@ export type ExternalConnectionAsCode = {
     name: string;
     authType: ExternalConnectionAuthType;
     origin: string;
+    /** Optional for compatibility with documents created before this field. */
+    allowBrowserImages?: boolean;
+    /** Optional for compatibility with documents created before this field. */
+    allowDataAppBuilderLinking?: boolean;
     instructions: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];
@@ -30,6 +35,12 @@ export type ExternalConnectionAsCode = {
     apiKeyName: string | null;
     apiKeyLocation: ApiKeyLocation | null;
     oauthScopes: string[] | null;
+    /** Optional for compatibility with documents from older servers. */
+    oauthTokenUrl?: string | null;
+    /** Optional for compatibility with documents from older servers. */
+    oauthClientId?: string | null;
+    /** Optional for compatibility with documents from older servers. */
+    oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders: Record<string, string> | null;
 };
 

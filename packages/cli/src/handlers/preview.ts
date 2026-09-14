@@ -18,15 +18,23 @@ import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
-import { compile } from './compile';
-import { createProject } from './createProject';
+import { compileProject } from './compile';
+import {
+    createProject,
+    loadWarehouseCredentialsFromProfiles,
+} from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
+import { getProject } from './dbt/refresh';
 import { deploy } from './deploy';
 import {
     getDisableTimestampConversionFromProject,
     getProjectDisableTimestampConversion,
 } from './timestampConversion';
+import {
+    getWarehouseCredentialsSource,
+    updateProjectWarehouseConnection,
+} from './warehouseConnection';
 
 type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -42,13 +50,15 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     organizationCredentials?: string;
     assumeYes?: boolean;
     warehouseCredentials?: boolean;
-    useBatchedDeploy?: boolean;
+    batchedDeploy?: boolean;
     batchSize?: string;
     parallelBatches?: string;
     expiresIn?: string;
     disableTimestampConversion?: boolean;
     validateWarehouseColumns: boolean;
     partialCompilation?: boolean;
+    combine?: boolean;
+    combineManifestProjectUuid?: string;
 };
 
 type StopPreviewHandlerOptions = {
@@ -207,6 +217,7 @@ export const previewHandler = async (
     let contentCopySkipReason: string | undefined;
 
     const config = await getConfig();
+    options.combineManifestProjectUuid = config.context?.project;
 
     // Validate upstream project before attempting to copy permissions or content
     let upstreamProjectValid = false;
@@ -334,10 +345,11 @@ export const previewHandler = async (
         },
     });
     try {
-        const explores = await compile(options);
+        const { explores, isProjectComplete } = await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
+            complete: isProjectComplete,
         });
 
         await setPreviewProject(project.projectUuid, name);
@@ -407,9 +419,11 @@ export const previewHandler = async (
                     watcher!.unwatch(manifestFilePath);
                     // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
                     if (project) {
-                        await deploy(await compile(options), {
+                        const compileResult = await compileProject(options);
+                        await deploy(compileResult.explores, {
                             ...options,
                             projectUuid: project.projectUuid,
+                            complete: compileResult.isProjectComplete,
                         });
                     }
 
@@ -456,6 +470,59 @@ export const previewHandler = async (
     await cleanupProject(executionId, project.projectUuid, previewStartTime);
 };
 
+// Credentials resolved locally (AWS SSO, Snowflake SSO) expire, so a re-run
+// with the same name pushes freshly resolved ones into the existing preview.
+const refreshPreviewWarehouseCredentials = async (
+    projectUuid: string,
+    options: PreviewHandlerOptions,
+): Promise<void> => {
+    const source = getWarehouseCredentialsSource(options);
+    if (source.source === 'organization') {
+        GlobalState.debug(
+            `> Preview uses organization warehouse credentials "${source.name}", nothing to refresh`,
+        );
+        return;
+    }
+    if (source.source === 'none') {
+        GlobalState.debug(
+            '> Skipping warehouse credentials refresh (--no-warehouse-credentials)',
+        );
+        return;
+    }
+    const loaded = await loadWarehouseCredentialsFromProfiles({
+        projectDir: options.projectDir,
+        profilesDir: options.profilesDir,
+        target: options.target,
+        profile: options.profile,
+        startOfWeek: options.startOfWeek,
+        assumeYes: options.assumeYes,
+        targetPath: options.targetPath,
+    });
+    if (!loaded) {
+        console.error(
+            styles.warning(
+                'Keeping the warehouse credentials already stored on the preview.',
+            ),
+        );
+        return;
+    }
+    const spinner = GlobalState.startSpinner(
+        '  Refreshing warehouse credentials...',
+    );
+    try {
+        const project = await getProject(projectUuid);
+        await updateProjectWarehouseConnection(
+            project,
+            loaded.credentials,
+            'Refreshing warehouse credentials',
+        );
+        spinner.succeed('  Warehouse credentials refreshed');
+    } catch (e) {
+        spinner.fail();
+        throw e;
+    }
+};
+
 export const startPreviewHandler = async (
     originalOptions: PreviewHandlerOptions,
 ): Promise<void> => {
@@ -480,6 +547,7 @@ export const startPreviewHandler = async (
 
     const projectName = options.name;
     const config = await getConfig();
+    options.combineManifestProjectUuid = config.context?.project;
 
     // Log current source project info if copying content
     if (!options.skipCopyContent && config.context?.project) {
@@ -513,16 +581,22 @@ export const startPreviewHandler = async (
             options.expiresIn,
         );
 
+        await refreshPreviewWarehouseCredentials(previewProject.projectUuid, {
+            ...options,
+            warehouseCredentials: projectTypeConfig.warehouseCredentials,
+        });
+
         // Update
         options.disableTimestampConversion =
             await getProjectDisableTimestampConversion(
                 options.disableTimestampConversion,
                 previewProject.projectUuid,
             );
-        const explores = await compile(options);
+        const { explores, isProjectComplete } = await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
+            complete: isProjectComplete,
         });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
@@ -611,19 +685,25 @@ export const startPreviewHandler = async (
             );
         }
 
-        const explores = await compile(options);
+        const { explores, isProjectComplete } = await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
+            complete: isProjectComplete,
         });
         const url = await projectUrl(project);
 
         if (!hasContentCopy) {
-            console.error(
-                styles.warning(
-                    `\n\nDeveloper preview deployed without any copied content!\n`,
-                ),
-            );
+            let errorMessage = `\n\nDeveloper preview deployed without any copied content!`;
+            if (results?.contentCopyError) {
+                errorMessage += `\nError: ${results.contentCopyError}`;
+            } else if (options.skipCopyContent) {
+                errorMessage += `\nReason: --skip-copy-content flag was used`;
+            } else if (!config.context?.project) {
+                errorMessage += `\nReason: No upstream project configured`;
+            }
+            errorMessage += '\n';
+            console.error(styles.warning(errorMessage));
         }
 
         console.error(`New project created on ${url}`);

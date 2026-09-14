@@ -1,4 +1,4 @@
-import { Box, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import { type ResourceEmptyStateProps } from './types';
 
@@ -17,7 +17,7 @@ const ResourceEmptyState: FC<ResourceEmptyStateProps> = ({
                     {title}
                 </Title>
 
-                {description && <Text c="ldGray.6">{description}</Text>}
+                {description && <Text c="dimmed">{description}</Text>}
             </Stack>
 
             {action}

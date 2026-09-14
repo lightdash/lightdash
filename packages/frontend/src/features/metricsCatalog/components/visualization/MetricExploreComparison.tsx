@@ -15,7 +15,7 @@ import {
     Text,
     Select,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
@@ -136,20 +136,20 @@ export const MetricExploreComparison: FC<Props> = ({
                             key={comparison.type}
                             label={comparison.tooltipLabel}
                             position="right"
-                            withinPortal
                         >
                             <Paper
                                 p="sm"
-                                withBorder
                                 radius="md"
                                 className={comparisonStyles.comparisonPaper}
                                 data-selected={
                                     query.comparison === comparison.type ||
                                     undefined
                                 }
-                                onClick={() =>
-                                    handleComparisonChange(comparison.type)
-                                }
+                                onClick={() => {
+                                    if (query.comparison !== comparison.type) {
+                                        handleComparisonChange(comparison.type);
+                                    }
+                                }}
                             >
                                 <Stack>
                                     <Group
@@ -158,11 +158,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                         justify="space-between"
                                     >
                                         <Group wrap="nowrap">
-                                            <Paper
-                                                p="xs"
-                                                radius="md"
-                                                withBorder
-                                            >
+                                            <Paper p="xs" radius="md">
                                                 <MantineIcon
                                                     icon={comparison.icon}
                                                 />
@@ -191,7 +187,6 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 allowDeselect={false}
                                                 placeholder="Select a metric"
                                                 searchable
-                                                radius="md"
                                                 size="xs"
                                                 data={groupComboboxItems(
                                                     metricsWithTimeDimensionsQuery.data?.map(
@@ -218,9 +213,9 @@ export const MetricExploreComparison: FC<Props> = ({
                                                         }
                                                     />
                                                 )}
-                                                // this does not work as expected in Mantine 6
                                                 data-disabled={
-                                                    !metricsWithTimeDimensionsQuery.isSuccess
+                                                    !metricsWithTimeDimensionsQuery.isSuccess ||
+                                                    undefined
                                                 }
                                                 rightSection={
                                                     metricsWithTimeDimensionsQuery.isLoading ? (
@@ -242,7 +237,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 }}
                                             />
                                         ) : (
-                                            <Text span c="ldGray.7" fz={13}>
+                                            <Text span c="ldGray.7" fz="sm">
                                                 Only metrics with a time
                                                 dimension defined in the .yml
                                                 can be compared.{' '}

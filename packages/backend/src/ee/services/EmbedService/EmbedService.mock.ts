@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { AppModel } from '../../../models/AppModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../../models/OrganizationModel';
@@ -20,6 +21,7 @@ import { ProjectService } from '../../../services/ProjectService/ProjectService'
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { EmbedModel } from '../../models/EmbedModel';
+import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { EmbedService } from './EmbedService';
 
 export const mockProjectUuid = 'project-123';
@@ -112,6 +114,7 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     analytics: {} as LightdashAnalytics,
     encryptionUtil: {} as EncryptionUtil,
     embedModel: embedModelMock,
+    appModel: {} as AppModel,
     dashboardModel: {} as DashboardModel,
     savedChartModel: {} as SavedChartModel,
     savedSqlModel: {} as SavedSqlModel,
@@ -124,4 +127,5 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     permissionsService: {} as PermissionsService,
     featureFlagModel: featureFlagModelMock,
     organizationModel: organizationModelMock,
+    externalConnectionModel: {} as ExternalConnectionModel,
 };

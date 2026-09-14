@@ -41,9 +41,11 @@ export function getTimezoneLabel(timezone: string | undefined) {
 }
 
 export function getHumanReadableCronExpression(
-    cronExpression: string,
+    cronExpression: string | undefined,
     timezone: string,
 ) {
+    if (!cronExpression) return '';
+
     const value = cronstrue.toString(cronExpression, {
         verbose: true,
         throwExceptionOnParseError: false,
@@ -60,6 +62,73 @@ export function getHumanReadableCronExpression(
         getArrayValue(valueWithTimezone, 0).toLowerCase() +
         valueWithTimezone.slice(1)
     );
+}
+
+export type CronCadence = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+const isFixedCronField = (field: string): boolean => /^\d+$/.test(field.trim());
+
+const isWildcardCronField = (field: string): boolean => field.trim() === '*';
+
+/**
+ * Names the repeat interval of a cron expression in a single word, for copy
+ * like "here is your weekly report". Only expressions built from fixed values
+ * and wildcards map to a word; lists, ranges and steps ("0 9 * * 1,4") have no
+ * one-word description and return undefined so callers can omit the cadence.
+ */
+export function getCronCadence(
+    cronExpression: string,
+): CronCadence | undefined {
+    const fields = cronExpression.trim().split(/\s+/);
+    if (fields.length !== 5) return undefined;
+
+    const [minute, hour, dayOfMonth, month, dayOfWeek] = fields.map((field) =>
+        field.trim(),
+    );
+    if (
+        minute === undefined ||
+        hour === undefined ||
+        dayOfMonth === undefined ||
+        month === undefined ||
+        dayOfWeek === undefined
+    ) {
+        return undefined;
+    }
+
+    // Sub-hourly and irregular minute fields have no cadence word.
+    if (!isFixedCronField(minute)) return undefined;
+
+    if (
+        isWildcardCronField(hour) &&
+        isWildcardCronField(dayOfMonth) &&
+        isWildcardCronField(month) &&
+        isWildcardCronField(dayOfWeek)
+    ) {
+        return 'hourly';
+    }
+
+    if (!isFixedCronField(hour)) return undefined;
+
+    const hasDayOfWeek = isFixedCronField(dayOfWeek);
+    const hasDayOfMonth = isFixedCronField(dayOfMonth);
+    const hasMonth = isFixedCronField(month);
+
+    if (
+        isWildcardCronField(dayOfMonth) &&
+        isWildcardCronField(month) &&
+        isWildcardCronField(dayOfWeek)
+    ) {
+        return 'daily';
+    }
+    if (hasDayOfWeek && isWildcardCronField(dayOfMonth) && !hasMonth) {
+        return isWildcardCronField(month) ? 'weekly' : undefined;
+    }
+    if (hasDayOfMonth && isWildcardCronField(dayOfWeek)) {
+        if (isWildcardCronField(month)) return 'monthly';
+        if (hasMonth) return 'yearly';
+    }
+
+    return undefined;
 }
 
 export function isValidFrequency(cronExpression: string): boolean {

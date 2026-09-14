@@ -149,7 +149,7 @@ dimensions:
 
     test('should allow partial compilation by default and allow it to be disabled explicitly', async () => {
         vi.spyOn(lightdashLoader, 'loadLightdashModels').mockResolvedValue([
-            modelWithBrokenMetric,
+            { ...modelWithBrokenMetric, sourcePath: 'models/test_model.yml' },
         ]);
 
         const errorOutput: string[] = [];
@@ -192,6 +192,17 @@ dimensions:
                     'Compiled 1 explores, SUCCESS=0 ERRORS=1',
                 ),
             ]),
+        );
+    });
+
+    test('rejects malformed native YAML instead of compiling only the valid models', async () => {
+        await fs.writeFile(
+            path.join(tempDir, 'lightdash/models/broken.yml'),
+            'type: model\ndimensions: [',
+        );
+
+        await expect(compile(getCompileOptions(tempDir))).rejects.toThrow(
+            /broken.yml/,
         );
     });
 });

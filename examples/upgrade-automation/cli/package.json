@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "dependencies": {
+    "@lightdash/cli": "1.130.0"
+  }
+}

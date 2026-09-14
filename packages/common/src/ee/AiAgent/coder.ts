@@ -25,6 +25,10 @@ export type AgentAsCode = {
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
     enableUserContext: boolean;
+    enableSqlMode?: boolean;
+    // Managed only when the org's AI thread retention flag is on (flag-off
+    // uploads warn and ignore it). Omitted = leave unchanged; null = clear.
+    threadRetentionHours?: number | null;
     modelConfig: AiAgentModelConfig | null;
     evaluations?: AgentAsCodeEvaluation[];
     updatedAt?: Date;
@@ -36,6 +40,9 @@ export type AgentAsCodeUpsertChanges = {
     updated: string[];
     unchanged: string[];
     deleted: string[];
+    // Optional so a NEW CLI stays compatible with older servers that never
+    // send the field.
+    warnings?: string[];
 };
 
 export type ApiAgentAsCodeListResponse = {

@@ -75,18 +75,6 @@ export enum UnitOfTime {
     years = 'years',
 }
 
-export const unitOfTimeFormat: Record<UnitOfTime, string> = {
-    milliseconds: 'YYYY-MM-DD HH:mm:ss',
-    seconds: 'YYYY-MM-DD HH:mm:ss',
-    minutes: 'YYYY-MM-DD HH:mm',
-    hours: 'YYYY-MM-DD HH',
-    days: 'YYYY-MM-DD',
-    weeks: 'YYYY-MM-DD',
-    months: 'YYYY-MM',
-    quarters: 'YYYY-MM',
-    years: 'YYYY',
-};
-
 export const getUnitsOfTimeGreaterOrEqual = (
     unit: UnitOfTime,
 ): UnitOfTime[] => {
@@ -427,48 +415,87 @@ export const removeFieldFromFilterGroup = (
     };
 };
 
+type DashboardDimensionOverrideMatch = {
+    savedFilterIndex: number;
+    overrideIndex: number;
+};
+
+export const getDashboardDimensionOverrideMatches = (
+    savedFilters: DashboardFilterRule[],
+    overrides: DashboardFilterRuleOverride[],
+): DashboardDimensionOverrideMatch[] => {
+    const savedIds = new Set(savedFilters.map(({ id }) => id));
+    const appliedOverrideIds = new Set<string>();
+
+    return savedFilters.reduce<DashboardDimensionOverrideMatch[]>(
+        (matches, savedFilter, savedFilterIndex) => {
+            const exactMatchIndex = overrides.findIndex(
+                ({ id }) => id === savedFilter.id,
+            );
+            const overrideIndex =
+                exactMatchIndex >= 0
+                    ? exactMatchIndex
+                    : overrides.findIndex(
+                          (override) =>
+                              !savedIds.has(override.id) &&
+                              !appliedOverrideIds.has(override.id) &&
+                              override.target.fieldId ===
+                                  savedFilter.target.fieldId &&
+                              override.target.tableName ===
+                                  savedFilter.target.tableName,
+                      );
+
+            if (overrideIndex >= 0) {
+                appliedOverrideIds.add(overrides[overrideIndex].id);
+                matches.push({ savedFilterIndex, overrideIndex });
+            }
+
+            return matches;
+        },
+        [],
+    );
+};
+
 export const applyDimensionOverrides = (
     dashboardFilters: DashboardFilters,
     overrides: DashboardFilters | DashboardFilterRule[],
 ) => {
     const overrideArray =
         overrides instanceof Array ? overrides : overrides.dimensions;
-
+    const matches = getDashboardDimensionOverrideMatches(
+        dashboardFilters.dimensions,
+        overrideArray,
+    );
+    const overrideIndexBySavedFilterIndex = new Map(
+        matches.map(({ savedFilterIndex, overrideIndex }) => [
+            savedFilterIndex,
+            overrideIndex,
+        ]),
+    );
     const savedIds = new Set(dashboardFilters.dimensions.map((d) => d.id));
-    // Track consumed overrides so each is applied to one saved filter and the
-    // rest can be appended afterwards.
-    const appliedOverrideIds = new Set<string>();
+    const appliedOverrideIds = new Set(
+        matches.map(({ overrideIndex }) => overrideArray[overrideIndex].id),
+    );
 
     const overriddenDimensions = dashboardFilters.dimensions.map(
-        (dimension) => {
-            // Match by id, then fall back to the target field so a shared link
-            // keeps working after an edit rotates the filter's id.
-            const override =
-                overrideArray.find((o) => o.id === dimension.id) ??
-                overrideArray.find(
-                    (o) =>
-                        !savedIds.has(o.id) &&
-                        !appliedOverrideIds.has(o.id) &&
-                        o.target.fieldId === dimension.target.fieldId &&
-                        o.target.tableName === dimension.target.tableName,
-                );
+        (dimension, savedFilterIndex) => {
+            const overrideIndex =
+                overrideIndexBySavedFilterIndex.get(savedFilterIndex);
+            if (overrideIndex === undefined) return dimension;
 
-            if (override) {
-                appliedOverrideIds.add(override.id);
-                return {
-                    ...override,
-                    // The saved dashboard owns identity, tile targeting, lock
-                    // state and requirement flags; the override only carries
-                    // value/operator. Forcing the id re-homes a field-matched
-                    // override onto the saved filter.
-                    id: dimension.id,
-                    tileTargets: dimension.tileTargets,
-                    lockedTabUuids: dimension.lockedTabUuids,
-                    required: dimension.required,
-                    requiredGroupId: dimension.requiredGroupId,
-                };
-            }
-            return dimension;
+            const override = overrideArray[overrideIndex];
+            return {
+                ...override,
+                // The saved dashboard owns identity, tile targeting, lock
+                // state and requirement flags; the override only carries
+                // value/operator. Forcing the id re-homes a field-matched
+                // override onto the saved filter.
+                id: dimension.id,
+                tileTargets: dimension.tileTargets,
+                lockedTabUuids: dimension.lockedTabUuids,
+                required: dimension.required,
+                requiredGroupId: dimension.requiredGroupId,
+            };
         },
     );
 

@@ -1,4 +1,4 @@
-import { Box, Button } from '@mantine-8/core';
+import { Box, Button } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import ReactJson from 'react-json-view';

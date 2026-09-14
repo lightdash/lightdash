@@ -1,18 +1,23 @@
 import { formatDate, TimeFrames } from '@lightdash/common';
-import { TextInput, Stack, Text, Popover } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
-import { type MantineTheme, type Sx } from '@mantine/core';
-import { MonthPicker, type MonthPickerProps } from '@mantine/dates';
+import { TextInput, Stack, Text, Popover } from '@mantine/core';
+import { MonthPicker } from '@mantine/dates';
+import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
+import { type FilterPopoverProps } from '../context';
+import styles from './FilterQuarterPicker.module.css';
+import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';
 
 dayjs.extend(quarterOfYear);
 
-type Props = Pick<MonthPickerProps, 'value' | 'onChange'> & {
+type Props = {
+    value: Date | null;
+    onChange: (value: Date) => void;
     placeholder?: string;
     disabled?: boolean;
-    popoverProps?: any;
+    popoverProps?: FilterPopoverProps;
     autoFocus?: boolean;
     invalidValue?: string;
 };
@@ -27,12 +32,13 @@ const QUARTERS = [
 const FilterQuarterPicker: FC<Props> = ({
     value,
     onChange,
-    placeholder = 'Select Quarter',
+    placeholder,
     disabled,
     popoverProps,
     autoFocus,
     invalidValue,
 }) => {
+    const getUiString = useUiStrings();
     const [opened, { open, close }] = useDisclosure(false);
 
     // Parse date value - it may be an ISO string like "2025-01-01T00:00:00.000Z"
@@ -61,72 +67,42 @@ const FilterQuarterPicker: FC<Props> = ({
     );
 
     const handleMonthSelect = useCallback(
-        (date: Date | null) => {
+        (mantineValue: string | null) => {
+            const date = parseMantineDate(mantineValue);
             if (!date) return;
 
             const startOfQuarter = getStartOfQuarter(date);
             setSelectedYear(dayjs(startOfQuarter).year());
-            onChange?.(startOfQuarter);
+            onChange(startOfQuarter);
             close();
         },
         [close, onChange, getStartOfQuarter],
     );
 
-    // Normalize value to start of quarter if needed
     useEffect(() => {
-        if (!value) return;
-
-        const startOfQuarter = getStartOfQuarter(value);
-        if (value.getTime() !== startOfQuarter.getTime()) {
-            onChange?.(startOfQuarter);
-        }
-    }, [value, getStartOfQuarter, onChange]);
+        setSelectedYear(yearValue);
+    }, [yearValue]);
 
     const getMonthControlProps = useCallback(
-        (
-            date: Date,
-        ): {
-            sx?: Sx;
-            onMouseEnter: () => void;
-            onMouseLeave?: () => void;
-        } => {
+        (mantineValue: string) => {
+            const date = parseMantineDate(mantineValue);
+            if (!date) return {};
+
             const month = date.getMonth();
             const year = date.getFullYear();
-
-            // If this is the selected quarter's months, highlight them
-            if (
-                parsedDate &&
+            const isSelected =
+                Boolean(parsedDate) &&
                 year === yearValue &&
-                getQuarterMonths(monthValue).includes(month)
-            ) {
-                return {
-                    sx: (theme: MantineTheme) => ({
-                        backgroundColor: theme.colors.blue[2],
-                        '&:hover': {
-                            backgroundColor: theme.colors.blue[2],
-                        },
-                    }),
-                    onMouseEnter: () => setHoveredMonth(month),
-                };
-            }
-
-            // If this is the hovered month's quarter, highlight all months in quarter
-            if (
+                getQuarterMonths(monthValue).includes(month);
+            const isHovered =
+                !isSelected &&
                 hoveredMonth !== null &&
-                getQuarterMonths(hoveredMonth).includes(month)
-            ) {
-                return {
-                    sx: (theme: MantineTheme) => ({
-                        backgroundColor: theme.colors.blue[1],
-                        '&:hover': {
-                            backgroundColor: theme.colors.blue[1],
-                        },
-                    }),
-                    onMouseEnter: () => setHoveredMonth(month),
-                };
-            }
+                getQuarterMonths(hoveredMonth).includes(month);
 
             return {
+                className: styles.monthControl,
+                'data-quarter-selected': isSelected || undefined,
+                'data-quarter-hovered': isHovered || undefined,
                 onMouseEnter: () => setHoveredMonth(month),
                 onMouseLeave: () => setHoveredMonth(null),
             };
@@ -139,8 +115,6 @@ const FilterQuarterPicker: FC<Props> = ({
             opened={opened}
             onClose={close}
             position="bottom"
-            shadow="md"
-            withinPortal
             {...popoverProps}
         >
             <Popover.Target>
@@ -148,7 +122,10 @@ const FilterQuarterPicker: FC<Props> = ({
                     size="xs"
                     data-autofocus={autoFocus || undefined}
                     onClick={disabled ? undefined : open}
-                    placeholder={placeholder}
+                    placeholder={
+                        placeholder ??
+                        getUiString('filters.inputs.selectQuarter')
+                    }
                     value={
                         invalidValue ??
                         (value
@@ -167,7 +144,14 @@ const FilterQuarterPicker: FC<Props> = ({
             <Popover.Dropdown>
                 <Stack gap="xs">
                     <MonthPicker
-                        defaultDate={new Date(selectedYear, 0)}
+                        date={
+                            formatMantineDate(new Date(selectedYear, 0)) ??
+                            undefined
+                        }
+                        onDateChange={(mantineValue) => {
+                            const date = parseMantineDate(mantineValue);
+                            if (date) setSelectedYear(date.getFullYear());
+                        }}
                         value={null}
                         onChange={handleMonthSelect}
                         getMonthControlProps={getMonthControlProps}

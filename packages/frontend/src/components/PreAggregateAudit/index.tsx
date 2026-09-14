@@ -1,10 +1,4 @@
-import {
-    Button,
-    Card,
-    LoadingOverlay,
-    SimpleGrid,
-    Text,
-} from '@mantine-8/core';
+import { Button, Card, LoadingOverlay, SimpleGrid, Text } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, type FC } from 'react';
@@ -92,29 +86,29 @@ const PreAggregateAudit: FC<PreAggregateAuditProps> = ({ projectUuid }) => {
                 }
             >
                 <SimpleGrid cols={3}>
-                    <Card withBorder p="md">
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    <Card p="md">
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                             Cache Rate (3 days)
                         </Text>
-                        <Text size="xl" fw={700}>
+                        <Text size="xl" fw={600}>
                             {summary.totalQueries > 0
                                 ? `${summary.hitRate}%`
                                 : 'No data'}
                         </Text>
                     </Card>
-                    <Card withBorder p="md">
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    <Card p="md">
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                             Total Queries
                         </Text>
-                        <Text size="xl" fw={700}>
+                        <Text size="xl" fw={600}>
                             {summary.totalQueries}
                         </Text>
                     </Card>
-                    <Card withBorder p="md">
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    <Card p="md">
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                             Explores with Pre-Aggregates
                         </Text>
-                        <Text size="xl" fw={700}>
+                        <Text size="xl" fw={600}>
                             {summary.exploreCount}
                         </Text>
                     </Card>

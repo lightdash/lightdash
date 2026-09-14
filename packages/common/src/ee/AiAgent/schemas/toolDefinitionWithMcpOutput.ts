@@ -21,8 +21,8 @@ import {
 export class ToolDefinitionWithMcpOutputImpl<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
-    TAgentOutputSchema extends z.ZodTypeAny | undefined,
+    TInputTransformed extends z.ZodType,
+    TAgentOutputSchema extends z.ZodType | undefined,
     TOutputSchema extends McpOutputSchema,
 > {
     readonly name: TName;

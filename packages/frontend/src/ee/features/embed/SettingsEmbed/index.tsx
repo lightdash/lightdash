@@ -14,7 +14,7 @@ import {
     Tabs,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertCircle, IconKey } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
@@ -161,6 +161,10 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         useEmbedConfigUpdateMutation(projectUuid);
     const [writeActions, setWriteActions] =
         useState<CreateEmbedJwt['writeActions']>();
+    const [selectedDashboardSpaceUuid, setSelectedDashboardSpaceUuid] =
+        useState<string>();
+    const [selectedChartSpaceUuid, setSelectedChartSpaceUuid] =
+        useState<string>();
     const [activeTab, setActiveTab] = useState<
         'dashboards' | 'charts' | 'apps' | 'aiAgents'
     >('dashboards');
@@ -222,7 +226,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     icon={
                         <MantineIcon
                             icon={IconKey}
-                            color="ldGray.6"
+                            color="dimmed"
                             stroke={1}
                             size="5xl"
                         />
@@ -341,12 +345,18 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 siteUrl={health.data.siteUrl}
                                 dashboards={allowedDashboards}
                                 writeActions={writeActions}
+                                onDashboardSpaceChange={
+                                    setSelectedDashboardSpaceUuid
+                                }
                                 writeActionsPanel={
                                     activeTab === 'dashboards' ? (
                                         <EmbedWriteActionsForm
                                             projectUuid={projectUuid}
                                             value={writeActions}
                                             onChange={setWriteActions}
+                                            fixedSpaceUuid={
+                                                selectedDashboardSpaceUuid
+                                            }
                                         />
                                     ) : null
                                 }
@@ -360,12 +370,16 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 siteUrl={health.data.siteUrl}
                                 charts={charts || []}
                                 writeActions={writeActions}
+                                onChartSpaceChange={setSelectedChartSpaceUuid}
                                 writeActionsPanel={
                                     activeTab === 'charts' ? (
                                         <EmbedWriteActionsForm
                                             projectUuid={projectUuid}
                                             value={writeActions}
                                             onChange={setWriteActions}
+                                            fixedSpaceUuid={
+                                                selectedChartSpaceUuid
+                                            }
                                         />
                                     ) : null
                                 }

@@ -6,6 +6,7 @@ import {
     OrganizationMemberRole,
     PossibleAbilities,
     PromotionAction,
+    TimeFrames,
     type Explore,
     type SessionUser,
     type VirtualViewAsCode,
@@ -97,6 +98,7 @@ const buildService = (existing: Explore | null = virtualView) => {
         projectModel: projectModel as never,
         savedChartModel: {} as never,
         savedSqlModel: {} as never,
+        directAccessService: {} as never,
         appModel: {} as never,
         dashboardModel: {} as never,
         spaceModel: {} as never,
@@ -107,6 +109,8 @@ const buildService = (existing: Explore | null = virtualView) => {
         schedulerClient: {} as never,
         promoteService: {} as never,
         spacePermissionService: {} as never,
+        contentAsCodeSnapshotModel: { upsert: vi.fn() } as never,
+        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as never,
         contentVerificationModel: {} as never,
         projectService: projectService as never,
         groupsModel: {} as never,
@@ -127,6 +131,39 @@ describe('CoderService virtual views as code', () => {
             skipped: [],
             missingSlugs: [],
         });
+    });
+
+    test('excludes generated time interval dimensions from the exported columns', async () => {
+        const withIntervals = {
+            ...virtualView,
+            tables: {
+                orders_by_customer: {
+                    ...virtualView.tables.orders_by_customer,
+                    dimensions: {
+                        ...virtualView.tables.orders_by_customer.dimensions,
+                        order_date: {
+                            name: 'order_date',
+                            type: DimensionType.DATE,
+                            isIntervalBase: true,
+                        },
+                        order_date_month: {
+                            name: 'order_date_month',
+                            type: DimensionType.DATE,
+                            timeInterval: TimeFrames.MONTH,
+                            timeIntervalBaseDimensionName: 'order_date',
+                        },
+                    },
+                },
+            },
+        } as unknown as Explore;
+        const { service } = buildService(withIntervals);
+
+        const result = await service.getVirtualViews(user, projectUuid);
+
+        expect(result.virtualViews[0].columns).toEqual([
+            { reference: 'customer_id', type: DimensionType.NUMBER },
+            { reference: 'order_date', type: DimensionType.DATE },
+        ]);
     });
 
     test('returns no changes for an identical second apply', async () => {

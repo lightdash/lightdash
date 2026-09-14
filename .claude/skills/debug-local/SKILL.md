@@ -2,7 +2,7 @@
 name: debug-local
 metadata:
   internal: true
-description: Debug the Lightdash app using PM2 logs, Spotlight traces, and browser automation. Use when investigating issues, tracking down bugs, understanding request flow, or correlating frontend actions with backend behavior.
+description: Debug the Lightdash app using PM2 logs, Maple traces, and browser automation. Use when investigating issues, tracking down bugs, understanding request flow, or correlating frontend actions with backend behavior.
 ---
 
 # Debugging Lightdash
@@ -37,10 +37,19 @@ Was this working before? A regression means the root cause is in the diff.
 pnpm exec pm2 logs lightdash-api --lines 50 --nostream
 ```
 
-Then use Spotlight MCP:
-- `mcp__spotlight__search_errors` with `{"timeWindow": 300}` for recent errors with stack traces
-- `mcp__spotlight__search_traces` with `{"timeWindow": 300}` for recent request traces
-- `mcp__spotlight__get_traces` with a trace ID for full span breakdown
+Then query Maple (local mode ingests OTLP traces from the API and scheduler):
+
+```bash
+maple services --format table       # per-service throughput and error rate
+maple errors --since 5m             # errors grouped by fingerprint
+maple traces --since 5m --errors    # recent traces containing errors
+maple trace <trace-id>              # full span tree + correlated logs
+maple slow-traces --since 15m       # slowest traces
+```
+
+The CLI defaults to port 4318, so point it at this instance first:
+`export MAPLE_LOCAL_URL="http://127.0.0.1:${MAPLE_PORT:-4320}"`. See
+[Trace Lookup](#trace-lookup-maple-cli) for the full filter set.
 
 ### 4. Reproduce
 
@@ -61,7 +70,7 @@ Check if the bug matches a known Lightdash pattern:
 | Pattern | Signature | Where to look |
 |---------|-----------|---------------|
 | Permission error | 403 Forbidden | CASL abilities in `projectMemberAbility.ts`, `organizationMemberAbility.ts` |
-| Slow query / N+1 | Response >1s, many db spans | Spotlight span breakdown — count db.* spans, check for loops |
+| Slow query / N+1 | Response >1s, many db spans | `maple trace <id>` span tree — count db.* spans, check for loops |
 | Stale explore cache | Shows old columns/metrics | `cached_explores` table, `CompileService` |
 | Migration issue | Column not found, schema mismatch | `packages/backend/src/database/migrations/`, check rollback |
 | Scheduler job failure | Job not running, stuck | PM2 scheduler logs, `graphile_worker.jobs` table |
@@ -81,7 +90,7 @@ Also check:
 
 Before writing ANY fix, verify your hypothesis.
 
-1. **Confirm:** Add a temporary log, assertion, or use Spotlight/PM2 to check the suspected root cause. Reproduce. Does evidence match?
+1. **Confirm:** Add a temporary log, assertion, or use Maple/PM2 to check the suspected root cause. Reproduce. Does evidence match?
 
 2. **If wrong:** Return to Phase 1. Gather more evidence. Do not guess.
 
@@ -139,14 +148,14 @@ Ensure the development environment is running:
 
 ```bash
 /docker-dev              # Start Docker services (postgres, minio, etc.)
-pnpm pm2:start           # Start all PM2 processes including Spotlight
+pnpm pm2:start           # Start all PM2 processes including Maple
 pnpm pm2:status          # Verify all processes are online
 ```
 
 Services:
 - **Frontend**: http://localhost:3000
 - **API**: http://localhost:8080
-- **Spotlight UI**: http://localhost:8969
+- **Maple trace UI**: http://localhost:4320
 
 ## Tools Reference
 
@@ -157,7 +166,7 @@ pnpm pm2:logs              # Stream all logs (Ctrl+C to exit)
 pnpm pm2:logs:api          # API server logs only
 pnpm pm2:logs:scheduler    # Background job scheduler logs
 pnpm pm2:logs:frontend     # Vite dev server logs
-pnpm pm2:logs:spotlight    # Spotlight sidecar logs
+pnpm pm2:logs:maple        # Maple tracing server logs
 ```
 
 For non-blocking log viewing (last N lines):
@@ -175,51 +184,72 @@ Lightdash logs include a 32-character trace ID for correlation:
 [4d40816e5a7d433e88f99008de5f4be5] GET /api/v1/user/login-options 200 - 2 ms
 ```
 
-Use the first 8 characters (e.g., `700aa55e`) to look up traces in Spotlight.
+Pass the full 32-character ID to `maple trace` to pull up the request.
 
-### Trace Lookup (Spotlight MCP)
+### Trace Lookup (Maple CLI)
 
-Use the Spotlight MCP tools to query telemetry programmatically:
+Maple local mode stores traces, logs, and metrics in an embedded ClickHouse and
+exposes them through the `maple` CLI. Every command takes `--since
+<30m|1h|24h|7d>` for the window. Output is JSON — pipe through `jq` to narrow it.
+`--format table` only applies to flat row sets (`services`, `query`); the other
+commands say so and fall back to JSON.
+
+Set the target once per shell — the CLI defaults to port 4318, and each worktree
+runs its own server on its slot port:
+
+```bash
+export MAPLE_LOCAL_URL="http://127.0.0.1:${MAPLE_PORT:-4320}"
+```
+
+#### List services
+
+```bash
+maple services --format table
+```
+
+Throughput, error rate, and P95 latency per service. The API reports as
+`$LD_INSTANCE_ID` (`lightdash` by default) and the worker as
+`$LD_INSTANCE_ID-scheduler`.
 
 #### List recent traces
 
-```
-mcp__spotlight__search_traces with filters: {"timeWindow": 300}
+```bash
+maple traces --since 5m | jq '.traces[] | {traceId, spanName, durationMs}'
+maple traces --since 1h --errors --min-duration-ms 500
+maple slow-traces --since 15m
 ```
 
-Returns summary of recent traces with trace ID, endpoint, duration, span count.
+Filters: `--span-name <substr>`, `--http-method`, `--errors`,
+`--min-duration-ms`, `--max-duration-ms`, `--service`, `--limit`.
 
 #### Get trace details
 
-```
-mcp__spotlight__get_traces with traceId: "700aa55e"
+```bash
+maple trace 700aa55e784a437aa97de9b8c5c3ed3a
 ```
 
-Returns the full span tree with timing breakdown:
-
-```
-GET /api/v1/health [816224a9 · 39ms]
-   ├─ select * from "knex_migrations" [db · 8ms]
-   ├─ select * from "organizations" [db · 2ms]
-   ├─ session [middleware.express · 1ms]
-   └─ /api/v1/health [request_handler.express · 0ms]
-```
+Returns the full span tree plus the logs correlated to that trace.
 
 #### Search for errors
 
+```bash
+maple errors --since 30m        # grouped by fingerprint
+maple error <fingerprint-hash>  # sample traces + timeseries
 ```
-mcp__spotlight__search_errors with filters: {"timeWindow": 300}
-```
-
-Returns runtime errors and exceptions with stack traces.
 
 #### Search logs
 
-```
-mcp__spotlight__search_logs with filters: {"timeWindow": 300}
+```bash
+maple logs --since 5m --severity ERROR
+maple logs --trace-id 700aa55e784a437aa97de9b8c5c3ed3a
+maple logs -q "compile" --since 1h
 ```
 
-Returns application log entries.
+#### Raw SQL escape hatch
+
+```bash
+maple query "SELECT ServiceName, count() FROM traces GROUP BY ServiceName"
+```
 
 ### Browser Debugging (Chrome DevTools MCP)
 
@@ -319,11 +349,11 @@ Traces contain contextual attributes beyond timing:
 | View API logs (non-blocking) | `pnpm exec pm2 logs lightdash-api --lines 20 --nostream` |
 | Check process status | `pnpm pm2:status` |
 | Restart API | `pnpm pm2:restart:api` |
-| Recent traces | `mcp__spotlight__search_traces {"timeWindow": 300}` |
-| Trace details | `mcp__spotlight__get_traces "<8-char-prefix>"` |
-| Recent errors | `mcp__spotlight__search_errors {"timeWindow": 300}` |
+| Recent traces | `maple traces --since 5m` |
+| Trace details | `maple trace <full-trace-id>` |
+| Recent errors | `maple errors --since 5m` |
 | Browser snapshot | `mcp__chrome-devtools__take_snapshot` |
-| Open Spotlight UI | http://localhost:8969 |
+| Open Maple trace UI | http://localhost:4320 |
 
 ## Cross-Agent Validation
 

@@ -1,4 +1,4 @@
-import { Badge, Tooltip } from '@mantine-8/core';
+import { Badge, Tooltip } from '@mantine/core';
 import type { FC } from 'react';
 
 type Props = {
@@ -15,7 +15,7 @@ export const BetaBadge: FC<Props> = ({
 }) => {
     return (
         <Tooltip label={tooltipLabel}>
-            <Badge color="indigo" size="xs" radius="sm" fz="xs">
+            <Badge color="indigo" size="xs" fz="xs">
                 Beta
             </Badge>
         </Tooltip>

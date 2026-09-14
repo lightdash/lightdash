@@ -9,19 +9,41 @@ import {
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 
 export const PROJECT_MODEL = {
+    getAllExploresFromCache: vi.fn().mockResolvedValue({
+        another_explore: {
+            tables: { table_a: { ymlPath: 'models/nested/original.yaml' } },
+        },
+    }),
     getExploreFromCache: vi.fn(() => ({ ymlPath: 'path/to/schema.yml' })),
     getWarehouseCredentialsForProject: vi.fn(() => ({})),
     getWarehouseClientFromCredentials: vi.fn(() => warehouseClientMock),
     get: vi.fn(() =>
         Promise.resolve({
             projectUuid: 'projectUuid',
+            name: 'Project',
             dbtVersion: SupportedDbtVersions.V1_9,
+            dbtConnection: {
+                type: 'github',
+                repository: 'owner/repo',
+                branch: 'main',
+                project_sub_path: 'path',
+            },
         }),
     ),
 };
+export const PROJECT_DBT_SOURCES_MODEL = {
+    getSources: vi.fn().mockResolvedValue([]),
+};
 export const SAVED_CHART_MODEL = {};
 export const SPACE_MODEL = {};
-export const GITHUB_APP_MODEL = {};
+export const GITHUB_APP_MODEL = {
+    getInstallationId: vi.fn().mockResolvedValue('installation-id'),
+    getAuth: vi.fn().mockResolvedValue({
+        token: 'token',
+        refreshToken: 'refresh-token',
+    }),
+    updateAuth: vi.fn(),
+};
 
 // Mock schema file with comments, different multi-line strings, different types of quotes, different types of arrays
 export const SCHEMA_YML = `

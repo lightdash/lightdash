@@ -1,10 +1,12 @@
 import {
     ApiErrorPayload,
+    ApiProjectRoleSetResponse,
     ApiRoleAssignmentListResponse,
     ApiRoleAssignmentResponse,
     ApiUnassignRoleFromUserResponse,
     CreateGroupRoleAssignmentRequest,
     CreateUserRoleAssignmentRequest,
+    ProjectRoleSet,
     UpdateRoleAssignmentRequest,
     UpsertUserRoleAssignmentRequest,
     type UUID,
@@ -18,6 +20,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Request,
     Response,
     Route,
@@ -116,6 +119,112 @@ export class ProjectRolesController extends BaseController {
             status: 'ok',
             results: assignment,
         };
+    }
+
+    /**
+     * Get the complete role set a user holds directly on the project.
+     * Requires custom roles (Enterprise).
+     * @summary Get project role set for user
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/assignments/user/{userId}/set')
+    @OperationId('GetProjectUserRoleSet')
+    async getProjectUserRoleSet(
+        @Request() req: express.Request,
+        @Path() projectId: string,
+        @Path() userId: UUID,
+    ): Promise<ApiProjectRoleSetResponse> {
+        const results = await this.getRolesService().getProjectUserRoleSet(
+            req.account!,
+            projectId,
+            userId,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Atomically replace the complete role set a user holds directly on the project.
+     * At most one system role plus any number of custom roles; the set must not be empty.
+     * Requires custom roles (Enterprise).
+     * @summary Replace project role set for user
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/assignments/user/{userId}/set')
+    @OperationId('ReplaceProjectUserRoleSet')
+    async replaceProjectUserRoleSet(
+        @Request() req: express.Request,
+        @Path() projectId: string,
+        @Path() userId: UUID,
+        @Body() body: ProjectRoleSet,
+    ): Promise<ApiProjectRoleSetResponse> {
+        const results = await this.getRolesService().replaceProjectUserRoleSet(
+            req.account!,
+            projectId,
+            userId,
+            body,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Get the complete role set a group holds on the project.
+     * Requires custom roles (Enterprise).
+     * @summary Get project role set for group
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/assignments/group/{groupId}/set')
+    @OperationId('GetProjectGroupRoleSet')
+    async getProjectGroupRoleSet(
+        @Request() req: express.Request,
+        @Path() projectId: string,
+        @Path() groupId: UUID,
+    ): Promise<ApiProjectRoleSetResponse> {
+        const results = await this.getRolesService().getProjectGroupRoleSet(
+            req.account!,
+            projectId,
+            groupId,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Atomically replace the complete role set a group holds on the project.
+     * At most one system role plus any number of custom roles; the set must not be empty.
+     * Requires custom roles (Enterprise).
+     * @summary Replace project role set for group
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/assignments/group/{groupId}/set')
+    @OperationId('ReplaceProjectGroupRoleSet')
+    async replaceProjectGroupRoleSet(
+        @Request() req: express.Request,
+        @Path() projectId: string,
+        @Path() groupId: UUID,
+        @Body() body: ProjectRoleSet,
+    ): Promise<ApiProjectRoleSetResponse> {
+        const results = await this.getRolesService().replaceProjectGroupRoleSet(
+            req.account!,
+            projectId,
+            groupId,
+            body,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
     }
 
     /**

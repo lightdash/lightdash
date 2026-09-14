@@ -1,5 +1,5 @@
 import { type ApiError } from '@lightdash/common';
-import { Button, Stack, Text, Textarea } from '@mantine-8/core';
+import { Button, Stack, Text, Textarea } from '@mantine/core';
 import { type FC } from 'react';
 import Callout from '../../common/Callout';
 
@@ -23,7 +23,7 @@ export const AutomaticSetupStep: FC<Props> = ({
     const aiUnavailable = error?.error.name === 'MissingConfigError';
     return (
         <Stack gap="sm" mt="xl">
-            <Text c="ldGray.6" fz="sm">
+            <Text c="dimmed" fz="sm">
                 Describe what you want to connect to and AI will prefill the
                 connection — you review every step and paste the credential
                 yourself.
@@ -47,7 +47,7 @@ export const AutomaticSetupStep: FC<Props> = ({
                 }}
             />
             {isLoading && (
-                <Text c="ldGray.6" fz="xs">
+                <Text c="dimmed" fz="xs">
                     This usually takes about 15 seconds.
                 </Text>
             )}

@@ -1,4 +1,4 @@
-import { Select, Stack, Text } from '@mantine-8/core';
+import { Select, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './FilterRequirements.module.css';
 
@@ -44,7 +44,7 @@ const FilterSelect: FC<FilterSelectProps> = ({
                 <Stack gap={0}>
                     <Text size="xs">{option.label}</Text>
                     {reason && (
-                        <Text size="xs" c="ldGray.6">
+                        <Text size="xs" c="dimmed">
                             {reason}
                         </Text>
                     )}

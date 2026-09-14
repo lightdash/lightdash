@@ -1,12 +1,15 @@
 import {
     DimensionType,
     FieldType,
+    FilterOperator,
     QueryHistoryStatus,
+    type AndFilterGroup,
     type FilterableItem,
 } from '@lightdash/common';
 import { waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../api';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 import { renderHookWithProviders } from '../testing/testUtils';
 import {
     getFieldValuesAsync,
@@ -293,6 +296,7 @@ describe('getFieldValuesAsync', () => {
 describe('useFieldValues', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(lightdashApi).mockReset();
     });
 
     const fieldWithStaticAutocomplete: FilterableItem = {
@@ -323,6 +327,163 @@ describe('useFieldValues', () => {
             fetchFromWarehouse: true,
         },
     };
+
+    const warehouseField: FilterableItem = {
+        ...fieldWithStaticAutocomplete,
+        filterAutocomplete: { fetchFromWarehouse: true },
+    };
+
+    const filtersForCountry = (country: string): AndFilterGroup => ({
+        id: 'active-filters',
+        and: [
+            {
+                id: 'country-filter',
+                target: { fieldId: 'orders_country' },
+                operator: FilterOperator.EQUALS,
+                values: [country],
+            },
+        ],
+    });
+
+    it.each([filtersForCountry('France'), undefined])(
+        'clears retained suggestions immediately when active filters change to %j',
+        async (nextFilters) => {
+            vi.mocked(lightdashApi).mockResolvedValueOnce({
+                search: '',
+                results: ['London'],
+                cached: false,
+                refreshedAt: new Date(),
+            });
+            vi.mocked(lightdashApi).mockRejectedValueOnce(
+                new Error('Search failed'),
+            );
+
+            const { result, rerender } = renderHookWithProviders(
+                (filters: AndFilterGroup | undefined) =>
+                    useFieldValues(
+                        '',
+                        [],
+                        'project-uuid',
+                        warehouseField,
+                        undefined,
+                        filters,
+                        false,
+                        false,
+                        { retry: false },
+                    ),
+                undefined,
+                { initialProps: filtersForCountry('UK') },
+            );
+
+            await waitFor(() => {
+                expect(result.current.results).toEqual([{ value: 'London' }]);
+            });
+
+            rerender(nextFilters);
+
+            expect(result.current.results).toEqual([]);
+            await waitFor(() => {
+                expect(result.current.isError).toBe(true);
+            });
+            expect(result.current.results).toEqual([]);
+        },
+    );
+
+    it('preserves suggestions when only the filter group wrapper changes', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue({
+            search: '',
+            results: ['London'],
+            cached: false,
+            refreshedAt: new Date(),
+        });
+        const { result, rerender } = renderHookWithProviders(
+            (filters: AndFilterGroup) =>
+                useFieldValues(
+                    '',
+                    [],
+                    'project-uuid',
+                    warehouseField,
+                    undefined,
+                    filters,
+                    false,
+                ),
+            undefined,
+            { initialProps: filtersForCountry('UK') },
+        );
+        await waitFor(() => {
+            expect(result.current.results).toEqual([{ value: 'London' }]);
+        });
+
+        rerender({ ...filtersForCountry('UK'), id: 'new-wrapper-id' });
+
+        expect(result.current.results).toEqual([{ value: 'London' }]);
+        expect(lightdashApi).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps autocomplete results independent for distinct active filters', async () => {
+        vi.mocked(lightdashApi)
+            .mockResolvedValueOnce({
+                search: '',
+                results: ['London'],
+                cached: false,
+                refreshedAt: new Date(),
+            })
+            .mockResolvedValueOnce({
+                search: '',
+                results: ['Paris'],
+                cached: false,
+                refreshedAt: new Date(),
+            });
+
+        const { result } = renderHookWithProviders(() => ({
+            uk: useFieldValues(
+                '',
+                [],
+                'project-uuid',
+                warehouseField,
+                undefined,
+                filtersForCountry('UK'),
+                false,
+            ),
+            france: useFieldValues(
+                '',
+                [],
+                'project-uuid',
+                warehouseField,
+                undefined,
+                filtersForCountry('France'),
+                false,
+            ),
+        }));
+
+        await waitFor(() => {
+            expect(result.current.uk.results).toEqual([{ value: 'London' }]);
+            expect(result.current.france.results).toEqual([{ value: 'Paris' }]);
+        });
+    });
+
+    it('avoids requesting field values when there is nothing to autocomplete', () => {
+        const fieldWithoutAutocompleteSource: FilterableItem = {
+            ...fieldWithStaticAutocomplete,
+            filterAutocomplete: {
+                fetchFromWarehouse: false,
+            },
+        };
+
+        const { result } = renderHookWithProviders(() =>
+            useFieldValues(
+                'act',
+                [],
+                'project-uuid',
+                fieldWithoutAutocompleteSource,
+                undefined,
+                undefined,
+            ),
+        );
+
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(result.current.results).toEqual([]);
+    });
 
     it('uses local filter autocomplete values and avoids requesting field values', () => {
         const { result } = renderHookWithProviders(() =>
@@ -385,6 +546,49 @@ describe('useFieldValues', () => {
                 { value: 'prospect' },
                 { value: 'trial', label: 'Trial account' },
             ]);
+        });
+    });
+
+    it('forwards parameter values to embedded filter autocomplete', async () => {
+        vi.mocked(useEmbed).mockReturnValue({
+            embedToken: 'embed-token',
+        } as ReturnType<typeof useEmbed>);
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            search: '',
+            results: [],
+            cached: false,
+            refreshedAt: new Date('2026-08-13T09:00:00.000Z'),
+        } as never);
+
+        renderHookWithProviders(() =>
+            useFieldValues(
+                '',
+                [],
+                'project-uuid',
+                {
+                    ...fieldWithWarehouseAutocomplete,
+                    filterAutocomplete: {
+                        values: [],
+                        fetchFromWarehouse: true,
+                    },
+                },
+                'filter-uuid',
+                undefined,
+                false,
+                false,
+                undefined,
+                { date_granularity: 'Month' },
+            ),
+        );
+
+        await waitFor(() => {
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    body: expect.stringContaining(
+                        '"parameters":{"date_granularity":"Month"}',
+                    ),
+                }),
+            );
         });
     });
 });

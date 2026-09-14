@@ -1,8 +1,10 @@
 import {
     AnyType,
     appendUuidQueryParam,
+    applyChartFilterOverrides,
     applyDimensionOverrides,
     assertUnreachable,
+    BackfillDefaultUserSpacesPayload,
     CompileProjectPayload,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
@@ -21,7 +23,6 @@ import {
     expandSelectedTabs,
     ExportContentPayload,
     ExportCsvDashboardPayload,
-    FeatureFlags,
     FieldReferenceError,
     FieldType,
     ForbiddenError,
@@ -29,6 +30,7 @@ import {
     friendlyName,
     getColumnOrderFromVizTableConfig,
     getConditionalFormattingsFromChartConfig,
+    getCronCadence,
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
     getDownloadPivotConfig,
@@ -58,13 +60,16 @@ import {
     isDashboardScheduler,
     isDashboardSqlChartTile,
     isDashboardValidationError,
+    isDataAppValidationError,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isTableChartConfig,
     isTileInSelectedTabs,
     isVizTableConfig,
+    JobStepType,
     LightdashPage,
+    MAX_DELIVERY_QUERIES,
     MAX_SAFE_INTEGER,
     MetricType,
     MissingConfigError,
@@ -76,6 +81,7 @@ import {
     ParameterError,
     ParametersValuesMap,
     PartialFailureType,
+    PersistentDownloadFileAccessMode,
     pivotResultsAsCsv,
     QueryExecutionContext,
     ReadFileError,
@@ -92,6 +98,7 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerResourceType,
+    SendNowScheduler,
     SessionUser,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
@@ -136,6 +143,7 @@ import {
     type SlackBatchNotificationPayload,
 } from '@lightdash/common';
 import archiver from 'archiver';
+import { createHash } from 'crypto';
 import fsSync from 'fs';
 import fs from 'fs/promises';
 import moment from 'moment';
@@ -162,6 +170,7 @@ import {
     getDashboardCsvResultsBlocks,
     getDeliveryFailureRecipientBlocks,
     getNotificationChannelErrorBlocks,
+    sanitizeText,
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
@@ -173,6 +182,7 @@ import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
+import { ContentAsCodeWritebackService } from '../services/ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import {
     CsvService,
     getSchedulerCsvLimit,
@@ -182,7 +192,6 @@ import { DeployService } from '../services/DeployService';
 import { EmailWhitelabelService } from '../services/EmailWhitelabelService/EmailWhitelabelService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
 import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
-import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
 import { resolveOrganizationExportLimits } from '../services/OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
@@ -197,6 +206,7 @@ import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
+import { buildGoogleSheetsFilterSummaryRows } from '../utils/googleSheetsFilterSummary';
 import { SchedulerClient } from './SchedulerClient';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
@@ -212,11 +222,15 @@ export type SchedulerDeliveryQuery = {
 
 export interface SchedulerAiAugmentationRunner {
     runForDelivery(args: {
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
+        scheduler: SchedulerAndTargets | SendNowScheduler;
         createdBy: string;
         deliveryQueries?: SchedulerDeliveryQuery[];
     }): Promise<string | null>;
 }
+
+type SlackDeliveryFile = NonNullable<
+    NotificationPayloadBase['page']['csvUrls']
+>[number];
 
 export type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;
@@ -226,6 +240,7 @@ export type SchedulerTaskArguments = {
     dashboardService: DashboardService;
     deployService: DeployService;
     projectService: ProjectService;
+    contentAsCodeWritebackService: ContentAsCodeWritebackService;
     schedulerService: SchedulerService;
     unfurlService: UnfurlService;
     userService: UserService;
@@ -241,7 +256,6 @@ export type SchedulerTaskArguments = {
     googleChatClient: GoogleChatClient;
     renameService: RenameService;
     asyncQueryService: AsyncQueryService;
-    featureFlagService: FeatureFlagService;
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
@@ -316,12 +330,32 @@ export function setSchedulerJobLogContext(
     update({ scheduler });
 }
 
-export const GSHEET_UPLOAD_MAX_ATTEMPTS = 3;
-const GSHEET_UPLOAD_RETRY_BASE_MS = 2000;
+// Default bounded backoff for the ad-hoc "export to a new Google Sheet"
+// flow — interactive, a user is watching a spinner, so failing fast and
+// letting them retry beats a long silent wait.
+const GSHEET_UPLOAD_RETRY_SCHEDULE_MS = [2000, 4000];
+export const GSHEET_UPLOAD_MAX_ATTEMPTS =
+    GSHEET_UPLOAD_RETRY_SCHEDULE_MS.length + 1;
+// Scheduled background app syncs have nobody watching, so they can afford to
+// wait out a full Sheets write-quota window refill (~60s, see
+// GSHEETS_WRITES_PER_MINUTE_BUDGET below) when Google gives no Retry-After
+// hint to follow instead. Cumulative wait ~65s across 5 retries.
+export const GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS = [
+    2000, 4000, 8000, 16000, 35000,
+];
+// googleapis/gaxios only retries when a request opts in via `retry`/
+// `retryConfig` (see gaxios's getRetryConfig) — we never set either, so
+// nothing below us retries automatically; this bounded wait is genuinely
+// the only backoff a Google Sheets write gets. Caps how long a single
+// honored Retry-After can make us wait, so a large server-suggested delay
+// still hands off to the task's own retry/notify-and-disable path instead
+// of stalling the job.
+const GSHEET_UPLOAD_RETRY_AFTER_CEILING_MS = 30000;
 
 export async function retryTransientGoogleSheetsWrite(
     write: () => Promise<void>,
     onRetry: (attempt: number) => Promise<void> = async () => {},
+    backoffScheduleMs: number[] = GSHEET_UPLOAD_RETRY_SCHEDULE_MS,
     attempt = 1,
 ): Promise<void> {
     try {
@@ -330,12 +364,27 @@ export async function retryTransientGoogleSheetsWrite(
         const isTransient =
             e instanceof GoogleSheetsTransientError ||
             e instanceof GoogleSheetsQuotaError;
-        if (!isTransient || attempt >= GSHEET_UPLOAD_MAX_ATTEMPTS) {
+        if (!isTransient || attempt > backoffScheduleMs.length) {
             throw e;
         }
-        await sleep(GSHEET_UPLOAD_RETRY_BASE_MS * attempt);
+        // Honor a server-provided Retry-After when Google sends one;
+        // otherwise fall back to the caller's backoff schedule.
+        const retryAfterMs =
+            e instanceof GoogleSheetsQuotaError &&
+            typeof e.data?.retryAfterMs === 'number'
+                ? Math.min(
+                      e.data.retryAfterMs,
+                      GSHEET_UPLOAD_RETRY_AFTER_CEILING_MS,
+                  )
+                : undefined;
+        await sleep(retryAfterMs ?? backoffScheduleMs[attempt - 1]);
         await onRetry(attempt + 1);
-        await retryTransientGoogleSheetsWrite(write, onRetry, attempt + 1);
+        await retryTransientGoogleSheetsWrite(
+            write,
+            onRetry,
+            backoffScheduleMs,
+            attempt + 1,
+        );
     }
 }
 
@@ -397,6 +446,58 @@ export function dedupeArtifactFilename(
         : `${filename.slice(0, dotIndex)} (${next})${filename.slice(dotIndex)}`;
 }
 
+// A short, stable-per-query suffix for a gsheets tab name — derived from the
+// item's own captureKey (fixed per query) rather than run-order, so a
+// duplicate label's tab identity survives items being added/removed/reordered
+// between syncs. If a label's duplicate *count* changes run to run (e.g. a
+// second same-labeled query is added or removed), the suffixed/unsuffixed
+// tab name changes too and the old tab is orphaned — accepted as
+// rename-equivalent behavior, the same as a renamed chart leaving its old
+// gsheets tab stale rather than deleting/renaming it.
+export function captureKeyTabSuffix(captureKey: string): string {
+    return createHash('sha256').update(captureKey).digest('hex').slice(0, 4);
+}
+
+// Sheets write cost of one app-delivered query in the app gsheets branch:
+// createNewTab (called once, inside appendCsvToSheet), clearTabName, and the
+// values.update.
+export const GSHEETS_WRITES_PER_APP_ITEM = 3;
+// Google's Sheets API write-requests-per-user-per-minute quota is 60
+// (developers.google.com/sheets/api/limits) — stay a safety margin under it
+// so the fixed metadata-tab writes and any concurrent activity on the same
+// account don't tip a paced run over the hard limit.
+export const GSHEETS_WRITES_PER_MINUTE_BUDGET = 55;
+
+// Per-item delay that keeps the SUSTAINED write rate at/under budget if kept
+// up indefinitely: budget writes/min <=> (60_000 / delayMs) items/min, each
+// item costing writesPerItem writes.
+export function computeGsheetsPacingDelayMs(
+    writesPerItem: number,
+    budgetPerMinute: number = GSHEETS_WRITES_PER_MINUTE_BUDGET,
+): number {
+    return Math.ceil((60_000 * writesPerItem) / budgetPerMinute);
+}
+
+// Proactively spaces item processing apart by `pacingDelayMs` (a no-op when
+// 0) instead of relying solely on reactive quota-error retries — a large
+// manifest bursting all its writes instantly would blow the per-minute quota
+// before any single write even fails. Sleep is injectable so tests don't
+// real-sleep and can assert on the exact delay used.
+export async function processSequentiallyWithPacing<T>(
+    items: T[],
+    pacingDelayMs: number,
+    processItem: (item: T) => Promise<void>,
+    sleepFn: (ms: number) => Promise<unknown> = sleep,
+): Promise<void> {
+    await items.reduce(async (promise, item, index) => {
+        await promise;
+        if (index > 0 && pacingDelayMs > 0) {
+            await sleepFn(pacingDelayMs);
+        }
+        await processItem(item);
+    }, Promise.resolve());
+}
+
 export default class SchedulerTask {
     protected readonly lightdashConfig: LightdashConfig;
 
@@ -411,6 +512,8 @@ export default class SchedulerTask {
     protected readonly deployService: DeployService;
 
     protected readonly projectService: ProjectService;
+
+    protected readonly contentAsCodeWritebackService: ContentAsCodeWritebackService;
 
     protected readonly schedulerService: SchedulerService;
 
@@ -442,8 +545,6 @@ export default class SchedulerTask {
 
     protected readonly asyncQueryService: AsyncQueryService;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     protected readonly persistentDownloadFileService: PersistentDownloadFileService;
 
     protected readonly preAggregateMaterializationService: PreAggregateMaterializationService;
@@ -468,6 +569,7 @@ export default class SchedulerTask {
         this.unfurlService = args.unfurlService;
         this.userService = args.userService;
         this.validationService = args.validationService;
+        this.contentAsCodeWritebackService = args.contentAsCodeWritebackService;
         this.emailClient = args.emailClient;
         this.googleDriveClient = args.googleDriveClient;
         this.fileStorageClient = args.fileStorageClient;
@@ -479,7 +581,6 @@ export default class SchedulerTask {
         this.googleChatClient = args.googleChatClient;
         this.renameService = args.renameService;
         this.asyncQueryService = args.asyncQueryService;
-        this.featureFlagService = args.featureFlagService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.preAggregateModel = args.preAggregateModel;
         this.preAggregateMaterializationService =
@@ -525,11 +626,57 @@ export default class SchedulerTask {
     }
 
     private static getCsvOptions(
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
     ) {
         return isSchedulerCsvOptions(scheduler.options)
             ? scheduler.options
             : undefined;
+    }
+
+    // Sequential uploads (Slack rate-limits them); a failed file never fails the delivery.
+    private async postDeliveryFilesToSlackThread({
+        organizationUuid,
+        channel,
+        threadTs,
+        files,
+        fileType,
+    }: {
+        organizationUuid: string;
+        channel: string;
+        threadTs: string;
+        files: SlackDeliveryFile[];
+        fileType: SchedulerFormat.CSV | SchedulerFormat.XLSX;
+    }): Promise<void> {
+        await files.reduce<Promise<void>>(async (previous, file) => {
+            await previous;
+            if (file.path === '#no-results') return;
+            try {
+                const response = await fetch(file.localPath);
+                if (!response.ok) {
+                    throw new Error(
+                        `HTTP ${response.status} ${response.statusText}`,
+                    );
+                }
+                const extension = `.${fileType}`;
+                await this.slackClient.postFileToThread({
+                    organizationUuid,
+                    channelId: channel,
+                    threadTs,
+                    file: Buffer.from(await response.arrayBuffer()),
+                    title: file.chartName ?? file.filename,
+                    // Dashboard files are named after the chart or workbook; Slack needs the extension to preview them
+                    filename: file.filename.endsWith(extension)
+                        ? file.filename
+                        : `${file.filename}${extension}`,
+                    fileType,
+                });
+            } catch (e) {
+                Logger.error(
+                    `Failed to attach delivery file "${file.filename}" to the Slack thread: ${getErrorMessage(e)}`,
+                    { fileUrl: file.localPath.split('?')[0] },
+                );
+            }
+        }, Promise.resolve());
     }
 
     protected async getChartOrDashboard(
@@ -563,9 +710,16 @@ export default class SchedulerTask {
                 await this.schedulerService.savedChartModel.getSummary(
                     chartUuid,
                 );
+            // Saved deliveries hand the headless page the scheduler uuid so it
+            // can render with the delivery's filter overrides.
+            const chartQueryParams = new URLSearchParams();
+            if (context) chartQueryParams.set('context', context);
+            if (schedulerUuid) {
+                chartQueryParams.set('schedulerUuid', schedulerUuid);
+            }
             return {
                 url: `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
-                minimalUrl: `${this.lightdashConfig.headlessBrowser.internalLightdashHost}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?context=${context}`,
+                minimalUrl: `${this.lightdashConfig.headlessBrowser.internalLightdashHost}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?${chartQueryParams.toString()}`,
                 details: {
                     name: chart.name,
                     description: chart.description,
@@ -620,7 +774,7 @@ export default class SchedulerTask {
     // Renders the app once in delivery capture mode and returns the manifest of
     // queries it ran. Must be called once per job, before the per-channel fan-out.
     protected async captureAppDeliveryQueries(
-        scheduler: CreateSchedulerAndTargets,
+        scheduler: SendNowScheduler,
         jobId: string,
     ): Promise<DeliveryCaptureManifest> {
         if (!isAppCreateScheduler(scheduler)) {
@@ -653,7 +807,7 @@ export default class SchedulerTask {
     }
 
     protected async getNotificationPageData(
-        scheduler: CreateSchedulerAndTargets,
+        scheduler: SendNowScheduler,
         jobId: string,
         isFinalAttempt: boolean,
         expirationSecondsOverride?: number,
@@ -665,6 +819,13 @@ export default class SchedulerTask {
         // Captured once per job by captureAppDeliveryQueries — never rendered here,
         // so the per-channel fan-out can't trigger a second app render.
         appCaptureManifest?: DeliveryCaptureManifest,
+        // Embed/JWT exports pass a pre-resolved anonymous account (no DB user),
+        // used for CSV/XLSX tile queries in place of getAccountByUserUuid.
+        overrideAccount?: AccountType,
+        downloadAccessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        > = PersistentDownloadFileAccessMode.SIGNED,
     ): Promise<
         NotificationPayloadBase['page'] & {
             deliveryQueries?: SchedulerDeliveryQuery[];
@@ -700,14 +861,25 @@ export default class SchedulerTask {
                 ? scheduler.filters
                 : undefined;
 
+        const chartSchedulerFilters = isChartScheduler(scheduler)
+            ? scheduler.filters
+            : undefined;
+        const chartSchedulerParameters = isChartScheduler(scheduler)
+            ? scheduler.parameters
+            : undefined;
+        const sendNowSchedulerChartFilters = !schedulerUuid
+            ? chartSchedulerFilters
+            : undefined;
+
         const sendNowSchedulerParameters =
             exportOptions?.parameters ??
-            (!schedulerUuid && isDashboardScheduler(scheduler)
+            (!schedulerUuid &&
+            (isDashboardScheduler(scheduler) || isChartScheduler(scheduler))
                 ? scheduler.parameters
                 : undefined);
 
         const selectedTabs = isDashboardScheduler(scheduler)
-            ? scheduler.selectedTabs
+            ? (scheduler.selectedTabs ?? null)
             : null;
 
         const context =
@@ -798,6 +970,7 @@ export default class SchedulerTask {
                         sendNowSchedulerDashboardFilters:
                             exportOptions?.dashboardFilters,
                         sendNowSchedulerFilters,
+                        sendNowSchedulerChartFilters,
                         sendNowSchedulerParameters,
                     });
                     if (unfurlImage.imageUrl === undefined) {
@@ -840,6 +1013,7 @@ export default class SchedulerTask {
                                     organizationUuid,
                                     projectUuid,
                                     createdByUserUuid: userUuid,
+                                    accessMode: downloadAccessMode,
                                     expirationSeconds:
                                         expirationSecondsOverride,
                                     source: 'scheduler',
@@ -912,6 +1086,7 @@ export default class SchedulerTask {
                             sendNowSchedulerDashboardFilters:
                                 exportOptions?.dashboardFilters,
                             sendNowSchedulerFilters,
+                            sendNowSchedulerChartFilters,
                             sendNowSchedulerParameters,
                         });
                         if (!unfurlPdf.pdfFile) {
@@ -946,7 +1121,8 @@ export default class SchedulerTask {
             case SchedulerFormat.CSV:
             case SchedulerFormat.XLSX:
                 const account =
-                    await this.userService.getAccountByUserUuid(userUuid);
+                    overrideAccount ??
+                    (await this.userService.getAccountByUserUuid(userUuid));
                 const csvOptions = isSchedulerCsvOptions(options)
                     ? options
                     : undefined;
@@ -1021,20 +1197,175 @@ export default class SchedulerTask {
                             );
                         }
 
+                        // limit: 'all' upgrades limit-hit entries to complete
+                        // result sets by re-running them unbounded via their
+                        // query-history record — never a second app render.
+                        // Under-limit entries, and every entry when limit is
+                        // 'table', are left untouched.
+                        const rerunFailures: PartialFailure[] = [];
+                        const rerunOutcomeByCaptureKey = new Map<
+                            string,
+                            { queryUuid: string; appliedLimit: number }
+                        >();
+                        const rerunSucceededCaptureKeys = new Set<string>();
+                        if (csvOptions?.limit === 'all') {
+                            const limitHitItems = readyItems.filter(
+                                (item) => item.limitReached,
+                            );
+                            const rerunSettled = await Promise.allSettled(
+                                limitHitItems.map((item) =>
+                                    this.asyncQueryService.executeAsyncUnboundedRerunFromQueryHistory(
+                                        {
+                                            account,
+                                            projectUuid,
+                                            queryUuid: item.queryUuid,
+                                            context:
+                                                QueryExecutionContext.SCHEDULED_DELIVERY,
+                                            invalidateCache: true,
+                                        },
+                                    ),
+                                ),
+                            );
+                            rerunSettled.forEach((result, index) => {
+                                const item = limitHitItems[index];
+                                if (result.status === 'rejected') {
+                                    Logger.warn(
+                                        `Failed to re-run app delivery query "${item.label}" (${item.queryUuid}) unbounded: ${result.reason}`,
+                                    );
+                                    rerunFailures.push({
+                                        type: PartialFailureType.APP_QUERY,
+                                        stage: 'rerun',
+                                        captureKey: item.captureKey,
+                                        label: item.label,
+                                        error: `Could not re-run without a limit, delivered the capped result instead: ${getErrorMessage(
+                                            result.reason,
+                                        )}`,
+                                    });
+                                    return;
+                                }
+                                if (
+                                    result.value.outcome ===
+                                    'noImprovementPossible'
+                                ) {
+                                    // A wide query's cell-based export cap
+                                    // can land at or below its own captured
+                                    // limit — an "upgrade" that returns no
+                                    // more rows isn't one. Deliver the
+                                    // capped file as-is; nothing failed.
+                                    Logger.info(
+                                        `Skipping unbounded rerun for app delivery query "${item.label}" (${item.queryUuid}): the export limit would not improve on the captured result`,
+                                    );
+                                    return;
+                                }
+                                rerunOutcomeByCaptureKey.set(item.captureKey, {
+                                    queryUuid: result.value.queryUuid,
+                                    appliedLimit: result.value.appliedLimit,
+                                });
+                            });
+                        }
+
+                        const downloadItemResult = (queryUuid: string) =>
+                            this.asyncQueryService.downloadSyncQueryResults(
+                                {
+                                    account,
+                                    accessMode: downloadAccessMode,
+                                    projectUuid,
+                                    queryUuid,
+                                    type: downloadFileType,
+                                    onlyRaw: csvOptions?.formatted === false,
+                                    expirationSecondsOverride,
+                                },
+                                SCHEDULER_POLLING_OPTIONS,
+                            );
+
+                        // Downloads the rerun replacement when one exists,
+                        // falling back to the still-valid capped original if
+                        // that download fails — same end state as a
+                        // rerun-execution failure (capped file, notice kept,
+                        // 'rerun'-stage failure), never a lost file just
+                        // because the upgraded result couldn't be fetched. A
+                        // rerun download that succeeds but still hit its own
+                        // (cell-based) row cap keeps the notice too — bigger
+                        // file, still truthfully truncated.
+                        const downloadAppQueryItem = async (
+                            item: Extract<CapturedQuery, { status: 'ready' }>,
+                        ) => {
+                            const rerunOutcome = rerunOutcomeByCaptureKey.get(
+                                item.captureKey,
+                            );
+                            if (!rerunOutcome) {
+                                return {
+                                    download: await downloadItemResult(
+                                        item.queryUuid,
+                                    ),
+                                    deliveredQueryUuid: item.queryUuid,
+                                };
+                            }
+                            try {
+                                const download = await downloadItemResult(
+                                    rerunOutcome.queryUuid,
+                                );
+                                try {
+                                    const { totalRowCount } =
+                                        await this.asyncQueryService.getAsyncQueryHistory(
+                                            {
+                                                account,
+                                                projectUuid,
+                                                queryUuid:
+                                                    rerunOutcome.queryUuid,
+                                            },
+                                        );
+                                    if (
+                                        totalRowCount !== null &&
+                                        totalRowCount <
+                                            rerunOutcome.appliedLimit
+                                    ) {
+                                        rerunSucceededCaptureKeys.add(
+                                            item.captureKey,
+                                        );
+                                    }
+                                } catch (rowCountError) {
+                                    // Can't confirm completeness — keep the
+                                    // notice (fail closed), but the download
+                                    // we already have still ships.
+                                    Logger.warn(
+                                        `Failed to confirm the row count of the unbounded rerun for "${item.label}" (${rerunOutcome.queryUuid}), keeping the limit-reached notice: ${rowCountError}`,
+                                    );
+                                }
+                                return {
+                                    download,
+                                    deliveredQueryUuid: rerunOutcome.queryUuid,
+                                };
+                            } catch (rerunDownloadError) {
+                                const download = await downloadItemResult(
+                                    item.queryUuid,
+                                ).catch(() => {
+                                    // Fallback also failed: report the
+                                    // original (rerun-result) download
+                                    // failure so this becomes a single,
+                                    // ordinary 'download'-stage failure with
+                                    // no file, not a double-counted one.
+                                    throw rerunDownloadError;
+                                });
+                                rerunFailures.push({
+                                    type: PartialFailureType.APP_QUERY,
+                                    stage: 'rerun',
+                                    captureKey: item.captureKey,
+                                    label: item.label,
+                                    error: `Could not retrieve the complete result set, delivered the capped result instead: ${getErrorMessage(
+                                        rerunDownloadError,
+                                    )}`,
+                                });
+                                return {
+                                    download,
+                                    deliveredQueryUuid: item.queryUuid,
+                                };
+                            }
+                        };
+
                         const settled = await Promise.allSettled(
                             readyItems.map((item) =>
-                                this.asyncQueryService.downloadSyncQueryResults(
-                                    {
-                                        account,
-                                        projectUuid,
-                                        queryUuid: item.queryUuid,
-                                        type: downloadFileType,
-                                        onlyRaw:
-                                            csvOptions?.formatted === false,
-                                        expirationSecondsOverride,
-                                    },
-                                    SCHEDULER_POLLING_OPTIONS,
-                                ),
+                                downloadAppQueryItem(item),
                             ),
                         );
 
@@ -1067,6 +1398,8 @@ export default class SchedulerTask {
                                 });
                                 return;
                             }
+                            const { download, deliveredQueryUuid } =
+                                result.value;
                             appCsvUrls.push({
                                 filename: dedupeArtifactFilename(
                                     downloadFileType === DownloadFileType.XLSX
@@ -1082,16 +1415,18 @@ export default class SchedulerTask {
                                           ),
                                     usedFilenames,
                                 ),
-                                path: result.value.fileUrl,
+                                path: download.fileUrl,
                                 localPath:
-                                    result.value.s3FileUrl ??
-                                    result.value.fileUrl,
+                                    download.s3FileUrl ?? download.fileUrl,
                                 chartName: item.label,
                                 truncated: false,
                             });
                             appDeliveryQueries.push({
                                 chartName: item.label,
-                                queryUuid: item.queryUuid,
+                                // The rerun replacement when one was actually
+                                // delivered, so AI augmentation reads
+                                // whichever result the recipient got.
+                                queryUuid: deliveredQueryUuid,
                             });
                             deliveredItems.push(item);
                         });
@@ -1102,12 +1437,18 @@ export default class SchedulerTask {
                             );
                         }
 
-                        // Only for files that actually shipped — a notice about
-                        // an unattached file would just confuse recipients.
+                        // Only for files that actually shipped, and only when
+                        // still capped — a successful unbounded rerun clears
+                        // the notice, and one about an unattached file would
+                        // just confuse recipients.
                         const appNotices: DeliveryNotice[] = deliveredItems
                             .filter(
                                 (item) =>
-                                    item.limitReached && item.rowCount !== null,
+                                    item.limitReached &&
+                                    item.rowCount !== null &&
+                                    !rerunSucceededCaptureKeys.has(
+                                        item.captureKey,
+                                    ),
                             )
                             .map((item) => ({
                                 type: 'limit_reached',
@@ -1120,6 +1461,7 @@ export default class SchedulerTask {
 
                         const appFailures = [
                             ...renderFailures,
+                            ...rerunFailures,
                             ...downloadFailures,
                             ...(appCaptureManifest.overflowCount > 0
                                 ? [
@@ -1147,6 +1489,7 @@ export default class SchedulerTask {
                                 organizationUuid,
                                 projectUuid,
                                 createdByUserUuid: userUuid,
+                                accessMode: downloadAccessMode,
                                 expirationSecondsOverride,
                             });
                         }
@@ -1186,12 +1529,15 @@ export default class SchedulerTask {
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     limit: getSchedulerCsvLimit(csvOptions),
                                     pivotResults: shouldPivotResults,
+                                    schedulerFilters: chartSchedulerFilters,
+                                    parameters: chartSchedulerParameters,
                                 },
                             );
                         const downloadResult =
                             await this.asyncQueryService.downloadSyncQueryResults(
                                 {
                                     account,
+                                    accessMode: downloadAccessMode,
                                     projectUuid,
                                     queryUuid: query.queryUuid,
                                     type: downloadFileType,
@@ -1385,6 +1731,7 @@ export default class SchedulerTask {
                                 await this.asyncQueryService.downloadSyncQueryResults(
                                     {
                                         account,
+                                        accessMode: downloadAccessMode,
                                         projectUuid,
                                         queryUuid: query.queryUuid,
                                         type: downloadFileType,
@@ -1464,6 +1811,7 @@ export default class SchedulerTask {
                                 await this.asyncQueryService.downloadSyncQueryResults(
                                     {
                                         account,
+                                        accessMode: downloadAccessMode,
                                         projectUuid,
                                         queryUuid: query.queryUuid,
                                         type: downloadFileType,
@@ -1596,6 +1944,7 @@ export default class SchedulerTask {
                                 organizationUuid,
                                 projectUuid,
                                 createdByUserUuid: userUuid,
+                                accessMode: downloadAccessMode,
                                 expirationSecondsOverride,
                             });
                         }
@@ -1677,7 +2026,7 @@ export default class SchedulerTask {
             return undefined;
         }
         try {
-            const stream =
+            const { stream } =
                 await this.fileStorageClient.getFileStream(imageS3Key);
             const chunks: Buffer[] = [];
             for await (const chunk of stream) {
@@ -1896,9 +2245,11 @@ export default class SchedulerTask {
                     try {
                         // Add the pdf to the thread
                         const pdfBuffer = this.fileStorageClient.isEnabled()
-                            ? await this.fileStorageClient.getFileStream(
-                                  pdfFile.fileName,
-                              )
+                            ? (
+                                  await this.fileStorageClient.getFileStream(
+                                      pdfFile.fileName,
+                                  )
+                              ).stream
                             : await fs.readFile(pdfFile.source);
 
                         await this.slackClient.postFileToThread({
@@ -1947,9 +2298,11 @@ export default class SchedulerTask {
 
                 // Post PDF file as a separate message
                 const pdfBuffer = this.fileStorageClient.isEnabled()
-                    ? await this.fileStorageClient.getFileStream(
-                          pdfFile.fileName,
-                      )
+                    ? (
+                          await this.fileStorageClient.getFileStream(
+                              pdfFile.fileName,
+                          )
+                      ).stream
                     : await fs.readFile(pdfFile.source);
 
                 await this.slackClient.postFileToThread({
@@ -1962,6 +2315,7 @@ export default class SchedulerTask {
                 });
             } else {
                 let blocks;
+                let deliveryFiles: SlackDeliveryFile[];
                 if (savedChartUuid) {
                     if (csvUrl === undefined) {
                         throw new Error('Missing CSV URL');
@@ -1974,6 +2328,7 @@ export default class SchedulerTask {
                                 ? csvUrl.path
                                 : undefined,
                     });
+                    deliveryFiles = [{ ...csvUrl, chartName: details.name }];
                 } else if (dashboardUuid || appUuid) {
                     if (csvUrls === undefined) {
                         throw new Error('Missing CSV URLS');
@@ -1984,15 +2339,31 @@ export default class SchedulerTask {
                         failures,
                         notices,
                     });
+                    deliveryFiles = csvUrls;
                 } else {
                     throw new Error('Not implemented');
                 }
-                await this.slackClient.postMessage({
+                const message = await this.slackClient.postMessage({
                     organizationUuid,
                     text: name,
                     channel,
                     blocks,
                 });
+                const csvOptions = SchedulerTask.getCsvOptions(scheduler);
+                if (
+                    message.ts &&
+                    (format === SchedulerFormat.CSV ||
+                        format === SchedulerFormat.XLSX) &&
+                    csvOptions?.asAttachment
+                ) {
+                    await this.postDeliveryFilesToSlackThread({
+                        organizationUuid,
+                        channel,
+                        threadTs: message.ts,
+                        files: deliveryFiles,
+                        fileType: format,
+                    });
+                }
             }
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
@@ -2182,6 +2553,7 @@ export default class SchedulerTask {
                 pdfFile,
                 pdfPageCount,
                 failures,
+                notices,
             } = notificationPageData;
 
             const schedulerType =
@@ -2257,6 +2629,7 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         csvUrls,
                         failures,
+                        notices,
                     });
                 } else {
                     throw new UnexpectedServerError('Not implemented');
@@ -2505,6 +2878,16 @@ export default class SchedulerTask {
                 payload.projectUuid,
                 getRequestMethod(payload.requestMethod),
                 payload.jobUuid,
+                payload.syncContentAfterCompile
+                    ? {
+                          stepType: JobStepType.SYNCING_CONTENT,
+                          run: () =>
+                              this.syncContentFromRepo(
+                                  user,
+                                  payload.projectUuid,
+                              ),
+                      }
+                    : undefined,
             );
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
@@ -2526,19 +2909,12 @@ export default class SchedulerTask {
                     organizationUuid: payload.organizationUuid,
                 });
             }
-            const { enabled: canReplaceCustomMetrics } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.ReplaceCustomMetricsOnCompile,
-                });
-            if (canReplaceCustomMetrics) {
-                // Don't wait for replaceCustomFields response
-                void this.schedulerClient.replaceCustomFields({
-                    userUuid: payload.userUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                });
-            }
+            // Don't wait for replaceCustomFields response
+            void this.schedulerClient.replaceCustomFields({
+                userUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+            });
         } catch (e) {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
@@ -2552,6 +2928,24 @@ export default class SchedulerTask {
                 },
             });
             throw e;
+        }
+    }
+
+    // Files that could not be applied fail the step so the job details say why
+    private async syncContentFromRepo(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const summary = await this.contentAsCodeWritebackService.pullFromGit(
+            user,
+            projectUuid,
+        );
+        if (summary.failures.length > 0) {
+            throw new Error(
+                `Applied ${summary.charts} charts and ${summary.dashboards} dashboards from the repo; ${summary.failures.length} file(s) could not be applied: ${summary.failures
+                    .map((failure) => `${failure.file}: ${failure.message}`)
+                    .join('; ')}`,
+            );
         }
     }
 
@@ -2746,6 +3140,8 @@ export default class SchedulerTask {
                     return validation.chartUuid;
                 if (isDashboardValidationError(validation))
                     return validation.dashboardUuid;
+                if (isDataAppValidationError(validation))
+                    return validation.appUuid;
 
                 return validation.name;
             });
@@ -3118,6 +3514,7 @@ export default class SchedulerTask {
                 metricQuery,
                 context: QueryExecutionContext.GSHEETS,
                 pivotConfiguration,
+                parameters: payload.parameters,
             },
             SCHEDULER_POLLING_OPTIONS,
         );
@@ -3287,7 +3684,17 @@ export default class SchedulerTask {
                 name,
                 thresholds,
                 includeLinks,
+                plainTextEmail,
             } = scheduler;
+
+            // Email-only: strips the branded template in favour of a text body.
+            const plainText = plainTextEmail
+                ? {
+                      cadence: scheduler.cron
+                          ? getCronCadence(scheduler.cron)
+                          : undefined,
+                  }
+                : undefined;
 
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION,
@@ -3400,6 +3807,7 @@ export default class SchedulerTask {
                     'This is a data alert sent by Lightdash',
                     imageBuffer,
                     senderIdentity,
+                    plainText,
                 );
             } else if (
                 format === SchedulerFormat.IMAGE ||
@@ -3434,6 +3842,7 @@ export default class SchedulerTask {
                     undefined, // deliveryType
                     format === SchedulerFormat.IMAGE ? imageBuffer : undefined,
                     senderIdentity,
+                    plainText,
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
@@ -3459,6 +3868,7 @@ export default class SchedulerTask {
                     csvOptions?.asAttachment,
                     format,
                     senderIdentity,
+                    plainText,
                 );
             } else if (dashboardUuid || appUuid) {
                 if (csvUrls === undefined) {
@@ -3487,6 +3897,8 @@ export default class SchedulerTask {
                     failures,
                     notices,
                     senderIdentity,
+                    !!appUuid,
+                    plainText,
                 );
             } else {
                 throw new Error('Not implemented');
@@ -3730,8 +4142,13 @@ export default class SchedulerTask {
                     schedulerUuid,
                 );
 
-            const { format, savedChartUuid, dashboardUuid, thresholds } =
-                scheduler;
+            const {
+                format,
+                savedChartUuid,
+                dashboardUuid,
+                appUuid,
+                thresholds,
+            } = scheduler;
 
             const gdriveId = isSchedulerGsheetsOptions(scheduler.options)
                 ? scheduler.options.gdriveId
@@ -3743,6 +4160,9 @@ export default class SchedulerTask {
             const tabName = isSchedulerGsheetsOptions(scheduler.options)
                 ? scheduler.options.tabName
                 : undefined;
+            const showFilters =
+                isSchedulerGsheetsOptions(scheduler.options) &&
+                scheduler.options.showFilters === true;
 
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
@@ -3789,6 +4209,9 @@ export default class SchedulerTask {
                 const shouldPivot =
                     isTableChartConfig(chart.chartConfig.config) &&
                     !!getPivotConfig(chart);
+                const chartSchedulerFilters = isChartScheduler(scheduler)
+                    ? scheduler.filters
+                    : undefined;
 
                 const {
                     rows,
@@ -3804,6 +4227,10 @@ export default class SchedulerTask {
                         context:
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                         pivotResults: shouldPivot,
+                        schedulerFilters: chartSchedulerFilters,
+                        parameters: isChartScheduler(scheduler)
+                            ? scheduler.parameters
+                            : undefined,
                     },
                     SCHEDULER_POLLING_OPTIONS,
                 );
@@ -3842,15 +4269,22 @@ export default class SchedulerTask {
                     reportUrl,
                 );
                 const pivotConfig = getPivotConfig(chart);
+                const filterSummaryRows = showFilters
+                    ? buildGoogleSheetsFilterSummaryRows(
+                          chartSchedulerFilters
+                              ? applyChartFilterOverrides(
+                                    chart.metricQuery.filters,
+                                    chartSchedulerFilters,
+                                )
+                              : chart.metricQuery.filters,
+                          itemMap,
+                      )
+                    : [];
                 if (
                     pivotConfig &&
+                    pivotDetails &&
                     isTableChartConfig(chart.chartConfig.config)
                 ) {
-                    if (!pivotDetails) {
-                        throw new Error(
-                            'Cannot export pivoted results without SQL pivot details',
-                        );
-                    }
                     // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
                     const formattedRows = formatRows(
                         rows,
@@ -3872,7 +4306,7 @@ export default class SchedulerTask {
                     await this.googleDriveClient.appendCsvToSheet(
                         refreshToken,
                         gdriveId,
-                        pivotedResults,
+                        [...filterSummaryRows, ...pivotedResults],
                         tabName,
                     );
                 } else {
@@ -3887,6 +4321,7 @@ export default class SchedulerTask {
                         customLabels,
                         getHiddenTableFields(chart.chartConfig),
                         displayTimezone ?? undefined,
+                        filterSummaryRows,
                     );
                 }
             } else if (dashboardUuid) {
@@ -4011,13 +4446,9 @@ export default class SchedulerTask {
                         const pivotConfig = getPivotConfig(chart);
                         if (
                             pivotConfig &&
+                            pivotDetails &&
                             isTableChartConfig(chart.chartConfig.config)
                         ) {
-                            if (!pivotDetails) {
-                                throw new Error(
-                                    'Cannot export pivoted results without SQL pivot details',
-                                );
-                            }
                             // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
                             const formattedRows = formatRows(
                                 rows,
@@ -4128,6 +4559,231 @@ export default class SchedulerTask {
                     csvData,
                     tabName,
                 );
+            } else if (appUuid) {
+                const { url: appUrl, projectUuid: appProjectUuid } =
+                    await this.getChartOrDashboard(
+                        null,
+                        null,
+                        schedulerUuid,
+                        QueryExecutionContext.SCHEDULED_DELIVERY,
+                        null,
+                        appUuid,
+                    );
+                deliveryUrl = appendUuidQueryParam(
+                    `${appUrl}?isSync=true`,
+                    'scheduler_uuid',
+                    schedulerUuid,
+                );
+
+                const defaultSchedulerTimezone =
+                    await this.schedulerService.getSchedulerDefaultTimezone(
+                        schedulerUuid,
+                    );
+
+                const refreshToken = await this.userService.getRefreshToken(
+                    scheduler.createdBy,
+                );
+
+                // Capture once, same as the CSV/XLSX app branch — a second
+                // render could tag a different query set than the tabs we
+                // build from this one.
+                const appCaptureManifest = await this.captureAppDeliveryQueries(
+                    scheduler,
+                    jobId,
+                );
+                const sortedCapturedItems = [...appCaptureManifest.items].sort(
+                    (a, b) => a.order - b.order,
+                );
+
+                // A capture error is a runtime query failure, not a missing
+                // widget — same as a dashboard tile whose query throws. gsheets
+                // has no partial-failure channel to report it silently, so it
+                // must fail the whole sync (matching the dashboard branch's
+                // reduce().catch(rethrow)), not skip the tab and stay quiet.
+                const errorItems = sortedCapturedItems.filter(
+                    (
+                        item,
+                    ): item is Extract<CapturedQuery, { status: 'error' }> =>
+                        item.status === 'error',
+                );
+                if (errorItems.length > 0) {
+                    throw new Error(
+                        `App delivery render failed for: ${errorItems
+                            .map((item) => sanitizeText(item.label))
+                            .join(', ')}`,
+                    );
+                }
+
+                const readyItems = sortedCapturedItems.filter(
+                    (
+                        item,
+                    ): item is Extract<CapturedQuery, { status: 'ready' }> =>
+                        item.status === 'ready',
+                );
+                if (readyItems.length === 0) {
+                    throw new Error(
+                        'App delivery render captured no successful queries',
+                    );
+                }
+
+                // Overflow queries are silently dropped at capture time (see
+                // MAX_DELIVERY_QUERIES) — gsheets has no partial-failure
+                // channel to surface that, so a dropped query would
+                // otherwise be missing a tab forever with nothing to say why.
+                if (appCaptureManifest.overflowCount > 0) {
+                    throw new Error(
+                        `App delivery render dropped ${
+                            appCaptureManifest.overflowCount
+                        } ${
+                            appCaptureManifest.overflowCount === 1
+                                ? 'query'
+                                : 'queries'
+                        } from capture (limit ${MAX_DELIVERY_QUERIES})`,
+                    );
+                }
+
+                // A duplicate label's tab suffix must not depend on this
+                // run's item order/cardinality — positional numbering (like
+                // the CSV path's dedupeArtifactFilename) would let "Revenue
+                // (2)" silently point at a different query on a later run
+                // when items are added/removed/reordered. Deriving the
+                // suffix from the item's own stable captureKey instead keeps
+                // a duplicate label's tab identity fixed run over run.
+                // Unique labels this run keep the plain sanitized name.
+                // (Duplicate-count changes across runs: see captureKeyTabSuffix.)
+                const sanitizedLabelCounts = new Map<string, number>();
+                readyItems.forEach((item) => {
+                    const sanitizedLabel = item.label.replaceAll(':', '.');
+                    sanitizedLabelCounts.set(
+                        sanitizedLabel,
+                        (sanitizedLabelCounts.get(sanitizedLabel) ?? 0) + 1,
+                    );
+                });
+                const tabNameForReadyItem = (
+                    item: (typeof readyItems)[number],
+                ) => {
+                    const sanitizedLabel = item.label.replaceAll(':', '.');
+                    const isDuplicateLabel =
+                        (sanitizedLabelCounts.get(sanitizedLabel) ?? 0) > 1;
+                    return isDuplicateLabel
+                        ? `${sanitizedLabel} (${captureKeyTabSuffix(
+                              item.captureKey,
+                          )})`
+                        : sanitizedLabel;
+                };
+                // The metadata tab must list what was actually written, not
+                // the raw labels — a label gets sanitized and possibly
+                // suffixed before it becomes a real tab name.
+                const readyItemTabNames = readyItems.map((item) =>
+                    tabNameForReadyItem(item),
+                );
+
+                // Write-quota invariant (Sheets API: 60 write requests per
+                // user per minute — developers.google.com/sheets/api/limits).
+                // Each ready item costs GSHEETS_WRITES_PER_APP_ITEM (3)
+                // writes below: createNewTab (called once, inside
+                // appendCsvToSheet), clearTabName, and the values.update —
+                // plus a fixed 3 writes for this one-off metadata tab.
+                // writes(N) = 3N + 3 scales past the quota well within
+                // MAX_DELIVERY_QUERIES (50 -> 153 writes), so a manifest of
+                // any size up to that cap is proactively paced (below) to
+                // keep the SUSTAINED rate at/under
+                // GSHEETS_WRITES_PER_MINUTE_BUDGET — this isn't just an
+                // observed ceiling, pacing plus the quota-bridging retry
+                // schedule enforce it. retryTransientGoogleSheetsWrite still
+                // absorbs any transient 429/500 that gets through with
+                // bounded backoff before the task's own retry/notify-and-
+                // disable path takes over.
+                const plannedWrites =
+                    GSHEETS_WRITES_PER_APP_ITEM * readyItems.length + 3;
+                const pacingDelayMs =
+                    plannedWrites > GSHEETS_WRITES_PER_MINUTE_BUDGET
+                        ? computeGsheetsPacingDelayMs(
+                              GSHEETS_WRITES_PER_APP_ITEM,
+                          )
+                        : 0;
+
+                const humanReadableCron = getHumanReadableCronExpression(
+                    scheduler.cron,
+                    scheduler.timezone ?? defaultSchedulerTimezone,
+                );
+                await retryTransientGoogleSheetsWrite(
+                    () =>
+                        this.googleDriveClient.uploadMetadata(
+                            refreshToken,
+                            gdriveId,
+                            humanReadableCron,
+                            readyItemTabNames,
+                            deliveryUrl,
+                        ),
+                    undefined,
+                    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+                );
+
+                Logger.debug(
+                    `Uploading app with ${readyItems.length} queries to Google Sheets`,
+                );
+
+                // We want to process all queries in sequence, so we don't load all query results in memory
+                await processSequentiallyWithPacing(
+                    readyItems,
+                    pacingDelayMs,
+                    async (item) => {
+                        const { rows, fields, displayTimezone, metricQuery } =
+                            await this.asyncQueryService.getRawAsyncQueryResults(
+                                {
+                                    account: account!,
+                                    projectUuid: appProjectUuid,
+                                    queryUuid: item.queryUuid,
+                                },
+                            );
+
+                        const itemTabName = tabNameForReadyItem(item);
+                        const columnNames =
+                            rows.length > 0 ? Object.keys(rows[0]) : [];
+                        const dataRows = rows.map((row) =>
+                            columnNames.map((col) =>
+                                GoogleDriveClient.formatCell(
+                                    row[col],
+                                    fields[col],
+                                    displayTimezone ?? undefined,
+                                ),
+                            ),
+                        );
+                        const filterSummaryRows = showFilters
+                            ? buildGoogleSheetsFilterSummaryRows(
+                                  metricQuery?.filters,
+                                  fields,
+                              )
+                            : [];
+
+                        // appendCsvToSheet creates the tab itself when given
+                        // a tabName — itemTabName is already fully
+                        // sanitized+deduped, so a separate explicit
+                        // createNewTab call first (like the dashboard
+                        // branch's chartTabName pattern) would just be a
+                        // second identical write request against the quota
+                        // budget above for no benefit.
+                        await retryTransientGoogleSheetsWrite(
+                            () =>
+                                this.googleDriveClient.appendCsvToSheet(
+                                    refreshToken,
+                                    gdriveId,
+                                    [
+                                        ...filterSummaryRows,
+                                        columnNames,
+                                        ...dataRows,
+                                    ],
+                                    itemTabName,
+                                ),
+                            undefined,
+                            GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+                        );
+                    },
+                ).catch((error) => {
+                    Logger.debug('Error processing app queries:', error);
+                    throw error;
+                });
             } else {
                 throw new UnexpectedServerError('Not implemented');
             }
@@ -4359,13 +5015,27 @@ export default class SchedulerTask {
         isFinalAttempt: boolean,
     ) {
         const schedulerUuid = getSchedulerUuid(schedulerPayload);
+        const isInlineScheduler = isCreateScheduler(schedulerPayload);
 
-        const scheduler: SchedulerAndTargets | CreateSchedulerAndTargets =
-            isCreateScheduler(schedulerPayload)
-                ? schedulerPayload
-                : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
-                      schedulerPayload.schedulerUuid,
-                  );
+        const persistedOrInlineScheduler:
+            | SchedulerAndTargets
+            | SendNowScheduler = isInlineScheduler
+            ? schedulerPayload
+            : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
+                  schedulerPayload.schedulerUuid,
+              );
+
+        const schedulerOwnerUuid = persistedOrInlineScheduler.createdBy;
+        const executionUserUuid = isInlineScheduler
+            ? undefined
+            : schedulerPayload.executionUserUuid;
+        const userUuid = executionUserUuid ?? schedulerOwnerUuid;
+        const scheduler = executionUserUuid
+            ? {
+                  ...persistedOrInlineScheduler,
+                  createdBy: userUuid,
+              }
+            : persistedOrInlineScheduler;
 
         if (!scheduler.enabled) {
             await this.schedulerService.logSchedulerJob({
@@ -4386,7 +5056,6 @@ export default class SchedulerTask {
         }
 
         const {
-            createdBy: userUuid,
             savedChartUuid,
             dashboardUuid,
             thresholds,
@@ -4409,8 +5078,14 @@ export default class SchedulerTask {
 
             // Disable scheduler if it has no targets
             if (schedulerUuid) {
+                const schedulerOwner =
+                    userUuid === schedulerOwnerUuid
+                        ? sessionUser
+                        : await this.userService.getSessionByUserUuid(
+                              schedulerOwnerUuid,
+                          );
                 await this.schedulerService.setSchedulerEnabled(
-                    sessionUser,
+                    schedulerOwner,
                     schedulerUuid,
                     false,
                 );
@@ -4490,7 +5165,7 @@ export default class SchedulerTask {
                                 projectUuid: schedulerPayload.projectUuid,
                                 chartUuid: savedChartUuid,
                                 context: QueryExecutionContext.SCHEDULED_CHART,
-                                filterOverrides: chartFilterOverrides,
+                                schedulerFilters: chartFilterOverrides,
                                 parameters: chartParameterOverrides,
                             },
                             SCHEDULER_POLLING_OPTIONS,
@@ -4605,6 +5280,7 @@ export default class SchedulerTask {
 
             let page: NotificationPayloadBase['page'] | undefined;
             let deliveryQueries: SchedulerDeliveryQuery[] | undefined;
+            let appCaptureManifest: DeliveryCaptureManifest | undefined;
             let perChannelPages:
                 | {
                       email?: NotificationPayloadBase['page'];
@@ -4681,7 +5357,7 @@ export default class SchedulerTask {
 
                 // Captured once: the fan-out builds a page per distinct expiry,
                 // and a second render would hand recipients different data.
-                const appCaptureManifest =
+                appCaptureManifest =
                     isAppCreateScheduler(scheduler) &&
                     (scheduler.format === SchedulerFormat.CSV ||
                         scheduler.format === SchedulerFormat.XLSX)
@@ -4809,64 +5485,100 @@ export default class SchedulerTask {
                     perChannelPages,
                 );
 
-            // Create scheduled jobs for targets
-            await Promise.all(
-                scheduledJobs.map(({ target, jobId: targetJobId }) => {
-                    if (!target) {
-                        return Promise.resolve();
-                    }
+            // The notification jobs are now queued: nothing below may
+            // rethrow, or the retry budget (maxAttempts > 1) would re-run the
+            // whole body and queue a SECOND set of them — duplicate sends.
+            // A partial enqueue inside generateJobsForSchedulerTargets remains
+            // a narrow pre-existing window, shared with dashboard image jobs.
+            try {
+                // Create scheduled jobs for targets
+                await Promise.all(
+                    scheduledJobs.map(({ target, jobId: targetJobId }) => {
+                        if (!target) {
+                            return Promise.resolve();
+                        }
 
-                    return this.logScheduledTarget(
-                        scheduler.format,
-                        target,
-                        targetJobId,
-                        schedulerUuid,
-                        jobId,
-                        scheduledTime,
-                        {
-                            projectUuid: schedulerPayload.projectUuid,
-                            organizationUuid: schedulerPayload.organizationUuid,
-                            createdByUserUuid: schedulerPayload.userUuid,
-                        },
-                    );
-                }),
-            );
+                        return this.logScheduledTarget(
+                            scheduler.format,
+                            target,
+                            targetJobId,
+                            schedulerUuid,
+                            jobId,
+                            scheduledTime,
+                            {
+                                projectUuid: schedulerPayload.projectUuid,
+                                organizationUuid:
+                                    schedulerPayload.organizationUuid,
+                                createdByUserUuid: schedulerPayload.userUuid,
+                            },
+                        );
+                    }),
+                );
 
-            // Page render failures; any AI-augmentation failure was already
-            // appended to the page above.
-            const partialFailures = page?.failures ?? [];
+                // Page render failures; any AI-augmentation failure was already
+                // appended to the page above.
+                const partialFailures = page?.failures ?? [];
 
-            await this.schedulerService.logSchedulerJob({
-                task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
-                schedulerUuid,
-                jobId,
-                jobGroup: jobId,
-                scheduledTime,
-                status: SchedulerJobStatus.COMPLETED,
-                details: {
-                    projectUuid: schedulerPayload.projectUuid,
-                    organizationUuid: schedulerPayload.organizationUuid,
-                    createdByUserUuid: schedulerPayload.userUuid,
-                    ...(partialFailures.length > 0 && { partialFailures }),
-                },
-            });
-
-            this.analytics.track({
-                event: 'scheduler_job.completed',
-                anonymousId: LightdashAnalytics.anonymousId,
-                userId: schedulerPayload.userUuid,
-                properties: {
+                await this.schedulerService.logSchedulerJob({
+                    task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                    schedulerUuid,
                     jobId,
-                    organizationId: schedulerPayload.organizationUuid,
-                    projectId: schedulerPayload.projectUuid,
-                    schedulerId: schedulerUuid,
-                    groupId: jobId,
-                    isThresholdAlert: scheduler.thresholds !== undefined,
-                    hasPartialFailures:
-                        partialFailures && partialFailures.length > 0,
-                    partialFailuresCount: partialFailures?.length ?? 0,
-                },
-            });
+                    jobGroup: jobId,
+                    scheduledTime,
+                    status: SchedulerJobStatus.COMPLETED,
+                    details: {
+                        projectUuid: schedulerPayload.projectUuid,
+                        organizationUuid: schedulerPayload.organizationUuid,
+                        createdByUserUuid: schedulerPayload.userUuid,
+                        ...(partialFailures.length > 0 && { partialFailures }),
+                    },
+                });
+
+                // App deliveries: how much of the captured render actually shipped.
+                const appQueryFailures = (
+                    stage: 'render' | 'download' | 'rerun',
+                ) =>
+                    partialFailures.filter(
+                        (failure) =>
+                            failure.type === PartialFailureType.APP_QUERY &&
+                            failure.stage === stage,
+                    ).length;
+                const appDeliveryProperties = appCaptureManifest
+                    ? {
+                          capturedQueryCount: appCaptureManifest.items.length,
+                          deliveredFileCount: page?.csvUrls?.length ?? 0,
+                          renderFailureCount: appQueryFailures('render'),
+                          downloadFailureCount: appQueryFailures('download'),
+                          rerunFailureCount: appQueryFailures('rerun'),
+                          noticeCount: page?.notices?.length ?? 0,
+                          captureOverflow: appCaptureManifest.overflowCount > 0,
+                      }
+                    : {};
+
+                this.analytics.track({
+                    event: 'scheduler_job.completed',
+                    anonymousId: LightdashAnalytics.anonymousId,
+                    userId: schedulerPayload.userUuid,
+                    properties: {
+                        jobId,
+                        organizationId: schedulerPayload.organizationUuid,
+                        projectId: schedulerPayload.projectUuid,
+                        schedulerId: schedulerUuid,
+                        groupId: jobId,
+                        isThresholdAlert: scheduler.thresholds !== undefined,
+                        hasPartialFailures:
+                            partialFailures && partialFailures.length > 0,
+                        partialFailuresCount: partialFailures?.length ?? 0,
+                        ...appDeliveryProperties,
+                    },
+                });
+            } catch (tailError) {
+                Logger.error(
+                    `Scheduled delivery ${jobId} was delivered but its completion bookkeeping failed: ${getErrorMessage(
+                        tailError,
+                    )}`,
+                );
+            }
         } catch (e) {
             this.analytics.track({
                 event: 'scheduler_job.failed',
@@ -4902,9 +5614,10 @@ export default class SchedulerTask {
 
             // Send failure notification email to scheduler creator
             try {
-                const user = await this.userService.getSessionByUserUuid(
-                    scheduler.createdBy,
-                );
+                const user =
+                    await this.userService.getSessionByUserUuid(
+                        schedulerOwnerUuid,
+                    );
                 if (user.email) {
                     const schedulerUrl =
                         scheduler.savedChartUuid || scheduler.dashboardUuid
@@ -4956,7 +5669,7 @@ export default class SchedulerTask {
                             try {
                                 const owner =
                                     await this.userService.getSessionByUserUuid(
-                                        scheduler.createdBy,
+                                        schedulerOwnerUuid,
                                     );
                                 const ownerName =
                                     `${owner.firstName} ${owner.lastName}`.trim();
@@ -5063,9 +5776,10 @@ export default class SchedulerTask {
                 Logger.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
                 );
-                const user = await this.userService.getSessionByUserUuid(
-                    scheduler.createdBy,
-                );
+                const user =
+                    await this.userService.getSessionByUserUuid(
+                        schedulerOwnerUuid,
+                    );
                 await this.schedulerService.setSchedulerEnabled(
                     user,
                     schedulerUuid!,
@@ -5137,6 +5851,7 @@ export default class SchedulerTask {
         organizationUuid,
         projectUuid,
         createdByUserUuid,
+        accessMode,
         logContext,
     }: {
         files: {
@@ -5148,7 +5863,11 @@ export default class SchedulerTask {
         zipNameBase: string;
         organizationUuid: string;
         projectUuid: string;
-        createdByUserUuid: string;
+        createdByUserUuid: string | null;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         logContext?: string;
     }) {
         if (!this.fileStorageClient.isEnabled()) {
@@ -5265,9 +5984,12 @@ export default class SchedulerTask {
                 zipNameBase,
             )}-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
 
+            // The key stays sanitised and timestamped; the download name keeps
+            // the dashboard name as typed.
             await this.fileStorageClient.uploadZip(
                 fsSync.createReadStream(zipPath),
                 zipFileName,
+                `${zipNameBase}.zip`,
             );
         } finally {
             await fs.unlink(zipPath).catch(() => {});
@@ -5279,6 +6001,7 @@ export default class SchedulerTask {
             organizationUuid,
             projectUuid,
             createdByUserUuid,
+            accessMode,
             source: 'scheduler',
         });
     }
@@ -5291,6 +6014,10 @@ export default class SchedulerTask {
         organizationUuid: string;
         projectUuid: string;
         createdByUserUuid: string;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSecondsOverride?: number;
     }): Promise<NonNullable<NotificationPayloadBase['page']['csvUrls']>> {
         const workbookResult = await this.createWorkbookDownloadUrl(args);
@@ -5310,6 +6037,7 @@ export default class SchedulerTask {
         organizationUuid,
         projectUuid,
         createdByUserUuid,
+        accessMode,
         expirationSecondsOverride,
     }: {
         files: NonNullable<NotificationPayloadBase['page']['csvUrls']>;
@@ -5317,6 +6045,10 @@ export default class SchedulerTask {
         organizationUuid: string;
         projectUuid: string;
         createdByUserUuid: string;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSecondsOverride?: number;
     }) {
         if (!this.fileStorageClient.isEnabled()) {
@@ -5360,6 +6092,7 @@ export default class SchedulerTask {
             await this.fileStorageClient.uploadExcel(
                 fsSync.createReadStream(workbookPath),
                 workbookFileName,
+                `${workbookNameBase}.xlsx`,
             );
         } finally {
             await fs.unlink(workbookPath).catch(() => {});
@@ -5372,6 +6105,7 @@ export default class SchedulerTask {
                 organizationUuid,
                 projectUuid,
                 createdByUserUuid,
+                accessMode,
                 expirationSeconds: expirationSecondsOverride,
                 source: 'scheduler',
             }),
@@ -5383,6 +6117,9 @@ export default class SchedulerTask {
         jobId: string,
         scheduledTime: Date,
         payload: ExportContentPayload,
+        // Embed/JWT exports pass a pre-resolved anonymous account so the tile
+        // queries run under the token's access instead of a DB user.
+        overrideAccount?: AccountType,
     ) {
         await this.logWrapper<string | number>(
             {
@@ -5416,6 +6153,7 @@ export default class SchedulerTask {
                     appName: null,
                     enabled: true,
                     includeLinks: false,
+                    plainTextEmail: false,
                     projectUuid: payload.projectUuid,
                     targets: [],
                     customViewportWidth: payload.customViewportWidth,
@@ -5438,6 +6176,11 @@ export default class SchedulerTask {
                         dateZoomGranularity: payload.dateZoomGranularity,
                         parameters: payload.parameters,
                     },
+                    undefined,
+                    overrideAccount,
+                    overrideAccount?.isJwtUser()
+                        ? PersistentDownloadFileAccessMode.SIGNED
+                        : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                 );
 
                 if (payload.format === SchedulerFormat.IMAGE) {
@@ -5493,7 +6236,13 @@ export default class SchedulerTask {
                         zipNameBase: page.details.name,
                         organizationUuid: payload.organizationUuid,
                         projectUuid: payload.projectUuid,
-                        createdByUserUuid: payload.userUuid,
+                        // JWT/embed callers have no DB user row to reference.
+                        createdByUserUuid: overrideAccount
+                            ? null
+                            : payload.userUuid,
+                        accessMode: overrideAccount?.isJwtUser()
+                            ? PersistentDownloadFileAccessMode.SIGNED
+                            : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     });
 
                     return {
@@ -5658,6 +6407,8 @@ export default class SchedulerTask {
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid: userUuid,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     logContext: `dashboard ${dashboardUuid}`,
                 });
 
@@ -5724,6 +6475,9 @@ export default class SchedulerTask {
             await this.asyncQueryService.downloadSyncQueryResults(
                 {
                     account,
+                    accessMode: account.isJwtUser()
+                        ? PersistentDownloadFileAccessMode.SIGNED
+                        : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: query.queryUuid,
                     type: DownloadFileType.CSV,
@@ -5792,6 +6546,9 @@ export default class SchedulerTask {
             await this.asyncQueryService.downloadSyncQueryResults(
                 {
                     account,
+                    accessMode: account.isJwtUser()
+                        ? PersistentDownloadFileAccessMode.SIGNED
+                        : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: query.queryUuid,
                     type: DownloadFileType.CSV,
@@ -5820,6 +6577,30 @@ export default class SchedulerTask {
             fileUrl: downloadResult.fileUrl,
             s3FileUrl: downloadResult.s3FileUrl,
         };
+    }
+
+    protected async backfillDefaultUserSpaces(
+        jobId: string,
+        scheduledTime: Date,
+        payload: BackfillDefaultUserSpacesPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES,
+                jobId,
+                scheduledTime,
+                details: {
+                    userUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.userUuid,
+                },
+            },
+            async () =>
+                this.userService.ensureDefaultUserSpacesForOrganizationMembers(
+                    payload.organizationUuid,
+                ),
+        );
     }
 
     protected async replaceCustomFields(
@@ -5915,9 +6696,13 @@ export default class SchedulerTask {
                 const account = await this.userService.getAccountByUserUuid(
                     payload.userUuid,
                 );
+                const { fileAccessMode, ...downloadArgs } = payload;
                 return this.asyncQueryService.download({
                     account,
-                    ...payload,
+                    accessMode:
+                        fileAccessMode ??
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                    ...downloadArgs,
                 });
             },
         );
@@ -6743,6 +7528,7 @@ export default class SchedulerTask {
                 pdfFile,
                 pdfPageCount,
                 failures,
+                notices,
             } = notificationPageData;
 
             const schedulerType =
@@ -6818,6 +7604,7 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         csvUrls,
                         failures,
+                        notices,
                     });
                 } else {
                     throw new UnexpectedServerError('Not implemented');

@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    assertUnreachable,
     ProjectType,
     WarehouseTypes,
     type OrganizationProject,
@@ -26,7 +25,7 @@ import {
     Tooltip,
     UnstyledButton,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCalendarTime,
     IconCheck,
@@ -64,12 +63,10 @@ import {
 import { ProjectDeleteModal } from '../DeleteProjectPanel/DeleteProjectModal';
 import { ProjectDeleteInBulkModal } from '../DeleteProjectPanel/ProjectDeleteInBulkModal';
 import classes from './ProjectManagementPanel.module.css';
-
-enum ProjectTypeFilter {
-    ALL = 'all',
-    DEFAULT = 'default',
-    PREVIEW = 'preview',
-}
+import {
+    matchesProjectTypeFilter,
+    ProjectTypeFilter,
+} from './projectTypeFilter';
 
 const WAREHOUSE_LABELS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.BIGQUERY]: 'BigQuery',
@@ -196,27 +193,45 @@ const ProjectManagementPanel: FC = () => {
         }));
     }, [projects]);
 
+    // Deleting the org's training playground takes every learner's copy
+    // with it, so it is offered to org admins only (the same permission
+    // Enable Learn needs); other projects follow the delete ability alone.
+    const canDeleteProject = useCallback(
+        (project: OrganizationProject) => {
+            if (!user.data) return false;
+            const canDelete = user.data.ability.can(
+                'delete',
+                subject('Project', {
+                    type: project.type,
+                    projectUuid: project.projectUuid,
+                    organizationUuid: user.data.organizationUuid,
+                    createdByUserUuid: project.createdByUserUuid,
+                }),
+            );
+            if (project.type !== ProjectType.TRAINING) return canDelete;
+            return (
+                canDelete &&
+                user.data.ability.can(
+                    'manage',
+                    subject('Organization', {
+                        organizationUuid: user.data.organizationUuid,
+                    }),
+                )
+            );
+        },
+        [user.data],
+    );
+
     const filteredProjects = useMemo(() => {
         return projects.filter((project) => {
             const matchesSearch =
                 !search ||
                 project.name.toLowerCase().includes(search.toLowerCase());
 
-            const matchesType = (() => {
-                switch (activeFilter) {
-                    case ProjectTypeFilter.DEFAULT:
-                        return project.type === ProjectType.DEFAULT;
-                    case ProjectTypeFilter.PREVIEW:
-                        return project.type === ProjectType.PREVIEW;
-                    case ProjectTypeFilter.ALL:
-                        return true;
-                    default:
-                        return assertUnreachable(
-                            activeFilter,
-                            `Unknown filter: ${activeFilter}`,
-                        );
-                }
-            })();
+            const matchesType = matchesProjectTypeFilter(
+                activeFilter,
+                project.type,
+            );
 
             const matchesWarehouse =
                 selectedWarehouses.length === 0 ||
@@ -293,15 +308,7 @@ const ProjectManagementPanel: FC = () => {
                     ) : null,
                 Cell: ({ row }) => {
                     const project = row.original;
-                    const canDelete = user.data?.ability.can(
-                        'delete',
-                        subject('Project', {
-                            type: project.type,
-                            projectUuid: project.projectUuid,
-                            organizationUuid: user.data?.organizationUuid,
-                            createdByUserUuid: project.createdByUserUuid,
-                        }),
-                    );
+                    const canDelete = canDeleteProject(project);
                     return (
                         <Center>
                             <Checkbox
@@ -327,7 +334,7 @@ const ProjectManagementPanel: FC = () => {
                 size: 200,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
+                        <MantineIcon icon={IconTextCaption} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -341,13 +348,14 @@ const ProjectManagementPanel: FC = () => {
                                 {project.name}
                             </Text>
                             {isCurrentProject && (
-                                <Badge variant="light" size="xs">
-                                    Current
-                                </Badge>
+                                <Badge size="xs">Current</Badge>
                             )}
                             {project.type === ProjectType.PREVIEW && (
-                                <Badge size="xs" variant="light">
-                                    Preview
+                                <Badge size="xs">Preview</Badge>
+                            )}
+                            {project.type === ProjectType.TRAINING && (
+                                <Badge size="xs" color="grape" flex="none">
+                                    Playground
                                 </Badge>
                             )}
                         </Group>
@@ -361,7 +369,7 @@ const ProjectManagementPanel: FC = () => {
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconDatabase} color="ldGray.6" />
+                        <MantineIcon icon={IconDatabase} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -384,7 +392,7 @@ const ProjectManagementPanel: FC = () => {
                                     <MantineIcon
                                         icon={IconDatabase}
                                         size="xs"
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                 </Avatar>
                             )}
@@ -402,7 +410,7 @@ const ProjectManagementPanel: FC = () => {
                 size: 150,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconUser} color="ldGray.6" />
+                        <MantineIcon icon={IconUser} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -419,7 +427,7 @@ const ProjectManagementPanel: FC = () => {
                 size: 120,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -437,7 +445,7 @@ const ProjectManagementPanel: FC = () => {
                 size: 120,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconCalendarTime} color="ldGray.6" />
+                        <MantineIcon icon={IconCalendarTime} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -473,26 +481,16 @@ const ProjectManagementPanel: FC = () => {
                             projectUuid: project.projectUuid,
                         }),
                     );
-                    const canDelete = user.data?.ability.can(
-                        'delete',
-                        subject('Project', {
-                            type: project.type,
-                            projectUuid: project.projectUuid,
-                            organizationUuid: user.data?.organizationUuid,
-                            createdByUserUuid: project.createdByUserUuid,
-                        }),
-                    );
+                    const canDelete = canDeleteProject(project);
 
                     return (
                         <Menu
-                            withinPortal
                             position="bottom-end"
                             withArrow
                             arrowPosition="center"
-                            shadow="md"
                         >
                             <Menu.Target>
-                                <ActionIcon variant="subtle" color="gray">
+                                <ActionIcon>
                                     <MantineIcon icon={IconDots} />
                                 </ActionIcon>
                             </Menu.Target>
@@ -574,6 +572,7 @@ const ProjectManagementPanel: FC = () => {
             lastProjectUuid,
             selectedProjects,
             user.data?.ability,
+            canDeleteProject,
             user.data?.organizationUuid,
         ],
     );
@@ -595,13 +594,10 @@ const ProjectManagementPanel: FC = () => {
     const table = useContentTable({
         columns,
         data: filteredProjects,
-        enableColumnActions: false,
-        enableColumnFilters: false,
         enablePagination: false,
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        enableGlobalFilter: false,
         mantinePaperProps: {
             shadow: undefined,
             style: {
@@ -611,11 +607,6 @@ const ProjectManagementPanel: FC = () => {
                 display: 'flex',
                 flexDirection: 'column' as const,
                 overflow: 'hidden',
-            },
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
             },
         },
         mantineTableHeadCellProps: {
@@ -652,8 +643,8 @@ const ProjectManagementPanel: FC = () => {
                 p={`${theme.spacing.sm} ${theme.spacing.md}`}
                 wrap="nowrap"
             >
-                <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                    <Tooltip withinPortal label="Search by project name">
+                <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
+                    <Tooltip label="Search by project name">
                         <ContentTableSearchInput
                             placeholder="Search projects..."
                             value={search}
@@ -661,16 +652,10 @@ const ProjectManagementPanel: FC = () => {
                         />
                     </Tooltip>
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        style={{ alignSelf: 'center' }}
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
 
                     <SegmentedControl
                         size="xs"
-                        radius="md"
                         value={activeFilter}
                         onChange={handleFilterChange}
                         classNames={{
@@ -682,10 +667,7 @@ const ProjectManagementPanel: FC = () => {
                             {
                                 value: ProjectTypeFilter.ALL,
                                 label: (
-                                    <Tooltip
-                                        label="Show all projects"
-                                        withinPortal
-                                    >
+                                    <Tooltip label="Show all projects">
                                         <Box>
                                             <Text fz="xs" fw={500}>
                                                 All
@@ -697,10 +679,7 @@ const ProjectManagementPanel: FC = () => {
                             {
                                 value: ProjectTypeFilter.DEFAULT,
                                 label: (
-                                    <Tooltip
-                                        label="Show only standard projects"
-                                        withinPortal
-                                    >
+                                    <Tooltip label="Show only standard projects">
                                         <Box>
                                             <Text fz="xs" fw={500}>
                                                 Projects
@@ -712,10 +691,7 @@ const ProjectManagementPanel: FC = () => {
                             {
                                 value: ProjectTypeFilter.PREVIEW,
                                 label: (
-                                    <Tooltip
-                                        label="Show only preview projects"
-                                        withinPortal
-                                    >
+                                    <Tooltip label="Show only preview projects">
                                         <Box>
                                             <Text fz="xs" fw={500}>
                                                 Preview
@@ -724,27 +700,32 @@ const ProjectManagementPanel: FC = () => {
                                     </Tooltip>
                                 ),
                             },
+                            {
+                                value: ProjectTypeFilter.TRAINING,
+                                label: (
+                                    <Tooltip label="Show only the training playground Learn created">
+                                        <Box>
+                                            <Text fz="xs" fw={500}>
+                                                Training
+                                            </Text>
+                                        </Box>
+                                    </Tooltip>
+                                ),
+                            },
                         ]}
                     />
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        style={{ alignSelf: 'center' }}
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
 
                     {/* Warehouse filter */}
                     <Popover width={220} position="bottom-start">
                         <Popover.Target>
-                            <Tooltip withinPortal label="Filter by warehouse">
+                            <Tooltip label="Filter by warehouse">
                                 <Button
                                     h={32}
                                     c="foreground"
-                                    fw={500}
                                     fz="sm"
                                     variant="default"
-                                    radius="md"
                                     px="sm"
                                     className={
                                         selectedWarehouses.length > 0
@@ -780,7 +761,7 @@ const ProjectManagementPanel: FC = () => {
                         </Popover.Target>
                         <Popover.Dropdown p="sm">
                             <Stack gap={4}>
-                                <Text fz="xs" c="ldGray.9" fw={600}>
+                                <Text fz="xs" fw={600}>
                                     Filter by warehouse:
                                 </Text>
                                 <ScrollArea.Autosize
@@ -834,14 +815,12 @@ const ProjectManagementPanel: FC = () => {
                     {availableCreators.length > 0 && (
                         <Popover width={250} position="bottom-start">
                             <Popover.Target>
-                                <Tooltip withinPortal label="Filter by creator">
+                                <Tooltip label="Filter by creator">
                                     <Button
                                         h={32}
                                         c="foreground"
-                                        fw={500}
                                         fz="sm"
                                         variant="default"
-                                        radius="md"
                                         px="sm"
                                         className={
                                             selectedCreators.length > 0
@@ -877,7 +856,7 @@ const ProjectManagementPanel: FC = () => {
                             </Popover.Target>
                             <Popover.Dropdown p="sm">
                                 <Stack gap={4}>
-                                    <Text fz="xs" c="ldGray.9" fw={600}>
+                                    <Text fz="xs" fw={600}>
                                         Filter by creator:
                                     </Text>
                                     <ScrollArea.Autosize
@@ -933,15 +912,10 @@ const ProjectManagementPanel: FC = () => {
                     )}
                 </Group>
 
-                <Group gap="sm" wrap="nowrap" style={{ flexShrink: 0 }}>
+                <Group gap="sm" wrap="nowrap" flex="0 0 auto">
                     {hasActiveFilters && (
                         <Tooltip label="Clear all filters">
-                            <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                color="gray"
-                                onClick={resetAllFilters}
-                            >
+                            <ActionIcon size="sm" onClick={resetAllFilters}>
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>
                         </Tooltip>

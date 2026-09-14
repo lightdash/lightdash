@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ConflictError,
+    ContentReviewContentType,
     ContentType,
     CreateDashboard,
     CreateDashboardChartTile,
@@ -34,7 +35,9 @@ import {
     SessionUser,
     UnexpectedServerError,
     UpdateMultipleDashboards,
+    UserDashboardsSummary,
     type DashboardBasicDetailsWithTileTypes,
+    type DashboardConfig,
     type DashboardFilters,
     type DashboardParameters,
     type DashboardVersionSummary,
@@ -58,6 +61,8 @@ import {
     DashboardVersionTable,
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
+import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
+import { EmailTableName } from '../../database/entities/emails';
 import {
     OrganizationTable,
     OrganizationTableName,
@@ -73,8 +78,10 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import {
+    SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
     SavedChartTable,
+    SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
@@ -87,6 +94,8 @@ import {
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import Transaction = Knex.Transaction;
+import { dismissOpenContentDrafts } from '../ContentDraftModel';
+import { cancelPendingContentReviewRequests } from '../ContentReviewRequestModel';
 
 export type GetDashboardQuery = Pick<
     DashboardTable['base'],
@@ -109,7 +118,12 @@ export type GetDashboardQuery = Pick<
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
     Pick<PinnedListTable['base'], 'pinned_list_uuid'> &
-    Pick<PinnedDashboardTable['base'], 'order'>;
+    Pick<PinnedDashboardTable['base'], 'order'> & {
+        owner_user_uuid: string | null;
+        owner_first_name: string | null;
+        owner_last_name: string | null;
+        owner_email: string | null;
+    };
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
@@ -135,6 +149,43 @@ export type GetChartTileQuery = Pick<
 type DashboardModelArguments = {
     database: Knex;
     contentVerificationModel?: ContentVerificationModel;
+};
+
+type DeletedDashboardSlugOwner = {
+    dashboard_uuid: string;
+    deleted_by_user_uuid: string | null;
+};
+
+const getDashboardSlugOwner = async (
+    database: Knex,
+    projectUuid: string,
+    slug: string,
+): Promise<
+    (DeletedDashboardSlugOwner & { deleted_at: Date | null }) | undefined
+> => {
+    const columns = {
+        dashboard_uuid: `${DashboardsTableName}.dashboard_uuid`,
+        deleted_at: `${DashboardsTableName}.deleted_at`,
+        deleted_by_user_uuid: `${DashboardsTableName}.deleted_by_user_uuid`,
+    };
+    const canonicalOwner = await database(DashboardsTableName)
+        .where(`${DashboardsTableName}.project_uuid`, projectUuid)
+        .where(`${DashboardsTableName}.slug`, slug)
+        .select(columns)
+        .first();
+    if (canonicalOwner) return canonicalOwner;
+
+    return database(DashboardSlugMappingsTableName)
+        .innerJoin(
+            DashboardsTableName,
+            `${DashboardsTableName}.dashboard_uuid`,
+            `${DashboardSlugMappingsTableName}.dashboard_uuid`,
+        )
+        .where(`${DashboardSlugMappingsTableName}.project_uuid`, projectUuid)
+        .where(`${DashboardsTableName}.project_uuid`, projectUuid)
+        .where(`${DashboardSlugMappingsTableName}.slug`, slug)
+        .select(columns)
+        .first();
 };
 
 export class DashboardModel {
@@ -479,6 +530,7 @@ export class DashboardModel {
                     )
                     .select<GetDashboardDetailsQuery[]>([
                         `${DashboardsTableName}.dashboard_uuid`,
+                        `${DashboardsTableName}.slug`,
                         `${DashboardsTableName}.name`,
                         `${DashboardsTableName}.description`,
                         `${DashboardVersionsTableName}.created_at`,
@@ -561,6 +613,7 @@ export class DashboardModel {
                     name,
                     description,
                     dashboard_uuid,
+                    slug,
                     created_at,
                     project_uuid,
                     user_uuid,
@@ -585,6 +638,7 @@ export class DashboardModel {
                         name,
                         description,
                         uuid: dashboard_uuid,
+                        slug,
                         updatedAt: created_at,
                         projectUuid: project_uuid,
                         updatedByUser: {
@@ -774,11 +828,11 @@ export class DashboardModel {
         }
 
         if (slug) {
-            void query.where(`${DashboardsTableName}.slug`, slug);
+            this.applyDashboardSlugFilter(query, [slug]);
         }
 
         if (slugs) {
-            void query.whereIn(`${DashboardsTableName}.slug`, slugs);
+            this.applyDashboardSlugFilter(query, slugs);
         }
 
         const dashboards = await query;
@@ -798,6 +852,154 @@ export class DashboardModel {
                 slug: dashboardSlug,
             }),
         );
+    }
+
+    private applyDashboardSlugFilter(
+        query: Knex.QueryBuilder,
+        slugs: string[],
+    ): void {
+        void query.where((builder) => {
+            void builder
+                .whereIn(`${DashboardsTableName}.slug`, slugs)
+                .orWhereExists(
+                    this.database(DashboardSlugMappingsTableName)
+                        .select(this.database.raw('1'))
+                        .whereRaw(
+                            `${DashboardSlugMappingsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid`,
+                        )
+                        .whereRaw(
+                            `${DashboardSlugMappingsTableName}.project_uuid = ${DashboardsTableName}.project_uuid`,
+                        )
+                        .whereIn(
+                            `${DashboardSlugMappingsTableName}.slug`,
+                            slugs,
+                        ),
+                );
+        });
+    }
+
+    private applyDashboardIdentifierFilter(
+        query: Knex.QueryBuilder,
+        identifier: string,
+    ): void {
+        if (isValidUuid(identifier)) {
+            void query.where((builder) => {
+                void builder
+                    .where(`${DashboardsTableName}.dashboard_uuid`, identifier)
+                    .orWhere((slugQuery) => {
+                        this.applyDashboardSlugFilter(slugQuery, [identifier]);
+                    });
+            });
+        } else {
+            this.applyDashboardSlugFilter(query, [identifier]);
+        }
+    }
+
+    async getSlugAliasesForUuids(uuids: string[]): Promise<string[]> {
+        if (uuids.length === 0) return [];
+        const aliases = await this.database(DashboardSlugMappingsTableName)
+            .whereIn('dashboard_uuid', uuids)
+            .select('slug');
+        return aliases.map((alias) => alias.slug);
+    }
+
+    async renameSlug(
+        {
+            projectUuid,
+            dashboardUuid,
+            from,
+            to,
+        }: {
+            projectUuid: string;
+            dashboardUuid: string;
+            from: string;
+            to: string;
+        },
+        transaction?: Knex.Transaction,
+    ): Promise<void> {
+        const rename = async (trx: Knex) => {
+            const slugsToLock = [...new Set([from, to])].sort();
+            for (const slug of slugsToLock) {
+                // eslint-disable-next-line no-await-in-loop
+                await acquireProjectSlugLock(trx, projectUuid, slug);
+            }
+
+            const sourceOwner = await getDashboardSlugOwner(
+                trx,
+                projectUuid,
+                from,
+            );
+            if (
+                !sourceOwner ||
+                sourceOwner.deleted_at ||
+                sourceOwner.dashboard_uuid !== dashboardUuid
+            ) {
+                throw new NotFoundError(`Dashboard slug "${from}" not found`);
+            }
+
+            const dashboard = await trx(DashboardsTableName)
+                .where(`${DashboardsTableName}.project_uuid`, projectUuid)
+                .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+                .whereNull(`${DashboardsTableName}.deleted_at`)
+                .select(`${DashboardsTableName}.slug`)
+                .first();
+            if (!dashboard) {
+                throw new NotFoundError(`Dashboard slug "${from}" not found`);
+            }
+
+            if (dashboard.slug === to) {
+                return;
+            }
+
+            if (dashboard.slug !== from) {
+                throw new ConflictError(
+                    `Dashboard slug "${from}" is a historical alias. Use the current slug "${dashboard.slug}" as the source`,
+                );
+            }
+
+            const targetOwner = await getDashboardSlugOwner(
+                trx,
+                projectUuid,
+                to,
+            );
+            if (targetOwner && targetOwner.dashboard_uuid !== dashboardUuid) {
+                throw new ConflictError(
+                    `Dashboard slug "${to}" is already in use in this project`,
+                );
+            }
+
+            const targetIsAlias = targetOwner !== undefined;
+            if (targetIsAlias) {
+                await trx(DashboardSlugMappingsTableName)
+                    .where('project_uuid', projectUuid)
+                    .where('dashboard_uuid', dashboardUuid)
+                    .where('slug', to)
+                    .delete();
+            }
+
+            await trx(DashboardSlugMappingsTableName).insert({
+                project_uuid: projectUuid,
+                dashboard_uuid: dashboardUuid,
+                slug: dashboard.slug,
+            });
+
+            const updated = await trx(DashboardsTableName)
+                .where('project_uuid', projectUuid)
+                .where('dashboard_uuid', dashboardUuid)
+                .where('slug', dashboard.slug)
+                .whereNull('deleted_at')
+                .update({ slug: to });
+            if (updated !== 1) {
+                throw new ConflictError(
+                    `Dashboard slug "${dashboard.slug}" changed while it was being renamed`,
+                );
+            }
+        };
+
+        if (transaction) {
+            return rename(transaction);
+        }
+        return this.database.transaction(rename);
     }
 
     async getByIdOrSlug(
@@ -846,6 +1048,21 @@ export class DashboardModel {
                 `${DashboardsTableName}.deleted_by_user_uuid`,
                 'deleted_by_user.user_uuid',
             )
+            .leftJoin(
+                `${UserTableName} as owner_user`,
+                `${DashboardsTableName}.owner_user_uuid`,
+                'owner_user.user_uuid',
+            )
+            .leftJoin(
+                `${EmailTableName} as owner_email`,
+                function ownerEmailJoin() {
+                    this.on(
+                        'owner_email.user_id',
+                        '=',
+                        'owner_user.user_id',
+                    ).andOnVal('owner_email.is_primary', true);
+                },
+            )
             .select<
                 (GetDashboardQuery & {
                     space_uuid: string;
@@ -882,6 +1099,10 @@ export class DashboardModel {
                 `${DashboardsTableName}.color_palette_uuid`,
                 'deleted_by_user.first_name as deleted_by_user_first_name',
                 'deleted_by_user.last_name as deleted_by_user_last_name',
+                `${DashboardsTableName}.owner_user_uuid`,
+                'owner_user.first_name as owner_first_name',
+                'owner_user.last_name as owner_last_name',
+                'owner_email.email as owner_email',
             ])
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1);
@@ -895,24 +1116,7 @@ export class DashboardModel {
             void query.whereNull(`${DashboardsTableName}.deleted_at`);
         }
 
-        if (isValidUuid(dashboardUuidOrSlug)) {
-            void query.where((builder) => {
-                void builder
-                    .where(
-                        `${DashboardsTableName}.dashboard_uuid`,
-                        dashboardUuidOrSlug,
-                    )
-                    .orWhere(
-                        `${DashboardsTableName}.slug`,
-                        dashboardUuidOrSlug,
-                    );
-            });
-        } else {
-            void query.where(
-                `${DashboardsTableName}.slug`,
-                dashboardUuidOrSlug,
-            );
-        }
+        this.applyDashboardIdentifierFilter(query, dashboardUuidOrSlug);
 
         if (options?.projectUuid) {
             void query.where(
@@ -1311,6 +1515,14 @@ export class DashboardModel {
             slug: dashboard.slug,
             config: dashboard?.config,
             colorPaletteUuid: dashboard.color_palette_uuid ?? null,
+            owner: dashboard.owner_user_uuid
+                ? {
+                      userUuid: dashboard.owner_user_uuid,
+                      firstName: dashboard.owner_first_name ?? '',
+                      lastName: dashboard.owner_last_name ?? '',
+                      email: dashboard.owner_email,
+                  }
+                : null,
             ...(dashboard.deleted_at
                 ? {
                       deletedAt: dashboard.deleted_at,
@@ -1358,24 +1570,7 @@ export class DashboardModel {
 
         // Mirror getByIdOrSlug resolution: a value that parses as a UUID may
         // still be a slug, so match either column; otherwise match slug only.
-        if (isValidUuid(dashboardUuidOrSlug)) {
-            void query.where((builder) => {
-                void builder
-                    .where(
-                        `${DashboardsTableName}.dashboard_uuid`,
-                        dashboardUuidOrSlug,
-                    )
-                    .orWhere(
-                        `${DashboardsTableName}.slug`,
-                        dashboardUuidOrSlug,
-                    );
-            });
-        } else {
-            void query.where(
-                `${DashboardsTableName}.slug`,
-                dashboardUuidOrSlug,
-            );
-        }
+        this.applyDashboardIdentifierFilter(query, dashboardUuidOrSlug);
 
         const row = await query.first();
 
@@ -1402,6 +1597,51 @@ export class DashboardModel {
         );
     }
 
+    // An exact slug owned by a deleted dashboard is the same content as code
+    // identity, so it comes back in the requested space with the new content.
+    private static async reviveDeletedDashboard(
+        trx: Knex.Transaction,
+        deletedDashboard: DeletedDashboardSlugOwner,
+        spaceId: number,
+        dashboard: CreateDashboard & { slug: string },
+        user: Pick<SessionUser, 'userUuid'>,
+    ): Promise<string> {
+        const [revived] = await trx(DashboardsTableName)
+            .update({
+                name: dashboard.name,
+                description: dashboard.description,
+                space_id: spaceId,
+                owner_user_uuid: dashboard.ownerUserUuid ?? null,
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            })
+            .where('dashboard_uuid', deletedDashboard.dashboard_uuid)
+            .returning(['dashboard_id', 'dashboard_uuid']);
+
+        // Dashboard charts cascade-deleted with it come back too
+        if (deletedDashboard.deleted_by_user_uuid) {
+            await trx(SavedChartsTableName)
+                .update({
+                    deleted_at: null,
+                    deleted_by_user_uuid: null,
+                })
+                .where('dashboard_uuid', deletedDashboard.dashboard_uuid)
+                .whereNull('space_id')
+                .where(
+                    'deleted_by_user_uuid',
+                    deletedDashboard.deleted_by_user_uuid,
+                );
+        }
+
+        await DashboardModel.createVersion(trx, revived.dashboard_id, {
+            ...dashboard,
+            tabs: dashboard.tabs || [],
+            updatedByUser: user,
+        });
+
+        return revived.dashboard_uuid;
+    }
+
     async create(
         spaceUuid: string,
         dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
@@ -1411,23 +1651,17 @@ export class DashboardModel {
         const dashboardId = await this.database.transaction(async (trx) => {
             await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
 
+            let deletedOwner: DeletedDashboardSlugOwner | undefined;
             if (dashboard.forceSlug) {
-                const existing = await trx(DashboardsTableName)
-                    .where(`${DashboardsTableName}.project_uuid`, projectUuid)
-                    .where(`${DashboardsTableName}.slug`, dashboard.slug)
-                    .select(
-                        `${DashboardsTableName}.dashboard_uuid`,
-                        `${DashboardsTableName}.deleted_at`,
-                    )
-                    .first();
-                if (existing?.deleted_at) {
-                    throw new ConflictError(
-                        `Dashboard slug "${dashboard.slug}" is already used by a deleted dashboard`,
-                    );
-                }
-                if (existing) {
+                const existing = await getDashboardSlugOwner(
+                    trx,
+                    projectUuid,
+                    dashboard.slug,
+                );
+                if (existing && !existing.deleted_at) {
                     return existing.dashboard_uuid;
                 }
+                deletedOwner = existing;
             }
 
             const [space] = await trx(SpaceTableName)
@@ -1444,12 +1678,23 @@ export class DashboardModel {
                 throw new NotFoundError('Space not found');
             }
 
+            if (deletedOwner) {
+                return DashboardModel.reviveDeletedDashboard(
+                    trx,
+                    deletedOwner,
+                    space.space_id,
+                    dashboard,
+                    user,
+                );
+            }
+
             const [newDashboard] = await trx(DashboardsTableName)
                 .insert({
                     project_uuid: projectUuid,
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
+                    owner_user_uuid: dashboard.ownerUserUuid ?? null,
                     slug: dashboard.forceSlug
                         ? dashboard.slug
                         : await DashboardModel.generateUniqueSlug(
@@ -1471,9 +1716,97 @@ export class DashboardModel {
         return this.getByIdOrSlug(dashboardId);
     }
 
+    /**
+     * Counts non-deleted dashboards owned by a user, broken down by project.
+     * Used for the offboarding flow when deleting an organization member.
+     */
+    async getDashboardsSummaryByOwner(
+        userUuid: string,
+    ): Promise<UserDashboardsSummary> {
+        const rows = await this.database(DashboardsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${DashboardsTableName}.owner_user_uuid`, userUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .groupBy(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name`,
+            )
+            .orderBy(`${ProjectTableName}.name`, 'asc')
+            .select<
+                {
+                    project_uuid: string;
+                    project_name: string;
+                    count: string | number;
+                }[]
+            >(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                this.database.raw(
+                    `count(${DashboardsTableName}.dashboard_uuid) as count`,
+                ),
+            );
+
+        const byProject = rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            projectName: row.project_name,
+            count: Number(row.count),
+        }));
+
+        return {
+            totalCount: byProject.reduce(
+                (total, project) => total + project.count,
+                0,
+            ),
+            byProject,
+        };
+    }
+
+    /**
+     * Transfers ownership of all non-deleted dashboards owned by one user to
+     * another, scoped to the given projects. Returns the number updated.
+     */
+    async updateOwnerByUser(
+        fromUserUuid: string,
+        toUserUuid: string,
+        projectUuids: string[],
+    ): Promise<number> {
+        if (projectUuids.length === 0) return 0;
+
+        const dashboardUuids = this.database(DashboardsTableName)
+            .select(`${DashboardsTableName}.dashboard_uuid`)
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${DashboardsTableName}.owner_user_uuid`, fromUserUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereIn(`${ProjectTableName}.project_uuid`, projectUuids);
+
+        return this.database(DashboardsTableName)
+            .update({ owner_user_uuid: toUserUuid })
+            .whereIn('dashboard_uuid', dashboardUuids);
+    }
+
     async update(
         dashboardUuidOrSlug: string,
-        dashboard: DashboardUnversionedFields,
+        dashboard: Partial<DashboardUnversionedFields>,
     ): Promise<DashboardDAO> {
         const existingDashboard = await this.getByIdOrSlug(dashboardUuidOrSlug);
         let withSpaceId: { space_id: number } | Record<string, never> = {};
@@ -1500,13 +1833,23 @@ export class DashboardModel {
             dashboard.colorPaletteUuid !== undefined
                 ? { color_palette_uuid: dashboard.colorPaletteUuid }
                 : {};
+        const withOwner =
+            dashboard.ownerUserUuid !== undefined
+                ? { owner_user_uuid: dashboard.ownerUserUuid }
+                : {};
         const query = this.database(DashboardsTableName)
             .update({
                 project_uuid: existingDashboard.projectUuid,
-                name: dashboard.name,
-                description: dashboard.description,
+                // Owner-only updates omit name; leave it unchanged in that case
+                ...(dashboard.name !== undefined
+                    ? { name: dashboard.name }
+                    : {}),
+                ...(dashboard.description !== undefined
+                    ? { description: dashboard.description }
+                    : {}),
                 ...withSpaceId,
                 ...withColorPalette,
+                ...withOwner,
             })
             .where('dashboard_uuid', existingDashboard.uuid)
             .whereNull('deleted_at');
@@ -1591,10 +1934,43 @@ export class DashboardModel {
         const dashboard = await this.getByIdOrSlug(dashboardUuid, {
             deleted: 'any',
         });
+        const ownedChartUuids =
+            await this.getDashboardScopedChartUuids(dashboardUuid);
         await this.database(DashboardsTableName)
             .where('dashboard_uuid', dashboardUuid)
             .delete();
+        await this.dismissContentDrafts(dashboardUuid, ownedChartUuids);
         return dashboard;
+    }
+
+    private async getDashboardScopedChartUuids(
+        dashboardUuid: string,
+    ): Promise<string[]> {
+        const rows = await this.database(SavedChartsTableName)
+            .select('saved_query_uuid')
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNull('space_id');
+        return rows.map((row) => row.saved_query_uuid);
+    }
+
+    private async dismissContentDrafts(
+        dashboardUuid: string,
+        ownedChartUuids: string[],
+    ): Promise<void> {
+        await dismissOpenContentDrafts(this.database, 'dashboard', [
+            dashboardUuid,
+        ]);
+        await dismissOpenContentDrafts(this.database, 'chart', ownedChartUuids);
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.DASHBOARD,
+            [dashboardUuid],
+        );
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.CHART,
+            ownedChartUuids,
+        );
     }
 
     async softDelete(
@@ -1619,6 +1995,10 @@ export class DashboardModel {
             .where('dashboard_uuid', dashboardUuid)
             .whereNull('space_id')
             .whereNull('deleted_at');
+        await this.dismissContentDrafts(
+            dashboardUuid,
+            await this.getDashboardScopedChartUuids(dashboardUuid),
+        );
 
         return dashboard;
     }
@@ -1690,6 +2070,82 @@ export class DashboardModel {
         }
 
         return this.getByIdOrSlug(dashboardUuid);
+    }
+
+    /**
+     * Charts created inside this dashboard whose latest version snapshots the
+     * given custom metric — the only charts a registry edit may rewrite.
+     * Single query so the write-through doesn't fan out over every chart.
+     */
+    async getDashboardOwnedChartsUsingMetric(
+        dashboardUuid: string,
+        metricTable: string,
+        metricName: string,
+    ): Promise<{ uuid: string; name: string }[]> {
+        const { rows } = await this.database.raw<{
+            rows: { saved_query_uuid: string; name: string }[];
+        }>(
+            `
+            WITH latest_versions AS (
+                SELECT DISTINCT ON (v.saved_query_id)
+                    v.saved_query_id,
+                    v.saved_queries_version_id
+                FROM :versionsTable: v
+                JOIN :chartsTable: sq ON sq.saved_query_id = v.saved_query_id
+                WHERE sq.dashboard_uuid = :dashboardUuid
+                    AND sq.deleted_at IS NULL
+                ORDER BY v.saved_query_id, v.created_at DESC
+            )
+            SELECT sq.saved_query_uuid, sq.name
+            FROM latest_versions lv
+            JOIN :chartsTable: sq ON sq.saved_query_id = lv.saved_query_id
+            JOIN :metricsTable: m
+                ON m.saved_queries_version_id = lv.saved_queries_version_id
+            WHERE m.name = :metricName AND m.table = :metricTable
+            `,
+            {
+                versionsTable: SavedChartVersionsTableName,
+                chartsTable: SavedChartsTableName,
+                metricsTable: SavedChartAdditionalMetricTableName,
+                dashboardUuid,
+                metricName,
+                metricTable,
+            },
+        );
+        return rows.map((row) => ({
+            uuid: row.saved_query_uuid,
+            name: row.name,
+        }));
+    }
+
+    /**
+     * Rewrites the latest version's config in place. Used by the registry
+     * edit write-through, which must not duplicate tiles/filters the way a
+     * full addVersion would.
+     */
+    async updateLatestVersionConfig(
+        dashboardUuid: string,
+        config: DashboardConfig,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        const db = tx ?? this.database;
+        const latest = await db(DashboardVersionsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .select(`${DashboardVersionsTableName}.dashboard_version_id`)
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
+            .first();
+        if (!latest) {
+            throw new NotFoundError('Dashboard version not found');
+        }
+        await db(DashboardVersionsTableName)
+            .update({ config })
+            .where('dashboard_version_id', latest.dashboard_version_id);
     }
 
     /*
@@ -2079,6 +2535,21 @@ export class DashboardModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.pinned_list_uuid`,
             )
+            .leftJoin(
+                `${UserTableName} as owner_user`,
+                `${DashboardsTableName}.owner_user_uuid`,
+                'owner_user.user_uuid',
+            )
+            .leftJoin(
+                `${EmailTableName} as owner_email`,
+                function ownerEmailJoin() {
+                    this.on(
+                        'owner_email.user_id',
+                        '=',
+                        'owner_user.user_id',
+                    ).andOnVal('owner_email.is_primary', true);
+                },
+            )
             .select<
                 (GetDashboardQuery & {
                     space_uuid: string;
@@ -2107,6 +2578,10 @@ export class DashboardModel {
                 `${DashboardsTableName}.views_count`,
                 `${DashboardsTableName}.first_viewed_at`,
                 `${DashboardsTableName}.color_palette_uuid`,
+                `${DashboardsTableName}.owner_user_uuid`,
+                'owner_user.first_name as owner_first_name',
+                'owner_user.last_name as owner_last_name',
+                'owner_email.email as owner_email',
             ])
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .andWhere(
@@ -2490,6 +2965,14 @@ export class DashboardModel {
             slug: dashboard.slug,
             config: dashboard?.config,
             colorPaletteUuid: dashboard.color_palette_uuid ?? null,
+            owner: dashboard.owner_user_uuid
+                ? {
+                      userUuid: dashboard.owner_user_uuid,
+                      firstName: dashboard.owner_first_name ?? '',
+                      lastName: dashboard.owner_last_name ?? '',
+                      email: dashboard.owner_email,
+                  }
+                : null,
         };
     }
 

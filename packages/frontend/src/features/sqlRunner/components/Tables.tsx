@@ -1,50 +1,87 @@
-import { PartitionType, type PartitionColumn } from '@lightdash/common';
+import {
+    assertUnreachable,
+    PartitionType,
+    WarehouseTableType,
+    type PartitionColumn,
+} from '@lightdash/common';
 import {
     TextInput,
     Box,
     Center,
-    CopyButton,
     Group,
     Loader,
-    Stack,
-    type BoxProps,
     Text,
     UnstyledButton,
     ActionIcon,
     Highlight,
     ScrollArea,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue, useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronRight,
-    IconCopy,
+    IconCloudDataConnection,
+    IconEye,
+    IconEyeTable,
     IconSearch,
+    IconTable,
     IconX,
+    type Icon,
 } from '@tabler/icons-react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
-import Fuse from 'fuse.js';
 import isEmpty from 'lodash/isEmpty';
-import { memo, useEffect, useMemo, useState, type FC } from 'react';
+import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
-import { useTables, type TablesBySchema } from '../hooks/useTables';
+import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
+import {
+    buildTableRows,
+    catalogHasViews,
+    filterTablesBySchema,
+    type SchemaTables,
+    type TableRow,
+    type TableTypeFilter,
+} from '../utils/tableRows';
 import styles from './Tables.module.css';
 
-const limitTableResults = 100;
+const SCHEMA_ROW_HEIGHT = 34;
+const TABLE_ROW_HEIGHT = 30;
+const MIN_SEARCH_LENGTH = 3;
 
-interface TableItemProps extends BoxProps {
+interface TableItemProps {
     table: string;
     search: string;
     schema: string;
     database: string;
     isActive: boolean;
     partitionColumn: PartitionColumn | undefined;
+    tableType: WarehouseTableType | undefined;
 }
+
+// Rows cached before the type was stored fall back to the table icon
+const getTableTypeDisplay = (
+    tableType: WarehouseTableType | undefined,
+): { icon: Icon; label: string } => {
+    switch (tableType) {
+        case WarehouseTableType.VIEW:
+            return { icon: IconEye, label: 'View' };
+        case WarehouseTableType.MATERIALIZED_VIEW:
+            return { icon: IconEyeTable, label: 'Materialized view' };
+        case WarehouseTableType.EXTERNAL:
+            return { icon: IconCloudDataConnection, label: 'External table' };
+        case WarehouseTableType.TABLE:
+        case undefined:
+            return { icon: IconTable, label: 'Table' };
+        default:
+            return assertUnreachable(tableType, 'Unknown table type');
+    }
+};
 
 const partitionFilter = (partitionColumn: PartitionColumn | undefined) => {
     if (partitionColumn) {
@@ -71,9 +108,10 @@ const TableItem: FC<TableItemProps> = memo(
         database,
         isActive,
         partitionColumn,
-        ...rest
+        tableType,
     }) => {
         const { ref: hoverRef, hovered } = useHover();
+        const typeDisplay = getTableTypeDisplay(tableType);
         const { ref: truncatedRef, isTruncated } =
             useIsTruncated<HTMLDivElement>();
         const dispatch = useAppDispatch();
@@ -83,7 +121,7 @@ const TableItem: FC<TableItemProps> = memo(
             ? `${quoteChar}${database}${quoteChar}.${quoteChar}${schema}${quoteChar}.${quoteChar}${table}${quoteChar}`
             : `${quoteChar}${schema}${quoteChar}.${quoteChar}${table}${quoteChar}`;
         return (
-            <Box ref={hoverRef} pos="relative" {...rest}>
+            <Box ref={hoverRef} pos="relative">
                 <UnstyledButton
                     ff="inherit"
                     onClick={() => {
@@ -100,160 +138,171 @@ const TableItem: FC<TableItemProps> = memo(
                         dispatch(toggleActiveTable({ table, schema }));
                     }}
                     w="100%"
-                    p={4}
-                    flex={1}
                     fz="sm"
                     data-active={isActive || undefined}
                     className={styles.tableButton}
                 >
-                    <Tooltip
-                        withinPortal
-                        label={table}
-                        disabled={!isTruncated}
-                        multiline
-                        maw={300}
-                        style={{
-                            wordBreak: 'break-word',
-                        }}
-                    >
-                        {search.length > 2 ? (
-                            <Text
-                                ref={truncatedRef}
-                                truncate
-                                fz="sm"
-                                style={{ flex: 1 }}
-                            >
-                                <Highlight
-                                    component="span"
-                                    highlight={search || ''}
-                                    inherit
-                                >
+                    <Group gap="xs" wrap="nowrap">
+                        <Tooltip label={typeDisplay.label} openDelay={400}>
+                            <MantineIcon
+                                icon={typeDisplay.icon}
+                                size="sm"
+                                className={styles.tableIcon}
+                                aria-label={typeDisplay.label}
+                            />
+                        </Tooltip>
+                        <Tooltip
+                            label={table}
+                            disabled={!isTruncated}
+                            maw={300}
+                        >
+                            {search ? (
+                                <Text ref={truncatedRef} truncate fz="sm">
+                                    <Highlight
+                                        component="span"
+                                        highlight={search}
+                                        inherit
+                                    >
+                                        {table}
+                                    </Highlight>
+                                </Text>
+                            ) : (
+                                <Text ref={truncatedRef} fz="sm" truncate>
                                     {table}
-                                </Highlight>
-                            </Text>
-                        ) : (
-                            <Text fz="sm">{table}</Text>
-                        )}
-                    </Tooltip>
+                                </Text>
+                            )}
+                        </Tooltip>
+                    </Group>
                 </UnstyledButton>
 
                 <Box
-                    pos="absolute"
-                    top={4}
-                    right={8}
+                    className={styles.copyButton}
                     display={hovered ? 'block' : 'none'}
                 >
-                    <CopyButton value={`${quotedTable}`}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={copied ? 'Copied to clipboard' : 'Copy'}
-                                withArrow
-                                position="right"
-                            >
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    size={16}
-                                    onClick={copy}
-                                    bg="ldGray.1"
-                                >
-                                    <MantineIcon
-                                        icon={IconCopy}
-                                        color={copied ? 'green' : 'blue'}
-                                        onClick={copy}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
+                    <CopyActionIcon
+                        value={quotedTable}
+                        copiedLabel="Copied to clipboard"
+                        tooltipPosition="right"
+                        size="xs"
+                        bg="body"
+                    />
                 </Box>
             </Box>
         );
     },
 );
 
-const Table: FC<{
-    schema: NonNullable<TablesBySchema>[number]['schema'];
-    tables: NonNullable<TablesBySchema>[number]['tables'];
+const SchemaItem: FC<{
+    schema: string;
+    isExpanded: boolean;
+    count: number | null;
+    onToggle: (schema: string, isExpanded: boolean) => void;
+}> = memo(({ schema, isExpanded, count, onToggle }) => (
+    <UnstyledButton
+        onClick={() => onToggle(schema, isExpanded)}
+        className={styles.schemaButton}
+        ff="inherit"
+    >
+        <Group wrap="nowrap" gap="xs">
+            <MantineIcon
+                icon={isExpanded ? IconChevronDown : IconChevronRight}
+                size="sm"
+                className={styles.chevron}
+            />
+            <Text fz="sm" fw={500} truncate>
+                {schema}
+            </Text>
+            {count !== null && (
+                <Text fz="xs" c="dimmed" ml="auto" pr="xs">
+                    {count}
+                </Text>
+            )}
+        </Group>
+    </UnstyledButton>
+));
+
+// Manual expand/collapse choices, keyed by the search and type filter they were made under
+type SchemaExpansion = {
+    key: string;
+    overrides: Record<string, boolean>;
+};
+const NO_OVERRIDES: Record<string, boolean> = {};
+
+const TYPE_FILTER_TOGGLES: {
+    filter: TableTypeFilter;
+    icon: Icon;
+    label: string;
+}[] = [
+    { filter: 'tables', icon: IconTable, label: 'Only tables' },
+    { filter: 'views', icon: IconEye, label: 'Only views' },
+];
+
+// One toggle active at a time; clicking the active one shows everything again
+const TableTypeToggle: FC<{
+    value: TableTypeFilter | null;
+    onChange: (value: TableTypeFilter | null) => void;
+}> = ({ value, onChange }) => (
+    <ActionIcon.Group>
+        {TYPE_FILTER_TOGGLES.map(({ filter, icon, label }) => {
+            const isActive = value === filter;
+            return (
+                <Tooltip
+                    key={filter}
+                    label={isActive ? 'Show all' : label}
+                    openDelay={400}
+                >
+                    <ActionIcon
+                        variant={isActive ? 'light' : 'default'}
+                        size="input-sm"
+                        aria-label={label}
+                        aria-pressed={isActive}
+                        onClick={() => onChange(isActive ? null : filter)}
+                    >
+                        <MantineIcon icon={icon} />
+                    </ActionIcon>
+                </Tooltip>
+            );
+        })}
+    </ActionIcon.Group>
+);
+
+const VirtualRow: FC<{
+    row: TableRow;
     search: string;
+    showCounts: boolean;
+    database: string;
     activeTable: string | undefined;
     activeSchema: string | undefined;
-    database: string;
-}> = ({ schema, tables, search, activeTable, activeSchema, database }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-
-    const hasMatchingTable = useMemo(() => {
-        if (!search || search.trim().length <= 2) return false;
-        return Object.keys(tables).some(
-            (table) =>
-                table.toLowerCase().includes(search.toLowerCase()) ||
-                schema.toString().toLowerCase().includes(search.toLowerCase()),
+    onToggleSchema: (schema: string, isExpanded: boolean) => void;
+}> = ({
+    row,
+    search,
+    showCounts,
+    database,
+    activeTable,
+    activeSchema,
+    onToggleSchema,
+}) => {
+    if (row.type === 'schema') {
+        return (
+            <SchemaItem
+                schema={row.schema}
+                isExpanded={row.isExpanded}
+                count={showCounts ? row.tableCount : null}
+                onToggle={onToggleSchema}
+            />
         );
-    }, [tables, schema, search]);
-
-    useEffect(() => {
-        const isTableSelected =
-            activeTable &&
-            Object.keys(tables).includes(activeTable) &&
-            schema === activeSchema;
-        if (hasMatchingTable || isTableSelected) {
-            setIsExpanded(true);
-        } else {
-            // Autoclose when search is empty and no matching table is selected
-            // to avoid rendering all tables after a search
-
-            // TODO fix this edge case
-            // when this happens, there is still a render loop that is rendering all tables without search or filtering
-            // which is making the UI unresponsive for a short while until this state is updated
-            setIsExpanded(false);
-        }
-    }, [activeTable, tables, hasMatchingTable, activeSchema, schema]);
+    }
     return (
-        <Stack gap={0}>
-            <UnstyledButton
-                onClick={() => setIsExpanded(!isExpanded)}
-                className={styles.schemaButton}
-                ff="inherit"
-            >
-                <Group wrap="nowrap" gap="two">
-                    <Text p={6} fz="sm" c="ldGray.8">
-                        {schema}
-                    </Text>
-
-                    <MantineIcon
-                        icon={isExpanded ? IconChevronDown : IconChevronRight}
-                    />
-                </Group>
-            </UnstyledButton>
-            {isExpanded && (
-                <>
-                    {Object.keys(tables)
-                        .slice(0, limitTableResults)
-                        .map((table) => (
-                            <TableItem
-                                key={table}
-                                search={search}
-                                isActive={
-                                    activeTable === table &&
-                                    schema === activeSchema
-                                }
-                                table={table}
-                                schema={`${schema}`}
-                                database={database}
-                                partitionColumn={tables[table].partitionColumn}
-                                ml="sm"
-                            />
-                        ))}
-                    {Object.keys(tables).length > limitTableResults && (
-                        <Text ml="md" c="ldGray.5">
-                            Filtering first {limitTableResults} of{' '}
-                            {Object.keys(tables).length} tables, search to see
-                            more
-                        </Text>
-                    )}
-                </>
-            )}
-        </Stack>
+        <TableItem
+            table={row.table}
+            schema={row.schema}
+            database={database}
+            search={search}
+            isActive={row.table === activeTable && row.schema === activeSchema}
+            partitionColumn={row.partitionColumn}
+            tableType={row.tableType}
+        />
     );
 };
 
@@ -266,89 +315,107 @@ export const Tables: FC = () => {
 
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 500);
-    const isValidSearch = Boolean(
-        debouncedSearch && debouncedSearch.trim().length > 2,
+    const effectiveSearch =
+        debouncedSearch.trim().length >= MIN_SEARCH_LENGTH
+            ? debouncedSearch
+            : '';
+
+    const [typeFilter, setTypeFilter] = useState<TableTypeFilter | null>(null);
+    const isFiltering = effectiveSearch !== '' || typeFilter !== null;
+    const filterKey = `${typeFilter ?? 'all'}:${effectiveSearch}`;
+
+    const [expansion, setExpansion] = useState<SchemaExpansion>({
+        key: filterKey,
+        overrides: {},
+    });
+    const overrides = useMemo(
+        () =>
+            expansion.key === filterKey ? expansion.overrides : NO_OVERRIDES,
+        [expansion, filterKey],
+    );
+    const toggleSchema = useCallback(
+        (schema: string, isExpanded: boolean) => {
+            setExpansion((previous) => ({
+                key: filterKey,
+                overrides: {
+                    ...(previous.key === filterKey ? previous.overrides : {}),
+                    [schema]: !isExpanded,
+                },
+            }));
+        },
+        [filterKey],
     );
 
-    const { data, isLoading, isSuccess } = useTables({
-        projectUuid,
-    });
+    const { data, isLoading, isSuccess } = useTables({ projectUuid });
 
-    const transformedData:
-        | { database: string; tablesBySchema: TablesBySchema }
-        | undefined = useMemo(() => {
+    const catalog = useMemo<
+        { database: string; tablesBySchema: SchemaTables[] } | undefined
+    >(() => {
         if (!data || isEmpty(data)) return undefined;
         const [database] = Object.keys(data);
         if (database === undefined) return undefined;
-
         const tablesBySchema = Object.entries(data).flatMap(([, schemas]) =>
             Object.entries(schemas).map(([schema, tables]) => ({
                 schema,
                 tables,
             })),
         );
-        return {
-            database,
-            tablesBySchema,
-        };
+        return { database, tablesBySchema };
     }, [data]);
 
-    const filteredTablesBySchema:
-        | { database: string; tablesBySchema: TablesBySchema }
-        | undefined = useMemo(() => {
-        if (
-            !transformedData?.tablesBySchema ||
-            !debouncedSearch ||
-            !isValidSearch
-        )
-            return transformedData;
+    const hasViews = useMemo(
+        () => (catalog ? catalogHasViews(catalog.tablesBySchema) : false),
+        [catalog],
+    );
 
-        const searchResults: TablesBySchema = transformedData.tablesBySchema
-            .map((schemaData) => {
-                const { schema, tables } = schemaData;
-                const tableNames = Object.keys(tables);
+    const rows = useMemo<TableRow[]>(() => {
+        if (!catalog) return [];
+        const tablesBySchema = isFiltering
+            ? filterTablesBySchema(
+                  catalog.tablesBySchema,
+                  effectiveSearch,
+                  typeFilter,
+              )
+            : catalog.tablesBySchema;
+        // Filtering expands every matching schema; otherwise only the active one
+        return buildTableRows(
+            tablesBySchema,
+            (schema) =>
+                overrides[schema] ?? (isFiltering || schema === activeSchema),
+        );
+    }, [
+        catalog,
+        isFiltering,
+        effectiveSearch,
+        typeFilter,
+        overrides,
+        activeSchema,
+    ]);
 
-                const fuse = new Fuse(tableNames, {
-                    threshold: 0.3,
-                    isCaseSensitive: false,
-                    ignoreLocation: true,
-                });
-
-                const fuseResult = fuse
-                    .search(debouncedSearch)
-                    .map((res) => res.item);
-
-                return {
-                    schema,
-                    tables: fuseResult.reduce<typeof tables>(
-                        (acc, tableName) => {
-                            acc[tableName] = tables[tableName];
-                            return acc;
-                        },
-                        {},
-                    ),
-                };
-            })
-            .filter((schemaData) => Object.keys(schemaData.tables).length > 0);
-        if (searchResults.length === 0) {
-            return undefined;
-        } else
-            return {
-                database: transformedData.database,
-                tablesBySchema: searchResults,
-            };
-    }, [isValidSearch, debouncedSearch, transformedData]);
+    const viewportRef = useRef<HTMLDivElement>(null);
+    const virtualizer = useVirtualizer({
+        count: rows.length,
+        getScrollElement: () => viewportRef.current,
+        estimateSize: (index) =>
+            rows[index]?.type === 'schema'
+                ? SCHEMA_ROW_HEIGHT
+                : TABLE_ROW_HEIGHT,
+        getItemKey: (index) => rows[index]?.id ?? index,
+        overscan: 10,
+    });
 
     return (
         <>
-            <Box px="sm">
+            <Group gap="xs" wrap="nowrap">
                 <Tooltip
-                    opened={search.length > 0 && search.length < 3}
-                    label="Enter at least 3 characters to search"
-                    withinPortal
+                    opened={
+                        search.length > 0 && search.length < MIN_SEARCH_LENGTH
+                    }
+                    label={`Enter at least ${MIN_SEARCH_LENGTH} characters to search`}
                 >
                     <TextInput
-                        size="xs"
+                        size="sm"
+                        flex={1}
                         disabled={!data && !debouncedSearch}
                         leftSection={
                             isLoading ? (
@@ -365,8 +432,6 @@ export const Tables: FC = () => {
                                     onMouseDown={(event) =>
                                         event.preventDefault()
                                     }
-                                    variant="subtle"
-                                    color="gray"
                                     size="xs"
                                     onClick={() => setSearch('')}
                                 >
@@ -377,45 +442,68 @@ export const Tables: FC = () => {
                         placeholder="Search tables"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        styles={(theme) => ({
-                            input: {
-                                borderRadius: theme.radius.md,
-                                border: `1px solid ${theme.colors.ldGray[3]}`,
-                            },
-                        })}
                     />
                 </Tooltip>
-            </Box>
+                {hasViews && (
+                    <TableTypeToggle
+                        value={typeFilter}
+                        onChange={setTypeFilter}
+                    />
+                )}
+            </Group>
 
             <ScrollArea
+                viewportRef={viewportRef}
                 offsetScrollbars
                 scrollbars="y"
                 classNames={{ content: scrollAreaClasses.verticalContent }}
-                pl="sm"
-                style={{ flex: 1 }}
+                flex={1}
                 type="auto"
-                scrollbarSize={8}
             >
-                {isSuccess &&
-                    filteredTablesBySchema &&
-                    filteredTablesBySchema.tablesBySchema?.map(
-                        ({ schema, tables }) => (
-                            <Table
-                                key={schema}
-                                schema={schema}
-                                tables={tables}
-                                search={isValidSearch ? debouncedSearch : ''}
-                                activeTable={activeTable}
-                                activeSchema={activeSchema}
-                                database={filteredTablesBySchema?.database}
-                            />
-                        ),
-                    )}
+                {catalog && (
+                    <Box
+                        style={{
+                            height: virtualizer.getTotalSize(),
+                            position: 'relative',
+                        }}
+                    >
+                        {virtualizer.getVirtualItems().map((virtualRow) => {
+                            const row = rows[virtualRow.index];
+                            if (!row) return null;
+                            return (
+                                <Box
+                                    key={virtualRow.key}
+                                    data-index={virtualRow.index}
+                                    ref={virtualizer.measureElement}
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        transform: `translateY(${virtualRow.start}px)`,
+                                    }}
+                                >
+                                    <VirtualRow
+                                        row={row}
+                                        search={effectiveSearch}
+                                        showCounts={typeFilter !== null}
+                                        database={catalog.database}
+                                        activeTable={activeTable}
+                                        activeSchema={activeSchema}
+                                        onToggleSchema={toggleSchema}
+                                    />
+                                </Box>
+                            );
+                        })}
+                    </Box>
+                )}
             </ScrollArea>
 
-            {isSuccess && !data && (
+            {isSuccess && rows.length === 0 && (
                 <Center p="sm">
-                    <Text c="ldGray.4">No results found</Text>
+                    <Text c="dimmed" fz="sm">
+                        No results found
+                    </Text>
                 </Center>
             )}
         </>

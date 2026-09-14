@@ -1,6 +1,7 @@
 import momentTz from 'moment-timezone';
 import moment from 'moment/moment';
 import { SupportedDbtAdapter } from '../types/dbt';
+import { CompileError } from '../types/errors';
 import { DimensionType, type TimestampDomain } from '../types/field';
 import { FilterOperator, UnitOfTime, type FilterRule } from '../types/filter';
 import { TimeFrames } from '../types/timeFrames';
@@ -1627,7 +1628,7 @@ describe('Filter SQL', () => {
         ).toBe('1=1');
     });
 
-    test('should allow nested array filter values without blocking SQL rendering', () => {
+    test('should reject nested array filter values before rendering SQL', () => {
         const nestedValue = ["coupon') OR TRUE --"];
         const filterRule: FilterRule = {
             id: 'filter-rule',
@@ -1637,8 +1638,37 @@ describe('Filter SQL', () => {
             caseSensitive: true,
         };
 
+        const render = () =>
+            renderFilterRuleSql(
+                filterRule,
+                DimensionType.STRING,
+                stringFilterDimension,
+                "'",
+                (value) => value.replaceAll("'", "''"),
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+                'UTC',
+                true,
+            );
+
+        expect(render).toThrowError(CompileError);
+        expect(render).toThrowError(
+            expect.objectContaining({
+                statusCode: 400,
+                message: 'Arrays are not permitted as filter values',
+            }),
+        );
+    });
+
+    test('should preserve object filter values for compatibility', () => {
         const sql = renderFilterRuleSql(
-            filterRule,
+            {
+                id: 'filter-rule',
+                target: { fieldId: 'payments_payment_method' },
+                operator: FilterOperator.EQUALS,
+                values: [{ value: 'coupon' }],
+                caseSensitive: true,
+            },
             DimensionType.STRING,
             stringFilterDimension,
             "'",
@@ -1649,7 +1679,7 @@ describe('Filter SQL', () => {
             true,
         );
 
-        expect(sql).toContain("coupon') OR TRUE --");
+        expect(sql).toContain('[object Object]');
     });
 
     test('should allow date object filter values before rendering date SQL', () => {

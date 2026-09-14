@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+NODE_PIN="$(tr -d '[:space:]' < .nvmrc)"
+if [[ "$NODE_PIN" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    NODE_VERSION="${NODE_PIN}.0"
+else
+    NODE_VERSION="$NODE_PIN"
+fi
+NODE_ARCH="$(uname -m)"
+case "$NODE_ARCH" in
+    x86_64) NODE_ARCH=x64 ;;
+    aarch64|arm64) NODE_ARCH=arm64 ;;
+    *) echo "Unsupported architecture: $NODE_ARCH" >&2; exit 1 ;;
+esac
+
+NODE_ROOT="$HOME/.local/share/lightdash/node-v${NODE_VERSION}"
+NODE_CURRENT="$HOME/.local/share/lightdash/node-current"
+
+echo "==> Installing system build dependencies"
+sudo apt-get update -qq
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+    build-essential \
+    ca-certificates \
+    curl \
+    git \
+    git-secrets \
+    python3.11-venv \
+    xz-utils
+
+if ! command -v docker >/dev/null 2>&1; then
+    echo "==> Installing Docker"
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/debian/gpg \
+        -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+        | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+        docker-ce \
+        docker-ce-cli \
+        containerd.io \
+        docker-buildx-plugin \
+        docker-compose-plugin
+else
+    echo "==> Docker is already installed"
+fi
+
+if [[ ! -x "$NODE_ROOT/bin/node" ]]; then
+    echo "==> Installing Node.js ${NODE_VERSION}"
+    archive="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "$tmp_dir"' EXIT
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${archive}" -o "$tmp_dir/$archive"
+    mkdir -p "$NODE_ROOT"
+    tar -xJf "$tmp_dir/$archive" --strip-components=1 -C "$NODE_ROOT"
+    rm -rf "$tmp_dir"
+    trap - EXIT
+else
+    echo "==> Node.js ${NODE_VERSION} is already installed"
+fi
+
+ln -sfn "$NODE_ROOT" "$NODE_CURRENT"
+export PATH="$NODE_CURRENT/bin:$PATH"
+PNPM_HOME="$HOME/.local/share/lightdash/pnpm"
+export PNPM_HOME
+export PATH="$PNPM_HOME/bin:$PATH"
+
+profile_marker="# Lightdash orb toolchain"
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+    cat >> "$HOME/.bash_profile" <<EOF
+
+$profile_marker
+case "\${PWD:-}" in
+    "$REPO_ROOT"|"$REPO_ROOT"/*)
+        case ":\$PATH:" in
+            *":$NODE_CURRENT/bin:"*) ;;
+            *) export PATH="$NODE_CURRENT/bin:\$PATH" ;;
+        esac
+        ;;
+esac
+EOF
+fi
+
+pnpm_profile_marker="# Lightdash orb pnpm"
+if ! grep -Fqx "$pnpm_profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+    cat >> "$HOME/.bash_profile" <<EOF
+
+$pnpm_profile_marker
+export PNPM_HOME="$PNPM_HOME"
+case ":\$PATH:" in
+    *":$PNPM_HOME/bin:"*) ;;
+    *) export PATH="$PNPM_HOME/bin:\$PATH" ;;
+esac
+EOF
+fi
+
+if [[ -n "${LIGHTDASH_ENV_FILE:-}" && ! -f .env.development.local ]]; then
+    echo "==> Restoring .env.development.local from the Amp project secret"
+    printf '%s' "$LIGHTDASH_ENV_FILE" > .env.development.local
+    chmod 600 .env.development.local
+fi
+
+PNPM_VERSION="$(node -p "require('./package.json').packageManager.match(/^pnpm@([^+]+)/)[1]")"
+echo "==> Installing the repository's pinned pnpm ${PNPM_VERSION}"
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION="$PNPM_VERSION" sh -
+node --version
+pnpm --version
+
+echo "==> Installing JavaScript dependencies"
+pnpm install --frozen-lockfile --prefer-offline
+
+if amp orb service status docker >/dev/null 2>&1 \
+    && amp orb service status lightdash >/dev/null 2>&1; then
+    echo "==> Development stack is already running"
+else
+    echo "==> Starting the development stack asynchronously"
+    set +e
+    timeout 5s amp orb service ensure
+    ensure_status=$?
+    set -e
+    if [[ "$ensure_status" -eq 124 ]]; then
+        echo "Development stack is still starting; inspect it with: amp orb service status lightdash"
+    elif [[ "$ensure_status" -ne 0 ]]; then
+        echo "Failed to start the development stack" >&2
+        exit "$ensure_status"
+    fi
+fi
+
+echo "==> Orb setup complete"

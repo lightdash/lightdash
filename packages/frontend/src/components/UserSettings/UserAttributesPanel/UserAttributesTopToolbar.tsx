@@ -3,7 +3,7 @@ import {
     TextInput,
     useMantineTheme,
     type GroupProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

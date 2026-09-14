@@ -1,11 +1,14 @@
 import {
     AdditionalMetric,
+    ApiCustomDimensionWriteBackPreview,
     ApiErrorPayload,
     ApiGitFileContent,
     assertRegisteredAccount,
     CustomDimension,
+    FeatureFlags,
     ForbiddenError,
     PullRequestCreated,
+    UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -25,7 +28,6 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
-import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -78,6 +80,42 @@ export class GitIntegrationController extends BaseController {
                         type: 'customMetrics',
                         fields: body.customMetrics,
                     },
+                ),
+        };
+    }
+
+    /**
+     * Preview custom dimensions using the project's dbt model and warehouse dialect
+     * @summary Preview custom dimension YAML
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/pull-requests/custom-dimensions/preview')
+    @OperationId('PreviewPullRequestForCustomDimensions')
+    async PreviewPullRequestForCustomDimensions(
+        @Path() projectUuid: UUID,
+        @Body()
+        body: {
+            customDimensions: CustomDimension[];
+            quoteChar?: `"` | `'`;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiCustomDimensionWriteBackPreview> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .previewCustomDimensions(
+                    req.account,
+                    projectUuid,
+                    body.customDimensions,
+                    body.quoteChar || '"',
                 ),
         };
     }
@@ -173,7 +211,11 @@ export class GitIntegrationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiGitFileContent }> {
         assertRegisteredAccount(req.account);
-        if (!lightdashConfig.editYamlInUi.enabled) {
+        const flag = await this.services.getFeatureFlagService().get({
+            user: toSessionUser(req.account),
+            featureFlagId: FeatureFlags.EditYamlInUi,
+        });
+        if (!flag.enabled) {
             throw new ForbiddenError('Edit YAML in UI feature is not enabled');
         }
         this.setStatus(200);
@@ -207,7 +249,11 @@ export class GitIntegrationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: { filePath: string } }> {
         assertRegisteredAccount(req.account);
-        if (!lightdashConfig.editYamlInUi.enabled) {
+        const flag = await this.services.getFeatureFlagService().get({
+            user: toSessionUser(req.account),
+            featureFlagId: FeatureFlags.EditYamlInUi,
+        });
+        if (!flag.enabled) {
             throw new ForbiddenError('Edit YAML in UI feature is not enabled');
         }
         this.setStatus(200);
@@ -255,7 +301,11 @@ export class GitIntegrationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
         assertRegisteredAccount(req.account);
-        if (!lightdashConfig.editYamlInUi.enabled) {
+        const flag = await this.services.getFeatureFlagService().get({
+            user: toSessionUser(req.account),
+            featureFlagId: FeatureFlags.EditYamlInUi,
+        });
+        if (!flag.enabled) {
             throw new ForbiddenError('Edit YAML in UI feature is not enabled');
         }
         this.setStatus(200);

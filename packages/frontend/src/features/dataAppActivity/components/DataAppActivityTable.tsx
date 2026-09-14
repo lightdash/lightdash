@@ -1,4 +1,5 @@
 import {
+    DATA_APP_VIZ_TEMPLATE,
     getAppDisplayName,
     type DataAppActivityEvent,
     type DataAppGenerationUsage,
@@ -11,16 +12,10 @@ import {
     Text,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
+import { IconAppWindow, IconPuzzle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import {
     ContentTable,
@@ -28,6 +23,8 @@ import {
     type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import ErrorState from '../../../components/common/ErrorState';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../../hooks/useIsTruncated/index';
 import { useInfiniteDataAppActivity } from '../hooks/useDataAppActivity';
 import { useDataAppActivityFilters } from '../hooks/useDataAppActivityFilters';
@@ -69,22 +66,21 @@ const TokensCell: FC<{ usage: DataAppGenerationUsage | null }> = ({
     const total = usage.inputTokens + usage.outputTokens + cached;
     return (
         <Tooltip
-            withinPortal
             label={
                 <Stack gap={2}>
                     <Text fz="xs">{`Input: ${exactTokens.format(usage.inputTokens)}`}</Text>
                     <Text fz="xs">{`Output: ${exactTokens.format(usage.outputTokens)}`}</Text>
                     <Text fz="xs">{`Cached: ${exactTokens.format(cached)}`}</Text>
                     <Text fz="xs">{`${usage.numTurns} turns`}</Text>
-                    <Text fz="xs">{`Estimated cost: ${formatCost(
-                        usage.costUsd,
-                    )}`}</Text>
+                    <Text fz="xs">
+                        {usage.costUsd === null
+                            ? 'Estimated cost: Not available'
+                            : `Estimated cost: ${formatCost(usage.costUsd)}`}
+                    </Text>
                 </Stack>
             }
         >
-            <Text fz="sm" c="ldGray.9">
-                {compactTokens.format(total)}
-            </Text>
+            <Text fz="sm">{compactTokens.format(total)}</Text>
         </Tooltip>
     );
 };
@@ -94,20 +90,14 @@ const PromptCell: FC<{ prompt: string }> = ({ prompt }) => {
     const text = prompt.trim();
     if (text === '') {
         return (
-            <Text fz="sm" fs="italic" c="ldGray.6">
+            <Text fz="sm" fs="italic" c="dimmed">
                 No prompt
             </Text>
         );
     }
     return (
-        <Tooltip
-            withinPortal
-            label={text}
-            disabled={!isTruncated}
-            multiline
-            maw={400}
-        >
-            <Text ref={ref} fz="sm" c="ldGray.9" truncate>
+        <Tooltip label={text} disabled={!isTruncated} maw={400}>
+            <Text ref={ref} fz="sm" truncate>
                 {text}
             </Text>
         </Tooltip>
@@ -138,27 +128,11 @@ export const DataAppActivityTable: FC = () => {
     const totalResults =
         data?.pages[data.pages.length - 1]?.pagination?.totalResults ?? 0;
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
-
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (!containerRefElement) return;
-            const { scrollHeight, scrollTop, clientHeight } =
-                containerRefElement;
-            if (
-                scrollHeight - scrollTop - clientHeight < 200 &&
-                !isFetching &&
-                hasNextPage
-            ) {
-                void fetchNextPage();
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const columns = useMemo<ContentTableColumnDef<DataAppActivityEvent>[]>(
         () => [
@@ -170,12 +144,11 @@ export const DataAppActivityTable: FC = () => {
                 enableSorting: false,
                 Cell: ({ row }) => (
                     <Tooltip
-                        withinPortal
                         label={dayjs(row.original.createdAt).format(
                             'YYYY-MM-DD HH:mm:ss',
                         )}
                     >
-                        <Text fz="sm" c="ldGray.9" truncate>
+                        <Text fz="sm" truncate>
                             {dayjs(row.original.createdAt).format(
                                 'MMM D, HH:mm',
                             )}
@@ -194,11 +167,11 @@ export const DataAppActivityTable: FC = () => {
                 enableSorting: false,
                 Cell: ({ row }) =>
                     row.original.user ? (
-                        <Text fz="sm" c="ldGray.9" truncate>
+                        <Text fz="sm" truncate>
                             {`${row.original.user.firstName} ${row.original.user.lastName}`}
                         </Text>
                     ) : (
-                        <Text fz="sm" fs="italic" c="ldGray.6">
+                        <Text fz="sm" fs="italic" c="dimmed">
                             Deleted user
                         </Text>
                     ),
@@ -214,17 +187,38 @@ export const DataAppActivityTable: FC = () => {
                         row.original.appName,
                         row.original.appUuid,
                     );
+                    const isChartType =
+                        row.original.template === DATA_APP_VIZ_TEMPLATE;
                     return (
                         <Group gap="xs" wrap="nowrap">
+                            <Tooltip
+                                label={
+                                    isChartType
+                                        ? 'Custom chart type'
+                                        : 'Data app'
+                                }
+                            >
+                                <MantineIcon
+                                    icon={
+                                        isChartType ? IconPuzzle : IconAppWindow
+                                    }
+                                    color="dimmed"
+                                    style={{ flex: '0 0 auto' }}
+                                />
+                            </Tooltip>
                             {row.original.appDeleted ? (
                                 // Deleted apps have nothing to open.
-                                <Text fz="sm" c="ldGray.9" truncate>
+                                <Text fz="sm" truncate>
                                     {displayName}
                                 </Text>
                             ) : (
                                 <Anchor
                                     component={Link}
-                                    to={`/projects/${row.original.projectUuid}/apps/${row.original.appUuid}`}
+                                    to={
+                                        isChartType
+                                            ? `/projects/${row.original.projectUuid}/chart-types/${row.original.appUuid}`
+                                            : `/projects/${row.original.projectUuid}/apps/${row.original.appUuid}`
+                                    }
                                     fz="sm"
                                     c="inherit"
                                     underline="hover"
@@ -234,12 +228,7 @@ export const DataAppActivityTable: FC = () => {
                                 </Anchor>
                             )}
                             {row.original.appDeleted && (
-                                <Badge
-                                    size="xs"
-                                    variant="light"
-                                    color="gray"
-                                    flex="0 0 auto"
-                                >
+                                <Badge size="xs" flex="0 0 auto">
                                     Deleted
                                 </Badge>
                             )}
@@ -254,7 +243,7 @@ export const DataAppActivityTable: FC = () => {
                 size: 100,
                 enableSorting: false,
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.9" truncate>
+                    <Text fz="sm" truncate>
                         {row.original.projectName}
                     </Text>
                 ),
@@ -267,32 +256,25 @@ export const DataAppActivityTable: FC = () => {
                 enableSorting: false,
                 Cell: ({ row }) => (
                     <Group gap="xs" wrap="nowrap">
-                        <Text fz="sm" c="ldGray.9" truncate>
+                        <Text fz="sm" truncate>
                             {row.original.version === 1
                                 ? 'Created'
                                 : 'Iteration'}
                         </Text>
-                        <Text
-                            fz="xs"
-                            c="ldGray.6"
-                            ff="monospace"
-                            flex="0 0 auto"
-                        >
+                        <Text fz="xs" c="dimmed" ff="monospace" flex="0 0 auto">
                             {`v${row.original.version}`}
                         </Text>
                     </Group>
                 ),
             },
             {
-                id: 'claudeModel',
-                accessorFn: (row) => row.claudeModel,
+                id: 'codingAgentModel',
+                accessorFn: (row) => row.codingAgentModel,
                 header: 'Model',
-                size: 78,
+                size: 140,
                 enableSorting: false,
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.9">
-                        {row.original.claudeModel}
-                    </Text>
+                    <Text fz="sm">{row.original.codingAgentModel}</Text>
                 ),
             },
             {
@@ -304,7 +286,6 @@ export const DataAppActivityTable: FC = () => {
                 Cell: ({ row }) => (
                     <Badge
                         size="sm"
-                        variant="light"
                         color={STATUS_COLORS[row.original.status] ?? 'blue'}
                     >
                         {row.original.status}
@@ -338,15 +319,8 @@ export const DataAppActivityTable: FC = () => {
         columns,
         data: flatData,
         enableColumnResizing: true,
-        enableRowNumbers: false,
         enableRowVirtualization: true,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
         enableSorting: false,
         enableTopToolbar: true,
         getRowId: (row) => `${row.appUuid}:${row.version}`,
@@ -374,16 +348,6 @@ export const DataAppActivityTable: FC = () => {
             hasActiveFilters: filters.hasActiveFilters,
             onClearFilters: filters.resetFilters,
         },
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
@@ -392,8 +356,7 @@ export const DataAppActivityTable: FC = () => {
                 display: 'flex',
                 flexDirection: 'column',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
@@ -410,10 +373,12 @@ export const DataAppActivityTable: FC = () => {
                 selectedUserUuids={filters.selectedUserUuids}
                 selectedModels={filters.selectedModels}
                 selectedPeriod={filters.selectedPeriod}
+                selectedKind={filters.selectedKind}
                 setSelectedProjectUuids={filters.setSelectedProjectUuids}
                 setSelectedUserUuids={filters.setSelectedUserUuids}
                 setSelectedModels={filters.setSelectedModels}
                 setSelectedPeriod={filters.setSelectedPeriod}
+                setSelectedKind={filters.setSelectedKind}
                 hasActiveFilters={filters.hasActiveFilters}
                 resetFilters={filters.resetFilters}
                 totalResults={totalResults}

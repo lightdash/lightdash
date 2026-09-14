@@ -1,4 +1,7 @@
-import { DATA_APP_CLAUDE_MODELS } from '@lightdash/common';
+import {
+    DATA_APP_CLAUDE_MODELS,
+    DATA_APP_CODEX_MODELS,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -7,7 +10,7 @@ import {
     SegmentedControl,
     Text,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconBox,
     IconSparkles,
@@ -22,7 +25,9 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjects } from '../../../hooks/useProjects';
 import {
+    DATA_APP_ACTIVITY_KINDS,
     DATA_APP_ACTIVITY_PERIODS,
+    type DataAppActivityKind,
     type useDataAppActivityFilters,
 } from '../hooks/useDataAppActivityFilters';
 
@@ -36,16 +41,24 @@ const PERIOD_LABELS: Record<
     '90d': '90 days',
 };
 
+const KIND_LABELS: Record<DataAppActivityKind, string> = {
+    all: 'All builds',
+    apps: 'Apps',
+    chartTypes: 'Chart types',
+};
+
 type DataAppActivityTopToolbarProps = Pick<
     ReturnType<typeof useDataAppActivityFilters>,
     | 'selectedProjectUuids'
     | 'selectedUserUuids'
     | 'selectedModels'
     | 'selectedPeriod'
+    | 'selectedKind'
     | 'setSelectedProjectUuids'
     | 'setSelectedUserUuids'
     | 'setSelectedModels'
     | 'setSelectedPeriod'
+    | 'setSelectedKind'
     | 'hasActiveFilters'
     | 'resetFilters'
 > & {
@@ -60,10 +73,12 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
     selectedUserUuids,
     selectedModels,
     selectedPeriod,
+    selectedKind,
     setSelectedProjectUuids,
     setSelectedUserUuids,
     setSelectedModels,
     setSelectedPeriod,
+    setSelectedKind,
     hasActiveFilters,
     resetFilters,
     totalResults,
@@ -99,10 +114,12 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
 
     const modelOptions = useMemo<FilterFacetOption[]>(
         () =>
-            DATA_APP_CLAUDE_MODELS.map((model) => ({
-                value: model,
-                label: model,
-            })),
+            [...DATA_APP_CLAUDE_MODELS, ...DATA_APP_CODEX_MODELS].map(
+                (model) => ({
+                    value: model,
+                    label: model,
+                }),
+            ),
         [],
     );
 
@@ -124,12 +141,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         searchValue={projectSearch}
                         onSearchChange={setProjectSearch}
                     />
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        style={{ alignSelf: 'center' }}
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
                     <FilterFacet
                         label="Users"
                         icon={IconUser}
@@ -141,12 +153,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         searchValue={userSearch}
                         onSearchChange={setUserSearch}
                     />
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        style={{ alignSelf: 'center' }}
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
                     <FilterFacet
                         label="Models"
                         icon={IconSparkles}
@@ -155,15 +162,9 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         options={modelOptions}
                         tooltipLabel="Filter activity by the model that built it"
                     />
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        style={{ alignSelf: 'center' }}
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
                     <SegmentedControl
                         size="xs"
-                        radius="md"
                         value={selectedPeriod}
                         onChange={(value) =>
                             setSelectedPeriod(
@@ -175,14 +176,21 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                             value: period,
                         }))}
                     />
+                    <Divider orientation="vertical" w={1} h={20} />
+                    <SegmentedControl
+                        size="xs"
+                        value={selectedKind}
+                        onChange={(value) =>
+                            setSelectedKind(value as DataAppActivityKind)
+                        }
+                        data={DATA_APP_ACTIVITY_KINDS.map((kind) => ({
+                            label: KIND_LABELS[kind],
+                            value: kind,
+                        }))}
+                    />
                     {hasActiveFilters && (
                         <>
-                            <Divider
-                                orientation="vertical"
-                                w={1}
-                                h={20}
-                                style={{ alignSelf: 'center' }}
-                            />
+                            <Divider orientation="vertical" w={1} h={20} />
                             <Button
                                 variant="subtle"
                                 size="xs"

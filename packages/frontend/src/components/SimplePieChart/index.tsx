@@ -1,4 +1,4 @@
-import { useDisclosure } from '@mantine-8/hooks';
+import { useDisclosure } from '@mantine/hooks';
 import { IconChartPieOff } from '@tabler/icons-react';
 import { type ECElementEvent } from 'echarts';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
@@ -40,12 +40,18 @@ type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
     className?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
+    enableContextMenu?: boolean;
 };
 
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimplePieChart: FC<SimplePieChartProps> = memo(
-    ({ onScreenshotReady, onScreenshotError, ...props }) => {
+    ({
+        onScreenshotReady,
+        onScreenshotError,
+        enableContextMenu = true,
+        ...props
+    }) => {
         const { chartRef, isLoading, resultsData, minimal } =
             useVisualizationContext();
         const { selectedLegends, onLegendChange } =
@@ -117,11 +123,15 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
 
         const onEvents = useMemo(
             () => ({
-                click: handleOpenContextMenu,
-                oncontextmenu: handleOpenContextMenu,
+                ...(enableContextMenu
+                    ? {
+                          click: handleOpenContextMenu,
+                          oncontextmenu: handleOpenContextMenu,
+                      }
+                    : {}),
                 legendselectchanged: onLegendChange,
             }),
-            [handleOpenContextMenu, onLegendChange],
+            [enableContextMenu, handleOpenContextMenu, onLegendChange],
         );
 
         if (isLoading) return <LoadingChart />;
@@ -152,7 +162,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                     onEvents={onEvents}
                 />
 
-                {shouldShowMenu && (
+                {enableContextMenu && shouldShowMenu && (
                     <PieChartContextMenu
                         value={menuProps?.value}
                         menuPosition={menuProps?.position}

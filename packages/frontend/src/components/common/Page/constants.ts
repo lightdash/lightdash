@@ -1,4 +1,4 @@
-import { type MantineSize } from '@mantine-8/core';
+import { type MantineSize } from '@mantine/core';
 
 export const PAGE_HEADER_HEIGHT = 64;
 

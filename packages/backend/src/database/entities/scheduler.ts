@@ -54,6 +54,7 @@ export type SchedulerDb = {
     notification_frequency: NotificationFrequency | null;
     selected_tabs: string[] | null;
     include_links: boolean;
+    plain_text_email: boolean;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
 };
@@ -179,6 +180,7 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'notification_frequency'
           | 'selected_tabs'
           | 'include_links'
+          | 'plain_text_email'
       > &
           SchedulerJsonWrite)
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>

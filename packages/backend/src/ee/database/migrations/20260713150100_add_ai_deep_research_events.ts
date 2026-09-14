@@ -1,8 +1,19 @@
-import { AI_DEEP_RESEARCH_EVENT_TYPES } from '@lightdash/common';
-import { Knex } from 'knex';
+import type { Knex } from 'knex';
+
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates a new event table and its initial constraints.',
+} as const;
 
 const AiDeepResearchRunsTableName = 'ai_deep_research_runs';
 const AiDeepResearchEventsTableName = 'ai_deep_research_events';
+// Keep historical migrations immutable. Later event types must expand the
+// constraint in a new migration so fresh and already-deployed schemas match.
+const eventTypesAtCreation = [
+    'status_changed',
+    'cancellation_requested',
+    'progress',
+] as const;
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.createTable(AiDeepResearchEventsTableName, (table) => {
@@ -19,7 +30,7 @@ export async function up(knex: Knex): Promise<void> {
         table
             .text('event_type')
             .notNullable()
-            .checkIn([...AI_DEEP_RESEARCH_EVENT_TYPES]);
+            .checkIn([...eventTypesAtCreation]);
         table.jsonb('payload').notNullable();
         table
             .timestamp('created_at', { useTz: false })

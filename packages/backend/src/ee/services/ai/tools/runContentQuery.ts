@@ -16,6 +16,7 @@ import type {
     ValidateContentFn,
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import { getContextTruncationNote } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -28,6 +29,7 @@ type Dependencies = {
     getSavedChart: GetSavedChartFn;
     validateContent: ValidateContentFn;
     maxLimit: number;
+    maxContextRows: number;
     enableDataAccess: boolean;
 };
 
@@ -40,6 +42,7 @@ export const getRunContentQuery = ({
     getSavedChart,
     validateContent,
     maxLimit,
+    maxContextRows,
     enableDataAccess,
 }: Dependencies) =>
     tool({
@@ -85,7 +88,10 @@ export const getRunContentQuery = ({
                         };
                     }
 
-                    const csv = convertQueryResultsToCsv(queryResults);
+                    const csv = convertQueryResultsToCsv(
+                        queryResults,
+                        maxContextRows,
+                    );
                     return {
                         result: `${buildSavedChartHeader(
                             uuid,
@@ -94,7 +100,10 @@ export const getRunContentQuery = ({
                             {
                                 includeFullSpec: true,
                             },
-                        )}${serializeData(csv, 'csv')}`,
+                        )}${getContextTruncationNote({
+                            rowCount: queryResults.rows.length,
+                            maxContextRows,
+                        })}${serializeData(csv, 'csv')}`,
                         metadata: { status: 'success' as const },
                     };
                 }
@@ -159,10 +168,13 @@ export const getRunContentQuery = ({
                 }
 
                 return {
-                    result: serializeData(
-                        convertQueryResultsToCsv(queryResults),
+                    result: `${getContextTruncationNote({
+                        rowCount: queryResults.rows.length,
+                        maxContextRows,
+                    })}${serializeData(
+                        convertQueryResultsToCsv(queryResults, maxContextRows),
                         'csv',
-                    ),
+                    )}`,
                     metadata: { status: 'success' as const },
                 };
             } catch (error) {

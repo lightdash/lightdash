@@ -86,6 +86,15 @@ export default abstract class WarehouseBaseSqlBuilder implements WarehouseSqlBui
         return `CAST('${date.toISOString()}' AS TIMESTAMP)`;
     }
 
+    castToDate(date: Date): string {
+        return `CAST('${date.toISOString().slice(0, 10)}' AS DATE)`;
+    }
+
+    castToNaiveTimestamp(date: Date): string {
+        // Default: dialects without a separate zoneless type reuse TIMESTAMP
+        return this.castToTimestamp(date);
+    }
+
     protected static readonly intervalUnitsSingular: Record<
         TimeIntervalUnit,
         string
