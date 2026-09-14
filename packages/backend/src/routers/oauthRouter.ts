@@ -4,6 +4,7 @@ import {
     generateOAuthRedirectPage,
     getErrorMessage,
     isManagedSignInError,
+    MOBILE_SETUP_CODE_GRANT_TYPE,
     OAuthIntrospectResponse,
     parseScopeString,
     type OAuthUserInfoResponse,
@@ -306,6 +307,9 @@ oauthRouter.post('/token', async (req, res, next) => {
     try {
         const token = await oauthService.token(oauthReq, oauthRes);
         res.json({
+            ...(typeof token.lightdash_project_uuid === 'string'
+                ? { lightdash_project_uuid: token.lightdash_project_uuid }
+                : {}),
             access_token: token.accessToken,
             token_type: 'Bearer',
             expires_in: token.accessTokenExpiresAt
@@ -565,6 +569,7 @@ export function oauthConfig(baseUrl: string) {
             'authorization_code',
             'refresh_token',
             'client_credentials',
+            MOBILE_SETUP_CODE_GRANT_TYPE,
         ],
         token_endpoint_auth_methods_supported: [
             'client_secret_basic',
