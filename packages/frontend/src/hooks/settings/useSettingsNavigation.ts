@@ -14,6 +14,7 @@ import {
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconDeviceMobile,
     IconEyeCheck,
     IconFileExport,
     IconFolders,
@@ -93,6 +94,7 @@ export const useSettingsNavigation = (
         dataAppsFlag,
         externalSourcesFlag,
         isResultsCacheEnabled,
+        isMobileAppSetupEnabled,
         isGitProject,
         isContentReviewAvailable,
     } = context;
@@ -153,6 +155,17 @@ export const useSettingsNavigation = (
                 to: '/generalSettings/myApps',
                 icon: IconAppWindow,
                 keywords: ['data apps'],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (isMobileAppSetupEnabled) {
+            yourSettings.push({
+                label: 'Mobile app',
+                to: '/generalSettings/mobileApp',
+                icon: IconDeviceMobile,
+                keywords: ['phone', 'qr', 'android', 'ios', 'app'],
                 children: [],
                 exact: true,
             });
@@ -1092,6 +1105,7 @@ export const useSettingsNavigation = (
         isDataAppsEnabled,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
+        isMobileAppSetupEnabled,
         isGitProject,
         isContentReviewAvailable,
         track,

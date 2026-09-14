@@ -94,6 +94,18 @@ const AUTH_ROUTES: RouteObject[] = [
             };
         },
     },
+    {
+        // The setup code rides in the query string, so this route is deliberately
+        // not wrapped in TrackPage — page events carry the full URL.
+        path: '/mobile-setup',
+        lazy: async () => {
+            const MobileSetup = await loadLazyRouteDefault(
+                './pages/MobileSetup',
+                () => import('./pages/MobileSetup'),
+            );
+            return { Component: MobileSetup };
+        },
+    },
 ];
 
 export default AUTH_ROUTES;
