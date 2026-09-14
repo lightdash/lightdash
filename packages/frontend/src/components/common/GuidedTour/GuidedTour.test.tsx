@@ -85,6 +85,46 @@ describe('GuidedTour', () => {
         ).toBeEnabled();
     });
 
+    // A YAML block cannot be read inside the "Type here, or use ..."
+    // sentence, and the newlines would be lost in it.
+    it('prints a suggestion of more than one line as a code block', async () => {
+        const suggestion = 'a:\n  b: 1';
+        const user = userEvent.setup();
+        const Form = () => (
+            <>
+                <textarea aria-label="Model file" data-model-file />
+                <GuidedTour
+                    steps={[
+                        {
+                            target: '[data-model-file]',
+                            title: 'Add the metric',
+                            body: '',
+                            interactive: true,
+                            advanceOnTargetInput: true,
+                            suggestion,
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>
+        );
+        // The card is portalled to the body, so the query starts there.
+        const { baseElement } = renderWithProviders(<Form />);
+
+        const block = baseElement.querySelector(
+            'pre[data-tour-suggestion], code[data-tour-suggestion]',
+        );
+        expect(block).not.toBeNull();
+        // Exact, not normalised: the newline is the point.
+        expect(block?.textContent).toBe(suggestion);
+
+        await user.click(screen.getByRole('button', { name: 'Use it' }));
+        expect(screen.getByRole('textbox', { name: 'Model file' })).toHaveValue(
+            suggestion,
+        );
+    });
+
     it('does not advance a typed step when its field resets before settling', async () => {
         const onStepChange = vi.fn();
         const onClose = vi.fn();

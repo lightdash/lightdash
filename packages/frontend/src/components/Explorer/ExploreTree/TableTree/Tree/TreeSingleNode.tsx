@@ -433,8 +433,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             // Anchors for scope walkthroughs (data-tour-via): a field to
             // select. The name depends on the field, so the generator reads
             // each anchor's hint from these literal declarations:
-            //   data-tour-anchor="explore-dimension" data-tour-hint="Select a dimension"
-            //   data-tour-anchor="explore-metric" data-tour-hint="Select a metric"
+            //   data-tour-anchor="explore-dimension" data-tour-hint="Select a dimension" data-tour-hint-named="Find {value}"
+            //   data-tour-anchor="explore-metric" data-tour-hint="Select a metric" data-tour-hint-named="Find {value}"
             data-tour-anchor={
                 isField(item)
                     ? isDimension(item)
@@ -442,6 +442,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         : 'explore-metric'
                     : undefined
             }
+            data-tour-value={isField(item) ? item.label : undefined}
             className={styles.root}
             style={
                 {
