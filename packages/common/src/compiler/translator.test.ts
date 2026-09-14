@@ -10,6 +10,7 @@ import {
     isExploreError,
     JoinRelationship,
     type Explore,
+    type ExploreError,
 } from '../types/explore';
 import {
     DimensionType,
@@ -1862,6 +1863,18 @@ describe('dbt Mesh model qualification', () => {
             'finance__orders',
             'marketing__core__orders',
         ]);
+
+        type SplitSource = Parameters<
+            typeof getExploreSplitCandidates
+        >[1][number];
+        expectTypeOf<Explore>().toExtend<SplitSource>();
+        expectTypeOf<ExploreError>().toExtend<SplitSource>();
+        expectTypeOf<Record<string, never>>().not.toExtend<SplitSource>();
+        expect(
+            getExploreSplitCandidates('orders', [
+                { name: 'finance__orders', errors: null },
+            ]),
+        ).toEqual([]);
 
         const customers = explores.find(
             (explore) => explore.name === 'customers',

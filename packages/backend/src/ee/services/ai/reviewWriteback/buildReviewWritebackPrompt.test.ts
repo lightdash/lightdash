@@ -1,6 +1,8 @@
 import {
     PullRequestProvider,
     type AiAgentReviewItemSummary,
+    type Explore,
+    type ExploreError,
 } from '@lightdash/common';
 import {
     buildYmlPathByModel,
@@ -166,6 +168,7 @@ describe('planReviewWriteback', () => {
         const targets = buildYmlPathByModel([
             {
                 name: 'primary__orders',
+                baseTable: 'primary__orders',
                 tables: {
                     primary__orders: {
                         name: 'orders',
@@ -176,6 +179,7 @@ describe('planReviewWriteback', () => {
             },
             {
                 name: 'additional__orders',
+                baseTable: 'additional__orders',
                 tables: {
                     additional__orders: {
                         name: 'orders',
@@ -259,10 +263,15 @@ describe('planReviewWriteback', () => {
     });
 
     it('skips error summaries when resolving yaml paths', () => {
+        type YmlPathSource = Parameters<typeof buildYmlPathByModel>[0][number];
+        expectTypeOf<Explore>().toExtend<YmlPathSource>();
+        expectTypeOf<ExploreError>().toExtend<YmlPathSource>();
+        expectTypeOf<Record<string, never>>().not.toExtend<YmlPathSource>();
+
         const targets = buildYmlPathByModel([
             {
                 name: 'broken_orders',
-                isExploreError: true,
+                errors: true,
                 tables: {
                     broken_orders: {
                         name: 'broken_orders',

@@ -1,8 +1,4 @@
-import {
-    isExploreError,
-    type Explore,
-    type ExploreError,
-} from '@lightdash/common';
+import { type Explore } from '@lightdash/common';
 
 const isExploreCacheReadStorageBytesEnabled = () =>
     process.env.LIGHTDASH_EXPLORE_CACHE_READ_STORAGE_BYTES !== 'false';
@@ -118,24 +114,20 @@ export const safeGetCachedExploreStorageBytes = async (
 export const summarizeExploreCacheRead = (
     explores: Record<
         string,
-        | Explore
-        | ExploreError
-        | {
-              isExploreError: boolean;
-              tables: Record<string, unknown>;
-          }
+        {
+            errors?: unknown;
+            isExploreError?: boolean;
+            tables?: Record<string, unknown>;
+        }
     >,
 ): Pick<ExploreCacheReadContext, 'exploreCount' | 'tableFanOut'> => {
     const values = Object.values(explores);
     const tableFanOut = values.reduce(
         (sum, explore) =>
             sum +
-            ('isExploreError' in explore
-                ? explore.isExploreError
-                : isExploreError(explore)
-            )
+            (explore.isExploreError || 'errors' in explore)
                 ? 0
-                : Object.keys(explore.tables).length,
+                : Object.keys(explore.tables ?? {}).length,
         0,
     );
     return { exploreCount: values.length, tableFanOut };

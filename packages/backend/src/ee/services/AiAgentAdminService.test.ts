@@ -440,7 +440,7 @@ const makeService = ({
             findExploreTableSummariesFromCache: vi.fn().mockResolvedValue({
                 orders: {
                     name: 'orders',
-                    isExploreError: false,
+                    baseTable: 'orders',
                     tables: {
                         orders: {
                             name: 'orders',
@@ -2859,7 +2859,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                 findExploreTableSummariesFromCache: vi.fn().mockResolvedValue({
                     orders: {
                         name: 'orders',
-                        isExploreError: false,
+                        baseTable: 'orders',
                         tables: {
                             orders: {
                                 name: 'orders',
@@ -2931,7 +2931,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                                         modelName,
                                         {
                                             name: modelName,
-                                            isExploreError: false,
+                                            baseTable: modelName,
                                             tables: {
                                                 [modelName]: {
                                                     name: modelName,

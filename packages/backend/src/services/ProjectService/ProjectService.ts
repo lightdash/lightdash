@@ -9990,7 +9990,7 @@ export class ProjectService extends BaseService {
         const explores = Object.values(cachedExplores);
 
         return (explores || []).reduce<ProjectCatalog>((acc, explore) => {
-            if (!explore.isExploreError) {
+            if (!('errors' in explore)) {
                 Object.values(explore.tables).forEach(
                     ({ database, schema, name, description, sqlTable }) => {
                         acc[database] = acc[database] || {};
@@ -11959,10 +11959,6 @@ export class ProjectService extends BaseService {
                 !isUserManagedExplore(explore) &&
                 explore.type !== ExploreType.PRE_AGGREGATE,
         );
-
-        if (!validExplores) {
-            throw new NotFoundError('No explores found');
-        }
 
         const chartExposures = charts.reduce<DbtExposure[]>((acc, chart) => {
             const dependsOn = Object.values(
