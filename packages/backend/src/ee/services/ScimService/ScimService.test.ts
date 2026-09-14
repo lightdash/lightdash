@@ -1448,6 +1448,33 @@ describe('ScimService', () => {
             expect(userModel.updateUser).not.toHaveBeenCalled();
             expect(rolesModel.setUserOrgAndProjectRoles).not.toHaveBeenCalled();
         });
+
+        test.each([
+            ['a forbidden key', '__proto__.isAdmin'],
+            ['a malformed value filter', 'emails[primary eq true'],
+        ])(
+            'should return 400 invalidValue when the patch path contains %s',
+            async (_label, path) => {
+                const { userModel } = ScimServiceArgumentsMock;
+
+                await expect(
+                    service.patchUser({
+                        account: mockScimAccount,
+                        userUuid: mockUser.userUuid,
+                        organizationUuid: mockUser.organizationUuid,
+                        patchOp: {
+                            schemas: [ScimSchemaType.PATCH],
+                            Operations: [{ op: 'Add', path, value: true }],
+                        },
+                    }),
+                ).rejects.toMatchObject({
+                    status: '400',
+                    scimType: 'invalidValue',
+                });
+
+                expect(userModel.updateUser).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe('createGroup', () => {
@@ -1769,6 +1796,33 @@ describe('ScimService', () => {
                 ),
             ).rejects.toMatchObject({
                 detail: 'displayName is required',
+                status: '400',
+                scimType: 'invalidValue',
+            });
+        });
+
+        test('should return 400 invalidValue when the patch path contains a forbidden key', async () => {
+            const groupService = createServiceWithGroupError(
+                new Error('updateGroup should not be reached'),
+            );
+
+            await expect(
+                groupService.updateGroup(
+                    mockScimAccount,
+                    mockUser.organizationUuid,
+                    mockGroup.uuid,
+                    {
+                        schemas: [ScimSchemaType.PATCH],
+                        Operations: [
+                            {
+                                op: 'Add',
+                                path: '__proto__.isAdmin',
+                                value: true,
+                            },
+                        ],
+                    },
+                ),
+            ).rejects.toMatchObject({
                 status: '400',
                 scimType: 'invalidValue',
             });
