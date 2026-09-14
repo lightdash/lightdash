@@ -1,5 +1,5 @@
 // eslint-disable @typescript-eslint/dot-notation
-import { AnyType } from '@lightdash/common';
+import { AnyType, MOBILE_SETUP_CODE_GRANT_TYPE } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
@@ -70,6 +70,42 @@ describe('OAuthService edge cases', () => {
         await expect(oauthService.token(request, response)).rejects.toThrow(
             'Missing parameters',
         );
+    });
+
+    it.each([
+        OAuth2Server.InvalidClientError,
+        OAuth2Server.UnauthorizedClientError,
+    ])(
+        'maps mobile setup client errors to invalid_grant',
+        async (ErrorType) => {
+            const request = {
+                body: { grant_type: MOBILE_SETUP_CODE_GRANT_TYPE },
+            } as OAuth2Server.Request;
+            const token = vi.fn();
+            vi.mocked(token).mockRejectedValue(new ErrorType('Invalid client'));
+            oauthService.setOAuthServer({ token });
+
+            await expect(
+                oauthService.token(request, {} as OAuth2Server.Response),
+            ).rejects.toMatchObject({
+                name: 'invalid_grant',
+                message: 'unknown',
+            });
+        },
+    );
+
+    it('preserves client errors for other grants', async () => {
+        const request = {
+            body: { grant_type: 'authorization_code' },
+        } as OAuth2Server.Request;
+        const error = new OAuth2Server.InvalidClientError('Invalid client');
+        const token = vi.fn();
+        vi.mocked(token).mockRejectedValue(error);
+        oauthService.setOAuthServer({ token });
+
+        await expect(
+            oauthService.token(request, {} as OAuth2Server.Response),
+        ).rejects.toBe(error);
     });
 
     it('should throw if PKCE code_verifier is missing', async () => {
