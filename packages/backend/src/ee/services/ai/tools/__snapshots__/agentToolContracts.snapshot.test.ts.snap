@@ -2102,7 +2102,7 @@ Usage tips:
           "type": "array",
         },
         "page": {
-          "description": "Use this to paginate through the results. Starts at 1.",
+          "description": "Paginate results starting at 1. Pass a positive number (e.g. 1), never NaN or the string "null".",
           "exclusiveMinimum": 0,
           "type": [
             "number",
@@ -4053,7 +4053,7 @@ Usage tips:
           "type": "string",
         },
         "page": {
-          "description": "Use this to paginate through the results. Starts at 1.",
+          "description": "Paginate results starting at 1. Pass a positive number (e.g. 1), never NaN or the string "null".",
           "exclusiveMinimum": 0,
           "type": [
             "number",
@@ -4241,7 +4241,7 @@ Usage tips:
       "additionalProperties": false,
       "properties": {
         "page": {
-          "description": "Use this to paginate through the results. Starts at 1.",
+          "description": "Paginate results starting at 1. Pass a positive number (e.g. 1), never NaN or the string "null".",
           "exclusiveMinimum": 0,
           "type": [
             "number",
