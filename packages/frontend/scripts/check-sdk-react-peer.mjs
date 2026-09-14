@@ -5,8 +5,9 @@
  * and inlines everything else, Mantine included. A dependency upgrade can
  * therefore start using a React API newer than the peer floor the SDK
  * declares, and nothing in our build notices: the bundle links, typecheck is
- * green, and the consumer's app fails at install or first render. Mantine 9
- * did exactly that with `use`, `useEffectEvent` and `Activity`.
+ * green, and the consumer's app fails while loading or rendering. Mantine 9
+ * did exactly that with React 19's `use` and React 19.2's `useEffectEvent`
+ * and `Activity`.
  *
  * @lightdash/query-sdk is headless and unbundled, so its sources are checked
  * the same way against its own peer floor.
@@ -22,15 +23,15 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 
-// Named exports that do not exist in React 18, with the release that added
-// them. Anything not listed is assumed to exist on every 18.x host.
+// Named exports added after React 18.0, with the release that added them.
+// Anything not listed is assumed to exist on every supported React host.
 const INTRODUCED_IN = {
     react: {
         use: '19.0.0',
         useActionState: '19.0.0',
         useOptimistic: '19.0.0',
         cache: '19.0.0',
-        act: '19.0.0',
+        act: '18.3.1',
         captureOwnerStack: '19.1.0',
         cacheSignal: '19.2.0',
         Activity: '19.2.0',
