@@ -67,6 +67,7 @@ describe('defineTool', () => {
         agentDescriptions.forEach((description) => {
             expect(description).toContain('the Lightdash Agent system prompt');
             expect(description).not.toContain('filter-expressions');
+            expect(description).not.toContain('table-calculations');
             expect(description).not.toContain('read_skill');
         });
         mcpDescriptions.forEach((description) => {

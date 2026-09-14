@@ -297,6 +297,8 @@ The tool handles execution and chart artifacts. It returns a result summary and 
 
 ${RUN_QUERY_PARAMETER_GUIDANCE}
 
+Before authoring table calculations, read the \`table-calculations\` skill. Use type \`formula\`.
+
 This tool returns metric query data only. ${buildMcpVisualizationFollowUpInstruction(
                 'run_metric_query',
             )}
@@ -548,6 +550,12 @@ export const TOOL_RENDER_CHART_DESCRIPTION = `Render a completed run_metric_quer
 
 Use when the user wants a visual. If the query is running, call get_query_result first. This tool does not start, poll or rerun queries.
 Pass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the \`queryUuid: <id>\` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.
+
+Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel.
+- For time series: use \`line\` with \`xAxisType: 'time'\`.
+- For categorical comparisons: use \`bar\` or \`horizontal_bar\`.
+- For single values or detailed data: use \`table\`.
+- Always provide axis labels.
 
 The full chart payload is app metadata; structuredContent contains only a lightweight placeholder. Custom artifacts should build visuals from query data instead.
 

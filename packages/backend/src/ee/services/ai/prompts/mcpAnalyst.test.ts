@@ -9,13 +9,17 @@ const semanticQueryOptions = {
 };
 
 describe('getMcpAnalystPrompt', () => {
-    it('returns the query-building workflow with formula guidance', () => {
+    it('keeps workflow guidance without table-calculation or visualization manuals', () => {
         const prompt = getMcpAnalystPrompt(semanticQueryOptions);
 
         expect(prompt).toContain('Query Building Workflow');
         expect(prompt).toContain('grep_fields');
-        expect(prompt).toContain('### Table Calculations');
-        expect(prompt).toContain('Author table calculations as type `formula`');
+        expect(prompt).not.toContain('### Table Calculations');
+        expect(prompt).not.toContain('MOVING_AVG');
+        expect(prompt).not.toContain('### Visualization');
+        expect(prompt).not.toContain('xAxisType');
+        expect(prompt).toContain('render completed metric queries');
+        expect(prompt).toContain('### Custom Metrics');
         expect(prompt).not.toContain('Saved Content Mode');
     });
 
@@ -73,7 +77,7 @@ describe('getMcpAnalystPrompt', () => {
         expect(prompt).not.toContain(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION);
         expect(prompt).toContain('read the shared skill');
         expect(prompt).toContain('run_metric_query and search_field_values');
-        expect(prompt).toContain('### Table Calculations');
+        expect(prompt).not.toContain('### Table Calculations');
     });
 
     it('tells the model to report a stale catalogue instead of substituting run_sql', () => {

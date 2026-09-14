@@ -403,8 +403,8 @@ describe('MCP tool contracts', () => {
             await mcpService.createServer(makeMcpServerOptions(options));
             // Existing instruction overages cannot grow; lower these as text shrinks.
             const instructionCeilings = options.runSqlEnabled
-                ? { structured: 4007, expression: 4144 }
-                : { structured: 3182, expression: 3319 };
+                ? { structured: 2944, expression: 3081 }
+                : { structured: 2147, expression: 2284 };
             const instructionCeiling = options.runMetricQueryEnabled
                 ? instructionCeilings[
                       options.filterExpressionsEnabled
@@ -550,6 +550,50 @@ describe('MCP tool contracts', () => {
                 expect(config.description).toContain('same queryUuid');
                 expect(config.description).toContain('Stop on terminal errors');
             }
+        },
+    );
+
+    it.each([false, true])(
+        'keeps calculation and visualization guidance on MCP tools: expressions=%s',
+        async (filterExpressionsEnabled) => {
+            const service = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(
+                makeMcpServerOptions({
+                    runSqlEnabled: true,
+                    runMetricQueryEnabled: true,
+                    filterExpressionsEnabled,
+                }),
+            );
+            const query = mockRegisteredMcpTools.find(
+                ({ name }) => name === McpToolName.RUN_METRIC_QUERY,
+            );
+            expect(query?.config.description).toContain(
+                'Before authoring table calculations, read the `table-calculations` skill. Use type `formula`.',
+            );
+            const sql = mockRegisteredMcpTools.find(
+                ({ name }) => name === McpToolName.RUN_SQL,
+            );
+            expect(sql).toBeDefined();
+            expect(sql?.config.description).not.toContain('table-calculations');
+            const render = mockRegisteredMcpTools.find(
+                ({ name }) => name === McpToolName.RENDER_CHART,
+            );
+            for (const detail of [
+                'Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel',
+                "For time series: use `line` with `xAxisType: 'time'`",
+                'For categorical comparisons: use `bar` or `horizontal_bar`',
+                'For single values or detailed data: use `table`',
+                'Always provide axis labels',
+            ]) {
+                expect(render?.config.description).toContain(detail);
+            }
+            expect(mockRegisteredMcpResourceUris).toContain(
+                'skill://lightdash/table-calculations/SKILL.md',
+            );
+            expect(
+                (await BuiltInSkills.readSkillTool('table-calculations'))?.body,
+            ).toContain('MOVING_AVG(m, 2, ORDER BY date)');
         },
     );
 
