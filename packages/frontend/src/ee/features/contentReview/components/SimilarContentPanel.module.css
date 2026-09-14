@@ -1,12 +1,29 @@
-.panel {
-    overflow: hidden;
-    border-color: var(--mantine-color-yellow-outline);
+.disclosure {
+    align-self: flex-start;
+    color: var(--mantine-color-blue-light-color);
+    background-color: var(--mantine-color-blue-light);
+    border-radius: var(--mantine-radius-sm);
+    padding: 6px 8px;
+
+    &:hover {
+        background-color: var(--mantine-color-blue-light-hover);
+    }
+
+    &[aria-expanded='true'] {
+        color: var(--mantine-color-dimmed);
+        background-color: transparent;
+
+        &:hover {
+            color: var(--mantine-color-text);
+            background-color: var(--mantine-color-default-hover);
+        }
+    }
 }
 
-.header {
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
-    background-color: var(--mantine-color-yellow-light);
-    border-bottom: 1px solid var(--mantine-color-yellow-outline);
+.results {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    padding: 4px;
 }
 
 .toggle {

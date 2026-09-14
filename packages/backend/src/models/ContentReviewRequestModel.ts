@@ -21,7 +21,10 @@ import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
-import { compactContentSearchText } from './ContentModel/ContentSearchUtils';
+import {
+    getSimilarityNameWords,
+    SIMILARITY_IGNORED_WORDS,
+} from './ContentModel/ContentSimilarity';
 
 type ContentReviewRequestModelArguments = {
     database: Knex;
@@ -129,17 +132,14 @@ export type ContentReviewSimilarCandidate = {
     spaceUuid: string;
     spaceName: string;
     score: number;
+    matchReason: 'same_name' | 'similar_name';
 };
-
-const EXACT_NAME_SCORE = 100;
-const CONTAINED_NAME_SCORE = 50;
-const COMPACT_NAME_SQL = "regexp_replace(lower(??), '[^a-z0-9]+', '', 'g')";
 
 type SimilarSource = {
     contentType: ContentReviewContentType;
     table: string;
     uuidColumn: string;
-    spaceJoin: { left: string; right: string };
+    spaceJoinSql: string;
 };
 
 const SIMILAR_SOURCES: Record<
@@ -150,28 +150,21 @@ const SIMILAR_SOURCES: Record<
         contentType: ContentReviewContentType.CHART,
         table: SavedChartsTableName,
         uuidColumn: 'saved_query_uuid',
-        spaceJoin: {
-            left: `${SavedChartsTableName}.space_id`,
-            right: `${SpaceTableName}.space_id`,
-        },
+        spaceJoinSql: `LEFT JOIN dashboards owner ON owner.dashboard_uuid = content.dashboard_uuid AND owner.deleted_at IS NULL
+            JOIN spaces ON spaces.space_id = COALESCE(content.space_id, owner.space_id)`,
     },
     sqlChart: {
         contentType: ContentReviewContentType.SQL_CHART,
         table: SavedSqlTableName,
         uuidColumn: 'saved_sql_uuid',
-        spaceJoin: {
-            left: `${SavedSqlTableName}.space_uuid`,
-            right: `${SpaceTableName}.space_uuid`,
-        },
+        spaceJoinSql: `LEFT JOIN dashboards owner ON owner.dashboard_uuid = content.dashboard_uuid AND owner.deleted_at IS NULL
+            JOIN spaces ON spaces.space_uuid = content.space_uuid OR (content.space_uuid IS NULL AND spaces.space_id = owner.space_id)`,
     },
     dashboard: {
         contentType: ContentReviewContentType.DASHBOARD,
         table: DashboardsTableName,
         uuidColumn: 'dashboard_uuid',
-        spaceJoin: {
-            left: `${DashboardsTableName}.space_id`,
-            right: `${SpaceTableName}.space_id`,
-        },
+        spaceJoinSql: 'JOIN spaces ON spaces.space_id = content.space_id',
     },
 };
 
@@ -556,155 +549,97 @@ export class ContentReviewRequestModel {
         );
     }
 
-    // Name-based lookalikes in shared spaces: exact compact match first,
-    // containment next, then full-text rank on the name
+    // Require half the meaningful name words to overlap; a lone shared word
+    // only qualifies when one name has a single meaningful word.
     async findSimilarByName({
         projectUuid,
         contentType,
         name,
         excludeContentUuid,
+        accessibleSpaceUuids,
         limit,
     }: {
         projectUuid: string;
         contentType: ContentReviewContentType;
         name: string;
         excludeContentUuid: string | null;
+        accessibleSpaceUuids: string[];
         limit: number;
     }): Promise<ContentReviewSimilarCandidate[]> {
-        const compact = compactContentSearchText(name);
-        const trimmed = name.trim();
-        if (compact.length === 0 && trimmed.length === 0) return [];
-        // Any shared word counts as similar; ts_rank orders the overlap
-        const wordQuery = trimmed
-            .split(/\s+/)
-            .filter((word) => word.length > 0)
-            .join(' OR ');
-        // A chart duplicate can live in either chart table
+        const words = getSimilarityNameWords(name);
+        if (words.length === 0 || accessibleSpaceUuids.length === 0) return [];
         const sources =
             contentType === ContentReviewContentType.DASHBOARD
                 ? [SIMILAR_SOURCES.dashboard]
                 : [SIMILAR_SOURCES.chart, SIMILAR_SOURCES.sqlChart];
         const results = await Promise.all(
-            sources.map((source) =>
-                this.findSimilarInSource({
-                    source,
-                    projectUuid,
-                    compact,
-                    wordQuery,
-                    excludeContentUuid,
-                    limit,
-                }),
-            ),
+            sources.map(async (source) => {
+                const { table, uuidColumn } = source;
+                const rows = await this.database.raw<{
+                    rows: ContentReviewSimilarCandidate[];
+                }>(
+                    `
+                WITH candidates AS (
+                    SELECT content.?? AS uuid, content.name, content.slug,
+                        spaces.space_uuid AS "spaceUuid", spaces.name AS "spaceName",
+                        trim(regexp_replace(lower(normalize(content.name, NFKC)), '[^[:alnum:]]+', ' ', 'g')) AS normalized,
+                        ARRAY(SELECT DISTINCT word
+                            FROM unnest(regexp_split_to_array(lower(normalize(content.name, NFKC)), '[^[:alnum:]]+')) AS word
+                            WHERE length(word) > 1 AND NOT (word = ANY(?::text[]))) AS words
+                    FROM ?? AS content
+                    ${source.spaceJoinSql}
+                    JOIN projects ON projects.project_id = spaces.project_id
+                    WHERE projects.project_uuid = ?
+                        AND spaces.space_uuid = ANY(?::uuid[])
+                        AND NOT spaces.is_default_user_space
+                        AND spaces.deleted_at IS NULL AND content.deleted_at IS NULL
+                        AND (?::uuid IS NULL OR content.?? <> ?::uuid)
+                ), overlap AS (
+                    SELECT *, cardinality(ARRAY(SELECT unnest(words) INTERSECT SELECT unnest(?::text[]))) AS shared
+                    FROM candidates
+                ), ranked AS (
+                    SELECT *, shared::float / NULLIF(cardinality(words) + ? - shared, 0) AS similarity
+                    FROM overlap
+                )
+                SELECT uuid, name, slug, "spaceUuid", "spaceName", ? AS "contentType",
+                    CASE WHEN normalized = trim(regexp_replace(lower(normalize(?::text, NFKC)), '[^[:alnum:]]+', ' ', 'g'))
+                        THEN 100 ELSE 50 + 40 * similarity END AS score,
+                    CASE WHEN normalized = trim(regexp_replace(lower(normalize(?::text, NFKC)), '[^[:alnum:]]+', ' ', 'g'))
+                        THEN 'same_name' ELSE 'similar_name' END AS "matchReason"
+                FROM ranked
+                WHERE similarity >= 0.5 AND (shared >= 2 OR (LEAST(cardinality(words), ?) = 1 AND shared = 1))
+                ORDER BY score DESC, name ASC, uuid ASC
+                LIMIT ?
+            `,
+                    [
+                        uuidColumn,
+                        SIMILARITY_IGNORED_WORDS,
+                        table,
+                        projectUuid,
+                        accessibleSpaceUuids,
+                        excludeContentUuid,
+                        uuidColumn,
+                        excludeContentUuid,
+                        words,
+                        words.length,
+                        source.contentType,
+                        name,
+                        name,
+                        words.length,
+                        limit,
+                    ],
+                );
+                return rows.rows;
+            }),
         );
         return results
             .flat()
-            .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+            .sort(
+                (a, b) =>
+                    b.score - a.score ||
+                    a.name.localeCompare(b.name) ||
+                    a.uuid.localeCompare(b.uuid),
+            )
             .slice(0, limit);
-    }
-
-    private async findSimilarInSource({
-        source,
-        projectUuid,
-        compact,
-        wordQuery,
-        excludeContentUuid,
-        limit,
-    }: {
-        source: SimilarSource;
-        projectUuid: string;
-        compact: string;
-        wordQuery: string;
-        excludeContentUuid: string | null;
-        limit: number;
-    }): Promise<ContentReviewSimilarCandidate[]> {
-        const { table, uuidColumn } = source;
-        const nameColumn = `${table}.name`;
-
-        const scoreSql = this.database.raw(
-            `CASE
-                WHEN ${COMPACT_NAME_SQL} = ? THEN ${EXACT_NAME_SCORE}
-                WHEN ? <> '' AND (${COMPACT_NAME_SQL} LIKE '%' || ? || '%' OR ? LIKE '%' || ${COMPACT_NAME_SQL} || '%') THEN ${CONTAINED_NAME_SCORE}
-                ELSE 0
-            END + COALESCE(ts_rank_cd(??, websearch_to_tsquery('lightdash_english_config', ?), 32), 0)`,
-            [
-                nameColumn,
-                compact,
-                compact,
-                nameColumn,
-                compact,
-                compact,
-                nameColumn,
-                `${table}.search_vector`,
-                wordQuery,
-            ],
-        );
-
-        const query = this.database(table)
-            .innerJoin(
-                SpaceTableName,
-                source.spaceJoin.left,
-                source.spaceJoin.right,
-            )
-            .innerJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .where(`${SpaceTableName}.is_default_user_space`, false)
-            .whereNull(`${SpaceTableName}.deleted_at`)
-            .whereNull(`${table}.deleted_at`)
-            .where((builder) => {
-                void builder.whereRaw(
-                    `?? @@ websearch_to_tsquery('lightdash_english_config', ?)`,
-                    [`${table}.search_vector`, wordQuery],
-                );
-                if (compact.length > 0) {
-                    void builder
-                        .orWhereRaw(`${COMPACT_NAME_SQL} LIKE ?`, [
-                            nameColumn,
-                            `%${compact}%`,
-                        ])
-                        .orWhereRaw(
-                            `? LIKE '%' || ${COMPACT_NAME_SQL} || '%'`,
-                            [compact, nameColumn],
-                        );
-                }
-            })
-            .select<
-                {
-                    uuid: string;
-                    name: string;
-                    slug: string;
-                    space_uuid: string;
-                    space_name: string;
-                    score: number;
-                }[]
-            >(
-                `${table}.${uuidColumn} as uuid`,
-                `${table}.name`,
-                `${table}.slug`,
-                `${SpaceTableName}.space_uuid`,
-                this.database.ref(`${SpaceTableName}.name`).as('space_name'),
-                this.database.raw('(?) as score', [scoreSql]),
-            )
-            .orderBy('score', 'desc')
-            .orderBy(`${table}.name`, 'asc')
-            .limit(limit);
-        if (excludeContentUuid !== null) {
-            void query.whereNot(`${table}.${uuidColumn}`, excludeContentUuid);
-        }
-        const rows = await query;
-        return rows
-            .map((row) => ({
-                contentType: source.contentType,
-                uuid: row.uuid,
-                name: row.name,
-                slug: row.slug,
-                spaceUuid: row.space_uuid,
-                spaceName: row.space_name,
-                score: Number(row.score),
-            }))
-            .filter((row) => row.score > 0);
     }
 }

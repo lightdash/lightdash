@@ -557,10 +557,10 @@ const SimilarContentFooter: FC<{
     const verifiedCount = items.filter((item) => item.isVerified).length;
     const isPending = request.status === ContentReviewRequestStatus.PENDING;
     const hint = isRequester
-        ? 'You saw these before submitting.'
+        ? 'Related content found when you submitted.'
         : isPending
           ? `If one of these already answers the question, reject and point ${request.requestedBy.firstName} to it.`
-          : 'The requester saw these before submitting.';
+          : 'Related content found when this request was submitted.';
     const verifiedHint =
         verifiedCount > 0
             ? ` ${verifiedCount === 1 ? 'One is' : `${verifiedCount} are`} verified.`
@@ -593,7 +593,7 @@ const SimilarContentFooter: FC<{
                                 key={item.contentUuid}
                                 contentType={item.contentType}
                                 name={item.name}
-                                meta={`in ${item.spaceName}`}
+                                meta={`${item.matchReason === 'same_name' ? 'Same name' : 'Similar name'} · in ${item.spaceName}`}
                                 href={getContentHref(
                                     projectUuid,
                                     item.contentType,

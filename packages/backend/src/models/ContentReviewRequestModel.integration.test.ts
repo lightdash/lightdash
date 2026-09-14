@@ -335,7 +335,7 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
             return chart.saved_query_uuid;
         };
 
-        test('ranks exact, contained and word matches in shared spaces only', async () => {
+        test('ranks exact names first and finds related names in shared spaces only', async () => {
             const exact = await createChart('Weekly Revenue!', sharedSpaceUuid);
             const contained = await createChart(
                 'Weekly revenue by region',
@@ -354,11 +354,13 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
                 contentType: ContentReviewContentType.CHART,
                 name: 'weekly revenue',
                 excludeContentUuid: self,
+                accessibleSpaceUuids: [sharedSpaceUuid],
                 limit: 10,
             });
 
             const uuids = results.map((r) => r.uuid);
-            expect(uuids.slice(0, 2)).toEqual([exact, contained]);
+            expect(uuids[0]).toBe(exact);
+            expect(uuids).toContain(contained);
             expect(uuids).toContain(wordMatch);
             expect(uuids).not.toContain(self);
             expect(results.some((r) => r.spaceUuid === personalSpaceUuid)).toBe(
@@ -374,6 +376,7 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
                     contentType: ContentReviewContentType.CHART,
                     name: '   ',
                     excludeContentUuid: null,
+                    accessibleSpaceUuids: [sharedSpaceUuid],
                     limit: 5,
                 }),
             ).toEqual([]);
