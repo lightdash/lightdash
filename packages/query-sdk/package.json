@@ -42,7 +42,7 @@
     "devDependencies": {
         "@lightdash/common": "workspace:*",
         "@types/node": "22.13.1",
-        "@types/react": "19.2.2",
+        "@types/react": "19.3.0",
         "jsdom": "26.1.0",
         "typescript": "7.0.2",
         "vitest": "4.1.6"

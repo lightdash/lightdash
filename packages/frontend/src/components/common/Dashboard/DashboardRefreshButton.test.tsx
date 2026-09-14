@@ -1,6 +1,16 @@
 import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import {
+    afterAll,
+    afterEach,
+    beforeAll,
+    beforeEach,
+    describe,
+    expect,
+    test,
+    vi,
+} from 'vitest';
+import { installFakeTimerBridge } from '../../../testing/fakeTimerBridge';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 
@@ -62,6 +72,16 @@ const advance = (ms: number) => {
 };
 
 describe('DashboardRefreshButton auto-refresh', () => {
+    let removeFakeTimerBridge: () => void;
+
+    beforeAll(() => {
+        removeFakeTimerBridge = installFakeTimerBridge();
+    });
+
+    afterAll(() => {
+        removeFakeTimerBridge();
+    });
+
     beforeEach(() => {
         vi.useFakeTimers();
     });
