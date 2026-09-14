@@ -1,3 +1,10 @@
+## [2.211.4](https://github.com/lightdash/lightdash/compare/2.211.3...2.211.4) (2026-09-14)
+
+
+### Bug Fixes
+
+* PROD-11253 remove lock-dashboard-filters frontend usage ([#29150](https://github.com/lightdash/lightdash/issues/29150)) ([7997fab](https://github.com/lightdash/lightdash/commit/7997fab32bfd35c6d0d430e6bff0d191fd5518b3))
+
 ## [2.211.3](https://github.com/lightdash/lightdash/compare/2.211.2...2.211.3) (2026-09-14)
 
 
