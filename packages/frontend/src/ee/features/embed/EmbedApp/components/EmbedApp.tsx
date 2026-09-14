@@ -6,6 +6,7 @@ import AppIframePreview from '../../../../../features/apps/AppIframePreview';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useEmbedAppPreviewToken } from '../../../../../features/apps/hooks/useEmbedAppPreviewToken';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
+import styles from './EmbedApp.module.css';
 
 type Props = {
     appUuid: string;
@@ -35,7 +36,7 @@ const EmbedApp: FC<Props> = ({ appUuid, projectUuid }) => {
     const isForbidden = statusCode === 403;
 
     return (
-        <Box h="100vh" w="100%">
+        <Box h="100vh" w="100%" className={styles.previewContainer}>
             {isNotFound ? (
                 <SuboptimalState
                     icon={IconAppsOff}
