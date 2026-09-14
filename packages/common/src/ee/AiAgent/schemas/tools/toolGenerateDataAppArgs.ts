@@ -5,6 +5,7 @@ import {
     type AppVersionStatus,
     type DataAppTemplate,
 } from '../../../apps/types';
+import { optionalNull } from '../optionalNull';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 /** Builds run minutes, not seconds: a pending result older than this is stale. */
@@ -36,27 +37,15 @@ export const toolGenerateDataAppArgsSchema = z.object({
         .describe(
             `A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results: when this thread has already settled the analysis, carry it over — for each visualization, its title, a one-line description, and a metric query line \`${DATA_APP_VIZ_LINE_FORMAT}\` — as queries, never pasted numbers, which would be hardcoded into the app.`,
         ),
-    template: z
-        .enum(DATA_APP_BUILD_TEMPLATES)
-        .nullish()
-        .default(null)
-        .describe(
-            'Starter template the builder would use: "dashboard" for a dashboard-style app, "slideshow" for a slide show, "pdf" for a PDF report, "custom" for anything else. Omit when the user did not ask for one.',
-        ),
-    dashboardSlug: z
-        .string()
-        .nullish()
-        .default(null)
-        .describe(
-            "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard.",
-        ),
-    chartSlugs: z
-        .array(z.string())
-        .nullish()
-        .default(null)
-        .describe(
-            'Saved charts (slugs from findContent) whose queries the app is built on; the charts themselves stay unchanged. Omit when not building on saved charts.',
-        ),
+    template: optionalNull(z.enum(DATA_APP_BUILD_TEMPLATES)).describe(
+        'Starter template the builder would use: "dashboard" for a dashboard-style app, "slideshow" for a slide show, "pdf" for a PDF report, "custom" for anything else. Omit when the user did not ask for one.',
+    ),
+    dashboardSlug: optionalNull(z.string()).describe(
+        "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard.",
+    ),
+    chartSlugs: optionalNull(z.array(z.string())).describe(
+        'Saved charts (slugs from findContent) whose queries the app is built on; the charts themselves stay unchanged. Omit when not building on saved charts.',
+    ),
 });
 
 export const toolGenerateDataAppOutputSchema = z.object({

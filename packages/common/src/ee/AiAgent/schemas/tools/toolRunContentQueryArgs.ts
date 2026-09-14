@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalNull } from '../optionalNull';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import { toolChartAsCodeMetricQuerySchema } from './toolCreateContentArgs';
@@ -30,10 +31,9 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
             z.object({
                 type: z.literal('chart'),
                 chartSlug: z.string().describe('Slug of the saved chart.'),
-                limit: z.coerce
-                    .number()
-                    .nullable()
-                    .describe('Optional row limit override.'),
+                limit: optionalNull(z.coerce.number()).describe(
+                    'Optional row limit override.',
+                ),
             }),
             z.object({
                 type: z.literal('dashboardChart'),
@@ -41,10 +41,9 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
                 dashboardSlug: z
                     .string()
                     .describe('Slug of the dashboard containing the chart.'),
-                limit: z.coerce
-                    .number()
-                    .nullable()
-                    .describe('Optional row limit override.'),
+                limit: optionalNull(z.coerce.number()).describe(
+                    'Optional row limit override.',
+                ),
             }),
         ]),
     })

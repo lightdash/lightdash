@@ -12,6 +12,14 @@ const OPTIONAL_TYPES_TO_PROCESS = [
     'ZodTuple',
 ] as const;
 
+const unwrapOptionalNull = (v: z.ZodType): z.ZodNullable | null => {
+    if (!(v instanceof z.ZodDefault)) return null;
+    const optional = v.unwrap();
+    if (!(optional instanceof z.ZodOptional)) return null;
+    const nullable = optional.unwrap();
+    return nullable instanceof z.ZodNullable ? nullable : null;
+};
+
 export class McpSchemaCompatLayer extends SchemaCompatLayer {
     constructor() {
         // We don't need a real model for MCP, just pass dummy info
@@ -43,6 +51,17 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
     }
 
     private processZod4Type(v: z.ZodType): z.ZodType {
+        // optionalNull() wraps the nullable in optional + default(null); MCP
+        // clients keep seeing the same plain optional field as for .nullable()
+        const optionalNullInner = unwrapOptionalNull(v);
+        if (optionalNullInner) {
+            return this.processZod4Type(
+                v.description
+                    ? optionalNullInner.describe(v.description)
+                    : optionalNullInner,
+            );
+        }
+
         // Handle nullable types (e.g., z.string().nullable()) map them to optional but default to null
         if (v instanceof z.ZodNullable) {
             const nullableInner = v.unwrap() as z.ZodType;

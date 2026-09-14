@@ -137,16 +137,18 @@ describe('toolRunQueryArgsSchemaTransformed (V3)', () => {
         ).toBe(true);
     });
 
-    it('rejects V1-shaped args (the tool only accepts V2)', () => {
-        expect(
-            toolRunQueryArgsSchemaTransformed.safeParse(buildV1Args()).success,
-        ).toBe(false);
-        expect(toolRunQueryArgsSchemaV2.safeParse(buildV1Args()).success).toBe(
-            false,
-        );
-        expect(toolRunQueryArgsSchemaV1.safeParse(buildV1Args()).success).toBe(
-            true,
-        );
+    it('defaults omitted queryConfig sections to null', () => {
+        const { customMetrics, tableCalculations, filters, ...queryConfig } =
+            buildV2Args().queryConfig;
+        const parsed = toolRunQueryArgsSchemaV3.parse({
+            ...buildV2Args(),
+            queryConfig,
+        });
+        expect(parsed.queryConfig).toMatchObject({
+            customMetrics: null,
+            tableCalculations: null,
+            filters: null,
+        });
     });
 });
 

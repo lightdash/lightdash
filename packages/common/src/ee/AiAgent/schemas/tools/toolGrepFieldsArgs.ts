@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
+import { optionalNull } from '../optionalNull';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { toolNameFor } from './discoveryToolNames';
 import {
@@ -36,12 +37,9 @@ export const grepFieldsInputSchema = z.object({
         .describe(
             'Up to 5 case-insensitive keyword patterns, run together in one call. Use `|` to OR synonyms and a space or `.*` between words to require all of them. Each is matched against field names, labels, descriptions, hints and tags.',
         ),
-    exploreName: z
-        .string()
-        .nullable()
-        .describe(
-            'Restrict the search to this explore only, or null to search all explores.',
-        ),
+    exploreName: optionalNull(z.string()).describe(
+        'Restrict the search to this explore only, or null to search all explores.',
+    ),
 });
 
 export type ToolGrepFieldsArgs = z.infer<typeof grepFieldsInputSchema>;

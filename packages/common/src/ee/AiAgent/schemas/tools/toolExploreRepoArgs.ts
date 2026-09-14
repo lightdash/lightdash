@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalNull } from '../optionalNull';
 
 export const TOOL_EXPLORE_REPO_DESCRIPTION = [
     'Read-only access to source code via a real bash shell restricted to a read-only command set, over a single virtual filesystem that mounts every repository this organization can access.',
@@ -18,12 +19,9 @@ export const toolExploreRepoArgsSchema = z.object({
         .describe(
             'A single read-only bash command to run against the virtual filesystem, e.g. `ls /`, `cat dbt_project.yml`, or `grep -rin "organization_events" /dbt/models | head -n 30`. Standard read-only commands (ls, cat, find, grep, rg, sed, awk, cut, sort, uniq, head, tail, wc, jq, xargs, …) work, composed with pipes, `&&`/`||` and globs. Use absolute paths (`/dbt/...`, `/owner/repo/...`) to read across repositories.',
         ),
-    target: z
-        .string()
-        .nullable()
-        .describe(
-            'Optional starting directory, as a repository "owner/repo" (e.g. "lightdash/lightdash") — the command then starts in that repository\'s mount (`/owner/repo`). Use `discoverRepos` to find accessible repos. Pass null to start in the dbt project mount (`/dbt`). This only sets the working directory; absolute paths in the command can reach any mount regardless of target.',
-        ),
+    target: optionalNull(z.string()).describe(
+        'Optional starting directory, as a repository "owner/repo" (e.g. "lightdash/lightdash") — the command then starts in that repository\'s mount (`/owner/repo`). Use `discoverRepos` to find accessible repos. Pass null to start in the dbt project mount (`/dbt`). This only sets the working directory; absolute paths in the command can reach any mount regardless of target.',
+    ),
 });
 
 export const toolExploreRepoOutputSchema = z.object({

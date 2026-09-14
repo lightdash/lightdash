@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalNull } from '../optionalNull';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 import {
     isToolGenerateDataAppResult,
@@ -26,20 +27,12 @@ export const toolIterateDataAppArgsSchema = z.object({
         .describe(
             "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
         ),
-    dashboardSlug: z
-        .string()
-        .nullish()
-        .default(null)
-        .describe(
-            "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard.",
-        ),
-    chartSlugs: z
-        .array(z.string())
-        .nullish()
-        .default(null)
-        .describe(
-            'Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts.',
-        ),
+    dashboardSlug: optionalNull(z.string()).describe(
+        "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard.",
+    ),
+    chartSlugs: optionalNull(z.array(z.string())).describe(
+        'Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts.',
+    ),
 });
 
 // The iterate tool shares the create tool's outcome contract: same pending,

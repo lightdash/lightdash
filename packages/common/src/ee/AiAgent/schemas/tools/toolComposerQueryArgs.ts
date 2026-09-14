@@ -11,6 +11,7 @@ import {
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { optionalNull } from '../optionalNull';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
@@ -98,13 +99,10 @@ export const createToolComposerQueriesArgsSchema = ({
             .describe(
                 "Metric field ids to compute, from the explore's schema.",
             ),
-        filters: semanticLayerFiltersSchema.nullable(),
-        sorts: z
-            .array(sortFieldSchema)
-            .nullable()
-            .describe(
-                'Sorts to apply, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
-            ),
+        filters: optionalNull(semanticLayerFiltersSchema),
+        sorts: optionalNull(z.array(sortFieldSchema)).describe(
+            'Sorts to apply, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
+        ),
         limit: limitSchema,
     });
 
@@ -160,28 +158,21 @@ export const createToolComposerQueriesArgsSchema = ({
 
     return createToolSchema()
         .extend({
-            title: z
-                .string()
-                .nullable()
-                .describe('A short title for the results artifact.'),
-            description: z
-                .string()
-                .nullable()
-                .describe(
-                    'A one-line description of what the pipeline computes.',
-                ),
+            title: optionalNull(z.string()).describe(
+                'A short title for the results artifact.',
+            ),
+            description: optionalNull(z.string()).describe(
+                'A one-line description of what the pipeline computes.',
+            ),
             queries: z
                 .array(sourceQueryNodeSchema)
                 .min(1)
                 .describe(
                     'The pipeline: one or more source queries submitted together. Order does not matter — dependencies are resolved from duckdb references.',
                 ),
-            terminalNodeId: z
-                .string()
-                .nullable()
-                .describe(
-                    "Which node's result the artifact shows and this tool returns. Pass null to default to the unique sink (the one node no other node references); required when the pipeline has multiple sinks.",
-                ),
+            terminalNodeId: optionalNull(z.string()).describe(
+                "Which node's result the artifact shows and this tool returns. Pass null to default to the unique sink (the one node no other node references); required when the pipeline has multiple sinks.",
+            ),
         })
         .build();
 };

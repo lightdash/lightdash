@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
+import { optionalNull } from '../optionalNull';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -59,12 +60,9 @@ export const toolFindContentArgsSchema = createToolSchema()
                     ),
             }),
         ),
-        spaceSlug: z
-            .string()
-            .nullable()
-            .describe(
-                'Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned.',
-            ),
+        spaceSlug: optionalNull(z.string()).describe(
+            'Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned.',
+        ),
         verifiedOnly: z
             .boolean()
             .nullish()

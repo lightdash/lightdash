@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalNull } from '../optionalNull';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
@@ -18,18 +19,12 @@ export const toolEditDbtProjectArgsSchema = z.object({
         .describe(
             'A focused, self-contained natural-language instruction describing exactly which files in the connected project to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). When the project has multiple dbt sources, include the source name or owner/repo verbatim. Do not include preamble or pleasantries.',
         ),
-    prUrl: z
-        .string()
-        .nullable()
-        .describe(
-            "To UPDATE a specific existing pull request instead of opening a new one, put its full URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to this project's own connected repository. Use this both for a PR the user pasted AND to target one of several pull requests this conversation has already opened (get the URL from listWorkstreams or a previous editDbtProject result). Otherwise pass null.",
-        ),
-    startNewPullRequest: z
-        .boolean()
-        .nullable()
-        .describe(
-            "Set true to open a brand-new pull request even when this conversation already has one open against this project's connected repository — use it when the user asks for a SEPARATE, unrelated change rather than a follow-up to existing work. Leave null (the default) to continue the most recent pull request. Ignored when prUrl is set.",
-        ),
+    prUrl: optionalNull(z.string()).describe(
+        "To UPDATE a specific existing pull request instead of opening a new one, put its full URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to this project's own connected repository. Use this both for a PR the user pasted AND to target one of several pull requests this conversation has already opened (get the URL from listWorkstreams or a previous editDbtProject result). Otherwise pass null.",
+    ),
+    startNewPullRequest: optionalNull(z.boolean()).describe(
+        "Set true to open a brand-new pull request even when this conversation already has one open against this project's connected repository — use it when the user asks for a SEPARATE, unrelated change rather than a follow-up to existing work. Leave null (the default) to continue the most recent pull request. Ignored when prUrl is set.",
+    ),
 });
 
 export const toolEditDbtProjectOutputSchema = z.object({

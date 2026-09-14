@@ -7,6 +7,7 @@ import type {
     FilterType,
 } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { optionalNull } from '../optionalNull';
 import booleanFilterSchema from './booleanFilters';
 import dateFilterSchema from './dateFilters';
 import numberFilterSchema from './numberFilters';
@@ -51,17 +52,17 @@ export const filterRuleSchemaTransformed = filterRuleSchema.transform(
 
 export const filtersSchemaV2 = z.object({
     type: filterAndOrSchema,
-    dimensions: z.array(filterRuleSchema).nullable(),
-    metrics: z.array(filterRuleSchema).nullable(),
-    tableCalculations: z.array(numberFilterSchema).nullable(),
+    dimensions: optionalNull(z.array(filterRuleSchema)),
+    metrics: optionalNull(z.array(filterRuleSchema)),
+    tableCalculations: optionalNull(z.array(numberFilterSchema)),
 });
 
 const filtersSchemaAndFilterRulesTransformed = z
     .object({
         type: filterAndOrSchema,
-        dimensions: z.array(filterRuleSchemaTransformed).nullable(),
-        metrics: z.array(filterRuleSchemaTransformed).nullable(),
-        tableCalculations: z.array(filterRuleSchemaTransformed).nullable(),
+        dimensions: optionalNull(z.array(filterRuleSchemaTransformed)),
+        metrics: optionalNull(z.array(filterRuleSchemaTransformed)),
+        tableCalculations: optionalNull(z.array(filterRuleSchemaTransformed)),
     })
     .nullable();
 

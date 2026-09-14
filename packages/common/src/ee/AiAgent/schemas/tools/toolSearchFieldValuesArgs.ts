@@ -6,6 +6,7 @@ import {
 import { getFieldIdSchema } from '../fieldId';
 import { filterExpressionInputSchema } from '../filterExpressions/expressionSchemas';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
+import { optionalNull } from '../optionalNull';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -59,29 +60,21 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema()
         fieldId: getFieldIdSchema({
             additionalDescription: 'The ID of the field to search values for',
         }),
-        query: z
-            .string()
-            .describe(
-                'Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected.',
-            )
-            .nullable(),
-        filters: filtersSchemaV2
-            .nullable()
-            .describe(
-                'Optional filters to scope the value search. If supplied, always include type, dimensions, metrics, and tableCalculations; use null or [] for every unused category. Never construct a partial filter group. Filtered fields must exist in the selected explore or be referenced from custom metrics.',
-            ),
+        query: optionalNull(z.string()).describe(
+            'Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected.',
+        ),
+        filters: optionalNull(filtersSchemaV2).describe(
+            'Optional filters to scope the value search. If supplied, always include type, dimensions, metrics, and tableCalculations; use null or [] for every unused category. Never construct a partial filter group. Filtered fields must exist in the selected explore or be referenced from custom metrics.',
+        ),
     })
     .build();
 
 export const toolSearchFieldValuesExpressionArgsSchema =
     toolSearchFieldValuesArgsSchema
         .extend({
-            filters: filterExpressionInputSchema
-                .nullish()
-                .default(null)
-                .describe(
-                    'When present, scopes the candidate-value search with one flat AND filter expression containing dimension fields only.',
-                ),
+            filters: optionalNull(filterExpressionInputSchema).describe(
+                'When present, scopes the candidate-value search with one flat AND filter expression containing dimension fields only.',
+            ),
         })
         .strict();
 
