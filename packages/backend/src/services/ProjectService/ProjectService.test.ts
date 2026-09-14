@@ -4,6 +4,7 @@ import {
     convertExplores,
     CustomDimensionType,
     CustomSqlQueryForbiddenError,
+    DbtExposureType,
     DbtProjectType,
     DbtVersionOptionLatest,
     DEFAULT_SPOTLIGHT_CONFIG,
@@ -237,7 +238,6 @@ const projectModel = {
             name: validExplore.name,
             type: validExplore.type,
             baseTable: validExplore.baseTable,
-            isExploreError: false,
             tables: Object.fromEntries(
                 Object.entries(validExplore.tables).map(([tableKey, table]) => [
                     tableKey,
@@ -2611,7 +2611,6 @@ describe('ProjectService', () => {
                 name: 'first',
                 type: ExploreType.DEFAULT,
                 baseTable: 'first',
-                isExploreError: false,
                 tables: {
                     first: {
                         name: 'shared',
@@ -2626,7 +2625,6 @@ describe('ProjectService', () => {
                 name: 'second',
                 type: ExploreType.DEFAULT,
                 baseTable: 'second',
-                isExploreError: false,
                 tables: {
                     second: {
                         name: 'shared',
@@ -2640,8 +2638,8 @@ describe('ProjectService', () => {
             broken: {
                 name: 'broken',
                 type: undefined,
-                baseTable: undefined,
-                isExploreError: true,
+                baseTable: '',
+                errors: true,
                 tables: {
                     broken: {
                         name: 'shared',
@@ -2708,6 +2706,14 @@ describe('ProjectService', () => {
                 lastName: 'Owner',
             },
             {
+                uuid: 'external-source-chart',
+                name: 'External source chart',
+                description: undefined,
+                tableName: 'external_source_explore',
+                firstName: 'First',
+                lastName: 'Owner',
+            },
+            {
                 uuid: 'broken-chart',
                 name: 'Broken chart',
                 description: undefined,
@@ -2723,7 +2729,6 @@ describe('ProjectService', () => {
                 name: 'default_explore',
                 type: ExploreType.DEFAULT,
                 baseTable: 'orders',
-                isExploreError: false,
                 tables: {
                     orders: {
                         name: 'orders_alias',
@@ -2732,13 +2737,19 @@ describe('ProjectService', () => {
                         schema: 'schema',
                         sqlTable: 'database.schema.orders',
                     },
+                    payments: {
+                        name: 'payments',
+                        originalName: 'payments',
+                        database: 'database',
+                        schema: 'schema',
+                        sqlTable: 'database.schema.payments',
+                    },
                 },
             },
             virtual_explore: {
                 name: 'virtual_explore',
                 type: ExploreType.VIRTUAL,
                 baseTable: 'virtual',
-                isExploreError: false,
                 tables: {
                     virtual: {
                         name: 'virtual',
@@ -2752,7 +2763,6 @@ describe('ProjectService', () => {
                 name: 'pre_aggregate_explore',
                 type: ExploreType.PRE_AGGREGATE,
                 baseTable: 'pre_aggregate',
-                isExploreError: false,
                 tables: {
                     pre_aggregate: {
                         name: 'pre_aggregate',
@@ -2762,11 +2772,24 @@ describe('ProjectService', () => {
                     },
                 },
             },
+            external_source_explore: {
+                name: 'external_source_explore',
+                type: ExploreType.EXTERNAL_SOURCE,
+                baseTable: 'external_source',
+                tables: {
+                    external_source: {
+                        name: 'external_source',
+                        database: 'database',
+                        schema: 'schema',
+                        sqlTable: 'database.schema.external_source',
+                    },
+                },
+            },
             broken_explore: {
                 name: 'broken_explore',
                 type: undefined,
-                baseTable: undefined,
-                isExploreError: true,
+                baseTable: '',
+                errors: true,
                 tables: {},
             },
         });
@@ -2779,18 +2802,50 @@ describe('ProjectService', () => {
             'default_explore',
             'virtual_explore',
             'pre_aggregate_explore',
+            'external_source_explore',
             'broken_explore',
         ]);
         expect(results.ld_chart_default_chart.dependsOn).toEqual([
             "ref('orders')",
+            "ref('payments')",
         ]);
         expect(results.ld_chart_default_chart_copy.dependsOn).toEqual([
             "ref('orders')",
+            "ref('payments')",
         ]);
         expect(results.ld_chart_virtual_chart).toBeUndefined();
         expect(results.ld_chart_pre_aggregate_chart).toBeUndefined();
+        expect(results.ld_chart_external_source_chart).toBeUndefined();
         expect(results.ld_chart_broken_chart).toBeUndefined();
         expect(projectModel.findExploresFromCache).not.toHaveBeenCalled();
+    });
+    test('returns only the project exposure when a populated project has no charts', async () => {
+        const manager = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { action: 'manage', subject: 'Project' },
+            ]),
+        };
+        vi.mocked(
+            savedChartModel.findInfoForDbtExposures,
+        ).mockResolvedValueOnce([]);
+        vi.mocked(
+            projectModel.findExploreTableSummariesFromCache,
+        ).mockResolvedValueOnce({});
+        vi.mocked(dashboardModel.findInfoForDbtExposures).mockResolvedValueOnce(
+            [],
+        );
+
+        const results = await service.getDbtExposures(manager, projectUuid);
+
+        expect(
+            projectModel.findExploreTableSummariesFromCache,
+        ).toHaveBeenCalledWith(projectUuid, []);
+        expect(Object.values(results)).toHaveLength(1);
+        expect(Object.values(results)[0]).toMatchObject({
+            type: DbtExposureType.APPLICATION,
+            dependsOn: [],
+        });
     });
     test('should get tables configuration', async () => {
         const result = await service.getTablesConfiguration(

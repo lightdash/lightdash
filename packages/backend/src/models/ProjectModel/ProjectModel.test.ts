@@ -167,6 +167,107 @@ describe('ProjectModel', () => {
         expect(result).toEqual(expectedTablesConfiguration);
         expect(tracker.history.select).toHaveLength(1);
     });
+    describe('findExploreTableSummariesFromCache', () => {
+        const summaryRow = (
+            exploreName: string,
+            tableKey: string | null,
+            overrides: AnyType = {},
+        ) => ({
+            exploreName,
+            exploreType: ExploreType.DEFAULT,
+            baseTable: tableKey,
+            hasErrors: false,
+            tableKey,
+            tableName: tableKey,
+            originalName: null,
+            database: 'database',
+            schema: 'schema',
+            description: null,
+            hasDescription: false,
+            sqlTable: 'database.schema.table',
+            ymlPath: null,
+            dbtSourceUuid: null,
+            ...overrides,
+        });
+
+        test('keeps prototype-like explore and table names as own keys', async () => {
+            tracker.on
+                .select(queryMatcher(CachedExploreTableName, [projectUuid]))
+                .response([
+                    summaryRow('constructor', '__proto__'),
+                    summaryRow('toString', 'constructor'),
+                ]);
+
+            const result =
+                await model.findExploreTableSummariesFromCache(projectUuid);
+
+            expect(Object.keys(result)).toEqual(['constructor', 'toString']);
+            const [constructorExplore, toStringExplore] = Object.values(result);
+            expect(Object.keys(constructorExplore.tables)).toEqual([
+                '__proto__',
+            ]);
+            expect(Object.keys(toStringExplore.tables)).toEqual([
+                'constructor',
+            ]);
+        });
+
+        test('guards JSONB expansion and binds deduplicated names', async () => {
+            tracker.on
+                .select(CachedExploreTableName)
+                .response([summaryRow('json_name', null)]);
+
+            const result = await model.findExploreTableSummariesFromCache(
+                projectUuid,
+                ['column_name', 'column_name'],
+            );
+
+            expect(result.json_name.tables).toEqual({});
+            expect(Object.hasOwn(result, 'column_name')).toBe(false);
+            expect(tracker.history.select).toHaveLength(1);
+            expect(tracker.history.select[0].bindings).toEqual([
+                projectUuid,
+                'column_name',
+            ]);
+            expect(tracker.history.select[0].sql).toContain(
+                "jsonb_exists(explore, 'errors')",
+            );
+            expect(tracker.history.select[0].sql).toContain(
+                "jsonb_typeof(explore_fields.tables) = 'object'",
+            );
+            expect(tracker.history.select[0].sql).toContain(
+                "jsonb_typeof(table_entry.value) = 'object'",
+            );
+        });
+
+        test('preserves error presence and malformed scalar truthiness', async () => {
+            tracker.on
+                .select(queryMatcher(CachedExploreTableName, [projectUuid]))
+                .response([
+                    summaryRow('broken', null, { hasErrors: true }),
+                    summaryRow('coercions', 'orders', {
+                        hasDescription: true,
+                        description: null,
+                        originalName: 0,
+                        ymlPath: false,
+                    }),
+                ]);
+
+            const result =
+                await model.findExploreTableSummariesFromCache(projectUuid);
+
+            expect(result.broken).toHaveProperty('errors', true);
+            expect(result.coercions.tables.orders).toHaveProperty(
+                'description',
+                null,
+            );
+            expect(result.coercions.tables.orders).not.toHaveProperty(
+                'originalName',
+            );
+            expect(result.coercions.tables.orders).not.toHaveProperty(
+                'ymlPath',
+            );
+        });
+    });
     describe('getExploreFromCache', () => {
         const createQualifiedExplore = (
             name: string,
@@ -174,7 +275,6 @@ describe('ProjectModel', () => {
             name,
             type: ExploreType.DEFAULT,
             baseTable: name,
-            isExploreError: false,
             tables: {
                 [name]: {
                     name,

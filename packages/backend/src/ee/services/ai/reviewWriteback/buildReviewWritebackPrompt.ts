@@ -29,15 +29,22 @@ export type ReviewWritebackPlan =
           entry: AiAgentJudgeProjectContextEntry;
       };
 
-type YmlPathExplore = {
-    name?: string;
-    tables?: Record<
-        string,
-        Pick<CompiledTable, 'name' | 'ymlPath' | 'dbtSourceUuid'>
-    >;
-    errors?: unknown;
-    isExploreError?: boolean;
+type YmlPathTable = Pick<CompiledTable, 'name' | 'ymlPath' | 'dbtSourceUuid'>;
+
+type ValidYmlPathExplore = {
+    name: string;
+    baseTable: string;
+    tables: Record<string, YmlPathTable>;
 };
+
+type FailedYmlPathExplore = {
+    name: string;
+    errors: unknown;
+    baseTable?: string;
+    tables?: Record<string, YmlPathTable>;
+};
+
+type YmlPathExplore = ValidYmlPathExplore | FailedYmlPathExplore;
 
 // Resolves each model's dbt YAML path from compiled explores so the writeback agent edits the right file (the judge only gives names).
 export const buildYmlPathByModel = (
@@ -48,10 +55,10 @@ export const buildYmlPathByModel = (
         { ymlPath: string; dbtSourceUuid: string | null }
     >();
     explores.forEach((explore) => {
-        if (explore.isExploreError || 'errors' in explore) {
+        if ('errors' in explore) {
             return;
         }
-        Object.entries(explore.tables ?? {}).forEach(([tableName, table]) => {
+        Object.entries(explore.tables).forEach(([tableName, table]) => {
             if (table.ymlPath) {
                 map.set(tableName, {
                     ymlPath: table.ymlPath,
