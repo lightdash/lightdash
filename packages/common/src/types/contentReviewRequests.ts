@@ -25,7 +25,7 @@ export type ContentReviewUser = {
     lastName: string;
 };
 
-// Shown to the requester at submit time and snapshotted on the request
+// Server-computed matches snapshotted when the request is submitted
 export type ContentReviewSimilarContentItem = {
     contentType: ContentReviewContentType;
     contentUuid: string;
@@ -35,6 +35,8 @@ export type ContentReviewSimilarContentItem = {
     spaceName: string;
     isVerified: boolean;
     score: number;
+    // Optional for review snapshots created before match explanations.
+    matchReason?: 'same_name' | 'similar_name';
 };
 
 export type ContentReviewMovedItem = {

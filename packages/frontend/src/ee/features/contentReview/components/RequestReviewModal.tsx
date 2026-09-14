@@ -83,13 +83,16 @@ const RequestReviewModal: FC<Props> = ({
     );
     const { mutateAsync: createRequest, isLoading: isSubmitting } =
         useCreateContentReviewRequest(projectUuid);
-    const { data: similarContent = [] } = useSimilarContent(
+    const {
+        data: similarContent = [],
+        isInitialLoading: isCheckingSimilar,
+        isError: similarError,
+        refetch: retrySimilar,
+    } = useSimilarContent(
         projectUuid,
         { contentType, name: contentName, excludeContentUuid: contentUuid },
         opened,
     );
-    // When lookalikes exist the requester has to say what theirs adds
-    const noteRequired = similarContent.length > 0;
 
     const form = useForm<{ targetSpaceUuid: string | null; note: string }>({
         initialValues: { targetSpaceUuid: null, note: '' },
@@ -107,7 +110,6 @@ const RequestReviewModal: FC<Props> = ({
     const handleSubmit = form.onSubmit(async (values) => {
         if (values.targetSpaceUuid === null) return;
         const note = values.note.trim();
-        if (noteRequired && note.length === 0) return;
         await createRequest({
             contentType,
             contentUuid,
@@ -143,8 +145,12 @@ const RequestReviewModal: FC<Props> = ({
             actions={
                 isSpaceStep ? (
                     <Button
+                        type="button"
                         disabled={form.values.targetSpaceUuid === null}
-                        onClick={() => setStep('note')}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            setStep('note');
+                        }}
                     >
                         Continue
                     </Button>
@@ -153,11 +159,7 @@ const RequestReviewModal: FC<Props> = ({
                         type="submit"
                         form="request-review-form"
                         loading={isSubmitting}
-                        disabled={
-                            form.values.targetSpaceUuid === null ||
-                            (noteRequired &&
-                                form.values.note.trim().length === 0)
-                        }
+                        disabled={form.values.targetSpaceUuid === null}
                     >
                         Request review
                     </Button>
@@ -212,6 +214,25 @@ const RequestReviewModal: FC<Props> = ({
                                 </Text>
                             </Group>
                         </Group>
+                        {isCheckingSimilar && (
+                            <Text size="xs" c="dimmed" role="status">
+                                Checking for related content…
+                            </Text>
+                        )}
+                        {similarError && (
+                            <Group gap="xs">
+                                <Text size="xs" c="dimmed" role="status">
+                                    Related content could not be checked.
+                                </Text>
+                                <Button
+                                    variant="subtle"
+                                    size="compact-xs"
+                                    onClick={() => void retrySimilar()}
+                                >
+                                    Retry
+                                </Button>
+                            </Group>
+                        )}
                         <SimilarContentPanel
                             projectUuid={projectUuid}
                             contentType={contentType}
@@ -221,12 +242,10 @@ const RequestReviewModal: FC<Props> = ({
                         <Textarea
                             label="Note for reviewers"
                             description={
-                                noteRequired
+                                similarContent.length > 0
                                     ? 'What does yours add that the existing content does not?'
                                     : 'What does it show, and who is it for?'
                             }
-                            required={noteRequired}
-                            withAsterisk={noteRequired}
                             autosize
                             minRows={3}
                             maxRows={6}

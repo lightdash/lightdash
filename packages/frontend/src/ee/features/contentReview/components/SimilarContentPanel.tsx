@@ -1,10 +1,14 @@
 import {
-    type ContentReviewContentType,
+    ContentReviewContentType,
     type ContentReviewSimilarContentItem,
 } from '@lightdash/common';
-import { Button, Group, Paper, Stack, Text } from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
+import {
+    IconChevronDown,
+    IconChevronRight,
+    IconInfoCircle,
+} from '@tabler/icons-react';
+import { useId, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
@@ -17,7 +21,8 @@ const VISIBLE_ROWS = 3;
 type Props = {
     projectUuid: string;
     contentType: ContentReviewContentType;
-    contentUuid: string;
+    contentUuid: string | null;
+    variant?: 'review' | 'save';
     items: ContentReviewSimilarContentItem[];
 };
 
@@ -26,68 +31,88 @@ const SimilarContentPanel: FC<Props> = ({
     contentType,
     contentUuid,
     items,
+    variant = 'review',
 }) => {
+    const [expanded, setExpanded] = useState(false);
     const [showAll, setShowAll] = useState(false);
+    const resultsId = useId();
     const { track } = useTracking();
     if (items.length === 0) return null;
+    const noun =
+        contentType === ContentReviewContentType.DASHBOARD
+            ? 'dashboard'
+            : 'chart';
     const hidden = Math.max(items.length - VISIBLE_ROWS, 0);
     const visible = showAll ? items : items.slice(0, VISIBLE_ROWS);
     return (
-        <Paper className={classes.panel}>
-            <Group gap="sm" wrap="nowrap" className={classes.header}>
-                <MantineIcon icon={IconAlertTriangle} color="yellow.7" />
-                <Stack gap={0}>
-                    <Text fz="sm" fw={500}>
-                        {items.length === 1
-                            ? 'Something similar already exists'
-                            : 'Similar content already exists'}
+        <Stack gap="xs">
+            <UnstyledButton
+                type="button"
+                className={classes.disclosure}
+                aria-expanded={expanded}
+                aria-controls={resultsId}
+                onClick={() => setExpanded((current) => !current)}
+            >
+                <Group gap={6} wrap="nowrap">
+                    <MantineIcon icon={IconInfoCircle} size="sm" />
+                    <Text fz="xs" inherit>
+                        {items.length} similar {noun}
+                        {items.length === 1 ? '' : 's'} found
                     </Text>
-                    <Text fz="xs" c="dimmed">
-                        Have a look before you submit. If yours adds something,
-                        say what in the note so reviewers know.
-                    </Text>
-                </Stack>
-            </Group>
-            <Stack gap={0} p={4}>
-                {visible.map((item) => (
-                    <ContentReviewItemRow
-                        key={item.contentUuid}
-                        contentType={item.contentType}
-                        name={item.name}
-                        meta={`in ${item.spaceName}`}
-                        href={getContentHref(
-                            projectUuid,
-                            item.contentType,
-                            item,
-                        )}
-                        isVerified={item.isVerified}
-                        compact
-                        onClick={() =>
-                            track({
-                                name: EventName.CONTENT_REVIEW_SIMILAR_CONTENT_CLICKED,
-                                properties: {
-                                    projectId: projectUuid,
-                                    contentType,
-                                    contentId: contentUuid,
-                                    similarContentId: item.contentUuid,
-                                    similarContentIsVerified: item.isVerified,
-                                },
-                            })
-                        }
+                    <MantineIcon
+                        icon={expanded ? IconChevronDown : IconChevronRight}
+                        size="sm"
                     />
-                ))}
-                {hidden > 0 && (
-                    <Button
-                        variant="subtle"
-                        size="compact-xs"
-                        className={classes.toggle}
-                        onClick={() => setShowAll((current) => !current)}
-                    >
-                        {showAll ? 'Show fewer' : `Show ${hidden} more`}
-                    </Button>
+                </Group>
+            </UnstyledButton>
+            <div id={resultsId} hidden={!expanded}>
+                {expanded && (
+                    <Stack gap={0} className={classes.results}>
+                        {visible.map((item) => (
+                            <ContentReviewItemRow
+                                key={item.contentUuid}
+                                contentType={item.contentType}
+                                name={item.name}
+                                meta={`${item.matchReason === 'same_name' ? 'Same name' : 'Similar name'} · in ${item.spaceName}`}
+                                href={getContentHref(
+                                    projectUuid,
+                                    item.contentType,
+                                    item,
+                                )}
+                                isVerified={item.isVerified}
+                                onClick={() =>
+                                    contentUuid &&
+                                    variant === 'review' &&
+                                    track({
+                                        name: EventName.CONTENT_REVIEW_SIMILAR_CONTENT_CLICKED,
+                                        properties: {
+                                            projectId: projectUuid,
+                                            contentType,
+                                            contentId: contentUuid,
+                                            similarContentId: item.contentUuid,
+                                            similarContentIsVerified:
+                                                item.isVerified,
+                                        },
+                                    })
+                                }
+                            />
+                        ))}
+                        {hidden > 0 && (
+                            <Button
+                                variant="subtle"
+                                size="compact-xs"
+                                className={classes.toggle}
+                                onClick={() =>
+                                    setShowAll((current) => !current)
+                                }
+                            >
+                                {showAll ? 'Show fewer' : `Show ${hidden} more`}
+                            </Button>
+                        )}
+                    </Stack>
                 )}
-            </Stack>
-        </Paper>
+            </div>
+        </Stack>
     );
 };
 
