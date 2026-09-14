@@ -1229,6 +1229,23 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Chart types are offered to whoever can build a chart in an explore:
+     * picking, configuring, and previewing a renderer is part of chart
+     * building, not app access. Registry-installed chart types are space-less,
+     * so a `view:DataApp` check here would deny everyone but the installer
+     * and admins.
+     */
+    private assertCanUseChartTypes(
+        user: SessionUser,
+        context: { organizationUuid: string; projectUuid: string },
+    ): void {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (auditedAbility.cannot('manage', subject('Explore', context))) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+    }
+
+    /**
      * Link the given external connections to the app before its catalog stage,
      * so the generated app can call them via client.externalFetch. A connection
      * from another project is never linked (that would expose its credentialed
@@ -2035,9 +2052,17 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        // Viewing a thumbnail is a read: anyone who can view the app can see it
-        // (e.g. on a project homepage), not just those who can manage it.
-        await this.assertCanViewApp(user, app);
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            this.assertCanUseChartTypes(user, {
+                organizationUuid: app.organization_uuid,
+                projectUuid,
+            });
+        } else {
+            // Viewing a thumbnail is a read: anyone who can view the app can
+            // see it (e.g. on a project homepage), not just those who can
+            // manage it.
+            await this.assertCanViewApp(user, app);
+        }
 
         const { client: s3Client, bucket } = this.getS3Client();
         const key = AppGenerateService.appThumbnailKey(appUuid);
@@ -8679,17 +8704,7 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        // The library is offered to whoever can build a chart in an explore:
-        // picking a renderer is part of configuring a chart, not app access.
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError('Insufficient permissions');
-        }
+        this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
         const { data, pagination } =
             await this.appModel.listDataAppVisualizations(
                 projectUuid,
@@ -8735,15 +8750,7 @@ export class AppGenerateService extends BaseService {
         }
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError('Insufficient permissions');
-        }
+        this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
 
         if (!this.chartRegistryClient.isEnabled()) {
             return { registryEnabled: false, charts: [] };
@@ -9033,12 +9040,9 @@ export class AppGenerateService extends BaseService {
                 `Data app visualization not found: ${dataAppVizUuid}`,
             );
         }
-        await this.assertCanViewApp(user, {
-            app_id: dataAppViz.app_id,
-            project_uuid: dataAppViz.project_uuid,
-            space_uuid: dataAppViz.space_uuid,
-            organization_uuid: dataAppViz.organization_uuid,
-            created_by_user_uuid: dataAppViz.created_by_user_uuid,
+        this.assertCanUseChartTypes(user, {
+            organizationUuid: dataAppViz.organization_uuid,
+            projectUuid: dataAppViz.project_uuid,
         });
         if (version === undefined) {
             return AppGenerateService.mapDataAppViz(dataAppViz);
@@ -9072,18 +9076,10 @@ export class AppGenerateService extends BaseService {
 
         await this.assertDataAppsEnabled(user);
 
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', {
-                    organizationUuid: dataAppViz.organization_uuid,
-                    projectUuid: dataAppViz.project_uuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError('Insufficient permissions');
-        }
+        this.assertCanUseChartTypes(user, {
+            organizationUuid: dataAppViz.organization_uuid,
+            projectUuid: dataAppViz.project_uuid,
+        });
 
         return dataAppViz;
     }
