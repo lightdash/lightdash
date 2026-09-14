@@ -5,7 +5,7 @@ export default defineConfig({
     ...unitConfig,
     test: {
         ...unitConfig.test,
-        name: 'autopilot-provider-smoke',
+        name: 'autopilot-live',
         include: [
             'src/ee/services/ManagedAgentService/AutopilotAgentRunner.integration.test.ts',
         ],

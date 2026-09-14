@@ -45,7 +45,6 @@ import type { ToolSet } from 'ai';
 import type { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import type { SlackClient } from '../../../clients/Slack/SlackClient';
-import { AI_PROVIDER_KEYS } from '../../../config/aiConfigSchema';
 import { getAutopilotCleanupMode } from '../../../config/autopilotConfig';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
@@ -87,12 +86,10 @@ import {
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
 import type { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
-import {
-    isModelConfigAvailable,
-    type AiOrganizationSettingsService,
-} from '../AiOrganizationSettingsService';
+import type { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { runAutopilotAgent } from './AutopilotAgentRunner';
 import { renderAutopilotAgent } from './config/agent';
+import { pickAutopilotModel } from './modelSelection';
 import { buildPreAggCandidateSuggestion } from './preAggCandidates';
 import { loadAutopilotSkill } from './skills';
 import {
@@ -168,10 +165,6 @@ const FRIENDLY_TOOL_LABELS: Record<string, string> = {
     write_slack_summary: 'Writing Slack summary',
 };
 
-type AiProviderKey = (typeof AI_PROVIDER_KEYS)[number];
-const isAiProviderKey = (value: string): value is AiProviderKey =>
-    AI_PROVIDER_KEYS.some((key) => key === value);
-
 const NON_ACTIVITY_TOOL_NAMES = new Set(['write_slack_summary']);
 
 const friendlyToolLabel = (toolName: string): string =>
@@ -199,6 +192,13 @@ type ManagedAgentServiceDependencies = {
     aiAgentToolsService: AiAgentToolsService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
 };
+
+type AutopilotToolCallHandler = (
+    toolName: string,
+    input: Record<string, unknown>,
+    abortSignal?: AbortSignal,
+    allowContentDeletion?: boolean,
+) => Promise<string>;
 
 type HeartbeatSessionResult = {
     sessionId: string;
@@ -450,49 +450,14 @@ export class ManagedAgentService extends BaseService {
                         organizationUuid,
                     ),
                 ]);
-            const availableModels = filterModelsForOrg(
-                getAvailableModels(copilotConfig),
-                overrides,
-            );
-            const orgDefault =
-                orgDefaultModel &&
-                isAiProviderKey(orgDefaultModel.modelProvider) &&
-                isModelConfigAvailable(orgDefaultModel, availableModels)
-                    ? {
-                          provider: orgDefaultModel.modelProvider,
-                          modelName: orgDefaultModel.modelName,
-                      }
-                    : undefined;
-            const configuredDefault = getDefaultModel(copilotConfig);
-            // Azure uses the configured deployment directly, without a model catalog.
-            const defaultAvailable =
-                configuredDefault &&
-                (configuredDefault.provider === 'azure' ||
-                    isModelConfigAvailable(
-                        {
-                            modelProvider: configuredDefault.provider,
-                            modelName: configuredDefault.name,
-                        },
-                        availableModels,
-                    ));
-            const fallback = defaultAvailable
-                ? {
-                      provider: configuredDefault.provider,
-                      modelName: configuredDefault.name,
-                  }
-                : (availableModels.find(
-                      (model) =>
-                          model.provider === copilotConfig.defaultProvider,
-                  ) ?? availableModels[0]);
-            const selected =
-                orgDefault ??
-                (fallback &&
-                    ('modelName' in fallback
-                        ? fallback
-                        : {
-                              provider: fallback.provider,
-                              modelName: fallback.name,
-                          }));
+            const selected = pickAutopilotModel({
+                orgDefault: orgDefaultModel,
+                instanceDefault: getDefaultModel(copilotConfig),
+                availableModels: filterModelsForOrg(
+                    getAvailableModels(copilotConfig),
+                    overrides,
+                ),
+            });
             if (!selected)
                 throw new ParameterError(
                     'No AI model is available under the organization model settings',
@@ -1828,12 +1793,12 @@ export class ManagedAgentService extends BaseService {
         let slackSummary = '';
         let runError: string | null = null;
 
-        const onToolCall = async (
-            toolName: string,
-            input: Record<string, unknown>,
-            abortSignal?: AbortSignal,
-            allowContentDeletion?: boolean,
-        ): Promise<string> =>
+        const onToolCall: AutopilotToolCallHandler = async (
+            toolName,
+            input,
+            abortSignal,
+            allowContentDeletion,
+        ) =>
             this.handleToolCall(
                 projectUuid,
                 sessionId,
@@ -1917,12 +1882,7 @@ export class ManagedAgentService extends BaseService {
 
     private async runHeartbeatSession(
         ctx: HeartbeatContext,
-        onToolCall: (
-            toolName: string,
-            input: Record<string, unknown>,
-            abortSignal?: AbortSignal,
-            allowContentDeletion?: boolean,
-        ) => Promise<string>,
+        onToolCall: AutopilotToolCallHandler,
         onSessionCreated: (sessionId: string) => void,
     ): Promise<HeartbeatSessionResult> {
         const { runtime } = this.lightdashConfig.managedAgent;
@@ -1945,12 +1905,7 @@ export class ManagedAgentService extends BaseService {
 
     private async runManagedAgentSession(
         projectUuid: string,
-        onToolCall: (
-            toolName: string,
-            input: Record<string, unknown>,
-            abortSignal?: AbortSignal,
-            allowContentDeletion?: boolean,
-        ) => Promise<string>,
+        onToolCall: AutopilotToolCallHandler,
         onSessionCreated: (sessionId: string) => void,
     ): Promise<HeartbeatSessionResult> {
         const serviceAccountToken =
@@ -1981,12 +1936,7 @@ export class ManagedAgentService extends BaseService {
     // key on it, and there is no external session to reference.
     private async runAiSdkSession(
         ctx: HeartbeatContext,
-        onToolCall: (
-            toolName: string,
-            input: Record<string, unknown>,
-            abortSignal?: AbortSignal,
-            allowContentDeletion?: boolean,
-        ) => Promise<string>,
+        onToolCall: AutopilotToolCallHandler,
         onSessionCreated: (sessionId: string) => void,
     ): Promise<HeartbeatSessionResult> {
         const { projectUuid, organizationUuid, runUuid } = ctx;

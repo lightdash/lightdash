@@ -25,19 +25,23 @@ A downgrade is a notice, not a run error. It appears in setup, the run summary o
 - Content discovery receives the allowed space UUIDs. Empty scope is denied before shared tools, where an empty UUID array otherwise means unrestricted.
 - The chart skill uses Autopilot's actual discovery/create/fix tools and reuses compatible built-in chart references.
 
-## Provider smoke command
+## Live evaluation suites
+
+`pnpm -F backend test:autopilot` runs the opt-in suites under `vitest.autopilot.config.ts`. Each suite skips unless its environment variables are set, makes paid model calls, and uses real fetch (the unit-test setup stubs fetch and must not be used for live provider tests). Results and go/no-go decisions are recorded on PROD-11224, not in the repository; `AUTOPILOT_EVAL_OUTPUT_DIR` writes per-run JSON scorecards locally.
+
+### Provider smoke
 
 Load development provider configuration into the shell without printing credentials, then run:
 
 ```sh
 AUTOPILOT_EVAL_PROVIDER=openai \
 AUTOPILOT_EVAL_OUTPUT_DIR=/tmp/autopilot-evals \
-pnpm -F backend test:autopilot-provider
+pnpm -F backend test:autopilot
 ```
 
-Supported test providers: `openai`, `anthropic`, `bedrock`, `azure`. `AUTOPILOT_EVAL_MODEL` optionally selects the model (Azure uses the configured deployment). The dedicated Vitest config uses real fetch; the unit-test setup intentionally stubs fetch and must not be used for live provider tests.
+Supported test providers: `openai`, `anthropic`, `bedrock`, `azure`. `AUTOPILOT_EVAL_MODEL` optionally selects the model (Azure uses the configured deployment).
 
-This command makes paid model calls against a synthetic empty-project fixture. It exercises real action schemas and observe/flag/cleanup loops, but performs no application writes. JSON scorecards contain model IDs, steps, tokens, tool names, summaries, elapsed time and outcomes. Passing this smoke is **not cleanup qualification**.
+This runs against a synthetic empty-project fixture. It exercises real action schemas and observe/flag/cleanup loops, but performs no application writes. Passing this smoke is **not cleanup qualification**.
 
 ## Acceptance before switching the default
 

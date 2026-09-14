@@ -104,6 +104,23 @@ export const getIntegerFromEnvironmentVariable = (
     return parsed;
 };
 
+// Timers above 2^31-1 ms fire immediately in Node.
+const MAX_TIMER_MS = 2_147_483_647;
+
+export const getPositiveIntegerFromEnvironmentVariable = (
+    name: string,
+    defaultValue: number,
+    max = Number.MAX_SAFE_INTEGER,
+): number => {
+    const value = getIntegerFromEnvironmentVariable(name) ?? defaultValue;
+    if (value < 1 || value > max) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be an integer between 1 and ${max} but ${name}=${value}`,
+        );
+    }
+    return value;
+};
+
 export const getFloatFromEnvironmentVariable = (
     name: string,
 ): number | undefined => {
@@ -3715,13 +3732,14 @@ export const parseConfig = (): LightdashConfig => {
                 .map((skillId) => skillId.trim())
                 .filter(Boolean),
             schedule: process.env.MANAGED_AGENT_SCHEDULE || '0 0 * * *',
-            sessionTimeoutMs: parseInt(
-                process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '600000',
-                10,
-            ), // 10 minutes default
-            maxSteps: parseInt(
-                process.env.MANAGED_AGENT_MAX_STEPS || '120',
-                10,
+            sessionTimeoutMs: getPositiveIntegerFromEnvironmentVariable(
+                'MANAGED_AGENT_SESSION_TIMEOUT_MS',
+                600_000,
+                MAX_TIMER_MS,
+            ),
+            maxSteps: getPositiveIntegerFromEnvironmentVariable(
+                'MANAGED_AGENT_MAX_STEPS',
+                120,
             ),
         },
         aiWriteback: {

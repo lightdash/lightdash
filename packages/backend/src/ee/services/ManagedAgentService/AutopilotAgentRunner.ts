@@ -67,20 +67,6 @@ export const runAutopilotAgent = async ({
 }: RunAutopilotAgentArgs): Promise<AutopilotAgentRunResult> => {
     let slackSummary: string | null = null;
     let stepCount = 0;
-    if (
-        !Number.isSafeInteger(maxSteps) ||
-        maxSteps < 1 ||
-        !Number.isSafeInteger(timeoutMs) ||
-        timeoutMs < 1 ||
-        timeoutMs > 2_147_483_647
-    ) {
-        return {
-            slackSummary,
-            stepCount,
-            stopReason: 'error',
-            error: 'Autopilot requires a positive step cap and timeout (at most 2147483647ms)',
-        };
-    }
     const controller = new AbortController();
     const timer = setTimeout(
         () => controller.abort(new Error('Autopilot timed out')),

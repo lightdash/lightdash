@@ -302,25 +302,3 @@ describe('runAutopilotAgent', () => {
         });
     });
 });
-
-describe('runAutopilotAgent configuration bounds', () => {
-    it.each([
-        { maxSteps: 0 },
-        { maxSteps: -1 },
-        { timeoutMs: 0 },
-        { timeoutMs: 2_147_483_648 },
-    ])(
-        'rejects invalid configuration before calling the model: %o',
-        async (override) => {
-            const { model, calls } = buildScriptedModel([{ text: 'done' }]);
-            const result = await runAutopilotAgent({
-                ...baseArgs,
-                ...override,
-                model,
-                executeTool: vi.fn(),
-            });
-            expect(result.stopReason).toBe('error');
-            expect(calls).toEqual([]);
-        },
-    );
-});

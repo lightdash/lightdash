@@ -12,6 +12,8 @@ export default defineConfig({
             'node_modules',
             'dist',
             'src/ee/services/ai/filterPermutations/*.integration.test.ts',
+            // Opt-in live provider suites, run via vitest.autopilot.config.ts
+            'src/ee/services/ManagedAgentService/*.integration.test.ts',
         ],
         environment: 'node',
         testTimeout: 120000,
