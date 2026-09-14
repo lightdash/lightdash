@@ -2031,10 +2031,10 @@ export class ProjectModel {
                 const query = this.database(CachedExploreTableName)
                     .select<RawExploreTableSummaryRow[]>(
                         this.database.raw(`
-                            explore_fields.name as "exploreName",
-                            explore_fields.type as "exploreType",
-                            explore_fields."baseTable" as "baseTable",
-                            jsonb_exists(explore, 'errors') as "hasErrors",
+                            explore_summary.name as "exploreName",
+                            explore_summary.type as "exploreType",
+                            explore_summary."baseTable" as "baseTable",
+                            explore_summary."hasErrors" as "hasErrors",
                             table_entry.key as "tableKey",
                             table_entry.value->'name' as "tableName",
                             table_entry.value->'originalName' as "originalName",
@@ -2048,20 +2048,30 @@ export class ProjectModel {
                         `),
                     )
                     .joinRaw(
-                        `LEFT JOIN LATERAL jsonb_to_record(
-                            CASE
-                                WHEN jsonb_typeof(explore) = 'object' THEN explore
-                                ELSE '{}'::jsonb
-                            END
-                        ) AS explore_fields(
-                            name text,
-                            type text,
-                            "baseTable" text,
-                            tables jsonb
-                        ) ON TRUE
+                        `LEFT JOIN LATERAL (
+                            SELECT
+                                explore_fields.name,
+                                explore_fields.type,
+                                explore_fields."baseTable",
+                                explore_fields.tables,
+                                jsonb_exists(${CachedExploreTableName}.explore, 'errors') as "hasErrors"
+                            FROM jsonb_to_record(
+                                CASE
+                                    WHEN jsonb_typeof(${CachedExploreTableName}.explore) = 'object'
+                                        THEN ${CachedExploreTableName}.explore
+                                    ELSE '{}'::jsonb
+                                END
+                            ) AS explore_fields(
+                                name text,
+                                type text,
+                                "baseTable" text,
+                                tables jsonb
+                            )
+                            OFFSET 0
+                        ) AS explore_summary ON TRUE
                         LEFT JOIN LATERAL jsonb_each(
                             CASE
-                                WHEN jsonb_typeof(explore_fields.tables) = 'object' THEN explore_fields.tables
+                                WHEN jsonb_typeof(explore_summary.tables) = 'object' THEN explore_summary.tables
                                 ELSE '{}'::jsonb
                             END
                         ) AS table_entry(key, value)
@@ -2070,7 +2080,8 @@ export class ProjectModel {
                     .where(
                         `${CachedExploreTableName}.project_uuid`,
                         projectUuid,
-                    );
+                    )
+                    .whereNotNull('explore_summary.name');
 
                 if (exploreNames) {
                     void query.whereIn(
