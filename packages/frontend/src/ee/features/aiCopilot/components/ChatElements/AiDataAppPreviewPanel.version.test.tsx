@@ -33,9 +33,20 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../../../../api', () => ({ lightdashApi: mocks.lightdashApi }));
 
+// The actions menu's project lookup would otherwise surface the rejected
+// `lightdashApi` as an error toast.
+vi.mock('../../../../../hooks/useProject', () => ({
+    useProject: () => ({ data: undefined }),
+}));
+
 vi.mock('../../../../../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataApp: () => mocks.canManageApp,
     useCanEditDataAppChecker: () => () => mocks.canManageApp,
+}));
+
+// The app actions menu navigates after a duplicate; nothing here routes.
+vi.mock('react-router', () => ({
+    useNavigate: () => vi.fn(),
 }));
 
 vi.mock('../../../../../features/apps/AppIframePreview', () => ({

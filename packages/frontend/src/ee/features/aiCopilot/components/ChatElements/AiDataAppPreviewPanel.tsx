@@ -8,19 +8,14 @@ import {
     Menu,
     Stack,
     Text,
-    Tooltip,
 } from '@mantine/core';
-import {
-    IconArrowsUpDown,
-    IconDots,
-    IconExternalLink,
-    IconX,
-} from '@tabler/icons-react';
+import { IconExternalLink, IconX } from '@tabler/icons-react';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
 import AppInspectorPanel from '../../../../../features/apps/AppInspectorPanel';
+import AppActionsMenu from '../../../../../features/apps/components/AppActionsMenu';
 import { ElementPickerButton } from '../../../../../features/apps/components/ElementPickerButton';
 import { RestoreAppVersionModal } from '../../../../../features/apps/components/RestoreAppVersionModal';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
@@ -106,6 +101,17 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     };
     const { onLineageCancelled } = inspector.iframeProps;
 
+    // Bumping the key reloads the iframe so queries re-fire; `invalidateCache`
+    // latches on with the first refresh so they bypass the warehouse cache.
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [invalidateCache, setInvalidateCache] = useState(false);
+    const { rolloverLogs } = inspector;
+    const handleRefresh = useCallback(() => {
+        setRefreshKey((k) => k + 1);
+        setInvalidateCache(true);
+        rolloverLogs();
+    }, [rolloverLogs]);
+
     // Picked references go to the thread's composer state, not the hook's own
     // list, so they outlive closing the panel and the next version. They
     // always name the latest ready version, which is what the coding agent
@@ -168,7 +174,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
 
     const previewUrl =
         token && effectiveVersion !== null
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${effectiveVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${effectiveVersion}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
 
     const returnToLatest = () =>
@@ -303,6 +309,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                     appUuid={appUuid}
                     identityKey={identityKey}
                     capabilities={{ gsheetExport: true }}
+                    invalidateCache={invalidateCache}
                     {...(showInspector
                         ? { ...inspector.iframeProps, ...picker.iframeProps }
                         : {})}
@@ -339,18 +346,18 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                     </Stack>
 
                     <Group gap={2} className={artifactStyles.headRight}>
-                        <Menu position="bottom-end">
-                            <Menu.Target>
-                                <Tooltip label="More options">
-                                    <ActionIcon
-                                        size="sm"
-                                        aria-label="More options"
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Menu.Target>
-                            <Menu.Dropdown>
+                        <AppActionsMenu
+                            projectUuid={projectUuid}
+                            appUuid={appUuid}
+                            appName={app.name}
+                            appDescription={app.description || null}
+                            appSpaceUuid={app.spaceUuid}
+                            appCreatedByUserUuid={app.createdByUserUuid}
+                            latestVersionNumber={latestReadyVersion}
+                            latestVersionStatus={
+                                latestReadyVersion !== null ? 'ready' : null
+                            }
+                            navItem={
                                 <Menu.Item
                                     component="a"
                                     href={appUrl}
@@ -359,29 +366,47 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                     leftSection={
                                         <MantineIcon
                                             icon={IconExternalLink}
-                                            size="sm"
+                                            size={14}
                                         />
                                     }
                                 >
                                     Open in new tab
                                 </Menu.Item>
-                                {showInspector && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconArrowsUpDown}
-                                                size="sm"
-                                            />
-                                        }
-                                        onClick={toggleInspector}
-                                    >
-                                        {isInspectorVisible
-                                            ? 'Hide network'
-                                            : 'Show network'}
-                                    </Menu.Item>
-                                )}
-                            </Menu.Dropdown>
-                        </Menu>
+                            }
+                            askAiItem={null}
+                            viewNetwork={
+                                showInspector
+                                    ? {
+                                          label: isInspectorVisible
+                                              ? 'Hide network'
+                                              : 'Show network',
+                                          onClick: toggleInspector,
+                                      }
+                                    : null
+                            }
+                            onRefresh={handleRefresh}
+                            capturedQueryCount={
+                                showInspector
+                                    ? inspector.readyQueryCount
+                                    : undefined
+                            }
+                            onDuplicated={({ appUuid: newAppUuid }) =>
+                                window.open(
+                                    `/projects/${projectUuid}/apps/${newAppUuid}`,
+                                    '_blank',
+                                )
+                            }
+                            onDeleted={() => dispatch(clearPreview())}
+                            captureThumbnail={null}
+                            capturePreviewScreenshot={null}
+                            upgrade={null}
+                            target={{
+                                size: 'sm',
+                                variant: 'subtle',
+                                ariaLabel: 'More options',
+                                tooltip: 'More options',
+                            }}
+                        />
                         {showInspector &&
                             picker.available &&
                             !isViewingOlderVersion && (
