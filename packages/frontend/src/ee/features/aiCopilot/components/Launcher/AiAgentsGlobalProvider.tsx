@@ -13,6 +13,7 @@ import { store } from '../../store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { CreateIssueModalHost } from '../CreateIssue/CreateIssueModalHost';
 import { PendingPromptProvider } from '../PendingPromptContext/PendingPromptContext';
+import { AiAgentBuildWatcher } from './AiAgentBuildWatcher';
 import { LauncherDockProvider } from './LauncherDockProvider';
 import { launcherSession } from './launcherSession';
 import { useIsLauncherMounted } from './useIsLauncherMounted';
@@ -64,6 +65,7 @@ export const AiAgentsGlobalProvider: FC<PropsWithChildren> = ({ children }) => (
                     {children}
                     <Sentry.ErrorBoundary fallback={<></>}>
                         <AiAgentsLauncherSessionTracker />
+                        <AiAgentBuildWatcher />
                         <AiAgentsLauncherGate />
                         <CreateIssueModalHost />
                     </Sentry.ErrorBoundary>

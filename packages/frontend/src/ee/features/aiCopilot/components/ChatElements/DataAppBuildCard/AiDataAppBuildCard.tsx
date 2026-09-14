@@ -2,11 +2,10 @@ import {
     getDataAppBuilderPath,
     type ToolGenerateDataAppOutput,
 } from '@lightdash/common';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, type FC } from 'react';
+import { useEffect, useRef, type FC } from 'react';
 import { useNavigate } from 'react-router';
-import { useAppBuildPoller } from '../../../../../../features/apps/hooks/useAppBuildPoller';
-import { getAiAgentThreadQueryKey } from '../../../hooks/useProjectAiAgents';
+import { addBuildWatch } from '../../../store/buildWatchesSlice';
+import { useAiAgentStoreDispatch } from '../../../store/hooks';
 import { DataAppBuildCard } from './DataAppBuildCard';
 import {
     getDataAppBuildCardState,
@@ -24,9 +23,9 @@ type Props = {
 };
 
 /**
- * The build card under an agent reply. A pending result follows the app's
- * live version at the builder's poll cadence; a terminal result stands on
- * its own. The card never touches the composer.
+ * The build card under an agent reply. A pending result starts a build watch
+ * and follows the app's live version through the watcher's poll; a terminal
+ * result stands on its own. The card never touches the composer.
  */
 export const AiDataAppBuildCard: FC<Props> = ({
     metadata,
@@ -37,7 +36,7 @@ export const AiDataAppBuildCard: FC<Props> = ({
     compact,
 }) => {
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
+    const dispatch = useAiAgentStoreDispatch();
     const { appUuid } = metadata;
     const { source, isActive, openPreview } = useDataAppCardPreview({
         projectUuid,
@@ -50,25 +49,37 @@ export const AiDataAppBuildCard: FC<Props> = ({
     });
     const state = getDataAppBuildCardState(metadata, source);
     const inProgress = state !== null && isDataAppBuildInProgress(state);
-    const isPolling = metadata.status === 'pending' && inProgress;
+    const pendingVersion =
+        metadata.status === 'pending' && inProgress ? metadata.version : null;
+    const appName = source.kind === 'loaded' ? source.app.name : null;
 
-    // The worker patches the tool result when the build ends; one refetch
-    // picks it up so the card no longer depends on the poll.
-    const refetchThread = useCallback(() => {
-        void queryClient.invalidateQueries({
-            queryKey: getAiAgentThreadQueryKey(
+    // The app-wide build watcher polls on the card's behalf; re-registering
+    // on every render is idempotent.
+    useEffect(() => {
+        if (pendingVersion === null || !appUuid) {
+            return;
+        }
+        dispatch(
+            addBuildWatch({
+                appUuid,
+                version: pendingVersion,
                 projectUuid,
                 agentUuid,
                 threadUuid,
-            ),
-        });
-    }, [queryClient, projectUuid, agentUuid, threadUuid]);
-    useAppBuildPoller(
+                messageUuid,
+                appName,
+            }),
+        );
+    }, [
+        dispatch,
+        pendingVersion,
+        appUuid,
         projectUuid,
-        appUuid ?? undefined,
-        isPolling,
-        refetchThread,
-    );
+        agentUuid,
+        threadUuid,
+        messageUuid,
+        appName,
+    ]);
 
     // Open the preview once when a build watched in this session lands.
     // Never on reload, and never again after the user closes it.
