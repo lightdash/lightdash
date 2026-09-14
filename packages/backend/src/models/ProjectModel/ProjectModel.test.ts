@@ -33,6 +33,8 @@ import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { DashboardsTableName } from '../../database/entities/dashboards';
+import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
 import { OrganizationMembershipCustomRolesTableName } from '../../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
@@ -723,6 +725,86 @@ describe('ProjectModel', () => {
                 'preview-chart-uuid',
             ),
         ).resolves.toBe('source-chart-uuid');
+
+        expect(tracker.history.select[2].bindings).toEqual(
+            expect.arrayContaining(['source-project', 11]),
+        );
+    });
+
+    test('copies dashboard aliases to the mapped preview dashboard UUIDs only', async () => {
+        tracker.on.select(DashboardSlugMappingsTableName).responseOnce([
+            { dashboard_uuid: 'source-dashboard-1', slug: 'old-dashboard-1' },
+            { dashboard_uuid: 'source-dashboard-2', slug: 'old-dashboard-2' },
+        ]);
+        tracker.on.insert(DashboardSlugMappingsTableName).responseOnce([]);
+
+        await model.copyDashboardSlugMappingsToPreview(
+            database,
+            'source-project',
+            'preview-project',
+            [
+                {
+                    sourceDashboardUuid: 'source-dashboard-1',
+                    previewDashboardUuid: 'preview-dashboard-1',
+                },
+                {
+                    sourceDashboardUuid: 'source-dashboard-2',
+                    previewDashboardUuid: 'preview-dashboard-2',
+                },
+            ],
+        );
+
+        const [selectQuery] = tracker.history.select;
+        expect(selectQuery.bindings).toEqual(
+            expect.arrayContaining([
+                'source-project',
+                'source-dashboard-1',
+                'source-dashboard-2',
+            ]),
+        );
+        const [insertQuery] = tracker.history.insert;
+        expect(insertQuery.bindings).toEqual(
+            expect.arrayContaining([
+                'preview-project',
+                'preview-dashboard-1',
+                'old-dashboard-1',
+                'preview-dashboard-2',
+                'old-dashboard-2',
+            ]),
+        );
+        expect(insertQuery.bindings).not.toContain('source-dashboard-1');
+        expect(insertQuery.bindings).not.toContain('source-dashboard-2');
+    });
+
+    test('resolves the original dashboard UUID from preview content mapping', async () => {
+        tracker.on
+            .select(DashboardsTableName)
+            .responseOnce([{ dashboard_id: 22 }]);
+        tracker.on.select('preview_content').responseOnce([
+            {
+                project_uuid: 'source-project',
+                content_mapping: {
+                    dashboards: [{ id: 11, newId: 22 }],
+                    chartVersions: [],
+                    spaces: [],
+                    charts: [],
+                    dashboardVersions: [],
+                    savedSql: [],
+                    savedSqlVersions: [],
+                    aiAgents: [],
+                },
+            },
+        ]);
+        tracker.on
+            .select(DashboardsTableName)
+            .responseOnce([{ dashboard_uuid: 'source-dashboard-uuid' }]);
+
+        await expect(
+            model.getUpstreamDashboardUuidFromPreview(
+                'preview-project',
+                'preview-dashboard-uuid',
+            ),
+        ).resolves.toBe('source-dashboard-uuid');
 
         expect(tracker.history.select[2].bindings).toEqual(
             expect.arrayContaining(['source-project', 11]),

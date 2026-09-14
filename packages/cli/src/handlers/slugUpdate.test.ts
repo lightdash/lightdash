@@ -6,10 +6,10 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { parse } from 'yaml';
 import * as apiClient from './dbt/apiClient';
 import {
-    applyLocalChartSlugUpdate,
-    executeChartSlugUpdate,
+    applyLocalSlugUpdate,
+    executeSlugUpdate,
     getLocalSlugUpdateFileChanges,
-    planLocalChartSlugUpdate,
+    planLocalSlugUpdate,
     requestSlugUpdate,
 } from './slugUpdate';
 
@@ -35,6 +35,121 @@ afterEach(async () => {
                 fs.rm(directory, { recursive: true, force: true }),
             ),
     );
+});
+
+describe('local dashboard slug updates', () => {
+    test('updates only dashboard identity, language maps, deliveries, and dashboard metadata', async () => {
+        const root = await createTemporaryContent();
+        const dashboardFile = path.join(root, 'dashboards', 'old-overview.yml');
+        const mapFile = path.join(
+            root,
+            'dashboards',
+            'old-overview.language.map.yml',
+        );
+        const chartFile = path.join(root, 'charts', 'old-overview.yml');
+        const chartSource =
+            'contentType: chart\nslug: old-overview\nmetricQuery: {}\n';
+        const alertFile = path.join(root, 'alerts', 'delivery.yml');
+        await Promise.all([
+            fs.writeFile(
+                dashboardFile,
+                'contentType: dashboard\nslug: old-overview\ntiles:\n  - type: saved_chart\n    properties:\n      chartSlug: old-overview\n',
+            ),
+            fs.writeFile(
+                mapFile,
+                'dashboard:\n  old-overview:\n    name: Overview\n',
+            ),
+            fs.writeFile(chartFile, chartSource),
+            fs.writeFile(
+                alertFile,
+                'resource:\n  type: dashboard\n  slug: old-overview\n',
+            ),
+            fs.writeFile(
+                path.join(root, '.lightdash-metadata.json'),
+                JSON.stringify({
+                    version: 1,
+                    charts: { 'old-overview': 'chart-timestamp' },
+                    dashboards: { 'old-overview': 'dashboard-timestamp' },
+                }),
+            ),
+        ]);
+        const plan = await planLocalSlugUpdate(
+            root,
+            'old-overview',
+            'overview',
+            ContentType.DASHBOARD,
+        );
+        expect(await fs.readFile(dashboardFile, 'utf8')).toContain(
+            'slug: old-overview',
+        );
+        await applyLocalSlugUpdate(plan);
+        const dashboard = parse(
+            await fs.readFile(
+                path.join(root, 'dashboards', 'overview.yml'),
+                'utf8',
+            ),
+        );
+        expect(dashboard.slug).toBe('overview');
+        expect(dashboard.tiles[0].properties.chartSlug).toBe('old-overview');
+        expect(
+            parse(
+                await fs.readFile(
+                    path.join(root, 'dashboards', 'overview.language.map.yml'),
+                    'utf8',
+                ),
+            ),
+        ).toEqual({
+            dashboard: { overview: { name: 'Overview' } },
+        });
+        expect(parse(await fs.readFile(alertFile, 'utf8')).resource.slug).toBe(
+            'overview',
+        );
+        expect(await fs.readFile(chartFile, 'utf8')).toBe(chartSource);
+        expect(
+            JSON.parse(
+                await fs.readFile(
+                    path.join(root, '.lightdash-metadata.json'),
+                    'utf8',
+                ),
+            ),
+        ).toEqual({
+            version: 1,
+            charts: { 'old-overview': 'chart-timestamp' },
+            dashboards: { overview: 'dashboard-timestamp' },
+        });
+        const replay = await planLocalSlugUpdate(
+            root,
+            'old-overview',
+            'overview',
+            ContentType.DASHBOARD,
+        );
+        expect(getLocalSlugUpdateFileChanges(replay, root)).toEqual([]);
+    });
+
+    test('sends the dashboard type before changing local files', async () => {
+        const root = await createTemporaryContent();
+        const dashboardFile = path.join(root, 'dashboards', 'old-overview.yml');
+        const source = 'slug: old-overview\ntiles: []\n';
+        await fs.writeFile(dashboardFile, source);
+        const api = vi
+            .spyOn(apiClient, 'lightdashApi')
+            .mockImplementation(async () => {
+                expect(await fs.readFile(dashboardFile, 'utf8')).toBe(source);
+                return undefined;
+            });
+        await executeSlugUpdate(
+            'project-uuid',
+            root,
+            'old-overview',
+            'overview',
+            ContentType.DASHBOARD,
+        );
+        expect(JSON.parse(api.mock.calls[0][0].body as string)).toEqual({
+            resourceType: ContentType.DASHBOARD,
+            from: 'old-overview',
+            to: 'overview',
+        });
+    });
 });
 
 describe('local chart slug updates', () => {
@@ -92,7 +207,7 @@ describe('local chart slug updates', () => {
             ),
         ]);
 
-        const plan = await planLocalChartSlugUpdate(
+        const plan = await planLocalSlugUpdate(
             root,
             'copy-of-orders',
             'orders',
@@ -112,7 +227,7 @@ describe('local chart slug updates', () => {
             },
             { source: path.join('dashboards', 'overview.yml') },
         ]);
-        await applyLocalChartSlugUpdate(plan);
+        await applyLocalSlugUpdate(plan);
 
         await expect(fs.access(chartFile)).rejects.toThrow();
         await expect(fs.access(languageMapFile)).rejects.toThrow();
@@ -165,10 +280,10 @@ describe('local chart slug updates', () => {
             'contentType: chart\nslug: copy-of-orders\nname: Orders\nmetricQuery: {}\n',
         );
 
-        await applyLocalChartSlugUpdate(
-            await planLocalChartSlugUpdate(root, 'copy-of-orders', 'orders'),
+        await applyLocalSlugUpdate(
+            await planLocalSlugUpdate(root, 'copy-of-orders', 'orders'),
         );
-        const secondPlan = await planLocalChartSlugUpdate(
+        const secondPlan = await planLocalSlugUpdate(
             root,
             'copy-of-orders',
             'orders',
@@ -190,7 +305,7 @@ describe('local chart slug updates', () => {
         await fs.writeFile(chartFile, source);
         const api = vi.spyOn(apiClient, 'lightdashApi');
 
-        const plan = await planLocalChartSlugUpdate(
+        const plan = await planLocalSlugUpdate(
             root,
             'copy-of-orders',
             'orders',
@@ -224,7 +339,7 @@ describe('local chart slug updates', () => {
         ]);
 
         await expect(
-            planLocalChartSlugUpdate(root, 'copy-of-orders', 'orders'),
+            planLocalSlugUpdate(root, 'copy-of-orders', 'orders'),
         ).rejects.toThrow('already exists');
         expect(await fs.readFile(sourceFile, 'utf8')).toContain(
             'slug: copy-of-orders',
@@ -239,7 +354,7 @@ describe('local chart slug updates', () => {
         await fs.writeFile(chartFile, source);
 
         await expect(
-            planLocalChartSlugUpdate(root, 'copy-of-orders', '../../orders'),
+            planLocalSlugUpdate(root, 'copy-of-orders', '../../orders'),
         ).rejects.toThrow('target slug must contain');
         expect(await fs.readFile(chartFile, 'utf8')).toBe(source);
     });
@@ -260,12 +375,7 @@ describe('local chart slug updates', () => {
         );
 
         await expect(
-            executeChartSlugUpdate(
-                'project-uuid',
-                root,
-                'copy-of-orders',
-                'orders',
-            ),
+            executeSlugUpdate('project-uuid', root, 'copy-of-orders', 'orders'),
         ).rejects.toThrow('Slug already in use');
 
         expect(await fs.readFile(chartFile, 'utf8')).toBe(source);
@@ -296,7 +406,7 @@ describe('local chart slug updates', () => {
             return undefined;
         });
 
-        await executeChartSlugUpdate(
+        await executeSlugUpdate(
             'project-uuid',
             root,
             'copy-of-orders',

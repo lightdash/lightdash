@@ -98,6 +98,7 @@ import {
     DbDashboard,
     DbDashboardTabs,
 } from '../../database/entities/dashboards';
+import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
 import {
     ExternalSourcesTableName,
     ExternalSourceTablesTableName,
@@ -3825,6 +3826,59 @@ export class ProjectModel {
         );
     }
 
+    async copyDashboardSlugMappingsToPreview(
+        trx: Knex,
+        sourceProjectUuid: string,
+        previewProjectUuid: string,
+        dashboardUuidMapping: Array<{
+            sourceDashboardUuid: string;
+            previewDashboardUuid: string;
+        }>,
+    ): Promise<void> {
+        if (dashboardUuidMapping.length === 0) return;
+
+        const aliases = await trx(DashboardSlugMappingsTableName)
+            .where('project_uuid', sourceProjectUuid)
+            .whereIn(
+                'dashboard_uuid',
+                dashboardUuidMapping.map(
+                    ({ sourceDashboardUuid }) => sourceDashboardUuid,
+                ),
+            )
+            .select('dashboard_uuid', 'slug');
+        if (aliases.length === 0) return;
+
+        const previewDashboardUuidBySource = new Map(
+            dashboardUuidMapping.map(
+                ({ sourceDashboardUuid, previewDashboardUuid }) => [
+                    sourceDashboardUuid,
+                    previewDashboardUuid,
+                ],
+            ),
+        );
+        const previewAliases = aliases.map((alias) => {
+            const previewDashboardUuid = previewDashboardUuidBySource.get(
+                alias.dashboard_uuid,
+            );
+            if (!previewDashboardUuid) {
+                throw new UnexpectedServerError(
+                    `Missing preview dashboard mapping for ${alias.dashboard_uuid}`,
+                );
+            }
+            return {
+                project_uuid: previewProjectUuid,
+                dashboard_uuid: previewDashboardUuid,
+                slug: alias.slug,
+            };
+        });
+
+        await trx.batchInsert(
+            DashboardSlugMappingsTableName,
+            previewAliases,
+            INSERT_BATCH_SIZE,
+        );
+    }
+
     async copyMetricsTreesForTrainingCopy(
         sourceProjectUuid: string,
         targetProjectUuid: string,
@@ -4246,6 +4300,15 @@ export class ProjectModel {
             }));
             const previewDashboardUuidBySource = new Map(
                 dashboardMapping.map((m) => [m.uuid, m.newUuid]),
+            );
+            await this.copyDashboardSlugMappingsToPreview(
+                trx,
+                projectUuid,
+                previewProjectUuid,
+                dashboardMapping.map((mapping) => ({
+                    sourceDashboardUuid: mapping.uuid,
+                    previewDashboardUuid: mapping.newUuid,
+                })),
             );
             // Dashboard content is only copied when its dashboard was
             const hasCopiedDashboard = <
@@ -5280,6 +5343,43 @@ export class ProjectModel {
             .first();
 
         return upstreamChart?.saved_query_uuid ?? null;
+    }
+
+    async getUpstreamDashboardUuidFromPreview(
+        previewProjectUuid: string,
+        previewDashboardUuid: string,
+    ): Promise<string | null> {
+        const previewDashboard = await this.database(DashboardsTableName)
+            .select('dashboard_id')
+            .where('project_uuid', previewProjectUuid)
+            .where('dashboard_uuid', previewDashboardUuid)
+            .whereNull('deleted_at')
+            .first();
+        if (!previewDashboard) return null;
+
+        const previewContent = await this.database('preview_content')
+            .select<
+                {
+                    project_uuid: string;
+                    content_mapping: PreviewContentMapping;
+                }[]
+            >('project_uuid', 'content_mapping')
+            .where('preview_project_uuid', previewProjectUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+        const sourceMapping = previewContent?.content_mapping.dashboards.find(
+            ({ newId }) => Number(newId) === previewDashboard.dashboard_id,
+        );
+        if (!previewContent || !sourceMapping) return null;
+
+        const upstreamDashboard = await this.database(DashboardsTableName)
+            .select('dashboard_uuid')
+            .where('project_uuid', previewContent.project_uuid)
+            .where('dashboard_id', sourceMapping.id)
+            .whereNull('deleted_at')
+            .first();
+
+        return upstreamDashboard?.dashboard_uuid ?? null;
     }
 
     // Easier to mock in ProjectService

@@ -78,6 +78,7 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardsTableName, [
                     true,
                     expectedDashboard.uuid,
+                    expectedDashboard.uuid,
                     1,
                 ]),
             )
@@ -147,6 +148,7 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardsTableName, [
                     true,
                     expectedDashboard.uuid,
+                    expectedDashboard.uuid,
                     1,
                 ]),
             )
@@ -196,6 +198,7 @@ describe('DashboardModel', () => {
             .select(
                 queryMatcher(DashboardsTableName, [
                     true,
+                    expectedDashboard.uuid,
                     expectedDashboard.uuid,
                     1,
                 ]),
@@ -653,7 +656,14 @@ describe('DashboardModel', () => {
     test('should delete dashboard', async () => {
         const dashboardUuid = 'dashboard uuid';
         tracker.on
-            .select(queryMatcher(DashboardsTableName, [true, dashboardUuid, 1]))
+            .select(
+                queryMatcher(DashboardsTableName, [
+                    true,
+                    dashboardUuid,
+                    dashboardUuid,
+                    1,
+                ]),
+            )
             .response([dashboardWithVersionEntry]);
         tracker.on
             .select(
@@ -1084,6 +1094,7 @@ describe('DashboardModel', () => {
                 .select(
                     queryMatcher(DashboardsTableName, [
                         true,
+                        expectedDashboard.uuid,
                         expectedDashboard.uuid,
                         1,
                     ]),
