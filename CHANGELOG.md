@@ -1,3 +1,11 @@
+# [2.209.0](https://github.com/lightdash/lightdash/compare/2.208.0...2.209.0) (2026-09-14)
+
+
+### Features
+
+* **content-review:** compare chart queries with ambient AI ([#29140](https://github.com/lightdash/lightdash/issues/29140)) ([b22603e](https://github.com/lightdash/lightdash/commit/b22603e3c967c4cb83f571487e49ebb6356fb36c))
+* enable direct access with an EE license ([#29167](https://github.com/lightdash/lightdash/issues/29167)) ([cdbd778](https://github.com/lightdash/lightdash/commit/cdbd778aa30e3a8eb07b1c6ed5a23b30fde0733d))
+
 # [2.208.0](https://github.com/lightdash/lightdash/compare/2.207.1...2.208.0) (2026-09-14)
 
 

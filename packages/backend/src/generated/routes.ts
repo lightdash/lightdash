@@ -33519,11 +33519,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                explanation: { dataType: 'string' },
                 matchReason: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'enum', enums: ['same_name'] },
                         { dataType: 'enum', enums: ['similar_name'] },
+                        { dataType: 'enum', enums: ['potential_duplicate'] },
+                        { dataType: 'enum', enums: ['related'] },
                     ],
                 },
                 score: { dataType: 'double', required: true },
@@ -33556,6 +33559,64 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SavedChart.metricQuery-or-parameters-or-merge_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metricQuery: { ref: 'MetricQuery', required: true },
+                merge: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'SavedMergeQuery' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                parameters: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ParametersValuesMap' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartSimilarityContext: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_SavedChart.metricQuery-or-parameters-or-merge_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FindSimilarContentBody: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                chart: { ref: 'ChartSimilarityContext' },
+                excludeContentUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+                contentType: {
+                    ref: 'ContentReviewContentType',
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -85308,6 +85369,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'findSimilar',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsContentReviewRequestController_compareSimilar: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'FindSimilarContentBody',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/review-requests/similar',
+        ...fetchMiddlewares<RequestHandler>(ContentReviewRequestController),
+        ...fetchMiddlewares<RequestHandler>(
+            ContentReviewRequestController.prototype.compareSimilar,
+        ),
+
+        async function ContentReviewRequestController_compareSimilar(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsContentReviewRequestController_compareSimilar,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ContentReviewRequestController>(
+                        ContentReviewRequestController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'compareSimilar',
                     controller,
                     response,
                     next,

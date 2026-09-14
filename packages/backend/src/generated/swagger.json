@@ -33981,9 +33981,17 @@
             },
             "ContentReviewSimilarContentItem": {
                 "properties": {
+                    "explanation": {
+                        "type": "string"
+                    },
                     "matchReason": {
                         "type": "string",
-                        "enum": ["same_name", "similar_name"]
+                        "enum": [
+                            "same_name",
+                            "similar_name",
+                            "potential_duplicate",
+                            "related"
+                        ]
                     },
                     "score": {
                         "type": "number",
@@ -34038,6 +34046,52 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_SavedChart.metricQuery-or-parameters-or-merge_": {
+                "properties": {
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery",
+                        "description": "The query configuration defining what data to fetch"
+                    },
+                    "merge": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SavedMergeQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
+                    }
+                },
+                "required": ["metricQuery"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ChartSimilarityContext": {
+                "$ref": "#/components/schemas/Pick_SavedChart.metricQuery-or-parameters-or-merge_"
+            },
+            "FindSimilarContentBody": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/ChartSimilarityContext"
+                    },
+                    "excludeContentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentReviewContentType"
+                    }
+                },
+                "required": ["excludeContentUuid", "name", "contentType"],
                 "type": "object"
             },
             "ContentReviewUser": {
@@ -61120,7 +61174,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.208.0",
+        "version": "2.209.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -74466,9 +74520,10 @@
                         }
                     }
                 },
-                "description": "Charts or dashboards in shared spaces with a similar name, so a requester can check before submitting",
+                "description": "Deprecated — use POST /similar for AI-powered chart comparison instead.\nPreserves name matching until 14 December 2026. The replacement requires Ambient AI and a saved chart UUID or metric query context.",
                 "summary": "Find similar content",
                 "tags": ["Content Review Requests"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -74503,7 +74558,58 @@
                             "$ref": "#/components/schemas/UUID"
                         }
                     }
-                ]
+                ],
+                "x-mint": {
+                    "content": "<Warning>This endpoint is deprecated and scheduled for removal after 14 December 2026. Migrate to POST /api/v1/projects/{projectUuid}/review-requests/similar with contentType, name, excludeContentUuid, and chart query context when comparing unsaved charts. The replacement requires Ambient AI; it does not support name-only, SQL chart, or dashboard comparisons.</Warning>"
+                }
+            },
+            "post": {
+                "operationId": "compareSimilarContentForReview",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewSimilarContentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Find related charts using names and query definitions",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FindSimilarContentBody"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/review-requests/content/{contentType}/{contentUuid}": {
