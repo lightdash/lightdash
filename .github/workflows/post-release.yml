@@ -82,9 +82,6 @@ jobs:
         with:
           version: '>= 381.0.0'
 
-      - name: Show release service account
-        run: gcloud auth list --filter=status:ACTIVE --format='value(account)'
-
       - name: Configure Docker authentication for GCP regions
         run: |
           gcloud auth configure-docker us-docker.pkg.dev
