@@ -1,8 +1,11 @@
 import {
     AI_DEEP_RESEARCH_MAX_WORKERS,
     AI_DEEP_RESEARCH_SOFT_STOP_RATIO,
+    ForbiddenError,
     getErrorMessage,
+    InvalidUser,
     isAiDeepResearchEvidencePackEmpty,
+    sleep,
     toAiDeepResearchWorkerTask,
     type AiAgentToolCall,
     type AiAgentToolResult,
@@ -31,6 +34,7 @@ import {
 } from './AiDeepResearchAgent';
 import {
     AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE,
+    AiDeepResearchExecutorStageError,
     getAiDeepResearchRunBudget,
     type AiDeepResearchEvidenceBuildResult,
     type AiDeepResearchExecutor as AiDeepResearchExecutorFn,
@@ -44,10 +48,14 @@ import {
 const CANCELLATION_POLL_INTERVAL_MS = 1_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const ACCESS_RECHECK_INTERVAL_MS = 15_000;
+const FINALIZATION_RETRY_DELAY_MS = 100;
 const SUBMISSION_TOOL_NAMES = new Set([
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
 ]);
+
+const isAuthorizationRevokedError = (error: unknown): boolean =>
+    error instanceof ForbiddenError || error instanceof InvalidUser;
 
 const getResumeContext = (pack: AiDeepResearchEvidencePack): string => {
     const queries = pack.queries.map((query) => {
@@ -270,6 +278,12 @@ export class AiDeepResearchExecutor {
                     ),
                 )
                 .catch((error) => {
+                    if (!isAuthorizationRevokedError(error)) {
+                        Logger.warn(
+                            `[AiDeepResearch] Could not revalidate access; retrying: ${getErrorMessage(error)}`,
+                        );
+                        return;
+                    }
                     const reason =
                         getErrorMessage(error) ||
                         'Deep Research could not revalidate the creator’s access';
@@ -318,24 +332,27 @@ export class AiDeepResearchExecutor {
                 terminalReason: run.cancellation_requested_at
                     ? 'user_cancellation'
                     : 'internal_error',
+                failureStage: 'authorization',
             };
         }
 
-        const account =
-            await this.dependencies.userService.getAccountByUserUuidAndOrg(
-                run.created_by_user_uuid,
-                run.organization_uuid,
-            );
-        const user: SessionUser = toSessionUser(account);
-        if (!user.isActive && !user.serviceAccount) {
-            return {
-                status: 'failed',
-                errorMessage:
-                    'Deep Research cannot run because its creator is inactive',
-                terminalReason: 'permission_revoked',
-            };
-        }
+        let user: SessionUser;
         try {
+            const account =
+                await this.dependencies.userService.getAccountByUserUuidAndOrg(
+                    run.created_by_user_uuid,
+                    run.organization_uuid,
+                );
+            user = toSessionUser(account);
+            if (!user.isActive && !user.serviceAccount) {
+                return {
+                    status: 'failed',
+                    errorMessage:
+                        'Deep Research cannot run because its creator is inactive',
+                    terminalReason: 'permission_revoked',
+                    failureStage: 'authorization',
+                };
+            }
             await this.dependencies.aiAgentService.assertDeepResearchAccess(
                 user,
                 {
@@ -346,10 +363,17 @@ export class AiDeepResearchExecutor {
                 },
             );
         } catch (error) {
+            if (!isAuthorizationRevokedError(error)) {
+                throw new AiDeepResearchExecutorStageError(
+                    'authorization',
+                    error,
+                );
+            }
             return {
                 status: 'failed',
                 errorMessage: getErrorMessage(error),
                 terminalReason: 'permission_revoked',
+                failureStage: 'authorization',
             };
         }
 
@@ -387,6 +411,7 @@ export class AiDeepResearchExecutor {
         let toolCalls = 0;
         let warehouseQueries = 0;
         let tokens = 0;
+        let finalizerModel = run.execution_context_snapshot.model;
 
         // Stop expanding well before the hard ceilings so the run lands a
         // report instead of being aborted mid-thought.
@@ -614,11 +639,13 @@ export class AiDeepResearchExecutor {
                     resumeContext: resumeContext ?? undefined,
                     onStepUsage: trackUsage,
                     onWarehouseQuery: trackWarehouseQuery,
-                    onExecutionContextResolved: (snapshot) =>
-                        this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
+                    onExecutionContextResolved: async (snapshot) => {
+                        finalizerModel = snapshot.model;
+                        await this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
                             run.ai_deep_research_run_uuid,
                             snapshot,
-                        ),
+                        );
+                    },
                     research: { role: 'coordinator', runTask: runWorker },
                 },
                 onStepProgress: makeStepProgressHandler(getCoordinatorPhase),
@@ -633,34 +660,53 @@ export class AiDeepResearchExecutor {
          */
         const finalize = async (reason: string) => {
             let evidencePack: AiDeepResearchEvidencePack | null = null;
-            try {
-                const evidenceBuild =
-                    await this.dependencies.buildEvidencePack(run);
-                evidencePack = evidenceBuild.evidencePack;
-                if (isAiDeepResearchEvidencePackEmpty(evidencePack)) {
-                    if (
-                        hadWorkerExecutionFailure ||
-                        evidenceBuild.hasEvidenceBuildFailures
-                    ) {
-                        return { outcome: 'failed' } as const;
+            const attemptFinalization = async (
+                attempt: number,
+            ): Promise<
+                | { outcome: 'reported'; report: AiDeepResearchSubmittedReport }
+                | { outcome: 'failed' }
+                | { outcome: 'no_relevant_data' }
+            > => {
+                try {
+                    const evidenceBuild =
+                        await this.dependencies.buildEvidencePack(run);
+                    evidencePack = evidenceBuild.evidencePack;
+                    if (isAiDeepResearchEvidencePackEmpty(evidencePack)) {
+                        if (
+                            hadWorkerExecutionFailure ||
+                            evidenceBuild.hasEvidenceBuildFailures
+                        ) {
+                            return { outcome: 'failed' } as const;
+                        }
+                        return { outcome: 'no_relevant_data' } as const;
                     }
-                    return { outcome: 'no_relevant_data' } as const;
-                }
-                const report =
-                    await this.dependencies.aiAgentService.generateDeepResearchReport(
-                        user,
-                        {
-                            agentUuid: run.agent_uuid,
-                            threadUuid: run.ai_thread_uuid,
-                            evidencePack,
-                            reason,
-                        },
+                    const report =
+                        await this.dependencies.aiAgentService.generateDeepResearchReport(
+                            user,
+                            {
+                                agentUuid: run.agent_uuid,
+                                threadUuid: run.ai_thread_uuid,
+                                evidencePack,
+                                reason,
+                                model: finalizerModel,
+                            },
+                        );
+                    return { outcome: 'reported', report } as const;
+                } catch (error) {
+                    Logger.warn(
+                        `[AiDeepResearch] Could not finalize run ${run.ai_deep_research_run_uuid}${attempt === 0 ? '; retrying' : ''}: ${getErrorMessage(error)}`,
                     );
-                return { outcome: 'reported', report } as const;
-            } catch (error) {
-                Logger.warn(
-                    `[AiDeepResearch] Could not finalize run ${run.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,
-                );
+                    if (attempt === 0) {
+                        await sleep(FINALIZATION_RETRY_DELAY_MS);
+                        return attemptFinalization(attempt + 1);
+                    }
+                    throw error;
+                }
+            };
+
+            try {
+                return await attemptFinalization(0);
+            } catch {
                 if (
                     evidencePack &&
                     !isAiDeepResearchEvidencePackEmpty(evidencePack)
@@ -720,6 +766,7 @@ export class AiDeepResearchExecutor {
                 terminalReason: cancelledByUser
                     ? 'user_cancellation'
                     : 'internal_error',
+                failureStage: 'investigation',
             };
         }
         if (authorizationRevokedReason) {
@@ -727,6 +774,7 @@ export class AiDeepResearchExecutor {
                 status: 'failed',
                 errorMessage: authorizationRevokedReason,
                 terminalReason: 'permission_revoked',
+                failureStage: 'authorization',
             };
         }
 
@@ -754,6 +802,7 @@ export class AiDeepResearchExecutor {
                     maxWarehouseQueries: 'query_limit' as const,
                     deadlineMs: 'time_limit' as const,
                 }[budgetExceeded],
+                failureStage: 'investigation',
             };
         }
         if (finalization?.outcome === 'checkpointed') {
@@ -762,6 +811,7 @@ export class AiDeepResearchExecutor {
                 report: finalization.report,
                 warehouseQueryUuids: queryUuids,
                 terminalReason: 'provider_error',
+                failureStage: 'finalization',
             };
         }
         if (executionError) {
@@ -773,12 +823,14 @@ export class AiDeepResearchExecutor {
                     report: finalizedReport,
                     warehouseQueryUuids: queryUuids,
                     terminalReason: 'provider_error',
+                    failureStage: 'investigation',
                 };
             }
             return {
                 status: 'failed',
                 errorMessage: getErrorMessage(executionError),
                 terminalReason: 'provider_error',
+                failureStage: 'investigation',
             };
         }
         if (finalization?.outcome === 'no_relevant_data') {
@@ -786,6 +838,7 @@ export class AiDeepResearchExecutor {
                 status: 'failed',
                 errorMessage: AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE,
                 terminalReason: 'no_relevant_data',
+                failureStage: 'finalization',
             };
         }
         if (!finalizedReport) {
@@ -794,6 +847,7 @@ export class AiDeepResearchExecutor {
                 errorMessage:
                     'Deep Research finished without producing a report',
                 terminalReason: 'provider_error',
+                failureStage: 'finalization',
             };
         }
 

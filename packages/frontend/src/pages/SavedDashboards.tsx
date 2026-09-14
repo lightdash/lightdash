@@ -2,20 +2,24 @@ import { ContentType, LightdashMode } from '@lightdash/common';
 import { Group, Stack, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
+import { ColumnVisibility } from '../components/common/ResourceView/types';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
+import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 
 const SavedDashboards = () => {
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const { isInitialLoading, data: dashboards = [] } =
         useDashboards(projectUuid);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
@@ -76,6 +80,10 @@ const SavedDashboards = () => {
                             projectUuid,
                             contentTypes: [ContentType.DASHBOARD],
                         }}
+                        ownerFilter
+                        columnVisibility={{
+                            [ColumnVisibility.OWNER]: true,
+                        }}
                     />
                 </Stack>
 
@@ -85,7 +93,7 @@ const SavedDashboards = () => {
                     onClose={() => setIsCreateDashboardOpen(false)}
                     onConfirm={(dashboard) => {
                         void navigate(
-                            `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                            `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/edit`,
                         );
 
                         setIsCreateDashboardOpen(false);

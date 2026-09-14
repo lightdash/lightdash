@@ -12,10 +12,14 @@ vi.mock('../../features/scheduler/hooks/useScheduler', () => ({
     pollJobStatus: vi.fn(),
 }));
 
+const { showToastSuccess } = vi.hoisted(() => ({
+    showToastSuccess: vi.fn(),
+}));
+
 vi.mock('../toaster/useToaster', () => ({
     default: () => ({
         showToastInfo: vi.fn(),
-        showToastSuccess: vi.fn(),
+        showToastSuccess,
         showToastError: vi.fn(),
         showToastWarning: vi.fn(),
         showToastApiError: vi.fn(),
@@ -41,7 +45,10 @@ vi.mock('react-router', () => ({
 
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
-import { useExportDashboardContentPreview } from './useDashboard';
+import {
+    useExportDashboardContentPreview,
+    useUpdateDashboard,
+} from './useDashboard';
 
 const mockApi = lightdashApi as unknown as Mock;
 const mockPollJobStatus = pollJobStatus as unknown as Mock;
@@ -125,5 +132,54 @@ describe('useExportDashboardContentPreview', () => {
         ).rejects.toThrow();
 
         await waitFor(() => expect(result.current.isError).toBe(true));
+    });
+});
+
+describe('useUpdateDashboard', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('says a draft was saved when the save is held for review', async () => {
+        mockApi.mockResolvedValue({
+            ...dashboard,
+            slug: 'my-dashboard',
+            hasUnpublishedChanges: true,
+        });
+
+        const { result } = renderHook(
+            () => useUpdateDashboard(dashboard.uuid, dashboard.projectUuid),
+            { wrapper: createWrapper() },
+        );
+
+        await result.current.mutateAsync({ name: 'Renamed dashboard' });
+
+        expect(showToastSuccess).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: 'Dashboard draft saved for review',
+                subtitle:
+                    'Only you can see these changes until a reviewer writes them back to the repo.',
+            }),
+        );
+    });
+
+    it('keeps the generic toast when the save is published', async () => {
+        mockApi.mockResolvedValue({ ...dashboard, slug: 'my-dashboard' });
+
+        const { result } = renderHook(
+            () => useUpdateDashboard(dashboard.uuid, dashboard.projectUuid),
+            { wrapper: createWrapper() },
+        );
+
+        await result.current.mutateAsync({ name: 'Renamed dashboard' });
+
+        expect(showToastSuccess).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: 'Success! Dashboard name was updated.',
+            }),
+        );
+        expect(showToastSuccess.mock.calls[0][0]).not.toHaveProperty(
+            'subtitle',
+        );
     });
 });

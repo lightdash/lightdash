@@ -21,7 +21,7 @@ const InstructionsGuidelinesItem = ({
     <Group align="flex-start" gap="xs" wrap="nowrap">
         <MantineIcon icon={icon} size={16} color="gray" />
         <Stack gap={2}>
-            <Text size="xs" fw={600} c="ldGray.9">
+            <Text size="xs" fw={600}>
                 {title}
             </Text>
             <Text size="xs" c="dimmed">

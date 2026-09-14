@@ -5,6 +5,7 @@ import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { type FilterPopoverProps } from '../context';
 import styles from './FilterQuarterPicker.module.css';
 import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';
@@ -31,12 +32,13 @@ const QUARTERS = [
 const FilterQuarterPicker: FC<Props> = ({
     value,
     onChange,
-    placeholder = 'Select Quarter',
+    placeholder,
     disabled,
     popoverProps,
     autoFocus,
     invalidValue,
 }) => {
+    const getUiString = useUiStrings();
     const [opened, { open, close }] = useDisclosure(false);
 
     // Parse date value - it may be an ISO string like "2025-01-01T00:00:00.000Z"
@@ -113,8 +115,6 @@ const FilterQuarterPicker: FC<Props> = ({
             opened={opened}
             onClose={close}
             position="bottom"
-            shadow="md"
-            withinPortal
             {...popoverProps}
         >
             <Popover.Target>
@@ -122,7 +122,10 @@ const FilterQuarterPicker: FC<Props> = ({
                     size="xs"
                     data-autofocus={autoFocus || undefined}
                     onClick={disabled ? undefined : open}
-                    placeholder={placeholder}
+                    placeholder={
+                        placeholder ??
+                        getUiString('filters.inputs.selectQuarter')
+                    }
                     value={
                         invalidValue ??
                         (value

@@ -15,6 +15,7 @@ import {
     SpaceMemberRole,
     SpaceQuery,
     UpdateSpace,
+    type PersonalSpaceSummary,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -184,6 +185,28 @@ export class SpaceModel {
             projectMemberAccessRole:
                 (row.projectMemberAccessRole as SpaceMemberRole) ?? null,
         }));
+    }
+
+    async findPersonalSpace(
+        projectUuid: string,
+        userId: number,
+    ): Promise<PersonalSpaceSummary | null> {
+        const row = await this.database(SpaceTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(`${SpaceTableName}.is_default_user_space`, true)
+            .where(`${SpaceTableName}.created_by_user_id`, userId)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .first<PersonalSpaceSummary | undefined>({
+                uuid: `${SpaceTableName}.space_uuid`,
+                name: `${SpaceTableName}.name`,
+                slug: `${SpaceTableName}.slug`,
+            });
+        return row ?? null;
     }
 
     async getSpacesByProjectUuid(
@@ -1050,6 +1073,8 @@ export class SpaceModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNull(`${SpaceTableName}.parent_space_uuid`)
             .whereNull(`${SpaceTableName}.deleted_at`)
+            .orderBy(`${SpaceTableName}.created_at`, 'asc')
+            .orderBy(`${SpaceTableName}.space_id`, 'asc')
             .select(`${SpaceTableName}.space_uuid`);
         return spaces.map((s: { space_uuid: string }) => s.space_uuid);
     }
@@ -1336,6 +1361,8 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        // Directly granted dashboards outside the given spaces to include.
+        includeUuids?: string[],
     ): Promise<SpaceDashboard[]> {
         const subQuery = this.database
             .table(DashboardsTableName)
@@ -1381,6 +1408,7 @@ export class SpaceModel {
                 })[]
             >([
                 `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 `${ProjectTableName}.project_uuid`,
@@ -1408,7 +1436,18 @@ export class SpaceModel {
                 `${DashboardVersionsTableName}.dashboard_id as dashboard_id`,
             ])
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    spaceUuids,
+                );
+                if (includeUuids !== undefined && includeUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        includeUuids,
+                    );
+                }
+            })
             .whereNull(`${DashboardsTableName}.deleted_at`)
             .orderBy([
                 {
@@ -1440,6 +1479,7 @@ export class SpaceModel {
                 name,
                 description,
                 dashboard_uuid,
+                slug,
                 created_at,
                 project_uuid,
                 user_uuid,
@@ -1457,6 +1497,7 @@ export class SpaceModel {
                 name,
                 description,
                 uuid: dashboard_uuid,
+                slug,
                 projectUuid: project_uuid,
                 updatedAt: created_at,
                 updatedByUser: {
@@ -1493,6 +1534,8 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        // Directly granted charts outside the given spaces to include.
+        includeUuids?: string[],
     ) {
         const {
             name: chartTable,
@@ -1501,7 +1544,18 @@ export class SpaceModel {
         } = chartsTable;
 
         let spaceChartsQuery = this.database(chartTable)
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    spaceUuids,
+                );
+                if (includeUuids !== undefined && includeUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${chartTable}.${uuidColumnName}`,
+                        includeUuids,
+                    );
+                }
+            })
             .leftJoin(
                 SpaceTableName,
                 `${chartTable}.space_uuid`,
@@ -1645,6 +1699,7 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        includeUuids?: string[],
     ): Promise<SpaceQuery[]> {
         return this.getSpaceCharts(
             {
@@ -1654,6 +1709,7 @@ export class SpaceModel {
             },
             spaceUuids,
             filters,
+            includeUuids,
         );
     }
 
@@ -1663,9 +1719,22 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        // Directly granted charts outside the given spaces to include.
+        includeUuids?: string[],
     ): Promise<SpaceQuery[]> {
         let spaceQueriesQuery = this.database(SavedChartsTableName)
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    spaceUuids,
+                );
+                if (includeUuids !== undefined && includeUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        includeUuids,
+                    );
+                }
+            })
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .leftJoin(
                 SpaceTableName,
@@ -1929,7 +1998,8 @@ export class SpaceModel {
             )
             .whereRaw('?::ltree <@ path', [space.path])
             .andWhereNot('space_uuid', spaceUuid)
-            .andWhere(`${ProjectTableName}.project_uuid`, projectUuid);
+            .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`);
 
         return ancestors.map((ancestor) => ancestor.space_uuid);
     }
@@ -2056,15 +2126,13 @@ export class SpaceModel {
             `space:${path ?? baseSlug}`,
         );
         if (path !== undefined) {
+            // Deleted spaces keep their path for restore but must not block
+            // new content at that location; restore() rejects the clash.
             const existing = await trx(SpaceTableName)
                 .where('project_id', project.project_id)
                 .where('path', path)
+                .whereNull('deleted_at')
                 .first();
-            if (existing?.deleted_at) {
-                throw new ConflictError(
-                    `Space path "${path}" is already used by a deleted space`,
-                );
-            }
             if (existing) {
                 return SpaceModel.convertCreatedSpace(existing, projectUuid);
             }
@@ -2119,17 +2187,35 @@ export class SpaceModel {
     }
 
     async restore(spaceUuid: string): Promise<void> {
-        const updateCount = await this.database(SpaceTableName)
-            .update({
-                deleted_at: null,
-                deleted_by_user_uuid: null,
-            })
-            .where('space_uuid', spaceUuid)
-            .whereNotNull('deleted_at');
+        await this.database.transaction(async (trx) => {
+            const deletedSpace = await trx(SpaceTableName)
+                .select('project_id', 'path', 'name')
+                .where('space_uuid', spaceUuid)
+                .whereNotNull('deleted_at')
+                .first();
+            if (!deletedSpace) {
+                throw new NotFoundError('Deleted space not found');
+            }
 
-        if (updateCount !== 1) {
-            throw new NotFoundError('Deleted space not found');
-        }
+            const activeSpaceAtPath = await trx(SpaceTableName)
+                .select('name')
+                .where('project_id', deletedSpace.project_id)
+                .where('path', deletedSpace.path)
+                .whereNull('deleted_at')
+                .first();
+            if (activeSpaceAtPath) {
+                throw new ConflictError(
+                    `Cannot restore space "${deletedSpace.name}" because the space "${activeSpaceAtPath.name}" now exists at the same location. Delete or move that space first.`,
+                );
+            }
+
+            await trx(SpaceTableName)
+                .update({
+                    deleted_at: null,
+                    deleted_by_user_uuid: null,
+                })
+                .where('space_uuid', spaceUuid);
+        });
     }
 
     async getDescendantSpaceUuids(spaceUuid: string): Promise<string[]> {

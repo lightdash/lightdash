@@ -27,6 +27,7 @@ import {
     IconChevronRight,
     IconClock,
     IconDatabase,
+    IconDatabaseExport,
     IconFile,
     IconFilterExclamation,
     IconHourglass,
@@ -41,6 +42,7 @@ import Callout from '../common/Callout';
 import { filterOperatorLabel } from '../common/Filters/FilterInputs/constants';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
+import TruncatedText from '../common/TruncatedText';
 
 const TRIGGER_LABELS: Record<string, string> = {
     compile: 'Project compile',
@@ -109,7 +111,7 @@ const ColumnsSection: FC<{
                     />
                 </Group>
             </UnstyledButton>
-            <Collapse in={opened}>
+            <Collapse expanded={opened}>
                 <Stack gap={2} mt="xs">
                     {columns.map(([name, col]) => (
                         <Group
@@ -127,7 +129,7 @@ const ColumnsSection: FC<{
                             <Text fz="xs" ff="monospace">
                                 {name}
                             </Text>
-                            <Badge variant="outline" color="gray" size="xs">
+                            <Badge variant="outline" size="xs">
                                 {col.type}
                             </Badge>
                         </Group>
@@ -175,7 +177,6 @@ const MaterializationRoleSection: FC<{
                                             <Badge
                                                 key={`${attributeName}-${value}`}
                                                 variant="outline"
-                                                color="gray"
                                                 size="xs"
                                                 ff="monospace"
                                             >
@@ -212,21 +213,15 @@ const FiltersSection: FC<{
                         }}
                     >
                         <Group gap={6} wrap="wrap" align="center">
-                            <Badge
-                                variant="light"
-                                color="gray"
-                                size="xs"
-                                ff="monospace"
-                            >
+                            <Badge size="xs" ff="monospace">
                                 {filter.target.fieldRef}
                             </Badge>
-                            <Text fz="xs" c="ldGray.6" fw={500}>
+                            <Text fz="xs" c="dimmed" fw={500}>
                                 {filterOperatorLabel[filter.operator]}
                             </Text>
                             {value && (
                                 <Badge
                                     variant="outline"
-                                    color="gray"
                                     size="xs"
                                     ff="monospace"
                                 >
@@ -277,14 +272,47 @@ const MaterializationDetailDrawer: FC<Props> = ({
             zIndex={getDefaultZIndex('max') + 1}
             title={
                 <Group gap="xs">
-                    <IconBox icon={IconBolt} color="ldDark.9" />
-                    <Text fw={600} fz="sm">
-                        Pre-aggregate details
-                    </Text>
+                    <IconBox
+                        icon={
+                            summary.externalTable
+                                ? IconDatabaseExport
+                                : IconBolt
+                        }
+                        color="ldDark.9"
+                    />
+                    <Stack gap={0}>
+                        <TruncatedText
+                            maxWidth={280}
+                            fw={600}
+                            fz="sm"
+                            ff="monospace"
+                        >
+                            {summary.preAggregateName}
+                        </TruncatedText>
+                        <Text fz="xs" c="dimmed">
+                            Pre-aggregate details
+                        </Text>
+                    </Stack>
                 </Group>
             }
         >
             <Stack gap="lg">
+                {summary.externalTable && (
+                    <Callout variant="info" title="Customer managed">
+                        <Text fz="xs">
+                            Lightdash serves matching queries from this
+                            warehouse table, but does not build or refresh it.
+                        </Text>
+                    </Callout>
+                )}
+
+                {summary.externalTable && (
+                    <Box>
+                        <DetailLabel>External table</DetailLabel>
+                        <DetailValue mono>{summary.externalTable}</DetailValue>
+                    </Box>
+                )}
+
                 <Box>
                     <DetailLabel>Source explore</DetailLabel>
                     <DetailValue mono>{summary.sourceExploreName}</DetailValue>
@@ -302,7 +330,6 @@ const MaterializationDetailDrawer: FC<Props> = ({
                         {summary.metrics.map((m) => (
                             <Badge
                                 key={m}
-                                variant="light"
                                 bg={LD_FIELD_COLORS.metric.bg}
                                 c={LD_FIELD_COLORS.metric.color}
                                 size="sm"
@@ -320,7 +347,6 @@ const MaterializationDetailDrawer: FC<Props> = ({
                         {summary.dimensions.map((d) => (
                             <Badge
                                 key={d}
-                                variant="light"
                                 bg={LD_FIELD_COLORS.dimension.bg}
                                 c={LD_FIELD_COLORS.dimension.color}
                                 size="sm"
@@ -355,7 +381,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                     </Group>
                 )}
 
-                {summary.refreshCron && (
+                {!summary.externalTable && summary.refreshCron && (
                     <Box>
                         <DetailLabel>Refresh schedule</DetailLabel>
                         <DetailValue mono>
@@ -441,8 +467,6 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                 </Group>
                                 <Tooltip label="Rebuild this pre-aggregate">
                                     <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
                                         size="sm"
                                         loading={isRefreshing}
                                         onClick={() =>
@@ -460,9 +484,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                 <Group gap={4}>
                                     <MantineIcon
                                         icon={IconCalendarClock}
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
-                                    <Text size="sm" c="ldGray.6">
+                                    <Text size="sm" c="dimmed">
                                         Trigger:{' '}
                                         {TRIGGER_LABELS[
                                             materialization.trigger
@@ -474,9 +498,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     <Group gap={4}>
                                         <MantineIcon
                                             icon={IconClock}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
-                                        <Text size="sm" c="ldGray.6">
+                                        <Text size="sm" c="dimmed">
                                             Materialized at:{' '}
                                             {new Date(
                                                 materialization.materializedAt,
@@ -489,9 +513,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     <Group gap={4}>
                                         <MantineIcon
                                             icon={IconTableRow}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
-                                        <Text size="sm" c="ldGray.6">
+                                        <Text size="sm" c="dimmed">
                                             Rows:{' '}
                                             {materialization.rowCount.toLocaleString()}
                                         </Text>
@@ -502,9 +526,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     <Group gap={4}>
                                         <MantineIcon
                                             icon={IconFile}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
-                                        <Text size="sm" c="ldGray.6">
+                                        <Text size="sm" c="dimmed">
                                             File size:{' '}
                                             {formatFileSize(
                                                 materialization.totalBytes,
@@ -517,9 +541,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     <Group gap={4}>
                                         <MantineIcon
                                             icon={IconHourglass}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
-                                        <Text size="sm" c="ldGray.6">
+                                        <Text size="sm" c="dimmed">
                                             Build time:{' '}
                                             {formatDuration(
                                                 materialization.durationMs,

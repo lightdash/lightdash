@@ -160,11 +160,9 @@ const ActionRow: FC<{
                 </Box>
             </Box>
             {!status.isComplete && isSkipped && (
-                <Tooltip label="Restore this step" withinPortal>
+                <Tooltip label="Restore this step">
                     <ActionIcon
                         className={styles.skipButton}
-                        variant="subtle"
-                        color="gray"
                         size="sm"
                         aria-label={`Restore ${definition.title}`}
                         onClick={() => onRestore(actionKey)}
@@ -196,11 +194,9 @@ const ActionRow: FC<{
                         {status.ctaLabel}
                     </Button>
                     {isSkippableActionKey(actionKey) && (
-                        <Tooltip label="Skip this step" withinPortal>
+                        <Tooltip label="Skip this step">
                             <ActionIcon
                                 className={styles.skipButton}
-                                variant="subtle"
-                                color="gray"
                                 size="sm"
                                 aria-label={`Skip ${definition.title}`}
                                 onClick={() => onSkip(actionKey)}
@@ -369,8 +365,6 @@ export const RecommendedActionsChecklist: FC<{
                     {showArrows && (
                         <>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="sm"
                                 aria-label="Previous step"
                                 onClick={() => {
@@ -384,8 +378,6 @@ export const RecommendedActionsChecklist: FC<{
                                 <MantineIcon icon={IconChevronUp} size={14} />
                             </ActionIcon>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="sm"
                                 aria-label="Next step"
                                 onClick={() => {

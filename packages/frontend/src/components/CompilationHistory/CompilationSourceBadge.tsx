@@ -20,7 +20,6 @@ export const CompilationSourceBadge = ({
     return (
         <Badge
             color={color}
-            variant="light"
             size="sm"
             radius="md"
             py={10}

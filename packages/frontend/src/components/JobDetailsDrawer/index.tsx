@@ -7,13 +7,11 @@ import {
 import {
     Alert,
     Box,
-    CopyButton,
     Group,
     Loader,
     Stack,
     Text,
     Title,
-    ActionIcon,
     Drawer,
     type DefaultMantineColor,
 } from '@mantine/core';
@@ -21,9 +19,7 @@ import { useInterval } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconAlertTriangleFilled,
-    IconCheck,
     IconCircleCheckFilled,
-    IconCopy,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -35,6 +31,7 @@ import {
     runningStepsInfo,
 } from '../../hooks/useRefreshServer';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
+import { CopyActionIcon } from '../common/CopyActionIcon';
 import MantineIcon from '../common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../common/Page/constants';
 import ProjectCompileLog from './ProjectCompileLog';
@@ -159,14 +156,14 @@ const JobDetailsDrawer: FC = () => {
                     <DrawerIcon job={activeJob} />
 
                     <Box>
-                        <Title order={4} fw={600}>
+                        <Title order={4}>
                             {jobStatusLabel(
                                 activeJob.jobStatus,
                                 activeJob.jobType,
                             )}
                         </Title>
                         {hasSteps && (
-                            <Text c="ldGray.6" fz="sm" fw={500}>{`${
+                            <Text c="dimmed" fz="sm" fw={500}>{`${
                                 runningStepsInfo(activeJob.steps)
                                     .completedStepsMessage
                             } steps complete - ${durationSince(
@@ -180,13 +177,12 @@ const JobDetailsDrawer: FC = () => {
             <Stack p="sm">
                 {activeJob.steps?.map((step) => (
                     <Alert
-                        variant="light"
                         key={step.jobUuid}
                         color={statusInfo(step.stepStatus)}
                         icon={<StepIcon step={step} />}
                         title={step.stepLabel}
                     >
-                        <Stack gap={1} style={{ flex: 1, minWidth: 0 }}>
+                        <Stack gap={1} flex={1} miw={0}>
                             <Text fz="xs" fw={500}>
                                 {jobStepStatusLabel(step.stepStatus)} (
                                 {jobStepDuration(step)})
@@ -206,7 +202,7 @@ const JobDetailsDrawer: FC = () => {
                                     pos="relative"
                                     gap="xs"
                                 >
-                                    <CopyButton
+                                    <CopyActionIcon
                                         value={
                                             step.stepError +
                                                 step.stepDbtLogs
@@ -218,29 +214,11 @@ const JobDetailsDrawer: FC = () => {
                                                     .map((log) => log.info.msg)
                                                     .join('\n') || ''
                                         }
-                                    >
-                                        {({ copied, copy }) => (
-                                            <ActionIcon
-                                                variant="subtle"
-                                                color="gray"
-                                                onClick={copy}
-                                                pos="absolute"
-                                                top={6}
-                                                right={4}
-                                                size="xs"
-                                            >
-                                                {copied ? (
-                                                    <MantineIcon
-                                                        icon={IconCheck}
-                                                    />
-                                                ) : (
-                                                    <MantineIcon
-                                                        icon={IconCopy}
-                                                    />
-                                                )}
-                                            </ActionIcon>
-                                        )}
-                                    </CopyButton>
+                                        pos="absolute"
+                                        top={6}
+                                        right={4}
+                                        size="xs"
+                                    />
                                     <Stack
                                         gap="xs"
                                         style={{

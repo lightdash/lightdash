@@ -7,7 +7,6 @@ import {
     setTag,
     setTags,
     setUser,
-    spotlightBrowserIntegration,
 } from '@sentry/react';
 import { useEffect } from 'react';
 import {
@@ -22,12 +21,7 @@ import {
     isChunkLoadErrorObject,
     RouteChunkLoadError,
 } from '../../features/chunkErrorHandler';
-
-const sentrySpotlightEnabled =
-    import.meta.env.DEV && import.meta.env.VITE_SENTRY_SPOTLIGHT;
-
-// Dummy DSN for Spotlight-only mode (no real Sentry account needed)
-const SPOTLIGHT_DUMMY_DSN = 'https://0@o0.ingest.sentry.io/0';
+import { useProjectUuid } from '../useProjectUuid';
 
 const useSentry = (
     sentryConfig: HealthState['sentry'] | undefined,
@@ -35,23 +29,13 @@ const useSentry = (
     disableDashboardTracing?: boolean,
 ) => {
     useEffect(() => {
-        const dsn =
-            sentryConfig?.frontend.dsn ||
-            (sentrySpotlightEnabled ? SPOTLIGHT_DUMMY_DSN : '');
+        const dsn = sentryConfig?.frontend.dsn;
         if (sentryConfig && dsn && !isInitialized()) {
             init({
                 dsn,
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
                 integrations: [
-                    ...(sentrySpotlightEnabled
-                        ? [
-                              spotlightBrowserIntegration({
-                                  sidecarUrl: import.meta.env
-                                      .VITE_SENTRY_SPOTLIGHT,
-                              }),
-                          ]
-                        : []),
                     reactRouterV7BrowserTracingIntegration({
                         useEffect,
                         useLocation,
@@ -62,8 +46,6 @@ const useSentry = (
                     replayIntegration(),
                 ],
                 tracesSampler(samplingContext) {
-                    // Skip dashboard tracing before the Spotlight branch so the
-                    // opt-out also applies in Spotlight dev (100% sampling).
                     if (disableDashboardTracing) {
                         const name =
                             samplingContext.name ||
@@ -72,10 +54,6 @@ const useSentry = (
                         if (name.includes('/dashboards/')) {
                             return 0;
                         }
-                    }
-
-                    if (sentrySpotlightEnabled) {
-                        return 1.0;
                     }
 
                     if (samplingContext.parentSampled !== undefined) {
@@ -135,10 +113,8 @@ const useSentry = (
         }
     }, [sentryConfig, user, disableDashboardTracing]);
 
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid?: string;
-        dashboardUuid?: string;
-    }>();
+    const { dashboardUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const location = useLocation();
     useEffect(() => {
         if (projectUuid) {

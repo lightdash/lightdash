@@ -25,6 +25,7 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { DEFAULT_PAGE_SIZE } from '../common/Table/constants';
+import classes from './ProjectParameters.module.css';
 
 interface ProjectParametersProps {
     projectUuid: string;
@@ -134,7 +135,6 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                     <Table.Td>
                         <Badge
                             size="sm"
-                            variant="light"
                             color={
                                 parameter.source === 'config' ? 'blue' : 'green'
                             }
@@ -147,7 +147,6 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                     <Table.Td>
                         <Tooltip label="View configuration">
                             <ActionIcon
-                                variant="subtle"
                                 onClick={() =>
                                     handleViewConfig(
                                         parameter.name,
@@ -190,10 +189,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                             leftSection={<MantineIcon icon={IconSearch} />}
                             rightSection={
                                 search.length > 0 && (
-                                    <ActionIcon
-                                        variant="subtle"
-                                        onClick={() => setSearch('')}
-                                    >
+                                    <ActionIcon onClick={() => setSearch('')}>
                                         <MantineIcon icon={IconX} />
                                     </ActionIcon>
                                 )
@@ -209,7 +205,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th
-                                style={{ cursor: 'pointer' }}
+                                className={classes.sortableHeader}
                                 onClick={() => handleSort('name')}
                             >
                                 <Group gap="xs">
@@ -223,7 +219,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                             <Table.Th></Table.Th>
                         </Table.Tr>
                     </Table.Thead>
-                    <Table.Tbody style={{ position: 'relative' }}>
+                    <Table.Tbody pos="relative">
                         {!isLoading && parameters && parameters.length ? (
                             tableRows
                         ) : isLoading ? (
@@ -237,7 +233,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                         ) : (
                             <Table.Tr>
                                 <Table.Td colSpan={3}>
-                                    <Text c="ldGray.6" fs="italic" ta="center">
+                                    <Text c="dimmed" fs="italic" ta="center">
                                         {debouncedSearch
                                             ? 'No parameters found matching your search'
                                             : 'No parameters configured for this project'}

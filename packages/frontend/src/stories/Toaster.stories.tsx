@@ -1,3 +1,4 @@
+import { LightdashMode, type HealthState } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -20,7 +21,8 @@ import {
     IconReload,
     type Icon,
 } from '@tabler/icons-react';
-import { useRef, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useRef, useState, type ReactNode } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
 import ApiErrorDisplay from '../hooks/toaster/ApiErrorDisplay';
 import MultipleToastBody from '../hooks/toaster/MultipleToastBody';
@@ -484,6 +486,24 @@ const StaticJobProgressBody = () => (
     </Box>
 );
 
+const NotifySupportHealthProvider = ({ children }: { children: ReactNode }) => {
+    const [queryClient] = useState(() => {
+        const client = new QueryClient({
+            defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+        });
+        client.setQueryData(['health'], {
+            mode: LightdashMode.DEV,
+            siteUrl: 'http://localhost:3000',
+        } as unknown as HealthState);
+        return client;
+    });
+    return (
+        <QueryClientProvider client={queryClient}>
+            {children}
+        </QueryClientProvider>
+    );
+};
+
 const InlineGalleryDemo = () => (
     <Stack gap="xl" p="xl" w={860}>
         <Box component="section">
@@ -628,6 +648,51 @@ const InlineGalleryDemo = () => (
                     </StaticToast>
                 </Box>
             </Group>
+        </Box>
+
+        <Box component="section">
+            <Title order={4} mb="md">
+                Error (notify support)
+            </Title>
+            <NotifySupportHealthProvider>
+                <Group align="flex-start" gap="md">
+                    <Box w={400}>
+                        <StaticToast
+                            variant="error"
+                            title="Failed to create issue"
+                        >
+                            <Box className={toastStyles.subtitle}>
+                                <ApiErrorDisplay
+                                    apiError={{
+                                        name: 'ApiError',
+                                        message: 'Something went wrong.',
+                                        statusCode: 500,
+                                        sentryEventId: 'a1b2c3d4e5',
+                                        sentryTraceId: 'f6a7b8c9d0',
+                                        data: {},
+                                    }}
+                                />
+                            </Box>
+                        </StaticToast>
+                    </Box>
+                    <Box w={400}>
+                        <StaticToast variant="error" title="Query failed">
+                            <Box className={toastStyles.subtitle}>
+                                <ApiErrorDisplay
+                                    apiError={{
+                                        name: 'ApiError',
+                                        message: LONG_SQL_ERROR_MESSAGE,
+                                        statusCode: 400,
+                                        sentryEventId: 'c3d4e5f6a7',
+                                        sentryTraceId: 'b8c9d0e1f2',
+                                        data: {},
+                                    }}
+                                />
+                            </Box>
+                        </StaticToast>
+                    </Box>
+                </Group>
+            </NotifySupportHealthProvider>
         </Box>
 
         <Box component="section">

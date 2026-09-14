@@ -72,7 +72,6 @@ const ChatBubbleMeta: FC<Props> = ({
                 (version.isActive ? (
                     <Badge
                         size="sm"
-                        variant="light"
                         color="indigo"
                         leftSection={<MantineIcon icon={IconEye} size={10} />}
                     >
@@ -87,8 +86,6 @@ const ChatBubbleMeta: FC<Props> = ({
                     >
                         <Badge
                             size="sm"
-                            variant="light"
-                            color="gray"
                             component="button"
                             type="button"
                             onClick={version.onPreview}

@@ -11,6 +11,8 @@ type Pm2App = {
     autorestart?: boolean;
     watch?: string[];
     ignore_watch?: string[];
+    watch_options?: { followSymlinks?: boolean };
+    exp_backoff_restart_delay?: number;
 };
 
 type Pm2Config = {
@@ -37,14 +39,26 @@ const expectApiReloadContract = (config: Pm2Config) => {
         interpreter: 'node',
         node_args: expect.stringContaining('--import tsx'),
         autorestart: true,
-        watch: ['src'],
-        ignore_watch: ['src/generated/swagger.json'],
+        watch: ['src', '../common/dist/cjs/.tsbuildinfo'],
+        // ignore_watch replaces chokidar's default node_modules ignore, so the
+        // explicit entries + followSymlinks:false guard against restart storms
+        // via symlinked node_modules inside src (e.g. mcp-chart-app).
+        ignore_watch: [
+            'src/generated/swagger.json',
+            '**/*.test.ts',
+            '**/node_modules',
+            '**/node_modules/**',
+        ],
+        watch_options: { followSymlinks: false },
     });
+    // common-watch already builds common, so the watcher calls the backend
+    // script directly and backs off instead of crash-looping on a stale build.
     expect(routeWatcher).toMatchObject({
         script: 'pnpm',
-        args: 'generate-api-dev',
+        args: '-F backend generate-api-dev',
         interpreter: 'none',
         autorestart: true,
+        exp_backoff_restart_delay: 1000,
     });
 };
 
@@ -75,11 +89,15 @@ describe('development PM2 harness', () => {
             path.join(repoRoot, 'scripts/dev-fast-start.sh'),
             'utf8',
         );
+        const instanceLib = fs.readFileSync(
+            path.join(repoRoot, 'scripts/dev-instance-lib.sh'),
+            'utf8',
+        );
 
         expect(backendPackage.scripts['generate-api-dev']).toMatch(
             /^pnpm run generate-api:build && chokidar /,
         );
-        expect(fastStart).toMatch(
+        expect(instanceLib).toMatch(
             /for suffix in api api-routes-watch scheduler/,
         );
         expect(fastStart).toContain('API_RELOAD_READY');

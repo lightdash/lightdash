@@ -56,7 +56,7 @@ export const MemoryPromotionAction: FC<Props> = ({
     if (shouldLinkReviewItem) {
         if (!canManageProjectAgent && !canManageOrganizationAgent) {
             return (
-                <Badge variant="light" color="violet" size="lg">
+                <Badge color="violet" size="lg">
                     {status === 'promoted' ? 'Promoted' : 'Proposal pending'}
                 </Badge>
             );
@@ -144,14 +144,12 @@ export const MemoryPromotionAction: FC<Props> = ({
                     <Stack gap="sm">
                         <Text fz="sm" c="dimmed">
                             This proposes making this guidance available to
-                            everyone in the project. Only text from the memory
-                            itself is used — evidence and query results are
-                            never included — and nothing changes until a
-                            reviewer approves it.
+                            everyone in the project. The memory will only be
+                            prompted if reviewer approves.
                         </Text>
                         <Textarea
                             label="Why should this become project context?"
-                            description="Optional — shown to reviewers and used to guide the proposal."
+                            description="Optional, shown to reviewers and used to guide the proposal."
                             value={reason}
                             onChange={(event) =>
                                 setReason(event.currentTarget.value)

@@ -87,8 +87,6 @@ export const ImproveWithAiSlot: FC<Props> = ({
             rightSlot={
                 <ActionIcon
                     size="xs"
-                    variant="subtle"
-                    color="gray"
                     onClick={close}
                     aria-label="Close AI prompt"
                 >

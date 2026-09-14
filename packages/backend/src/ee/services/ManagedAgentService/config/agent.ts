@@ -122,7 +122,7 @@ export const buildManagedAgentSystemPrompt = (
             case 'flag':
                 return `${intro}\n- Any reason → flag_content\n- Content YOU created (slug starts with "agent-") → NEVER flag\nInclude last_viewed_at, views_count, and created_at in the description.`;
             case 'cleanup':
-                return `${intro}\n- reason "never_viewed" → soft_delete_content\n- reason "not_viewed_recently" → flag_content\n- Content YOU created (slug starts with "agent-") → NEVER flag or delete\nInclude last_viewed_at, views_count, and created_at in the description.`;
+                return `${intro}\n- First sighting of a stale item (any reason) → flag_content; NEVER delete on first sight\n- Items you flagged more than ${escalationHours} hours ago that were not reversed or dismissed → soft_delete_content\n- Content YOU created (slug starts with "agent-") → NEVER flag or delete\n- Max 25 individual soft-deletes per run. When the cap is reached, flag the remaining candidates and report the backlog in your summary instead of deleting\nInclude last_viewed_at, views_count, and created_at in the description.`;
             default:
                 return assertUnreachable(
                     aggression,
@@ -183,9 +183,10 @@ ${previewStep}
 ${staleStep}
 
 ### 3. Broken Content
-Call get_broken_content. For each broken chart:
-- Call get_chart_details to understand the current state
-- If the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose), use fix_broken_chart
+Call get_broken_content. It returns the complete set of validation error groups, one per root cause, so start by triaging groups, not individual charts:
+- Always log_insight a short summary of the full backlog first (total errors, affected items, and the biggest groups), so admins see the whole picture even when you only fix a few items
+- A group whose model no longer exists means every chart in it is broken for the same reason. Call get_broken_content with that table_name to list all affected content. When bulk_delete_broken_content is available, use it to clean up all charts on that deleted model in one call; flag affected dashboards instead of deleting them
+- For renamed or replaced fields, fix charts individually: call get_chart_details to understand the current state, then use fix_broken_chart when the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose)
 - If the fix is ambiguous or would change what the chart shows, ${brokenFallback}
 - Reference the "Developing in Lightdash" skill for valid metricQuery and chartConfig structure
 
@@ -311,9 +312,20 @@ export const managedAgentConfig: AgentCreateParams = {
         },
         {
             description:
-                'Get charts and dashboards with validation errors (e.g., referencing fields that no longer exist). Returns uuid, name, type, and the specific errors.',
+                'Get validation errors grouped by root cause (e.g. one group per deleted model). Without arguments, returns the COMPLETE set of groups with counts and a capped sample of affected content per group. Pass table_name to list every broken item caused by that model.',
             input_schema: {
-                properties: {},
+                properties: {
+                    limit: {
+                        description:
+                            'Max items to return in table_name detail mode',
+                        type: 'number',
+                    },
+                    table_name: {
+                        description:
+                            'Root-cause model name from a summary group; switches to detail mode listing all affected content for that model',
+                        type: 'string',
+                    },
+                },
                 required: [],
                 type: 'object',
             },
@@ -344,7 +356,7 @@ export const managedAgentConfig: AgentCreateParams = {
         },
         {
             description:
-                'Flag a chart, dashboard, or project in the action log. Does NOT delete or modify the content, only records an observation. Use for stale content, broken content, or old preview projects.',
+                'Flag a chart, dashboard, or project in the action log. Does NOT delete or modify the content, only records an observation. Use for stale content, broken content, or old preview projects. Idempotent: flagging an already-flagged target returns the existing flag without creating a duplicate, and deleted targets are skipped — so never re-flag a list you have already processed this run.',
             input_schema: {
                 properties: {
                     description: {
@@ -390,7 +402,7 @@ export const managedAgentConfig: AgentCreateParams = {
         },
         {
             description:
-                'Soft-delete a chart or dashboard. The content can be restored by an admin. Do NOT use for content created in the last 30 days. Do NOT use for agent-created content (slug starts with agent-). Do NOT use if the chart is the only chart on a dashboard.',
+                'Soft-delete a chart or dashboard. The content can be restored by an admin. Only usable on content that was flagged more than the escalation window ago and not dismissed; unflagged content is blocked, so flag_content it first. Do NOT use for content created in the last 30 days. Do NOT use for agent-created content (slug starts with agent-). Do NOT use if the chart is the only chart on a dashboard. At most 25 individual soft-deletes are allowed per run; further calls are blocked, so flag the remainder instead.',
             input_schema: {
                 properties: {
                     description: {
@@ -426,6 +438,28 @@ export const managedAgentConfig: AgentCreateParams = {
                 type: 'object',
             },
             name: 'soft_delete_content',
+            type: 'custom',
+        },
+        {
+            description:
+                'Soft-delete every chart whose underlying model was deleted, in one call. Only use when get_broken_content shows a model-level group (the whole model no longer exists). Charts are individually recoverable; dashboards referencing the model are never deleted by this tool, flag them instead. Deletes at most 25 charts per call and reports the remainder. Per-chart guardrails still apply and skipped charts are reported with reasons.',
+            input_schema: {
+                properties: {
+                    reason: {
+                        description:
+                            'Human-readable explanation of WHY this cleanup is safe (e.g. which model was removed and when)',
+                        type: 'string',
+                    },
+                    table_name: {
+                        description:
+                            'The deleted model name, exactly as returned by get_broken_content',
+                        type: 'string',
+                    },
+                },
+                required: ['table_name', 'reason'],
+                type: 'object',
+            },
+            name: 'bulk_delete_broken_content',
             type: 'custom',
         },
         {
@@ -754,16 +788,20 @@ const aggressionDisabledTools: Record<
     ManagedAgentPolicy['aggression'],
     string[]
 > = {
-    observe: ['flag_content', 'soft_delete_content'],
-    flag: ['soft_delete_content'],
+    observe: [
+        'flag_content',
+        'soft_delete_content',
+        'bulk_delete_broken_content',
+    ],
+    flag: ['soft_delete_content', 'bulk_delete_broken_content'],
     cleanup: [],
 };
 
 const buildPolicyToolDescriptions = (
     policy: ManagedAgentPolicy,
 ): Record<string, string> => ({
-    get_stale_charts: `Get charts that are stale per project policy: not viewed in ${policy.stalenessChartDays}+ days (or never viewed), and not created or edited in the last ${policy.protectRecentDays} days. Returns uuid, name, space, last_viewed_at, views_count, created_by, and a reason field.`,
-    get_stale_dashboards: `Get dashboards that are stale per project policy: not viewed in ${policy.stalenessDashboardDays}+ days (or never viewed), and not created or edited in the last ${policy.protectRecentDays} days. Returns uuid, name, space, last_viewed_at, views_count, created_by, and a reason field.`,
+    get_stale_charts: `Get charts that are stale per project policy: not viewed in ${policy.stalenessChartDays}+ days (or never viewed and created ${policy.stalenessChartDays}+ days ago), and not created or edited in the last ${policy.protectRecentDays} days. Returns uuid, name, space, last_viewed_at, views_count, created_by, and a reason field.`,
+    get_stale_dashboards: `Get dashboards that are stale per project policy: not viewed in ${policy.stalenessDashboardDays}+ days (or never viewed and created ${policy.stalenessDashboardDays}+ days ago), and not created or edited in the last ${policy.protectRecentDays} days. Returns uuid, name, space, last_viewed_at, views_count, created_by, and a reason field.`,
     get_preview_projects: `Get preview projects older than ${policy.previewProjectDays} days per project policy. Returns uuid, name, created_at, and the project they were copied from.`,
     get_slow_queries: `Get the slowest warehouse queries in the project from the last 30 days (threshold: ${policy.slowQueryThresholdMs} ms per project policy). Returns the chart or dashboard name, execution time in ms, query context, and when it ran. Use this to flag charts or dashboards with consistently slow queries so admins can optimize them.`,
 });
@@ -772,6 +810,7 @@ const managedAgentCapabilityTools = {
     createContent: ['create_content_from_code'],
     modifyExistingContent: [
         'soft_delete_content',
+        'bulk_delete_broken_content',
         'fix_broken_chart',
         'reverse_own_action',
     ],

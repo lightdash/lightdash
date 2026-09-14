@@ -8,6 +8,7 @@ import { collapseAbilityRules } from './collapseAbilityRules';
 import applyOrganizationMemberAbilities, {
     type OrganizationMemberAbilitiesArgs,
 } from './organizationMemberAbility';
+import { normalizeScopeName } from './parseScopes';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { type MemberAbility } from './types';
@@ -22,6 +23,8 @@ export type ProjectAbilityProfile = Pick<
 > & {
     projectType?: ProjectType;
     projectCreatedByUserUuid?: string | null;
+    /** Additional custom roles unioned on top of `role`/`roleUuid`. */
+    extraRoleUuids?: string[];
 };
 
 type UserAbilityBuilderArgs = {
@@ -29,11 +32,18 @@ type UserAbilityBuilderArgs = {
         LightdashUser,
         'role' | 'organizationUuid' | 'userUuid' | 'roleUuid'
     >;
+    /** Additional organization custom roles unioned on top of the user's slot. */
+    orgExtraRoleUuids?: string[];
     projectProfiles: ProjectAbilityProfile[];
     permissionsConfig: OrganizationMemberAbilitiesArgs['permissionsConfig'];
     customRoleScopes?: Record<Role['roleUuid'], RoleWithScopes['scopes']>;
     customRolesEnabled?: boolean;
     isEnterprise?: boolean;
+    /**
+     * Org opt-in (PatScopeAuthoritative flag): the primary-slot org custom
+     * role's scope list fully decides token access.
+     */
+    patScopeAuthoritative?: boolean;
 };
 
 export const JWT_HEADER_NAME = 'lightdash-embed-token';
@@ -45,14 +55,53 @@ export type UserAbilityBuilderResult = {
 
 export const getUserAbilityBuilder = ({
     user,
+    orgExtraRoleUuids = [],
     projectProfiles,
     permissionsConfig,
     customRoleScopes,
     customRolesEnabled,
     isEnterprise,
+    patScopeAuthoritative,
 }: UserAbilityBuilderArgs): UserAbilityBuilderResult => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const invalidScopes: string[] = [];
+    // Authoritative only when the org opted in AND the deployment is
+    // licensed — unlicensed orgs keep inheriting the deployment default.
+    const patScopeIsAuthoritative = Boolean(
+        isEnterprise && patScopeAuthoritative,
+    );
+    const applyPatConfigFallback = !patScopeIsAuthoritative;
+    // Only the org primary slot may speak for the scope while authoritative;
+    // downstream sets listing it would silently restore what it withheld.
+    const withoutDownstreamPatScope = (scopes: string[]) =>
+        patScopeIsAuthoritative
+            ? scopes.filter(
+                  (scope) =>
+                      normalizeScopeName(scope) !==
+                      'manage:PersonalAccessToken',
+              )
+            : scopes;
+    // Extra custom roles are unioned on top of the slot; unknown uuids are
+    // skipped (logged) rather than granting anything.
+    const applyExtraRoles = (
+        extraRoleUuids: string[],
+        apply: (scopes: string[]) => string[],
+    ) => {
+        if (!customRolesEnabled) {
+            return;
+        }
+        extraRoleUuids.forEach((roleUuid) => {
+            const scopes = customRoleScopes?.[roleUuid];
+            if (!scopes) {
+                // eslint-disable-next-line no-console
+                console.error(
+                    `Custom role with uuid ${roleUuid} was not found`,
+                );
+                return;
+            }
+            invalidScopes.push(...apply(scopes));
+        });
+    };
     if (user.role && user.organizationUuid) {
         // Org-level custom role: if the user's organization_memberships row
         // points at a role_uuid AND custom roles are enabled AND we have the
@@ -74,6 +123,9 @@ export const getUserAbilityBuilder = ({
                         isEnterprise,
                         organizationRole: user.role,
                         permissionsConfig,
+                        // While the org's PAT opt-in is authoritative, the primary slot alone
+                        // decides token access; downstream sets are stripped and declined.
+                        applyPatConfigFallback,
                     },
                     builder,
                 ),
@@ -89,6 +141,20 @@ export const getUserAbilityBuilder = ({
                 permissionsConfig,
             });
         }
+        applyExtraRoles(orgExtraRoleUuids, (scopes) =>
+            buildAbilityFromScopes(
+                {
+                    organizationUuid: user.organizationUuid as string,
+                    userUuid: user.userUuid,
+                    scopes: withoutDownstreamPatScope(scopes),
+                    isEnterprise,
+                    organizationRole: user.role,
+                    permissionsConfig,
+                    applyPatConfigFallback,
+                },
+                builder,
+            ),
+        );
 
         projectProfiles.forEach((projectProfile) => {
             if (projectProfile.roleUuid && customRolesEnabled) {
@@ -115,10 +181,11 @@ export const getUserAbilityBuilder = ({
                             projectCreatedByUserUuid:
                                 projectProfile.projectCreatedByUserUuid,
                             userUuid: user.userUuid,
-                            scopes,
+                            scopes: withoutDownstreamPatScope(scopes),
                             isEnterprise,
                             organizationRole: user.role,
                             permissionsConfig,
+                            applyPatConfigFallback,
                         },
                         builder,
                     ),
@@ -129,6 +196,23 @@ export const getUserAbilityBuilder = ({
                     builder,
                 );
             }
+            applyExtraRoles(projectProfile.extraRoleUuids ?? [], (scopes) =>
+                buildAbilityFromScopes(
+                    {
+                        projectUuid: projectProfile.projectUuid,
+                        projectType: projectProfile.projectType,
+                        projectCreatedByUserUuid:
+                            projectProfile.projectCreatedByUserUuid,
+                        userUuid: user.userUuid,
+                        scopes: withoutDownstreamPatScope(scopes),
+                        isEnterprise,
+                        organizationRole: user.role,
+                        permissionsConfig,
+                        applyPatConfigFallback,
+                    },
+                    builder,
+                ),
+            );
         });
     }
     // Collapse per-project rules into `{ $in: [...] }` so the rule set (and the

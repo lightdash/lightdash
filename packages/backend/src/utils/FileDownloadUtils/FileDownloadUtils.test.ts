@@ -1,5 +1,6 @@
 import {
     createContentDispositionHeader,
+    getSafeContentDispositionHeader,
     sanitizeGenericFileName,
 } from './FileDownloadUtils';
 
@@ -198,6 +199,55 @@ describe('FileDownloadUtils', () => {
             );
             expect(createContentDispositionHeader('test&file.csv')).toContain(
                 "filename*=UTF-8''test%26file.csv",
+            );
+        });
+    });
+
+    describe('getSafeContentDispositionHeader', () => {
+        const FALLBACK = 'csv-storage-key.csv';
+
+        it('preserves a stored attachment filename', () => {
+            const stored = 'attachment; filename="My chart.csv"';
+
+            expect(getSafeContentDispositionHeader(stored, FALLBACK)).toBe(
+                stored,
+            );
+        });
+
+        it('preserves an RFC 5987 percent-encoded filename', () => {
+            const stored =
+                'attachment; filename="download.csv"; filename*=UTF-8\'\'%E5%A3%B2%E4%B8%8A.csv';
+
+            expect(getSafeContentDispositionHeader(stored, FALLBACK)).toBe(
+                stored,
+            );
+        });
+
+        it('preserves latin-1 characters, which Node accepts', () => {
+            const stored = 'attachment; filename="café.csv"';
+
+            expect(getSafeContentDispositionHeader(stored, FALLBACK)).toBe(
+                stored,
+            );
+        });
+
+        it('falls back when nothing was stored', () => {
+            expect(getSafeContentDispositionHeader(null, FALLBACK)).toBe(
+                createContentDispositionHeader(FALLBACK),
+            );
+        });
+
+        // Every class of value setHeader rejects with ERR_INVALID_CHAR.
+        it.each([
+            ['carriage return', 'attachment; filename="a\rb.csv"'],
+            ['line feed', 'attachment; filename="a\nb.csv"'],
+            ['header injection', 'attachment\r\nX-Injected: yes'],
+            ['NUL', 'attachment; filename="a\u0000b.csv"'],
+            ['DEL', 'attachment; filename="a\u007Fb.csv"'],
+            ['raw non-latin-1', 'attachment; filename="売上.csv"'],
+        ])('falls back on a stored header containing %s', (_label, stored) => {
+            expect(getSafeContentDispositionHeader(stored, FALLBACK)).toBe(
+                createContentDispositionHeader(FALLBACK),
             );
         });
     });

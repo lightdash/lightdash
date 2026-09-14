@@ -119,7 +119,7 @@ describe('summarizeRequiredFilters', () => {
         });
 
         expect(summarizeRequiredFilters(explore)).toBe(
-            '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]',
+            '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]. Required filter values are replaceable defaults, not fixed data limits; use a compatible query filter on the same field or a derived time dimension of that field when the requested scope differs.',
         );
     });
 });

@@ -1,0 +1,14 @@
+.row {
+    padding: 4px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.row[data-compact='true'] {
+    padding: 2px 4px;
+}
+
+.label {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}

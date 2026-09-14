@@ -1,6 +1,7 @@
 import {
     DateGranularity,
     getTileControl,
+    interpolateUiString,
     isStandardDateGranularity,
 } from '@lightdash/common';
 import {
@@ -22,6 +23,7 @@ import {
 import { clsx } from 'clsx';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -70,7 +72,6 @@ const EditModeGranularityItem: FC<EditModeGranularityItemProps> = ({
                 >
                     <ActionIcon
                         size="xs"
-                        variant="subtle"
                         color={isDefault ? 'blue' : 'ldGray'}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -106,6 +107,10 @@ const ViewModeGranularityItem: FC<ViewModeGranularityItemProps> = ({
 }) => (
     <Menu.Item
         fz="xs"
+        // Walkthrough anchor, one granularity by its label.
+        data-tour-anchor="zoom-option"
+        data-tour-hint="Choose {value}"
+        data-tour-value={label}
         onClick={() => onSelect(granularity)}
         disabled={isActive}
         rightSection={
@@ -122,6 +127,7 @@ type Props = {
 };
 
 export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
+    const getUiString = useUiStrings();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 
     const dateZoomGranularity = useDashboardContext(
@@ -167,10 +173,15 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
     const hideDefaultInView = !isEditMode && isDefaultInert;
     const defaultTooltip =
         defaultTileCount === 0
-            ? 'No charts use the default (every chart is in a zoom control)'
-            : `Applies to ${defaultTileCount} chart${
-                  defaultTileCount === 1 ? '' : 's'
-              } not in a zoom control`;
+            ? getUiString('dateZoom.noChartsUseDefault')
+            : interpolateUiString(
+                  getUiString(
+                      defaultTileCount === 1
+                          ? 'dateZoom.appliesToOneChart'
+                          : 'dateZoom.appliesToManyCharts',
+                  ),
+                  { n: defaultTileCount },
+              );
 
     useEffect(() => {
         if (isEditMode) setDateZoomGranularity(undefined);
@@ -191,14 +202,16 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                     const labelA = getGranularityLabel(
                         a,
                         availableCustomGranularities,
+                        getUiString,
                     );
                     const labelB = getGranularityLabel(
                         b,
                         availableCustomGranularities,
+                        getUiString,
                     );
                     return labelA.localeCompare(labelB);
                 }),
-        [availableCustomGranularities],
+        [availableCustomGranularities, getUiString],
     );
 
     // View mode: enabled custom granularities, reusing the sorted order from customGranularities
@@ -289,7 +302,6 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
             >
                 {!hideDefaultInView && (
                     <Menu
-                        withinPortal
                         withArrow
                         closeOnItemClick={!isEditMode}
                         closeOnClickOutside
@@ -304,7 +316,6 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                             <Tooltip
                                 label={defaultTooltip}
                                 disabled={!defaultTooltip}
-                                withinPortal
                                 position="bottom"
                             >
                                 <Button
@@ -326,11 +337,23 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                             }
                                         />
                                     }
+                                    // Walkthrough marker for view:Dashboard:
+                                    // reading a dashboard means opening it
+                                    // and re-zooming its charts without
+                                    // editing. See scripts/scope-tours.
+                                    data-tour-scope="view:Dashboard"
+                                    data-tour-step="2"
+                                    data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                                    data-tour-label="Open the date zoom"
+                                    data-tour-title="Open and read a dashboard"
+                                    data-tour-interactive="true"
+                                    data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"]'
+                                    data-tour-then='[data-tour-anchor="zoom-option"][data-tour-value="Month"]'
+                                    data-tour-docs="explore/dashboards/date-zoom.mdx#intro:1"
                                 >
-                                    <Text fz="inherit" span>
+                                    <Text span>
                                         <Text
                                             span
-                                            fz="inherit"
                                             fw={600}
                                             c={
                                                 isDefaultInert
@@ -338,12 +361,13 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                                     : undefined
                                             }
                                         >
-                                            Default zoom
+                                            {getUiString(
+                                                'dateZoom.defaultZoom',
+                                            )}
                                         </Text>
                                         {!isEditMode && dateZoomGranularity ? (
                                             <Text
                                                 span
-                                                fz="inherit"
                                                 fw={500}
                                                 c={
                                                     isDefaultInert
@@ -354,6 +378,7 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                                 {` · ${getGranularityLabel(
                                                     dateZoomGranularity,
                                                     availableCustomGranularities,
+                                                    getUiString,
                                                 )}`}
                                             </Text>
                                         ) : null}
@@ -373,6 +398,7 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                                 label={getGranularityLabel(
                                                     granularity,
                                                     availableCustomGranularities,
+                                                    getUiString,
                                                 )}
                                                 isEnabled={dateZoomGranularities.includes(
                                                     granularity,
@@ -409,6 +435,7 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                                         label={getGranularityLabel(
                                                             granularity,
                                                             availableCustomGranularities,
+                                                            getUiString,
                                                         )}
                                                         isEnabled={dateZoomGranularities.includes(
                                                             granularity,
@@ -439,9 +466,10 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                             ) : (
                                 <>
                                     <Tooltip
-                                        label="Charts will display dates using their original granularity settings."
+                                        label={getUiString(
+                                            'dateZoom.viewModeTooltip',
+                                        )}
                                         position="left"
-                                        multiline
                                         maw={200}
                                     >
                                         <Menu.Item
@@ -472,7 +500,7 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                                 ) : null
                                             }
                                         >
-                                            None
+                                            {getUiString('dateZoom.none')}
                                         </Menu.Item>
                                     </Tooltip>
 
@@ -487,6 +515,7 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                                 label={getGranularityLabel(
                                                     granularity,
                                                     availableCustomGranularities,
+                                                    getUiString,
                                                 )}
                                                 isActive={
                                                     dateZoomGranularity ===
@@ -511,6 +540,7 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                                         label={getGranularityLabel(
                                                             granularity,
                                                             availableCustomGranularities,
+                                                            getUiString,
                                                         )}
                                                         isActive={
                                                             dateZoomGranularity ===

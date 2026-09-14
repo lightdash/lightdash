@@ -5,6 +5,7 @@ import {
     DownloadFileType,
     FieldReferenceError,
     FieldType,
+    FilterOperator,
     ForbiddenError,
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
@@ -13,23 +14,31 @@ import {
     MetricType,
     NotEnoughResults,
     PartialFailureType,
+    PersistentDownloadFileAccessMode,
+    RequestMethod,
     SchedulerFormat,
     sleep,
     ThresholdOperator,
     VizAggregationOptions,
     VizIndexType,
     type CapturedQuery,
+    type CompileProjectPayload,
     type CreateSchedulerAndTargets,
     type DeliveryCaptureManifest,
+    type EmailNotificationPayload,
+    type Filters,
+    type MetricQuery,
     type NotificationPayloadBase,
     type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
     type SchedulerAndTargets,
+    type SendNowScheduler,
     type UploadGsheetPayload,
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
 import type { ExecutionContextInfo } from '../logging/winston';
+import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
 import SchedulerTask, {
     buildItemMapFromColumns,
     buildSchedulerLogContext,
@@ -792,7 +801,7 @@ describe('dedupeArtifactFilename', () => {
     });
 });
 
-describe('uploadGsheetFromQuery — rows branch', () => {
+describe('uploadGsheetFromQuery', () => {
     // SchedulerTask has 20+ constructor dependencies. We create minimal mocks
     // for only the services touched by the rows branch.
 
@@ -898,15 +907,191 @@ describe('uploadGsheetFromQuery — rows branch', () => {
         expect(mockAppendToSheet.mock.calls[0][2]).toEqual(payload.rows);
         expect(mockExecuteMetricQueryAndGetResults).not.toHaveBeenCalled();
     });
+
+    it('passes selected parameter values to the exported metric query', async () => {
+        const queryError = new Error('query failed');
+        const mockExecuteMetricQueryAndGetResults = vi
+            .fn()
+            .mockRejectedValue(queryError);
+        const task = makeTask({
+            googleDriveClient: {
+                isEnabled: true,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['googleDriveClient'],
+            userService: {
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { id: 'user-1' },
+                }),
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['userService'],
+            schedulerService: {
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['schedulerService'],
+            analytics: {
+                trackAccount: vi.fn(),
+                track: vi.fn(),
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['analytics'],
+            asyncQueryService: {
+                executeMetricQueryAndGetResults:
+                    mockExecuteMetricQueryAndGetResults,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['asyncQueryService'],
+        });
+        const parameters = { currency: 'EUR' };
+        const payload = {
+            source: 'metricQuery',
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            exploreId: 'orders',
+            metricQuery: {} as MetricQuery,
+            showTableNames: true,
+            columnOrder: [],
+            parameters,
+        } as UploadGsheetPayload;
+
+        await expect(
+            (
+                task as unknown as {
+                    uploadGsheetFromQuery(
+                        jobId: string,
+                        scheduledTime: Date,
+                        jobPayload: UploadGsheetPayload,
+                    ): Promise<void>;
+                }
+            ).uploadGsheetFromQuery('job-1', new Date(), payload),
+        ).rejects.toThrow(queryError);
+
+        expect(mockExecuteMetricQueryAndGetResults).toHaveBeenCalledWith(
+            expect.objectContaining({ parameters }),
+            expect.anything(),
+        );
+    });
 });
 
 type TaskDeps = ConstructorParameters<typeof SchedulerTask>[0];
 
+class TestSchedulerTask extends SchedulerTask {
+    public sendEmailNotificationForTest(
+        jobId: string,
+        notification: EmailNotificationPayload,
+    ) {
+        return this.sendEmailNotification(jobId, notification);
+    }
+}
+
 const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
-    new SchedulerTask({ ...({} as TaskDeps), ...overrides });
+    new TestSchedulerTask({ ...({} as TaskDeps), ...overrides });
 
 const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
     value as TaskDeps[K];
+
+describe('compileProject', () => {
+    it('enqueues custom-field replacement after a successful preview compile without waiting for it', async () => {
+        const replaceCustomFields = vi.fn(
+            () =>
+                new Promise<never>(() => {
+                    // Intentionally left pending to verify fire-and-forget.
+                }),
+        );
+        const generateValidation = vi.fn();
+        const task = makeTaskWithDeps({
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({
+                    userUuid: 'user-1',
+                    organizationUuid: 'org-1',
+                }),
+            }),
+            projectService: asDep<'projectService'>({
+                compileProject: vi.fn().mockResolvedValue(undefined),
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            }),
+            schedulerClient: asDep<'schedulerClient'>({
+                generateValidation,
+                replaceCustomFields,
+            }),
+        });
+        const payload: CompileProjectPayload = {
+            createdByUserUuid: 'user-1',
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            requestMethod: RequestMethod.WEB_APP,
+            jobUuid: 'compile-job-1',
+            isPreview: true,
+            validateAfterCompile: false,
+        };
+
+        await (
+            task as unknown as {
+                compileProject(
+                    jobId: string,
+                    scheduledTime: Date,
+                    compilePayload: CompileProjectPayload,
+                ): Promise<void>;
+            }
+        ).compileProject('scheduler-job-1', new Date(), payload);
+
+        expect(generateValidation).not.toHaveBeenCalled();
+        expect(replaceCustomFields).toHaveBeenCalledWith({
+            userUuid: 'user-1',
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+        });
+    });
+
+    it('does not enqueue custom-field replacement when compilation fails', async () => {
+        const compileError = new Error('compile failed');
+        const replaceCustomFields = vi.fn();
+        const task = makeTaskWithDeps({
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({
+                    userUuid: 'user-1',
+                    organizationUuid: 'org-1',
+                }),
+            }),
+            projectService: asDep<'projectService'>({
+                compileProject: vi.fn().mockRejectedValue(compileError),
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            }),
+            schedulerClient: asDep<'schedulerClient'>({ replaceCustomFields }),
+        });
+        const payload: CompileProjectPayload = {
+            createdByUserUuid: 'user-1',
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            requestMethod: RequestMethod.WEB_APP,
+            jobUuid: 'compile-job-1',
+            isPreview: false,
+        };
+
+        await expect(
+            (
+                task as unknown as {
+                    compileProject(
+                        jobId: string,
+                        scheduledTime: Date,
+                        compilePayload: CompileProjectPayload,
+                    ): Promise<void>;
+                }
+            ).compileProject('scheduler-job-1', new Date(), payload),
+        ).rejects.toThrow(compileError);
+
+        expect(replaceCustomFields).not.toHaveBeenCalled();
+    });
+});
 
 describe('uploadGsheets — pivot routing', () => {
     const validPivotDetails: NonNullable<
@@ -977,14 +1162,22 @@ describe('uploadGsheets — pivot routing', () => {
         source,
         hasPivotConfig,
         pivotDetails,
+        schedulerFilters,
     }: {
         source: 'saved-chart' | 'dashboard';
         hasPivotConfig: boolean;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        schedulerFilters?: Filters;
     }) => {
         const appendToSheet = vi.fn().mockResolvedValue(undefined);
         const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
         const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const executeSavedChartQueryAndGetResults = vi.fn().mockResolvedValue({
+            rows: pivotDetails ? pivotedRows : flatRows,
+            fields: itemMap,
+            pivotDetails,
+            displayTimezone: null,
+        });
         const chart = makeChart(hasPivotConfig);
         const dashboardUuid = source === 'dashboard' ? 'dashboard-1' : null;
         const scheduler = {
@@ -999,7 +1192,7 @@ describe('uploadGsheets — pivot routing', () => {
             timezone: 'UTC',
             options: { gdriveId: 'sheet-1' },
             thresholds: undefined,
-            filters: undefined,
+            filters: schedulerFilters,
         };
         const task = makeTaskWithDeps({
             googleDriveClient: asDep<'googleDriveClient'>({
@@ -1030,12 +1223,7 @@ describe('uploadGsheets — pivot routing', () => {
                 getRefreshToken: vi.fn().mockResolvedValue('refresh-token'),
             }),
             asyncQueryService: asDep<'asyncQueryService'>({
-                executeSavedChartQueryAndGetResults: vi.fn().mockResolvedValue({
-                    rows: pivotDetails ? pivotedRows : flatRows,
-                    fields: itemMap,
-                    pivotDetails,
-                    displayTimezone: null,
-                }),
+                executeSavedChartQueryAndGetResults,
                 executeDashboardChartQueryAndGetResults: vi
                     .fn()
                     .mockResolvedValue({
@@ -1097,7 +1285,13 @@ describe('uploadGsheets — pivot routing', () => {
                 projectUuid: 'project-1',
             });
 
-        return { appendToSheet, appendCsvToSheet, logSchedulerJob, run };
+        return {
+            appendToSheet,
+            appendCsvToSheet,
+            logSchedulerJob,
+            executeSavedChartQueryAndGetResults,
+            run,
+        };
     };
 
     it.each(['saved-chart', 'dashboard'] as const)(
@@ -1145,6 +1339,35 @@ describe('uploadGsheets — pivot routing', () => {
         expect(result.appendCsvToSheet).not.toHaveBeenCalled();
         expect(result.logSchedulerJob).toHaveBeenLastCalledWith(
             expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
+    it('runs a saved-chart sync with the delivery filter overrides', async () => {
+        const schedulerFilters: Filters = {
+            dimensions: {
+                id: 'delivery',
+                and: [
+                    {
+                        id: 'status-rule',
+                        target: { fieldId: 'orders_status' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['shipped'],
+                    },
+                ],
+            },
+        };
+        const result = setup({
+            source: 'saved-chart',
+            hasPivotConfig: false,
+            pivotDetails: null,
+            schedulerFilters,
+        });
+
+        await result.run();
+
+        expect(result.executeSavedChartQueryAndGetResults).toHaveBeenCalledWith(
+            expect.objectContaining({ chartUuid: 'chart-1', schedulerFilters }),
+            expect.anything(),
         );
     });
 });
@@ -2097,7 +2320,7 @@ const gsheetsAppScheduler = (overrides: Record<string, unknown> = {}) => ({
     appName: 'Sales App',
     cron: '0 7 * * *',
     timezone: 'UTC',
-    options: { gdriveId: 'sheet-1' },
+    options: { gdriveId: 'sheet-1', showFilters: false },
     thresholds: undefined,
     filters: undefined,
     ...overrides,
@@ -2115,6 +2338,7 @@ describe('uploadGsheets — app branch', () => {
             rows: Record<string, unknown>[];
             fields: Record<string, unknown>;
             displayTimezone: string | null;
+            metricQuery?: MetricQuery;
         }>;
     } = {}) => {
         const scheduler = gsheetsAppScheduler();
@@ -2130,6 +2354,15 @@ describe('uploadGsheets — app branch', () => {
                     rows: [{ orders_id: 1, orders_status: 'complete' }],
                     fields: {},
                     displayTimezone: null,
+                    metricQuery: {
+                        exploreName: 'orders',
+                        dimensions: ['orders_id', 'orders_status'],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                    },
                 })),
         );
 
@@ -2304,6 +2537,137 @@ describe('uploadGsheets — app branch', () => {
         expect(getRawAsyncQueryResults.mock.calls[0][0]).not.toHaveProperty(
             'maxRows',
         );
+    });
+
+    it('prepends the current query filters with their AND/OR relationships', async () => {
+        const { scheduler, run, appendCsvToSheet } = setup({
+            getRawAsyncQueryResults: async () => ({
+                rows: [{ orders_status: 'complete' }],
+                fields: {
+                    orders_status: {
+                        name: 'status',
+                        label: 'Order status',
+                        type: DimensionType.STRING,
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.status',
+                        hidden: false,
+                    },
+                    customers_id: {
+                        name: 'id',
+                        label: 'Customer id',
+                        type: DimensionType.NUMBER,
+                        table: 'customers',
+                        tableLabel: 'Customers',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.id',
+                        hidden: false,
+                    },
+                    customers_created_raw: {
+                        name: 'created_raw',
+                        label: 'Customers created raw',
+                        type: DimensionType.TIMESTAMP,
+                        table: 'customers',
+                        tableLabel: 'Customers',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.created_at',
+                        hidden: false,
+                    },
+                    customers_last_name: {
+                        name: 'last_name',
+                        label: 'Customers last name',
+                        type: DimensionType.STRING,
+                        table: 'customers',
+                        tableLabel: 'Customers',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.last_name',
+                        hidden: false,
+                    },
+                    orders_total_revenue: {
+                        name: 'total_revenue',
+                        label: 'Total revenue',
+                        type: DimensionType.NUMBER,
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        fieldType: FieldType.METRIC,
+                        sql: '${TABLE}.total_revenue',
+                        hidden: false,
+                    },
+                },
+                displayTimezone: null,
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_total_revenue'],
+                    filters: {
+                        dimensions: {
+                            id: 'group-1',
+                            and: [
+                                {
+                                    id: 'filter-1',
+                                    target: { fieldId: 'customers_id' },
+                                    operator: FilterOperator.EQUALS,
+                                    values: [40],
+                                },
+                                {
+                                    id: 'group-2',
+                                    or: [
+                                        {
+                                            id: 'filter-2',
+                                            target: {
+                                                fieldId:
+                                                    'customers_created_raw',
+                                            },
+                                            operator: FilterOperator.NOT_NULL,
+                                        },
+                                        {
+                                            id: 'filter-3',
+                                            target: {
+                                                fieldId: 'customers_last_name',
+                                            },
+                                            operator: FilterOperator.NOT_NULL,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        metrics: {
+                            id: 'group-3',
+                            and: [
+                                {
+                                    id: 'filter-4',
+                                    target: {
+                                        fieldId: 'orders_total_revenue',
+                                    },
+                                    operator: FilterOperator.GREATER_THAN,
+                                    values: [0],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+            }),
+        });
+        scheduler.options.showFilters = true;
+
+        await run();
+
+        expect(appendCsvToSheet.mock.calls[0][2]).toEqual([
+            ['Active filters'],
+            [
+                'Customer id is 40 AND ' +
+                    '(Customers created raw is not null OR ' +
+                    'Customers last name is not null) AND ' +
+                    'Total revenue is greater than 0',
+            ],
+            [],
+            ['orders_status'],
+            ['complete'],
+        ]);
     });
 
     it('sanitizes colons out of tab names, same as the chart/dashboard branches', async () => {
@@ -3142,6 +3506,270 @@ describe('app delivery target senders', () => {
         expect(blocks).toContain('Orders');
     });
 
+    describe('csv file attachments in the Slack thread', () => {
+        const sendToSlack = async (
+            scheduler: CreateSchedulerAndTargets,
+            page: PageData,
+        ) => {
+            const postMessage = vi.fn().mockResolvedValue({ ts: '111' });
+            const postFileToThread = vi.fn().mockResolvedValue(undefined);
+            const task = makeTaskWithDeps({
+                ...senderBaseDeps(),
+                slackClient: asDep<'slackClient'>({
+                    isEnabled: true,
+                    postMessage,
+                    postFileToThread,
+                }),
+            });
+            await (
+                task as unknown as {
+                    sendSlackNotification(
+                        jobId: string,
+                        notification: never,
+                    ): Promise<void>;
+                }
+            ).sendSlackNotification(
+                'job-1',
+                notificationOf(scheduler, page, { channel: 'C123' }),
+            );
+            return { postMessage, postFileToThread };
+        };
+
+        const attachingScheduler = (
+            overrides: Partial<CreateSchedulerAndTargets> = {},
+        ) =>
+            appScheduler({
+                options: {
+                    formatted: true,
+                    limit: 'table',
+                    asAttachment: true,
+                },
+                ...overrides,
+            });
+
+        beforeEach(() => {
+            vi.stubGlobal(
+                'fetch',
+                vi.fn(async (url: string) =>
+                    url.includes('missing')
+                        ? new Response('gone', { status: 404 })
+                        : new Response(`rows from ${url}`),
+                ),
+            );
+        });
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+        });
+
+        it('uploads every csv file into the thread of the delivery message', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'csv-Revenue-2026-07-30.csv',
+                        path: 'https://files.example.com/revenue.csv?sig=1',
+                        localPath: 'https://files.example.com/revenue.csv',
+                        chartName: 'Revenue',
+                        truncated: false,
+                    },
+                    {
+                        filename: 'csv-Orders-2026-07-30.csv',
+                        path: 'https://files.example.com/orders.csv?sig=1',
+                        localPath: 'https://files.example.com/orders.csv',
+                        chartName: 'Orders',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler(),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(2);
+            const [first, second] = postFileToThread.mock.calls.map(
+                (call) => call[0],
+            );
+            expect(first).toMatchObject({
+                organizationUuid: 'org-1',
+                channelId: 'C123',
+                threadTs: '111',
+                filename: 'csv-Revenue-2026-07-30.csv',
+                title: 'Revenue',
+                fileType: 'csv',
+            });
+            expect(first.file.toString()).toBe(
+                'rows from https://files.example.com/revenue.csv',
+            );
+            expect(second.filename).toBe('csv-Orders-2026-07-30.csv');
+        });
+
+        it('adds the csv extension to dashboard files that are named after their chart', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'Revenue by method?',
+                        path: 'https://files.example.com/revenue.csv?sig=1',
+                        localPath: 'https://files.example.com/revenue.csv',
+                        chartName: 'Revenue by method?',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler(),
+                page,
+            );
+
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                filename: 'Revenue by method?.csv',
+                title: 'Revenue by method?',
+            });
+        });
+
+        it('uploads the chart csv with the chart name as the file title', async () => {
+            const page = senderPage({
+                pageType: LightdashPage.CHART,
+                details: { name: 'Revenue by method', description: '' },
+                csvUrls: undefined,
+                failures: undefined,
+                notices: undefined,
+                csvUrl: {
+                    filename: 'csv-Revenue-by-method-2026-07-30.csv',
+                    path: 'https://files.example.com/revenue.csv?sig=1',
+                    localPath: 'https://files.example.com/revenue.csv',
+                    truncated: false,
+                },
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler({
+                    appUuid: null,
+                    appName: null,
+                    savedChartUuid: 'chart-1',
+                }),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                threadTs: '111',
+                filename: 'csv-Revenue-by-method-2026-07-30.csv',
+                title: 'Revenue by method',
+            });
+        });
+
+        it('keeps the link-only message when the attachment option is off', async () => {
+            const { postMessage, postFileToThread } = await sendToSlack(
+                appScheduler(),
+                senderPage(),
+            );
+
+            expect(postMessage).toHaveBeenCalledTimes(1);
+            expect(postFileToThread).not.toHaveBeenCalled();
+        });
+
+        it('uploads xlsx files typed as xlsx', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'Revenue',
+                        path: 'https://files.example.com/revenue.xlsx?sig=1',
+                        localPath: 'https://files.example.com/revenue.xlsx',
+                        chartName: 'Revenue',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler({ format: SchedulerFormat.XLSX }),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                filename: 'Revenue.xlsx',
+                title: 'Revenue',
+                fileType: 'xlsx',
+            });
+        });
+
+        it('uploads the single workbook when the dashboard xlsx layout is workbook', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'Sales App',
+                        path: 'https://files.example.com/workbook.xlsx?sig=1',
+                        localPath: 'https://files.example.com/workbook.xlsx',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler({
+                    format: SchedulerFormat.XLSX,
+                    options: {
+                        formatted: true,
+                        limit: 'table',
+                        asAttachment: true,
+                        xlsxFileLayout: 'workbook',
+                    },
+                }),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                filename: 'Sales App.xlsx',
+                title: 'Sales App',
+                fileType: 'xlsx',
+            });
+        });
+
+        it('skips empty results and carries on after a file that fails to download', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'csv-Empty-2026-07-30.csv',
+                        path: '#no-results',
+                        localPath: '#no-results',
+                        chartName: 'Empty',
+                        truncated: false,
+                    },
+                    {
+                        filename: 'csv-Missing-2026-07-30.csv',
+                        path: 'https://files.example.com/missing.csv?sig=1',
+                        localPath: 'https://files.example.com/missing.csv',
+                        chartName: 'Missing',
+                        truncated: false,
+                    },
+                    {
+                        filename: 'csv-Orders-2026-07-30.csv',
+                        path: 'https://files.example.com/orders.csv?sig=1',
+                        localPath: 'https://files.example.com/orders.csv',
+                        chartName: 'Orders',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postMessage, postFileToThread } = await sendToSlack(
+                attachingScheduler(),
+                page,
+            );
+
+            expect(postMessage).toHaveBeenCalledTimes(1);
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0].filename).toBe(
+                'csv-Orders-2026-07-30.csv',
+            );
+        });
+    });
+
     it('sends an app csv delivery by email with its failures and notices', async () => {
         const sendDashboardCsvNotificationEmail = vi
             .fn()
@@ -3179,6 +3807,53 @@ describe('app delivery target senders', () => {
         expect(args[15]).toEqual(page.notices);
         // isApp — drives the app-aware headline in the template.
         expect(args[17]).toBe(true);
+    });
+
+    it('sends an inline plain-text dashboard email without a cron', async () => {
+        const sendDashboardCsvNotificationEmail = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            emailClient: asDep<'emailClient'>({
+                sendDashboardCsvNotificationEmail,
+            }),
+            emailWhitelabelService: asDep<'emailWhitelabelService'>({
+                resolveSenderIdentity: vi.fn().mockResolvedValue(null),
+            }),
+        });
+        const scheduler: SendNowScheduler = {
+            ...appScheduler({
+                appUuid: null,
+                appName: null,
+                dashboardUuid: 'dashboard-1',
+                plainTextEmail: true,
+            }),
+            savedChartUuid: null,
+            dashboardUuid: 'dashboard-1',
+            savedSqlUuid: null,
+            appUuid: null,
+            cron: undefined,
+            selectedTabs: null,
+        };
+
+        const notification: EmailNotificationPayload = {
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+            scheduledTime: new Date('2026-07-30T09:00:00Z'),
+            jobGroup: 'job-1',
+            scheduler,
+            page: senderPage(),
+            recipient: 'recipient@example.com',
+        };
+
+        await task.sendEmailNotificationForTest('job-1', notification);
+
+        expect(sendDashboardCsvNotificationEmail).toHaveBeenCalledTimes(1);
+        expect(sendDashboardCsvNotificationEmail.mock.calls[0][18]).toEqual({
+            cadence: undefined,
+        });
     });
 
     it('posts an app xlsx delivery to the MS Teams webhook', async () => {
@@ -3290,5 +3965,141 @@ describe('app delivery target senders', () => {
             failures: page.failures,
             notices: page.notices,
         });
+    });
+});
+
+describe('dashboard export download filenames', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+    });
+
+    const callCreateZipDownloadUrl = (
+        task: SchedulerTask,
+        zipNameBase: string,
+    ) =>
+        (
+            task as unknown as {
+                createZipDownloadUrl: (args: {
+                    files: { entryNameBase: string; localPath: string }[];
+                    fileType: SchedulerFormat.CSV | SchedulerFormat.XLSX;
+                    zipNameBase: string;
+                    organizationUuid: string;
+                    projectUuid: string;
+                    createdByUserUuid: string | null;
+                    accessMode: PersistentDownloadFileAccessMode;
+                }) => Promise<string>;
+            }
+        ).createZipDownloadUrl({
+            files: [
+                {
+                    entryNameBase: 'Revenue',
+                    localPath: 'https://files.example.com/revenue.csv',
+                },
+            ],
+            fileType: SchedulerFormat.CSV,
+            zipNameBase,
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            createdByUserUuid: 'user-1',
+            accessMode: PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+        });
+
+    it('uploads the zip with the dashboard name as the download filename', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => new Response('a,b\n1,2\n')),
+        );
+        const uploadZip = vi
+            .fn()
+            .mockResolvedValue('https://files.example.com/export.zip');
+        const task = makeTaskWithDeps({
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: () => true,
+                uploadZip,
+            }),
+            persistentDownloadFileService:
+                asDep<'persistentDownloadFileService'>({
+                    createPersistentUrl: vi
+                        .fn()
+                        .mockResolvedValue(
+                            'https://lightdash.example.com/api/v1/file/abc',
+                        ),
+                }),
+        });
+
+        await callCreateZipDownloadUrl(task, 'Q3 Revenue / Costs');
+
+        expect(uploadZip).toHaveBeenCalledTimes(1);
+        const [, storageKey, attachmentDownloadName] = uploadZip.mock.calls[0];
+        expect(attachmentDownloadName).toBe('Q3 Revenue / Costs.zip');
+        expect(storageKey).not.toContain('/');
+        expect(storageKey).toMatch(/\.zip$/);
+        expect(storageKey).not.toBe(attachmentDownloadName);
+    });
+
+    it('uploads the workbook with the dashboard name as the download filename', async () => {
+        vi.spyOn(WorkbookExportHelper, 'createWorkbookFile').mockResolvedValue({
+            worksheetCount: 2,
+            failedFileCount: 0,
+        });
+        const uploadExcel = vi
+            .fn()
+            .mockResolvedValue('https://files.example.com/workbook.xlsx');
+        const task = makeTaskWithDeps({
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: () => true,
+                uploadExcel,
+            }),
+            persistentDownloadFileService:
+                asDep<'persistentDownloadFileService'>({
+                    createPersistentUrl: vi
+                        .fn()
+                        .mockResolvedValue(
+                            'https://lightdash.example.com/api/v1/file/abc',
+                        ),
+                }),
+        });
+
+        await (
+            task as unknown as {
+                createWorkbookDownloadUrl: (args: {
+                    files: {
+                        filename: string;
+                        path: string;
+                        localPath: string;
+                        truncated: boolean;
+                    }[];
+                    workbookNameBase: string;
+                    organizationUuid: string;
+                    projectUuid: string;
+                    createdByUserUuid: string;
+                    accessMode: PersistentDownloadFileAccessMode;
+                }) => Promise<{ url: string; numFileFailures: number }>;
+            }
+        ).createWorkbookDownloadUrl({
+            files: [
+                {
+                    filename: 'Revenue',
+                    path: 'https://files.example.com/revenue.xlsx',
+                    localPath: '/tmp/revenue.xlsx',
+                    truncated: false,
+                },
+            ],
+            workbookNameBase: 'Q3 Revenue / Costs',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            createdByUserUuid: 'user-1',
+            accessMode: PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+        });
+
+        expect(uploadExcel).toHaveBeenCalledTimes(1);
+        const [, storageKey, attachmentDownloadName] =
+            uploadExcel.mock.calls[0];
+        expect(attachmentDownloadName).toBe('Q3 Revenue / Costs.xlsx');
+        // The key stays storage-safe and timestamped, so it must differ.
+        expect(storageKey).not.toContain('/');
+        expect(storageKey).toMatch(/\.xlsx$/);
+        expect(storageKey).not.toBe(attachmentDownloadName);
     });
 });

@@ -13,6 +13,7 @@ import { type SearchItem } from '../types/searchItem';
 export const getSearchItemMap = (
     results: SearchResults,
     projectUuid: string,
+    projectUrlIdentifier = projectUuid,
 ) => {
     const spaces = results.spaces.map<SearchItem>((item) => ({
         type: SearchItemType.SPACE,
@@ -20,7 +21,7 @@ export const getSearchItemMap = (
         item: item,
         searchRank: item.search_rank,
         location: {
-            pathname: `/projects/${projectUuid}/spaces/${item.uuid}`,
+            pathname: `/projects/${projectUrlIdentifier}/spaces/${item.uuid}`,
         },
     }));
 
@@ -31,7 +32,7 @@ export const getSearchItemMap = (
         item: item,
         searchRank: item.search_rank,
         location: {
-            pathname: `/projects/${projectUuid}/dashboards/${item.uuid}`,
+            pathname: `/projects/${projectUrlIdentifier}/dashboards/${item.slug}`,
         },
     }));
 
@@ -41,7 +42,7 @@ export const getSearchItemMap = (
         description: `Dashboard: ${item.dashboardName}`,
         item: item,
         location: {
-            pathname: `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/tabs/${item.uuid}`,
+            pathname: `/projects/${projectUrlIdentifier}/dashboards/${item.dashboardSlug}/view/tabs/${item.uuid}`,
         },
     }));
 
@@ -52,7 +53,7 @@ export const getSearchItemMap = (
         item: item,
         searchRank: item.search_rank,
         location: {
-            pathname: `/projects/${projectUuid}/saved/${item.uuid}`,
+            pathname: `/projects/${projectUrlIdentifier}/saved/${item.slug}`,
         },
     }));
 

@@ -104,7 +104,9 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
 const SANITIZE_SCHEMA = {
     ...defaultSchema,
     tagNames: [
-        ...(defaultSchema.tagNames ?? []),
+        ...(defaultSchema.tagNames ?? []).filter(
+            (tagName) => tagName !== 'img',
+        ),
         ...Object.keys(AI_DEEP_RESEARCH_MARKDOWN_TAGS),
     ],
     attributes: {

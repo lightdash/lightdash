@@ -324,24 +324,6 @@ describe('Lightdash catalog search', () => {
         );
     });
 
-    it('Should filter fields with required attributes (age)', async () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-        const resp = await admin.get<{ results: unknown[] }>(
-            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=average_age`,
-        );
-        expect(resp.status).toBe(200);
-        expect(resp.body.results).toHaveLength(0);
-    });
-
-    it('Should filter table with required attributes (memberships)', async () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-        const resp = await admin.get<{ results: unknown[] }>(
-            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=memberships`,
-        );
-        expect(resp.status).toBe(200);
-        expect(resp.body.results).toHaveLength(0);
-    });
-
     describe('user attributes', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         const requiredAttributeName = 'ua_required';

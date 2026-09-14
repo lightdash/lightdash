@@ -23,9 +23,11 @@ import { applyContentNameSearch } from '../ContentSearchUtils';
 
 export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow> =
     {
+        // Only dashboards have owners, so the owner filter excludes data apps
         shouldQueryBeIncluded: (filters: ContentFilters) =>
-            !filters.contentTypes ||
-            filters.contentTypes?.includes(ContentType.DATA_APP),
+            !filters.ownerUserUuids &&
+            (!filters.contentTypes ||
+                filters.contentTypes?.includes(ContentType.DATA_APP)),
         getSummaryQuery: (
             knex: Knex,
             filters: ContentFilters,
@@ -60,6 +62,7 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     if (
                         !filters.deleted &&
                         !filters.dataApps &&
+                        !filters.sharedWithMe &&
                         filters.dataAppVizsFilter !== 'only'
                     ) {
                         void personalFilter.whereNotNull(
@@ -167,6 +170,10 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     knex.raw(`null::uuid as verified_by_user_uuid`),
                     knex.raw(`null as verified_by_user_first_name`),
                     knex.raw(`null as verified_by_user_last_name`),
+                    knex.raw(`null::uuid as owner_user_uuid`),
+                    knex.raw(`null as owner_user_first_name`),
+                    knex.raw(`null as owner_user_last_name`),
+                    knex.raw(`null as owner_user_email`),
                     knex.raw(
                         `json_build_object(
                             'latestVersionNumber', latest_version.version,
@@ -278,6 +285,8 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
             }
             return {
                 contentType: ContentType.DATA_APP,
+                // Filled in by ContentService for the requesting user.
+                directAccessRoles: [],
                 uuid: value.uuid,
                 slug: value.slug,
                 name: value.name,

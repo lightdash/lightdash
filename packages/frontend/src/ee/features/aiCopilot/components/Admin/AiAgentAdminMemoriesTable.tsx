@@ -154,7 +154,7 @@ const AiAgentAdminMemoriesTable = () => {
                 size: 320,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconNotebook} color="ldGray.6" />
+                        <MantineIcon icon={IconNotebook} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -162,10 +162,10 @@ const AiAgentAdminMemoriesTable = () => {
                     const memory = row.original;
                     return (
                         <Stack gap={2} miw={0}>
-                            <Text fw={600} fz="sm" c="ldGray.9" truncate>
+                            <Text fw={600} fz="sm" truncate>
                                 {memory.title}
                             </Text>
-                            <Text fz="xs" c="ldGray.6" truncate>
+                            <Text fz="xs" c="dimmed" truncate>
                                 {memory.slug}
                             </Text>
                         </Stack>
@@ -179,17 +179,12 @@ const AiAgentAdminMemoriesTable = () => {
                 size: 120,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconCircleDotted} color="ldGray.6" />
+                        <MantineIcon icon={IconCircleDotted} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Badge
-                        variant="light"
-                        radius="sm"
-                        tt="none"
-                        color={MEMORY_STATUS_COLORS[row.original.status]}
-                    >
+                    <Badge color={MEMORY_STATUS_COLORS[row.original.status]}>
                         {MEMORY_STATUS_LABELS[row.original.status]}
                     </Badge>
                 ),
@@ -201,12 +196,12 @@ const AiAgentAdminMemoriesTable = () => {
                 size: 180,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconBox} color="ldGray.6" />
+                        <MantineIcon icon={IconBox} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text c="ldGray.9" fz="sm" truncate>
+                    <Text fz="sm" truncate>
                         {row.original.project.name}
                     </Text>
                 ),
@@ -218,7 +213,7 @@ const AiAgentAdminMemoriesTable = () => {
                 size: 180,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconRobotFace} color="ldGray.6" />
+                        <MantineIcon icon={IconRobotFace} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -246,7 +241,7 @@ const AiAgentAdminMemoriesTable = () => {
                 size: 180,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconUser} color="ldGray.6" />
+                        <MantineIcon icon={IconUser} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -260,12 +255,8 @@ const AiAgentAdminMemoriesTable = () => {
                         );
                     }
                     return (
-                        <Tooltip
-                            withinPortal
-                            label={user.email}
-                            disabled={!user.email}
-                        >
-                            <Text c="ldGray.9" fz="sm" truncate>
+                        <Tooltip label={user.email} disabled={!user.email}>
+                            <Text fz="sm" truncate>
                                 {user.name}
                             </Text>
                         </Tooltip>
@@ -279,7 +270,7 @@ const AiAgentAdminMemoriesTable = () => {
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconQuote} color="ldGray.6" />
+                        <MantineIcon icon={IconQuote} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -288,7 +279,7 @@ const AiAgentAdminMemoriesTable = () => {
                         <Badge variant="default">
                             {row.original.citedCount}
                         </Badge>
-                        <Text fz="xs" c="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             {formatDate(row.original.lastCitedAt)}
                         </Text>
                     </Stack>
@@ -301,7 +292,7 @@ const AiAgentAdminMemoriesTable = () => {
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),

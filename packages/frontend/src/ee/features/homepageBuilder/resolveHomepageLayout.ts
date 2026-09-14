@@ -150,6 +150,12 @@ const dedupeGreetings = (
 // directions during rolling deploys — reads tolerate missing fields rather
 // than trusting the current schema. The layout reasons about what will actually paint: an invisible block
 // must not demote the hero, leave a phantom row gap, or hold a ghost column.
+const isEmptyList = (items: readonly unknown[] | undefined): boolean =>
+    (items?.length ?? 0) === 0;
+
+const isBlankText = (text: string | undefined): boolean =>
+    (text ?? '').trim() === '';
+
 const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
     switch (block.type) {
         // A collection with a dynamic source has no items in config — what it
@@ -158,17 +164,17 @@ const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
         case 'collection':
             return (
                 collectionSourceOf(block.config) === 'manual' &&
-                (block.config.items?.length ?? 0) === 0
+                isEmptyList(block.config.items)
             );
         case 'resources':
         case 'metrics':
-            return (block.config.items?.length ?? 0) === 0;
+            return isEmptyList(block.config.items);
         case 'quick-actions':
-            return (block.config.actions?.length ?? 0) === 0;
+            return isEmptyList(block.config.actions);
         case 'cta':
-            return (block.config.buttonLabel ?? '').trim() === '';
+            return isBlankText(block.config.buttonLabel);
         case 'markdown':
-            return (block.config.content ?? '').trim() === '';
+            return isBlankText(block.config.content);
         // Visibility depends on runtime data (viewer, AI availability, the
         // announcements feed), not config — always treat as visible.
         case 'announcements':

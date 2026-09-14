@@ -12,6 +12,7 @@ import { getConfig } from '../../config';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { checkLightdashVersion } from '../dbt/apiClient';
+import { resolveProjectFlag } from '../resolveProjectFlag';
 import { getAuthHeader } from '../utils';
 import { readManifestFromDir } from './appCodeFiles';
 import { startPreviewProxy } from './previewProxy';
@@ -208,7 +209,7 @@ export const resolvePreviewTarget = async (args: {
     const projectUuid = args.projectFlag ?? args.currentProjectUuid;
     if (projectUuid === undefined) {
         throw new Error(
-            `No project selected. Pass '--project <uuid>' or run 'lightdash config set-project' first.`,
+            `No project selected. Pass '--project <uuid or slug>' or run 'lightdash config set-project' first.`,
         );
     }
 
@@ -472,7 +473,9 @@ export const appsPreviewHandler = async (
 
     const target = await resolvePreviewTarget({
         pathArg,
-        projectFlag: options.project,
+        projectFlag: options.project
+            ? await resolveProjectFlag(options.project)
+            : undefined,
         currentProjectUuid: config.context?.project,
         cwd: process.cwd(),
     });

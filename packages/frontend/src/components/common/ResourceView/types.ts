@@ -17,6 +17,7 @@ export enum ResourceViewItemAction {
     PIN_TO_HOMEPAGE,
     TRANSFER_TO_SPACE,
     SHARE,
+    REQUEST_REVIEW,
 }
 
 export enum ResourceViewType {
@@ -68,6 +69,10 @@ export type ResourceViewItemActionState =
     | {
           type: ResourceViewItemAction.SHARE;
           item: ResourceViewSpaceItem;
+      }
+    | {
+          type: ResourceViewItemAction.REQUEST_REVIEW;
+          item: ResourceViewChartItem | ResourceViewDashboardItem;
       };
 
 type TabType = {
@@ -108,6 +113,7 @@ export enum ColumnVisibility {
     NAME = 'name',
     SPACE = 'space',
     UPDATED_AT = 'updatedAt',
+    OWNER = 'owner',
     VIEWS = 'views',
     ACCESS = 'access',
     CONTENT = 'content',
@@ -117,6 +123,7 @@ export type ColumnVisibilityConfig = {
     [ColumnVisibility.NAME]?: boolean;
     [ColumnVisibility.SPACE]?: boolean;
     [ColumnVisibility.UPDATED_AT]?: boolean;
+    [ColumnVisibility.OWNER]?: boolean;
     [ColumnVisibility.VIEWS]?: boolean;
     [ColumnVisibility.ACCESS]?: boolean;
     [ColumnVisibility.CONTENT]?: boolean;

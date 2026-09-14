@@ -25,7 +25,6 @@ const LoomTileForm = ({ form, withHideTitle }: LoomTileFormProps) => (
             />
             {withHideTitle && (
                 <ActionIcon
-                    variant="subtle"
                     size="lg"
                     onClick={() => {
                         form.setFieldValue('hideTitle', !form.values.hideTitle);

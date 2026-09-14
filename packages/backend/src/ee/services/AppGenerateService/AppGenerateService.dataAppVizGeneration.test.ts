@@ -21,6 +21,7 @@ function buildService(
     overrides: {
         appModel?: Record<string, unknown>;
         schedulerClient?: Record<string, unknown>;
+        codingAgent?: 'claude' | 'codex';
     } = {},
 ) {
     const analytics = { track: vi.fn() };
@@ -34,6 +35,7 @@ function buildService(
             created_by_user_uuid: 'user-1',
             space_uuid: null,
             design_uuid: null,
+            registry_slug: null,
         }),
         getLatestVersion: vi.fn().mockResolvedValue({
             version: 1,
@@ -47,11 +49,15 @@ function buildService(
     };
     const service = new AppGenerateService({
         lightdashConfig: {
-            appRuntime: { sampleDataEnabled: true },
+            appRuntime: {
+                sampleDataEnabled: true,
+                dataAppCodingAgent: overrides.codingAgent,
+            },
         } as never,
         analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -70,7 +76,16 @@ function buildService(
         savedChartModel: {} as never,
         schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
-        spacePermissionService: {} as never,
+        spacePermissionService: {
+            resolveAccess: vi.fn().mockResolvedValue({
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                inheritsFromOrgOrProject: false,
+                access: [],
+                admins: [],
+                directOnly: false,
+            }),
+        } as never,
         coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
@@ -82,11 +97,14 @@ function buildService(
             // the org has no Data App model restrictions.
             getDataAppModelVisibility: async () => null,
         } as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
         service as unknown as { createAuditedAbility: () => unknown }
-    ).createAuditedAbility = () => ({ cannot: () => false });
+    ).createAuditedAbility = () => ({ can: () => true, cannot: () => false });
     return { service, appModel, schedulerClient, analytics };
 }
 
@@ -186,6 +204,35 @@ describe('AppGenerateService.generateApp with the data app viz template', () => 
             }),
         );
     });
+
+    it('tracks the selected Codex model without a fake Claude model', async () => {
+        const { service, analytics } = buildService({ codingAgent: 'codex' });
+
+        await service.generateApp(
+            USER,
+            'project-1',
+            'Build a visualization',
+            [],
+            'app-1',
+            undefined,
+            undefined,
+            DATA_APP_VIZ_TEMPLATE,
+            undefined,
+            undefined,
+            undefined,
+            { codexModelInput: 'gpt-5.6-sol' },
+        );
+
+        const event = analytics.track.mock.calls[0][0];
+        expect(event).toMatchObject({
+            event: 'data_app.created',
+            properties: {
+                codingAgent: 'codex',
+                codingAgentModel: 'gpt-5.6-sol',
+            },
+        });
+        expect(event.properties).not.toHaveProperty('claudeModel');
+    });
 });
 
 describe('AppGenerateService.iterateApp creation experience', () => {
@@ -226,6 +273,39 @@ describe('AppGenerateService.iterateApp creation experience', () => {
                 }),
             }),
         );
+    });
+
+    it('forwards the AI-agent tool call correlation to the pipeline', async () => {
+        const { service, schedulerClient } = buildService();
+
+        await service.iterateApp(
+            USER,
+            'project-1',
+            'app-1',
+            'make the bars teal',
+            [],
+            undefined,
+            undefined,
+            undefined,
+            {
+                creationExperience: 'ai_agent',
+                aiAgentToolCall: {
+                    promptUuid: 'prompt-1',
+                    toolCallId: 'tool-call-1',
+                },
+            },
+        );
+
+        expect(
+            (schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>)
+                .mock.calls[0][0],
+        ).toMatchObject({
+            isIteration: true,
+            aiAgentToolCall: {
+                promptUuid: 'prompt-1',
+                toolCallId: 'tool-call-1',
+            },
+        });
     });
 
     it('does not misclassify an older iteration caller', async () => {

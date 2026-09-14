@@ -14,16 +14,26 @@ vi.mock(
 const setVisibleModels = (
     visibleDataAppModels: string[] | undefined,
     isLoading = false,
+    dataAppCodingAgent: 'claude' | 'codex' = 'claude',
 ) =>
     vi.mocked(useAiOrganizationSettings).mockReturnValue({
-        data: visibleDataAppModels ? { visibleDataAppModels } : undefined,
+        data: visibleDataAppModels
+            ? { visibleDataAppModels, dataAppCodingAgent }
+            : undefined,
         isLoading,
     } as unknown as ReturnType<typeof useAiOrganizationSettings>);
 
 const setup = (
     props: {
         appUuid: string | null;
-        latestVersionModel: 'opus' | 'sonnet' | 'haiku' | null;
+        latestVersionModel:
+            | 'opus'
+            | 'sonnet'
+            | 'haiku'
+            | 'gpt-5.6-sol'
+            | 'gpt-5.6-terra'
+            | 'gpt-5.6-luna'
+            | null;
     } = { appUuid: 'viz-1', latestVersionModel: null },
 ) =>
     renderHookWithProviders(useDataAppModelSelection, undefined, {
@@ -40,6 +50,35 @@ describe('useDataAppModelSelection', () => {
         const { result } = setup();
 
         expect(result.current.selectedModel).toBe('sonnet');
+        expect(result.current.codingAgent).toBe('claude');
+    });
+
+    it('offers the Codex models and defaults to Terra', () => {
+        setVisibleModels(['opus', 'sonnet', 'haiku'], false, 'codex');
+        const { result } = setup();
+
+        expect(result.current.codingAgent).toBe('codex');
+        expect(result.current.selectedModel).toBe('gpt-5.6-terra');
+        expect(result.current.visibleModels).toEqual([
+            'gpt-5.6-sol',
+            'gpt-5.6-terra',
+            'gpt-5.6-luna',
+        ]);
+        expect(result.current.modelRequest).toEqual({
+            codexModel: 'gpt-5.6-terra',
+        });
+    });
+
+    it('lets Codex users select Sol', () => {
+        setVisibleModels(['opus', 'sonnet', 'haiku'], false, 'codex');
+        const { result } = setup();
+
+        act(() => result.current.setModel('gpt-5.6-sol'));
+
+        expect(result.current.selectedModel).toBe('gpt-5.6-sol');
+        expect(result.current.modelRequest).toEqual({
+            codexModel: 'gpt-5.6-sol',
+        });
     });
 
     it('pre-selects the model the latest version was built with', () => {

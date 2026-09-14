@@ -136,28 +136,30 @@ describe('getDashboardFilterRuleLabel', () => {
         sql: 'first_name',
         hidden: false,
     } as unknown as FilterableItem;
+    const getField = () => field;
 
     it('prefers the custom filter label', () => {
         expect(
             getDashboardFilterRuleLabel(
                 createRule({ id: 'a', label: 'My label' }),
-                { customers_first_name: field },
+                getField,
             ),
         ).toBe('My label');
     });
 
     it('falls back to the field label', () => {
         expect(
-            getDashboardFilterRuleLabel(createRule({ id: 'a' }), {
-                customers_first_name: field,
-            }),
+            getDashboardFilterRuleLabel(createRule({ id: 'a' }), getField),
         ).toBe('First name');
     });
 
     it('falls back to the field id when the field is unknown', () => {
-        expect(getDashboardFilterRuleLabel(createRule({ id: 'a' }), {})).toBe(
-            'customers_first_name',
-        );
+        expect(
+            getDashboardFilterRuleLabel(
+                createRule({ id: 'a' }),
+                () => undefined,
+            ),
+        ).toBe('customers_first_name');
     });
 });
 

@@ -534,6 +534,35 @@ describe('report parsing', () => {
                 '[Revenue grew steadily](https://example.com) until spring.\n\nThe dip aligns with contract renewals.',
         });
     });
+
+    it('parses adjusted reports with a warning before the title', () => {
+        const markdown = `<warning title="Report adjusted">Some chart evidence was omitted.</warning>\n\n${validReport}`;
+
+        expect(parseDeepResearchReport(markdown)).toMatchObject({
+            title: 'Revenue Reversal Explained',
+            introductionMarkdown: expect.stringContaining(
+                'The seasonal dip is driven by B2B churn rather than a broad demand decline.',
+            ),
+        });
+    });
+
+    it('returns null when arbitrary content precedes the title', () => {
+        expect(
+            parseDeepResearchReport(`Unexpected preamble\n\n${validReport}`),
+        ).toBeNull();
+    });
+
+    it('preserves fenced blocks in the introduction', () => {
+        const markdown = validReport.replace(
+            'The seasonal dip is driven by B2B churn rather than a broad demand decline.',
+            '```text\nThe seasonal dip is driven by B2B churn rather than a broad demand decline.\n```',
+        );
+
+        expect(parseDeepResearchReport(markdown)?.introductionMarkdown).toBe(
+            '```text\nThe seasonal dip is driven by B2B churn rather than a broad demand decline.\n```',
+        );
+    });
+
     it('returns null for malformed model output', () => {
         const invalid = validReport.replace(
             /## Renewals drove[\s\S]*?(?=## Conclusion)/,

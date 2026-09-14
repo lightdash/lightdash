@@ -145,7 +145,7 @@ export const TableCellBar = ({
             {/* Label gutter: when this row isn't the widest, an invisible
                 sizer holds the column's widest label so the gutter width stays
                 constant across every row. The visible label is right-aligned. */}
-            <Box style={{ display: 'grid' }}>
+            <Box display="grid">
                 {maxLabel !== formatted && (
                     <Text
                         span

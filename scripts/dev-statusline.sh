@@ -4,7 +4,9 @@
 # Output (stdout): {"label":"🟢 http://localhost:<FE>"} when the frontend is up,
 # a muted variant when the instance is assigned but down, and NOTHING (exit 0)
 # when the cwd isn't a Lightdash worktree with an assigned slot — so it's silent
-# everywhere else. Designed to be fast (statusline budget): a single 0.3s TCP probe.
+# everywhere else. The instance is resolved from LD_INSTANCE_ID in .env.development.local with
+# basename fallback, matching dev-ports.sh. Designed to be fast (statusline budget): a
+# single 0.3s TCP probe.
 #
 # Wire it into claude-hud via `--extra-cmd` (see the /docker-dev "Statusline" note).
 # Run directly with `--plain` to just print the URL for humans.
@@ -12,7 +14,8 @@
 set -uo pipefail
 
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-id="$(basename "$root")"
+id="$(sed -n -E 's/^LD_INSTANCE_ID=(.*)$/\1/p' "$root/.env.development.local" 2>/dev/null | head -n 1 | sed -E "s/^['\"](.*)['\"]$/\1/")"
+[ -n "$id" ] || id="$(basename "$root")"
 inst="$HOME/.lightdash/dev-instances/${id}.json"
 [ -f "$inst" ] || exit 0
 

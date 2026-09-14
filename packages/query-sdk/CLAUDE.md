@@ -17,14 +17,20 @@ manifest automatically on creation.
 compared against the current SDK — an unregistered feature is invisible to
 upgrade detection and the "What's new" UI, so old apps will never be offered it.
 
-1. Add an entry `{ key, label, description }` to `SDK_FEATURES`. The `key` is a
-   stable kebab-case identifier (never rename it — deployed bundles report it
-   forever). `label`/`description` render verbatim in the host's What's-new UI
-   and guide the upgrade agent's offer, so write the description as "what it
-   enables + when to want it". The `label` must match what users see in the
-   host UI (e.g. the `lineage` key is labelled "Inspect data" — the button's
-   name), or upgrade-agent conversations can't connect the user's words to the
-   feature.
+1. Add an entry `{ key, label, description, appliesTo }` to `SDK_FEATURES`. The
+   `key` is a stable kebab-case identifier (never rename it — deployed bundles
+   report it forever). `label`/`description` render verbatim in the host's
+   What's-new UI and guide the upgrade agent's offer, so write the description
+   as "what it enables + when to want it". The `label` must match what users
+   see in the host UI (e.g. the `lineage` key is labelled "Inspect data" — the
+   button's name), or upgrade-agent conversations can't connect the user's
+   words to the feature. `appliesTo` says which bundle kinds can use the
+   feature — `'data_app'`, `'chart_type'`, or both. Every bundle reports the
+   whole registry, so this is what stops a chart type being offered Sheets
+   export, or an app being offered `useVizContext()` features. Chart types run
+   no queries and fetch nothing (see the `reusable-visualization` skill), so
+   anything on the query builder, `externalFetch`, URL state or deliveries is
+   `['data_app']`; anything read from `useVizContext()` is `['chart_type']`.
 2. If the feature needs app-code wiring before the host can use it (e.g.
    `lineage` needs `data-ld-query` stamps on chart roots), say exactly how in
    the optional `wiring` field. It is agent-facing only — never rendered in

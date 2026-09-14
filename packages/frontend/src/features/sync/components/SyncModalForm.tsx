@@ -29,9 +29,15 @@ type Props = {
     /** App syncs always write one tab per captured query — there's no single
      *  "first tab" to override, so the tab-name override doesn't apply. */
     isApp?: boolean;
+    supportsFilters?: boolean;
 };
 
-export const SyncModalForm: FC<Props> = ({ id, onSubmit, isApp = false }) => {
+export const SyncModalForm: FC<Props> = ({
+    id,
+    onSubmit,
+    isApp = false,
+    supportsFilters = false,
+}) => {
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
@@ -67,7 +73,7 @@ export const SyncModalForm: FC<Props> = ({ id, onSubmit, isApp = false }) => {
                         >
                             <TimeZonePicker
                                 size="sm"
-                                style={{ flexGrow: 1 }}
+                                flex={1}
                                 placeholder={`Project Default ${
                                     projectDefaultOffsetString
                                         ? `(UTC ${projectDefaultOffsetString})`
@@ -88,8 +94,18 @@ export const SyncModalForm: FC<Props> = ({ id, onSubmit, isApp = false }) => {
 
                 <SelectGoogleSheetButton />
 
+                {supportsFilters && (
+                    <Switch
+                        label="Show filters applied"
+                        description="Add a fixed three-row filter summary above the synced data"
+                        {...form.getInputProps('showFilters', {
+                            type: 'checkbox',
+                        })}
+                    />
+                )}
+
                 {isApp && (
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         Each query in the app is written to its own tab, named
                         after the query.
                     </Text>
@@ -107,14 +123,12 @@ export const SyncModalForm: FC<Props> = ({ id, onSubmit, isApp = false }) => {
                             <Tooltip
                                 label={`Type a tab name to save the sync in, instead of overriding the first existing tab in the Google sheet.
                                 This will create a new tab if it doesn't exist. We will still create a tab called metadata with the Sync information.`}
-                                multiline
-                                withinPortal
                                 position="right"
                                 maw={400}
                             >
                                 <MantineIcon
                                     icon={IconInfoCircle}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             </Tooltip>
                         </Group>

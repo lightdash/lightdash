@@ -14,6 +14,11 @@ import {
     type DbDeploySessionBatchInsert,
 } from '../database/entities/deploySessions';
 
+type StoredDeploySessionBatch = {
+    explores: (Explore | ExploreError)[];
+    complete: boolean;
+};
+
 export class DeploySessionModel {
     private readonly database: Knex;
 
@@ -55,12 +60,16 @@ export class DeploySessionModel {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
         batchNumber: number,
+        complete?: boolean,
     ): Promise<void> {
         const batchInsert: DbDeploySessionBatchInsert = {
             deploy_session_uuid: sessionUuid,
             project_uuid: projectUuid,
             batch_number: batchNumber,
-            explores: JSON.stringify(explores), // Stringify for JSONB
+            explores: JSON.stringify({
+                explores,
+                complete: complete === true,
+            } satisfies StoredDeploySessionBatch),
             explore_count: explores.length,
         };
 
@@ -76,22 +85,30 @@ export class DeploySessionModel {
         });
     }
 
-    async getAllExplores(
-        sessionUuid: string,
-    ): Promise<(Explore | ExploreError)[]> {
+    async getDeployData(sessionUuid: string): Promise<{
+        explores: (Explore | ExploreError)[];
+        complete: boolean;
+    }> {
         const batches = await DeploySessionBatchesTable(this.database)
             .where('deploy_session_uuid', sessionUuid)
             .orderBy('batch_number', 'asc');
 
-        // Flatten all explores from all batches
         const allExplores: (Explore | ExploreError)[] = [];
+        let complete = batches.length > 0;
         for (const batch of batches) {
-            // JSONB fields are automatically parsed by Knex
-            const explores = batch.explores as (Explore | ExploreError)[];
-            allExplores.push(...explores);
+            if (Array.isArray(batch.explores)) {
+                allExplores.push(
+                    ...(batch.explores as (Explore | ExploreError)[]),
+                );
+                complete = false;
+            } else {
+                const storedBatch = batch.explores as StoredDeploySessionBatch;
+                allExplores.push(...storedBatch.explores);
+                complete = complete && storedBatch.complete === true;
+            }
         }
 
-        return allExplores;
+        return { explores: allExplores, complete };
     }
 
     async updateStatus(

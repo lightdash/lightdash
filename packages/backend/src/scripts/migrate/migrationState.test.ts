@@ -92,6 +92,35 @@ describe('getKnexMigrationState', () => {
         });
     });
 
+    test('classifies a back-dated database-only ledger as ahead when nothing is pending', async () => {
+        tracker.on.any(/information_schema\.tables/).response(true);
+        tracker.on
+            .select('knex_migrations')
+            .response([
+                { name: ossMigration },
+                { name: eeMigration },
+                { name: '20260810130000_backdated_database_only.ts' },
+            ]);
+
+        const state = await getKnexMigrationState(database, {
+            directory: [ossDirectory, eeDirectory],
+            loadExtensions: ['.ts'],
+            tableName: 'knex_migrations',
+        });
+
+        expect(state).toEqual({
+            completed: [
+                ossMigration,
+                eeMigration,
+                '20260810130000_backdated_database_only.ts',
+            ],
+            pending: [],
+            missing: ['20260810130000_backdated_database_only.ts'],
+            offending: [],
+            classification: 'database-ahead',
+        });
+    });
+
     test('classifies database-only migrations within the local range as diverged', async () => {
         tracker.on.any(/information_schema\.tables/).response(true);
         tracker.on
@@ -157,7 +186,6 @@ describe('getKnexMigrationState', () => {
             .select('knex_migrations')
             .response([
                 { name: ossMigration },
-                { name: eeMigration },
                 { name: '99999999999999_impossible.ts' },
                 { name: '20991301120000_invalid_month.ts' },
                 { name: '20990229120000_invalid_day.ts' },
@@ -189,7 +217,6 @@ describe('getKnexMigrationState', () => {
             .select('knex_migrations')
             .response([
                 { name: ossMigration },
-                { name: eeMigration },
                 { name: '20260810160000_zzz_database_only.ts' },
                 { name: '20260811120000_first_database_only.ts' },
                 { name: '20260811120000_same_timestamp.ts' },
@@ -214,7 +241,6 @@ describe('getKnexMigrationState', () => {
             .select('knex_migrations')
             .response([
                 { name: ossMigration },
-                { name: eeMigration },
                 { name: '20260812120000_first_database_only.ts' },
                 { name: '20260811120000_non_monotonic.ts' },
             ]);

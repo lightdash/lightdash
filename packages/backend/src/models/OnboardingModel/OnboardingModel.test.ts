@@ -54,4 +54,38 @@ describe('OnboardingModel', () => {
         expect(lockQuery?.bindings).toEqual([19350428, 7]);
         expect(typedCallback).toHaveBeenCalledWith(expect.any(Function));
     });
+
+    it('reads the playground content seed version', async () => {
+        tracker.on
+            .select(({ sql }) =>
+                sql.includes('playground_content_seed_version'),
+            )
+            .responseOnce({ playground_content_seed_version: 1 });
+        tracker.on.select('organizations').response([{ organization_id: 7 }]);
+        tracker.on.insert('onboarding').responseOnce([]);
+        tracker.on.select('onboarding').responseOnce({
+            ranQuery_at: null,
+            shownSuccess_at: null,
+            playground_project_deleted_at: null,
+        });
+
+        await expect(
+            model.getPlaygroundContentSeedVersion('organization-uuid'),
+        ).resolves.toBe(1);
+    });
+
+    it('writes the playground content seed version', async () => {
+        tracker.on.select('organizations').response([{ organization_id: 7 }]);
+        tracker.on.insert('onboarding').responseOnce([]);
+        tracker.on.select('onboarding').responseOnce({
+            ranQuery_at: null,
+            shownSuccess_at: null,
+            playground_project_deleted_at: null,
+        });
+        tracker.on.update('onboarding').responseOnce([]);
+
+        await model.setPlaygroundContentSeedVersion('organization-uuid', 1);
+
+        expect(tracker.history.update[0]?.bindings).toContain(1);
+    });
 });

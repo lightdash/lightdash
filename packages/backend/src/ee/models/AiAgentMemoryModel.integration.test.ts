@@ -1,6 +1,5 @@
 import {
     CommercialFeatureFlags,
-    FeatureFlags,
     ProjectType,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
@@ -19,6 +18,7 @@ import {
     type DbFeatureFlag,
     type FeatureFlagsTable,
 } from '../../database/entities/featureFlags';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import {
     ProjectTableName,
     type DbProject,
@@ -68,6 +68,12 @@ describe('AiAgentMemoryModel integration', () => {
             .merge({ default_enabled: enabled });
     };
 
+    const setOrgMemoryEnabled = async (enabled: boolean) => {
+        await database(OrganizationTableName)
+            .where('organization_uuid', SEED_ORG_1.organization_uuid)
+            .update({ ai_agent_memory_enabled: enabled });
+    };
+
     beforeAll(async () => {
         database = getTestContext().db;
         model = getTestContext()
@@ -80,8 +86,6 @@ describe('AiAgentMemoryModel integration', () => {
         const testDatabaseUrl = new URL(lightdashConfig.database.connectionUri);
         testDatabaseUrl.pathname = `${testDatabaseUrl.pathname}_test`;
         lightdashConfig.database.connectionUri = testDatabaseUrl.toString();
-        lightdashConfig.enabledFeatureFlags.delete(FeatureFlags.AiAgentMemory);
-        lightdashConfig.disabledFeatureFlags.delete(FeatureFlags.AiAgentMemory);
         const featureFlagModel = new CommercialFeatureFlagModel({
             database,
             lightdashConfig,
@@ -105,10 +109,7 @@ describe('AiAgentMemoryModel integration', () => {
             featureFlagModel,
         });
         await schedulerClient.graphileUtils;
-        const flagIds = [
-            FeatureFlags.AiAgentMemory,
-            CommercialFeatureFlags.AiCopilot,
-        ];
+        const flagIds = [CommercialFeatureFlags.AiCopilot];
         const storedFlags = await Promise.all(
             flagIds.map((flagId) =>
                 database<FeatureFlagsTable>(FeatureFlagsTableName)
@@ -122,10 +123,11 @@ describe('AiAgentMemoryModel integration', () => {
         await Promise.all(
             flagIds.map((flagId) => setFeatureFlag(flagId, true)),
         );
+        await setOrgMemoryEnabled(true);
     });
 
     afterEach(async () => {
-        await setFeatureFlag(FeatureFlags.AiAgentMemory, true);
+        await setOrgMemoryEnabled(true);
         if (consolidationRunUuids.size > 0) {
             await database(AiAgentMemoryConsolidationRunTableName)
                 .whereIn('ai_agent_memory_consolidation_run_uuid', [
@@ -269,7 +271,7 @@ describe('AiAgentMemoryModel integration', () => {
         distillCall: AiAgentMemoryDistillCall,
         projectModel: Pick<
             ProjectModel,
-            'findExploresFromCache' | 'getSummary'
+            'findExploresFromCache' | 'getCachedExploreNames' | 'getSummary'
         > = getTestContext().app.getModels().getProjectModel(),
     ) =>
         new AiAgentMemoryService({
@@ -287,13 +289,13 @@ describe('AiAgentMemoryModel integration', () => {
             userModel: { findSessionUserAndOrgByUuid: vi.fn() } as never,
             featureFlagService,
             aiOrganizationSettingsService: {
-                isAiAgentMemoryEnabled: async (user) =>
-                    (
-                        await featureFlagService.get({
-                            user,
-                            featureFlagId: FeatureFlags.AiAgentMemory,
-                        })
-                    ).enabled,
+                isAiAgentMemoryEnabled: async ({ organizationUuid }) => {
+                    const org = await database(OrganizationTableName)
+                        .select('ai_agent_memory_enabled')
+                        .where('organization_uuid', organizationUuid)
+                        .first();
+                    return org?.ai_agent_memory_enabled ?? false;
+                },
                 isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
             },
             schedulerClient,
@@ -1478,7 +1480,7 @@ describe('AiAgentMemoryModel integration', () => {
         expect(distillCall).toHaveBeenCalledOnce();
     });
 
-    it('uses the stored flag to gate real scheduler enqueueing', async () => {
+    it('uses the stored org setting to gate real scheduler enqueueing', async () => {
         const now = new Date('2026-07-22T12:00:00Z');
         const threadUuid = await createThread();
         await createPrompt(threadUuid, new Date('2026-07-22T05:00:00Z'));
@@ -1486,7 +1488,7 @@ describe('AiAgentMemoryModel integration', () => {
         const service = buildService(distillCall);
         const jobKey = `ai-agent-memory-distill:${threadUuid}`;
 
-        await setFeatureFlag(FeatureFlags.AiAgentMemory, false);
+        await setOrgMemoryEnabled(false);
         await expect(service.sweep(now)).resolves.toBe(0);
         const graphileClient = await schedulerClient.graphileUtils;
         await expect(
@@ -1499,7 +1501,7 @@ describe('AiAgentMemoryModel integration', () => {
             }),
         ).resolves.toBeUndefined();
 
-        await setFeatureFlag(FeatureFlags.AiAgentMemory, true);
+        await setOrgMemoryEnabled(true);
         await expect(service.sweep(now)).resolves.toBeGreaterThanOrEqual(1);
         const job = await graphileClient.withPgClient(async (client) => {
             const result = await client.query(
@@ -1819,6 +1821,8 @@ describe('AiAgentMemoryModel integration', () => {
         const projectModel = getTestContext().app.getModels().getProjectModel();
         const service = buildService(distillCall, {
             findExploresFromCache,
+            getCachedExploreNames:
+                projectModel.getCachedExploreNames.bind(projectModel),
             getSummary: projectModel.getSummary.bind(projectModel),
         });
 

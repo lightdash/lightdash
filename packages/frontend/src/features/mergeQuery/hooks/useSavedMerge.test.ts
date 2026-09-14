@@ -41,21 +41,77 @@ describe('toSavedMerge', () => {
         };
 
         expect(toSavedMerge(mergeQuery)).toEqual({
-            secondQuery: { metricQuery: metricQuery('payments') },
+            primarySourceId: 'a',
+            sources: [
+                { id: 'a', kind: 'chart' },
+                {
+                    id: 'b',
+                    kind: 'query',
+                    metricQuery: metricQuery('payments'),
+                },
+            ],
             joinKey: [
                 {
                     name: 'k0',
-                    chartFieldId: 'orders_suggested_date',
-                    secondFieldId: 'payments_suggested_date',
+                    fieldIdBySourceId: {
+                        a: 'orders_suggested_date',
+                        b: 'payments_suggested_date',
+                    },
                 },
                 {
                     name: 'k1',
-                    chartFieldId: 'orders_status',
-                    secondFieldId: 'payments_status',
+                    fieldIdBySourceId: {
+                        a: 'orders_status',
+                        b: 'payments_status',
+                    },
                 },
             ],
             joinType: MergeJoinType.INNER,
             tableCalculations: [],
+        });
+    });
+
+    it('persists additional sources without changing the schema', () => {
+        const mergeQuery: MergeQuery = {
+            sources: [
+                { id: 'a', metricQuery: metricQuery('orders') },
+                { id: 'payments', metricQuery: metricQuery('payments') },
+                {
+                    id: 'subscriptions',
+                    metricQuery: metricQuery('subscriptions'),
+                },
+            ],
+            joinKey: [
+                {
+                    name: 'date',
+                    fieldIdBySourceId: {
+                        a: 'orders_date',
+                        payments: 'payments_date',
+                        subscriptions: 'subscriptions_date',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.FULL,
+            tableCalculations: [],
+            limit: 500,
+        };
+
+        expect(toSavedMerge(mergeQuery)).toMatchObject({
+            primarySourceId: 'a',
+            sources: [
+                { id: 'a', kind: 'chart' },
+                { id: 'payments', kind: 'query' },
+                { id: 'subscriptions', kind: 'query' },
+            ],
+            joinKey: [
+                {
+                    fieldIdBySourceId: {
+                        a: 'orders_date',
+                        payments: 'payments_date',
+                        subscriptions: 'subscriptions_date',
+                    },
+                },
+            ],
         });
     });
 });

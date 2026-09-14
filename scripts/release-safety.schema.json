@@ -181,12 +181,13 @@
             "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["file", "line", "reason", "requiredStop"],
+                "required": ["id", "reason", "requiredStop"],
                 "properties": {
-                    "file": { "type": "string" },
-                    "line": { "type": "integer", "minimum": 1 },
+                    "id": { "type": "string", "minLength": 1 },
                     "reason": { "type": "string", "minLength": 1 },
-                    "requiredStop": { "type": "boolean" }
+                    "requiredStop": { "type": "boolean" },
+                    "migration": { "type": "string" },
+                    "releasedIn": { "type": "string", "minLength": 1 }
                 }
             }
         }

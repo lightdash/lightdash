@@ -1,5 +1,6 @@
 import type { AiModelOption } from '@lightdash/common';
 import {
+    Box,
     Button,
     Group,
     Menu,
@@ -11,7 +12,11 @@ import {
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../MantineIcon';
-import { filterDeprecatedModelsForPicker, getModelKey } from './utils';
+import {
+    filterDeprecatedModelsForPicker,
+    getModelGroupLabel,
+    getModelKey,
+} from './utils';
 
 interface Props extends Omit<ButtonProps, 'value' | 'onChange'> {
     models: AiModelOption[];
@@ -42,13 +47,18 @@ export const ModelSelector: FC<Props> = ({
     const groupedModels = useMemo(() => {
         const groups = new Map<string, AiModelOption[]>();
         visibleModels.forEach((model) => {
-            const existing = groups.get(model.provider) ?? [];
-            groups.set(model.provider, [...existing, model]);
+            const groupLabel = getModelGroupLabel(model);
+            const existing = groups.get(groupLabel);
+            if (existing) {
+                existing.push(model);
+            } else {
+                groups.set(groupLabel, [model]);
+            }
         });
         return groups;
     }, [visibleModels]);
 
-    const providerGroups = useMemo(
+    const modelGroups = useMemo(
         () => Array.from(groupedModels.keys()),
         [groupedModels],
     );
@@ -63,13 +73,7 @@ export const ModelSelector: FC<Props> = ({
     }
 
     return (
-        <Menu
-            shadow="md"
-            width={280}
-            position="top-end"
-            offset={8}
-            withinPortal
-        >
+        <Menu width={340} position="top-end" offset={8}>
             <Menu.Target>
                 <Button
                     px="xs"
@@ -78,7 +82,7 @@ export const ModelSelector: FC<Props> = ({
                         <MantineIcon
                             icon={IconChevronDown}
                             size="sm"
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                     }
                 >
@@ -87,7 +91,7 @@ export const ModelSelector: FC<Props> = ({
                             {selectedModel?.displayName ?? 'Select model'}
                         </Text>
                         {showReasoning && reasoningLabel && (
-                            <Text size="xs" fw={500} c="ldGray.6" span>
+                            <Text size="xs" fw={500} c="dimmed" span>
                                 {reasoningLabel}
                             </Text>
                         )}
@@ -131,16 +135,15 @@ export const ModelSelector: FC<Props> = ({
                     </>
                 )}
                 <ScrollArea.Autosize mah={200}>
-                    {providerGroups.map((provider, groupIndex) => {
-                        const providerModels =
-                            groupedModels.get(provider) ?? [];
+                    {modelGroups.map((groupLabel, groupIndex) => {
+                        const groupModels = groupedModels.get(groupLabel) ?? [];
                         return (
-                            <div key={provider}>
-                                {providerGroups.length > 1 && (
-                                    <Menu.Label>{provider}</Menu.Label>
+                            <Box key={groupLabel}>
+                                {modelGroups.length > 1 && (
+                                    <Menu.Label>{groupLabel}</Menu.Label>
                                 )}
 
-                                {providerModels.map((model) => {
+                                {groupModels.map((model) => {
                                     const modelKey = getModelKey(model);
                                     const isSelected = modelKey === value;
                                     return (
@@ -171,10 +174,10 @@ export const ModelSelector: FC<Props> = ({
                                     );
                                 })}
 
-                                {groupIndex < providerGroups.length - 1 && (
+                                {groupIndex < modelGroups.length - 1 && (
                                     <Menu.Divider />
                                 )}
-                            </div>
+                            </Box>
                         );
                     })}
                 </ScrollArea.Autosize>

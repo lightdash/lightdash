@@ -35,10 +35,6 @@
 
 .itemDescription {
     color: var(--mantine-color-dimmed);
-
-    @mixin dark {
-        color: var(--mantine-color-ldGray-7);
-    }
 }
 
 .groupHeader {
@@ -49,10 +45,6 @@
     text-transform: uppercase;
     color: var(--mantine-color-dimmed);
     user-select: none;
-
-    @mixin dark {
-        color: var(--mantine-color-ldGray-6);
-    }
 }
 
 .groupHeader:not(:first-child) {
@@ -75,8 +67,6 @@
 
     @mixin dark {
         border-top-color: var(--mantine-color-ldDark-4);
-        background-color: var(--mantine-color-ldDark-2);
-        color: var(--mantine-color-ldGray-6);
     }
 }
 
@@ -88,14 +78,12 @@
     padding: 0 5px;
     border-radius: 3px;
     background-color: var(--mantine-color-body);
-    color: var(--mantine-color-ldDark-9);
+    color: var(--mantine-color-text);
     border: 1px solid var(--mantine-color-ldGray-3);
     box-shadow: 0 1px 0 0 var(--mantine-color-ldGray-3);
 
     @mixin dark {
         background-color: var(--mantine-color-ldDark-3);
-        color: var(--mantine-color-ldGray-7);
         border-color: var(--mantine-color-ldDark-5);
-        box-shadow: 0 1px 0 0 var(--mantine-color-ldDark-5);
     }
 }

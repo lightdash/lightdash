@@ -1,33 +1,19 @@
-import { Tabs } from '@mantine/core';
 import { memo, type FC } from 'react';
+import { VisualizationConfigTabs } from '../common/VisualizationConfigTabs';
 import { Comparison } from './BigNumberComparison';
 import { BigNumberConditionalFormatting } from './BigNumberConditionalFormatting';
 import { Layout } from './BigNumberLayout';
 
-export const ConfigTabs: FC = memo(() => {
-    return (
-        <Tabs defaultValue="layout" keepMounted={false}>
-            <Tabs.List mb="sm">
-                <Tabs.Tab px="sm" value="layout">
-                    Layout
-                </Tabs.Tab>
-                <Tabs.Tab px="sm" value="comparison">
-                    Comparison
-                </Tabs.Tab>
-                <Tabs.Tab px="sm" value="conditionalFormatting">
-                    Conditional formatting
-                </Tabs.Tab>
-            </Tabs.List>
-
-            <Tabs.Panel value="layout">
-                <Layout />
-            </Tabs.Panel>
-            <Tabs.Panel value="comparison">
-                <Comparison />
-            </Tabs.Panel>
-            <Tabs.Panel value="conditionalFormatting">
-                <BigNumberConditionalFormatting />
-            </Tabs.Panel>
-        </Tabs>
-    );
-});
+export const ConfigTabs: FC = memo(() => (
+    <VisualizationConfigTabs
+        tabs={[
+            { value: 'layout', label: 'Layout', panel: <Layout /> },
+            { value: 'comparison', label: 'Comparison', panel: <Comparison /> },
+            {
+                value: 'conditionalFormatting',
+                label: 'Conditional formatting',
+                panel: <BigNumberConditionalFormatting />,
+            },
+        ]}
+    />
+));

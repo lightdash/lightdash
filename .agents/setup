@@ -66,6 +66,9 @@ fi
 
 ln -sfn "$NODE_ROOT" "$NODE_CURRENT"
 export PATH="$NODE_CURRENT/bin:$PATH"
+PNPM_HOME="$HOME/.local/share/lightdash/pnpm"
+export PNPM_HOME
+export PATH="$PNPM_HOME/bin:$PATH"
 
 profile_marker="# Lightdash orb toolchain"
 if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
@@ -83,15 +86,28 @@ esac
 EOF
 fi
 
+pnpm_profile_marker="# Lightdash orb pnpm"
+if ! grep -Fqx "$pnpm_profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+    cat >> "$HOME/.bash_profile" <<EOF
+
+$pnpm_profile_marker
+export PNPM_HOME="$PNPM_HOME"
+case ":\$PATH:" in
+    *":$PNPM_HOME/bin:"*) ;;
+    *) export PATH="$PNPM_HOME/bin:\$PATH" ;;
+esac
+EOF
+fi
+
 if [[ -n "${LIGHTDASH_ENV_FILE:-}" && ! -f .env.development.local ]]; then
     echo "==> Restoring .env.development.local from the Amp project secret"
     printf '%s' "$LIGHTDASH_ENV_FILE" > .env.development.local
     chmod 600 .env.development.local
 fi
 
-echo "==> Activating the repository's pinned pnpm"
-corepack enable pnpm
-corepack install
+PNPM_VERSION="$(node -p "require('./package.json').packageManager.match(/^pnpm@([^+]+)/)[1]")"
+echo "==> Installing the repository's pinned pnpm ${PNPM_VERSION}"
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION="$PNPM_VERSION" sh -
 node --version
 pnpm --version
 

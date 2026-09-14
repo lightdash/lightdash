@@ -1,0 +1,26 @@
+.modalHeader {
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    flex-shrink: 0;
+}
+
+@media (max-width: 48em) {
+    .modalHeader {
+        flex-wrap: wrap;
+        row-gap: var(--mantine-spacing-xs);
+    }
+
+    .modalHeader > :first-child {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .modalHeader > :nth-child(2) {
+        /* The shared modal gives its action wrapper mr="md". */
+        flex-basis: calc(100% - var(--mantine-spacing-md));
+        order: 3;
+    }
+
+    .headerTitle {
+        min-width: 0;
+    }
+}

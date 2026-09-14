@@ -14,6 +14,7 @@ preview_db_full:
   - "packages/backend/src/ee/database/seeds/**"
 
 cli:
+  - ".github/workflows/post-release.yml"
   - "packages/cli/**/*"
   - "packages/e2e/cypress/cli/**/*"
   - "packages/common/**/*"

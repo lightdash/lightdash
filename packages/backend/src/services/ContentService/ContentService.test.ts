@@ -2,10 +2,12 @@ import {
     ChartSourceType,
     ContentType,
     defineUserAbility,
+    DirectAccessResourceType,
     ForbiddenError,
     KnexPaginatedData,
     OrganizationMemberRole,
     ProjectMemberRole,
+    SpaceMemberRole,
     SummaryContent,
 } from '@lightdash/common';
 import type { DeletedContentItem, SessionUser } from '@lightdash/common';
@@ -13,6 +15,7 @@ import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpaceModel } from '../../models/SpaceModel';
+import type { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SavedSqlService } from '../SavedSqlService/SavedSqlService';
@@ -63,10 +66,22 @@ const createService = ({
     contentModel = {} as ContentModel,
     spaceModel = {} as SpaceModel,
     spacePermissionService = {} as SpacePermissionService,
+    sharedWithMeUuids = { dashboard: [], chart: [], sqlChart: [], app: [] },
+    sharedWithMeRoles = {
+        dashboard: { 'dashboard-1': [SpaceMemberRole.EDITOR] },
+        chart: {},
+        sqlChart: {},
+        app: {},
+    },
 }: {
     contentModel?: ContentModel;
     spaceModel?: SpaceModel;
     spacePermissionService?: SpacePermissionService;
+    sharedWithMeUuids?: Record<string, string[]>;
+    sharedWithMeRoles?: Record<
+        DirectAccessResourceType,
+        Record<string, SpaceMemberRole[]>
+    >;
 } = {}) => {
     const projectModel = {
         getAllByOrganizationUuid: vi.fn().mockResolvedValue([
@@ -84,18 +99,35 @@ const createService = ({
     const savedChartService = {
         restore: vi.fn().mockResolvedValue(undefined),
         permanentDelete: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
     };
     const savedSqlService = {
         restore: vi.fn().mockResolvedValue(undefined),
         permanentDelete: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
     };
     const dashboardService = {
         restore: vi.fn().mockResolvedValue(undefined),
         permanentDelete: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
     };
     const spaceService = {
         restore: vi.fn().mockResolvedValue(undefined),
         permanentDelete: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
+    };
+    const validationModel = {
+        deleteChartValidations: vi.fn().mockResolvedValue(undefined),
+        deleteDashboardValidations: vi.fn().mockResolvedValue(undefined),
+    };
+    const directAccessService = {
+        findSharedWithMeAccess: vi.fn().mockResolvedValue({
+            uuidsByType: sharedWithMeUuids,
+            rolesByType: sharedWithMeRoles,
+        }),
+        findGrantedRoles: vi.fn().mockResolvedValue({
+            'dashboard-1': [SpaceMemberRole.EDITOR],
+        }),
     };
 
     return {
@@ -110,6 +142,8 @@ const createService = ({
                 savedChartService as unknown as SavedChartService,
             savedSqlService: savedSqlService as unknown as SavedSqlService,
             spacePermissionService,
+            directAccessService: directAccessService as never,
+            validationModel: validationModel as unknown as ValidationModel,
             appMoveService: undefined,
             appGenerateService: undefined,
         }),
@@ -118,6 +152,8 @@ const createService = ({
         savedSqlService,
         dashboardService,
         spaceService,
+        validationModel,
+        directAccessService,
     };
 };
 
@@ -409,6 +445,145 @@ describe('ContentService.find', () => {
     });
 });
 
+describe('ContentService.bulkDelete', () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('dispatches deletes per content type and clears validation rows', async () => {
+        const deps = createService();
+        const user = createUser();
+
+        const results = await deps.service.bulkDelete(user, projectUuid, [
+            {
+                uuid: 'chart-uuid',
+                contentType: ContentType.CHART,
+                source: ChartSourceType.DBT_EXPLORE,
+            },
+            {
+                uuid: 'sql-chart-uuid',
+                contentType: ContentType.CHART,
+                source: ChartSourceType.SQL,
+            },
+            { uuid: 'dashboard-uuid', contentType: ContentType.DASHBOARD },
+            { uuid: 'space-uuid', contentType: ContentType.SPACE },
+        ]);
+
+        expect(results).toEqual({ deletedCount: 4, skipped: [] });
+        expect(deps.savedChartService.delete).toHaveBeenCalledWith(
+            user,
+            'chart-uuid',
+            { projectUuid },
+        );
+        expect(
+            deps.validationModel.deleteChartValidations,
+        ).toHaveBeenCalledWith('chart-uuid', projectUuid);
+        expect(deps.savedSqlService.delete).toHaveBeenCalledWith(
+            user,
+            'sql-chart-uuid',
+        );
+        expect(deps.dashboardService.delete).toHaveBeenCalledWith(
+            user,
+            'dashboard-uuid',
+            { projectUuid },
+        );
+        expect(
+            deps.validationModel.deleteDashboardValidations,
+        ).toHaveBeenCalledWith('dashboard-uuid', projectUuid);
+        expect(deps.spaceService.delete).toHaveBeenCalledWith(
+            user,
+            'space-uuid',
+        );
+    });
+
+    it('reports partial success when some items cannot be deleted', async () => {
+        const deps = createService();
+        deps.savedChartService.delete.mockRejectedValueOnce(
+            new ForbiddenError(),
+        );
+        const user = createUser();
+
+        const results = await deps.service.bulkDelete(user, projectUuid, [
+            {
+                uuid: 'forbidden-chart-uuid',
+                contentType: ContentType.CHART,
+                source: ChartSourceType.DBT_EXPLORE,
+            },
+            { uuid: 'dashboard-uuid', contentType: ContentType.DASHBOARD },
+            { uuid: 'app-uuid', contentType: ContentType.DATA_APP },
+        ]);
+
+        expect(results.deletedCount).toBe(1);
+        expect(results.skipped).toHaveLength(2);
+        expect(results.skipped[0]).toMatchObject({
+            uuid: 'forbidden-chart-uuid',
+            contentType: ContentType.CHART,
+        });
+        expect(results.skipped[1]).toMatchObject({
+            uuid: 'app-uuid',
+            contentType: ContentType.DATA_APP,
+        });
+        // Failed chart delete must not clear its validation rows
+        expect(
+            deps.validationModel.deleteChartValidations,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('reports the Content as Code reason when bulk deletion is blocked', async () => {
+        const deps = createService();
+        deps.savedChartService.delete.mockRejectedValueOnce(
+            new ForbiddenError(
+                'This chart is managed by Content as Code and can only be deleted by a Content as Code manager.',
+                { contentAsCodeManaged: true },
+            ),
+        );
+
+        const results = await deps.service.bulkDelete(
+            createUser(),
+            projectUuid,
+            [
+                {
+                    uuid: 'managed-chart-uuid',
+                    contentType: ContentType.CHART,
+                    source: ChartSourceType.DBT_EXPLORE,
+                },
+            ],
+        );
+
+        expect(results).toEqual({
+            deletedCount: 0,
+            skipped: [
+                expect.objectContaining({
+                    uuid: 'managed-chart-uuid',
+                    reason: expect.stringContaining('Content as Code'),
+                }),
+            ],
+        });
+    });
+
+    it('rejects a project the user cannot view', async () => {
+        const deps = createService();
+        deps.projectModel.getSummary.mockResolvedValue({
+            organizationUuid: 'another-organization-uuid',
+            name: 'Another project',
+        });
+
+        await expect(
+            deps.service.bulkDelete(
+                createOrganizationAdminUser(),
+                projectUuid,
+                [
+                    {
+                        uuid: 'dashboard-uuid',
+                        contentType: ContentType.DASHBOARD,
+                    },
+                ],
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(deps.dashboardService.delete).not.toHaveBeenCalled();
+    });
+});
+
 describe('ContentService.findDeleted', () => {
     it('rejects a project owned by another organization', async () => {
         const findDeletedContents = vi.fn();
@@ -428,5 +603,273 @@ describe('ContentService.findDeleted', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(findDeletedContents).not.toHaveBeenCalled();
+    });
+});
+
+describe('ContentService.find sharedWithMe', () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    const emptyModelPage = async (): Promise<
+        KnexPaginatedData<SummaryContent[]>
+    > => ({
+        pagination: {
+            page: 1,
+            pageSize: 10,
+            totalPageCount: 1,
+            totalResults: 2,
+        },
+        data: [],
+    });
+
+    it('returns grant roles without fetching them again after pagination', async () => {
+        const dashboard = {
+            uuid: 'dashboard-1',
+            contentType: ContentType.DASHBOARD,
+        } as SummaryContent;
+        const findSummaryContents = vi.fn().mockResolvedValue({
+            ...(await emptyModelPage()),
+            data: [dashboard],
+        });
+        const deps = createService({
+            contentModel: { findSummaryContents } as unknown as ContentModel,
+            sharedWithMeUuids: {
+                dashboard: ['dashboard-1'],
+                chart: [],
+                sqlChart: [],
+                app: [],
+            },
+        });
+
+        const result = await deps.service.find(
+            createUser(),
+            { sharedWithMe: true },
+            {},
+            { page: 1, pageSize: 10 },
+        );
+
+        expect(result.data).toEqual([
+            { ...dashboard, directAccessRoles: [SpaceMemberRole.EDITOR] },
+        ]);
+        expect(
+            deps.directAccessService.findGrantedRoles,
+        ).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [ContentType.DASHBOARD, undefined, DirectAccessResourceType.DASHBOARD],
+        [ContentType.DATA_APP, undefined, DirectAccessResourceType.APP],
+        [
+            ContentType.CHART,
+            ChartSourceType.DBT_EXPLORE,
+            DirectAccessResourceType.CHART,
+        ],
+        [
+            ContentType.CHART,
+            ChartSourceType.SQL,
+            DirectAccessResourceType.SQL_CHART,
+        ],
+    ] as const)(
+        'keeps roles scoped to %s (%s) when another type has the same UUID',
+        async (contentType, source, resourceType) => {
+            const item = {
+                uuid: 'same-uuid',
+                contentType,
+                source,
+            } as SummaryContent;
+            const deps = createService({
+                contentModel: {
+                    findSummaryContents: vi.fn().mockResolvedValue({
+                        ...(await emptyModelPage()),
+                        data: [item],
+                    }),
+                } as unknown as ContentModel,
+                sharedWithMeUuids: {
+                    dashboard: ['same-uuid'],
+                    chart: ['same-uuid'],
+                    sqlChart: ['same-uuid'],
+                    app: ['same-uuid'],
+                },
+                sharedWithMeRoles: {
+                    dashboard: { 'same-uuid': [SpaceMemberRole.ADMIN] },
+                    chart: { 'same-uuid': [SpaceMemberRole.ADMIN] },
+                    sqlChart: { 'same-uuid': [SpaceMemberRole.ADMIN] },
+                    app: { 'same-uuid': [SpaceMemberRole.ADMIN] },
+                    [resourceType]: { 'same-uuid': [SpaceMemberRole.VIEWER] },
+                },
+            });
+
+            const result = await deps.service.find(
+                createUser(),
+                { sharedWithMe: true, contentTypes: [contentType] },
+                {},
+                { page: 1, pageSize: 1 },
+            );
+            expect(result.data).toEqual([
+                { ...item, directAccessRoles: [SpaceMemberRole.VIEWER] },
+            ]);
+            expect(
+                deps.directAccessService.findGrantedRoles,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it('keeps an empty role list when a hydrated resource has no matching grant', async () => {
+        const dashboard = {
+            uuid: 'dashboard-1',
+            contentType: ContentType.DASHBOARD,
+            directAccessRoles: [],
+        };
+        const deps = createService({
+            contentModel: {
+                findSummaryContents: vi.fn().mockResolvedValue({
+                    ...(await emptyModelPage()),
+                    data: [dashboard],
+                }),
+            } as unknown as ContentModel,
+            sharedWithMeUuids: {
+                dashboard: ['dashboard-1'],
+                chart: [],
+                sqlChart: [],
+                app: [],
+            },
+            sharedWithMeRoles: {
+                dashboard: {},
+                chart: {},
+                sqlChart: {},
+                app: {},
+            },
+        });
+        const result = await deps.service.find(
+            createUser(),
+            { sharedWithMe: true },
+            {},
+            { page: 1, pageSize: 10 },
+        );
+        expect(result.data).toEqual([dashboard]);
+    });
+
+    it('hydrates only granted uuids without space scoping', async () => {
+        const findSummaryContents = vi.fn(emptyModelPage);
+        const getAccessibleSpaceUuids = vi.fn();
+        const deps = createService({
+            contentModel: {
+                findSummaryContents,
+            } as unknown as ContentModel,
+            spacePermissionService: {
+                getAccessibleSpaceUuids,
+            } as unknown as SpacePermissionService,
+            sharedWithMeUuids: {
+                dashboard: ['dashboard-1'],
+                chart: ['chart-1'],
+                sqlChart: ['sql-chart-1'],
+                app: ['app-1'],
+            },
+        });
+
+        await deps.service.find(
+            createUser(),
+            { sharedWithMe: true },
+            {},
+            { page: 1, pageSize: 10 },
+        );
+
+        expect(
+            deps.directAccessService.findSharedWithMeAccess,
+        ).toHaveBeenCalledWith({ userUuid, organizationUuid }, [projectUuid]);
+        expect(getAccessibleSpaceUuids).not.toHaveBeenCalled();
+        expect(findSummaryContents).toHaveBeenCalledWith(
+            {
+                projectUuids: [projectUuid],
+                uuids: ['dashboard-1', 'chart-1', 'sql-chart-1', 'app-1'],
+                contentTypes: [
+                    ContentType.DASHBOARD,
+                    ContentType.CHART,
+                    ContentType.DATA_APP,
+                ],
+                search: undefined,
+                dataAppVizsFilter: undefined,
+                sharedWithMe: true,
+            },
+            expect.any(Object),
+            expect.objectContaining({ page: 1, pageSize: 10 }),
+        );
+    });
+
+    it('restricts to requested grantable content types', async () => {
+        const findSummaryContents = vi.fn(emptyModelPage);
+        const deps = createService({
+            contentModel: {
+                findSummaryContents,
+            } as unknown as ContentModel,
+            sharedWithMeUuids: {
+                dashboard: ['dashboard-1'],
+                chart: ['chart-1'],
+                sqlChart: [],
+                app: ['app-1'],
+            },
+        });
+
+        await deps.service.find(
+            createUser(),
+            { sharedWithMe: true, contentTypes: [ContentType.DASHBOARD] },
+            {},
+            { page: 1, pageSize: 10 },
+        );
+
+        expect(findSummaryContents).toHaveBeenCalledWith(
+            expect.objectContaining({
+                uuids: ['dashboard-1'],
+                contentTypes: [ContentType.DASHBOARD],
+            }),
+            expect.any(Object),
+            expect.any(Object),
+        );
+    });
+
+    it('returns an empty page without querying content when nothing is granted', async () => {
+        const findSummaryContents = vi.fn(emptyModelPage);
+        const deps = createService({
+            contentModel: {
+                findSummaryContents,
+            } as unknown as ContentModel,
+        });
+
+        await expect(
+            deps.service.find(
+                createUser(),
+                { sharedWithMe: true },
+                {},
+                { page: 2, pageSize: 25 },
+            ),
+        ).resolves.toEqual({
+            data: [],
+            pagination: {
+                page: 2,
+                pageSize: 25,
+                totalPageCount: 0,
+                totalResults: 0,
+            },
+        });
+        expect(findSummaryContents).not.toHaveBeenCalled();
+    });
+
+    it('returns an empty page for space-only requests without resolving grants', async () => {
+        const deps = createService({
+            sharedWithMeUuids: { dashboard: ['dashboard-1'] },
+        });
+
+        await expect(
+            deps.service.find(
+                createUser(),
+                { sharedWithMe: true, contentTypes: [ContentType.SPACE] },
+                {},
+                { page: 1, pageSize: 10 },
+            ),
+        ).resolves.toMatchObject({ data: [] });
+        expect(
+            deps.directAccessService.findSharedWithMeAccess,
+        ).not.toHaveBeenCalled();
     });
 });

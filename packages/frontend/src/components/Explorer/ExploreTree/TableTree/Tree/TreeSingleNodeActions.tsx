@@ -2,6 +2,7 @@ import {
     DimensionType,
     FeatureFlags,
     friendlyName,
+    getCustomDimensionWriteBackError,
     getCustomMetricType,
     getItemId,
     isAdditionalMetric,
@@ -11,9 +12,11 @@ import {
     isDimension,
     isFilterableField,
     isMetric,
+    type MetricType,
     type AdditionalMetric,
     type CustomDimension,
     type Dimension,
+    type FilterableField,
     type Metric,
 } from '@lightdash/common';
 import { Box, Menu, type MenuProps, ActionIcon, Tooltip } from '@mantine/core';
@@ -40,6 +43,7 @@ import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSql } from '../../../../../hooks/user/useCannotAuthorCustomSql';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
+import { useRequestRegistryMetricDelete } from '../../../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
@@ -52,6 +56,12 @@ type Props = {
     isOpened: MenuProps['opened'];
     onMenuChange: MenuProps['onChange'];
     onViewDescription: () => void;
+    onAddFilter?: (field: FilterableField) => void;
+    /** Quick-create a metric from a dimension in place; falls back to the modal */
+    onQuickCreateMetric?: (type: MetricType) => void;
+    basicActionsOnly?: boolean;
+    /** Registry metrics stay basicActionsOnly but keep the edit entry point */
+    allowRegistryEdit?: boolean;
 };
 
 const TreeSingleNodeActions: FC<Props> = ({
@@ -62,6 +72,10 @@ const TreeSingleNodeActions: FC<Props> = ({
     onMenuChange,
     hasDescription,
     onViewDescription,
+    onAddFilter,
+    onQuickCreateMetric,
+    basicActionsOnly = false,
+    allowRegistryEdit = false,
 }) => {
     const projectUuid = useProjectUuid();
     const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
@@ -72,6 +86,9 @@ const TreeSingleNodeActions: FC<Props> = ({
     const { track } = useTracking();
 
     const dispatch = useExplorerDispatch();
+    const customDimensionWriteBackError = isCustomDimension(item)
+        ? getCustomDimensionWriteBackError(item)
+        : null;
     const customMetrics = useMemo(() => {
         if (isCustomSqlDimension(item)) {
             return getCustomMetricType(item.dimensionType);
@@ -79,11 +96,7 @@ const TreeSingleNodeActions: FC<Props> = ({
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
 
-    const { data: writeBackCustomBinDimensionsFlag } = useServerFeatureFlag(
-        FeatureFlags.WriteBackCustomBinDimensions,
-    );
-    const isWriteBackCustomBinDimensionsEnabled =
-        writeBackCustomBinDimensionsFlag?.enabled ?? false;
+    const requestRegistryMetricDelete = useRequestRegistryMetricDelete();
 
     const { data: customGroupBinsFlag } = useServerFeatureFlag(
         FeatureFlags.CustomGroupBins,
@@ -129,8 +142,6 @@ const TreeSingleNodeActions: FC<Props> = ({
     return isHovered || isSelected || isOpened ? (
         <Menu
             withArrow
-            withinPortal
-            shadow="lg"
             position="bottom-end"
             arrowOffset={12}
             offset={-4}
@@ -148,14 +159,20 @@ const TreeSingleNodeActions: FC<Props> = ({
                             track({
                                 name: EventName.ADD_FILTER_CLICKED,
                             });
-                            addFilter(item, undefined);
+                            if (onAddFilter) {
+                                onAddFilter(item);
+                            } else {
+                                addFilter(item, undefined);
+                            }
                         }}
                     >
                         Add filter
                     </Menu.Item>
                 ) : null}
 
-                {isMetric(item) && isAggregateMetricType(item.type) ? (
+                {!basicActionsOnly &&
+                isMetric(item) &&
+                isAggregateMetricType(item.type) ? (
                     <Menu.Item
                         component="button"
                         leftSection={<MantineIcon icon={IconCopy} />}
@@ -177,28 +194,42 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </Menu.Item>
                 ) : null}
 
-                {isAdditionalMetric(item) ? (
+                {(!basicActionsOnly || allowRegistryEdit) &&
+                isAdditionalMetric(item) ? (
+                    <Menu.Item
+                        component="button"
+                        leftSection={<MantineIcon icon={IconEdit} />}
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation();
+                            dispatch(
+                                explorerActions.toggleAdditionalMetricModal({
+                                    type: item.type,
+                                    item,
+                                    isEditing: true,
+                                }),
+                            );
+                        }}
+                    >
+                        Edit custom metric
+                    </Menu.Item>
+                ) : null}
+
+                {allowRegistryEdit && isAdditionalMetric(item) ? (
+                    <Menu.Item
+                        component="button"
+                        color="red"
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation();
+                            requestRegistryMetricDelete?.(item);
+                        }}
+                    >
+                        Delete custom metric
+                    </Menu.Item>
+                ) : null}
+
+                {!basicActionsOnly && isAdditionalMetric(item) ? (
                     <>
-                        <Menu.Item
-                            component="button"
-                            leftSection={<MantineIcon icon={IconEdit} />}
-                            onClick={(
-                                e: React.MouseEvent<HTMLButtonElement>,
-                            ) => {
-                                e.stopPropagation();
-                                dispatch(
-                                    explorerActions.toggleAdditionalMetricModal(
-                                        {
-                                            type: item.type,
-                                            item,
-                                            isEditing: true,
-                                        },
-                                    ),
-                                );
-                            }}
-                        >
-                            Edit custom metric
-                        </Menu.Item>
                         <Menu.Item
                             component="button"
                             leftSection={<MantineIcon icon={IconCopy} />}
@@ -249,7 +280,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     );
                                 }}
                             >
-                                Write back to dbt
+                                Write back to project
                             </Menu.Item>
                         ) : null}
 
@@ -291,7 +322,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </Menu.Item>
                 )}
 
-                {isCustomDimension(item) && (
+                {!basicActionsOnly && isCustomDimension(item) && (
                     <>
                         {!(
                             isCustomSqlDimension(item) && cannotAuthorCustomSql
@@ -338,46 +369,66 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 >
                                     Duplicate custom dimension
                                 </Menu.Item>
-                                {(isCustomSqlDimension(item) ||
-                                    isWriteBackCustomBinDimensionsEnabled) && (
-                                    <Menu.Item
-                                        component="button"
-                                        leftSection={
-                                            <MantineIcon icon={IconCode} />
+                                {!cannotAuthorCustomSql && (
+                                    <Tooltip
+                                        label={customDimensionWriteBackError}
+                                        disabled={
+                                            !customDimensionWriteBackError
                                         }
-                                        onClick={(
-                                            e: React.MouseEvent<HTMLButtonElement>,
-                                        ) => {
-                                            e.stopPropagation();
-                                            if (
-                                                projectUuid &&
-                                                user.data?.organizationUuid
-                                            ) {
-                                                track({
-                                                    name: EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED,
-                                                    properties: {
-                                                        userId: user.data
-                                                            .userUuid,
-                                                        projectId: projectUuid,
-                                                        organizationId:
-                                                            user.data
-                                                                .organizationUuid,
-                                                        customDimensionsCount: 1,
-                                                    },
-                                                });
-                                            }
-
-                                            dispatch(
-                                                explorerActions.toggleWriteBackModal(
-                                                    {
-                                                        items: [item],
-                                                    },
-                                                ),
-                                            );
-                                        }}
                                     >
-                                        Write back to dbt
-                                    </Menu.Item>
+                                        <Box component="span">
+                                            <Menu.Item
+                                                component="button"
+                                                disabled={
+                                                    !!customDimensionWriteBackError
+                                                }
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconCode}
+                                                    />
+                                                }
+                                                onClick={(
+                                                    e: React.MouseEvent<HTMLButtonElement>,
+                                                ) => {
+                                                    e.stopPropagation();
+                                                    if (
+                                                        customDimensionWriteBackError
+                                                    )
+                                                        return;
+                                                    if (
+                                                        projectUuid &&
+                                                        user.data
+                                                            ?.organizationUuid
+                                                    ) {
+                                                        track({
+                                                            name: EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED,
+                                                            properties: {
+                                                                userId: user
+                                                                    .data
+                                                                    .userUuid,
+                                                                projectId:
+                                                                    projectUuid,
+                                                                organizationId:
+                                                                    user.data
+                                                                        .organizationUuid,
+                                                                customDimensionsCount: 1,
+                                                            },
+                                                        });
+                                                    }
+
+                                                    dispatch(
+                                                        explorerActions.toggleWriteBackModal(
+                                                            {
+                                                                items: [item],
+                                                            },
+                                                        ),
+                                                    );
+                                                }}
+                                            >
+                                                Write back to project
+                                            </Menu.Item>
+                                        </Box>
+                                    </Tooltip>
                                 )}
                             </>
                         )}
@@ -408,7 +459,8 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </>
                 )}
 
-                {customMetrics.length > 0 &&
+                {!basicActionsOnly &&
+                customMetrics.length > 0 &&
                 (isDimension(item) || isCustomSqlDimension(item)) ? (
                     <>
                         <Menu.Divider />
@@ -423,20 +475,20 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     e: React.MouseEvent<HTMLButtonElement>,
                                 ) => {
                                     e.stopPropagation();
-                                    console.debug(
-                                        'opening custom metric modal: ' +
-                                            metric,
-                                    );
 
-                                    dispatch(
-                                        explorerActions.toggleAdditionalMetricModal(
-                                            {
-                                                type: metric,
-                                                item,
-                                                isEditing: false,
-                                            },
-                                        ),
-                                    );
+                                    if (onQuickCreateMetric) {
+                                        onQuickCreateMetric(metric);
+                                    } else {
+                                        dispatch(
+                                            explorerActions.toggleAdditionalMetricModal(
+                                                {
+                                                    type: metric,
+                                                    item,
+                                                    isEditing: false,
+                                                },
+                                            ),
+                                        );
+                                    }
 
                                     track({
                                         name: EventName.ADD_CUSTOM_METRIC_CLICKED,
@@ -449,7 +501,8 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </>
                 ) : null}
 
-                {isDimension(item) &&
+                {!basicActionsOnly &&
+                isDimension(item) &&
                 (item.type === DimensionType.NUMBER ||
                     (item.type === DimensionType.STRING &&
                         isCustomGroupBinsEnabled)) ? (
@@ -495,7 +548,10 @@ const TreeSingleNodeActions: FC<Props> = ({
                         label="View options"
                         disabled={isOpened}
                     >
-                        <ActionIcon color="gray" variant="transparent">
+                        <ActionIcon
+                            aria-label="View options"
+                            variant="transparent"
+                        >
                             <MantineIcon
                                 icon={IconDots}
                                 color={isOpened ? 'black' : undefined}

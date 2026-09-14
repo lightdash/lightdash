@@ -22,8 +22,11 @@ import { type CSSProperties, type FC } from 'react';
 import { Link } from 'react-router';
 import { useProjectColorPalette } from '../../../../hooks/appearance/useProjectColorPalette';
 import { useOrganizationBrand } from '../../../../hooks/organization/useOrganizationBrand';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
+import { usePersonalSpace } from '../../../../hooks/useSpaces';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
+import { resolveInternalPath } from '../../../../utils/url';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
 import { useReportRuntimeEmpty } from '../hooks/useRuntimeEmptyBlocks';
 import classes from './blockStyles.module.css';
@@ -31,18 +34,29 @@ import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 type CtaConfig = HomepageCtaBlock['config'];
 
-const targetUrl = (target: HomepageCtaTarget, projectUuid: string): string => {
+const targetUrl = (
+    target: HomepageCtaTarget,
+    projectUuid: string,
+    projectUrlIdentifier: string,
+    personalSpaceUuid: string | null,
+): string => {
     switch (target.type) {
         case 'ask-ai':
             return `/projects/${projectUuid}/ai-agents`;
         case 'run-query':
             return `/projects/${projectUuid}/tables`;
         case 'browse-dashboards':
-            return `/projects/${projectUuid}/dashboards`;
+            return `/projects/${projectUrlIdentifier}/dashboards`;
         case 'browse-spaces':
-            return `/projects/${projectUuid}/spaces`;
+            return `/projects/${projectUrlIdentifier}/spaces`;
         case 'dashboard':
-            return `/projects/${projectUuid}/dashboards/${target.dashboardUuid}/view`;
+            return `/projects/${projectUrlIdentifier}/dashboards/${target.dashboardUuid}/view`;
+        case 'space':
+            return `/projects/${projectUrlIdentifier}/spaces/${target.spaceUuid}`;
+        case 'my-space':
+            return personalSpaceUuid
+                ? `/projects/${projectUrlIdentifier}/spaces/${personalSpaceUuid}`
+                : `/projects/${projectUrlIdentifier}/spaces`;
         case 'link':
             return target.url;
         default:
@@ -119,8 +133,16 @@ const CtaBanner: FC<{
     config: CtaConfig;
     projectUuid: string;
     interactive: boolean;
+    personalSpaceUuid?: string | null;
     onNavigate?: () => void;
-}> = ({ config, projectUuid, interactive, onNavigate }) => {
+}> = ({
+    config,
+    projectUuid,
+    interactive,
+    personalSpaceUuid = null,
+    onNavigate,
+}) => {
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const { data: brand } = useOrganizationBrand();
     const theme = config.theme ?? 'brand';
     const background = config.background ?? 'none';
@@ -168,8 +190,15 @@ const CtaBanner: FC<{
     if (!interactive) {
         return <div {...shared}>{body}</div>;
     }
-    const url = targetUrl(config.target, projectUuid);
-    return config.target.type === 'link' ? (
+    const url = targetUrl(
+        config.target,
+        projectUuid,
+        projectUrlIdentifier,
+        personalSpaceUuid,
+    );
+    const internalPath =
+        config.target.type === 'link' ? resolveInternalPath(url) : url;
+    return internalPath === null ? (
         <a
             href={url}
             target="_blank"
@@ -180,7 +209,7 @@ const CtaBanner: FC<{
             {body}
         </a>
     ) : (
-        <Link to={url} onClick={onNavigate} {...shared}>
+        <Link to={internalPath} onClick={onNavigate} {...shared}>
             {body}
         </Link>
     );
@@ -193,9 +222,14 @@ export const CtaBlockView: FC<BlockComponentProps> = ({
     const { canAskAi } = useHomepageAiState(projectUuid);
     const { track } = useTracking();
     const config = block.type === 'cta' ? block.config : null;
-    // An ask-ai CTA is a dead button for viewers without AI — the page is
+    const personalSpace = usePersonalSpace(projectUuid, {
+        enabled: config?.target.type === 'my-space',
+    });
+    // A CTA whose target the viewer cannot use is a dead button — the page is
     // told at runtime so the row collapses instead of leaving a gap.
-    const hidden = config?.target.type === 'ask-ai' && !canAskAi;
+    const hidden =
+        (config?.target.type === 'ask-ai' && !canAskAi) ||
+        (config?.target.type === 'my-space' && !personalSpace.data);
     useReportRuntimeEmpty(block.id, hidden === true, false);
     if (!config || hidden) return null;
     return (
@@ -203,6 +237,7 @@ export const CtaBlockView: FC<BlockComponentProps> = ({
             config={config}
             projectUuid={projectUuid}
             interactive
+            personalSpaceUuid={personalSpace.data?.uuid ?? null}
             onNavigate={() =>
                 track({
                     name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED,
@@ -297,10 +332,14 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
     const config = block.config;
     const patch = (partial: Partial<CtaConfig>) =>
         onChange({ ...block, config: { ...config, ...partial } });
-    // A stored dashboard target (config-as-code) keeps rendering; the picker
-    // covers the built-in destinations plus a free URL.
+    // A stored dashboard or space target (config-as-code) keeps rendering; the
+    // picker covers the built-in destinations plus a free URL.
     const targetChoice: TargetChoice =
-        config.target.type === 'dashboard' ? 'link' : config.target.type;
+        config.target.type === 'dashboard' ||
+        config.target.type === 'space' ||
+        config.target.type === 'my-space'
+            ? 'link'
+            : config.target.type;
     return (
         <Stack gap="sm">
             <CtaBanner

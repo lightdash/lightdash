@@ -1,7 +1,9 @@
+import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
 import { type DashboardFieldTarget, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
+import { type AdditionalMetric } from './metricQuery';
 import { type DashboardParameters } from './parameters';
 import {
     type ChartKind,
@@ -151,6 +153,8 @@ export type CreateDashboard = {
     tabs: DashboardTab[];
     config?: DashboardConfig;
     colorPaletteUuid?: string | null;
+    /** Set to a user uuid to assign an owner, null or omitted for no owner */
+    ownerUserUuid?: string | null;
 };
 
 export type DashboardTile =
@@ -241,11 +245,36 @@ export type DashboardConfig = {
     dateZoomConfig?: DateZoomConfig;
     /** Editor-authored note shown to viewers while filter rules are unmet */
     requiredFiltersNote?: string;
+    /** Custom metrics offered to charts built inside this dashboard. Interim
+     *  store — moves to a semantic-layer draft later; don't read it elsewhere. */
+    customMetrics?: AdditionalMetric[];
+};
+
+export type DashboardOwner = {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+};
+
+export type DashboardDraftOverlayError = {
+    code: 'invalid_dashboard_draft';
+    draftUuid: string;
 };
 
 export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
+    /** Set when the viewer has an unpublished draft applied on top */
+    hasUnpublishedChanges?: boolean;
+    /** For reviewers: open drafts by other users awaiting review */
+    draftsAwaitingReview?: number;
+    /** The author draft was preserved but could not be safely rendered */
+    draftOverlayError?: DashboardDraftOverlayError;
+    /** The viewer authored a dismissed draft that can be reopened */
+    dismissedDraftUuid?: string;
+    /** The viewer's draft started from an upload snapshot the repo has since moved past */
+    draftStaleness?: ContentDraftStaleness;
     dashboardVersionId: number;
     versionUuid: string;
     uuid: string;
@@ -269,6 +298,7 @@ export type Dashboard = {
     slug: string;
     config?: DashboardConfig;
     colorPaletteUuid: string | null;
+    owner: DashboardOwner | null;
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;
@@ -277,27 +307,10 @@ export type Dashboard = {
     } | null;
 };
 
-export enum DashboardSummaryTone {
-    FRIENDLY = 'friendly',
-    FORMAL = 'formal',
-    DIRECT = 'direct',
-    ENTHUSIASTIC = 'enthusiastic',
-}
-
-export type DashboardSummary = {
-    dashboardSummaryUuid: string;
-    dashboardUuid: string;
-    dashboardVersionId: number;
-    context?: string | null;
-    tone: DashboardSummaryTone;
-    audiences: string[];
-    summary: string;
-    createdAt: Date;
-};
-
 export type DashboardBasicDetails = Pick<
     Dashboard,
     | 'uuid'
+    | 'slug'
     | 'name'
     | 'description'
     | 'updatedAt'
@@ -312,6 +325,8 @@ export type DashboardBasicDetails = Pick<
 > & {
     validationErrors?: ValidationSummary[];
     verification: ContentVerificationInfo | null;
+    /** Only populated by the v2 content API */
+    owner?: DashboardOwner | null;
 };
 
 export type DashboardBasicDetailsWithTileTypes = DashboardBasicDetails & {
@@ -322,7 +337,7 @@ export type SpaceDashboard = DashboardBasicDetails;
 
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
-    'name' | 'description' | 'spaceUuid' | 'colorPaletteUuid'
+    'name' | 'description' | 'spaceUuid' | 'colorPaletteUuid' | 'ownerUserUuid'
 >;
 
 export type DashboardVersionedFields = Pick<
@@ -353,7 +368,10 @@ export type DashboardAvailableFilters = {
     allFilterableFields: FilterableDimension[];
     allFilterableMetrics: Metric[];
     savedQueryMetricFilters: Record<string, number[]>;
-    defaultTimeDimensions: Record<string, DashboardFieldTarget>;
+    // Wire-compat with SDK bundles 1.64.0-1.197.x: those frontends call
+    // Object.entries() on this key unguarded, so it must stay present (empty)
+    // even though the auto-mapping feature it fed was removed in #27619.
+    defaultTimeDimensions?: Record<string, DashboardFieldTarget>;
 };
 
 export type SavedChartsInfoForDashboardAvailableFilters = {
@@ -365,7 +383,8 @@ export const isDashboardUnversionedFields = (
     data: UpdateDashboard,
 ): data is DashboardUnversionedFields =>
     ('name' in data && !!data.name) ||
-    ('spaceUuid' in data && !!data.spaceUuid);
+    ('spaceUuid' in data && !!data.spaceUuid) ||
+    ('ownerUserUuid' in data && data.ownerUserUuid !== undefined);
 
 export const isDashboardVersionedFields = (
     data: UpdateDashboard,
@@ -491,6 +510,30 @@ export type ApiGetDashboardHistoryResponse = {
     results: DashboardHistory;
 };
 
+export type DashboardCustomMetricAffectedChart = {
+    uuid: string;
+    name: string;
+};
+
+export type UpdateDashboardCustomMetric = {
+    /** Replacement definition; must keep the existing table and name */
+    metric: AdditionalMetric;
+    /** Report affected charts without writing anything */
+    dryRun?: boolean;
+};
+
+export type DashboardCustomMetricUpdateResult = {
+    customMetrics: AdditionalMetric[];
+    /** Dashboard-owned charts whose snapshot references the metric */
+    affectedCharts: DashboardCustomMetricAffectedChart[];
+    dryRun: boolean;
+};
+
+export type ApiUpdateDashboardCustomMetricResponse = {
+    status: 'ok';
+    results: DashboardCustomMetricUpdateResult;
+};
+
 export type ApiGetDashboardVersionResponse = {
     status: 'ok';
     results: DashboardVersion;
@@ -499,4 +542,28 @@ export type ApiGetDashboardVersionResponse = {
 export type ApiDashboardRollbackResponse = {
     status: 'ok';
     results: undefined;
+};
+
+/** Dashboards owned by a user across all projects, e.g. for offboarding */
+export type UserDashboardsSummary = {
+    totalCount: number;
+    byProject: Array<{
+        projectUuid: string;
+        projectName: string;
+        count: number;
+    }>;
+};
+
+export type ReassignUserDashboardsRequest = {
+    newOwnerUserUuid: string;
+};
+
+export type ApiUserDashboardsSummaryResponse = {
+    status: 'ok';
+    results: UserDashboardsSummary;
+};
+
+export type ApiReassignUserDashboardsResponse = {
+    status: 'ok';
+    results: { reassignedCount: number };
 };

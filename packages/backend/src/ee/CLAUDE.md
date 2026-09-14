@@ -19,9 +19,6 @@ if (lightdashConfig.license.licenseKey) {
 }
 
 // Use enterprise services like any other service
-const aiService = serviceRepository.getAiService();
-const summary = await aiService.generateDashboardSummary(dashboardUuid);
-
 const embedService = serviceRepository.getEmbedService();
 const embedUrl = await embedService.createEmbedUrl(dashboard, options);
 ```
@@ -79,14 +76,6 @@ This architecture allows the EE to seamlessly extend the base application while 
 ## Code Examples
 
 ```typescript
-// Example: AI-powered dashboard summary
-const aiService = serviceRepository.getAiService();
-const summary = await aiService.generateDashboardSummary({
-    dashboardUuid: 'dash-123',
-    organizationUuid: 'org-456',
-    userUuid: 'user-789',
-});
-
 // Example: Dashboard embedding with JWT
 const embedService = serviceRepository.getEmbedService();
 const embedToken = await embedService.createEmbedToken({

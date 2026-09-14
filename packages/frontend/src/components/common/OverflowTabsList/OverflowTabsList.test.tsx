@@ -1,6 +1,6 @@
 import { Tabs } from '@mantine/core';
 import { fireEvent, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import OverflowTabsList from './OverflowTabsList';
 
@@ -93,5 +93,23 @@ describe('OverflowTabsList', () => {
             scrollLeft: 240,
         });
         expect(trailingChevron(container)).toBeNull();
+    });
+
+    it('scrolls only the strip to the active tab, never its ancestors', () => {
+        const ancestorScroll = vi.spyOn(
+            HTMLElement.prototype,
+            'scrollIntoView',
+        );
+        renderWithProviders(
+            <Tabs defaultValue="data">
+                <OverflowTabsList>
+                    <Tabs.Tab value="display">Display</Tabs.Tab>
+                    <Tabs.Tab value="data">Data</Tabs.Tab>
+                </OverflowTabsList>
+            </Tabs>,
+        );
+
+        expect(ancestorScroll).not.toHaveBeenCalled();
+        ancestorScroll.mockRestore();
     });
 });

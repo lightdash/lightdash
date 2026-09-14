@@ -22,8 +22,10 @@ export { createPostMessageTransport } from './postMessageTransport';
 export {
     SDK_FEATURES,
     SDK_FEATURE_KEYS,
+    SDK_FEATURE_TARGETS,
     SDK_MANIFEST_MESSAGE_TYPE,
     type SdkFeature,
+    type SdkFeatureTarget,
     type SdkManifestMessage,
 } from './features';
 
@@ -31,6 +33,7 @@ export {
 export type {
     AdditionalMetric,
     Column,
+    ColumnType,
     CustomDimension,
     DownloadResultsFileType,
     DownloadResultsLimit,
@@ -98,13 +101,17 @@ export {
     useVizContext,
     getFormatted,
     getRaw,
+    resolveSeriesColor,
+    resolveValueColor,
 } from './vizContext';
 export type {
     VizContext,
     VizContextCell,
     VizContextOptionValue,
+    VizContextPivotDetails,
     VizContextRow,
     VizUnderlyingData,
+    VizDrillDown,
     DataAppVizContextMessage,
     VizContextRequestMessage,
 } from './vizContext';

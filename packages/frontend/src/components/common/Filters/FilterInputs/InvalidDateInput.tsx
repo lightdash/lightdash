@@ -31,13 +31,7 @@ const InvalidDateInput: FC<Props> = ({
     };
 
     return (
-        <Popover
-            shadow="sm"
-            withinPortal
-            {...popoverProps}
-            opened={opened}
-            onClose={closePopover}
-        >
+        <Popover {...popoverProps} opened={opened} onClose={closePopover}>
             <Popover.Target>
                 <TextInput
                     w="100%"

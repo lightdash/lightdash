@@ -2,9 +2,12 @@ import { ChartKind } from '@lightdash/common';
 import { Anchor, Box, Text, type AnchorProps } from '@mantine/core';
 import {
     IconArrowRight,
+    IconAppWindow,
     IconBrandGithub,
     IconChartBar,
+    IconClick,
     IconFile,
+    IconFileSpreadsheet,
     IconFlask,
     IconGitPullRequest,
     IconLayoutDashboard,
@@ -24,9 +27,12 @@ type ContentReferenceKind =
     | 'artifact'
     | 'chart'
     | 'dashboard'
+    | 'data_app'
+    | 'data_app_element'
     | 'thread'
     | 'file'
     | 'repository'
+    | 'external_source'
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
@@ -38,6 +44,8 @@ type Props = {
     children: ReactNode;
     kind: ContentReferenceKind;
     showArrow?: boolean;
+    /** Replaces the trailing arrow, e.g. to signal opening in a modal. */
+    trailingIcon?: Icon;
     to?: LinkProps['to'];
 } & Omit<
     AnchorProps,
@@ -62,6 +70,18 @@ const getIconMeta = ({
                 fill: 'green.6',
                 icon: IconLayoutDashboard,
             };
+        case 'data_app':
+            return {
+                color: 'orange.7',
+                fill: 'orange.6',
+                icon: IconAppWindow,
+            };
+        case 'data_app_element':
+            return {
+                color: 'violet.7',
+                fill: 'violet.4',
+                icon: IconClick,
+            };
         case 'artifact':
             return {
                 color: 'indigo.6',
@@ -85,6 +105,12 @@ const getIconMeta = ({
                 color: 'ldGray.7',
                 fill: 'ldGray.4',
                 icon: IconBrandGithub,
+            };
+        case 'external_source':
+            return {
+                color: 'teal.7',
+                fill: 'teal.4',
+                icon: IconFileSpreadsheet,
             };
         case 'pull_request':
             return {
@@ -131,6 +157,7 @@ export const ContentReferenceLink = ({
     children,
     kind,
     showArrow = true,
+    trailingIcon,
     to,
     ...props
 }: Props) => {
@@ -153,8 +180,8 @@ export const ContentReferenceLink = ({
 
             {showArrow && (
                 <MantineIcon
-                    icon={IconArrowRight}
-                    color="ldGray.6"
+                    icon={trailingIcon ?? IconArrowRight}
+                    color="dimmed"
                     size={11}
                     stroke={1.5}
                 />

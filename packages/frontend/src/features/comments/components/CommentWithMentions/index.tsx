@@ -1,4 +1,3 @@
-import { useMantineTheme } from '@mantine/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -24,8 +23,6 @@ export const CommentWithMentions: FC<Props> = ({
     shouldClearEditor,
     setShouldClearEditor,
 }) => {
-    const theme = useMantineTheme();
-
     const fetchSuggestionsRef = useRef(fetchSuggestions);
     useEffect(() => {
         fetchSuggestionsRef.current = fetchSuggestions;
@@ -38,11 +35,13 @@ export const CommentWithMentions: FC<Props> = ({
 
     const editor = useEditor({
         extensions: [
-            StarterKit,
+            StarterKit.configure({
+                link: false,
+                underline: false,
+                trailingNode: false,
+            }),
             Mention.configure({
-                HTMLAttributes: {
-                    style: `color: ${theme.colors.blue['6']}; font-weight: 500;`,
-                },
+                HTMLAttributes: { class: 'ld-mention' },
                 suggestion: generateAsyncSuggestionWrapper((query) =>
                     fetchSuggestionsRef.current(query),
                 ),

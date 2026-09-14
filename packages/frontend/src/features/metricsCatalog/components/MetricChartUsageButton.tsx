@@ -48,7 +48,6 @@ export const MetricChartUsageButton = ({
 
     return (
         <Tooltip
-            withinPortal
             disabled={!canViewChartUsage}
             openDelay={200}
             maw={250}
@@ -70,7 +69,6 @@ export const MetricChartUsageButton = ({
                 opacity={hasChartsUsage ? 1 : 0.8}
                 fz="sm"
                 c="ldGray.7"
-                fw={500}
                 className={styles.button}
             >
                 {row.original.chartUsage}

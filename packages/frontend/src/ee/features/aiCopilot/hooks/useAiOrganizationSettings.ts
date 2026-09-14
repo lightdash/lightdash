@@ -1,7 +1,7 @@
 import {
-    FeatureFlags,
     type ApiAiOrganizationRuntimeSettingsResponse,
     type ApiAiOrganizationSettingsResponse,
+    type ApiAiThreadRetentionPreviewResponse,
     type ApiError,
     type ApiUpdateAiOrganizationSettingsResponse,
     type UpdateAiOrganizationSettings,
@@ -16,7 +16,6 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 
 export const resolveAiAgentMemoryEnabled = (
     settings:
@@ -25,8 +24,7 @@ export const resolveAiAgentMemoryEnabled = (
               'aiAgentMemoryEnabled'
           >
         | undefined,
-    featureFlag: { enabled: boolean } | undefined,
-): boolean => settings?.aiAgentMemoryEnabled ?? featureFlag?.enabled ?? false;
+): boolean => settings?.aiAgentMemoryEnabled ?? false;
 
 const getAiOrganizationSettings = async () => {
     return lightdashApi<ApiAiOrganizationRuntimeSettingsResponse['results']>({
@@ -88,10 +86,7 @@ export const useAiOrganizationAdminSettings = (
 
 export const useAiAgentMemoryEnabled = (): boolean => {
     const { data: settings } = useAiOrganizationSettings();
-    const { data: featureFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAgentMemory,
-    );
-    return resolveAiAgentMemoryEnabled(settings, featureFlag);
+    return resolveAiAgentMemoryEnabled(settings);
 };
 
 const updateAiOrganizationSettings = async (
@@ -141,3 +136,28 @@ export const useUpdateAiOrganizationSettings = (
         ...mutationOptions,
     });
 };
+
+const getAiThreadRetentionPreview = async (retentionHours: number) => {
+    const params = new URLSearchParams({
+        retentionHours: String(retentionHours),
+    });
+    return lightdashApi<ApiAiThreadRetentionPreviewResponse['results']>({
+        url: `/aiAgents/admin/settings/thread-retention-preview?${params.toString()}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+/**
+ * What an org retention window of `retentionHours` would delete on the next
+ * cleanup run. Backs the confirmation dialog shown before tightening the org
+ * ceiling; only fetched while the dialog needs it (`enabled`).
+ */
+export const useAiThreadRetentionPreview = (
+    retentionHours: number | undefined,
+) =>
+    useQuery<ApiAiThreadRetentionPreviewResponse['results'], ApiError>({
+        queryKey: ['ai-thread-retention-preview', retentionHours],
+        queryFn: () => getAiThreadRetentionPreview(retentionHours!),
+        enabled: retentionHours !== undefined,
+    });

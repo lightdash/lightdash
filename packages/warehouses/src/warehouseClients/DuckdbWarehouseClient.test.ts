@@ -4,6 +4,7 @@ import {
     DucklakeCatalogType,
     DucklakeDataPathType,
     QueryExecutionContext,
+    WarehouseQueryError,
     WarehouseTypes,
     WeekDay,
 } from '@lightdash/common';
@@ -13,6 +14,7 @@ import type { Mock } from 'vitest';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
+    type DuckdbParquetSource,
     type DuckdbS3Credentials,
 } from './DuckdbWarehouseClient';
 import * as MotherduckInstanceCache from './MotherduckInstanceCache';
@@ -97,7 +99,7 @@ const getMockStreamResult = (
     return {
         columnCount: columnNames.length,
         columnNames: () => columnNames,
-        columnTypeId: (i: number) => columnTypeIds[i] ?? 0,
+        columnType: (i: number) => ({ typeId: columnTypeIds[i] ?? 0 }),
         // eslint-disable-next-line object-shorthand, func-names, no-restricted-syntax
         yieldRowObjectJson: async function* () {
             // eslint-disable-next-line no-restricted-syntax
@@ -140,6 +142,218 @@ const createMockConnection = (
         disconnectSync: vi.fn(),
     }),
     closeSync: vi.fn(),
+});
+
+describe('internal Parquet projects', () => {
+    const scope =
+        'https://storage.googleapis.com/example/events/compacted/org_id=org-a/';
+    const url = `${scope}stream=query_events/dt=2026-09-07/part.parquet`;
+    const source = (): DuckdbParquetSource => ({
+        scope,
+        httpAuth: { bearerToken: 'test-token' },
+        tables: [{ name: 'query_events', urls: [url] }],
+    });
+    let run: Mock;
+    beforeEach(() => {
+        vi.clearAllMocks();
+        run = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () => getMockStreamResult([[{ count: 2 }]], [5])),
+                run,
+            ),
+        );
+    });
+
+    it('binds trusted views, restricts external access and refreshes the manifest each session', async () => {
+        const resolveSource = vi.fn(async () => source());
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource,
+        });
+        await client.runQuery('SELECT count(*) FROM query_events');
+        await client.runQuery('SELECT count(*) FROM query_events');
+        expect(resolveSource).toHaveBeenCalledTimes(2);
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+        expect(run).toHaveBeenCalledWith(`SET allowed_paths = ['${url}'];`);
+        expect(run).toHaveBeenCalledWith('SET enable_external_access = false;');
+        expect(run).toHaveBeenCalledWith("SET temp_directory = '';");
+        expect(run).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'CREATE VIEW "query_events" AS SELECT * FROM read_parquet',
+            ),
+        );
+        expect(client.credentials).not.toHaveProperty('httpAuth');
+        expect(run).toHaveBeenCalledWith("SET memory_limit = '256MB';");
+        for (const cache of [
+            'enable_http_metadata_cache',
+            'enable_external_file_cache',
+            'parquet_metadata_cache',
+        ]) {
+            expect(run).toHaveBeenCalledWith(`SET ${cache} = true;`);
+        }
+        const statements = run.mock.calls.map(([sql]) => sql as string);
+        const bind = statements.findIndex((sql) =>
+            sql.startsWith('CREATE VIEW'),
+        );
+        expect(run).toHaveBeenCalledWith('SET threads = 32;');
+        expect(statements[bind]).toContain('union_by_name = true');
+        const instance = await createInstanceMock.mock.results[0].value;
+        expect(instance.closeSync).toHaveBeenCalledTimes(2);
+    });
+
+    it('honors explicit thread limits during metadata binding and execution', async () => {
+        const client = new DuckdbWarehouseClient(
+            { type: 'duckdb_parquet', resolveSource: async () => source() },
+            { sharedResourceLimits: { threads: 1, memoryLimit: '128MB' } },
+        );
+        await client.runQuery('SELECT count(*) FROM query_events');
+        expect(run).toHaveBeenCalledWith("SET memory_limit = '128MB';");
+        expect(run).toHaveBeenCalledWith('SET threads = 1;');
+        expect(run).not.toHaveBeenCalledWith('SET threads = 32;');
+        expect(run).not.toHaveBeenCalledWith('SET threads = 2;');
+    });
+
+    it('closes the private cache when view binding fails', async () => {
+        run.mockImplementation(async (sql: string) => {
+            if (sql.startsWith('CREATE VIEW'))
+                throw new Error('binding failed');
+        });
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        await expect(
+            client.runQuery('SELECT count(*) FROM query_events'),
+        ).rejects.toThrow(/Internal analytics query failed/);
+        const instance = await createInstanceMock.mock.results[0].value;
+        expect(instance.closeSync).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        'https://storage.googleapis.com/example/events/compacted/org_id=org-b/file.parquet',
+        `${scope}../org-b/file.parquet`,
+        `${scope}%2e%2e/org-b/file.parquet`,
+        `${scope}*.parquet`,
+        '/tmp/private.parquet',
+    ])('rejects files outside the exact manifest scope: %s', async (file) => {
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => ({
+                ...source(),
+                tables: [{ name: 'query_events', urls: [file] }],
+            }),
+        });
+        await expect(
+            client.runQuery('SELECT * FROM query_events'),
+        ).rejects.toThrow();
+        expect(run).not.toHaveBeenCalledWith(
+            expect.stringContaining('CREATE SECRET'),
+        );
+    });
+
+    it.each([
+        { name: 'x"; SELECT 1; --', urls: [url] },
+        { name: 'query_events', urls: [] },
+    ])(
+        'rejects arbitrary table SQL and empty manifests: $name',
+        async (table) => {
+            const client = new DuckdbWarehouseClient({
+                type: 'duckdb_parquet',
+                resolveSource: async () => ({ ...source(), tables: [table] }),
+            });
+            await expect(client.runQuery('SELECT 1')).rejects.toThrow(
+                /unique names/,
+            );
+        },
+    );
+
+    it('keeps user-supplied read_parquet forbidden', async () => {
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        await expect(
+            client.runQuery(`SELECT * FROM read_parquet('${url}')`),
+        ).rejects.toThrow(/query permissions/);
+    });
+
+    it('allows exact signed GET URLs without configuring bucket credentials', async () => {
+        const signedScope = scope.replace('org_id=', 'org_id%3D');
+        const signedUrl = `${url.replace(/=/g, '%3D')}?X-Amz-Signature=test&X-Amz-Expires=900`;
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => ({
+                scope: signedScope,
+                signedUrls: true,
+                tables: [{ name: 'query_events', urls: [signedUrl] }],
+            }),
+        });
+        await client.runQuery('SELECT count(*) FROM query_events');
+        expect(run).toHaveBeenCalledWith(
+            `SET allowed_paths = ['${signedUrl}'];`,
+        );
+        expect(run).not.toHaveBeenCalledWith(
+            expect.stringContaining('CREATE SECRET'),
+        );
+        expect(run).toHaveBeenCalledWith(
+            'SET enable_external_file_cache = true;',
+        );
+    });
+
+    it.each([
+        'SELECT sql FROM duckdb_views()',
+        'SELECT * FROM duckdb_external_file_cache()',
+        'SELECT * FROM "information_schema"."views"',
+        'SELECT * FROM sqlite_master',
+        "SELECT * FROM pragma_storage_info('query_events')",
+    ])(
+        'blocks metadata queries that could disclose signed URLs: %s',
+        async (sql) => {
+            const client = new DuckdbWarehouseClient({
+                type: 'duckdb_parquet',
+                resolveSource: async () => source(),
+            });
+            await expect(client.runQuery(sql)).rejects.toThrow(
+                /catalog access/,
+            );
+        },
+    );
+
+    it('redacts signed URLs from native query failures', async () => {
+        run.mockRejectedValue(new Error(`${url}?X-Amz-Signature=private`));
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        await expect(
+            client.runQuery('SELECT count(*) FROM query_events'),
+        ).rejects.toThrow(
+            /^Internal analytics query failed\. Check storage access and query permissions\.$/,
+        );
+    });
+
+    it('cannot create privileged readers from public project credentials or shared instances', () => {
+        expect(
+            () =>
+                new DuckdbWarehouseClient({
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.ANALYTICS,
+                    database: 'memory',
+                    schema: 'main',
+                }),
+        ).toThrow(/internal project service/);
+        expect(
+            () =>
+                new DuckdbWarehouseClient(
+                    {
+                        type: 'duckdb_parquet',
+                        resolveSource: async () => source(),
+                    },
+                    { instanceCacheKey: 'shared' },
+                ),
+        ).toThrow(/cannot share/);
+    });
 });
 
 describe('mapFieldTypeFromTypeId', () => {
@@ -214,6 +428,10 @@ describe('DuckdbWarehouseClient', () => {
         });
     });
 
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     it('should return query rows and mapped fields', async () => {
         const rows = [
             {
@@ -250,7 +468,10 @@ describe('DuckdbWarehouseClient', () => {
         expect(result.rows).toEqual(rows);
         expect(result.fields).toEqual({
             customer_name: { type: DimensionType.STRING },
-            order_count: { type: DimensionType.NUMBER },
+            order_count: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'integer' },
+            },
             last_order_at: { type: DimensionType.TIMESTAMP },
         });
     });
@@ -276,12 +497,14 @@ describe('DuckdbWarehouseClient', () => {
         );
 
         expect(streamCallback).toHaveBeenCalledTimes(2);
-        expect(streamCallback).toHaveBeenNthCalledWith(1, chunk1, {
-            id: { type: DimensionType.NUMBER },
-        });
-        expect(streamCallback).toHaveBeenNthCalledWith(2, chunk2, {
-            id: { type: DimensionType.NUMBER },
-        });
+        const idField = {
+            id: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'integer' },
+            },
+        };
+        expect(streamCallback).toHaveBeenNthCalledWith(1, chunk1, idField);
+        expect(streamCallback).toHaveBeenNthCalledWith(2, chunk2, idField);
         expect(result.totalRows).toBe(3);
     });
 
@@ -567,7 +790,7 @@ describe('DuckdbWarehouseClient', () => {
                 return {
                     columnCount: 1,
                     columnNames: () => ['val'],
-                    columnTypeId: () => DUCKDB_TYPE_IDS.INTEGER,
+                    columnType: () => ({ typeId: DUCKDB_TYPE_IDS.INTEGER }),
                     yieldRowObjectJson: () => iterator,
                 };
             });
@@ -887,6 +1110,87 @@ describe('DuckdbWarehouseClient', () => {
         expect(secretSql).not.toContain("SECRET '");
     });
 
+    it('scopes S3 credentials to the trusted external-source object', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        const scope = [
+            's3://bucket/external-sources/project/source/table/v1.parquet',
+            's3://bucket/external-sources/project/source/table/v2.parquet',
+        ];
+        const client = DuckdbWarehouseClient.createForPreAggregate({
+            type: 'duckdb_s3',
+            s3Config: {
+                endpoint: 's3.amazonaws.com',
+                forcePathStyle: false,
+                useSsl: true,
+                scope,
+            },
+        });
+
+        await client.runQuery('SELECT 1');
+
+        const secretSql = runMock.mock.calls
+            .map(([sql]) => sql as string)
+            .find((sql) =>
+                sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+            );
+        expect(secretSql).toContain(`SCOPE ('${scope[0]}', '${scope[1]}')`);
+    });
+
+    it('caps isolated S3 queries per organization', async () => {
+        let resolveStream: (
+            result: ReturnType<typeof getMockStreamResult>,
+        ) => void = () => {};
+        const streamMock = vi.fn(
+            () =>
+                new Promise<ReturnType<typeof getMockStreamResult>>(
+                    (resolve) => {
+                        resolveStream = resolve;
+                    },
+                ),
+        );
+        createInstanceMock.mockImplementation(async () =>
+            createMockConnection(streamMock),
+        );
+        const createClient = () =>
+            DuckdbWarehouseClient.createForPreAggregate(
+                {
+                    type: 'duckdb_s3',
+                    s3Config: {
+                        endpoint: 's3.amazonaws.com',
+                        forcePathStyle: false,
+                        useSsl: true,
+                        scope: ['s3://bucket/external-sources/object.parquet'],
+                    },
+                },
+                {
+                    resourceLimits: { memoryLimit: '128MB', threads: 1 },
+                    organizationConcurrencyLimit: 1,
+                },
+            );
+        const tags = { organization_uuid: 'external-source-org' };
+
+        const first = createClient().runQuery('SELECT 1', tags);
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+        await expect(createClient().runQuery('SELECT 2', tags)).rejects.toThrow(
+            'External source query capacity is full',
+        );
+        resolveStream(
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        await first;
+    });
+
     it('should load bundled extensions without runtime installs', async () => {
         const accessMock = vi.spyOn(fs, 'access').mockResolvedValue();
         try {
@@ -1113,6 +1417,54 @@ describe('DuckdbWarehouseClient', () => {
         ]);
     });
 
+    it('points httpfs at the CA bundle the session config names', async () => {
+        const bootstrapRunMock = vi.fn();
+        const queryRunMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        const connectMock = vi
+            .fn()
+            .mockResolvedValueOnce({
+                run: bootstrapRunMock,
+                closeSync: vi.fn(),
+                disconnectSync: vi.fn(),
+            })
+            .mockResolvedValueOnce({
+                run: queryRunMock,
+                stream: streamMock,
+                extractStatements: createMockExtractStatements(),
+                closeSync: vi.fn(),
+                disconnectSync: vi.fn(),
+            });
+        createInstanceMock.mockResolvedValue({
+            connect: connectMock,
+            closeSync: vi.fn(),
+        });
+
+        const client = new DuckdbWarehouseClient(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'results.example.com',
+                    region: 'eu-west-1',
+                    accessKey: 'key',
+                    secretKey: 'secret',
+                    forcePathStyle: false,
+                    useSsl: true,
+                    caCertFile: '/etc/ssl/certs/ca-certificates.crt',
+                },
+            },
+            { instanceCacheKey: 'ca-bundle-session' },
+        );
+
+        await client.runQuery('SELECT 1 AS val');
+
+        expect(bootstrapRunMock).toHaveBeenCalledWith(
+            "SET ca_cert_file = '/etc/ssl/certs/ca-certificates.crt';",
+        );
+    });
+
     it('confines embedded user queries without writing profiles to local files', async () => {
         const runMock = vi.fn();
         const streamMock = vi.fn(async () =>
@@ -1151,12 +1503,12 @@ describe('DuckdbWarehouseClient', () => {
         );
     });
 
-    it('rejects embedded queries beyond the process concurrency budget', async () => {
+    it('runs a queued embedded query once a same-organization holder releases', async () => {
         const pendingStreams: Array<
             (result: ReturnType<typeof getMockStreamResult>) => void
         > = [];
         const streamMock = vi.fn(
-            () =>
+            (_sql: string) =>
                 new Promise<ReturnType<typeof getMockStreamResult>>(
                     (resolve) => {
                         pendingStreams.push(resolve);
@@ -1169,43 +1521,114 @@ describe('DuckdbWarehouseClient', () => {
         );
 
         const createClient = () =>
-            new DuckdbWarehouseClient({
-                type: WarehouseTypes.DUCKDB,
-                connectionType: DuckdbConnectionType.EMBEDDED,
-                dataset: 'jaffle_shop',
-            });
-
-        const firstQuery = createClient().runQuery('SELECT 1 AS val');
-        const secondQuery = createClient().runQuery('SELECT 2 AS val');
-        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
-
-        await expect(
-            createClient().runQuery('SELECT 3 AS val'),
-        ).rejects.toThrow(
-            'Playground query capacity is full. Try again shortly.',
+            new DuckdbWarehouseClient(
+                {
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.EMBEDDED,
+                    dataset: 'jaffle_shop',
+                },
+                { embeddedQueryTimeoutMs: 60_000 },
+            );
+        const tags = { organization_uuid: 'organization-1' };
+        const queries = Array.from({ length: 6 }, (_, index) =>
+            createClient().runQuery(`SELECT ${index + 1} AS val`, tags),
         );
-        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledTimes(4));
+        expect(createInstanceMock).toHaveBeenCalledTimes(4);
+
+        pendingStreams[0](
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        await queries[0];
+
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledTimes(5));
+        expect(createInstanceMock).toHaveBeenCalledTimes(5);
+        expect(streamMock.mock.calls[4]?.[0]).toContain('SELECT 5 AS val');
+
+        pendingStreams[1](
+            getMockStreamResult([[{ val: 2 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        await queries[1];
+
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledTimes(6));
+        expect(createInstanceMock).toHaveBeenCalledTimes(6);
+        expect(streamMock.mock.calls[5]?.[0]).toContain('SELECT 6 AS val');
 
         pendingStreams.forEach((resolve) =>
             resolve(
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
             ),
         );
-        await Promise.all([firstQuery, secondQuery]);
+        await Promise.all(queries.slice(1));
     });
 
-    it('rejects concurrent embedded queries for the same organization', async () => {
-        let resolveStream: (
-            result: ReturnType<typeof getMockStreamResult>,
-        ) => void = () => {};
+    it('times out a queued embedded query with the existing capacity error', async () => {
+        vi.useFakeTimers();
+        const pendingStreams: Array<
+            (result: ReturnType<typeof getMockStreamResult>) => void
+        > = [];
         const streamMock = vi.fn(
             () =>
                 new Promise<ReturnType<typeof getMockStreamResult>>(
                     (resolve) => {
-                        resolveStream = resolve;
+                        pendingStreams.push(resolve);
                     },
                 ),
         );
+        createInstanceMock.mockImplementation(async () =>
+            createMockConnection(streamMock),
+        );
+
+        const createClient = () =>
+            new DuckdbWarehouseClient(
+                {
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.EMBEDDED,
+                    dataset: 'jaffle_shop',
+                },
+                { embeddedQueryTimeoutMs: 60_000 },
+            );
+        const tags = { organization_uuid: 'organization-1' };
+        const activeQueries = Array.from({ length: 4 }, (_, index) =>
+            createClient().runQuery(`SELECT ${index + 1} AS val`, tags),
+        );
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledTimes(4));
+
+        const queuedQuery = createClient().runQuery('SELECT 5 AS val', tags);
+        const capacityError = queuedQuery.catch((error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(15_000);
+
+        const error = await capacityError;
+        expect(error).toBeInstanceOf(WarehouseQueryError);
+        expect(error).toMatchObject({
+            message: 'Playground query capacity is full. Try again shortly.',
+        });
+        expect(createInstanceMock).toHaveBeenCalledTimes(4);
+
+        pendingStreams.forEach((resolve) =>
+            resolve(
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            ),
+        );
+        await Promise.all(activeQueries);
+    });
+
+    it('returns embedded capacity when a query throws', async () => {
+        const pendingStreams: Array<
+            (result: ReturnType<typeof getMockStreamResult>) => void
+        > = [];
+        const streamMock = vi.fn((sql: string) => {
+            if (sql.includes('SELECT 4')) {
+                return Promise.reject(new Error('Query failed'));
+            }
+
+            return new Promise<ReturnType<typeof getMockStreamResult>>(
+                (resolve) => {
+                    pendingStreams.push(resolve);
+                },
+            );
+        });
         createInstanceMock.mockImplementation(async () =>
             createMockConnection(streamMock),
         );
@@ -1217,20 +1640,93 @@ describe('DuckdbWarehouseClient', () => {
                 dataset: 'jaffle_shop',
             });
         const tags = { organization_uuid: 'organization-1' };
+        const activeQueries = Array.from({ length: 3 }, (_, index) =>
+            createClient().runQuery(`SELECT ${index + 1} AS val`, tags),
+        );
+        const failedQuery = createClient().runQuery('SELECT 4 AS val', tags);
 
-        const firstQuery = createClient().runQuery('SELECT 1 AS val', tags);
-        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+        await expect(failedQuery).rejects.toThrow('Query failed');
 
-        await expect(
-            createClient().runQuery('SELECT 2 AS val', tags),
-        ).rejects.toThrow(
-            'Playground query capacity is full. Try again shortly.',
+        const nextQuery = createClient().runQuery('SELECT 5 AS val', tags);
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledTimes(5));
+
+        pendingStreams.forEach((resolve) =>
+            resolve(
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            ),
+        );
+        await Promise.all([...activeQueries, nextQuery]);
+    });
+
+    it('returns the global slot when organization capacity times out', async () => {
+        vi.useFakeTimers();
+        const pendingStreams: Array<
+            (result: ReturnType<typeof getMockStreamResult>) => void
+        > = [];
+        const streamMock = vi.fn(
+            () =>
+                new Promise<ReturnType<typeof getMockStreamResult>>(
+                    (resolve) => {
+                        pendingStreams.push(resolve);
+                    },
+                ),
+        );
+        createInstanceMock.mockImplementation(async () =>
+            createMockConnection(streamMock),
         );
 
-        resolveStream(
-            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        const createClient = () =>
+            new DuckdbWarehouseClient(
+                {
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.EMBEDDED,
+                    dataset: 'jaffle_shop',
+                },
+                { embeddedQueryTimeoutMs: 60_000 },
+            );
+        const organizationOneTags = {
+            organization_uuid: 'organization-1',
+        };
+        const organizationTwoTags = {
+            organization_uuid: 'organization-2',
+        };
+        const organizationOneQueries = Array.from({ length: 4 }, (_, index) =>
+            createClient().runQuery(
+                `SELECT ${index + 1} AS val`,
+                organizationOneTags,
+            ),
         );
-        await firstQuery;
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledTimes(4));
+
+        const timedOutQuery = createClient().runQuery(
+            'SELECT 5 AS val',
+            organizationOneTags,
+        );
+        const capacityError = timedOutQuery.catch((error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(15_000);
+
+        await expect(capacityError).resolves.toMatchObject({
+            name: 'WarehouseQueryError',
+            message: 'Playground query capacity is full. Try again shortly.',
+        });
+
+        const organizationTwoQueries = Array.from({ length: 4 }, (_, index) =>
+            createClient().runQuery(
+                `SELECT ${index + 6} AS val`,
+                organizationTwoTags,
+            ),
+        );
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledTimes(8));
+
+        pendingStreams.forEach((resolve) =>
+            resolve(
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            ),
+        );
+        await Promise.all([
+            ...organizationOneQueries,
+            ...organizationTwoQueries,
+        ]);
     });
 
     it('logs structured profiles for non-embedded queries and reports metrics', async () => {
@@ -1478,6 +1974,12 @@ describe('DuckdbWarehouseClient', () => {
             'read_blob',
             'read_xlsx',
             'parquet_scan',
+            'parquet_metadata',
+            'parquet_schema',
+            'parquet_file_metadata',
+            'parquet_kv_metadata',
+            'parquet_bloom_probe',
+            'sniff_csv',
             'glob',
             'sqlite_scan',
             'postgres_scan',
@@ -1612,6 +2114,52 @@ describe('DuckdbWarehouseClient', () => {
                 ),
             ).rejects.toThrow(
                 "SQL validation error: function 'current_setting' is not allowed",
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it.each(['read_parquet', 'read_json_auto'])(
+            'should reject quoted-identifier calls to "%s"()',
+            async (blockedFunction) => {
+                const streamMock = vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                );
+
+                createInstanceMock.mockResolvedValue(
+                    createMockConnection(streamMock),
+                );
+
+                const client = new DuckdbWarehouseClient();
+                await expect(
+                    client.runQuery(
+                        `SELECT * FROM "${blockedFunction}"('/tmp/a')`,
+                    ),
+                ).rejects.toThrow(
+                    `SQL validation error: function '${blockedFunction}' is not allowed`,
+                );
+                expect(streamMock).not.toHaveBeenCalled();
+            },
+        );
+
+        it('should reject schema-qualified calls to file functions', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runQuery(
+                    "SELECT * FROM main.read_json_auto('/tmp/a.json')",
+                ),
+            ).rejects.toThrow(
+                "SQL validation error: function 'read_json_auto' is not allowed",
             );
             expect(streamMock).not.toHaveBeenCalled();
         });

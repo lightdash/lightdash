@@ -99,8 +99,12 @@ export class UserFavoritesModel {
         projectUuid: string,
         chartUuids: string[],
         allowedSpaceUuids: string[],
+        grantedChartUuids: string[] = [],
     ): Promise<ResourceViewChartItem[]> {
-        if (chartUuids.length === 0 || allowedSpaceUuids.length === 0) {
+        if (
+            chartUuids.length === 0 ||
+            (allowedSpaceUuids.length === 0 && grantedChartUuids.length === 0)
+        ) {
             return [];
         }
         const rows = (await this.database(SavedChartsTableName)
@@ -115,7 +119,18 @@ export class UserFavoritesModel {
                 'users.user_uuid',
             )
             .whereIn(`${SavedChartsTableName}.saved_query_uuid`, chartUuids)
-            .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    allowedSpaceUuids,
+                );
+                if (grantedChartUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        grantedChartUuids,
+                    );
+                }
+            })
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`)
             .select({
@@ -163,8 +178,13 @@ export class UserFavoritesModel {
         projectUuid: string,
         dashboardUuids: string[],
         allowedSpaceUuids: string[],
+        grantedDashboardUuids: string[] = [],
     ): Promise<ResourceViewDashboardItem[]> {
-        if (dashboardUuids.length === 0 || allowedSpaceUuids.length === 0) {
+        if (
+            dashboardUuids.length === 0 ||
+            (allowedSpaceUuids.length === 0 &&
+                grantedDashboardUuids.length === 0)
+        ) {
             return [];
         }
         const rows = (await this.database(DashboardsTableName)
@@ -189,12 +209,24 @@ export class UserFavoritesModel {
             )
             .leftJoin('users', 'dv.updated_by_user_uuid', 'users.user_uuid')
             .whereIn(`${DashboardsTableName}.dashboard_uuid`, dashboardUuids)
-            .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    allowedSpaceUuids,
+                );
+                if (grantedDashboardUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        grantedDashboardUuids,
+                    );
+                }
+            })
             .whereNull(`${DashboardsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`)
             .select(
                 `${SpaceTableName}.space_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.slug`,
                 'users.user_uuid as updated_by_user_uuid',
             )
             .max({
@@ -209,6 +241,7 @@ export class UserFavoritesModel {
             .groupBy(
                 `${SpaceTableName}.space_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.slug`,
                 'users.user_uuid',
             )) as Record<string, AnyType>[];
 
@@ -216,6 +249,7 @@ export class UserFavoritesModel {
             type: ResourceViewItemType.DASHBOARD as const,
             data: {
                 uuid: row.dashboard_uuid,
+                slug: row.slug,
                 spaceUuid: row.space_uuid,
                 description: row.description,
                 name: row.name,
@@ -240,12 +274,17 @@ export class UserFavoritesModel {
         projectUuid: string,
         appUuids: string[],
         allowedSpaceUuids: string[],
+        grantedAppUuids: string[] = [],
     ): Promise<ResourceViewDataAppItem[]> {
-        if (appUuids.length === 0 || allowedSpaceUuids.length === 0) {
+        if (
+            appUuids.length === 0 ||
+            (allowedSpaceUuids.length === 0 && grantedAppUuids.length === 0)
+        ) {
             return [];
         }
+        // Left join: granted personal apps have no space row.
         const rows = (await this.database(AppsTableName)
-            .innerJoin(
+            .leftJoin(
                 SpaceTableName,
                 `${SpaceTableName}.space_uuid`,
                 `${AppsTableName}.space_uuid`,
@@ -267,7 +306,18 @@ export class UserFavoritesModel {
             )
             .whereIn(`${AppsTableName}.app_id`, appUuids)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
-            .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    allowedSpaceUuids,
+                );
+                if (grantedAppUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${AppsTableName}.app_id`,
+                        grantedAppUuids,
+                    );
+                }
+            })
             .whereNull(`${AppsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`)
             .where(

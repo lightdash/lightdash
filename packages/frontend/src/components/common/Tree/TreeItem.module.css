@@ -36,3 +36,7 @@
         visibility: hidden;
     }
 }
+
+.itemIcon {
+    flex-shrink: 0;
+}

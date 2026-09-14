@@ -1,0 +1,20 @@
+/* Large headings get progressively tighter tracking. */
+.root {
+    color: var(--mantine-color-text);
+}
+
+.root[data-order='1'] {
+    letter-spacing: -0.02em;
+}
+
+.root[data-order='2'] {
+    letter-spacing: -0.015em;
+}
+
+.root[data-order='3'] {
+    letter-spacing: -0.01em;
+}
+
+.root[data-order='4'] {
+    letter-spacing: -0.005em;
+}

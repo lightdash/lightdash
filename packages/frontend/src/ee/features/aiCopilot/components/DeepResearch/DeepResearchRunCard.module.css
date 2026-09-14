@@ -1,6 +1,5 @@
 .card {
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldDark-4));
+    border: 1px solid var(--mantine-color-ldGray-3);
 }
 
 .header {
@@ -76,8 +75,7 @@
 }
 
 .answer {
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-4));
+    border: 1px solid var(--mantine-color-default-border);
     background: var(--mantine-color-body);
 }
 
@@ -95,8 +93,7 @@
 
 .activitySection[data-active='true'] {
     padding-top: var(--mantine-spacing-md);
-    border-top: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-4));
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 .activityButton {
@@ -127,10 +124,7 @@
     bottom: 0.5rem;
     left: calc(4.75rem + var(--mantine-spacing-sm) + 0.25rem);
     width: 1px;
-    background: light-dark(
-        var(--mantine-color-ldGray-2),
-        var(--mantine-color-ldDark-4)
-    );
+    background: var(--mantine-color-default-border);
     content: '';
 }
 
@@ -163,8 +157,7 @@
     width: 0.5rem;
     height: 0.5rem;
     margin-top: 0.3rem;
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldDark-3));
+    border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: 50%;
     background: var(--mantine-color-body);
 }

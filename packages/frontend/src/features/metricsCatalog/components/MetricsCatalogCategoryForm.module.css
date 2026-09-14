@@ -6,3 +6,7 @@
     border-radius: var(--mantine-radius-md);
     row-gap: 4px;
 }
+
+.categoryList {
+    overflow-y: auto;
+}

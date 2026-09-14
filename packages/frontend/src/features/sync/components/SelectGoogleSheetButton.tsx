@@ -84,20 +84,18 @@ export const SelectGoogleSheetButton: FC = () => {
                             {googleDriveName}
                         </TruncatedText>
                         <Tooltip
-                            withinPortal
                             label={googleDriveId}
-                            multiline
                             style={{ wordBreak: 'break-word' }}
                         >
                             <MantineIcon
-                                color="ldGray.6"
+                                color="dimmed"
                                 icon={IconInfoCircle}
                                 size={'md'}
                             />
                         </Tooltip>
                     </Group>
                     <Group gap={6} wrap="nowrap">
-                        <Tooltip withinPortal label="Open in Google Sheets">
+                        <Tooltip label="Open in Google Sheets">
                             <Anchor
                                 href={googleDriveUrl}
                                 target="_blank"
@@ -111,11 +109,11 @@ export const SelectGoogleSheetButton: FC = () => {
                                 />
                             </Anchor>
                         </Tooltip>
-                        <Tooltip withinPortal label="Remove">
+                        <Tooltip label="Remove">
                             <CloseButton
                                 size="sm"
                                 variant="subtle"
-                                c="ldGray.6"
+                                c="dimmed"
                                 onClick={() => {
                                     form.setFieldValue('options.gdriveId', '');
                                     form.setFieldValue(
@@ -138,8 +136,6 @@ export const SelectGoogleSheetButton: FC = () => {
 
     return (
         <Tooltip
-            withinPortal
-            multiline
             w={300}
             label="Please ensure you have a Google Sheet already created in your Drive to set as the destination for your results"
         >

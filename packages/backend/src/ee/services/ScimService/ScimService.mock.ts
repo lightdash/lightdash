@@ -18,6 +18,7 @@ import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
 import { UserService } from '../../../services/UserService';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
+import { ScimRequestLogModel } from '../../models/ScimRequestLogModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 import { ScimService } from './ScimService';
 
@@ -200,9 +201,21 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
         removeUserFromAllGroups: vi.fn().mockResolvedValue(2),
     } as unknown as GroupsModel,
     serviceAccountModel: {} as ServiceAccountModel,
-    commercialFeatureFlagModel: {} as CommercialFeatureFlagModel,
+    scimRequestLogModel: {
+        create: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ScimRequestLogModel,
+    commercialFeatureFlagModel: {
+        get: vi.fn().mockResolvedValue({ id: 'custom-roles', enabled: false }),
+    } as unknown as CommercialFeatureFlagModel,
     rolesModel: {
         removeUserProjectAccess: vi.fn().mockResolvedValue(undefined),
+        getOrganizationUserRoleSet: vi
+            .fn()
+            .mockResolvedValue({ systemRole: 'member', customRoleUuids: [] }),
+        replaceOrganizationUserRoleSet: vi.fn().mockResolvedValue(undefined),
+        replaceProjectUserRoleSet: vi.fn().mockResolvedValue(undefined),
+        getUserProjectRoles: vi.fn().mockResolvedValue([]),
+        setUserOrgAndProjectRoleSets: vi.fn().mockResolvedValue(undefined),
         removeUserAccessFromAllProjects: vi.fn().mockResolvedValue(3),
         getRolesByOrganizationUuid: vi.fn().mockResolvedValue(mockCustomRoles),
         upsertSystemRoleProjectAccess: vi.fn().mockResolvedValue(undefined),

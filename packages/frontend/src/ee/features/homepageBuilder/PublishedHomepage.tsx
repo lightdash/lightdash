@@ -17,6 +17,21 @@ import {
 import { RuntimeEmptyBlocksProvider } from './RuntimeEmptyBlocks';
 
 // Unknown block types render nothing so newer configs degrade gracefully
+
+/**
+ * Walkthrough result for manage:ProjectHomepage: the published call to
+ * action, live on the homepage.
+ */
+const ctaTourProps = {
+    'data-tour-scope': 'manage:ProjectHomepage',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/home',
+    'data-tour-label': 'The banner is live for everyone',
+    'data-tour-docs': 'explore/homepage.mdx#build-a-homepage:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs': 'explore/homepage.mdx#build-a-homepage:p2:1-2',
+};
+
 const BlockRenderer: FC<{
     block: HomepageBlock;
     projectUuid: string;
@@ -28,7 +43,7 @@ const BlockRenderer: FC<{
     if (!definition) return null;
     if (personalPlaceholders && definition.personal) {
         return (
-            <Paper withBorder p="md" h="100%">
+            <Paper p="md" h="100%">
                 <Text size="sm" fw={600}>
                     {definition.label}
                 </Text>
@@ -46,6 +61,7 @@ const BlockRenderer: FC<{
             projectUuid={projectUuid}
             itemSpan={itemSpan}
             standalone={standalone}
+            personalPlaceholders={personalPlaceholders}
         />
     );
 };
@@ -83,6 +99,7 @@ const RowRenderer: FC<{
                     className={layout.col}
                     data-weight={column.weight}
                     data-hug-units={column.hugUnits ?? undefined}
+                    {...(column.block.type === 'cta' ? ctaTourProps : {})}
                 >
                     <BlockRenderer
                         block={column.block}

@@ -1,8 +1,11 @@
 # Feature flags in preview environments
 
-Preview environments (`LIGHTDASH_MODE=pr`) and the Okteto agent dev environment
-enable most feature flags by default and expose an API for toggling them, so QA
-can validate recent features without a redeploy.
+For implementation standards, Console rollouts, and self-hosted ENV configuration,
+start with [Adding and operating feature flags](feature-flags.md).
+
+Preview environments (`LIGHTDASH_MODE=pr`) enable most feature flags by default
+and expose an API for toggling them, so QA can validate recent features without
+a redeploy.
 
 ## Defaults
 
@@ -22,15 +25,27 @@ exclusion, with a reason, when that isn't safe. Flags are excluded when they:
   `results-cache-enabled`, `enable-timezone-support`) — these are left to their
   config handler so a preview never advertises an unconfigured backend. To test
   AI copilot in a preview, configure a provider (`AI_COPILOT_ENABLED` plus
-  credentials) rather than forcing the flag.
+  credentials) rather than forcing the flag. PR previews pass
+  `AI_COPILOT_ENABLED`, `AI_DEFAULT_PROVIDER`, `ANTHROPIC_API_KEY`,
+  `GEMINI_API_KEY`, and `OPENAI_API_KEY` through from the Okteto admin UI
+  variables (`docker/docker-compose.preview.yml`), so setting those once in the
+  admin UI
+  provisions Ask AI in every preview; leave them unset and the copilot stays
+  off.
 
 Flags that only gate UI can still be enabled while their backend is
 unconfigured (for example email whitelabel needs a Postmark token, data apps
 need an app runtime). Those surfaces render but won't work end to end.
 
 This is controlled by `LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED`, which defaults
-to `true` in PR mode. Set it to `false` for production-like flag resolution, or
-`true` in any other environment (the Okteto dev compose file does this).
+to `true` in PR mode. Set it to `false` for production-like flag resolution.
+
+Rainbow previews run in PR mode too: `rainbow.toml`'s `[env]` table sets
+`LIGHTDASH_MODE=pr`, and `packages/backend`'s `dev` script defers to a mode
+already present in the environment (it defaults to `development` only when
+nothing is set, so local development is unchanged). The table also sets this
+variable outright. Anything touching that table or the services needs the
+Rainbow base image recompiled before it takes effect.
 
 ## Managing flags at runtime
 
@@ -53,21 +68,19 @@ curl -X DELETE -H "Authorization: ApiKey $LDPAT" \
 
 Unknown flag ids are rejected, so a typo can't silently create a dead override.
 
-In an Okteto dev environment the backend runs from the committed TSOA output, so
-run `pnpm generate-api` (and restart the API) if these routes 404. Preview
-environments build with `pnpm build`, which regenerates them.
-
 ## Resolution order
 
 `FeatureFlagModel.get()` resolves in this order:
 
-1. `LIGHTDASH_ENABLE_FEATURE_FLAGS` and `LIGHTDASH_DISABLE_FEATURE_FLAGS`. Enable
-   wins when a flag is in both; disable is absolute — no override overrides it.
+1. `LIGHTDASH_ENABLE_FEATURE_FLAGS` and `LIGHTDASH_DISABLE_FEATURE_FLAGS`. When
+   only disable contains the flag, it is off regardless of stored overrides.
+   When enable contains it (including when both lists do), proceed to the
+   preview override check below before returning on.
 2. In preview environments, a stored override for the user or organization,
    consulted only for flags the environment forces on.
 3. `PREVIEW_ENABLED_FEATURE_FLAGS`, in preview environments.
 4. Per-flag config handlers (for example `EDIT_YAML_IN_UI_ENABLED`).
 5. Database: user override, then organization override, then flag default.
 
-Consulting overrides costs a couple of extra indexed lookups per flag check, in
-preview environments only.
+The preview override check adds indexed lookups to the forced-on path. Ordinary
+database-backed resolution also queries overrides outside preview environments.

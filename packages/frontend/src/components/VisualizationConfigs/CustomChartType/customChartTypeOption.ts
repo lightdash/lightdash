@@ -1,6 +1,6 @@
 /**
  * The secondary picker offers two kinds of custom chart type in one list: the
- * built-in Vega editor and the project's reusable types. They map to different
+ * built-in Vega editor and the project's custom chart types. They map to different
  * `ChartType`s, so the option value is prefixed rather than being a bare uuid.
  */
 export type CustomChartTypeOption =
@@ -21,7 +21,8 @@ export const fromOptionValue = (
     if (value === BUILT_IN_VEGA_VALUE) return { kind: 'builtInVega' };
     if (value.startsWith(PROJECT_TYPE_PREFIX)) {
         const dataAppVizUuid = value.slice(PROJECT_TYPE_PREFIX.length);
-        return dataAppVizUuid ? { kind: 'projectType', dataAppVizUuid } : null;
+        if (dataAppVizUuid === '') return null;
+        return { kind: 'projectType', dataAppVizUuid };
     }
     return null;
 };
@@ -29,4 +30,4 @@ export const fromOptionValue = (
 export const BUILT_IN_VEGA_LABEL = 'Vega (JSON editor)';
 export const BUILT_IN_VEGA_DESCRIPTION = 'Write Vega-Lite JSON by hand';
 export const BUILT_IN_GROUP = 'Built in';
-export const PROJECT_GROUP = 'Project';
+export const PROJECT_GROUP = 'Custom';

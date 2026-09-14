@@ -42,14 +42,10 @@ SHARED_BASE_VOLUME="ld-shared_postgres_base"
 # the core base, which must stay core-only for non-EE instances.
 EE_BASE_VOLUME="ld-shared_postgres_base_ee"
 
+. "$REPO_ROOT/scripts/dev-instance-lib.sh"
+
 fail() { echo "FAIL: $1 -- $2" >&2; exit 1; }
 step() { echo "STEP: $1"; }
-
-instance_pm2_names() {
-    for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
-        echo "${LD_INSTANCE_ID}-${suffix}"
-    done
-}
 
 # One name per call: `pm2 delete a b c` aborts at the first name it cannot
 # find, silently leaving every later one running.
@@ -108,6 +104,27 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+step "Ensure Maple tracing CLI"
+# Maple local mode receives OTLP traces from the API and scheduler (see
+# ecosystem.config.js). It is a standalone binary, not a node_modules bin.
+# Non-fatal: without it the stack runs fine, just untraced.
+if command -v maple >/dev/null 2>&1; then
+    echo "SKIP: maple present ($(command -v maple))"
+else
+    if [ ! -x "$HOME/.maple/bin/maple" ]; then
+        curl -fsSL https://maple.dev/cli/install | sh >/dev/null 2>&1 || true
+    fi
+    if [ -x "$HOME/.maple/bin/maple" ]; then
+        # ecosystem.config.js resolves `maple` off PATH, and PM2 inherits this
+        # shell's PATH, so exporting it here is what makes the sidecar start.
+        export PATH="$HOME/.maple/bin:$PATH"
+        echo "OK: maple available at $HOME/.maple/bin/maple"
+    else
+        echo "SKIP: maple unavailable — stack will run without local tracing"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 step "Ensure Python/dbt venv"
 # The dbt venv is identical across worktrees, so build it ONCE in a shared cache
 # (~/.lightdash/dev-venv) and symlink each worktree's ./venv at it. Saves the
@@ -137,24 +154,24 @@ else
 fi
 
 # The seed deploys the demo project with the backend's default dbt version
-# (currently v1.11, which needs Python >=3.10), so a dbt1.11 binary must be on
+# (currently v1.12, which needs Python >=3.10), so a dbt1.12 binary must be on
 # PATH alongside dbt1.7. Build it in its own shared venv (one dbt-core version
 # per venv) and shim it into the shared venv's bin.
-SHARED_VENV_111="${HOME}/.lightdash/dev-venv-1.11"
-if ! test -x venv/bin/dbt1.11; then
-    if ! test -f "$SHARED_VENV_111/bin/dbt"; then
+SHARED_VENV_112="${HOME}/.lightdash/dev-venv-1.12"
+if ! test -x venv/bin/dbt1.12; then
+    if ! test -f "$SHARED_VENV_112/bin/dbt"; then
         PY310=""
         for p in python3.13 python3.12 python3.11 python3.10; do
             command -v "$p" >/dev/null 2>&1 && PY310="$p" && break
         done
-        [ -n "$PY310" ] || fail "venv" "dbt 1.11 needs Python >=3.10 but none found (install e.g. brew install python@3.12)"
-        "$PY310" -m venv "$SHARED_VENV_111" || fail "venv" "$PY310 -m venv (dbt 1.11 cache) failed"
-        "$SHARED_VENV_111/bin/pip" install 'dbt-core~=1.11.0' dbt-postgres >/dev/null 2>&1 \
-            || fail "venv" "pip install dbt 1.11 into shared cache failed"
+        [ -n "$PY310" ] || fail "venv" "dbt 1.12 needs Python >=3.10 but none found (install e.g. brew install python@3.12)"
+        "$PY310" -m venv "$SHARED_VENV_112" || fail "venv" "$PY310 -m venv (dbt 1.12 cache) failed"
+        "$SHARED_VENV_112/bin/pip" install 'dbt-core~=1.12.0' dbt-postgres >/dev/null 2>&1 \
+            || fail "venv" "pip install dbt 1.12 into shared cache failed"
     fi
-    ln -sf "$SHARED_VENV_111/bin/dbt" "$SHARED_VENV/bin/dbt1.11" 2>/dev/null || ln -sf "$SHARED_VENV_111/bin/dbt" venv/bin/dbt1.11
-    test -x venv/bin/dbt1.11 || fail "venv" "dbt1.11 shim is broken"
-    echo "OK: dbt1.11 available ($SHARED_VENV_111)"
+    ln -sf "$SHARED_VENV_112/bin/dbt" "$SHARED_VENV/bin/dbt1.12" 2>/dev/null || ln -sf "$SHARED_VENV_112/bin/dbt" venv/bin/dbt1.12
+    test -x venv/bin/dbt1.12 || fail "venv" "dbt1.12 shim is broken"
+    echo "OK: dbt1.12 available ($SHARED_VENV_112)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -198,7 +215,10 @@ if test -f .env.development.local; then
     reconcile_env SCHEDULER_PORT "${SCHEDULER_PORT}"
     reconcile_env DEBUG_PORT "${DEBUG_PORT}"
     reconcile_env SDK_TEST_PORT "${SDK_TEST_PORT}"
-    reconcile_env SPOTLIGHT_PORT "${SPOTLIGHT_PORT}"
+    reconcile_env MAPLE_PORT "${MAPLE_PORT}"
+    # The maple CLI defaults to port 4318; point it at this instance so a
+    # `source .env.development.local` shell can query the right server.
+    reconcile_env MAPLE_LOCAL_URL "http://127.0.0.1:${MAPLE_PORT}"
     reconcile_env LIGHTDASH_PROMETHEUS_PORT "${LIGHTDASH_PROMETHEUS_PORT}"
     reconcile_env SITE_URL "http://localhost:${FE_PORT}"
     reconcile_env INTERNAL_LIGHTDASH_HOST "http://localhost:${FE_PORT}"
@@ -244,7 +264,8 @@ FE_PORT=${FE_PORT}
 SCHEDULER_PORT=${SCHEDULER_PORT}
 DEBUG_PORT=${DEBUG_PORT}
 SDK_TEST_PORT=${SDK_TEST_PORT}
-SPOTLIGHT_PORT=${SPOTLIGHT_PORT}
+MAPLE_PORT=${MAPLE_PORT}
+MAPLE_LOCAL_URL=http://127.0.0.1:${MAPLE_PORT}
 LIGHTDASH_PROMETHEUS_PORT=${LIGHTDASH_PROMETHEUS_PORT}
 SITE_URL=http://localhost:${FE_PORT}
 S3_ENDPOINT=http://localhost:9000
@@ -652,4 +673,21 @@ done
 [ "$HEALTH" = "200" ] || fail "health" "backend /api/v1/health returned '${HEALTH:-no response}' after 120s (check 'pm2 logs ${LD_INSTANCE_ID}-api --lines 80 --nostream')"
 
 echo "OK: backend healthy"
-echo "READY: instance=$LD_INSTANCE_ID frontend=http://localhost:${FE_PORT} api=http://localhost:${PORT} spotlight=http://localhost:${SPOTLIGHT_PORT}"
+
+# Maple is optional, so only advertise it once its liveness route answers.
+MAPLE_READY=""
+if command -v maple >/dev/null 2>&1; then
+    for _ in $(seq 1 15); do
+        MAPLE_READY="$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${MAPLE_PORT}/health" 2>/dev/null || true)"
+        [ "$MAPLE_READY" = "200" ] && break
+        sleep 1
+    done
+fi
+if [ "$MAPLE_READY" = "200" ]; then
+    echo "OK: maple tracing on http://localhost:${MAPLE_PORT}"
+    MAPLE_READY_FRAGMENT=" maple=http://localhost:${MAPLE_PORT}"
+else
+    echo "SKIP: maple not serving on ${MAPLE_PORT} — traces unavailable (pnpm pm2:logs:maple)"
+    MAPLE_READY_FRAGMENT=""
+fi
+echo "READY: instance=$LD_INSTANCE_ID frontend=http://localhost:${FE_PORT} api=http://localhost:${PORT}${MAPLE_READY_FRAGMENT}"

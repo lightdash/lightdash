@@ -168,6 +168,20 @@ describe('SavedChartModel custom SQL provenance', () => {
         expect(provenance.tableCalculations).toHaveLength(2);
     });
 
+    it('loads only the latest chart custom SQL provenance', async () => {
+        const provenance = await model.getCustomSqlProvenanceForChart({
+            projectUuid: SEED_PROJECT.project_uuid,
+            savedChartUuid: dashboardChartUuid,
+        });
+
+        expect(provenance).toEqual({
+            exploreName: 'orders',
+            tableCalculations: [{ sql: dashboardSql }],
+            customSqlDimensions: [],
+            additionalMetrics: [],
+        });
+    });
+
     it('does not resolve modified SQL', async () => {
         const provenance = await findTableCalculationProvenance([
             `${dashboardSql} + 1`,

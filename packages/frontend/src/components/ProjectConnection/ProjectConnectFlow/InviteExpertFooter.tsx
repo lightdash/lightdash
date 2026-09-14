@@ -22,12 +22,7 @@ const InviteExpertFooter: FC = () => {
     if (!user.data || !canInviteUsers) return null;
 
     return (
-        <Paper
-            withBorder
-            shadow="subtle"
-            radius="md"
-            className={classes.callout}
-        >
+        <Paper radius="md" className={classes.callout}>
             <Group justify="space-between" wrap="nowrap" gap="md">
                 <Group wrap="nowrap" gap="md">
                     <Box className={classes.iconBox}>

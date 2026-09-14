@@ -1,6 +1,7 @@
 import {
     ForbiddenError,
     getOrganizationMemberRolePermissions,
+    getPermissionsFromAbilityRules,
     getUncoveredPermissions,
     OrganizationMemberRole,
     type SessionUser,
@@ -28,29 +29,43 @@ const getCallerOrganizationScopes = async (
         throw new ForbiddenError('You do not have permission');
     }
 
-    // Custom roles never list this scope, but the ability builder still grants
-    // it from the PAT config, so it is part of the caller's real footprint.
+    // Read off the built ability rather than the stored scope list: it
+    // already covers both a role that lists this scope and a config fallback.
     const canManagePersonalAccessToken = user.ability.can(
         'manage',
         'PersonalAccessToken',
     );
 
-    if (!user.roleUuid) {
-        return getOrganizationSystemRoleScopes(user.role, {
-            includePersonalAccessToken: canManagePersonalAccessToken,
-        });
-    }
-
-    // The caller's runtime ability is built from this role's scopes whatever
-    // its level, so the scopes are the caller's footprint either way.
-    const role = await rolesModel.getRoleWithScopesByUuid(user.roleUuid);
-    if (role.organizationUuid !== organizationUuid) {
+    // The caller's runtime ability is the union of the slot (system role or
+    // custom role from the session) and any extra custom roles they hold.
+    const roleSet = await rolesModel.getOrganizationUserRoleSet(
+        organizationUuid,
+        user.userUuid,
+    );
+    const customRoleUuids = [
+        ...new Set([
+            ...(user.roleUuid ? [user.roleUuid] : []),
+            ...roleSet.customRoleUuids,
+        ]),
+    ];
+    const customRoles = await Promise.all(
+        customRoleUuids.map((roleUuid) =>
+            rolesModel.getRoleWithScopesByUuid(roleUuid),
+        ),
+    );
+    if (
+        customRoles.some((role) => role.organizationUuid !== organizationUuid)
+    ) {
         throw new ForbiddenError('You do not have permission');
     }
 
+    const scopes = [
+        ...(user.roleUuid ? [] : getOrganizationSystemRoleScopes(user.role)),
+        ...customRoles.flatMap((role) => role.scopes),
+    ];
     return canManagePersonalAccessToken
-        ? [...role.scopes, 'manage:PersonalAccessToken']
-        : role.scopes;
+        ? [...scopes, 'manage:PersonalAccessToken']
+        : scopes;
 };
 
 export const validateOrganizationScopesCanBeGranted = async ({
@@ -74,6 +89,29 @@ export const validateOrganizationScopesCanBeGranted = async ({
         callerScopes,
     );
 
+    if (uncoveredScopes.length > 0) {
+        throw new ForbiddenError('Cannot grant permissions exceeding your own');
+    }
+};
+
+/**
+ * Project-level delegation: every granted scope must be covered by a permission
+ * the caller's own ability already holds. Callers reaching project role writes
+ * already need `manage` on the project, so this is a floor against granting
+ * scopes the caller does not have anywhere.
+ */
+export const validateProjectScopesCanBeGranted = ({
+    user,
+    grantedScopes,
+}: {
+    user: SessionUser;
+    grantedScopes: string[];
+}): void => {
+    const callerScopes = getPermissionsFromAbilityRules(user.ability.rules);
+    const uncoveredScopes = getUncoveredPermissions(
+        grantedScopes,
+        callerScopes,
+    );
     if (uncoveredScopes.length > 0) {
         throw new ForbiddenError('Cannot grant permissions exceeding your own');
     }

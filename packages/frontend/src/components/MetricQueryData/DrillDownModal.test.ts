@@ -5,7 +5,7 @@ import {
     type DashboardFilters,
     type MetricQuery,
 } from '@lightdash/common';
-import { combineFilters } from './DrillDownModal';
+import { combineFilters } from './combineFilters';
 
 vi.mock('uuid', () => ({
     v4: vi.fn(() => 'test-uuid'),

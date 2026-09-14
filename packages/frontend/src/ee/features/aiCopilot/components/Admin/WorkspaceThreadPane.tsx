@@ -53,7 +53,7 @@ export const WorkspaceThreadPane: FC<Props> = ({
         refetch,
     } = useAiAgentThread(projectUuid, agentUuid, threadUuid);
 
-    const { isStreaming, isPending } = usePendingThreadRefetch(
+    const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadUuid,
         refetch,
@@ -129,7 +129,7 @@ export const WorkspaceThreadPane: FC<Props> = ({
         >
             {interactive ? (
                 <AgentChatInput
-                    loading={isCreating || isStreaming || isPending}
+                    loading={isCreating || isStreaming || isThreadPending}
                     onSubmit={handleSubmit}
                     placeholder={
                         placeholder ?? `Ask ${agentName} to refine the PR…`

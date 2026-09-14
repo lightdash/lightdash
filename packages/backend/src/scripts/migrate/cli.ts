@@ -1,20 +1,29 @@
 import { assertUnreachable } from '@lightdash/common';
 import {
+    type UpgradeEventProperties,
+    type UpgradeTelemetryEvent,
+} from '../../analytics/upgradeTelemetryEvents';
+import {
     type MigrationLease,
     type MigrationLeaseClaimResult,
     type MigrationLeaseIdentity,
     type MigrationLeaseReadResult,
     type MigrationLeaseUnlockResult,
+    type MigrationRun,
     type MigrationRunHistoryReadResult,
     type MigrationRunStart,
 } from '../../database/migrationLease';
 import { MigrationHeartbeat, type MigrationHeartbeatClient } from './heartbeat';
 import { type KnexMigrationState } from './migrationState';
+import { MigrationWaitTimeoutError } from './migrationWaitTimeoutError';
 import {
     renderPreflightReport,
     type PreflightReport,
     type PreflightRunOptions,
 } from './preflight';
+import { classifyUpgradeFailure, resolveExecutionMode } from './telemetry';
+
+export { MigrationWaitTimeoutError };
 
 const DEFAULT_WAIT_TIMEOUT_MS = 30 * 60_000;
 const DEFAULT_FOLLOWER_POLL_INTERVAL_MS = 5_000;
@@ -82,6 +91,7 @@ export type MigrationLeaseCommandClient = MigrationHeartbeatClient & {
         failureDetail: string,
     ) => Promise<boolean>;
     readRunHistory: (limit?: number) => Promise<MigrationRunHistoryReadResult>;
+    readLastSucceededRun: () => Promise<MigrationRun | null>;
     unlock: (
         actor: string,
         force: boolean,
@@ -103,6 +113,7 @@ export type MigrateCliContext = {
     log: (line: string) => void;
     logError: (line: string) => void;
     warn: (line: string) => void;
+    emitUpgradeEvent: (event: UpgradeTelemetryEvent) => void;
     onLeaseLost: (error: Error) => void;
     sleep: (durationMs: number) => Promise<void>;
     now: () => number;
@@ -119,6 +130,7 @@ type PartialMigrateCliContext = Omit<
     | 'log'
     | 'logError'
     | 'warn'
+    | 'emitUpgradeEvent'
     | 'cleanupInvalidIndexes'
     | 'sleep'
     | 'now'
@@ -135,6 +147,7 @@ type PartialMigrateCliContext = Omit<
             | 'log'
             | 'logError'
             | 'warn'
+            | 'emitUpgradeEvent'
             | 'cleanupInvalidIndexes'
             | 'sleep'
             | 'now'
@@ -160,6 +173,7 @@ export const createMigrateCliContext = (
     log: context.log ?? console.log,
     logError: context.logError ?? console.error,
     warn: context.warn ?? console.warn,
+    emitUpgradeEvent: context.emitUpgradeEvent ?? (() => {}),
     cleanupInvalidIndexes:
         context.cleanupInvalidIndexes ?? (() => Promise.resolve()),
     sleep: context.sleep ?? sleep,
@@ -175,8 +189,11 @@ export const createMigrateCliContext = (
     allowMissingMigrations: context.allowMissingMigrations ?? false,
 });
 
-const assertMigrationStateRunnable = (state: KnexMigrationState): void => {
-    if (state.classification !== 'diverged') {
+const assertMigrationStateRunnable = (
+    state: KnexMigrationState,
+    force: boolean,
+): void => {
+    if (state.classification !== 'diverged' || force) {
         return;
     }
     throw new Error(
@@ -340,9 +357,10 @@ const runPendingKnexMigrations = async (
     token: string,
     heartbeat: MigrationHeartbeat,
     state: KnexMigrationState,
+    force: boolean,
     setFailingMigration: (migration: string) => void,
 ): Promise<void> => {
-    assertMigrationStateRunnable(state);
+    assertMigrationStateRunnable(state, force);
     const nextMigration = state.pending[0];
     if (nextMigration === undefined) {
         return;
@@ -360,6 +378,7 @@ const runPendingKnexMigrations = async (
         token,
         heartbeat,
         await context.getMigrationState(),
+        force,
         setFailingMigration,
     );
 };
@@ -379,24 +398,212 @@ type AcquiredMigrationLeaseClaim = Extract<
     { status: 'acquired' }
 >;
 
+type ActiveUpgradeRun = {
+    runUuid: string;
+    attempt: number;
+    startedAtMs: number;
+    spanMigrations: number;
+    failingMigration: string;
+    precededByUnlock: boolean;
+    precedingUnlockForced: boolean | null;
+    terminalEventEmitted: boolean;
+};
+
+type UpgradeRunTracker = {
+    initializeFromVersion: () => Promise<void>;
+    emitPreflightBlocked: (report: PreflightReport) => void;
+    startAttempt: (
+        claim: AcquiredMigrationLeaseClaim,
+        runUuid: string,
+        attempt: number,
+        spanMigrations: number,
+    ) => number;
+    setFailingMigration: (failingMigration: string) => void;
+    emitTakeover: () => void;
+    emitRetry: (error: unknown) => void;
+    emitParked: (error: unknown) => void;
+    emitCompleted: () => void;
+    emitSafetyNet: (error: unknown) => void;
+};
+
+const createUpgradeRunTracker = (
+    context: MigrateCliContext,
+): UpgradeRunTracker => {
+    const executionMode = resolveExecutionMode();
+    let fromVersion: string | null = null;
+    let fromVersionInitialized = false;
+    let activeRun: ActiveUpgradeRun | null = null;
+
+    const attemptProperties = (
+        run: ActiveUpgradeRun,
+        overrides: Partial<UpgradeEventProperties>,
+    ): UpgradeEventProperties => ({
+        migration_run_uuid: run.runUuid,
+        to_version: context.identity.appVersion,
+        from_version: fromVersion,
+        span_migrations: run.spanMigrations,
+        execution_mode: executionMode,
+        duration_seconds: null,
+        duration_ms: null,
+        attempt: null,
+        outcome: null,
+        failure_class: null,
+        failing_migration: null,
+        preceded_by_unlock: run.precededByUnlock,
+        preceding_unlock_forced: run.precedingUnlockForced,
+        preflight_decision: null,
+        preflight_red: null,
+        preflight_yellow: null,
+        preflight_blocked_checks: null,
+        ...overrides,
+    });
+
+    const emitTerminal = (
+        event: 'upgrade_completed' | 'upgrade_failed',
+        outcome: 'succeeded' | 'parked' | 'retrying' | null,
+        error: unknown | null,
+    ): void => {
+        if (activeRun === null) {
+            return;
+        }
+        const failureClass =
+            error === null
+                ? null
+                : classifyUpgradeFailure({
+                      stage: activeRun.failingMigration,
+                      error,
+                  });
+        const elapsedMs = context.now() - activeRun.startedAtMs;
+        context.emitUpgradeEvent({
+            event,
+            properties: attemptProperties(activeRun, {
+                duration_seconds: Math.round(elapsedMs / 1_000),
+                duration_ms: elapsedMs,
+                attempt: activeRun.attempt,
+                outcome,
+                failure_class: failureClass,
+                failing_migration:
+                    failureClass === null ? null : activeRun.failingMigration,
+            }),
+        });
+        activeRun.terminalEventEmitted = true;
+    };
+
+    return {
+        initializeFromVersion: async () => {
+            if (fromVersionInitialized) {
+                return;
+            }
+            const lastSucceededRun =
+                await context.leaseManager.readLastSucceededRun();
+            fromVersion = lastSucceededRun?.appVersion ?? null;
+            fromVersionInitialized = true;
+        },
+        emitPreflightBlocked: (report) => {
+            const pendingMigrations = report.checks.find(
+                (check) => check.id === 'pending-migrations',
+            );
+            context.emitUpgradeEvent({
+                event: 'preflight_blocked',
+                properties: {
+                    migration_run_uuid: null,
+                    to_version: context.identity.appVersion,
+                    from_version: null,
+                    span_migrations:
+                        pendingMigrations?.data.migrations.length ?? null,
+                    execution_mode: executionMode,
+                    duration_seconds: null,
+                    duration_ms: null,
+                    attempt: null,
+                    outcome: null,
+                    failure_class: 'preflight_blocked',
+                    failing_migration: null,
+                    preceded_by_unlock: null,
+                    preceding_unlock_forced: null,
+                    preflight_decision: report.decision,
+                    preflight_red: report.summary.red,
+                    preflight_yellow: report.summary.yellow,
+                    preflight_blocked_checks: report.checks
+                        .filter(
+                            (check) =>
+                                check.severity === 'red' &&
+                                check.outcome === 'fail',
+                        )
+                        .map((check) => check.id),
+                },
+            });
+        },
+        startAttempt: (claim, runUuid, attempt, spanMigrations) => {
+            const startedAtMs = context.now();
+            const precededByUnlock = claim.lease.lastUnlockedBy !== null;
+            activeRun = {
+                runUuid,
+                attempt,
+                startedAtMs,
+                spanMigrations,
+                failingMigration: 'migration-state',
+                precededByUnlock,
+                precedingUnlockForced: precededByUnlock
+                    ? claim.lease.lastUnlockForced
+                    : null,
+                terminalEventEmitted: false,
+            };
+            context.emitUpgradeEvent({
+                event: 'upgrade_started',
+                properties: attemptProperties(activeRun, { attempt }),
+            });
+            return startedAtMs;
+        },
+        setFailingMigration: (failingMigration) => {
+            if (activeRun !== null) {
+                activeRun.failingMigration = failingMigration;
+            }
+        },
+        emitTakeover: () => {
+            if (activeRun === null) {
+                return;
+            }
+            context.emitUpgradeEvent({
+                event: 'migration_lock_takeover',
+                properties: attemptProperties(activeRun, {}),
+            });
+        },
+        emitRetry: (error) => emitTerminal('upgrade_failed', 'retrying', error),
+        emitParked: (error) => emitTerminal('upgrade_failed', 'parked', error),
+        emitCompleted: () =>
+            emitTerminal('upgrade_completed', 'succeeded', null),
+        emitSafetyNet: (error) => {
+            if (activeRun?.terminalEventEmitted === false) {
+                emitTerminal('upgrade_failed', null, error);
+            }
+        },
+    };
+};
+
 type MigrationAttemptResult =
     | {
           status: 'succeeded';
           runUuid: string;
+          startedAtMs: number;
       }
     | {
           status: 'failed';
           runUuid: string;
+          startedAtMs: number;
           failingMigration: string;
           failureDetail: string;
           failureMessage: string;
+          failureError: unknown;
       };
 
 const runHolderAttempt = async (
     context: MigrateCliContext,
     claim: AcquiredMigrationLeaseClaim,
     heartbeat: MigrationHeartbeat,
+    tracker: UpgradeRunTracker,
+    takeover: boolean,
     attempt: number,
+    force: boolean,
 ): Promise<MigrationAttemptResult> => {
     const state = await context.getMigrationState();
     const fromMigration = state.completed[state.completed.length - 1] ?? null;
@@ -412,13 +619,24 @@ const runHolderAttempt = async (
         lastUnlockedAt: claim.lease.lastUnlockedAt,
         lastUnlockForced: claim.lease.lastUnlockForced,
     });
+    const startedAtMs = tracker.startAttempt(
+        claim,
+        runUuid,
+        attempt,
+        state.pending.length,
+    );
+    if (takeover && attempt === 1) {
+        tracker.emitTakeover();
+    }
     let failingMigration = 'migration-state';
     try {
-        assertMigrationStateRunnable(state);
+        assertMigrationStateRunnable(state, force);
         failingMigration = 'knex-lock-recovery';
+        tracker.setFailingMigration(failingMigration);
         await context.clearKnexLock();
         heartbeat.assertHeld();
         failingMigration = 'invalid-index-cleanup';
+        tracker.setFailingMigration(failingMigration);
         await context.cleanupInvalidIndexes(state.pending);
         heartbeat.assertHeld();
         await runPendingKnexMigrations(
@@ -426,11 +644,14 @@ const runHolderAttempt = async (
             claim.token,
             heartbeat,
             state,
+            force,
             (migration) => {
                 failingMigration = migration;
+                tracker.setFailingMigration(failingMigration);
             },
         );
         failingMigration = GRAPHILE_MIGRATION_NAME;
+        tracker.setFailingMigration(failingMigration);
         requireTokenMutation(
             await context.leaseManager.setCurrentMigration(
                 claim.token,
@@ -445,27 +666,50 @@ const runHolderAttempt = async (
             await context.leaseManager.setCurrentMigration(claim.token, null),
             heartbeat,
         );
-        return { status: 'succeeded', runUuid };
+        return { status: 'succeeded', runUuid, startedAtMs };
     } catch (error) {
         return {
             status: 'failed',
             runUuid,
+            startedAtMs,
             failingMigration,
             failureDetail: getErrorDetail(error),
             failureMessage: getErrorMessage(error),
+            failureError: error,
         };
     }
+};
+
+type SuccessfulMigrationAttempt = {
+    runUuid: string;
+    attempt: number;
+    startedAtMs: number;
 };
 
 const runHolderAttempts = async (
     context: MigrateCliContext,
     claim: AcquiredMigrationLeaseClaim,
     heartbeat: MigrationHeartbeat,
+    tracker: UpgradeRunTracker,
+    takeover: boolean,
     attempt: number,
-): Promise<string> => {
-    const result = await runHolderAttempt(context, claim, heartbeat, attempt);
+    force: boolean,
+): Promise<SuccessfulMigrationAttempt> => {
+    const result = await runHolderAttempt(
+        context,
+        claim,
+        heartbeat,
+        tracker,
+        takeover,
+        attempt,
+        force,
+    );
     if (result.status === 'succeeded') {
-        return result.runUuid;
+        return {
+            runUuid: result.runUuid,
+            attempt,
+            startedAtMs: result.startedAtMs,
+        };
     }
     if (attempt < context.migrationMaxAttempts) {
         requireTokenMutation(
@@ -477,13 +721,22 @@ const runHolderAttempts = async (
             ),
             heartbeat,
         );
+        tracker.emitRetry(result.failureError);
         const retryDelay = context.migrationRetryDelayMs * 2 ** (attempt - 1);
         context.logError(
             `Migration attempt ${attempt}/${context.migrationMaxAttempts} failed at ${result.failingMigration}: ${result.failureMessage}; retrying in ${retryDelay}ms`,
         );
         await context.sleep(retryDelay);
         heartbeat.assertHeld();
-        return runHolderAttempts(context, claim, heartbeat, attempt + 1);
+        return runHolderAttempts(
+            context,
+            claim,
+            heartbeat,
+            tracker,
+            takeover,
+            attempt + 1,
+            force,
+        );
     }
     await heartbeat.stop();
     heartbeat.assertHeld();
@@ -498,6 +751,7 @@ const runHolderAttempts = async (
     ) {
         throw new Error('Migration lease was lost before parking');
     }
+    tracker.emitParked(result.failureError);
     throw new Error(
         `Migration parked after ${context.migrationMaxAttempts} attempts at ${result.failingMigration}: ${result.failureMessage}`,
     );
@@ -506,6 +760,9 @@ const runHolderAttempts = async (
 const runAsHolder = async (
     context: MigrateCliContext,
     claim: AcquiredMigrationLeaseClaim,
+    tracker: UpgradeRunTracker,
+    takeover: boolean,
+    force: boolean,
 ): Promise<void> => {
     const heartbeat = new MigrationHeartbeat({
         leaseManager: context.heartbeatLeaseManager,
@@ -521,12 +778,26 @@ const runAsHolder = async (
     let succeeded = false;
     try {
         heartbeat.start();
-        const runUuid = await runHolderAttempts(context, claim, heartbeat, 1);
+        const successfulAttempt = await runHolderAttempts(
+            context,
+            claim,
+            heartbeat,
+            tracker,
+            takeover,
+            1,
+            force,
+        );
         await heartbeat.stop();
         heartbeat.assertHeld();
-        if (!(await context.leaseManager.completeRun(claim.token, runUuid))) {
+        if (
+            !(await context.leaseManager.completeRun(
+                claim.token,
+                successfulAttempt.runUuid,
+            ))
+        ) {
             throw new Error('Migration lease was lost before release');
         }
+        tracker.emitCompleted();
         succeeded = true;
         context.log('Database migrations completed');
     } finally {
@@ -561,11 +832,13 @@ const assertNotParkedForCurrentVersion = (
 
 const followMigrations = async (
     context: MigrateCliContext,
+    tracker: UpgradeRunTracker,
     deadline: number,
     promote: boolean,
+    force: boolean,
 ): Promise<void> => {
     const state = await context.getMigrationState();
-    assertMigrationStateRunnable(state);
+    assertMigrationStateRunnable(state, force);
     const leaseRead = await context.leaseManager.read();
     const { lease } = leaseRead;
     logFollowerState(context, state, lease);
@@ -581,19 +854,24 @@ const followMigrations = async (
         const claim = await context.leaseManager.claim(context.identity);
         if (claim.status === 'acquired') {
             context.log('Promoted follower to migration lease holder');
-            await runAsHolder(context, claim);
+            const takeover =
+                lease !== null &&
+                lease.claimToken !== null &&
+                lease.expired === true;
+            await runAsHolder(context, claim, tracker, takeover, force);
             return;
         }
     }
     if (context.now() >= deadline) {
-        throw new Error('Timed out waiting for database migrations');
+        throw new MigrationWaitTimeoutError();
     }
     await context.sleep(context.followerPollIntervalMs);
-    await followMigrations(context, deadline, promote);
+    await followMigrations(context, tracker, deadline, promote, force);
 };
 
 const runPreflightGate = async (
     context: MigrateCliContext,
+    tracker: UpgradeRunTracker,
     options: PreflightRunOptions,
     json: boolean,
 ): Promise<void> => {
@@ -605,6 +883,7 @@ const runPreflightGate = async (
         );
     }
     if (report.decision === 'abort') {
+        tracker.emitPreflightBlocked(report);
         throw new Error(
             'Migration preflight aborted; resolve the blocking checks or pass --force to override',
         );
@@ -613,26 +892,53 @@ const runPreflightGate = async (
 
 const runUp = async (
     context: MigrateCliContext,
+    tracker: UpgradeRunTracker,
     timeoutMs: number,
     preflightOptions: PreflightRunOptions,
 ): Promise<void> => {
-    await runPreflightGate(context, preflightOptions, false);
+    await tracker.initializeFromVersion();
+    await runPreflightGate(context, tracker, preflightOptions, false);
     const state = await context.getMigrationState();
-    assertMigrationStateRunnable(state);
+    assertMigrationStateRunnable(state, preflightOptions.force);
+    const leaseBeforeClaim = await context.leaseManager.read();
     const claim = await context.leaseManager.claim(context.identity);
     if (claim.status === 'acquired') {
         context.log('Acquired migration lease');
-        await runAsHolder(context, claim);
+        const takeover =
+            leaseBeforeClaim.lease !== null &&
+            leaseBeforeClaim.lease.claimToken !== null &&
+            leaseBeforeClaim.lease.expired === true;
+        await runAsHolder(
+            context,
+            claim,
+            tracker,
+            takeover,
+            preflightOptions.force,
+        );
         return;
     }
-    await followMigrations(context, context.now() + timeoutMs, true);
+    await followMigrations(
+        context,
+        tracker,
+        context.now() + timeoutMs,
+        true,
+        preflightOptions.force,
+    );
 };
 
 const runWait = async (
     context: MigrateCliContext,
+    tracker: UpgradeRunTracker,
     timeoutMs: number,
 ): Promise<void> => {
-    await followMigrations(context, context.now() + timeoutMs, true);
+    await tracker.initializeFromVersion();
+    await followMigrations(
+        context,
+        tracker,
+        context.now() + timeoutMs,
+        true,
+        false,
+    );
 };
 
 const getMigrationStatusState = (
@@ -771,33 +1077,40 @@ export const runMigrateCli = async (
             'ALLOW_MISSING_MIGRATIONS is deprecated for the migrate CLI; the version gate now handles database-ahead migrations automatically.',
         );
     }
-    switch (options.command) {
-        case 'up':
-            await runUp(context, options.timeoutMs, {
-                force: options.force,
-                strict: options.strict,
-            });
-            return;
-        case 'preflight':
-            await runPreflightGate(
-                context,
-                { force: options.force, strict: options.strict },
-                options.json,
-            );
-            return;
-        case 'status':
-            await runStatus(context, options.json);
-            return;
-        case 'wait':
-            await runWait(context, options.timeoutMs);
-            return;
-        case 'unlock':
-            if (options.actor === null) {
-                throw new Error('unlock requires --actor');
-            }
-            await runUnlock(context, options.actor, options.force);
-            return;
-        default:
-            assertUnreachable(options.command, 'Unknown migrate command');
+    const tracker = createUpgradeRunTracker(context);
+    try {
+        switch (options.command) {
+            case 'up':
+                await runUp(context, tracker, options.timeoutMs, {
+                    force: options.force,
+                    strict: options.strict,
+                });
+                return;
+            case 'preflight':
+                await runPreflightGate(
+                    context,
+                    tracker,
+                    { force: options.force, strict: options.strict },
+                    options.json,
+                );
+                return;
+            case 'status':
+                await runStatus(context, options.json);
+                return;
+            case 'wait':
+                await runWait(context, tracker, options.timeoutMs);
+                return;
+            case 'unlock':
+                if (options.actor === null) {
+                    throw new Error('unlock requires --actor');
+                }
+                await runUnlock(context, options.actor, options.force);
+                return;
+            default:
+                assertUnreachable(options.command, 'Unknown migrate command');
+        }
+    } catch (error) {
+        tracker.emitSafetyNet(error);
+        throw error;
     }
 };

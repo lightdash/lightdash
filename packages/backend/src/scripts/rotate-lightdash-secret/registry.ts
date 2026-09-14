@@ -57,6 +57,21 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
         column: 'encrypted_installation_id',
     },
     {
+        table: 'linear_app_installations',
+        primaryKeyColumn: 'linear_app_installation_uuid',
+        column: 'encrypted_installation_id',
+    },
+    {
+        table: 'linear_app_installations',
+        primaryKeyColumn: 'linear_app_installation_uuid',
+        column: 'encrypted_access_token',
+    },
+    {
+        table: 'linear_app_installations',
+        primaryKeyColumn: 'linear_app_installation_uuid',
+        column: 'encrypted_refresh_token',
+    },
+    {
         table: 'git_user_credentials',
         primaryKeyColumn: 'git_user_credential_uuid',
         column: 'encrypted_auth_token',
@@ -85,6 +100,21 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
         table: 'managed_agent_settings',
         primaryKeyColumn: 'project_uuid',
         column: 'service_account_token',
+    },
+    {
+        table: 'mobile_push_installations',
+        primaryKeyColumn: 'mobile_push_installation_uuid',
+        column: 'encrypted_device_token',
+    },
+    {
+        table: 'mobile_push_installations',
+        primaryKeyColumn: 'mobile_push_installation_uuid',
+        column: 'encrypted_push_to_start_token',
+    },
+    {
+        table: 'ai_agent_live_activities',
+        primaryKeyColumn: 'live_activity_uuid',
+        column: 'encrypted_push_token',
     },
     {
         table: 'ai_mcp_server_credential',

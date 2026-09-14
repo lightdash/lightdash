@@ -1,11 +1,18 @@
 {
     "name": "lightdash",
-    "version": "1.146.1",
+    "version": "2.207.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
     "engines": {
         "node": ">=24"
+    },
+    "devEngines": {
+        "runtime": {
+            "name": "node",
+            "version": "24.18.1",
+            "onFail": "download"
+        }
     },
     "workspaces": [
         "packages/*",
@@ -15,7 +22,6 @@
         "tslib": "2.8.1"
     },
     "devDependencies": {
-        "@spotlightjs/spotlight": "4.10.0",
         "@types/node": "24.13.2",
         "@types/pegjs": "0.10.3",
         "@vitest/eslint-plugin": "1.6.23",
@@ -28,11 +34,12 @@
         "lint-staged": "12.1.2",
         "oxfmt": "0.35.0",
         "pm2": "7.0.0",
-        "tsx": "4.19.4",
+        "tsx": "4.23.12",
         "turbo": "2.9.14",
         "typescript": "7.0.2"
     },
     "scripts": {
+        "test:playground-content": "tsx scripts/playground-bundle/content.test.ts",
         "build:playground-bundle": "pnpm formula:build && pnpm common-build && pnpm warehouses-build && LIGHTDASH_MODE=development LIGHTDASH_SECRET=playground-bundle-build-only S3_ENDPOINT=http://localhost S3_BUCKET=playground-build S3_REGION=local tsx scripts/playground-bundle/build.ts",
         "formula:build": "pnpm -F formula build",
         "formula:test": "pnpm -F formula test",
@@ -104,11 +111,11 @@
         "fix-lint": "turbo run fix-lint --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=e2e --filter=@lightdash/cli --filter=api-tests",
         "fix-format": "turbo run fix-format --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=e2e --filter=@lightdash/cli --filter=api-tests",
         "test": "turbo run test --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=e2e --filter=@lightdash/cli --filter=api-tests --filter=@lightdash/query-sdk",
-        "test:release-safety": "for f in scripts/*.test.ts; do npx tsx \"$f\" || exit 1; done",
+        "test:release-safety": "for f in scripts/*.test.ts; do tsx \"$f\" || exit 1; done",
         "dev": "pnpm -r --stream --parallel -F common -F warehouses -F backend -F frontend run dev",
         "build": "turbo run build --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend",
-        "build-published-packages": "pnpm -r --stream --sequential -F common -F warehouses -F query-sdk -F cli -F formula build && pnpm frontend-build-sdk",
-        "release-packages": "pnpm -r --stream --sequential -F common -F warehouses -F query-sdk -F cli -F frontend release",
+        "build-published-packages": "pnpm -r --stream --workspace-concurrency=1 -F common -F warehouses -F query-sdk -F cli -F formula build && pnpm frontend-build-sdk",
+        "release-packages": "pnpm -r --stream --workspace-concurrency=1 -F common -F warehouses -F query-sdk -F cli -F frontend release",
         "start": "pnpm run backend-start",
         "prepare": "husky || true",
         "load:env": "dotenv -c -e .env.development.local",
@@ -140,10 +147,18 @@
         "pm2:restart:api": "pm2 restart lightdash-api",
         "pm2:restart:scheduler": "pm2 restart lightdash-scheduler",
         "pm2:restart:frontend": "pm2 restart lightdash-frontend",
-        "pm2:logs:spotlight": "pm2 logs lightdash-spotlight --lines 50",
-        "pm2:restart:spotlight": "pm2 restart lightdash-spotlight",
-        "spotlight": "pnpm dlx @spotlightjs/spotlight@latest",
-        "dev:pm2": "pm2 start ecosystem.config.js && pm2 logs --lines 50"
+        "pm2:logs:maple": "pm2 logs lightdash-maple --lines 50",
+        "pm2:restart:maple": "pm2 restart lightdash-maple",
+        "dev:pm2": "pm2 start ecosystem.config.js && pm2 logs --lines 50",
+        "dev:chart-registry": "tsx scripts/dev-chart-registry.mjs",
+        "scope-tours:generate": "tsx scripts/scope-tours/generate.ts && pnpm -F frontend run formatter -- src/features/scopeTours/generated.ts",
+        "scope-tours:order": "tsx scripts/scope-tours/order.ts && pnpm -F frontend run formatter -- src/features/scopeTours/curriculum.ts",
+        "scope-tours:check": "tsx scripts/scope-tours/check.ts",
+        "scope-tours:coverage": "tsx scripts/scope-tours/coverage.ts",
+        "scope-tours:coverage:test": "tsx scripts/scope-tours/coverage.test.ts",
+        "scope-tours:release-check": "tsx scripts/scope-tours/coverage.ts --release",
+        "scope-tours:suggest": "tsx scripts/scope-tours/suggest.ts",
+        "scope-tours:smoke": "tsx scripts/scope-tours/smoke.ts"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
@@ -197,5 +212,5 @@
             "pnpm -F formula run formatter"
         ]
     },
-    "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee"
+    "packageManager": "pnpm@12.3.4+sha512.961aa41fb077da3a04a441d9f8e15ebc0c96da8ef710b2eb67bf9ee7cb0610eabd48f1fd85f51cffe73846785fa0f87c56a3a872a1d893f8446741b5cce45457"
 }

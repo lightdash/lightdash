@@ -46,7 +46,7 @@ type CsvFormattingOptionsProps = {
 };
 
 const HelpTooltip: FC<{ label: string }> = ({ label }) => (
-    <Tooltip withinPortal maw={300} multiline label={label} position="top">
+    <Tooltip maw={300} label={label} position="top">
         <MantineIcon
             icon={IconHelpCircle}
             size="md"
@@ -199,7 +199,7 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
             >
                 Formatting options
             </Button>
-            <Collapse in={showFormatting} pl="md">
+            <Collapse expanded={showFormatting} pl="md">
                 <Group align="start" gap="xxl">
                     {optionGroups}
                 </Group>

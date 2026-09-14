@@ -297,7 +297,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 size: 250,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
+                        <MantineIcon icon={IconTextCaption} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -352,7 +352,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         </Text>
                                     </Tooltip>
                                 </Anchor>
-                                <Text fz="xs" c="ldGray.6" maw="190px" truncate>
+                                <Text fz="xs" c="dimmed" maw="190px" truncate>
                                     {run.resourceName}
                                 </Text>
                             </Stack>
@@ -435,14 +435,14 @@ const LogsTable: FC<LogsTableProps> = ({
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const { run } = row.original;
                     return (
-                        <Text fz="xs" c="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             {formatTime(run.scheduledTime)}
                         </Text>
                     );
@@ -455,14 +455,14 @@ const LogsTable: FC<LogsTableProps> = ({
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const { run } = row.original;
                     return (
-                        <Text fz="xs" c="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             {formatTime(run.createdAt)}
                         </Text>
                     );
@@ -492,19 +492,15 @@ const LogsTable: FC<LogsTableProps> = ({
                                     }}
                                 >
                                     <Menu
-                                        withinPortal
                                         position="bottom-start"
                                         withArrow
                                         arrowPosition="center"
-                                        shadow="md"
                                         offset={-4}
                                         closeOnItemClick
                                         closeOnClickOutside
                                     >
                                         <Menu.Target>
                                             <ActionIcon
-                                                variant="subtle"
-                                                color="gray"
                                                 style={{
                                                     ':hover': {
                                                         backgroundColor:

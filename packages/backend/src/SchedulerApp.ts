@@ -1,3 +1,4 @@
+import './tracing/bootstrap'; // Must run before modules that can load Knex
 import { createTerminus } from '@godaddy/terminus';
 import { MotherduckInstanceCache } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -98,6 +99,8 @@ const schedulerWorkerFactory = (context: {
         dashboardService: context.serviceRepository.getDashboardService(),
         deployService: context.serviceRepository.getDeployService(),
         projectService: context.serviceRepository.getProjectService(),
+        contentAsCodeWritebackService:
+            context.serviceRepository.getContentAsCodeWritebackService(),
         schedulerService: context.serviceRepository.getSchedulerService(),
         validationService: context.serviceRepository.getValidationService(),
         userService: context.serviceRepository.getUserService(),
@@ -111,7 +114,6 @@ const schedulerWorkerFactory = (context: {
         googleChatClient: context.clients.getGoogleChatClient(),
         renameService: context.serviceRepository.getRenameService(),
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
-        featureFlagService: context.serviceRepository.getFeatureFlagService(),
         persistentDownloadFileService:
             context.serviceRepository.getPersistentDownloadFileService(),
         preAggregateModel: context.models.getPreAggregateModel(),
@@ -345,6 +347,8 @@ export default class SchedulerApp {
             );
         }
         const server = http.createServer(app);
+        server.keepAliveTimeout =
+            this.lightdashConfig.httpServer.keepAliveTimeoutMs;
 
         createTerminus(server, {
             signals: ['SIGUSR2', 'SIGTERM', 'SIGINT', 'SIGHUP', 'SIGABRT'],

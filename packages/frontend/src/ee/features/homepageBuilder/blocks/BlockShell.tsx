@@ -32,7 +32,7 @@ export const BlockHeader: FC<BlockHeaderProps> = ({
         }`}
         mb={10}
     >
-        <MantineIcon icon={icon} size={14} color="ldGray.6" />
+        <MantineIcon icon={icon} size={14} color="dimmed" />
         <span className={classes.sectionTitle}>{title}</span>
         {pill ? <MiniPill>{pill}</MiniPill> : null}
         {actions ? (

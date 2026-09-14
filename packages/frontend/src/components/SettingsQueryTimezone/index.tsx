@@ -13,7 +13,8 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -145,7 +146,7 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
             <SettingsGridCard>
                 <Stack gap="xs">
                     <Title order={5}>Time zone behavior</Title>
-                    <Text c="ldGray.6" fz="sm">
+                    <Text c="dimmed" fz="sm">
                         {timezoneSupportEnabled ? (
                             <>
                                 The time zone used for date filters, time

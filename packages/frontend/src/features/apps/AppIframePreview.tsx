@@ -124,6 +124,9 @@ type Props = {
         path: string;
         body: unknown;
     };
+    /** Handles the viz drill-down virtual route. Only set by
+     *  DataAppVizRenderer when the capability is on. */
+    onVizDrillDownIntent?: (intentBody: unknown) => void;
     // Round-trip the app's `useUrlState` controls through the page's `?state=`
     // param. Leave unset where the page URL isn't the app's share surface
     // (dashboard tiles, screenshots).
@@ -185,6 +188,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             capabilities,
             dataAppVizContext,
             rewriteVizUnderlyingDataRequest,
+            onVizDrillDownIntent,
             urlStateSync,
             onSdkManifest,
             forceColorScheme,
@@ -243,6 +247,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 iframeNavigation.src,
             ],
         );
+        const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
         // Memoized so the bridge's message listener doesn't re-attach on every
         // parent render — AppGenerate re-renders on every keystroke (editor's
         // `onUpdate` → `setIsPromptEmpty`) and we don't want to thrash listeners.
@@ -283,6 +288,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onExternalRequestEvent,
             dataAppVizContext,
             rewriteVizUnderlyingDataRequest,
+            onVizDrillDownIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
             colorScheme,
@@ -352,6 +358,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         // re-fire if `inspectorEnabled` was already true, so re-sync on load.
         const handleLoad = () => {
             handleIframeLoad();
+            setLoadedSrc(effectiveSrc);
             if (inspectorEnabled) enableInspector();
             if (lineageEnabled) enableLineage();
             highlightLineage(lineageHighlightQueryUuid ?? null);
@@ -360,9 +367,22 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
 
         return (
             <iframe
+                data-tour-scope="view:DataApp"
+                data-tour-look="1"
+                data-tour-after='[data-tour-anchor="app-row"][data-tour-value="Jaffle pulse"]'
+                data-tour-label="Read Jaffle pulse"
+                data-tour-docs="data-apps.mdx#choosing-a-template:li1"
                 ref={iframeRef}
                 src={effectiveSrc}
-                style={{ width: '100%', height: '100%', border: 'none' }}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    colorScheme,
+                    // Keep the host surface visible until the app applies its theme.
+                    visibility:
+                        loadedSrc === effectiveSrc ? 'visible' : 'hidden',
+                }}
                 title="App preview"
                 sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 allow=""

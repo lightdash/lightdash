@@ -96,7 +96,7 @@ export const ProjectContextWritebackModal: FC<
                                 <MantineIcon icon={IconX} />
                             </ThemeIcon>
                             <Text fw={600}>Couldn&rsquo;t open the PR</Text>
-                            <Text fz="sm" c="ldGray.6" ta="center" maw={420}>
+                            <Text fz="sm" c="dimmed" ta="center" maw={420}>
                                 {tracked?.prWritebackMessage ??
                                     'The writeback failed. You can try again.'}
                             </Text>
@@ -112,7 +112,7 @@ export const ProjectContextWritebackModal: FC<
                                 <MantineIcon icon={IconCheck} />
                             </ThemeIcon>
                             <Text fw={600}>Pull request opened</Text>
-                            <Text fz="sm" c="ldGray.6" ta="center" maw={420}>
+                            <Text fz="sm" c="dimmed" ta="center" maw={420}>
                                 The project context change is ready to review on
                                 GitHub.
                             </Text>
@@ -141,7 +141,7 @@ export const ProjectContextWritebackModal: FC<
                             gap="sm"
                         >
                             <Loader size="md" color="gray" />
-                            <Text fz="sm" c="ldGray.6">
+                            <Text fz="sm" c="dimmed">
                                 Computing the change…
                             </Text>
                         </Stack>
@@ -173,7 +173,7 @@ export const ProjectContextWritebackModal: FC<
                     )}
 
                     {previewData?.available === false && (
-                        <Text fz="sm" c="ldGray.6">
+                        <Text fz="sm" c="dimmed">
                             This change runs in a sandbox, so the diff shows up
                             on the pull request itself.
                         </Text>

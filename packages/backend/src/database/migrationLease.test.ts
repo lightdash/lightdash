@@ -40,6 +40,26 @@ const databaseRow = (
     parked_run_uuid: null,
 });
 
+const runDatabaseRow = (overrides: Record<string, unknown> = {}) => ({
+    migration_run_uuid: '00000000-0000-4000-8000-000000000001',
+    claim_token: 'claim-a',
+    holder_hostname: identity.hostname,
+    holder_pod_name: identity.podName,
+    app_version: identity.appVersion,
+    from_migration: '001_previous.ts',
+    to_migration: '002_next.ts',
+    attempt: 1,
+    started_at: startedAt,
+    finished_at: new Date('2026-08-10T10:00:05.000Z'),
+    outcome: 'succeeded',
+    failing_migration: null,
+    failure_detail: null,
+    last_unlocked_by: null,
+    last_unlocked_at: null,
+    last_unlock_forced: false,
+    ...overrides,
+});
+
 let database: Knex;
 let tracker: Tracker;
 
@@ -52,6 +72,7 @@ const manager = (token: string) =>
     });
 
 const handleBootstrap = () => {
+    tracker.on.any(/CREATE EXTENSION IF NOT EXISTS "uuid-ossp"/).response([]);
     tracker.on.any(MIGRATION_LEASE_SCHEMA_SQL).response([]);
     tracker.on.any(MIGRATION_RUN_LEDGER_SCHEMA_SQL).response([]);
 };
@@ -86,9 +107,10 @@ describe('MigrationLeaseManager', () => {
     test('uses the runtime schema during bootstrap', async () => {
         handleBootstrap();
         await manager('claim-a').ensureSchema();
-        expect(tracker.history.any).toHaveLength(2);
-        expect(tracker.history.any[0]?.sql).toEqual(MIGRATION_LEASE_SCHEMA_SQL);
-        expect(tracker.history.any[1]?.sql).toEqual(
+        expect(tracker.history.any).toHaveLength(3);
+        expect(tracker.history.any[0]?.sql).toContain('uuid-ossp');
+        expect(tracker.history.any[1]?.sql).toEqual(MIGRATION_LEASE_SCHEMA_SQL);
+        expect(tracker.history.any[2]?.sql).toEqual(
             MIGRATION_RUN_LEDGER_SCHEMA_SQL,
         );
     });
@@ -205,6 +227,44 @@ describe('MigrationLeaseManager', () => {
                 true,
             ]),
         );
+    });
+
+    test('reads the latest succeeded run instead of a later failed run', async () => {
+        handleInitializedSchema();
+        tracker.on.select('migration_run_ledger').response([
+            runDatabaseRow({
+                app_version: '1.1.0',
+                started_at: new Date('2026-08-10T09:00:00.000Z'),
+            }),
+        ]);
+
+        const result = await manager('claim-a').readLastSucceededRun();
+
+        expect(result).toMatchObject({
+            appVersion: '1.1.0',
+            outcome: 'succeeded',
+        });
+        expect(tracker.history.select[0]?.sql).toContain(
+            'where "outcome" = $1',
+        );
+        expect(tracker.history.select[0]?.bindings).toContain('succeeded');
+        expect(tracker.history.select[0]?.sql).toContain(
+            'order by "started_at" desc',
+        );
+    });
+
+    test('reads no last succeeded run from an empty or uninitialized ledger', async () => {
+        tracker.on
+            .any((query) => query.bindings.includes('migration_run_ledger'))
+            .responseOnce(false);
+        tracker.on
+            .any((query) => query.bindings.includes('migration_run_ledger'))
+            .responseOnce(true);
+        tracker.on.select('migration_run_ledger').response([]);
+        const leaseManager = manager('claim-a');
+
+        await expect(leaseManager.readLastSucceededRun()).resolves.toBeNull();
+        await expect(leaseManager.readLastSucceededRun()).resolves.toBeNull();
     });
 
     test('records retry and terminal outcomes against the owned run', async () => {

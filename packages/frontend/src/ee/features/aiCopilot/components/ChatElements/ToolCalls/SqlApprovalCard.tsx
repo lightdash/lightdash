@@ -81,10 +81,8 @@ export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
 
     return (
         <Paper
-            withBorder
             radius="sm"
             p="sm"
-            shadow="none"
             style={{
                 borderColor: 'var(--mantine-color-ldGray-3)',
                 background: 'var(--mantine-color-body)',

@@ -2,15 +2,19 @@ import {
     canAddDashboardFiltersInEmbed,
     isParameterInteractivityEnabled,
     type Dashboard,
+    type DashboardTile,
     type InteractivityOptions,
 } from '@lightdash/common';
 import { Box, Button, Divider, Group, Tooltip } from '@mantine/core';
 import { IconChevronUp } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
+import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
+import { useActiveTabParameters } from '../../../../../hooks/dashboard/useActiveTabParameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 import styles from './EmbedDashboardFilterBar.module.css';
 import EmbedDashboardFilters from './EmbedDashboardFilters';
@@ -19,14 +23,18 @@ import EmbedDashboardParameters from './EmbedDashboardParameters';
 type Props = {
     dashboard: Dashboard & InteractivityOptions;
     shouldShowFilters: boolean;
+    /** Tiles rendered on the active tab */
+    activeTiles: DashboardTile[];
 };
 
 const EmbedDashboardFilterBar: FC<Props> = ({
     dashboard,
     shouldShowFilters,
+    activeTiles,
 }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
+    const getUiString = useUiStrings();
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
@@ -34,13 +42,6 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
-    const parameterDefinitions = useDashboardContext(
-        (c) => c.parameterDefinitions,
-    );
-    const parameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
-    );
-
     const parametersEnabled = isParameterInteractivityEnabled(
         dashboard.parameterInteractivity,
     );
@@ -52,15 +53,11 @@ const EmbedDashboardFilterBar: FC<Props> = ({
         ? dashboardFilters.dimensions.length +
           dashboardTemporaryFilters.dimensions.length
         : 0;
-    const totalParametersCount = useMemo(
-        () =>
-            parametersEnabled
-                ? Object.keys(parameterDefinitions).filter((key) =>
-                      parameterReferences.has(key),
-                  ).length
-                : 0,
-        [parametersEnabled, parameterDefinitions, parameterReferences],
-    );
+    // Parameters follow the UI: only shown on tabs whose charts reference them
+    const activeTabParameters = useActiveTabParameters(activeTiles);
+    const totalParametersCount = parametersEnabled
+        ? Object.keys(activeTabParameters).length
+        : 0;
     const hasVisibleParameters = totalParametersCount > 0;
 
     // Collapsing only hides filters and parameters — date zoom stays visible
@@ -79,7 +76,10 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 parametersCount={totalParametersCount}
                 dateZoomLabel={
                     dashboard.canDateZoom
-                        ? dateZoomGranularity || 'Default'
+                        ? getDateZoomSummaryLabel(
+                              dateZoomGranularity,
+                              getUiString,
+                          )
                         : null
                 }
                 onExpand={() => setIsCollapsed(false)}
@@ -100,12 +100,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             px="lg"
             py="xs"
         >
-            <Group
-                align="flex-start"
-                wrap="wrap"
-                gap="xs"
-                style={{ flex: 1, minWidth: 0 }}
-            >
+            <Group align="flex-start" wrap="wrap" gap="xs" flex={1} miw={0}>
                 {shouldShowFilters && (
                     <EmbedDashboardFilters canAddFilters={canAddFilters} />
                 )}
@@ -115,10 +110,14 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                         orientation="vertical"
                     />
                 )}
-                {parametersEnabled && <EmbedDashboardParameters />}
+                {parametersEnabled && (
+                    <EmbedDashboardParameters
+                        parameters={activeTabParameters}
+                    />
+                )}
             </Group>
 
-            <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+            <Group gap="xs" wrap="nowrap" flex="0 0 auto">
                 {dashboard.canDateZoom && (
                     <Box
                         className={embedContractClass('ld-dashboard-date-zoom')}
@@ -134,7 +133,9 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 {isCollapsible && (
                     <>
                         <Divider orientation="vertical" />
-                        <Tooltip label="Hide filters" withinPortal>
+                        <Tooltip
+                            label={getUiString('filters.summary.hideFilters')}
+                        >
                             <Button
                                 size="xs"
                                 variant="subtle"
@@ -144,7 +145,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                                 }
                                 onClick={() => setIsCollapsed(true)}
                             >
-                                Hide
+                                {getUiString('filters.summary.hide')}
                             </Button>
                         </Tooltip>
                     </>

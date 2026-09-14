@@ -1,3 +1,4 @@
+import { interpolateUiString } from '@lightdash/common';
 import { Group, Text, type ComboboxProps } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
@@ -10,6 +11,7 @@ import {
     type FocusEvent,
     type FocusEventHandler,
 } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../../MantineIcon';
 import {
     MultiSelectCombobox,
@@ -40,6 +42,7 @@ const FilterMultiStringInput: FC<Props> = ({
     onDropdownClose: onInputDropdownClose,
     ...rest
 }) => {
+    const getUiString = useUiStrings();
     const [search, setSearch] = useState('');
     const [pastePopUpOpened, setPastePopUpOpened] = useState(false);
     const [tempPasteValues, setTempPasteValues] = useState<
@@ -171,11 +174,16 @@ const FilterMultiStringInput: FC<Props> = ({
                     <Group gap="xxs">
                         <MantineIcon icon={IconPlus} color="blue.7" size="sm" />
                         <Text c="blue.7" fw={600}>
-                            Add "{search.trim()}"
+                            {interpolateUiString(
+                                getUiString('filters.autocomplete.addValue'),
+                                { value: search.trim() },
+                            )}
                         </Text>
                     </Group>
                 }
-                nothingFoundMessage="Please type to add the filter value"
+                nothingFoundMessage={getUiString(
+                    'filters.inputs.typeToAddValue',
+                )}
                 onDropdownClose={() => {
                     handleResetSearch();
                     onInputDropdownClose?.();

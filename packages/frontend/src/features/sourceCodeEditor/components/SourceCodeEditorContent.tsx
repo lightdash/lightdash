@@ -1,10 +1,11 @@
 import { subject } from '@casl/ability';
-import { isGitProjectType } from '@lightdash/common';
+import { DbtProjectType, isGitProjectType } from '@lightdash/common';
 import { Box, Group } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useRefreshServer } from '../../../hooks/useRefreshServer';
 import useApp from '../../../providers/App/useApp';
 import { useSourceCodeEditor } from '../context/useSourceCodeEditor';
@@ -23,9 +24,7 @@ import SourceCodeSidebar from './SourceCodeSidebar';
 import UnsavedChangesModal from './UnsavedChangesModal';
 
 const SourceCodeEditorContent: FC = () => {
-    const { projectUuid: routeProjectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const routeProjectUuid = useProjectUuid();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useApp();
     const {
@@ -328,7 +327,7 @@ const SourceCodeEditorContent: FC = () => {
                 : null;
 
         if (projectBranch && currentBranch === projectBranch) {
-            refreshServer.mutate();
+            refreshServer.mutate({ syncContent: false });
         }
     }, [
         currentBranch,
@@ -358,7 +357,7 @@ const SourceCodeEditorContent: FC = () => {
     return (
         <>
             <Group gap={0} align="stretch" wrap="nowrap" h="100%" w="100%">
-                <Box w={300} style={{ flexShrink: 0 }}>
+                <Box w={300} flex="0 0 auto">
                     <SourceCodeSidebar
                         projectUuid={projectUuid ?? ''}
                         branches={branches ?? []}
@@ -373,6 +372,13 @@ const SourceCodeEditorContent: FC = () => {
 
                 <Box flex={1}>
                     <CodeEditorPane
+                        semanticLayer={
+                            project?.dbtConnection.type ===
+                                DbtProjectType.GITHUB &&
+                            project.dbtConnection.semanticLayer === 'lightdash'
+                                ? 'lightdash'
+                                : 'dbt'
+                        }
                         filePath={currentFilePath}
                         content={editorContent}
                         isLoading={isLoadingFile && currentFilePath !== null}

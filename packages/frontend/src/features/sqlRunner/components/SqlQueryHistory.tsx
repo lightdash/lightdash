@@ -7,7 +7,6 @@ import {
     HoverCard,
     Popover,
     Tooltip,
-    useComputedColorScheme,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import {
@@ -19,6 +18,7 @@ import dayjs from 'dayjs';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Editor } from '../../../components/MonacoEditor';
+import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
@@ -31,7 +31,7 @@ type Props = {
 };
 
 const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
-    const colorScheme = useComputedColorScheme();
+    const { monaco: monacoTheme } = useEditorTheme();
     const dispatch = useAppDispatch();
 
     const { hovered, ref: hoverRef } = useHover<HTMLButtonElement>();
@@ -39,12 +39,9 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
 
     const formattedDate = dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss');
 
-    const openInQueryEditorLinkColor =
-        colorScheme === 'dark' ? 'indigo.4' : 'indigo.6';
-
     return (
         <Stack w="100%">
-            <HoverCard withinPortal position="left" shadow="sm">
+            <HoverCard position="left">
                 <HoverCard.Target>
                     <UnstyledButton
                         data-testid="sql-query-history-item"
@@ -64,7 +61,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                                 w={150}
                                 c={
                                     hovered
-                                        ? openInQueryEditorLinkColor
+                                        ? 'var(--mantine-color-indigo-light-color)'
                                         : 'ldGray.8'
                                 }
                             >
@@ -108,11 +105,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             revealHorizontalRightPadding: 0,
                             roundedSelection: false,
                         }}
-                        theme={
-                            colorScheme === 'dark'
-                                ? 'lightdash-dark'
-                                : 'lightdash-light'
-                        }
+                        theme={monacoTheme}
                     />
                 </HoverCard.Dropdown>
             </HoverCard>
@@ -132,7 +125,7 @@ export const SqlQueryHistory: FC = () => {
     }
 
     return (
-        <Popover withinPortal>
+        <Popover>
             <Popover.Target>
                 <Tooltip label="SQL Query history">
                     <ActionIcon

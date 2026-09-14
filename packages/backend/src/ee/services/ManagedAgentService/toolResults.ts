@@ -1,7 +1,32 @@
-import type { ValidationResponse } from '@lightdash/common';
+import {
+    isChartValidationError,
+    isDashboardValidationError,
+    isDataAppValidationError,
+    type ValidationResponse,
+} from '@lightdash/common';
 
 export const MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT = 100;
 export const MANAGED_AGENT_BROKEN_CONTENT_ERROR_LIMIT = 10;
+export const MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT = 10;
+export const MANAGED_AGENT_BULK_DELETE_RUN_LIMIT = 25;
+export const MANAGED_AGENT_SOFT_DELETE_RUN_LIMIT = 25;
+
+// Root-cause model of a validation row. Guard order matters: table responses
+// are structurally assignable from the others, so they are the fallback.
+export const getValidationRootCauseTableName = (
+    validation: ValidationResponse,
+): string | null => {
+    if (isChartValidationError(validation)) {
+        return validation.tableName ?? null;
+    }
+    if (isDashboardValidationError(validation)) {
+        return validation.tableName ?? null;
+    }
+    if (isDataAppValidationError(validation)) {
+        return validation.modelName ?? null;
+    }
+    return validation.name ?? null;
+};
 
 export const getManagedAgentToolResultLimit = (
     requestedLimit: unknown,

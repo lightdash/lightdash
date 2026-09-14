@@ -5,6 +5,7 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type DataAppClaudeModel,
+    type DataAppCodexModel,
     type DataAppCreationExperience,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
@@ -19,6 +20,7 @@ type IterateAppParams = {
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
     claudeModel?: DataAppClaudeModel;
+    codexModel?: DataAppCodexModel;
     externalConnections?: AppExternalConnectionReference[];
     designUuid?: string | null;
 };
@@ -34,6 +36,7 @@ const iterateApp = async ({
     charts,
     dashboard,
     claudeModel,
+    codexModel,
     externalConnections,
     designUuid,
 }: IterateAppParams): Promise<IterateAppResult> => {
@@ -47,6 +50,7 @@ const iterateApp = async ({
             charts,
             dashboard,
             claudeModel,
+            codexModel,
             externalConnections,
             ...(designUuid !== undefined ? { designUuid } : {}),
         }),

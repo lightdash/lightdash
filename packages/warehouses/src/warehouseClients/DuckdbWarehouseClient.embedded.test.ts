@@ -106,18 +106,23 @@ describe.sequential('DuckdbWarehouseClient embedded credentials', () => {
     });
 
     it.each([
-        `SELECT * FROM "read_parquet"('/etc/passwd')`,
-        `SELECT * FROM parquet_metadata('/etc/passwd')`,
-        `SELECT * FROM csv_sniffer('/etc/passwd')`,
-        `SELECT * FROM sniff_csv('/etc/passwd')`,
-    ])('confines file-reading table functions: %s', async (sql) => {
-        await createEmbeddedDatabase('sample');
-        const client = new DuckdbWarehouseClient(embeddedCredentials('sample'));
+        [`SELECT * FROM "read_parquet"('/etc/passwd')`, 'read_parquet'],
+        [`SELECT * FROM parquet_metadata('/etc/passwd')`, 'parquet_metadata'],
+        [`SELECT * FROM csv_sniffer('/etc/passwd')`, 'csv_sniffer'],
+        [`SELECT * FROM sniff_csv('/etc/passwd')`, 'sniff_csv'],
+    ])(
+        'rejects file-reading table functions before execution: %s',
+        async (sql, blockedFunction) => {
+            await createEmbeddedDatabase('sample');
+            const client = new DuckdbWarehouseClient(
+                embeddedCredentials('sample'),
+            );
 
-        await expect(client.runQuery(sql)).rejects.toThrow(
-            'File system LocalFileSystem has been disabled by configuration',
-        );
-    });
+            await expect(client.runQuery(sql)).rejects.toThrow(
+                `SQL validation error: function '${blockedFunction}' is not allowed`,
+            );
+        },
+    );
 
     it.each([
         "SELECT '--' AS marker FROM read_csv('/tmp/data.csv')",

@@ -10,6 +10,7 @@ import {
     Middlewares,
     OperationId,
     Path,
+    Query,
     Request,
     Response,
     Route,
@@ -41,13 +42,29 @@ export class ProjectSavedChartControllerV2 extends BaseController {
         @Path() projectUuid: string,
         @Path() chartUuidOrSlug: string,
         @Request() req: express.Request,
+        @Query() includeUnpublishedDraft?: boolean,
     ): Promise<ApiSavedChartResponse> {
         this.setStatus(200);
+        const savedChartService = this.services.getSavedChartService();
+        if (includeUnpublishedDraft === true) {
+            assertRegisteredAccount(req.account);
+            return {
+                status: 'ok',
+                results: await savedChartService.getForViewer(
+                    toSessionUser(req.account),
+                    chartUuidOrSlug,
+                    req.account,
+                    { projectUuid },
+                ),
+            };
+        }
         return {
             status: 'ok',
-            results: await this.services
-                .getSavedChartService()
-                .get(chartUuidOrSlug, req.account!, { projectUuid }),
+            results: await savedChartService.get(
+                chartUuidOrSlug,
+                req.account!,
+                { projectUuid },
+            ),
         };
     }
 

@@ -162,6 +162,22 @@ describe('combineManifests (two-manifest wrapper)', () => {
         ]);
         expect(manifest.metadata.adapter_type).toBe('postgres');
     });
+
+    test('keeps the CLI merge output free of multi-source annotations', () => {
+        const primary = buildManifest({
+            'model.pkg_a.orders': modelNode('model.pkg_a.orders'),
+        });
+        const external = buildManifest({
+            'model.pkg_b.customers': modelNode('model.pkg_b.customers'),
+        });
+
+        const { manifest } = combineManifests(primary, external);
+
+        expect(manifest.nodes).toEqual({
+            'model.pkg_a.orders': modelNode('model.pkg_a.orders'),
+            'model.pkg_b.customers': modelNode('model.pkg_b.customers'),
+        });
+    });
 });
 
 describe('combineManifestSources (N-way fold)', () => {
@@ -221,6 +237,57 @@ describe('combineManifestSources (N-way fold)', () => {
         ]);
         expect(addedModelIds.sort()).toEqual(['model.b.y', 'model.c.z']);
         expect(collisions).toEqual([]);
+    });
+
+    test('stamps merged model nodes and metrics with their Lightdash source name', () => {
+        const analytics = buildManifest(
+            {
+                'model.pkg_a.orders': modelNode('model.pkg_a.orders'),
+                'test.pkg_a.orders': testNode('test.pkg_a.orders'),
+            },
+            {
+                metrics: {
+                    'metric.pkg_a.revenue': {
+                        unique_id: 'metric.pkg_a.revenue',
+                        name: 'revenue',
+                    },
+                } as unknown as DbtManifest['metrics'],
+            },
+        );
+        const finance = buildManifest(
+            {
+                'model.pkg_b.orders': modelNode('model.pkg_b.orders'),
+            },
+            {
+                metrics: {
+                    'metric.pkg_b.revenue': {
+                        unique_id: 'metric.pkg_b.revenue',
+                        name: 'revenue',
+                    },
+                } as unknown as DbtManifest['metrics'],
+            },
+        );
+
+        const { manifest } = combineManifestSources([
+            source('analytics', 0, analytics),
+            source('finance', 1, finance),
+        ]);
+
+        expect(manifest.nodes['model.pkg_a.orders']).toMatchObject({
+            lightdash_source_name: 'analytics',
+        });
+        expect(manifest.nodes['model.pkg_b.orders']).toMatchObject({
+            lightdash_source_name: 'finance',
+        });
+        expect(manifest.nodes['test.pkg_a.orders']).not.toHaveProperty(
+            'lightdash_source_name',
+        );
+        expect(manifest.metrics['metric.pkg_a.revenue']).toMatchObject({
+            lightdash_source_name: 'analytics',
+        });
+        expect(manifest.metrics['metric.pkg_b.revenue']).toMatchObject({
+            lightdash_source_name: 'finance',
+        });
     });
 
     test('is order-independent on disjoint keys (deterministic by precedence)', () => {

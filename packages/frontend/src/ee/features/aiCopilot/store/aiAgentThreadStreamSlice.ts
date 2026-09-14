@@ -20,11 +20,56 @@ export type StepProgressMessage = {
     // The tool the event belongs to, or null when the emitting tool didn't
     // attribute it. Used to scope the inline progress row to the active tool.
     toolName: string | null;
+    // Correlates repeated events about the same unit of work (composer
+    // pipeline nodes use `${toolCallId}:${nodeId}`), or null for one-off
+    // progress strings.
+    progressId: string | null;
+    // Lifecycle of the unit identified by progressId, or null when the event
+    // is a plain progress string.
+    progressStatus: 'in_progress' | 'complete' | 'error' | null;
+};
+
+/** Client-clock stopwatch for the live stream; ms since epoch. */
+export type StreamTiming = {
+    startedAt: number;
+    firstTokenAt: number | null;
+    finishedAt: number | null;
 };
 
 export type StreamPart =
     | { type: 'text'; text: string }
     | (ToolCall & { type: 'toolCall' });
+
+export type AiAgentThreadStreamConnection =
+    | { status: 'streaming' }
+    | { status: 'recovering' }
+    | { status: 'polling' }
+    | { status: 'complete' }
+    | { status: 'error'; error: string };
+
+const activeConnectionStatuses = {
+    streaming: true,
+    recovering: true,
+    polling: true,
+    complete: false,
+    error: false,
+} satisfies Record<AiAgentThreadStreamConnection['status'], boolean>;
+
+const recoveryConnectionStatuses = {
+    streaming: false,
+    recovering: true,
+    polling: true,
+    complete: false,
+    error: false,
+} satisfies Record<AiAgentThreadStreamConnection['status'], boolean>;
+
+export const isAiAgentThreadStreamActive = (
+    connection: AiAgentThreadStreamConnection,
+) => activeConnectionStatuses[connection.status];
+
+export const isAiAgentThreadStreamRecoveryActive = (
+    connection: AiAgentThreadStreamConnection,
+) => recoveryConnectionStatuses[connection.status];
 
 const dedupeStreamParts = (parts: StreamPart[]): StreamPart[] => {
     const dedupedParts: StreamPart[] = [];
@@ -56,7 +101,7 @@ export interface AiAgentThreadStreamingState {
     messageUuid: string;
     content: string;
     parts: StreamPart[];
-    isStreaming: boolean;
+    connection: AiAgentThreadStreamConnection;
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
@@ -74,7 +119,7 @@ export interface AiAgentThreadStreamingState {
      * hover, etc.) without changing the wire protocol.
      */
     stepProgressMessages: StepProgressMessage[];
-    error?: string;
+    timing: StreamTiming;
 }
 
 type State = Record<string, AiAgentThreadStreamingState>;
@@ -82,11 +127,11 @@ type State = Record<string, AiAgentThreadStreamingState>;
 const initialState: State = {};
 const initialThread: Omit<
     AiAgentThreadStreamingState,
-    'threadUuid' | 'messageUuid'
+    'threadUuid' | 'messageUuid' | 'timing'
 > = {
     content: '',
     parts: [],
-    isStreaming: true,
+    connection: { status: 'streaming' },
     toolCalls: [],
     reasoning: [],
     decidedToolCallIds: [],
@@ -107,7 +152,24 @@ export const aiAgentThreadStreamSlice = createSlice({
                 threadUuid,
                 messageUuid,
                 ...initialThread,
+                timing: {
+                    startedAt: Date.now(),
+                    firstTokenAt: null,
+                    finishedAt: null,
+                },
             };
+        },
+        markFirstToken: (
+            state,
+            action: PayloadAction<{ threadUuid: string }>,
+        ) => {
+            const streamingThread = state[action.payload.threadUuid];
+            if (
+                streamingThread &&
+                streamingThread.timing.firstTokenAt === null
+            ) {
+                streamingThread.timing.firstTokenAt = Date.now();
+            }
         },
         setMessage: {
             reducer: (
@@ -174,15 +236,32 @@ export const aiAgentThreadStreamSlice = createSlice({
                 toolCallId: string;
             }>(),
         },
+        markStreamRecovering: (
+            state,
+            action: PayloadAction<{ threadUuid: string }>,
+        ) => {
+            const streamingThread = state[action.payload.threadUuid];
+            if (streamingThread?.connection.status === 'streaming') {
+                streamingThread.connection = { status: 'recovering' };
+            }
+        },
+        markStreamPolling: (
+            state,
+            action: PayloadAction<{ threadUuid: string }>,
+        ) => {
+            const streamingThread = state[action.payload.threadUuid];
+            if (streamingThread?.connection.status === 'recovering') {
+                streamingThread.connection = { status: 'polling' };
+            }
+        },
         stopStreaming: (
             state,
             action: PayloadAction<{ threadUuid: string }>,
         ) => {
-            const { threadUuid } = action.payload;
-
-            const streamingThread = state[threadUuid];
+            const streamingThread = state[action.payload.threadUuid];
             if (streamingThread) {
-                streamingThread.isStreaming = false;
+                streamingThread.connection = { status: 'complete' };
+                streamingThread.timing.finishedAt ??= Date.now();
             }
         },
         addToolCall: {
@@ -217,8 +296,8 @@ export const aiAgentThreadStreamSlice = createSlice({
 
             const streamingThread = state[threadUuid];
             if (streamingThread) {
-                streamingThread.isStreaming = false;
-                streamingThread.error = error;
+                streamingThread.connection = { status: 'error', error };
+                streamingThread.timing.finishedAt ??= Date.now();
             }
         },
         addReasoning: {
@@ -274,9 +353,21 @@ export const aiAgentThreadStreamSlice = createSlice({
                     threadUuid: string;
                     message: string;
                     toolName: string | null;
+                    progressId?: string | null;
+                    progressStatus?:
+                        | 'in_progress'
+                        | 'complete'
+                        | 'error'
+                        | null;
                 }>,
             ) => {
-                const { threadUuid, message, toolName } = action.payload;
+                const {
+                    threadUuid,
+                    message,
+                    toolName,
+                    progressId = null,
+                    progressStatus = null,
+                } = action.payload;
                 const streamingThread = state[threadUuid];
                 if (!streamingThread) return;
                 // Drop adjacent-duplicate step events — `runQuery` fires
@@ -284,7 +375,9 @@ export const aiAgentThreadStreamSlice = createSlice({
                 // don't want a stuttering list. Non-adjacent repeats are
                 // fine (different cycle, different context) so we only
                 // check the most recent entry. A repeat from a different
-                // tool is kept (different toolName → not a true duplicate).
+                // tool is kept (different toolName → not a true duplicate),
+                // as is a repeat about a different unit of work or a status
+                // transition (different progressId/progressStatus).
                 const last =
                     streamingThread.stepProgressMessages[
                         streamingThread.stepProgressMessages.length - 1
@@ -292,18 +385,24 @@ export const aiAgentThreadStreamSlice = createSlice({
                 if (
                     last &&
                     last.message === message &&
-                    last.toolName === toolName
+                    last.toolName === toolName &&
+                    last.progressId === progressId &&
+                    last.progressStatus === progressStatus
                 )
                     return;
                 streamingThread.stepProgressMessages.push({
                     message,
                     toolName,
+                    progressId,
+                    progressStatus,
                 });
             },
             prepare: prepareAutoBatched<{
                 threadUuid: string;
                 message: string;
                 toolName: string | null;
+                progressId?: string | null;
+                progressStatus?: 'in_progress' | 'complete' | 'error' | null;
             }>(),
         },
     },
@@ -311,9 +410,12 @@ export const aiAgentThreadStreamSlice = createSlice({
 
 export const {
     startStreaming,
+    markFirstToken,
     setMessage,
     setParts,
     markToolCallDecided,
+    markStreamRecovering,
+    markStreamPolling,
     stopStreaming,
     setError,
     addToolCall,

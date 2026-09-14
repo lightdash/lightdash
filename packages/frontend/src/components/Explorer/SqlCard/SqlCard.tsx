@@ -1,20 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     formatSql,
+    getMergeCompiledSqlText,
     isCustomSqlDimension,
     isSqlTableCalculation,
 } from '@lightdash/common';
-import {
-    Box,
-    CopyButton,
-    Group,
-    Skeleton,
-    ActionIcon,
-    SegmentedControl,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Group, Skeleton, SegmentedControl } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { IconCheck, IconClipboard } from '@tabler/icons-react';
+import { IconClipboard } from '@tabler/icons-react';
 import {
     lazy,
     memo,
@@ -41,7 +34,7 @@ import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import Callout from '../../common/Callout';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
-import MantineIcon from '../../common/MantineIcon';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import { type SqlViewType } from '../../RenderedSql';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 
@@ -85,13 +78,14 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
         enabled: !!unsavedChartVersionTableName && !cannotViewSqlAuthoredFields,
     });
-    // With a merge configured, the merged statement is what Run executes;
-    // the card's copy and open-in-SQL-runner must carry it, not Query A's.
+    // With a merge configured, the legs and the join are what Run executes;
+    // the card's copy and open-in-SQL-runner must carry them, not the
+    // primary source's SQL alone.
     const merge = useMergeCompiledSql();
 
     const hasPivotQuery = !merge.isMergeActive && !!data?.pivotQuery;
     const selectedSql = merge.isMergeActive
-        ? merge.data?.sql
+        ? merge.data && getMergeCompiledSqlText(merge.data)
         : selectedView === 'pivotQuery'
           ? data?.pivotQuery
           : data?.query;
@@ -112,40 +106,45 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             isOpen={sqlIsOpen}
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
             disabled={!unsavedChartVersionTableName}
+            // Walkthrough markers for view:CompiledSql: the heading's click
+            // unfolds the SQL Lightdash wrote; the card is the result. See
+            // scripts/scope-tours.
+            headingTourProps={{
+                'data-tour-scope': 'view:CompiledSql',
+                'data-tour-step': '2',
+                'data-tour-route':
+                    '/projects/:projectUuid/saved/:savedQueryUuid',
+                'data-tour-label': 'Open the SQL',
+                'data-tour-title': 'Read the SQL behind a chart',
+                'data-tour-interactive': 'true',
+                'data-tour-via':
+                    '[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                'data-tour-docs':
+                    'explore/explore-view.mdx#the-explore-page:li5',
+            }}
+            tourProps={{
+                'data-tour-scope': 'view:CompiledSql',
+                'data-tour-step': '1',
+                'data-tour-route':
+                    '/projects/:projectUuid/saved/:savedQueryUuid',
+                'data-tour-label': 'Every chart is a query on a table',
+                'data-tour-docs': 'explore/explore-view.mdx#intro:1',
+                'data-tour-return': 'none',
+                'data-tour-resultdocs':
+                    'get-started/explore-your-data.mdx#3-run-your-own-query:1',
+            }}
             headerElement={
                 !cannotViewSqlAuthoredFields &&
                 (hovered || sqlIsOpen) &&
                 data &&
                 isSuccess ? (
-                    <CopyButton value={formattedSql} timeout={2000}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={
-                                    copied ? 'Copied to clipboard' : 'Copy SQL'
-                                }
-                                withArrow
-                                position="right"
-                                color={copied ? 'green' : 'dark'}
-                                fw={500}
-                            >
-                                <ActionIcon
-                                    variant="subtle"
-                                    color={copied ? 'teal' : 'gray'}
-                                    onClick={copy}
-                                >
-                                    {
-                                        <MantineIcon
-                                            icon={
-                                                copied
-                                                    ? IconCheck
-                                                    : IconClipboard
-                                            }
-                                        />
-                                    }
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
+                    <CopyActionIcon
+                        value={formattedSql}
+                        icon={IconClipboard}
+                        copyLabel="Copy SQL"
+                        copiedLabel="Copied to clipboard"
+                        tooltipPosition="right"
+                    />
                 ) : undefined
             }
             rightHeaderElement={

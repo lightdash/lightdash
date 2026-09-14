@@ -63,6 +63,12 @@ else
     pnpm -F backend rollback-all-production
     pnpm -F backend migrate-production
     pnpm -F backend seed-production
+
+    # Mark the whole pipeline complete as the very last step. The snapshot
+    # builder (scripts/preview-db-snapshot.sh) gates on this row so it never
+    # snapshots a database mid-seed: checking early artifacts (demo user,
+    # jaffle tables) passes while later seed files are still inserting.
+    check_database "CREATE TABLE IF NOT EXISTS preview_seed_complete (seeded_at timestamptz NOT NULL DEFAULT now()); INSERT INTO preview_seed_complete DEFAULT VALUES"
 fi
 
 exec "$@"

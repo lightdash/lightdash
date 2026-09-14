@@ -17,7 +17,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
-import { useQueryRetryConfig } from '../../../hooks/useQueryRetry';
+import {
+    CHART_RESULTS_ERROR_NAME,
+    useQueryRetryConfig,
+} from '../../../hooks/useQueryRetry';
 import {
     getDashboardSqlChartPivotChartData,
     getEmbedDashboardSqlChartPivotChartData,
@@ -110,6 +113,7 @@ export const useSavedSqlChartResults = (
             savedSqlUuid ?? slug,
             embedDashboard ? 'embed' : 'registered',
             embedDashboard ? args.tileUuid : undefined,
+            projectUuid,
         ],
         async () => {
             if (isEmbedDashboardArgs(args)) {
@@ -220,7 +224,7 @@ export const useSavedSqlChartResults = (
                 const wrapped: ApiError = {
                     status: 'error',
                     error: {
-                        name: 'ChartResultsError',
+                        name: CHART_RESULTS_ERROR_NAME,
                         statusCode: 500,
                         message,
                         data: {},
@@ -232,6 +236,7 @@ export const useSavedSqlChartResults = (
         {
             enabled:
                 !!chartQuery.data &&
+                !chartQuery.isError &&
                 !!projectUuid &&
                 (embedDashboard || !!savedSqlUuid || !!slug),
             ...retryConfig,
@@ -241,7 +246,11 @@ export const useSavedSqlChartResults = (
     // Get query uuid for download
     const getDownloadQueryUuid = useCallback(
         async (limit: number | null) => {
-            if (!chartResultsQuery.data || !chartQuery.data) {
+            if (
+                !chartResultsQuery.data ||
+                !chartQuery.data ||
+                chartQuery.isError
+            ) {
                 throw new Error('Chart results query or chart query not found');
             }
 
@@ -292,6 +301,7 @@ export const useSavedSqlChartResults = (
         [
             args,
             chartQuery.data,
+            chartQuery.isError,
             chartResultsQuery.data,
             context,
             projectUuid,

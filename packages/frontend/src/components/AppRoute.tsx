@@ -1,6 +1,11 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, ProjectType } from '@lightdash/common';
-import { type FC } from 'react';
+import {
+    FeatureFlags,
+    type Organization,
+    ProjectType,
+} from '@lightdash/common';
+import { useQueryClient } from '@tanstack/react-query';
+import { useRef, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { useOrganization } from '../hooks/organization/useOrganization';
@@ -12,7 +17,20 @@ import PageSpinner from './PageSpinner';
 const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const { health, user } = useApp();
     const location = useLocation();
-    const orgRequest = useOrganization();
+    const queryClient = useQueryClient();
+
+    const mustConfirmNoProjectRef = useRef<boolean | undefined>(undefined);
+    if (mustConfirmNoProjectRef.current === undefined) {
+        mustConfirmNoProjectRef.current =
+            queryClient.getQueryData<Organization>(['organization'])
+                ?.needsProject === true;
+    }
+
+    const orgRequest = useOrganization(
+        mustConfirmNoProjectRef.current
+            ? { refetchOnMount: 'always' }
+            : undefined,
+    );
     const homepageBuilderFlag = useHomepageBuilderFlag();
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
 

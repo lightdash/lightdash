@@ -1,0 +1,46 @@
+name: Pre-aggregate custom SQL dimension
+description: Monthly order totals grouped by a SQL custom dimension
+tableName: orders
+metricQuery:
+  exploreName: orders
+  dimensions:
+    - orders_order_date_month
+    - status_present
+  metrics:
+    - orders_total_order_amount
+  filters: {}
+  sorts:
+    - fieldId: orders_order_date_month
+      descending: true
+  limit: 500
+  metricOverrides: {}
+  dimensionOverrides: {}
+  tableCalculations: []
+  additionalMetrics: []
+  customDimensions:
+    - id: status_present
+      name: Status present
+      table: orders
+      type: sql
+      sql: ${orders.status} IS NOT NULL
+      dimensionType: boolean
+chartConfig:
+  type: table
+  config:
+    columns: {}
+    metricsAsRows: false
+    showSubtotals: false
+    hideRowNumbers: false
+    showTableNames: false
+    showResultsTotal: false
+    showRowCalculation: false
+    showColumnCalculation: false
+    conditionalFormattings: []
+tableConfig:
+  columnOrder:
+    - orders_order_date_month
+    - status_present
+    - orders_total_order_amount
+slug: pre-aggregate-custom-sql-dimension
+spaceSlug: jaffle-shop
+version: 1

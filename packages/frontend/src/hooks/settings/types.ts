@@ -27,6 +27,7 @@ export type SettingsNavigationItem = {
     icon: TablerIcon;
     /** Render the gradient AI orb instead of `icon` in the sidebar. */
     aiAgentIcon?: boolean;
+    isBeta?: boolean;
     /** Hidden search aliases so e.g. "sso" finds "Single Sign-On". */
     keywords: string[];
     /**
@@ -60,34 +61,34 @@ export type SettingsContext = {
     organization: Organization | undefined;
     project: Project | undefined;
     showImpersonationPanel: boolean | undefined;
-    isLeaveOrganizationEnabled: boolean;
     isCustomRolesEnabled: boolean | undefined;
     isProLimitsEnabled: boolean;
+    canAccessAnalyticsSettings: boolean;
+    isAnalyticsProjectFlagLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
-    isOrganizationRoadmapLoading: boolean;
     isSsoOrganizationSettingsEnabled: boolean;
     isEmailWhitelabelEnabled: boolean;
     isScimTokenManagementEnabled: FeatureFlag | undefined;
     isServiceAccountsEnabled: boolean;
     isAiCopilotEnabledOrTrial: boolean;
-    isDeepResearchEnabled: boolean;
     shouldShowAiAgentReviews: boolean;
-    shouldShowAiAgentMemories: boolean;
     // Org-level AI settings access (router config, org settings, review queue).
     canManageOrgAiAgent: boolean;
     // True when the user can manage org AI settings OR has AI agent access in at
     // least one project they can reach. Gates visibility of the "Ask AI" area.
     hasAnyAiAgentAccess: boolean;
     isAiOrganizationSettingsLoading: boolean;
-    isDeepResearchFlagLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
+    externalSourcesFlag: FeatureFlag | undefined;
+    isResultsCacheEnabled: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
     isGroupManagementEnabled: boolean;
     isWarehouseCredentialsEnabled: boolean;
     isGitProject: boolean;
+    isContentReviewAvailable: boolean;
     isHealthLoading: boolean;
     healthError: ApiError | null;
     isUserLoading: boolean;

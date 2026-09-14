@@ -14,7 +14,12 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconArrowBack, IconFilter, IconSearch } from '@tabler/icons-react';
+import {
+    IconArrowBack,
+    IconFilter,
+    IconSearch,
+    IconTrash,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './ValidatorTableTopToolbar.module.css';
@@ -36,6 +41,9 @@ type ValidatorTableTopToolbarProps = {
     totalResults: number;
     lastValidatedAt: Date | null;
     isFetching: boolean;
+    selectedCount: number;
+    onDeleteSelected: () => void;
+    onClearSelection: () => void;
 };
 
 export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
@@ -47,6 +55,9 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
     setShowConfigWarnings,
     totalResults,
     lastValidatedAt,
+    selectedCount,
+    onDeleteSelected,
+    onClearSelection,
 }) => {
     const hasActiveFilters =
         sourceTypeFilter.length > 0 || showConfigWarnings || searchQuery !== '';
@@ -98,14 +109,12 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
 
                 <Popover width={250} position="bottom-start">
                     <Popover.Target>
-                        <Tooltip withinPortal label="Filter by source type">
+                        <Tooltip label="Filter by source type">
                             <Button
                                 h={30}
                                 c="foreground"
-                                fw={500}
                                 fz="xs"
                                 variant="default"
-                                radius="md"
                                 px="sm"
                                 className={
                                     sourceTypeFilter.length > 0
@@ -167,7 +176,7 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                     }
                     label={
                         <Tooltip label="Include chart configuration warnings">
-                            <Box c="ldGray.6">Warnings</Box>
+                            <Box c="dimmed">Warnings</Box>
                         </Tooltip>
                     }
                     size="xs"
@@ -176,12 +185,7 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
 
                 {hasActiveFilters && (
                     <Tooltip label="Reset filters">
-                        <ActionIcon
-                            variant="subtle"
-                            size="sm"
-                            color="gray"
-                            onClick={resetFilters}
-                        >
+                        <ActionIcon size="sm" onClick={resetFilters}>
                             <MantineIcon icon={IconArrowBack} />
                         </ActionIcon>
                     </Tooltip>
@@ -189,13 +193,36 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
             </Group>
 
             <Group gap="md" wrap="nowrap">
+                {selectedCount > 0 && (
+                    <Group gap="xs" wrap="nowrap">
+                        <Button
+                            size="compact-xs"
+                            color="red"
+                            variant="light"
+                            leftSection={
+                                <MantineIcon icon={IconTrash} size="sm" />
+                            }
+                            onClick={onDeleteSelected}
+                        >
+                            Delete content ({selectedCount})
+                        </Button>
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            onClick={onClearSelection}
+                        >
+                            Clear
+                        </Button>
+                    </Group>
+                )}
                 {lastValidatedAt && (
-                    <Text fw={500} fz="xs" c="ldGray.6">
+                    <Text fw={500} fz="xs" c="dimmed">
                         Last validated: {formatTime(lastValidatedAt)}
                     </Text>
                 )}
                 {totalResults > 0 && (
-                    <Badge variant="light" color="red" size="sm">
+                    <Badge color="red" size="sm">
                         {totalResults} error{totalResults === 1 ? '' : 's'}
                     </Badge>
                 )}

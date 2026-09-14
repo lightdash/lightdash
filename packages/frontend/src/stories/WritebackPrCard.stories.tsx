@@ -7,16 +7,28 @@ import {
 import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
 import '@mantine/core/styles.css';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useState, type FC, type ReactNode } from 'react';
-import { PullRequestActionButtons } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/AiEditDbtProjectToolCall';
+import { Provider } from 'react-redux';
+import { MemoryRouter } from 'react-router';
+import {
+    AiEditDbtProjectToolCall,
+    PullRequestActionButtons,
+} from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/AiEditDbtProjectToolCall';
 import styles from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/AiEditDbtProjectToolCall.module.css';
 import { PullRequestCiChecks } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/PullRequestCiChecks';
+import { store } from '../ee/features/aiCopilot/store';
+import { AiAgentThreadStreamAbortControllerContextProvider } from '../ee/features/aiCopilot/streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import MantineBaseProvider from '../providers/MantineBaseProvider';
+import { createQueryClient } from '../providers/ReactQuery/createQueryClient';
+import AppProviderMock from '../testing/__mocks__/providers/AppProvider.mock';
 
 const DEMO_PR_URL = 'https://github.com/charliedowler/jaffle/pull/1';
+const PROJECT_UUID = '3675b69e-8324-4110-bdca-059031aa8da3';
 
 const MERGE_LATENCY_MS = 1200;
 const CLOSE_LATENCY_MS = 1000;
+const storyQueryClient = createQueryClient();
 
 const makeCiChecks = (overrides: Partial<CiChecks>): CiChecks => ({
     provider: CiProviderType.GITHUB,
@@ -64,10 +76,10 @@ const CardShell: FC<{
             <Stack gap="xs">
                 <Group justify="space-between" align="center" wrap="nowrap">
                     <Stack gap={0}>
-                        <Text size="sm" fw={500}>
+                        <Text size="xs" fw={500}>
                             Edited semantic layer
                         </Text>
-                        <Text size="xs" c="ldGray.6">
+                        <Text size="xs" c="dimmed">
                             charliedowler/jaffle · 4c2a4e9
                         </Text>
                     </Stack>
@@ -173,6 +185,32 @@ const meta: Meta = {
 export default meta;
 
 type Story = StoryObj;
+
+export const WorkingOnChange: Story = {
+    render: () => (
+        <QueryClientProvider client={storyQueryClient}>
+            <AppProviderMock>
+                <Provider store={store}>
+                    <AiAgentThreadStreamAbortControllerContextProvider>
+                        <MemoryRouter>
+                            <Stack w={560} p="md">
+                                <AiEditDbtProjectToolCall
+                                    metadata={{
+                                        status: 'pending',
+                                        aiWritebackRunUuid:
+                                            'story-writeback-run',
+                                    }}
+                                    projectUuid={PROJECT_UUID}
+                                    isPreviewDeploySetup={false}
+                                />
+                            </Stack>
+                        </MemoryRouter>
+                    </AiAgentThreadStreamAbortControllerContextProvider>
+                </Provider>
+            </AppProviderMock>
+        </QueryClientProvider>
+    ),
+};
 
 export const InteractiveMergeFlow: Story = {
     render: () => <InteractiveDemo />,

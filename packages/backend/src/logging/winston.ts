@@ -94,18 +94,6 @@ export const getSchedulerContext = ():
     return ExecutionContext.get<ExecutionContextInfo>().scheduler;
 };
 
-export const getOrganizationContext = (): Pick<
-    ExecutionContextInfo,
-    'organization_uuid' | 'organization_name'
-> => {
-    if (!ExecutionContext.exists()) return {};
-    const ctx = ExecutionContext.get<ExecutionContextInfo>();
-    return {
-        organization_uuid: ctx.organization_uuid,
-        organization_name: ctx.organization_name,
-    };
-};
-
 // Reads the originating data app from the request-scoped ExecutionContext
 // (populated by requestExecutionContextMiddleware from the app attribution
 // header) so warehouse queries can be tagged back to the app. Returns an empty
@@ -240,12 +228,22 @@ export const formatAuditActor = (actor: AuditActor): string => {
     return actor.uuid;
 };
 
+const formatAuditMetadataValue = (value: unknown): string => {
+    if (typeof value !== 'object' || value === null) return String(value);
+
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+};
+
 export const formatAuditResource = (resource: AuditResource): string => {
     const typePart = resource.type;
 
     if (resource.metadata) {
         const parts = Object.entries(resource.metadata)
-            .map(([key, value]) => `${key}: ${value}`)
+            .map(([key, value]) => `${key}: ${formatAuditMetadataValue(value)}`)
             .join(', ');
         return `${typePart} -> ${parts}`;
     }
@@ -270,6 +268,8 @@ export const formatAuditMessage = (event: AuditLogEvent): string => {
 };
 
 export const logAuditEvent = (event: AuditLogEvent): void => {
+    if (!winstonLogger.isLevelEnabled('audit')) return;
+
     winstonLogger.log({
         level: 'audit',
         message: formatAuditMessage(event),

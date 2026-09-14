@@ -10,7 +10,10 @@ import {
 import { type Explore } from '../types/explore';
 import { FieldType, MetricType } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
-import { translateMetricFlowMetrics } from './metricFlow';
+import {
+    applyMetricFlowMetricsToModels,
+    translateMetricFlowMetrics,
+} from './metricFlow';
 
 const ordersSemanticModel: DbtSemanticModel = {
     name: 'orders',
@@ -59,6 +62,68 @@ const simpleMetric = (
 });
 
 describe('translateMetricFlowMetrics', () => {
+    it('qualifies colliding metric names from merged manifest sources', () => {
+        const analyticsSemanticModel = {
+            ...ordersSemanticModel,
+            name: 'analytics_orders',
+            unique_id: 'semantic_model.pkg_a.orders',
+            depends_on: { nodes: ['model.pkg_a.orders'] },
+            measures: [],
+        };
+        const financeSemanticModel = {
+            ...ordersSemanticModel,
+            name: 'finance_orders',
+            unique_id: 'semantic_model.pkg_b.orders',
+            depends_on: { nodes: ['model.pkg_b.orders'] },
+            measures: [],
+        };
+        const result = translateMetricFlowMetrics({
+            semanticModels: {
+                [analyticsSemanticModel.unique_id]: analyticsSemanticModel,
+                [financeSemanticModel.unique_id]: financeSemanticModel,
+            },
+            metrics: {
+                'metric.pkg_a.revenue': {
+                    name: 'revenue',
+                    unique_id: 'metric.pkg_a.revenue',
+                    lightdash_source_name: 'analytics',
+                    type: 'simple',
+                    type_params: {
+                        metric_aggregation_params: {
+                            semantic_model: 'analytics_orders',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: 'amount',
+                        },
+                    },
+                },
+                'metric.pkg_b.revenue': {
+                    name: 'revenue',
+                    unique_id: 'metric.pkg_b.revenue',
+                    lightdash_source_name: 'finance',
+                    type: 'simple',
+                    type_params: {
+                        metric_aggregation_params: {
+                            semantic_model: 'finance_orders',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: 'amount',
+                        },
+                    },
+                },
+            },
+            modelNamesByUniqueId: {
+                'model.pkg_a.orders': 'analytics__orders',
+                'model.pkg_b.orders': 'finance__orders',
+            },
+        });
+
+        expect(Object.keys(result.metricsByModel.analytics__orders)).toEqual([
+            'analytics__revenue',
+        ]);
+        expect(Object.keys(result.metricsByModel.finance__orders)).toEqual([
+            'finance__revenue',
+        ]);
+    });
+
     it('translates a simple metric into a Lightdash model metric', () => {
         const result = translateMetricFlowMetrics({
             semanticModels: {
@@ -1236,5 +1301,234 @@ describe('translateMetricFlowMetrics', () => {
                 group_label: 'Claim Metrics',
             });
         });
+    });
+});
+
+describe('applyMetricFlowMetricsToModels', () => {
+    const ordersModel: DbtModelNode = {
+        ...MOCK_MODEL,
+        unique_id: 'model.jaffle.orders',
+        name: 'orders',
+    };
+    const buildMeshMetricFixture = (createMetric = false) => {
+        const models = ['analytics', 'finance'].map<DbtModelNode>(
+            (packageName) => ({
+                ...ordersModel,
+                unique_id: `model.${packageName}.orders`,
+                package_name: packageName,
+                relation_name: `${packageName}.orders`,
+                meta: {},
+            }),
+        );
+        const semanticModels = Object.fromEntries(
+            models.map((model) => {
+                const packageName = model.package_name!;
+                const semanticModel: DbtSemanticModel = {
+                    ...ordersSemanticModel,
+                    unique_id: `semantic_model.${packageName}.orders`,
+                    package_name: packageName,
+                    depends_on: { nodes: [model.unique_id] },
+                    measures: [
+                        {
+                            name: 'revenue',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: `${packageName}_amount`,
+                            create_metric: createMetric,
+                        },
+                    ],
+                };
+                return [semanticModel.unique_id, semanticModel];
+            }),
+        );
+        return { models, semanticModels };
+    };
+
+    it('is a no-op when the manifest has no semantic models', () => {
+        const result = applyMetricFlowMetricsToModels([ordersModel], {
+            metrics: {},
+        });
+        expect(result).toEqual({
+            models: [ordersModel],
+            warnings: [],
+            translatedCount: 0,
+            skippedCount: 0,
+            error: null,
+        });
+    });
+
+    it('merges translated metrics into model meta, YAML metrics winning on collision', () => {
+        const modelWithYamlMetric: DbtModelNode = {
+            ...ordersModel,
+            meta: {
+                metrics: {
+                    revenue: { type: MetricType.MAX, sql: 'yaml_wins' },
+                },
+            },
+        };
+        const result = applyMetricFlowMetricsToModels([modelWithYamlMetric], {
+            semantic_models: {
+                [ordersSemanticModel.unique_id]: ordersSemanticModel,
+            },
+            metrics: {
+                'metric.jaffle.revenue': simpleMetric('revenue', 'order_total'),
+                'metric.jaffle.order_count': simpleMetric(
+                    'order_count',
+                    'order_count',
+                ),
+            },
+        });
+
+        expect(result.error).toBeNull();
+        // revenue + order_count + create_metric measure (unique_customers)
+        expect(result.translatedCount).toBe(3);
+        const { metrics } = result.models[0].meta;
+        // YAML-defined metric wins over the translated one
+        expect(metrics?.revenue).toEqual({
+            type: MetricType.MAX,
+            sql: 'yaml_wins',
+        });
+        expect(metrics?.order_count).toMatchObject({
+            type: MetricType.COUNT,
+        });
+        expect(metrics?.unique_customers).toMatchObject({
+            type: MetricType.COUNT_DISTINCT,
+        });
+    });
+
+    it('keeps same-named Mesh metrics associated with their package model', () => {
+        const { models, semanticModels } = buildMeshMetricFixture();
+
+        const result = applyMetricFlowMetricsToModels(models, {
+            semantic_models: semanticModels,
+            metrics: {
+                'metric.analytics.revenue': {
+                    name: 'revenue',
+                    unique_id: 'metric.analytics.revenue',
+                    package_name: 'analytics',
+                    type: 'simple',
+                    type_params: { measure: { name: 'revenue' } },
+                },
+                'metric.finance.revenue': {
+                    name: 'revenue',
+                    unique_id: 'metric.finance.revenue',
+                    package_name: 'finance',
+                    type: 'simple',
+                    type_params: { measure: { name: 'revenue' } },
+                },
+            },
+        });
+
+        expect(result.error).toBeNull();
+        expect(result.models[0].meta.metrics).toEqual({
+            analytics__revenue: expect.objectContaining({
+                sql: '${TABLE}.analytics_amount',
+            }),
+        });
+        expect(result.models[1].meta.metrics).toEqual({
+            finance__revenue: expect.objectContaining({
+                sql: '${TABLE}.finance_amount',
+            }),
+        });
+    });
+
+    it('qualifies create_metric measures and resolves derived inputs package-locally', () => {
+        const { models, semanticModels } = buildMeshMetricFixture(true);
+        const result = applyMetricFlowMetricsToModels(models, {
+            semantic_models: semanticModels,
+            metrics: {
+                'metric.analytics.double_revenue': {
+                    name: 'double_revenue',
+                    unique_id: 'metric.analytics.double_revenue',
+                    package_name: 'analytics',
+                    type: 'derived',
+                    type_params: {
+                        expr: 'revenue * 2',
+                        metrics: [{ name: 'revenue' }],
+                    },
+                },
+            },
+        });
+
+        expect(result.error).toBeNull();
+        expect(result.models[0].meta.metrics).toMatchObject({
+            analytics__revenue: { sql: '${TABLE}.analytics_amount' },
+            double_revenue: { sql: '${analytics__revenue} * 2' },
+        });
+        expect(result.models[1].meta.metrics).toEqual({
+            finance__revenue: expect.objectContaining({
+                sql: '${TABLE}.finance_amount',
+            }),
+        });
+    });
+
+    it("does not let one package's explicit metric suppress another package's create_metric measure", () => {
+        const { models, semanticModels } = buildMeshMetricFixture(true);
+        const result = applyMetricFlowMetricsToModels(models, {
+            semantic_models: semanticModels,
+            metrics: {
+                'metric.analytics.revenue': {
+                    name: 'revenue',
+                    unique_id: 'metric.analytics.revenue',
+                    package_name: 'analytics',
+                    type: 'simple',
+                    type_params: { measure: { name: 'revenue' } },
+                },
+            },
+        });
+
+        expect(result.error).toBeNull();
+        expect(result.models[0].meta.metrics?.analytics__revenue).toMatchObject(
+            {
+                sql: '${TABLE}.analytics_amount',
+            },
+        );
+        expect(result.models[1].meta.metrics?.finance__revenue).toMatchObject({
+            sql: '${TABLE}.finance_amount',
+        });
+    });
+
+    it('resolves filtered create_metric inputs within the parent metric package', () => {
+        const { models, semanticModels } = buildMeshMetricFixture(true);
+        const result = applyMetricFlowMetricsToModels(models, {
+            semantic_models: semanticModels,
+            metrics: {
+                'metric.analytics.filtered_revenue': {
+                    name: 'filtered_revenue',
+                    unique_id: 'metric.analytics.filtered_revenue',
+                    package_name: 'analytics',
+                    type: 'derived',
+                    type_params: {
+                        expr: 'revenue',
+                        metrics: [{ name: 'revenue', filter: '1 = 1' }],
+                    },
+                },
+            },
+        });
+
+        expect(result.error).toBeNull();
+        expect(
+            result.models[0].meta.metrics?.filtered_revenue_revenue,
+        ).toMatchObject({
+            sql: 'CASE WHEN (1 = 1) THEN (${TABLE}.analytics_amount) END',
+            hidden: true,
+        });
+        expect(result.models[0].meta.metrics?.filtered_revenue).toMatchObject({
+            sql: '${filtered_revenue_revenue}',
+        });
+        expect(result.models[1].meta.metrics).not.toHaveProperty(
+            'filtered_revenue',
+        );
+    });
+
+    it('returns models untouched with error set when translation crashes', () => {
+        const result = applyMetricFlowMetricsToModels([ordersModel], {
+            // A null semantic model crashes the translator's indexing pass
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            semantic_models: { sm: null as any },
+            metrics: {},
+        });
+        expect(result.models).toEqual([ordersModel]);
+        expect(result.translatedCount).toBe(0);
+        expect(result.error).not.toBeNull();
     });
 });

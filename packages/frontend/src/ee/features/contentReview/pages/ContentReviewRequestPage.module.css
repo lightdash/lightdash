@@ -1,0 +1,32 @@
+.page {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.list {
+    margin: 0 calc(var(--mantine-spacing-sm) * -1);
+}
+
+.backLink {
+    align-self: flex-start;
+}
+
+.footer {
+    padding-top: var(--mantine-spacing-sm);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.inlineToggle {
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-text);
+}
+
+.inlineToggle:hover {
+    text-decoration: underline;
+}
+
+.noteText {
+    white-space: pre-wrap;
+}

@@ -61,6 +61,7 @@ import {
     SettingsPageActions,
     SettingsPageDocumentationLink,
 } from '../common/Settings/SettingsPage';
+import TruncatedText from '../common/TruncatedText';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';
@@ -72,19 +73,24 @@ type Props = {
 const TimeAgoText: FC<{ date: Date | string }> = ({ date }) => {
     const timeAgo = useTimeAgo(date);
     return (
-        <Text size="xs" c="ldGray.6">
+        <Text size="xs" c="dimmed">
             {timeAgo}
         </Text>
     );
 };
 
-type StatusType = PreAggregateMaterializationStatus;
+type StatusType =
+    | PreAggregateMaterializationStatus
+    | 'external'
+    | 'never_materialized';
 
 const STATUS_LABELS: Record<StatusType, string> = {
     active: 'Active',
     in_progress: 'Building',
     failed: 'Failed',
     superseded: 'Superseded',
+    external: 'External',
+    never_materialized: 'Never materialized',
 };
 
 const ALL_STATUSES: StatusType[] = [
@@ -92,7 +98,16 @@ const ALL_STATUSES: StatusType[] = [
     'in_progress',
     'failed',
     'superseded',
+    'external',
+    'never_materialized',
 ];
+
+const getStatusType = (
+    summary: PreAggregateMaterializationSummary,
+): StatusType => {
+    if (summary.externalTable) return 'external';
+    return summary.materialization?.status ?? 'never_materialized';
+};
 
 const StatusFilter: FC<{
     selected: StatusType | null;
@@ -103,14 +118,12 @@ const StatusFilter: FC<{
     return (
         <Popover width={250} position="bottom-start">
             <Popover.Target>
-                <Tooltip withinPortal label="Filter by status">
+                <Tooltip label="Filter by status">
                     <Button
                         h={32}
                         c="foreground"
-                        fw={500}
                         fz="sm"
                         variant="default"
-                        radius="md"
                         px="sm"
                         className={
                             hasSelection
@@ -136,7 +149,7 @@ const StatusFilter: FC<{
             </Popover.Target>
             <Popover.Dropdown p="sm">
                 <Stack gap={4}>
-                    <Text fz="xs" c="ldGray.6" fw={600}>
+                    <Text fz="xs" c="dimmed" fw={600}>
                         Filter by status:
                     </Text>
                     <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
@@ -221,6 +234,10 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         () => data?.pages.flatMap((page) => page.data.materializations) ?? [],
         [data],
     );
+    const managedMaterializations = useMemo(
+        () => materializations.filter((item) => !item.externalTable),
+        [materializations],
+    );
 
     const [sorting, setSorting] = useState<ContentTableSortingState>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -250,14 +267,14 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         let rows = materializations;
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
-            rows = rows.filter((r) =>
-                r.preAggregateName.toLowerCase().includes(query),
+            rows = rows.filter(
+                (r) =>
+                    r.preAggregateName.toLowerCase().includes(query) ||
+                    r.externalTable?.toLowerCase().includes(query),
             );
         }
         if (selectedStatus) {
-            rows = rows.filter(
-                (r) => r.materialization?.status === selectedStatus,
-            );
+            rows = rows.filter((r) => getStatusType(r) === selectedStatus);
         }
         return rows;
     }, [materializations, searchQuery, selectedStatus]);
@@ -270,8 +287,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         const warningCount = filteredMaterializations.filter(
             (m) => m.warnings.length > 0,
         ).length;
+        const external = filteredMaterializations.filter(
+            (m) => m.externalTable !== null,
+        ).length;
 
-        return { total, active, warningCount };
+        return { total, active, external, warningCount };
     }, [filteredMaterializations]);
 
     const columns = useMemo<
@@ -289,9 +309,14 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text size="xs" fw={500} ff="monospace">
+                    <TruncatedText
+                        maxWidth={180}
+                        fz="xs"
+                        fw={500}
+                        ff="monospace"
+                    >
                         {row.original.preAggregateName}
-                    </Text>
+                    </TruncatedText>
                 ),
             },
             {
@@ -301,7 +326,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 size: 160,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconTable} color="ldGray.6" />
+                        <MantineIcon icon={IconTable} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -333,7 +358,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     <Group gap="two" align="flex-start" wrap="nowrap">
                         <MantineIcon
                             icon={IconRowInsertBottom}
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                         {column.columnDef.header}
                     </Group>
@@ -350,7 +375,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     );
                     return (
                         <Group gap={4} wrap="nowrap">
-                            <Text size="xs" c="ldGray.6" ff="monospace">
+                            <Text size="xs" c="dimmed" ff="monospace">
                                 {rowCount != null
                                     ? rowCount.toLocaleString()
                                     : '\u2014'}
@@ -358,13 +383,12 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                             {hasRowLimitWarning && (
                                 <Tooltip
                                     label="Max rows applied"
-                                    withArrow
                                     position="top"
                                 >
                                     <MantineIcon
                                         icon={IconFilterExclamation}
                                         size="sm"
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                 </Tooltip>
                             )}
@@ -372,7 +396,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                                 <MantineIcon
                                     icon={IconAlertTriangle}
                                     size="sm"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             )}
                         </Group>
@@ -387,7 +411,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 size: 90,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconColumns} color="ldGray.6" />
+                        <MantineIcon icon={IconColumns} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -395,7 +419,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     const cols = row.original.materialization?.columns;
                     const count = cols ? Object.keys(cols).length : null;
                     return (
-                        <Text size="xs" c="ldGray.6" ff="monospace">
+                        <Text size="xs" c="dimmed" ff="monospace">
                             {count != null ? count : '\u2014'}
                         </Text>
                     );
@@ -409,14 +433,14 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 accessorFn: (row) => row.materialization?.totalBytes ?? null,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconFile} color="ldGray.6" />
+                        <MantineIcon icon={IconFile} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const bytes = row.original.materialization?.totalBytes;
                     return (
-                        <Text size="xs" c="ldGray.6" ff="monospace">
+                        <Text size="xs" c="dimmed" ff="monospace">
                             {bytes != null ? formatFileSize(bytes) : '\u2014'}
                         </Text>
                     );
@@ -431,14 +455,14 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 accessorFn: (row) => row.materialization?.durationMs ?? null,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconHourglass} color="ldGray.6" />
+                        <MantineIcon icon={IconHourglass} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const durationMs = row.original.materialization?.durationMs;
                     return (
-                        <Text size="xs" c="ldGray.6" ff="monospace">
+                        <Text size="xs" c="dimmed" ff="monospace">
                             {durationMs != null
                                 ? formatDuration(durationMs)
                                 : '\u2014'}
@@ -456,7 +480,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     row.materialization?.materializedAt ?? null,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -471,7 +495,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         !materializedAt
                     ) {
                         return (
-                            <Text size="xs" c="ldGray.6">
+                            <Text size="xs" c="dimmed">
                                 {'\u2014'}
                             </Text>
                         );
@@ -494,15 +518,24 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 size: 130,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconCalendarTime} color="ldGray.6" />
+                        <MantineIcon icon={IconCalendarTime} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const { refreshCron } = row.original;
+                    const { externalTable, refreshCron } = row.original;
+                    if (externalTable) {
+                        return (
+                            <Tooltip label="Refreshes are managed outside Lightdash">
+                                <Text size="xs" c="ldGray.7" fw={500}>
+                                    Customer managed
+                                </Text>
+                            </Tooltip>
+                        );
+                    }
                     if (!refreshCron) {
                         return (
-                            <Text size="xs" c="ldGray.6">
+                            <Text size="xs" c="dimmed">
                                 Manual
                             </Text>
                         );
@@ -515,7 +548,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         >
                             <Text
                                 size="xs"
-                                c="ldGray.6"
+                                c="dimmed"
                                 ff="monospace"
                                 style={{ cursor: 'help' }}
                             >
@@ -531,6 +564,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 enableSorting: false,
                 size: 50,
                 Cell: ({ row }) => {
+                    if (row.original.externalTable) return null;
+
                     const isThisRowRefreshing =
                         isRefreshingOne &&
                         refreshingDefinitionName ===
@@ -538,8 +573,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     return (
                         <Tooltip label="Rebuild this pre-aggregate">
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="sm"
                                 loading={isThisRowRefreshing}
                                 onClick={(e) => {
@@ -591,7 +624,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.currentTarget.value)}
                         size="xs"
-                        radius="md"
                         w={200}
                     />
                     <StatusFilter
@@ -600,12 +632,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     />
                     {hasActiveFilters && (
                         <Tooltip label="Reset filters">
-                            <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                color="gray"
-                                onClick={resetFilters}
-                            >
+                            <ActionIcon size="sm" onClick={resetFilters}>
                                 <MantineIcon icon={IconFilterOff} />
                             </ActionIcon>
                         </Tooltip>
@@ -613,7 +640,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 </Group>
                 <Group gap="xs" wrap="nowrap">
                     <Text size="xs" c="dimmed">
-                        {summary.active}/{summary.total} active
+                        {summary.active} active, {summary.total} total
+                        {summary.external > 0 &&
+                            `, ${summary.external} external`}
                         {summary.warningCount > 0 &&
                             `, ${summary.warningCount} warning${summary.warningCount > 1 ? 's' : ''}`}
                     </Text>
@@ -671,16 +700,21 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 actions={
                     <SettingsPageActions>
                         <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/pre-aggregates" />
-                        <Button
-                            size="xs"
-                            leftSection={
-                                <MantineIcon icon={IconRefreshDot} size="sm" />
-                            }
-                            loading={isRefreshingAll || hasActiveJobs}
-                            onClick={handleRefreshAllClick}
-                        >
-                            Rebuild all
-                        </Button>
+                        {managedMaterializations.length > 0 && (
+                            <Button
+                                size="xs"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconRefreshDot}
+                                        size="sm"
+                                    />
+                                }
+                                loading={isRefreshingAll || hasActiveJobs}
+                                onClick={handleRefreshAllClick}
+                            >
+                                Rebuild managed
+                            </Button>
+                        )}
                     </SettingsPageActions>
                 }
             >
@@ -729,16 +763,16 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             <MantineModal
                 opened={isRefreshModalOpen}
                 onClose={closeRefreshModal}
-                title="Rebuild all pre-aggregates"
+                title="Rebuild managed pre-aggregates"
                 icon={IconRefreshDot}
                 size="lg"
                 onConfirm={handleRefreshAllConfirm}
-                confirmLabel="Rebuild all"
+                confirmLabel="Rebuild managed"
                 confirmLoading={isRefreshingAll}
-                description="This will rebuild all pre-aggregate definitions in this project by re-running their warehouse queries to regenerate the cached data."
+                description={`This rebuilds ${managedMaterializations.length} Lightdash-managed pre-aggregate${managedMaterializations.length === 1 ? '' : 's'}. External definitions stay untouched.`}
             >
                 <Stack gap="sm">
-                    <Text fz="xs" c="ldGray.6">
+                    <Text fz="xs" c="dimmed">
                         Depending on the number of pre-aggregates and the size
                         of your data, this may take several minutes and will use
                         warehouse resources. You can track the progress in the

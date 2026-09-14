@@ -35,7 +35,7 @@ export const MetricsCatalogColumnOwner: FC<Props> = ({ row }) => {
                         name={displayName}
                         userUuid={owner.userUuid}
                     />
-                    <Text fz="sm" fw={600} c="ldGray.9" truncate>
+                    <Text fz="sm" fw={600} truncate>
                         {displayName}
                     </Text>
                 </Group>

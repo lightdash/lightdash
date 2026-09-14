@@ -142,7 +142,7 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
     } else if (memories.length === 0) {
         content = (
             <Stack gap="xs" className={styles.emptyState}>
-                <Text size="sm" fw={550}>
+                <Text size="sm" fw={500}>
                     No memories yet
                 </Text>
                 <Text size="sm" c="dimmed">
@@ -158,7 +158,6 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
                     <Box className={styles.search}>
                         <TextInput
                             size="xs"
-                            radius="md"
                             placeholder="Search memories"
                             value={search}
                             onChange={(event) =>

@@ -3,8 +3,13 @@ import { useEffect, type FC } from 'react';
 import { Panel, PanelGroup } from 'react-resizable-panels';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
-import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
+import {
+    clearPreview,
+    selectArtifactPreview,
+    setPreview,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -13,16 +18,11 @@ import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
 
 export const VerifiedArtifactDetail: FC = () => {
     const navigate = useNavigate();
-    const { projectUuid, agentUuid, artifactUuid } = useParams<{
-        projectUuid: string;
-        agentUuid: string;
-        artifactUuid: string;
-    }>();
+    const { agentUuid, artifactUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const dispatch = useAiAgentStoreDispatch();
-    const artifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
+    const artifact = useAiAgentStoreSelector(selectArtifactPreview);
 
     const versionUuid = searchParams.get('versionUuid');
     const threadUuid = searchParams.get('threadUuid');
@@ -53,7 +53,8 @@ export const VerifiedArtifactDetail: FC = () => {
             promptUuid
         ) {
             dispatch(
-                setArtifact({
+                setPreview({
+                    type: 'artifact',
                     projectUuid,
                     agentUuid,
                     artifactUuid,
@@ -65,7 +66,7 @@ export const VerifiedArtifactDetail: FC = () => {
         }
 
         return () => {
-            dispatch(clearArtifact());
+            dispatch(clearPreview());
         };
     }, [
         dispatch,

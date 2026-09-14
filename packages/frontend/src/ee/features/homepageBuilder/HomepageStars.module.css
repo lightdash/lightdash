@@ -67,7 +67,7 @@
 }
 
 .card {
-    background-color: light-dark(#fff, var(--mantine-color-dark-6));
+    background-color: var(--mantine-color-body);
     border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-md);
     box-shadow: var(--mantine-shadow-sm);
@@ -168,7 +168,7 @@
     font-size: 13px;
     font-weight: 500;
     color: inherit;
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    background: var(--mantine-color-body);
     border: 1px solid var(--mantine-color-ldGray-2);
 }
 

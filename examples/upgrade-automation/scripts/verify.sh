@@ -13,8 +13,16 @@ require_value deploy_conclusion "${DEPLOY_CONCLUSION:-}"
 require_value deployed_sha "${DEPLOYED_SHA:-}"
 require_value github_token "${GH_TOKEN:-}"
 
+branch_prefix=${BRANCH_PREFIX:-lightdash-upgrade}
+if [[ ! "$branch_prefix" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    echo "branch_prefix must match ^[A-Za-z0-9][A-Za-z0-9._-]*$" >&2
+    exit 1
+fi
+
 pinned_mapped=$(read_bump_value)
 pinned_public=$(public_version "$pinned_mapped" "${TAG_SUFFIX:-}")
+UPGRADE_BRANCH="${branch_prefix}-$(safe_branch_version "$pinned_mapped")"
+export UPGRADE_BRANCH
 if ! default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch'); then
     echo "Unable to determine the default branch for upgrade verification." >&2
     exit 1
@@ -26,7 +34,7 @@ export VERIFY_COMMENT_AUTHOR
 if ! merged_upgrade_prs=$(gh api \
     --paginate \
     "repos/$GITHUB_REPOSITORY/pulls?state=closed&base=$default_branch&per_page=100" \
-    --jq '.[] | select(.merged_at != null and ((.head.ref // "") | startswith("lightdash-upgrade-"))) | [.number, (.merge_commit_sha // "")] | @tsv'); then
+    --jq '.[] | select(.merged_at != null and (.head.ref // "") == $ENV.UPGRADE_BRANCH) | [.number, (.merge_commit_sha // "")] | @tsv'); then
     echo "Unable to list merged upgrade pull requests; refusing to skip verification." >&2
     exit 1
 fi
@@ -92,39 +100,58 @@ deadline=$((started_at + window_seconds))
 consecutive=0
 last_reason=not_started
 verified=false
+superseded=false
 response_body=$(mktemp)
 response_headers=$(mktemp)
 summary_file=$(mktemp)
 issue_body=$(mktemp)
 trap 'rm -f "$response_body" "$response_headers" "$summary_file" "$issue_body"' EXIT
 
-if [[ "$DEPLOY_CONCLUSION" == "success" ]]; then
+# A cancelled run proves neither failure nor success, so poll: the running
+# version decides, and nothing deployed still freezes.
+if [[ "$DEPLOY_CONCLUSION" == "success" || "$DEPLOY_CONCLUSION" == "cancelled" ]]; then
     while [[ $(date +%s) -lt $deadline ]]; do
         remaining_seconds=$((deadline - $(date +%s)))
         curl_timeout=$((remaining_seconds < 20 ? remaining_seconds : 20))
         status=$(curl --connect-timeout 10 --max-time "$curl_timeout" --silent --show-error --output "$response_body" --write-out '%{http_code}' "${INSTANCE_URL%/}/api/v1/readyz" || true)
         readiness=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
         if [[ "$status" == "200" && "$readiness" == "ready" ]]; then
-            remaining_seconds=$((deadline - $(date +%s)))
-            if [[ $remaining_seconds -le 0 ]]; then
+            warnings=$(jq -r '.warnings // [] | .[]' "$response_body" 2>/dev/null || true)
+            if [[ $'\n'"$warnings"$'\n' == *$'\nmigration_parked\n'* ]]; then
+                consecutive=0
+                last_reason=migration_parked
                 break
-            fi
-            curl_timeout=$((remaining_seconds < 20 ? remaining_seconds : 20))
-            curl --connect-timeout 10 --max-time "$curl_timeout" --silent --show-error --location --head --output "$response_headers" "${INSTANCE_URL%/}/" || true
-            running_version=$(awk -F': *' 'tolower($1) == "lightdash-version" { gsub("\r", "", $2); print $2; exit }' "$response_headers")
-            if [[ "$running_version" == "$pinned_public" ]]; then
-                consecutive=$((consecutive + 1))
-                last_reason=ready
-                if [[ $consecutive -ge 3 ]]; then
-                    verified=true
+            elif [[ $'\n'"$warnings"$'\n' == *$'\nmigration_ledger_unavailable\n'* ]]; then
+                consecutive=0
+                last_reason=migration_ledger_unavailable
+            else
+                remaining_seconds=$((deadline - $(date +%s)))
+                if [[ $remaining_seconds -le 0 ]]; then
                     break
                 fi
-            else
-                consecutive=0
-                if [[ -z "$running_version" ]]; then
-                    last_reason=version_header_missing
+                curl_timeout=$((remaining_seconds < 20 ? remaining_seconds : 20))
+                curl --connect-timeout 10 --max-time "$curl_timeout" --silent --show-error --location --head --output "$response_headers" "${INSTANCE_URL%/}/" || true
+                running_version=$(awk -F': *' 'tolower($1) == "lightdash-version" { gsub("\r", "", $2); print $2; exit }' "$response_headers")
+                if [[ "$running_version" == "$pinned_public" ]]; then
+                    consecutive=$((consecutive + 1))
+                    last_reason=ready
+                    if [[ $consecutive -ge 3 ]]; then
+                        verified=true
+                        break
+                    fi
                 else
-                    last_reason="version_mismatch:$(printf '%s' "$running_version" | sanitize_evidence)"
+                    consecutive=0
+                    if [[ -z "$running_version" ]]; then
+                        last_reason=version_header_missing
+                    elif [[ "$running_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+                        && [[ "$pinned_public" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+                        && version_gt "$running_version" "$pinned_public"; then
+                        last_reason="superseded:$(printf '%s' "$running_version" | sanitize_evidence)"
+                        superseded=true
+                        break
+                    else
+                        last_reason="version_mismatch:$(printf '%s' "$running_version" | sanitize_evidence)"
+                    fi
                 fi
             fi
         else
@@ -143,6 +170,8 @@ elapsed=$((finished_at - started_at))
 outcome=failure
 if [[ "$verified" == "true" ]]; then
     outcome=success
+elif [[ "$superseded" == "true" ]]; then
+    outcome=superseded
 fi
 
 cat >"$summary_file" <<EOF
@@ -159,7 +188,23 @@ cat >"$summary_file" <<EOF
 $(jq . <<<"$verdict_json")
 \`\`\`
 EOF
+if [[ "$superseded" == "true" ]]; then
+    gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$summary_file" \
+        || echo "warning: failed to post the verification summary comment" >&2
+    exit 0
+fi
 if [[ "$verified" == "true" ]]; then
+    if ! marked_freeze_issues=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$FREEZE_LABEL" --limit 1000 --json number,body --jq '.[] | select(.body | contains("<!-- upgrade-automation:auto-freeze -->")) | .number'); then
+        echo "warning: failed to inspect open upgrade freeze issues" >&2
+        marked_freeze_issues=
+    fi
+    while IFS= read -r freeze_issue_number; do
+        if [[ -z "$freeze_issue_number" ]]; then
+            continue
+        fi
+        gh issue close "$freeze_issue_number" --repo "$GITHUB_REPOSITORY" --comment "Upgrade automation is re-armed after verifying \`$pinned_public\`: $DEPLOY_RUN_URL" \
+            || echo "warning: failed to close upgrade freeze issue #$freeze_issue_number" >&2
+    done <<<"$marked_freeze_issues"
     gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$summary_file"
     exit 0
 fi
@@ -167,6 +212,8 @@ fi
 gh label create "$FREEZE_LABEL" --repo "$GITHUB_REPOSITORY" --force --color B60205 --description 'Disarms automated Lightdash upgrades'
 issue_title="Lightdash $pinned_public upgrade verification failed"
 cat >"$issue_body" <<EOF
+<!-- upgrade-automation:auto-freeze -->
+
 The automated verification for \`$from_version\` → \`$pinned_public\` failed and future upgrades are frozen.
 
 - Pull request: $pr_url

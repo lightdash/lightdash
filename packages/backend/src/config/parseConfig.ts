@@ -1,5 +1,6 @@
 import {
     AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS,
+    AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEFAULT_MAX_QUERY_LIMIT,
     ALL_TASK_NAMES,
     AllowedEmailDomainsRole,
@@ -29,6 +30,7 @@ import {
     WarehouseTypes,
     WeekDay,
     type GroupProjectAccessSetupEntry,
+    type HealthState,
     type SchedulerTaskName,
     type UserAttributeSetupEntry,
 } from '@lightdash/common';
@@ -44,10 +46,15 @@ import {
     DEFAULT_ANTHROPIC_MODEL_NAME,
     DEFAULT_BEDROCK_MODEL_NAME,
     DEFAULT_DEFAULT_AI_PROVIDER,
+    DEFAULT_GOOGLE_MODEL_NAME,
     DEFAULT_OPENAI_EMBEDDING_MODEL,
     DEFAULT_OPENAI_MODEL_NAME,
     DEFAULT_OPENROUTER_MODEL_NAME,
 } from './aiConfigSchema';
+import {
+    normalizeAnthropicGatewayBaseUrl,
+    normalizeLlmGatewayBaseUrl,
+} from './aiGatewayConfig';
 
 enum TokenEnvironmentVariable {
     SERVICE_ACCOUNT = 'LD_SETUP_SERVICE_ACCOUNT_TOKEN',
@@ -153,7 +160,7 @@ export const getStringRecordFromEnvironmentVariable = (
         return undefined;
     }
 
-    const result = z.record(z.string()).safeParse(value);
+    const result = z.record(z.string(), z.string()).safeParse(value);
     if (!result.success) {
         throw new ParseError(
             `Cannot parse environment variable "${name}". Value must be a JSON object with string values. Error: ${result.error.message}`,
@@ -412,6 +419,21 @@ const parseEnum = <T>(
     return value as T;
 };
 
+const getMobileMinimumVersionFromEnvironmentVariable = (
+    name: string,
+): string | null => {
+    const value = process.env[name];
+    if (value === undefined) return null;
+
+    if (!/^\d+(?:\.\d+)*$/.test(value)) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must contain dot-separated non-negative integer components but ${name}=${value}`,
+        );
+    }
+
+    return value;
+};
+
 // WeekDay is a numeric enum, so a generic Object.values check would accept the
 // day names as-is and never convert them to the numeric value the app expects.
 const parseWeekDay = (value: unknown): WeekDay => {
@@ -440,7 +462,7 @@ const startOfWeekSchema = z
             return parseWeekDay(value);
         } catch (e) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: getErrorMessage(e),
             });
             return z.NEVER;
@@ -451,24 +473,22 @@ const multiProjectSetupEntrySchema = z.object({
     name: z.string().min(1, 'Project name cannot be empty'),
     warehouseConnection: z
         .object({
-            type: z.nativeEnum(WarehouseTypes, {
-                errorMap: () => ({
-                    message: `Invalid warehouse type. Must be one of: ${Object.values(WarehouseTypes).join(', ')}`,
-                }),
+            type: z.enum(WarehouseTypes, {
+                error: () =>
+                    `Invalid warehouse type. Must be one of: ${Object.values(WarehouseTypes).join(', ')}`,
             }),
             startOfWeek: startOfWeekSchema,
         })
         .passthrough(),
     dbtConnection: z
         .object({
-            type: z.nativeEnum(DbtProjectType, {
-                errorMap: () => ({
-                    message: `Invalid dbt connection type. Must be one of: ${Object.values(DbtProjectType).join(', ')}`,
-                }),
+            type: z.enum(DbtProjectType, {
+                error: () =>
+                    `Invalid dbt connection type. Must be one of: ${Object.values(DbtProjectType).join(', ')}`,
             }),
         })
         .passthrough(),
-    dbtVersion: z.nativeEnum(SupportedDbtVersions).optional(),
+    dbtVersion: z.enum(SupportedDbtVersions).optional(),
     embed: z
         .object({
             secret: z.string().optional(),
@@ -477,19 +497,18 @@ const multiProjectSetupEntrySchema = z.object({
         .optional(),
 });
 
-const multiProjectSetupSchema = z.array(multiProjectSetupEntrySchema).refine(
-    (entries) => {
-        const names = entries.map((e) => e.name);
-        return new Set(names).size === names.length;
-    },
-    (entries) => {
+const multiProjectSetupSchema = z
+    .array(multiProjectSetupEntrySchema)
+    .superRefine((entries, ctx) => {
         const names = entries.map((e) => e.name);
         const duplicate = names.find((name, i) => names.indexOf(name) !== i);
-        return {
-            message: `Duplicate project name "${duplicate}" in LD_SETUP_PROJECTS`,
-        };
-    },
-);
+        if (duplicate !== undefined) {
+            ctx.addIssue({
+                code: 'custom',
+                message: `Duplicate project name "${duplicate}" in LD_SETUP_PROJECTS`,
+            });
+        }
+    });
 
 export const getMultiProjectSetupConfig = ():
     | MultiProjectSetupEntry[]
@@ -512,7 +531,7 @@ export const getMultiProjectSetupConfig = ():
 
     const result = multiProjectSetupSchema.safeParse(parsed);
     if (!result.success) {
-        const errorDetails = result.error.errors
+        const errorDetails = result.error.issues
             .map((err) => {
                 const path =
                     err.path.length > 0
@@ -595,19 +614,18 @@ const userAttributeSetupEntrySchema = z.object({
         .default([]),
 });
 
-const userAttributesSetupSchema = z.array(userAttributeSetupEntrySchema).refine(
-    (entries) => {
-        const names = entries.map((e) => e.name);
-        return new Set(names).size === names.length;
-    },
-    (entries) => {
+const userAttributesSetupSchema = z
+    .array(userAttributeSetupEntrySchema)
+    .superRefine((entries, ctx) => {
         const names = entries.map((e) => e.name);
         const duplicate = names.find((name, i) => names.indexOf(name) !== i);
-        return {
-            message: `Duplicate user attribute name "${duplicate}" in LD_SETUP_USER_ATTRIBUTES`,
-        };
-    },
-);
+        if (duplicate !== undefined) {
+            ctx.addIssue({
+                code: 'custom',
+                message: `Duplicate user attribute name "${duplicate}" in LD_SETUP_USER_ATTRIBUTES`,
+            });
+        }
+    });
 
 export const getUserAttributesSetupConfig = ():
     | UserAttributeSetupEntry[]
@@ -630,7 +648,7 @@ export const getUserAttributesSetupConfig = ():
 
     const result = userAttributesSetupSchema.safeParse(parsed);
     if (!result.success) {
-        const errorDetails = result.error.errors
+        const errorDetails = result.error.issues
             .map((err) =>
                 err.path.length > 0
                     ? `  - ${err.path.join('.')}: ${err.message}`
@@ -659,23 +677,18 @@ const groupProjectAccessSetupEntrySchema = z
 
 const groupProjectAccessSetupSchema = z
     .array(groupProjectAccessSetupEntrySchema)
-    .refine(
-        (entries) => {
-            const keys = entries.map(
-                (e) => `${e.groupName}::${e.projectUuid ?? e.projectName}`,
-            );
-            return new Set(keys).size === keys.length;
-        },
-        (entries) => {
-            const keys = entries.map(
-                (e) => `${e.groupName}::${e.projectUuid ?? e.projectName}`,
-            );
-            const duplicate = keys.find((k, i) => keys.indexOf(k) !== i);
-            return {
+    .superRefine((entries, ctx) => {
+        const keys = entries.map(
+            (e) => `${e.groupName}::${e.projectUuid ?? e.projectName}`,
+        );
+        const duplicate = keys.find((k, i) => keys.indexOf(k) !== i);
+        if (duplicate !== undefined) {
+            ctx.addIssue({
+                code: 'custom',
                 message: `Duplicate group/project pair "${duplicate}" in LD_SETUP_GROUP_PROJECT_ACCESS`,
-            };
-        },
-    );
+            });
+        }
+    });
 
 export const getGroupProjectAccessSetupConfig = ():
     | GroupProjectAccessSetupEntry[]
@@ -700,7 +713,7 @@ export const getGroupProjectAccessSetupConfig = ():
 
     const result = groupProjectAccessSetupSchema.safeParse(parsed);
     if (!result.success) {
-        const errorDetails = result.error.errors
+        const errorDetails = result.error.issues
             .map((err) =>
                 err.path.length > 0
                     ? `  - ${err.path.join('.')}: ${err.message}`
@@ -979,10 +992,15 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         process.env.RESULTS_S3_SECRET_KEY ||
         process.env.RESULTS_CACHE_S3_SECRET_KEY || // Deprecated
         baseSecretKey;
+    const endpoint = process.env.RESULTS_S3_ENDPOINT || baseEndpoint;
+    const resultsForcePathStyle = process.env.RESULTS_S3_FORCE_PATH_STYLE;
+    const forcePathStyle = resultsForcePathStyle
+        ? resultsForcePathStyle === 'true'
+        : baseForcePathStyle;
 
     return {
-        endpoint: baseEndpoint, // ! For now we keep reusing the S3_ENDPOINT like we have been so far, we are just going to enforce it
-        forcePathStyle: baseForcePathStyle, // ! For now we keep reusing the S3_FORCE_PATH_STYLE like we have been so far, we are just going to enforce it
+        endpoint,
+        forcePathStyle,
         bucket,
         region,
         accessKey,
@@ -1059,7 +1077,7 @@ export const parseUsageEventsS3Config = (): Omit<
     } = baseS3Config;
 
     return {
-        endpoint,
+        endpoint: process.env.USAGE_EVENTS_S3_ENDPOINT || endpoint,
         forcePathStyle,
         bucket: process.env.USAGE_EVENTS_S3_BUCKET || baseBucket,
         region: process.env.USAGE_EVENTS_S3_REGION || baseRegion,
@@ -1142,11 +1160,28 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
 const getProviderSupportsStreaming = (envVar: string): boolean =>
     process.env[envVar] !== 'false';
 
+const isEnabledBoolean = (value: string | undefined): boolean =>
+    value !== undefined && ['1', 'true'].includes(value.trim().toLowerCase());
+
 const getBedrockConfig = (customHeaders: Record<string, string>) => {
+    const baseUrl = process.env.BEDROCK_BASE_URL
+        ? normalizeLlmGatewayBaseUrl(
+              process.env.BEDROCK_BASE_URL,
+              'BEDROCK_BASE_URL',
+          )
+        : undefined;
+    const gateway = {
+        baseUrl,
+        claudeCodeSkipAuth: isEnabledBoolean(
+            process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH,
+        ),
+    };
+
     if (process.env.BEDROCK_API_KEY) {
         return {
             apiKey: process.env.BEDROCK_API_KEY,
             region: process.env.BEDROCK_REGION,
+            ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
@@ -1167,6 +1202,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             secretAccessKey: process.env.BEDROCK_SECRET_ACCESS_KEY,
             sessionToken: process.env.BEDROCK_SESSION_TOKEN,
             region: process.env.BEDROCK_REGION,
+            ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
@@ -1185,6 +1221,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
         return {
             useDefaultCredentials: true as const,
             region: process.env.BEDROCK_REGION,
+            ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
@@ -1200,6 +1237,13 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
         } as const;
     }
 
+    if (gateway.baseUrl) {
+        throw new ParseError(
+            'BEDROCK_BASE_URL requires BEDROCK_API_KEY, BEDROCK_ACCESS_KEY_ID, or BEDROCK_USE_DEFAULT_CREDENTIALS=true for the backend Bedrock provider. CLAUDE_CODE_SKIP_BEDROCK_AUTH only skips credentials for Claude Code.',
+            {},
+        );
+    }
+
     return undefined;
 };
 
@@ -1208,6 +1252,7 @@ export const getAiConfig = () => ({
     debugLoggingEnabled:
         process.env.AI_COPILOT_DEBUG_LOGGING_ENABLED === 'true',
     telemetryEnabled: process.env.AI_COPILOT_TELEMETRY_ENABLED === 'true',
+    threadDumpEnabled: process.env.AI_COPILOT_THREAD_DUMP_ENABLED === 'true',
     requiresFeatureFlag:
         process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
     askAiButtonEnabled: process.env.ASK_AI_BUTTON_ENABLED === 'true',
@@ -1217,16 +1262,22 @@ export const getAiConfig = () => ({
     defaultEmbeddingModelProvider:
         process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
         DEFAULT_DEFAULT_AI_PROVIDER,
-    // Unknown names are dropped (with a log) rather than passed through so a
-    // typo can't fail schema validation and discard the whole parsed config.
-    selfManagedProviders: getArrayFromCommaSeparatedList(
-        'AI_COPILOT_SELF_MANAGED_PROVIDERS',
+    // Which instance-level provider keys are Lightdash's. Set by Lightdash's
+    // own infrastructure on Lightdash Cloud deployments that run on Lightdash
+    // keys; never set by customers. Everything else — self-hosted installs,
+    // dedicated instances configured with a customer's key, org keys entered
+    // in the UI — is the customer's, so the default is "none". Only affects
+    // the `keyManagement` dimension on AI usage analytics. Unknown names are
+    // dropped (with a log) rather than passed through so a typo can't fail
+    // schema validation and discard the whole parsed config.
+    lightdashManagedProviders: getArrayFromCommaSeparatedList(
+        'AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS',
     ).filter((provider): provider is (typeof AI_PROVIDER_KEYS)[number] => {
         if ((AI_PROVIDER_KEYS as readonly string[]).includes(provider)) {
             return true;
         }
         console.error(
-            `Ignoring unknown provider "${provider}" in AI_COPILOT_SELF_MANAGED_PROVIDERS`,
+            `Ignoring unknown provider "${provider}" in AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS`,
         );
         return false;
     }),
@@ -1261,7 +1312,7 @@ export const getAiConfig = () => ({
                   embeddingModelName:
                       process.env.OPENAI_EMBEDDING_MODEL ||
                       DEFAULT_OPENAI_EMBEDDING_MODEL,
-                  baseUrl: process.env.OPENAI_BASE_URL,
+                  baseUrl: process.env.OPENAI_BASE_URL?.trim() || undefined,
                   availableModels: getArrayFromCommaSeparatedList(
                       'OPENAI_AVAILABLE_MODELS',
                   ),
@@ -1283,6 +1334,11 @@ export const getAiConfig = () => ({
                       modelName:
                           process.env.ANTHROPIC_MODEL_NAME ||
                           DEFAULT_ANTHROPIC_MODEL_NAME,
+                      baseUrl: process.env.ANTHROPIC_BASE_URL
+                          ? normalizeAnthropicGatewayBaseUrl(
+                                process.env.ANTHROPIC_BASE_URL,
+                            )
+                          : undefined,
                       availableModels: getArrayFromCommaSeparatedList(
                           'ANTHROPIC_AVAILABLE_MODELS',
                       ),
@@ -1294,15 +1350,41 @@ export const getAiConfig = () => ({
                       ),
                   }
                 : undefined,
+        google: process.env.GEMINI_API_KEY
+            ? {
+                  apiKey: process.env.GEMINI_API_KEY,
+                  modelName:
+                      process.env.GEMINI_MODEL_NAME ||
+                      DEFAULT_GOOGLE_MODEL_NAME,
+                  baseUrl: process.env.GEMINI_BASE_URL
+                      ? normalizeLlmGatewayBaseUrl(
+                            process.env.GEMINI_BASE_URL,
+                            'GEMINI_BASE_URL',
+                        )
+                      : undefined,
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'GEMINI_AVAILABLE_MODELS',
+                  ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'GEMINI_SUPPORTS_STREAMING',
+                  ),
+              }
+            : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
             ? {
                   apiKey: process.env.OPENROUTER_API_KEY,
                   modelName:
                       process.env.OPENROUTER_MODEL_NAME ||
                       DEFAULT_OPENROUTER_MODEL_NAME,
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'OPENROUTER_AVAILABLE_MODELS',
+                  ),
                   sortOrder: process.env.OPENROUTER_SORT_ORDER,
                   allowedProviders: getArrayFromCommaSeparatedList(
                       'OPENROUTER_ALLOWED_PROVIDERS',
+                  ),
+                  providerOrder: getArrayFromCommaSeparatedList(
+                      'OPENROUTER_PROVIDER_ORDER',
                   ),
                   customHeaders: getProviderCustomHeaders(
                       'OPENROUTER_CUSTOM_HEADERS',
@@ -1366,6 +1448,38 @@ export type LightdashSecrets = {
     readonly all: readonly string[];
 };
 
+export type MobilePushNotificationsConfig = {
+    enabled: boolean;
+    bundleId: string;
+    teamId: string | undefined;
+    sandbox:
+        | {
+              keyId: string;
+              privateKey: string;
+          }
+        | undefined;
+    production:
+        | {
+              keyId: string;
+              privateKey: string;
+          }
+        | undefined;
+    fcm:
+        | {
+              projectId: string;
+              clientEmail: string;
+              privateKey: string;
+          }
+        | undefined;
+};
+
+export type MobileAppAssociationConfig = {
+    appleTeamId: string;
+    appleBundleId: string;
+    androidPackageName: string;
+    androidCertificateFingerprints: string[];
+};
+
 export type LightdashConfig = {
     /** Always equals `lightdashSecrets.active`; kept for compatibility */
     lightdashSecret: string;
@@ -1391,8 +1505,15 @@ export type LightdashConfig = {
     postmark: PostmarkConfig;
     rudder: RudderConfig;
     mode: LightdashMode;
+    mobile: HealthState['mobile'];
+    mobilePushNotifications: MobilePushNotificationsConfig;
+    mobileAppAssociation: MobileAppAssociationConfig;
     license: {
         licenseKey: string | null;
+        licenseCertificate: string | null;
+    };
+    roadmap: {
+        baseUrl: string;
     };
     sentry: SentryConfig;
     auth: AuthConfig;
@@ -1429,6 +1550,7 @@ export type LightdashConfig = {
     };
     dbt: {
         environmentVariableAllowlist: string[];
+        sourceFetchConcurrency: number | undefined;
     };
     database: {
         connectionUri: string | undefined;
@@ -1440,6 +1562,9 @@ export type LightdashConfig = {
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
+    httpServer: {
+        keepAliveTimeoutMs: number;
+    };
     query: {
         maxLimit: number;
         defaultLimit: number;
@@ -1506,6 +1631,15 @@ export type LightdashConfig = {
                 schedule: string;
             };
         };
+        scimRequestLogs: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
+            };
+        };
     };
     groups: {
         enabled: boolean | undefined;
@@ -1528,6 +1662,9 @@ export type LightdashConfig = {
         agentMemory: {
             /** Consolidation computes and records its operations, applying none. */
             consolidationDryRun: boolean;
+        };
+        promptInputRequestClassifier: {
+            enabled: boolean;
         };
     };
     embedding: {
@@ -1584,7 +1721,12 @@ export type LightdashConfig = {
         sessionTimeoutMs: number;
     };
     aiWriteback: {
-        anthropicApiKey: string | null;
+        /**
+         * @deprecated Writeback runs on the shared data-apps Anthropic
+         * credentials (`ANTHROPIC_API_KEY`). Only read when those are unset, so
+         * instances still setting the writeback-specific key keep working.
+         */
+        legacyAnthropicApiKey: string | null;
         /**
          * Pre-clone size ceiling (MB) for the general coding agent. A repo whose
          * GitHub-reported size exceeds this is rejected with an actionable error
@@ -1699,6 +1841,18 @@ export type LightdashConfig = {
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    externalSources: {
+        /** Upload cap for external source files (CSV). Stored in the pre-aggregates bucket. */
+        maxFileSizeBytes: number;
+        maxRows: number;
+        maxOrganizationBytes: number;
+        maxConcurrentIngestsPerOrganization: number;
+        maxConcurrentDuckdbQueriesPerOrganization: number;
+        googleSheetsBatchRows: number;
+        stagedUploadTtlHours: number;
+        ingestLeaseMs: number;
+        garbageCollectionBatchSize: number;
+    };
     motherduckInstanceCache: {
         enabled: boolean;
         projectUuids: string[];
@@ -1780,6 +1934,8 @@ export type S3Config = {
 };
 export type AppRuntimeConfig = {
     enabled: boolean;
+    /** Coding agent invoked by the data-app generation pipeline. */
+    dataAppCodingAgent: 'claude' | 'codex';
     lightdashOrigin: string;
     cdnOrigin: string | null;
     /**
@@ -2001,6 +2157,14 @@ export type AppRuntimeConfig = {
      * the UI. Env var `LIGHTDASH_APP_SAMPLE_DATA_ENABLED`; defaults to `true`.
      */
     sampleDataEnabled: boolean;
+    chartRegistry: {
+        /** null disables the chart type library entirely */
+        url: string | null;
+        /** dev-only: allow http/private addresses for a local fixture registry */
+        allowInsecure: boolean;
+        /** which index the client reads: stable (index.json) or next (index-next.json, includes beta charts) */
+        channel: 'stable' | 'next';
+    };
 };
 
 export type DataAppOtelConfig = {
@@ -2110,6 +2274,11 @@ type AuthOneLoginConfig = {
     loginPath: string;
 };
 
+type AuthMicrosoftManagedSignInConfig = {
+    iosClientId: string | undefined;
+    androidClientId: string | undefined;
+};
+
 type AuthOidcConfig = {
     callbackPath: string;
     loginPath: string;
@@ -2141,6 +2310,9 @@ type AuthDatabricksConfig = {
 
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
+    mobileLogin: {
+        enabled: boolean;
+    };
     /**
      * @deprecated Group Sync is deprecated. https://github.com/lightdash/lightdash/issues/12430
      */
@@ -2151,6 +2323,7 @@ export type AuthConfig = {
     okta: AuthOktaConfig;
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
+    microsoftManagedSignIn: AuthMicrosoftManagedSignInConfig;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
     databricks: AuthDatabricksConfig;
@@ -2162,6 +2335,8 @@ export type AuthConfig = {
     oauthServer?: {
         accessTokenLifetime: number; // in seconds (default = 1 hour)
         refreshTokenLifetime: number; // in seconds (default = 2 weeks)
+        mobileRefreshTokenLifetime: number; // in seconds (default = 90 days)
+        refreshTokenRotationGrace: number; // in seconds (default = 1 minute)
     };
 };
 
@@ -2205,6 +2380,10 @@ export type PostmarkConfig = {
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
+// The official chart type registry (lightdash/lightdash-library, GitHub Pages).
+const DEFAULT_CHART_REGISTRY_URL: string | null =
+    'https://lightdash.github.io/lightdash-library';
+
 const parseSandboxProvider = (
     value: string | undefined,
 ): AppRuntimeConfig['sandboxProvider'] => {
@@ -2245,8 +2424,31 @@ const parseDataAppOtelConfig = (): DataAppOtelConfig => {
     };
 };
 
+const parseChartRegistryAllowInsecure = (): boolean => {
+    const enabled =
+        process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE === 'true';
+    if (enabled) {
+        console.warn(
+            'SECURITY WARNING: LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE is enabled. ' +
+                'SSRF defenses for chart registry fetches are OFF (http:// and ' +
+                'private addresses allowed, IP pinning skipped). Only use this ' +
+                'with a local dev fixture or a fully trusted internal registry ' +
+                'mirror — never with a registry you do not control.',
+        );
+    }
+    return enabled;
+};
+
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
+    const dataAppCodingAgent = (() => {
+        const value = process.env.APPS_CODING_AGENT?.trim().toLowerCase();
+        if (!value || value === 'claude') return 'claude' as const;
+        if (value === 'codex') return 'codex' as const;
+        throw new ParseError(
+            `Cannot parse environment variable "APPS_CODING_AGENT". Value must be one of claude, codex but APPS_CODING_AGENT=${process.env.APPS_CODING_AGENT}`,
+        );
+    })();
     const appsBucket = process.env.APPS_S3_BUCKET;
 
     const baseS3Config = parseBaseS3Config();
@@ -2294,6 +2496,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
 
     return {
         enabled,
+        dataAppCodingAgent,
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
         previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,
@@ -2419,6 +2622,28 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'false',
         sampleDataEnabled:
             process.env.LIGHTDASH_APP_SAMPLE_DATA_ENABLED !== 'false',
+        chartRegistry: {
+            // Unset → official registry once the repo exists; explicit '' → disabled.
+            url: ((raw) => {
+                if (raw === undefined) return DEFAULT_CHART_REGISTRY_URL;
+                const trimmed = raw.trim();
+                return trimmed === '' ? null : trimmed.replace(/\/$/, '');
+            })(process.env.LIGHTDASH_CHART_REGISTRY_URL),
+            // Disables the registry client's SSRF defenses (allows http://
+            // and private/loopback addresses, skips IP pinning). Only for
+            // local dev fixtures and trusted internal registry mirrors —
+            // never with a registry URL you do not fully control.
+            allowInsecure: parseChartRegistryAllowInsecure(),
+            channel: ((raw) => {
+                const normalized = raw?.trim().toLowerCase();
+                if (!normalized || normalized === 'stable')
+                    return 'stable' as const;
+                if (normalized === 'next') return 'next' as const;
+                throw new ParseError(
+                    `Cannot parse environment variable "LIGHTDASH_CHART_REGISTRY_CHANNEL". Value must be one of stable, next but LIGHTDASH_CHART_REGISTRY_CHANNEL=${raw}`,
+                );
+            })(process.env.LIGHTDASH_CHART_REGISTRY_CHANNEL),
+        },
     };
 };
 
@@ -2436,7 +2661,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
 > = [
     // Add per migration; truthy env value enables the flag.
     ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
-    ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
     ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
     // GROUPS_ENABLED is also read by UserService for group-sync logic (separate
     // from the feature flag) — keep the config field, but translate the env
@@ -2467,6 +2691,76 @@ const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
 > = [
     // Add per migration; truthy env value disables the flag.
 ];
+
+const parseCertificateFingerprints = (value: string | undefined): string[] =>
+    (value ?? '')
+        .split(',')
+        .map((fingerprint) => fingerprint.trim())
+        .filter((fingerprint) => fingerprint.length > 0);
+
+const normalizeCredentialEnvironmentVariable = (
+    value: string | undefined,
+): string | undefined => {
+    if (value === undefined) {
+        return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const parseMobilePushFcmCredential = ():
+    | MobilePushNotificationsConfig['fcm']
+    | undefined => {
+    const projectId = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID,
+    );
+    const clientEmail = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL,
+    );
+    const privateKey = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY,
+    );
+
+    if (
+        projectId !== undefined &&
+        clientEmail !== undefined &&
+        privateKey !== undefined
+    ) {
+        return { projectId, clientEmail, privateKey };
+    }
+
+    const missingVariables = [
+        projectId === undefined && 'MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID',
+        clientEmail === undefined &&
+            'MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL',
+        privateKey === undefined && 'MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY',
+    ].filter((name): name is string => name !== false);
+
+    if (missingVariables.length < 3) {
+        console.warn(
+            `Mobile push FCM credential is missing: ${missingVariables.join(
+                ', ',
+            )}`,
+        );
+    }
+
+    return undefined;
+};
+
+const parseMobilePushCredential = (
+    environment: 'SANDBOX' | 'PRODUCTION',
+): MobilePushNotificationsConfig['sandbox'] => {
+    const keyIdVariable =
+        `MOBILE_PUSH_NOTIFICATIONS_APNS_${environment}_KEY_ID` as const;
+    const privateKeyVariable =
+        `MOBILE_PUSH_NOTIFICATIONS_APNS_${environment}_PRIVATE_KEY` as const;
+    const keyId = process.env[keyIdVariable];
+    const privateKey = process.env[privateKeyVariable];
+
+    return keyId === undefined || privateKey === undefined
+        ? undefined
+        : { keyId, privateKey };
+};
 
 export const parseConfig = (): LightdashConfig => {
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
@@ -2557,6 +2851,9 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    if (process.env.ANTHROPIC_BASE_URL) {
+        normalizeAnthropicGatewayBaseUrl(process.env.ANTHROPIC_BASE_URL);
+    }
     const rawCopilotConfig = getAiConfig();
     const copilotConfigParse =
         aiCopilotConfigSchema.safeParse(rawCopilotConfig);
@@ -2573,6 +2870,14 @@ export const parseConfig = (): LightdashConfig => {
     }
 
     const licenseKey = process.env.LIGHTDASH_LICENSE_KEY || null;
+    const licenseCertificate =
+        process.env.LIGHTDASH_LICENSE_CERTIFICATE || null;
+    if (licenseCertificate !== null && licenseKey === null) {
+        throw new ParseError(
+            'LIGHTDASH_LICENSE_KEY is required when LIGHTDASH_LICENSE_CERTIFICATE is set',
+            {},
+        );
+    }
     const preAggregatesEnabled =
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
@@ -2586,6 +2891,10 @@ export const parseConfig = (): LightdashConfig => {
     const natsWorkerQueueTimeoutMs =
         getIntegerFromEnvironmentVariable('NATS_QUEUE_TIMEOUT_MS') ?? 180000;
     const lightdashCloudInstance = process.env.LIGHTDASH_CLOUD_INSTANCE;
+    const mobilePushSandbox = parseMobilePushCredential('SANDBOX');
+    const mobilePushProduction = parseMobilePushCredential('PRODUCTION');
+    const mobilePushTeamId = process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID;
+    const mobilePushFcm = parseMobilePushFcmCredential();
     const motherduckInstanceCache = {
         enabled: process.env.MOTHERDUCK_INSTANCE_CACHE_ENABLED === 'true',
         projectUuids: getArrayFromCommaSeparatedList(
@@ -2642,11 +2951,67 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    const queryHistoryCleanupEnabled =
+        process.env.QUERY_HISTORY_CLEANUP_ENABLED !== 'false';
+    const queryHistoryRetentionDays =
+        getIntegerFromEnvironmentVariable('QUERY_HISTORY_RETENTION_DAYS') ||
+        AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS;
+    if (
+        queryHistoryCleanupEnabled &&
+        queryHistoryRetentionDays < AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS
+    ) {
+        console.warn(
+            `WARNING: QUERY_HISTORY_RETENTION_DAYS is below the ${AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS}-day Deep Research report retention. Report charts may become unavailable before their reports expire.`,
+        );
+    }
+
     return {
         mode,
+        mobile: {
+            minimumSupportedVersion: {
+                android: getMobileMinimumVersionFromEnvironmentVariable(
+                    'LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION',
+                ),
+                ios: getMobileMinimumVersionFromEnvironmentVariable(
+                    'LIGHTDASH_MOBILE_MINIMUM_IOS_VERSION',
+                ),
+            },
+        },
+        mobileAppAssociation: {
+            appleTeamId: process.env.MOBILE_APPLE_TEAM_ID ?? 'AF5SF5H727',
+            appleBundleId:
+                process.env.MOBILE_APPLE_BUNDLE_ID ?? 'com.lightdash.mobile',
+            androidPackageName:
+                process.env.MOBILE_ANDROID_PACKAGE_NAME ??
+                'com.lightdash.mobile',
+            androidCertificateFingerprints: parseCertificateFingerprints(
+                process.env.MOBILE_ANDROID_CERT_FINGERPRINTS,
+            ),
+        },
+        mobilePushNotifications: {
+            enabled:
+                lightdashCloudInstance !== undefined &&
+                ((mobilePushTeamId !== undefined &&
+                    (mobilePushSandbox !== undefined ||
+                        mobilePushProduction !== undefined)) ||
+                    mobilePushFcm !== undefined),
+            bundleId:
+                process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_BUNDLE_ID ??
+                'com.lightdash.mobile',
+            teamId: mobilePushTeamId,
+            sandbox: mobilePushSandbox,
+            production: mobilePushProduction,
+            fcm: mobilePushFcm,
+        },
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {
             licenseKey,
+            licenseCertificate,
+        },
+        roadmap: {
+            baseUrl:
+                process.env.LIGHTDASH_ROADMAP_API_URL ||
+                'https://roadmap.lightdash.com',
         },
         security: {
             contentSecurityPolicy: {
@@ -2756,6 +3121,9 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.ALLOW_MISSING_MIGRATIONS === 'true',
         },
         auth: {
+            mobileLogin: {
+                enabled: process.env.AUTH_MOBILE_LOGIN_ENABLED !== 'false',
+            },
             pat: {
                 enabled: process.env.DISABLE_PAT !== 'true',
                 allowedOrgRoles:
@@ -2824,6 +3192,12 @@ export const parseConfig = (): LightdashConfig => {
                         ? `https://login.microsoftonline.com/${process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID}/v2.0/.well-known/openid-configuration`
                         : undefined,
             },
+            microsoftManagedSignIn: {
+                iosClientId:
+                    process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_IOS_CLIENT_ID,
+                androidClientId:
+                    process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_ANDROID_CLIENT_ID,
+            },
             oidc: {
                 callbackPath: '/oauth/redirect/oidc',
                 loginPath: '/login/oidc',
@@ -2873,6 +3247,14 @@ export const parseConfig = (): LightdashConfig => {
                     getIntegerFromEnvironmentVariable(
                         'AUTH_OAUTH_SERVER_REFRESH_TOKEN_LIFETIME',
                     ) || 60 * 60 * 24 * 14, // 2 weeks
+                mobileRefreshTokenLifetime:
+                    getIntegerFromEnvironmentVariable(
+                        'AUTH_OAUTH_SERVER_MOBILE_REFRESH_TOKEN_LIFETIME',
+                    ) || 60 * 60 * 24 * 90, // 90 days
+                refreshTokenRotationGrace:
+                    getIntegerFromEnvironmentVariable(
+                        'AUTH_OAUTH_SERVER_REFRESH_TOKEN_ROTATION_GRACE',
+                    ) || 60, // 1 minute
             },
         },
         intercom: {
@@ -2941,9 +3323,18 @@ export const parseConfig = (): LightdashConfig => {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
             ),
+            sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
+                'DBT_SOURCE_FETCH_CONCURRENCY',
+            ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
+        httpServer: {
+            keepAliveTimeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'HTTP_KEEP_ALIVE_TIMEOUT_MS',
+                ) ?? 620_000,
+        },
         query: {
             maxLimit:
                 getIntegerFromEnvironmentVariable(
@@ -3091,12 +3482,8 @@ export const parseConfig = (): LightdashConfig => {
             },
             queryHistory: {
                 cleanup: {
-                    enabled:
-                        process.env.QUERY_HISTORY_CLEANUP_ENABLED !== 'false', // true by default
-                    retentionDays:
-                        getIntegerFromEnvironmentVariable(
-                            'QUERY_HISTORY_RETENTION_DAYS',
-                        ) || AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS,
+                    enabled: queryHistoryCleanupEnabled,
+                    retentionDays: queryHistoryRetentionDays,
                     batchSize:
                         getIntegerFromEnvironmentVariable(
                             'QUERY_HISTORY_CLEANUP_BATCH_SIZE',
@@ -3112,6 +3499,29 @@ export const parseConfig = (): LightdashConfig => {
                     schedule:
                         process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
                         '0 2 * * *',
+                },
+            },
+            scimRequestLogs: {
+                cleanup: {
+                    enabled:
+                        process.env.SCIM_REQUEST_LOG_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_RETENTION_DAYS',
+                        ) ?? 30,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
                 },
             },
         },
@@ -3186,6 +3596,12 @@ export const parseConfig = (): LightdashConfig => {
             agentMemory: {
                 consolidationDryRun:
                     process.env.AI_AGENT_MEMORY_CONSOLIDATION_DRY_RUN ===
+                    'true',
+            },
+            promptInputRequestClassifier: {
+                enabled:
+                    process.env
+                        .AI_AGENT_PROMPT_INPUT_REQUEST_CLASSIFIER_ENABLED ===
                     'true',
             },
         },
@@ -3265,7 +3681,9 @@ export const parseConfig = (): LightdashConfig => {
         managedAgent: {
             anthropicApiKey:
                 process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
-                process.env.ANTHROPIC_API_KEY ||
+                (!process.env.ANTHROPIC_BASE_URL
+                    ? process.env.ANTHROPIC_API_KEY
+                    : undefined) ||
                 null,
             skillIds: (process.env.MANAGED_AGENT_SKILL_IDS || '')
                 .split(',')
@@ -3278,7 +3696,8 @@ export const parseConfig = (): LightdashConfig => {
             ), // 10 minutes default
         },
         aiWriteback: {
-            anthropicApiKey: process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
+            legacyAnthropicApiKey:
+                process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
             codingAgentMaxRepoSizeMb: parseInt(
                 process.env.AI_CODING_AGENT_MAX_REPO_SIZE_MB || '500',
                 10,
@@ -3333,6 +3752,44 @@ export const parseConfig = (): LightdashConfig => {
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
+        },
+        externalSources: {
+            maxFileSizeBytes:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_FILE_SIZE_BYTES',
+                ) ?? 100 * 1024 * 1024,
+            maxRows:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_ROWS',
+                ) ?? 1_000_000,
+            maxOrganizationBytes:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_ORGANIZATION_BYTES',
+                ) ?? 5 * 1024 * 1024 * 1024,
+            maxConcurrentIngestsPerOrganization:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_CONCURRENT_INGESTS_PER_ORGANIZATION',
+                ) ?? 2,
+            maxConcurrentDuckdbQueriesPerOrganization:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_CONCURRENT_DUCKDB_QUERIES_PER_ORGANIZATION',
+                ) ?? 2,
+            googleSheetsBatchRows:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_GOOGLE_SHEETS_BATCH_ROWS',
+                ) ?? 5_000,
+            stagedUploadTtlHours:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_STAGED_UPLOAD_TTL_HOURS',
+                ) ?? 24,
+            ingestLeaseMs:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_INGEST_LEASE_MS',
+                ) ?? 35 * 60 * 1000,
+            garbageCollectionBatchSize:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_GC_BATCH_SIZE',
+                ) ?? 100,
         },
         motherduckInstanceCache,
         usageEvents: {

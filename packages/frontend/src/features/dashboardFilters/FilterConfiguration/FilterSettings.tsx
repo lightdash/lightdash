@@ -2,6 +2,8 @@ import {
     FilterOperator,
     FilterType,
     getFilterRuleWithDefaultValue,
+    isRelativeDateFilterOperator,
+    isWithValueFilter,
     supportsSingleValue,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -23,10 +25,11 @@ import {
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
-import { filterOperatorDescription } from '../../../components/common/Filters/FilterInputs/constants';
+import { filterOperatorDescriptionKey } from '../../../components/common/Filters/FilterInputs/constants';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
 import RequiredFilterCard from '../FilterRequirements/RequiredFilterCard';
 
@@ -55,12 +58,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 }) => {
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
+    const getUiString = useUiStrings();
 
     const [filterLabel, setFilterLabel] = useState<string>();
 
     const filterOperatorOptions = useMemo(
-        () => getFilterOperatorOptions(filterType, field),
-        [filterType, field],
+        () => getFilterOperatorOptions(filterType, field, getUiString),
+        [filterType, field, getUiString],
     );
 
     // Set default label when using revert (undo) button
@@ -71,11 +75,27 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     }, [filterLabel, filterRule.label, field?.label]);
 
     const handleChangeFilterOperator = (operator: FilterRule['operator']) => {
+        // Absolute date values are already normalized. Running them through
+        // the defaults again can shift timezones.
+        const shouldPreserveValues =
+            filterType === FilterType.DATE &&
+            (filterRule.values?.length ?? 0) > 0 &&
+            isWithValueFilter(filterRule.operator) &&
+            isWithValueFilter(operator) &&
+            !isRelativeDateFilterOperator(filterRule.operator) &&
+            !isRelativeDateFilterOperator(operator);
+
         onChangeFilterRule(
-            getFilterRuleWithDefaultValue(filterType, field, {
-                ...filterRule,
-                operator,
-            }),
+            shouldPreserveValues
+                ? {
+                      ...filterRule,
+                      operator,
+                      settings: undefined,
+                  }
+                : getFilterRuleWithDefaultValue(filterType, field, {
+                      ...filterRule,
+                      operator,
+                  }),
         );
     };
 
@@ -162,7 +182,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
                 {isCreatingNew && !isEditMode && (
                     <Text size="xs" fw={500}>
-                        Value
+                        {getUiString('filters.config.valueLabel')}
                     </Text>
                 )}
 
@@ -181,18 +201,19 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     }
                     value={filterRule.operator}
                     renderOption={({ option }) => {
-                        const description =
-                            filterOperatorDescription[
+                        const descriptionKey =
+                            filterOperatorDescriptionKey[
                                 option.value as FilterOperator
                             ];
+                        const description = descriptionKey
+                            ? getUiString(descriptionKey)
+                            : undefined;
                         if (description) {
                             return (
                                 <Tooltip
                                     label={description}
                                     position="right"
-                                    multiline
                                     maw={300}
-                                    withinPortal
                                 >
                                     <div>{option.label}</div>
                                 </Tooltip>
@@ -247,6 +268,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         disabled
                         size="xs"
                         placeholder={getPlaceholderByFilterTypeAndOperator({
+                            getUiString,
                             type: filterType,
                             operator: filterRule.operator,
                             disabled: true,
@@ -256,7 +278,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
                 {(showValueInput || hasRequirement) && (
                     <Group gap="xs" wrap="nowrap" align="flex-start">
-                        <Box style={{ flex: 1 }}>
+                        <Box flex={1}>
                             <FilterInputComponent
                                 popoverProps={popoverProps}
                                 filterType={filterType}
@@ -277,18 +299,16 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 FilterOperator.NOT_NULL,
                             ].includes(filterRule.operator) && (
                                 <Tooltip
-                                    label={
+                                    label={getUiString(
                                         filterRule.disabled
-                                            ? 'Already showing any value'
+                                            ? 'filters.config.alreadyAnyValue'
                                             : (filterRule.values?.length ??
                                                     0) === 0
-                                              ? 'No value to clear'
-                                              : 'Clear to any value'
-                                    }
+                                              ? 'filters.config.noValueToClear'
+                                              : 'filters.config.clearToAnyValue',
+                                    )}
                                 >
                                     <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
                                         size="sm"
                                         mt={4}
                                         disabled={
@@ -325,7 +345,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             )}
                         {!hasRequirement && (
                             <Tooltip
-                                withinPortal
                                 position="right"
                                 label={
                                     isFilterDisabled

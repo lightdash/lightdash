@@ -12,11 +12,12 @@ describeContentAsCodeSchemaContract({
         'isInviteExpired',
         'isPending',
         'lastName',
+        'hasMultipleRoles',
         'organizationUuid',
         'roleUuid',
         'userCreatedAt',
         'userUpdatedAt',
         'userUuid',
     ],
-    documentOnlyFields: ['disabled', 'version'],
+    documentOnlyFields: ['additionalRoles', 'disabled', 'version'],
 });

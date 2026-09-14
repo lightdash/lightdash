@@ -1,0 +1,144 @@
+.page {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    min-height: 0;
+    padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+    overflow: hidden;
+}
+
+/* Reserved so the table does not drop a line when the subtitle arrives. */
+.subtitleLine {
+    display: flex;
+    align-items: center;
+    height: calc(var(--mantine-font-size-sm) * var(--mantine-line-height-sm));
+}
+
+/* ---------- table ---------- */
+
+/* Grows with its rows and only scrolls once it hits the viewport. */
+.tablePaper {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.tableContainer {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.toolbar {
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+/* One step darker than the header and hover grey so groups read as bands. */
+.windowRow :global(td) {
+    background: var(--mantine-color-ldGray-1);
+}
+
+.showMoreRow :global(td) {
+    background: var(--mantine-color-body);
+}
+
+/* Placeholder rows mirror a query row's two text lines so the row height
+   matches the real row that replaces them. */
+.skeletonRow {
+    pointer-events: none;
+}
+
+.skeletonLines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.skeletonTitleLine,
+.skeletonSubLine {
+    display: flex;
+    align-items: center;
+}
+
+/* 1.35 is the ContentTable body cell line-height, which both lines inherit. */
+.skeletonTitleLine {
+    height: calc(var(--mantine-font-size-sm) * 1.35);
+}
+
+.skeletonSubLine {
+    height: calc(var(--mantine-font-size-xs) * 1.35);
+}
+
+.resultsSkeletonLine {
+    display: flex;
+    align-items: center;
+    height: calc(var(--mantine-font-size-xs) * var(--mantine-line-height));
+}
+
+.skeletonAlignEnd {
+    justify-content: flex-end;
+}
+
+/* Matches the count slot in the trigger segmented control. */
+.countSkeleton {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* ---------- detail panel ---------- */
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.panelHeader {
+    flex: 0 0 auto;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.panelBody {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.panelFooter {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.timings {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    overflow: hidden;
+}
+
+.timingCell + .timingCell {
+    border-left: 1px solid var(--mantine-color-default-border);
+}
+
+.resultsTable {
+    overflow-x: auto;
+}
+
+.resultsTable :global(th),
+.resultsTable :global(td) {
+    white-space: nowrap;
+}
+
+.sql :global(.mantine-CodeHighlight-code) {
+    font-size: var(--mantine-font-size-xs);
+    line-height: var(--mantine-line-height-md);
+}
+
+.tableMeta {
+    white-space: nowrap;
+}
+
+.errorMessage {
+    white-space: pre-wrap;
+}

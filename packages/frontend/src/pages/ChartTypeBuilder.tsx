@@ -1,47 +1,42 @@
 import {
+    ChartType,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
-    isAppVersionInProgress,
-    type DataAppVizOptionValue,
-    type DataAppVizOptionValues,
+    type ItemsMap,
 } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
+import { useEffect, useMemo, type FC } from 'react';
 import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router';
+    Link,
+    Navigate,
+    useLocation,
+    useNavigate,
+    useParams,
+} from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import BuilderCanvas from '../features/apps/builder/BuilderCanvas';
-import BuilderPromptBar, {
-    type BuilderPromptBarHandle,
-} from '../features/apps/builder/BuilderPromptBar';
-import ChartTypeBuilderHeader from '../features/apps/builder/ChartTypeBuilderHeader';
-import ConfigurePanel from '../features/apps/builder/ConfigurePanel';
-import VersionHistoryPanel from '../features/apps/builder/VersionHistoryPanel';
-import { getAppVersionFailureMessage } from '../features/apps/getAppVersionFailureMessage';
-import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
-import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
-import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
-import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisualization';
-import { useDataAppVizBuild } from '../features/apps/hooks/useDataAppVizBuild';
-import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
-import { useUpdateApp } from '../features/apps/hooks/useUpdateApp';
-import { buildSampleVizContext } from '../features/apps/utils/sampleVizContext';
+import ChartTypeBuilderHeader from '../features/chartTypes/builder/ChartTypeBuilderHeader';
+import ChartTypeBuilderWorkspace from '../features/chartTypes/builder/ChartTypeBuilderWorkspace';
+import ConfigurePanel from '../features/chartTypes/builder/ConfigurePanel';
+import { useChartTypeBuilderWorkspace } from '../features/chartTypes/builder/useChartTypeBuilderWorkspace';
+import { useConfigurePanelState } from '../features/chartTypes/builder/useConfigurePanelState';
+import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
+import {
+    getExplorerUrlFromCreateSavedChartVersion,
+    parseChartFromExplorerSearchParams,
+} from '../hooks/useExplorerRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import classes from './ChartTypeBuilder.module.css';
 
-const noop = () => undefined;
+// No chart query here; auto-mapping belongs to charts binding fields.
+const NO_ITEMS: ItemsMap = {};
 
 /**
  * The dedicated chart type builder. Mounted at both `chart-types/new`
@@ -49,11 +44,18 @@ const noop = () => undefined;
  * adopts the new uuid into the URL once the first build is accepted.
  */
 const ChartTypeBuilder: FC = () => {
-    const { projectUuid, dataAppVizUuid: urlVizUuid } = useParams<{
-        projectUuid: string;
-        dataAppVizUuid?: string;
-    }>();
+    const { dataAppVizUuid: urlVizUuid } = useParams();
+    const projectUuid = useProjectUuid();
+    const location = useLocation();
     const navigate = useNavigate();
+    const explorerChart = useMemo(() => {
+        try {
+            const chart = parseChartFromExplorerSearchParams(location.search);
+            return chart?.tableName ? chart : null;
+        } catch {
+            return null;
+        }
+    }, [location.search]);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const canCreate = useCanCreateDataApp(projectUuid);
 
@@ -66,171 +68,73 @@ const ChartTypeBuilder: FC = () => {
         appMeta?.appUuid ??
         (isUuidString(urlVizUuid ?? '') ? urlVizUuid : undefined);
 
-    const build = useDataAppVizBuild({
+    const workspace = useChartTypeBuilderWorkspace({
         projectUuid,
-        // No chart query here; auto-mapping belongs to charts binding fields.
-        itemsMap: {},
         dataAppVizUuid: activeVizUuid ?? null,
-        onCreated: noop,
+        creationExperience: 'chart_type_builder',
+        itemsMap: NO_ITEMS,
     });
-
-    const historyUuid = activeVizUuid ?? build.appUuid;
-    const history = useAppVersionHistory(projectUuid ?? '', historyUuid);
-    const { data: dataAppViz } = useDataAppVisualization(
-        projectUuid,
-        activeVizUuid,
-    );
-
-    // Covers builds sent here and builds found already running in history.
-    const historyLatestInProgress =
-        history.latest !== null &&
-        isAppVersionInProgress(history.latest.status);
-    const buildStartedAt =
-        build.startedAt ??
-        (historyLatestInProgress && history.latest
-            ? new Date(history.latest.createdAt)
-            : null);
-    const elapsed = useElapsedClock(buildStartedAt);
-
-    // The model the next prompt builds with; the latest version's own model
-    // pre-selects it, so reopening a chart type keeps building the way it was.
-    const modelSelection = useDataAppModelSelection({
-        appUuid: activeVizUuid ?? null,
-        latestVersionModel: history.latest?.resources?.claudeModel ?? null,
-    });
-    const { clearPick: clearModelPick } = modelSelection;
+    const { build, history, isBuilding, isHistoryOpen } = workspace;
+    const panel = useConfigurePanelState(activeVizUuid ?? null);
 
     // On `/new`, move to the edit route as soon as the build claims an app so
     // a refresh mid-build lands on the in-progress version.
     useEffect(() => {
         if (!urlVizUuid && build.appUuid && projectUuid) {
             void navigate(
-                `/projects/${projectUuid}/chart-types/${build.appUuid}`,
+                {
+                    pathname: chartTypeBuilderPath(projectUuid, build.appUuid),
+                    search: location.search,
+                },
                 { replace: true },
             );
         }
-    }, [urlVizUuid, build.appUuid, projectUuid, navigate]);
+    }, [urlVizUuid, build.appUuid, projectUuid, location.search, navigate]);
 
-    // Intentional navigation between vizs resets session state; the
-    // post-submit `/new` → uuid replace must not.
-    const prevUrlVizUuid = useRef(urlVizUuid);
-    const [pin, setPin] = useState<{
-        appUuid: string;
-        version: number;
-        /** Latest ready version at the moment of pinning; the pin is treated
-         *  as cleared once a newer build finishes past this snapshot. */
-        pinnedAtLatest: number | null;
-    } | null>(null);
-    // Only what the author explicitly changed; defaults resolve at render.
-    const [optionValues, setOptionValues] = useState<DataAppVizOptionValues>(
-        {},
-    );
-    // Preview-only; a chart using the viz owns the palette the normal way.
-    const [colorPaletteUuid, setColorPaletteUuid] = useState<string | null>(
-        null,
-    );
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-    useEffect(() => {
-        const prev = prevUrlVizUuid.current;
-        prevUrlVizUuid.current = urlVizUuid;
-        // Post-submit redirect: undefined → new uuid. Don't clear state.
-        if (!prev && urlVizUuid) return;
-        setPin(null);
-        setOptionValues({});
-        setColorPaletteUuid(null);
-        setIsHistoryOpen(false);
-        clearModelPick();
-    }, [urlVizUuid, clearModelPick]);
-
-    const isBuilding = build.isBuilding || historyLatestInProgress;
-
-    // A build started elsewhere needs polling here; a build sent from this
-    // page already polls inside useDataAppVizBuild.
-    const externalBuildRunning = !build.isBuilding && historyLatestInProgress;
-    useAppBuildPoller(
+    const colorPalette = useResolvedColorPalette(
         projectUuid,
-        historyUuid ?? undefined,
-        externalBuildRunning,
-        noop,
+        panel.colorPaletteUuid,
     );
-
-    // Derived pin: ignored when it belongs to another app, a newer version
-    // landed since, or the pinned version is no longer ready.
-    const effectiveViewedVersion = useMemo(() => {
-        if (pin === null || pin.appUuid !== activeVizUuid) return null;
-        if (
-            pin.pinnedAtLatest !== null &&
-            history.latestReadyVersion !== null &&
-            history.latestReadyVersion > pin.pinnedAtLatest
-        ) {
-            return null;
-        }
-        const stillReady = history.versions.some(
-            (v) => v.version === pin.version && v.status === 'ready',
-        );
-        return stillReady ? pin.version : null;
-    }, [pin, activeVizUuid, history.latestReadyVersion, history.versions]);
-
-    const previewVersion = effectiveViewedVersion ?? history.latestReadyVersion;
-
-    const colorPalette = useResolvedColorPalette(projectUuid, colorPaletteUuid);
     // The sample-data preview context, rebuilt on any option or palette edit.
     const previewContext = useMemo(
         () =>
-            dataAppViz?.schema
+            workspace.dataAppViz?.schema
                 ? buildSampleVizContext(
-                      dataAppViz.schema,
+                      workspace.dataAppViz.schema,
                       colorPalette,
-                      optionValues,
+                      panel.optionValues,
                   )
                 : null,
-        [dataAppViz?.schema, colorPalette, optionValues],
+        [workspace.dataAppViz?.schema, colorPalette, panel.optionValues],
     );
 
-    const handleOptionChange = useCallback(
-        (name: string, value: DataAppVizOptionValue) =>
-            setOptionValues((prev) => ({ ...prev, [name]: value })),
-        [],
-    );
+    const explorerDestination = useMemo(() => {
+        if (!explorerChart || !activeVizUuid) return null;
 
-    const handleView = useCallback(
-        (version: number | null) => {
-            if (version === null) {
-                setPin(null);
-                return;
-            }
-            if (!activeVizUuid) return;
-            setPin({
-                appUuid: activeVizUuid,
-                version,
-                pinnedAtLatest: history.latestReadyVersion,
-            });
-        },
-        [activeVizUuid, history.latestReadyVersion],
-    );
+        return getExplorerUrlFromCreateSavedChartVersion(
+            projectUuid,
+            {
+                ...explorerChart,
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: activeVizUuid,
+                        fieldMapping: {},
+                        optionValues: {},
+                    },
+                },
+            },
+            false,
+        );
+    }, [activeVizUuid, explorerChart, projectUuid]);
+    const previewInExplorerLink = useMemo(() => {
+        if (!activeVizUuid) return null;
 
-    // The panel is the only place an older version can be selected, so it is
-    // also the only place that can show you are off the current one — closing
-    // it returns the preview to current rather than stranding the pin.
-    const handleCloseHistory = useCallback(() => {
-        setIsHistoryOpen(false);
-        setPin(null);
-    }, []);
-
-    const promptBarRef = useRef<BuilderPromptBarHandle>(null);
-    const handlePickExample = useCallback(
-        (prompt: string) => promptBarRef.current?.setPrompt(prompt),
-        [],
-    );
-
-    const { mutate: updateApp } = useUpdateApp({ resourceLabel: 'Chart type' });
-    const handleSaveMeta = useCallback(
-        (patch: { name?: string; description?: string }) => {
-            if (!projectUuid || !appMeta) return;
-            updateApp({ projectUuid, appUuid: appMeta.appUuid, ...patch });
-        },
-        [projectUuid, appMeta, updateApp],
-    );
+        return (
+            explorerDestination ??
+            `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`
+        );
+    }, [activeVizUuid, explorerDestination, projectUuid]);
 
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: appMeta?.spaceUuid ?? null,
@@ -251,7 +155,7 @@ const ChartTypeBuilder: FC = () => {
     if (appQuery.error?.error.statusCode === 404) {
         return (
             <Box className={classes.root}>
-                <Box className={classes.content}>
+                <Box className={classes.notFound}>
                     <SuboptimalState
                         title="Chart type not found"
                         description="It may have been deleted, or the link is wrong."
@@ -283,123 +187,66 @@ const ChartTypeBuilder: FC = () => {
         if (!canEdit) {
             return <Navigate to={`/projects/${projectUuid}/gallery`} replace />;
         }
+        // Server-enforced (registry apps are read-only); this only keeps
+        // the builder UI from being reached for an official chart type.
+        if (appMeta.registrySlug !== null) {
+            return <Navigate to={`/projects/${projectUuid}/gallery`} replace />;
+        }
     }
 
-    // The request in flight, or the stored prompt of a build found in history.
-    const buildingPrompt =
-        build.pendingPrompt ??
-        (historyLatestInProgress ? (history.latest?.prompt ?? null) : null);
-    // A first build on a brand-new viz is discarded whole; a revision is only
-    // cancelled. Builds found in history (started elsewhere) offer no cancel.
-    const onCancelBuild = build.isBuilding
-        ? build.draft !== null
-            ? build.discard
-            : build.cancel
-        : null;
-
-    // With nothing renderable, the newest terminal version explains itself.
-    const failureMessage =
-        history.latestReadyVersion === null &&
-        history.latest !== null &&
-        !isAppVersionInProgress(history.latest.status) &&
-        history.latest.status !== 'ready'
-            ? getAppVersionFailureMessage(history.latest)
-            : null;
-
-    const provenanceVersion = history.hasOrigin
-        ? history.oldest
-        : history.latest;
-
-    // Always beside the chart it configures; remounted per viz so the selected
-    // tab belongs to the declaration on screen.
-    const configurePanel = dataAppViz?.schema ? (
+    // Remounted per viz so the selected tab belongs to the declaration on screen.
+    const configurePanel = workspace.dataAppViz?.schema ? (
         <ConfigurePanel
             key={activeVizUuid}
-            schema={dataAppViz.schema}
-            optionValues={optionValues}
-            onOptionChange={handleOptionChange}
-            colorPaletteUuid={colorPaletteUuid}
-            onPaletteChange={setColorPaletteUuid}
+            schema={workspace.dataAppViz.schema}
+            optionValues={panel.optionValues}
+            onOptionChange={panel.onOptionChange}
+            colorPaletteUuid={panel.colorPaletteUuid}
+            onPaletteChange={panel.onPaletteChange}
+            isStale={workspace.isFetchingSchema}
         />
     ) : null;
 
-    const hasHistory =
-        activeVizUuid !== undefined && history.versions.length > 0;
-
-    // The composer captures its placeholder at mount, so wait for history
-    // before choosing create vs revise wording.
-    const isPromptBarMounted = !(activeVizUuid && history.isLoading);
+    const backLink = explorerChart
+        ? {
+              label: 'Explorer',
+              to: explorerDestination ?? {
+                  pathname: `/projects/${projectUuid}/tables/${explorerChart.tableName}`,
+                  search: location.search,
+              },
+          }
+        : {
+              label: 'Gallery',
+              to: `/projects/${projectUuid}/gallery`,
+          };
 
     return (
         <Box className={classes.root}>
             <DocumentTitle title="Chart type builder" />
             <ChartTypeBuilderHeader
                 projectUuid={projectUuid}
+                appUuidOrSlug={urlVizUuid}
+                backLink={backLink}
                 app={appMeta}
                 latestReadyVersion={history.latestReadyVersion}
-                provenanceVersion={provenanceVersion}
-                hasOrigin={history.hasOrigin}
-                hasHistory={hasHistory}
+                hasHistory={workspace.hasHistory}
                 isHistoryOpen={isHistoryOpen}
-                onToggleHistory={() =>
-                    isHistoryOpen
-                        ? handleCloseHistory()
-                        : setIsHistoryOpen(true)
+                upgrade={
+                    activeVizUuid && history.latestReadyVersion !== null
+                        ? { ...workspace.sdkUpgradeOffer, disabled: isBuilding }
+                        : null
                 }
-                onSaveMeta={handleSaveMeta}
-                onPreviewInExplorer={() =>
-                    void navigate(
-                        `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`,
-                    )
-                }
+                onUpgradeStarted={workspace.openHistory}
+                onToggleHistory={workspace.toggleHistory}
+                previewInExplorerLink={previewInExplorerLink}
             />
-            <Box className={classes.main}>
-                <Box className={classes.content}>
-                    <BuilderCanvas
-                        projectUuid={projectUuid}
-                        appUuid={activeVizUuid ?? null}
-                        previewVersion={previewVersion}
-                        isBuilding={isBuilding}
-                        buildingPrompt={buildingPrompt}
-                        elapsed={elapsed}
-                        onCancelBuild={onCancelBuild}
-                        failureMessage={failureMessage}
-                        previewContext={previewContext}
-                        configurePanel={configurePanel}
-                        onPickExample={
-                            isPromptBarMounted ? handlePickExample : null
-                        }
-                    />
-                    {isPromptBarMounted && (
-                        <BuilderPromptBar
-                            ref={promptBarRef}
-                            projectUuid={projectUuid}
-                            composerAppUuid={
-                                activeVizUuid ?? build.draftAppUuid
-                            }
-                            hasVersions={history.versions.length > 0}
-                            build={build}
-                            onCancelBuild={onCancelBuild}
-                            modelSelection={modelSelection}
-                        />
-                    )}
-                </Box>
-                {hasHistory && isHistoryOpen && (
-                    <VersionHistoryPanel
-                        projectUuid={projectUuid}
-                        appUuid={activeVizUuid}
-                        versions={history.versions}
-                        latestReadyVersion={history.latestReadyVersion}
-                        viewedVersion={effectiveViewedVersion}
-                        onView={handleView}
-                        onClose={handleCloseHistory}
-                        build={build}
-                        hasEarlier={history.hasEarlier}
-                        isFetchingEarlier={history.isFetchingEarlier}
-                        fetchEarlier={history.fetchEarlier}
-                    />
-                )}
-            </Box>
+            <ChartTypeBuilderWorkspace
+                projectUuid={projectUuid}
+                workspace={workspace}
+                previewContext={previewContext}
+                syncPreviewUrlState
+                configurePanel={configurePanel}
+            />
         </Box>
     );
 };

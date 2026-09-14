@@ -2,6 +2,8 @@ import { assertUnreachable } from '@lightdash/common';
 import { useEffect, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
+import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AddToSpaceResources } from './types';
 
 interface Props {
@@ -12,8 +14,9 @@ const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 
 const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
     const navigate = useNavigate();
-    const { projectUuid, spaceUuid } = useParams<{
-        projectUuid: string;
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
+    const { spaceUuid } = useParams<{
         spaceUuid: string;
     }>();
 
@@ -26,10 +29,10 @@ const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
     useEffect(() => {
         if (hasCreatedDashboard && newDashboard) {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${newDashboard.uuid}`,
+                `/projects/${projectUrlIdentifier}/dashboards/${newDashboard.slug}`,
             );
         }
-    }, [navigate, hasCreatedDashboard, newDashboard, projectUuid]);
+    }, [navigate, hasCreatedDashboard, newDashboard, projectUrlIdentifier]);
 
     useEffect(() => {
         switch (resourceType) {

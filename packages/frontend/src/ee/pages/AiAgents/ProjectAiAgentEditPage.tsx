@@ -1,4 +1,9 @@
-import { ProjectType, type AiAgentModelConfig } from '@lightdash/common';
+import {
+    MAX_RETENTION_WINDOW_HOURS,
+    MIN_RETENTION_WINDOW_HOURS,
+    ProjectType,
+    type AiAgentModelConfig,
+} from '@lightdash/common';
 import {
     AppShell,
     Box,
@@ -11,7 +16,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import {
     IconAdjustmentsAlt,
     IconArrowLeft,
@@ -19,6 +24,7 @@ import {
     IconCircleCheck,
     IconMessageCircleShare,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import {
     Link,
@@ -36,6 +42,7 @@ import {
     NAVBAR_HEIGHT,
 } from '../../../components/common/Page/constants';
 import { useProjects } from '../../../hooks/useProjects';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { VerifiedArtifactDetail } from '../../features/aiCopilot/components/Admin/VerifiedArtifactDetail';
 import { VerifiedArtifactsLayout } from '../../features/aiCopilot/components/Admin/VerifiedArtifactsLayout';
@@ -84,12 +91,12 @@ const useObjectUrl = (file: File | null): string | null => {
 };
 
 const formSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
     description: z.string().nullable(),
     integrations: z.array(
         z.object({
             type: z.literal('slack'),
-            channelId: z.string().min(1),
+            channelId: z.string().min(1, 'Channel is required'),
         }),
     ),
     tags: z.array(z.string()).nullable(),
@@ -107,6 +114,12 @@ const formSchema = z.object({
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
+    threadRetentionHours: z
+        .number()
+        .int()
+        .min(MIN_RETENTION_WINDOW_HOURS)
+        .max(MAX_RETENTION_WINDOW_HOURS)
+        .nullable(),
 });
 
 type Props = {
@@ -115,14 +128,8 @@ type Props = {
 
 const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     const navigate = useNavigate();
-    const { agentUuid, projectUuid, evalUuid, runUuid, artifactUuid } =
-        useParams<{
-            agentUuid: string;
-            projectUuid: string;
-            evalUuid?: string;
-            runUuid?: string;
-            artifactUuid?: string;
-        }>();
+    const { agentUuid, evalUuid, runUuid, artifactUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const location = useLocation();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
@@ -173,6 +180,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             adminOnly: false,
             modelConfig: null,
             version: 2, // INFO: Default to v2 for now
+            threadRetentionHours: null,
         },
         validate: zodResolver(formSchema),
     });
@@ -208,6 +216,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 adminOnly: agent.adminOnly ?? false,
                 modelConfig: agent.modelConfig ?? null,
                 version: agent.version ?? 2, // INFO: Default to v2 for now
+                threadRetentionHours: agent.threadRetentionHours ?? null,
             };
             form.setValues(values);
             form.resetDirty(values);
@@ -337,7 +346,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     <Paper
                         variant="dotted"
                         p="xl"
-                        shadow="subtle"
                         component={Stack}
                         gap="xxs"
                         align="center"

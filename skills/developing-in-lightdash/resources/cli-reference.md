@@ -109,6 +109,10 @@ lightdash upload --charts my-chart --dashboards my-dashboard
 # Upload dashboard with all its referenced charts
 lightdash upload --dashboards my-dashboard --include-charts
 
+# Download or upload every organization resource, including Data App themes
+lightdash download --organization
+lightdash upload --organization
+
 # Data-app external connections (enterprise; secrets via env var — see Content as Code)
 lightdash download --include-external-connections
 LIGHTDASH_EXTERNAL_CONNECTION_SECRET_STRIPE_API=sk-... lightdash upload --external-connections stripe-api
@@ -292,21 +296,21 @@ lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-y
 
 ## Command Summary
 
-| Command               | Purpose                          |
-| --------------------- | -------------------------------- |
-| `lightdash login`     | Authenticate with Lightdash      |
-| `lightdash config`    | Manage project selection         |
-| `lightdash deploy`    | Sync semantic layer to Lightdash |
-| `lightdash upload`    | Upload charts/dashboards         |
-| `lightdash download`  | Download charts/dashboards       |
-| `lightdash preview`   | Create temporary test project    |
-| `lightdash validate`  | Validate against server          |
-| `lightdash lint`      | Validate YAML locally            |
-| `lightdash generate`  | Generate YAML from dbt models    |
-| `lightdash warehouse-catalog` | Discover warehouse tables and fields |
-| `lightdash sql`       | Run SQL queries                  |
-| `lightdash run-chart` | Execute chart YAML query         |
-| `lightdash set-warehouse` | Update project warehouse connection |
-| `lightdash apps create` | Scaffold a new data app locally (enterprise) |
-| `lightdash apps preview` | Run a data app locally against a real instance |
-| `lightdash apps validate` | Validate data app source and references |
+| Command                       | Purpose                                          |
+| ----------------------------- | ------------------------------------------------ |
+| `lightdash login`             | Authenticate with Lightdash                      |
+| `lightdash config`            | Manage project selection                         |
+| `lightdash deploy`            | Sync semantic layer to Lightdash                 |
+| `lightdash upload`            | Upload project or organization content as code   |
+| `lightdash download`          | Download project or organization content as code |
+| `lightdash preview`           | Create temporary test project                    |
+| `lightdash validate`          | Validate against server                          |
+| `lightdash lint`              | Validate YAML locally                            |
+| `lightdash generate`          | Generate YAML from dbt models                    |
+| `lightdash warehouse-catalog` | Discover warehouse tables and fields             |
+| `lightdash sql`               | Run SQL queries                                  |
+| `lightdash run-chart`         | Execute chart YAML query                         |
+| `lightdash set-warehouse`     | Update project warehouse connection              |
+| `lightdash apps create`       | Scaffold a new data app locally (enterprise)     |
+| `lightdash apps preview`      | Run a data app locally against a real instance   |
+| `lightdash apps validate`     | Validate data app source and references          |

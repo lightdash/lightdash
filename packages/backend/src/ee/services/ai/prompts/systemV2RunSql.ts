@@ -32,11 +32,15 @@ export const getRunSqlSection = ({
     sqlScope,
     // Configurable per instance, so a literal here would contradict the tool schema.
     runSqlMaxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
+    // Composer queries replace the standalone runSql tool: raw SQL runs as
+    // `sql` nodes inside runComposerQueries, under all the same rules.
+    viaComposerQueries = false,
 }: {
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     sqlScope?: AgentSqlScope | null;
     runSqlMaxLimit?: number;
+    viaComposerQueries?: boolean;
 }) => {
     const warehouseLine = warehouseType
         ? `**Warehouse:** ${warehouseType}. ${WAREHOUSE_HINTS[warehouseType] ?? ''}`
@@ -79,9 +83,14 @@ export const getRunSqlSection = ({
         ? `**Default schema for this project:** \`${warehouseSchema}\`. ALWAYS qualify your tables with this schema (e.g. \`${warehouseSchema}.fm_work_orders\`). Bare table names will fail.`
         : 'You do not know the warehouse schema. Use listWarehouseTables to discover the right schema before writing SQL.';
 
+    const intro = viaComposerQueries
+        ? `**Raw SQL (runComposerQueries \`sql\` nodes):**
+There is NO standalone runSql tool. Raw SELECT queries against the warehouse run as \`sql\` nodes inside runComposerQueries — a submission with a single \`sql\` node is the direct equivalent of a raw SQL call. Wherever the rules below say "runSql" or "runSql call", read that as a \`sql\` node in a runComposerQueries submission; each submission containing \`sql\` nodes costs one approval click. The chat UI shows the SQL in the tool activity and your final answer should explain the result.`
+        : `**Raw SQL (runSql tool):**
+You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity and your final answer should explain the result.`;
+
     return `
-**Raw SQL (runSql tool):**
-You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity and your final answer should explain the result.
+${intro}
 
 **When to use it:**
 - ALWAYS prefer generateVisualization (semantic layer) when the question fits — generateVisualization is governed, charted, and reusable.

@@ -1,5 +1,9 @@
 import {
     getItemId,
+    isCustomDimension,
+    isDimension,
+    isMetric,
+    isTableCalculation,
     type DataAppVizField,
     type DataAppVizFieldMapping,
     type Item,
@@ -7,14 +11,13 @@ import {
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-import { poolKeyForSlot } from '../../../features/apps/utils/autoMapDataAppVizFields';
-import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
+import { poolKeyForSlot } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
+import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
+import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 
 type Props = {
-    /** The visualization the chart points at; empty when it points at none. */
-    dataAppVizUuid: string;
     itemsMap: ItemsMap;
     /** The contract's declared slots. */
     fields: DataAppVizField[];
@@ -30,15 +33,29 @@ type Props = {
  * separates them from the build session docked below.
  */
 const DataAppVizSettings: FC<Props> = ({
-    dataAppVizUuid,
     itemsMap,
     fields,
     fieldMapping,
     onFieldChange,
 }) => {
+    const { addableItems, addFieldToQuery, isFieldPending } =
+        useAddFieldsToQuery();
+
     const { dimensions, metrics } = useMemo(
         () => getDataAppVizFieldItems(itemsMap),
         [itemsMap],
+    );
+    // The hook already drops hidden fields, mirroring the in-query pools.
+    const addPools = useMemo(
+        () => ({
+            dimension: addableItems.filter(
+                (item) => isDimension(item) || isCustomDimension(item),
+            ),
+            metric: addableItems.filter(
+                (item) => isMetric(item) || isTableCalculation(item),
+            ),
+        }),
+        [addableItems],
     );
     const itemPools = { dimension: dimensions, metric: metrics };
     const fieldItems = (field: DataAppVizField): Item[] =>
@@ -46,7 +63,7 @@ const DataAppVizSettings: FC<Props> = ({
 
     return (
         <Stack>
-            {dataAppVizUuid && fields.length === 0 && (
+            {fields.length === 0 && (
                 <Text c="dimmed" size="sm">
                     This chart type has no fields to map.
                 </Text>
@@ -54,25 +71,49 @@ const DataAppVizSettings: FC<Props> = ({
 
             {fields.map((field) => {
                 const items = fieldItems(field);
+                const addItems = addPools[poolKeyForSlot(field)];
                 const selectedId = fieldMapping[field.name];
                 const selectedItem = selectedId
-                    ? items.find((i) => getItemId(i) === selectedId)
+                    ? (items.find((i) => getItemId(i) === selectedId) ??
+                      addItems.find((i) => getItemId(i) === selectedId))
                     : undefined;
                 return (
                     <Config key={field.name}>
                         <Config.Section>
                             <Config.Heading>{field.label}</Config.Heading>
                             <FieldSelect
-                                placeholder={`Select ${field.label.toLowerCase()}`}
-                                disabled={items.length === 0}
+                                size="xs"
+                                // A disabled, empty select says nothing on its
+                                // own; the placeholder names what the chart is
+                                // missing, as the cartesian layout does.
+                                placeholder={
+                                    items.length === 0 && addItems.length === 0
+                                        ? `You need at least one ${poolKeyForSlot(field)} in your chart to set this field`
+                                        : `Select ${field.label.toLowerCase()}`
+                                }
+                                disabled={
+                                    items.length === 0 && addItems.length === 0
+                                }
                                 item={selectedItem}
                                 items={items}
-                                onChange={(newField) =>
+                                addItems={addItems}
+                                loading={isFieldPending(selectedId)}
+                                onChange={(newField) => {
+                                    if (
+                                        newField &&
+                                        !items.some(
+                                            (i) =>
+                                                getItemId(i) ===
+                                                getItemId(newField),
+                                        )
+                                    ) {
+                                        addFieldToQuery(newField);
+                                    }
                                     onFieldChange(
                                         field.name,
                                         newField ? getItemId(newField) : null,
-                                    )
-                                }
+                                    );
+                                }}
                                 clearable={!field.required}
                                 hasGrouping
                             />

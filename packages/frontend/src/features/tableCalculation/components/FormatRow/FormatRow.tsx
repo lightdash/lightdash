@@ -445,7 +445,6 @@ export const FormatRow: FC<Props> = ({
                                 <Button
                                     key={p.value}
                                     size="compact-xs"
-                                    radius="md"
                                     variant={isActive ? 'filled' : 'default'}
                                     color={isActive ? 'blue' : undefined}
                                     onClick={() => onPillClick(p.value)}
@@ -472,7 +471,6 @@ export const FormatRow: FC<Props> = ({
                             <NumberInput
                                 className={classes.subFieldInputNarrow}
                                 size="xs"
-                                radius="md"
                                 min={0}
                                 label="Decimals"
                                 placeholder="Auto"
@@ -540,7 +538,6 @@ export const FormatRow: FC<Props> = ({
                             <NumberInput
                                 className={classes.subFieldInput}
                                 size="xs"
-                                radius="md"
                                 min={0}
                                 label="Decimals"
                                 placeholder="Auto"
@@ -577,7 +574,6 @@ export const FormatRow: FC<Props> = ({
                         <NumberInput
                             className={classes.subFieldInput}
                             size="xs"
-                            radius="md"
                             min={0}
                             label="Decimals"
                             placeholder="Auto"
@@ -632,7 +628,6 @@ export const FormatRow: FC<Props> = ({
                     {isNumeric && format.type === CustomFormatType.CUSTOM && (
                         <TextInput
                             size="xs"
-                            radius="md"
                             placeholder="e.g. #,##0.00"
                             label={
                                 <Group
@@ -705,7 +700,6 @@ const DateFormatBody: FC<{
     return (
         <TextInput
             size="xs"
-            radius="md"
             placeholder="e.g. dd/mm/yyyy or mmmm d, yyyy"
             label={
                 <Group
@@ -738,15 +732,10 @@ const DateFormatBody: FC<{
                 />
             }
             rightSection={
-                <Menu shadow="md" position="bottom-end" width={240}>
+                <Menu position="bottom-end" width={240}>
                     <Menu.Target>
-                        <Tooltip label="Pick a preset" withArrow>
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                                aria-label="Pick a preset"
-                            >
+                        <Tooltip label="Pick a preset">
+                            <ActionIcon size="sm" aria-label="Pick a preset">
                                 <MantineIcon icon={IconChevronDown} size="sm" />
                             </ActionIcon>
                         </Tooltip>

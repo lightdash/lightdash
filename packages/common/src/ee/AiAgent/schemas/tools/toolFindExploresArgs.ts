@@ -104,7 +104,7 @@ export const findExploresRequiredFilterSchema = z.object({
 
 export const findExploresRelevantVerifiedAnswerSchema = z.object({
     artifactVersionUuid: z.string(),
-    chartConfig: z.record(z.unknown()),
+    chartConfig: z.record(z.string(), z.unknown()),
     artifactType: z.enum(['chart', 'dashboard']),
     verifiedQuestion: z.string().nullable(),
     title: z.string().nullable(),

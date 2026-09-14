@@ -1,12 +1,12 @@
-import { ActionIcon, CopyButton, Group, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import {
-    IconCheck,
     IconClipboard,
     IconCode,
     IconTextWrap,
     IconTextWrapDisabled,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { CopyActionIcon } from '../common/CopyActionIcon';
 import MantineIcon from '../common/MantineIcon';
 
 export const SqlEditorActions: FC<{
@@ -18,7 +18,7 @@ export const SqlEditorActions: FC<{
     return (
         <Group pos="absolute" bottom={5} right={12} gap="xxs">
             {onFormat && (
-                <Tooltip label="Format SQL" withArrow position="left">
+                <Tooltip label="Format SQL" position="left">
                     <ActionIcon
                         onClick={onFormat}
                         color="ldLight"
@@ -34,7 +34,6 @@ export const SqlEditorActions: FC<{
                         ? 'Disable editor soft-wrapping'
                         : 'Enable editor soft-wrapping'
                 }
-                withArrow
                 position="left"
             >
                 <ActionIcon
@@ -49,28 +48,13 @@ export const SqlEditorActions: FC<{
                     )}
                 </ActionIcon>
             </Tooltip>
-            <CopyButton value={clipboardContent ?? ''} timeout={2000}>
-                {({ copied, copy }) => (
-                    <Tooltip
-                        label={copied ? 'Copied to clipboard!' : 'Copy'}
-                        withArrow
-                        position="right"
-                        color={copied ? 'green' : 'dark'}
-                    >
-                        <ActionIcon
-                            color={copied ? 'teal' : 'ldLight'}
-                            onClick={copy}
-                            variant="outline"
-                        >
-                            {copied ? (
-                                <IconCheck size="1rem" />
-                            ) : (
-                                <IconClipboard size="1rem" />
-                            )}
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-            </CopyButton>
+            <CopyActionIcon
+                value={clipboardContent ?? ''}
+                icon={IconClipboard}
+                copiedLabel="Copied to clipboard!"
+                tooltipPosition="right"
+                variant="outline"
+            />
         </Group>
     );
 };

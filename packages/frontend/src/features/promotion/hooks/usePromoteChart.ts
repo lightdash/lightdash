@@ -30,7 +30,7 @@ export const usePromoteMutation = () => {
                         icon: IconArrowRight,
                         onClick: () => {
                             window.open(
-                                `/projects/${data.projectUuid}/saved/${data.uuid}`,
+                                `/projects/${data.projectUuid}/saved/${data.slug}`,
                                 '_blank',
                             );
                         },

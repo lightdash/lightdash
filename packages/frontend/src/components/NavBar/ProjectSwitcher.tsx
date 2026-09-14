@@ -1,9 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    assertUnreachable,
-    ProjectType,
-    type OrganizationProject,
-} from '@lightdash/common';
+import { ProjectType, type OrganizationProject } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -38,11 +34,15 @@ import {
 } from '../../hooks/useActiveProject';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProject } from '../../hooks/useProject';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
+import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import MantineIcon from '../common/MantineIcon';
+import AppColorSchemeScope from './AppColorSchemeScope';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 import classes from './ProjectSwitcher.module.css';
+import { isPlaygroundProject, splitSwitcherProjects } from './switcherProjects';
 
 const MENU_TEXT_PROPS = {
     c: 'ldGray.9',
@@ -62,7 +62,6 @@ const CurrentBadge: FC = () => (
         color="blue"
         variant="filled"
         size="xs"
-        radius="sm"
         fw={600}
         className={classes.badge}
     >
@@ -70,18 +69,18 @@ const CurrentBadge: FC = () => (
     </Badge>
 );
 
+/** The org's training playground, so nobody takes it for a real project. */
+const PlaygroundBadge: FC = () => (
+    <Badge color="grape" size="xs" className={classes.badge}>
+        Playground
+    </Badge>
+);
+
 const ExpiryBadge: FC<{ expiresAt: Date | null }> = ({ expiresAt }) => {
     const expiresInDays = getExpiresInDays(expiresAt);
     if (expiresInDays === null) return null;
     return (
-        <Badge
-            color="orange"
-            variant="light"
-            size="xs"
-            radius="sm"
-            fw={450}
-            className={classes.badge}
-        >
+        <Badge color="orange" size="xs" className={classes.badge}>
             {expiresInDays === 0
                 ? 'Expires today'
                 : `Expires in ${expiresInDays}d`}
@@ -102,11 +101,7 @@ const SwitcherLabel: FC<{
     if (!upstreamProjectName) {
         return (
             <Group gap={6} wrap="nowrap" miw={0}>
-                <Tooltip
-                    withinPortal
-                    label={activeProjectName}
-                    disabled={!isTruncated}
-                >
+                <Tooltip label={activeProjectName} disabled={!isTruncated}>
                     <Text
                         ref={truncatedRef}
                         truncate
@@ -120,7 +115,7 @@ const SwitcherLabel: FC<{
                 <MantineIcon
                     icon={IconChevronDown}
                     size="sm"
-                    color="ldGray.6"
+                    color="dimmed"
                     className={classes.breadcrumbSeparator}
                 />
             </Group>
@@ -129,12 +124,7 @@ const SwitcherLabel: FC<{
 
     return (
         <Group gap={4} wrap="nowrap" miw={0}>
-            <Text
-                fw={500}
-                fz="xs"
-                c="ldGray.6"
-                className={classes.upstreamName}
-            >
+            <Text fw={500} fz="xs" c="dimmed" className={classes.upstreamName}>
                 {upstreamProjectName}
             </Text>
             <MantineIcon
@@ -143,11 +133,7 @@ const SwitcherLabel: FC<{
                 color="ldGray.5"
                 className={classes.breadcrumbSeparator}
             />
-            <Tooltip
-                withinPortal
-                label={activeProjectName}
-                disabled={!isTruncated}
-            >
+            <Tooltip label={activeProjectName} disabled={!isTruncated}>
                 <Text
                     ref={truncatedRef}
                     truncate
@@ -162,7 +148,7 @@ const SwitcherLabel: FC<{
             <MantineIcon
                 icon={IconChevronDown}
                 size="sm"
-                color="ldGray.6"
+                color="dimmed"
                 className={classes.breadcrumbSeparator}
             />
         </Group>
@@ -182,13 +168,7 @@ const ProjectRow: FC<{
     return (
         <Menu.Item onClick={() => !isActive && onNavigate(item.projectUuid)}>
             <Group gap="sm" justify="space-between" wrap="nowrap">
-                <Tooltip
-                    withinPortal
-                    label={item.name}
-                    maw={300}
-                    disabled={!isTruncated}
-                    multiline
-                >
+                <Tooltip label={item.name} maw={300} disabled={!isTruncated}>
                     <Highlight
                         ref={truncatedRef}
                         highlight={searchQuery.length >= 2 ? searchQuery : ''}
@@ -204,6 +184,7 @@ const ProjectRow: FC<{
 
                 <Group gap="xs" wrap="nowrap">
                     {isActive && <CurrentBadge />}
+                    {isPlaygroundProject(item) && <PlaygroundBadge />}
                     {previewCount > 0 && (
                         <Box
                             component="span"
@@ -246,11 +227,9 @@ const PreviewRow: FC<{
             <Group gap="sm" justify="space-between" wrap="nowrap">
                 <Group gap={6} wrap="nowrap" miw={0}>
                     <Tooltip
-                        withinPortal
                         label={item.name}
                         maw={300}
                         disabled={!isTruncated}
-                        multiline
                     >
                         <Highlight
                             ref={truncatedRef}
@@ -267,7 +246,7 @@ const PreviewRow: FC<{
                         </Highlight>
                     </Tooltip>
                     {upstreamName && (
-                        <Text fz={10} c="ldGray.5" truncate maw={120}>
+                        <Text fz="xs" c="ldGray.5" truncate maw={120}>
                             {upstreamName}
                         </Text>
                     )}
@@ -282,35 +261,48 @@ const PreviewRow: FC<{
     );
 };
 
-const swappableProjectRoutes = (activeProjectUuid: string) => [
-    `/projects/${activeProjectUuid}/home`,
-    `/projects/${activeProjectUuid}/saved`,
-    `/projects/${activeProjectUuid}/dashboards`,
-    `/projects/${activeProjectUuid}/spaces`,
-    `/projects/${activeProjectUuid}/sqlRunner`,
-    `/projects/${activeProjectUuid}/tables`,
-    `/projects/${activeProjectUuid}/user-activity`,
-    `/projects/${activeProjectUuid}`,
-    `/generalSettings`,
-    `/generalSettings/password`,
-    `/generalSettings/myWarehouseConnections`,
-    `/generalSettings/personalAccessTokens`,
-    `/generalSettings/scimAccessTokens`,
-    `/generalSettings/organization`,
-    `/generalSettings/userManagement`,
-    `/generalSettings/appearance`,
-    `/generalSettings/projectManagement`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/settings`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/tablesConfiguration`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/projectAccess`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/integrations/dbtCloud`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/usageAnalytics`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/scheduledDeliveries`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/validator`,
-    `/generalSettings/projectManagement/${activeProjectUuid}`,
+const swappableProjectRoutes = (
+    activeProjectUuid: string,
+    activeProjectUrlIdentifier: string,
+) => [
+    ...[
+        `/projects/${activeProjectUrlIdentifier}/home`,
+        `/projects/${activeProjectUrlIdentifier}/saved`,
+        `/projects/${activeProjectUrlIdentifier}/dashboards`,
+        `/projects/${activeProjectUrlIdentifier}/spaces`,
+        `/projects/${activeProjectUrlIdentifier}`,
+    ].map((path) => ({ path, handle: { useProjectSlug: true } })),
+    ...[
+        `/projects/${activeProjectUuid}/sqlRunner`,
+        `/projects/${activeProjectUuid}/tables`,
+        `/projects/${activeProjectUuid}/user-activity`,
+        `/generalSettings`,
+        `/generalSettings/password`,
+        `/generalSettings/myWarehouseConnections`,
+        `/generalSettings/personalAccessTokens`,
+        `/generalSettings/scimAccessTokens`,
+        `/generalSettings/organization`,
+        `/generalSettings/userManagement`,
+        `/generalSettings/appearance`,
+        `/generalSettings/projectManagement`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/settings`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/tablesConfiguration`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/projectAccess`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/integrations/dbtCloud`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/usageAnalytics`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/scheduledDeliveries`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/validator`,
+        `/generalSettings/projectManagement/${activeProjectUuid}`,
+    ].map((path) => ({ path, handle: { useProjectSlug: false } })),
 ];
 
-const ProjectSwitcher = () => {
+type ProjectSwitcherProps = {
+    /** Selector the dropdown is portaled into, or null to portal into the body.
+     *  The desktop navbar targets its own forced-dark subtree. */
+    portalTarget: string | null;
+};
+
+const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
     const { showToastSuccess } = useToaster();
     const navigate = useNavigate();
 
@@ -324,10 +316,14 @@ const ProjectSwitcher = () => {
             enabled: isMenuOpen,
         },
     );
+    const projectRoute = useOptionalProjectRoute();
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
-        useActiveProjectUuid();
+        useActiveProjectUuid({ projectUuid: projectRoute?.projectUuid });
     // Fetch only the active project for the button label (lightweight)
     const { data: activeProject } = useProject(activeProjectUuid);
+    const activeProjectUrlIdentifier = activeProject
+        ? getProjectUrlIdentifier(activeProject)
+        : activeProjectUuid;
     // When inside a preview, fetch its upstream project to show in the breadcrumb
     const upstreamProjectUuid =
         activeProject?.type === ProjectType.PREVIEW
@@ -337,7 +333,9 @@ const ProjectSwitcher = () => {
 
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
     const location = useLocation();
-    const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
+    const isHomePage = !!useMatch(
+        `/projects/${activeProjectUrlIdentifier}/home`,
+    );
 
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
     // Project drilled into to view its previews; null = top-level project list
@@ -354,10 +352,11 @@ const ProjectSwitcher = () => {
 
     const routeMatches =
         matchRoutes(
-            activeProjectUuid
-                ? swappableProjectRoutes(activeProjectUuid).map((path) => ({
-                      path,
-                  }))
+            activeProjectUuid && activeProjectUrlIdentifier
+                ? swappableProjectRoutes(
+                      activeProjectUuid,
+                      activeProjectUrlIdentifier,
+                  )
                 : [],
             location,
         ) || [];
@@ -384,7 +383,7 @@ const ProjectSwitcher = () => {
                               icon: IconArrowRight,
                               onClick: () => {
                                   void navigate(
-                                      `/projects/${project.projectUuid}/home`,
+                                      `/projects/${getProjectUrlIdentifier(project)}/home`,
                                   );
                               },
                           }
@@ -392,18 +391,36 @@ const ProjectSwitcher = () => {
             });
 
             if (shouldSwapProjectRoute) {
+                const useProjectSlug = Boolean(
+                    swappableRouteMatch.handle?.useProjectSlug,
+                );
+                const currentProjectIdentifier = useProjectSlug
+                    ? activeProjectUrlIdentifier
+                    : activeProjectUuid;
+                const nextProjectIdentifier = useProjectSlug
+                    ? getProjectUrlIdentifier(project)
+                    : project.projectUuid;
+                if (!currentProjectIdentifier) {
+                    void navigate(
+                        `/projects/${getProjectUrlIdentifier(project)}/home`,
+                    );
+                    return;
+                }
                 void navigate(
                     swappableRouteMatch.path.replace(
-                        activeProjectUuid,
-                        project.projectUuid,
+                        currentProjectIdentifier,
+                        nextProjectIdentifier,
                     ),
                 );
             } else {
-                void navigate(`/projects/${project.projectUuid}/home`);
+                void navigate(
+                    `/projects/${getProjectUrlIdentifier(project)}/home`,
+                );
             }
         },
         [
             activeProjectUuid,
+            activeProjectUrlIdentifier,
             navigate,
             isHomePage,
             projects,
@@ -445,50 +462,26 @@ const ProjectSwitcher = () => {
 
     const { baseProjects, previewsByUpstream, baseProjectsByUuid } =
         useMemo(() => {
-            const base = (projects ?? []).filter(
-                (p) => p.type === ProjectType.DEFAULT,
+            // Only show previews the user is allowed to access: org-level
+            // preview creators, or developers of the preview project itself.
+            const grouped = splitSwitcherProjects(
+                projects ?? [],
+                (preview) =>
+                    orgRoleCanCreatePreviews ||
+                    !!user.data?.ability.can(
+                        'create',
+                        subject('Project', {
+                            upstreamProjectUuid: preview.projectUuid,
+                            type: ProjectType.PREVIEW,
+                        }),
+                    ),
             );
-
-            // Only show previews the user is allowed to access. Visibility is
-            // unchanged from before: org-level preview creators, or developers
-            // of the preview project itself.
-            const visiblePreviews = (projects ?? []).filter((project) => {
-                switch (project.type) {
-                    case ProjectType.DEFAULT:
-                        return false;
-                    case ProjectType.PREVIEW:
-                        return (
-                            orgRoleCanCreatePreviews ||
-                            !!user.data?.ability.can(
-                                'create',
-                                subject('Project', {
-                                    upstreamProjectUuid: project.projectUuid,
-                                    type: ProjectType.PREVIEW,
-                                }),
-                            )
-                        );
-                    default:
-                        return assertUnreachable(
-                            project.type,
-                            `Unknown project type: ${project.type}`,
-                        );
-                }
-            });
-
-            const byUpstream = new Map<string, OrganizationProject[]>();
-            visiblePreviews.forEach((preview) => {
-                if (!preview.upstreamProjectUuid) return;
-                const existing =
-                    byUpstream.get(preview.upstreamProjectUuid) ?? [];
-                existing.push(preview);
-                byUpstream.set(preview.upstreamProjectUuid, existing);
-            });
-
             return {
-                baseProjects: base,
-                previewsByUpstream: byUpstream,
+                ...grouped,
                 baseProjectsByUuid: new Map(
-                    base.map((p) => [p.projectUuid, p] as const),
+                    grouped.baseProjects.map(
+                        (p) => [p.projectUuid, p] as const,
+                    ),
                 ),
             };
         }, [projects, orgRoleCanCreatePreviews, user.data]);
@@ -598,7 +591,9 @@ const ProjectSwitcher = () => {
                 }}
                 classNames={{ dropdown: classes.dropdown }}
                 zIndex={getDefaultZIndex('max')}
-                portalProps={{ target: '#navbar-header' }}
+                portalProps={
+                    portalTarget ? { target: portalTarget } : undefined
+                }
             >
                 <Menu.Target>
                     <Button
@@ -640,7 +635,7 @@ const ProjectSwitcher = () => {
                                     <MantineIcon
                                         icon={IconChevronLeft}
                                         size="sm"
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                     <Text fz="xs" fw={500} c="ldGray.5">
                                         Projects
@@ -721,10 +716,8 @@ const ProjectSwitcher = () => {
                                     </Text>
                                     <Badge
                                         color="blue"
-                                        variant="light"
                                         size="xs"
-                                        radius="sm"
-                                        fw={700}
+                                        fw={600}
                                         className={classes.badge}
                                     >
                                         {matchingProjects.length}
@@ -766,7 +759,7 @@ const ProjectSwitcher = () => {
                                                     }
                                                 >
                                                     <Text
-                                                        fz={10}
+                                                        fz="xs"
                                                         fw={600}
                                                         c="ldGray.5"
                                                         tt="uppercase"
@@ -851,11 +844,13 @@ const ProjectSwitcher = () => {
             </Menu>
 
             {isCreatePreviewOpen && (
-                <CreatePreviewModal
-                    isOpened={isCreatePreviewOpen}
-                    onClose={() => setIsCreatePreview(false)}
-                    preselectedProjectUuid={drilledProjectUuid ?? undefined}
-                />
+                <AppColorSchemeScope>
+                    <CreatePreviewModal
+                        isOpened={isCreatePreviewOpen}
+                        onClose={() => setIsCreatePreview(false)}
+                        preselectedProjectUuid={drilledProjectUuid ?? undefined}
+                    />
+                </AppColorSchemeScope>
             )}
         </>
     );

@@ -3,7 +3,9 @@ import {
     getGroupByDimensions,
     getWebAiChartConfig,
     isAiAgentSqlArtifactVizQuery,
+    isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    isCustomChartTypeSlugChartConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
@@ -23,19 +25,23 @@ import { memo, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import useHealth from '../../../../../hooks/health/useHealth';
-import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import {
+    getAiArtifactChartSource,
+    useAiArtifactCompiledSql,
+} from '../../hooks/useAiArtifactChart';
 import {
     useAiAgentArtifactVizQuery,
     useAiAgentThread,
 } from '../../hooks/useProjectAiAgents';
-import { clearArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import styles from './AiArtifactPanel.module.css';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
+import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
 import {
     AiSqlArtifactActions,
@@ -106,10 +112,16 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const isSqlArtifact = isAiSqlChartArtifactConfig(
             artifactData?.chartConfig,
         );
-        const semanticChartConfig =
-            artifactData?.chartConfig?.source === 'semantic'
-                ? artifactData.chartConfig.config
-                : null;
+        // Composer artifacts skip the viz-query round trip in v0: the stored
+        // lastQueryUuid feeds the standard results endpoint directly.
+        const artifactChartConfig = artifactData?.chartConfig;
+        const composerConfig = isAiComposerChartArtifactConfig(
+            artifactChartConfig,
+        )
+            ? artifactChartConfig
+            : undefined;
+        const { isMergeArtifact, semanticChartConfig, customChartType } =
+            getAiArtifactChartSource(artifactData?.chartConfig);
 
         const vizConfig = useMemo(() => {
             if (!isFloatingChart || !semanticChartConfig) return null;
@@ -136,20 +148,21 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
                 ? queryExecutionHandle.data
                 : undefined;
-        const queryUuid =
-            queryExecutionHandle.data && 'query' in queryExecutionHandle.data
-                ? queryExecutionHandle.data.query.queryUuid
-                : undefined;
+        const queryUuid = composerConfig
+            ? composerConfig.lastQueryUuid
+            : queryExecutionHandle.data && 'query' in queryExecutionHandle.data
+              ? queryExecutionHandle.data.query.queryUuid
+              : undefined;
 
         const queryResults = useInfiniteQueryResults(
             artifact.projectUuid,
             queryUuid,
         );
 
-        const { data: compiledSql } = useCompiledSqlFromMetricQuery({
-            tableName: semanticVizQueryData?.query.metricQuery?.exploreName,
+        const compiledSqlQuery = useAiArtifactCompiledSql({
             projectUuid: artifact.projectUuid,
-            metricQuery: semanticVizQueryData?.query.metricQuery,
+            isMergeArtifact,
+            vizQueryData: semanticVizQueryData,
         });
 
         // Same parse the renderer does — needed so the floating pill can
@@ -179,8 +192,15 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             selectedChartType,
         ]);
 
+        // Custom chart type answers are recognized by the artifact envelope
+        // source, not by the shape of the stored tool args.
+        const isCustomChartTypeAnswer = customChartType !== null;
+
         const defaultChartType: AiAgentChartTypeOption =
-            parsedChartConfig?.type === AiResultType.QUERY_RESULT
+            parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
+            !isCustomChartTypeSlugChartConfig(
+                parsedChartConfig.vizTool.chartConfig,
+            )
                 ? (parsedChartConfig.vizTool.chartConfig?.defaultVizType ??
                   'table')
                 : 'table';
@@ -191,8 +211,10 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             ? getGroupByDimensions(parsedChartConfig)
             : undefined;
 
+        // No chart type switcher on custom chart type answers (PoC).
         const shouldShowPill =
-            parsedChartConfig?.type === AiResultType.QUERY_RESULT;
+            parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
+            !isCustomChartTypeAnswer;
 
         if (isArtifactLoading || !message) {
             return (
@@ -249,6 +271,49 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         />
                     </div>
                 </div>
+            );
+        }
+
+        // Composer artifact (v0): render the stored terminal result as a
+        // table. No viz-query handle — the results endpoint is creator-scoped
+        // and read directly by lastQueryUuid.
+        if (composerConfig) {
+            const composerTitle =
+                artifactData.title ?? 'Composer query results';
+            const composerHead = (
+                <Box className={styles.head}>
+                    <Stack gap={0} flex={1} miw={0}>
+                        <TruncatedText fz="sm" fw={600} maxWidth="100%">
+                            {composerTitle}
+                        </TruncatedText>
+                        {artifactData.description && (
+                            <TruncatedText fz="xs" c="dimmed" maxWidth="100%">
+                                {artifactData.description}
+                            </TruncatedText>
+                        )}
+                    </Stack>
+                    {showCloseButton && (
+                        <Group gap={2} className={styles.headRight}>
+                            <ActionIcon
+                                size="sm"
+                                onClick={() => dispatch(clearPreview())}
+                                aria-label="Close"
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        </Group>
+                    )}
+                </Box>
+            );
+            return (
+                <Box className={styles.floatingPanel}>
+                    <Box className={styles.floatingContent}>
+                        <AiComposerArtifactVisualization
+                            results={queryResults}
+                            headerContent={composerHead}
+                        />
+                    </Box>
+                </Box>
             );
         }
 
@@ -322,6 +387,11 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             savedSqlUuid={artifactData.savedSqlUuid}
                             sql={sqlVizQueryData.sql}
                             limit={sqlVizQueryData.limit}
+                            queryUuid={sqlVizQueryData.query.queryUuid}
+                            totalResults={
+                                queryResults.totalResults ??
+                                queryResults.rows.length
+                            }
                             title={title}
                             description={description}
                             columns={Object.values(queryResults.columns ?? {})}
@@ -331,13 +401,26 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             message={message}
                             projectUuid={artifact.projectUuid}
                             agentUuid={artifact.agentUuid}
+                            showDownloadResults
                             artifactData={artifactData}
                             saveChartOptions={{
                                 name: title,
                                 description: description,
                                 linkToMessage: true,
                             }}
-                            compiledSql={compiledSql?.query}
+                            compiledSql={compiledSqlQuery}
+                            merge={
+                                isMergeArtifact
+                                    ? {
+                                          query:
+                                              semanticVizQueryData?.mergeQuery ??
+                                              null,
+                                          parameters:
+                                              semanticVizQueryData?.query
+                                                  .usedParametersValues,
+                                      }
+                                    : null
+                            }
                         />
                     )}
                     {showCloseButton && (
@@ -350,9 +433,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             />
                             <ActionIcon
                                 size="sm"
-                                variant="subtle"
-                                color="ldGray.6"
-                                onClick={() => dispatch(clearArtifact())}
+                                onClick={() => dispatch(clearPreview())}
                                 aria-label="Close"
                             >
                                 <MantineIcon icon={IconX} />
@@ -366,9 +447,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         if (sqlVizQueryData) {
             return (
                 <div className={styles.floatingPanel}>
-                    <div
-                        className={`${styles.floatingContent} ${styles.sqlArtifactContent}`}
-                    >
+                    <div className={styles.floatingContent}>
                         <AiSqlArtifactVisualization
                             results={queryResults}
                             headerContent={floatingHead}
@@ -384,13 +463,19 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
 
         return (
             <div className={styles.floatingPanel}>
-                <div className={styles.floatingContent}>
+                <div
+                    className={`${styles.floatingContent} ${
+                        shouldShowPill ? styles.withPillClearance : ''
+                    }`}
+                >
                     <AiVisualizationRenderer
                         vizQueryData={semanticVizQueryData}
                         results={queryResults}
                         chartConfig={semanticChartConfig}
+                        customChartType={customChartType}
                         selectedChartType={selectedChartType}
                         headerContent={floatingHead}
+                        loadExplore={!isMergeArtifact}
                     />
                 </div>
                 {shouldShowPill && metricQuery && (

@@ -1,0 +1,78 @@
+name: Scope walkthrough checks
+
+# Generation checks for scope walkthroughs (CS-209): every rule the first
+# modules settled by hand, enforced on any change to the frontend markers or
+# the generator. The docs are checked out because step text is cited from
+# them.
+
+on:
+    pull_request:
+        paths:
+            - 'packages/frontend/src/**'
+            - 'packages/common/src/authorization/**'
+            - 'scripts/scope-tours/**'
+            - 'scripts/playground-bundle/**'
+            - 'packages/backend/assets/playground/content.json'
+            - 'package.json'
+            - 'scripts/scope-tours/scope-tours.test.ts'
+            - '.github/workflows/scope-tours-check.yml'
+
+permissions:
+    contents: read
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+              with:
+                  egress-policy: audit
+            - uses: actions/checkout@v4
+            - uses: ./.github/workflows/_setup_node_pnpm_cypress
+            # After the setup action: it cleans the workspace, which would remove
+            # a docs checkout made before it.
+            - uses: actions/checkout@v4
+              with:
+                  repository: lightdash/mintlify-docs
+                  path: mintlify-docs
+                  token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
+            - name: Docs checkout is complete
+              run: test -f mintlify-docs/explore/spaces.mdx && ls mintlify-docs | head -20
+            - name: Build common
+              run: pnpm common-build
+            - name: Checker tests
+              run: pnpm exec tsx scripts/scope-tours/scope-tours.test.ts
+            - name: Playground teaching samples survive a bundle rebuild
+              run: pnpm test:playground-content
+            - name: Content coverage tests
+              run: pnpm scope-tours:coverage:test
+            - name: Every curriculum permission has a walkthrough or explicit disposition
+              run: pnpm scope-tours:release-check
+            - name: Generated tours are up to date
+              env:
+                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+              run: |
+                  pnpm scope-tours:generate
+                  pnpm -F frontend run formatter -- src/features/scopeTours/generated.ts
+                  git diff --exit-code -- packages/frontend/src/features/scopeTours/generated.ts
+            - name: The teaching order is up to date
+              env:
+                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+              run: |
+                  pnpm scope-tours:order
+                  git diff --exit-code -- packages/frontend/src/features/scopeTours/curriculum.ts
+            - name: Generation checks
+              env:
+                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+              run: pnpm scope-tours:check
+            - name: Point the author at the guide
+              if: failure()
+              env:
+                  GUIDE_URL: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/docs/learn/maintaining-walkthroughs.md
+              run: |
+                  echo "::error title=Learn walkthrough checks failed::A walkthrough is built from data-tour-* attributes in the frontend. What the failed step means and who fixes it: docs/learn/maintaining-walkthroughs.md"
+                  {
+                      echo '### Learn walkthrough checks failed'
+                      echo
+                      echo "A walkthrough is built from \`data-tour-*\` attributes in the frontend. The first failed step above is the one to read; [maintaining-walkthroughs.md]($GUIDE_URL) explains what it means and who fixes it."
+                  } >> "$GITHUB_STEP_SUMMARY"

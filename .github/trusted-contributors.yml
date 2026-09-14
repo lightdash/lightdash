@@ -1,0 +1,10 @@
+# GitHub usernames of external contributors whose pull requests stay open.
+# Pull requests from any other external author are closed automatically —
+# see .github/workflows/trusted-contributors.yml and CONTRIBUTING.md.
+#
+# Usernames only. Never annotate entries with company or customer
+# information — this repository is public.
+#
+# trusted:
+#     - some-username
+trusted: []

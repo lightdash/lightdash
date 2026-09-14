@@ -5,6 +5,7 @@ import {
     isExploreError,
     ItemsMap,
     MetricQuery,
+    MissingConfigError,
     ParameterDefinitions,
     ParametersValuesMap,
     PivotConfiguration,
@@ -26,6 +27,7 @@ import { type LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import { PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY } from '../../../services/AsyncQueryService/ComposeEngineClient';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
 import { traceSpan } from '../../../tracing/tracing';
 import { wrapSentryTransaction } from '../../../utils';
@@ -37,8 +39,6 @@ import { getDuckdbRuntimeConfig } from '../../../utils/duckdb/getDuckdbRuntimeCo
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 
-const PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY = 'pre-aggregate-query-instance';
-
 type PreAggregationDuckDbClientArgs = {
     lightdashConfig: LightdashConfig;
     preAggregateModel: Pick<PreAggregateModel, 'getActiveMaterialization'>;
@@ -48,7 +48,9 @@ type PreAggregationDuckDbClientArgs = {
     createDuckdbWarehouseClient?: (args: {
         s3Config: DuckdbS3SessionConfig;
         sharedResourceLimits?: DuckdbResourceLimits;
+        resourceLimits?: DuckdbResourceLimits;
         instanceCacheKey?: string;
+        organizationConcurrencyLimit?: number;
     }) => WarehouseClient;
 };
 
@@ -96,7 +98,9 @@ export class PreAggregationDuckDbClient {
     private readonly createDuckdbWarehouseClient: (args: {
         s3Config: DuckdbS3SessionConfig;
         sharedResourceLimits?: DuckdbResourceLimits;
+        resourceLimits?: DuckdbResourceLimits;
         instanceCacheKey?: string;
+        organizationConcurrencyLimit?: number;
     }) => WarehouseClient;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
@@ -117,7 +121,10 @@ export class PreAggregationDuckDbClient {
                     {
                         sharedResourceLimits:
                             warehouseArgs.sharedResourceLimits,
+                        resourceLimits: warehouseArgs.resourceLimits,
                         instanceCacheKey: warehouseArgs.instanceCacheKey,
+                        organizationConcurrencyLimit:
+                            warehouseArgs.organizationConcurrencyLimit,
                         logger: Logger,
                         enableQueryProfiling: true,
                         onQueryProfile:
@@ -126,14 +133,18 @@ export class PreAggregationDuckDbClient {
                 ));
     }
 
-    private getOrCreateWarehouseClient(): WarehouseClient {
+    // Reads managed materializations, so its session is the pre-aggregate
+    // bucket's; composed queries run on the OSS compose engine instead
+    createPreAggregateWarehouseClient(): WarehouseClient {
         if (!this.cachedWarehouseClient) {
             const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
                 this.lightdashConfig.preAggregates.s3,
             );
 
             if (!duckdbRuntimeConfig) {
-                throw new Error('Missing DuckDB runtime config');
+                throw new MissingConfigError(
+                    'Pre-aggregate DuckDB execution is unavailable: missing pre-aggregate S3 configuration',
+                );
             }
 
             this.cachedWarehouseClient = this.createDuckdbWarehouseClient({
@@ -176,10 +187,6 @@ export class PreAggregationDuckDbClient {
                     'Unknown pre-aggregate resolution reason',
                 );
         }
-    }
-
-    createExecutionWarehouseClient(): WarehouseClient {
-        return this.getOrCreateWarehouseClient();
     }
 
     async resolve(
@@ -386,7 +393,7 @@ export class PreAggregationDuckDbClient {
                 }),
         );
 
-        const warehouseClient = this.getOrCreateWarehouseClient();
+        const warehouseClient = this.createPreAggregateWarehouseClient();
 
         return {
             resolved: true,

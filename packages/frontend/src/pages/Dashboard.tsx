@@ -1,16 +1,25 @@
 import { subject } from '@casl/ability';
 import {
     copyDateZoomTileTargets,
+    excludeTilesFromTabScopedFilters,
+    getDefaultChartTileSize,
+    getItemId,
     getShadowedReservedNames,
-    isEmptyDateZoomConfig,
+    mergeDashboardCustomMetrics,
     normalizeDateZoomConfig,
-    pruneDateZoomConfig,
     removeDateZoomTileTargets,
+    ChartType,
     ContentType,
+    DashboardTileTypes,
     DateGranularity,
+    FeatureFlags,
+    type AdditionalMetric,
+    type DashboardFilterRule,
     type UpdateDashboard,
     type DashboardTile,
+    type CreateSavedChartVersion,
     type Dashboard as IDashboard,
+    type SavedChart,
 } from '@lightdash/common';
 import { Button, Group, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -19,9 +28,16 @@ import {
     captureException,
 } from '@sentry/react';
 import { IconAlertCircle, IconCircleCheckFilled } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
-import { useBlocker, useNavigate, useParams } from 'react-router';
+import {
+    useBlocker,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router';
+import { v4 as uuid4 } from 'uuid';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
@@ -30,10 +46,21 @@ import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModa
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import Page from '../components/common/Page/Page';
+import DashboardChartEditorModal from '../components/DashboardTiles/DashboardChartEditorModal';
+import { CREATE_SAVED_CHART_VERSION_SEARCH_PARAM } from '../components/DashboardTiles/useDashboardChartEditorUrlSync';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
+import DismissedDraftAlert from '../features/contentAsCode/components/DismissedDraftAlert';
+import DraftOverlayFailureAlert from '../features/contentAsCode/components/DraftOverlayFailureAlert';
+import DraftStaleAlert from '../features/contentAsCode/components/DraftStaleAlert';
+import {
+    useDraftStaleness,
+    useRebaseDraftMutation,
+    useReopenDraftMutation,
+} from '../features/contentAsCode/hooks/useContentDrafts';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
+import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -42,29 +69,62 @@ import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
+import { tryParseCreateSavedChartVersionParam } from '../hooks/useExplorerRoute';
+import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
+import { useRecordContentView } from '../hooks/useRecordContentView';
+import { useSavedQuery } from '../hooks/useSavedQuery';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
+import { DashboardChartEditContext } from '../providers/Dashboard/useDashboardChartEdit';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
+import { buildDashboardConfig } from '../utils/dashboardConfig';
+import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
+
+/** Dashboard URL param naming the chart open in the in-dashboard editor. */
+const EDIT_CHART_SEARCH_PARAM = 'editChart';
 
 const Dashboard: FC = () => {
     const navigate = useNavigate();
-    const { projectUuid, dashboardUuid, mode } = useParams<{
-        projectUuid: string;
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
+    const { dashboardUuid: routeDashboardIdentifier, mode } = useParams<{
         dashboardUuid: string;
         mode?: string;
     }>();
 
-    const { clearIsEditingDashboardChart, clearDashboardStorage } =
-        useDashboardStorage();
+    const {
+        clearIsEditingDashboardChart,
+        clearDashboardStorage,
+        storeDashboard,
+    } = useDashboardStorage();
 
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardUuid = dashboard?.uuid;
+    const dashboardIdentifier = dashboard?.slug ?? routeDashboardIdentifier;
+    const { mutate: reopenDraft, isLoading: isReopeningDraft } =
+        useReopenDraftMutation(projectUuid);
+    const { mutate: rebaseDraft, isLoading: isRebasingDraft } =
+        useRebaseDraftMutation(projectUuid);
+    const { data: draftStalenessDetails } = useDraftStaleness(
+        projectUuid,
+        dashboard?.draftStaleness?.draftUuid,
+    );
 
     const dashboardError = useDashboardContext((c) => c.dashboardError);
+    useRecordContentView(
+        projectUuid,
+        'dashboard',
+        !isDashboardLoading && !dashboardError ? dashboardUuid : undefined,
+    );
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
@@ -78,6 +138,18 @@ const Dashboard: FC = () => {
     const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
+    );
+    const dashboardCustomMetrics = useDashboardContext(
+        (c) => c.dashboardCustomMetrics,
+    );
+    const setDashboardCustomMetrics = useDashboardContext(
+        (c) => c.setDashboardCustomMetrics,
+    );
+    const haveCustomMetricsChanged = useDashboardContext(
+        (c) => c.haveCustomMetricsChanged,
+    );
+    const setHaveCustomMetricsChanged = useDashboardContext(
+        (c) => c.setHaveCustomMetricsChanged,
     );
 
     const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
@@ -365,6 +437,7 @@ const Dashboard: FC = () => {
     useEffect(() => {
         if (isSuccess) {
             setHaveTilesChanged(false);
+            setHaveCustomMetricsChanged(false);
             setHaveFiltersChanged(false);
             setHavePinnedParametersChanged(false);
             setHaveDateZoomGranularitiesChanged(false);
@@ -380,25 +453,26 @@ const Dashboard: FC = () => {
             reset();
             if (dashboardTabs.length > 1) {
                 void navigate(
-                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
+                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
                     { replace: true },
                 );
             } else {
                 void navigate(
-                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
                     { replace: true },
                 );
             }
         }
     }, [
-        dashboardUuid,
+        dashboardIdentifier,
         navigate,
         isSuccess,
-        projectUuid,
+        projectUrlIdentifier,
         reset,
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
         setHaveTilesChanged,
+        setHaveCustomMetricsChanged,
         setHavePinnedParametersChanged,
         setHaveDateZoomGranularitiesChanged,
         setHasDefaultDateZoomGranularityChanged,
@@ -467,24 +541,32 @@ const Dashboard: FC = () => {
             // original.
             if (tileUuidMapping && Object.keys(tileUuidMapping).length > 0) {
                 setDashboardFilters((prev) => {
-                    const updatedDimensions = prev.dimensions.map((filter) => {
-                        if (!filter.tileTargets) return filter;
-                        const nextTileTargets = { ...filter.tileTargets };
-                        let changed = false;
-                        for (const [newUuid, oldUuid] of Object.entries(
-                            tileUuidMapping,
-                        )) {
-                            if (oldUuid in nextTileTargets) {
-                                nextTileTargets[newUuid] =
-                                    nextTileTargets[oldUuid];
-                                changed = true;
+                    const remapRules = <T extends DashboardFilterRule>(
+                        rules: T[],
+                    ): T[] =>
+                        rules.map((filter) => {
+                            if (!filter.tileTargets) return filter;
+                            const nextTileTargets = { ...filter.tileTargets };
+                            let changed = false;
+                            for (const [newUuid, oldUuid] of Object.entries(
+                                tileUuidMapping,
+                            )) {
+                                if (oldUuid in nextTileTargets) {
+                                    nextTileTargets[newUuid] =
+                                        nextTileTargets[oldUuid];
+                                    changed = true;
+                                }
                             }
-                        }
-                        return changed
-                            ? { ...filter, tileTargets: nextTileTargets }
-                            : filter;
-                    });
-                    return { ...prev, dimensions: updatedDimensions };
+                            return changed
+                                ? { ...filter, tileTargets: nextTileTargets }
+                                : filter;
+                        });
+                    return {
+                        ...prev,
+                        dimensions: remapRules(prev.dimensions),
+                        metrics: remapRules(prev.metrics),
+                        tableCalculations: remapRules(prev.tableCalculations),
+                    };
                 });
                 setHaveFiltersChanged(true);
 
@@ -503,6 +585,19 @@ const Dashboard: FC = () => {
                 if (nextDateZoomConfig !== dateZoomConfig) {
                     setDateZoomConfig(nextDateZoomConfig);
                 }
+            } else if (dashboardTiles) {
+                // Tab-aware auto-apply: a filter that already excludes every
+                // chart tile on the target tab is scoped away from that tab,
+                // so exclude the newly added tiles from it too.
+                const scopedFilters = excludeTilesFromTabScopedFilters(
+                    dashboardFilters,
+                    newTiles,
+                    dashboardTiles,
+                );
+                if (scopedFilters !== dashboardFilters) {
+                    setDashboardFilters(() => scopedFilters);
+                    setHaveFiltersChanged(true);
+                }
             }
         },
         [
@@ -512,6 +607,8 @@ const Dashboard: FC = () => {
             setDashboardTiles,
             setHaveTilesChanged,
             setHaveTabsChanged,
+            dashboardFilters,
+            dashboardTiles,
             setDashboardFilters,
             setHaveFiltersChanged,
             dateZoomConfig,
@@ -586,6 +683,8 @@ const Dashboard: FC = () => {
 
         setDashboardTiles(dashboard.tiles);
         setHaveTilesChanged(false);
+        setDashboardCustomMetrics(dashboard.config?.customMetrics ?? []);
+        setHaveCustomMetricsChanged(false);
         setDashboardFilters(dashboard.filters);
         setHaveFiltersChanged(false);
         setHaveTabsChanged(false);
@@ -609,24 +708,26 @@ const Dashboard: FC = () => {
 
         if (dashboardTabs.length > 0) {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
                 { replace: true },
             );
         } else {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
                 { replace: true },
             );
         }
     }, [
         dashboard,
-        dashboardUuid,
+        dashboardIdentifier,
         navigate,
-        projectUuid,
+        projectUrlIdentifier,
         setDashboardTiles,
         setHaveFiltersChanged,
         setDashboardFilters,
         setHaveTilesChanged,
+        setDashboardCustomMetrics,
+        setHaveCustomMetricsChanged,
         setHaveTabsChanged,
         setDashboardTabs,
         dashboardTabs,
@@ -664,7 +765,12 @@ const Dashboard: FC = () => {
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
-            if (isEditMode && (haveTilesChanged || haveFiltersChanged)) {
+            if (
+                isEditMode &&
+                (haveTilesChanged ||
+                    haveFiltersChanged ||
+                    haveCustomMetricsChanged)
+            ) {
                 const message =
                     'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
                 event.returnValue = message;
@@ -673,16 +779,33 @@ const Dashboard: FC = () => {
         };
         window.addEventListener('beforeunload', checkReload);
         return () => window.removeEventListener('beforeunload', checkReload);
-    }, [haveTilesChanged, haveFiltersChanged, isEditMode]);
+    }, [
+        haveTilesChanged,
+        haveFiltersChanged,
+        haveCustomMetricsChanged,
+        isEditMode,
+    ]);
 
     // Block navigating away if there are unsaved changes
     const blocker = useBlocker(({ nextLocation }) => {
         if (
             isEditMode &&
-            (haveTilesChanged || haveFiltersChanged || haveTabsChanged) &&
-            !nextLocation.pathname.includes(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
-            ) &&
+            !isLeavingTrainingCopy(nextLocation) &&
+            (haveTilesChanged ||
+                haveFiltersChanged ||
+                haveTabsChanged ||
+                haveCustomMetricsChanged) &&
+            // A URL may carry either the uuid or the slug for both the project
+            // and the dashboard, so accept any combination — but compare whole
+            // segments, and require the project to match too: dashboard slugs
+            // are only unique within a project.
+            !isSameDashboardRoute({
+                location: nextLocation,
+                projectUuid,
+                projectSlug: projectUrlIdentifier,
+                dashboardUuid,
+                dashboardSlug: dashboardIdentifier,
+            }) &&
             // Allow user to add a new table
             !sessionStorage.getItem(`unsavedDashboardTiles:${dashboardUuid}`)
         ) {
@@ -702,16 +825,16 @@ const Dashboard: FC = () => {
                 {
                     pathname:
                         dashboardTabs.length > 0
-                            ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${activeTab?.uuid}`
-                            : `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                            ? `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit/tabs/${activeTab?.uuid}`
+                            : `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit`,
                     search: '',
                 },
                 { replace: true },
             );
         });
     }, [
-        projectUuid,
-        dashboardUuid,
+        projectUrlIdentifier,
+        dashboardIdentifier,
         resetDashboardFilters,
         refreshDashboardVersion,
         navigate,
@@ -722,6 +845,288 @@ const Dashboard: FC = () => {
     const hasTilesThatSupportFilters = useDashboardContext(
         (c) => c.hasTilesThatSupportFilters,
     );
+
+    // The modal editor and the shared-metrics layer roll out independently;
+    // metrics only ever activate through the modal's surfaces.
+    const chartEditorFlag = useServerFeatureFlag(
+        FeatureFlags.InDashboardChartEditor,
+    );
+    const isChartEditorEnabled = chartEditorFlag.data?.enabled === true;
+    const dashboardCustomMetricsFlag = useServerFeatureFlag(
+        FeatureFlags.DashboardCustomMetrics,
+    );
+    const isDashboardCustomMetricsEnabled =
+        isChartEditorEnabled &&
+        dashboardCustomMetricsFlag.data?.enabled === true;
+    const [isNewChartOpen, setIsNewChartOpen] = useState(false);
+
+    // The chart being edited is named by the URL, so a reload or a step back
+    // from the chart page lands in the editor. A tile hands over the chart it
+    // already holds; without one (a fresh load) it is fetched by the param.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const editChartParam = searchParams.get(EDIT_CHART_SEARCH_PARAM);
+    const [chartFromTile, setChartFromTile] = useState<
+        SavedChart | undefined
+    >();
+    const setEditChartParam = useCallback(
+        (chartUuid: string) => {
+            setSearchParams(
+                (params) => {
+                    params.set(EDIT_CHART_SEARCH_PARAM, chartUuid);
+                    params.delete(CREATE_SAVED_CHART_VERSION_SEARCH_PARAM);
+                    return params;
+                },
+                { replace: true },
+            );
+        },
+        [setSearchParams],
+    );
+    const clearChartEditorParams = useCallback(() => {
+        setSearchParams(
+            (params) => {
+                params.delete(EDIT_CHART_SEARCH_PARAM);
+                params.delete(CREATE_SAVED_CHART_VERSION_SEARCH_PARAM);
+                return params;
+            },
+            { replace: true },
+        );
+    }, [setSearchParams]);
+    // The editor's own unsaved edits, read once at mount: applying them later
+    // would fight the sync that keeps writing them back to the url.
+    const [editChartParamAtMount] = useState(() =>
+        searchParams.get(EDIT_CHART_SEARCH_PARAM),
+    );
+    const [chartVersionAtMount] = useState<CreateSavedChartVersion | undefined>(
+        () => {
+            const param = searchParams.get(
+                CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
+            );
+            return param
+                ? tryParseCreateSavedChartVersionParam(param)
+                : undefined;
+        },
+    );
+    const chartVersionParam = searchParams.get(
+        CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
+    );
+    const chartFromUrl = useSavedQuery({
+        uuidOrSlug:
+            isChartEditorEnabled &&
+            editChartParam &&
+            chartFromTile?.uuid !== editChartParam
+                ? editChartParam
+                : undefined,
+        projectUuid,
+        // The same content the tiles show: the dashboard loads its draft
+        includeUnpublishedDraft: true,
+        // A param naming a chart the user cannot load is dropped rather than kept
+        useQueryOptions: { onError: () => clearChartEditorParams() },
+    });
+    const chartToEdit = useMemo(() => {
+        if (!isChartEditorEnabled || !editChartParam) return undefined;
+        if (chartFromTile?.uuid === editChartParam) return chartFromTile;
+        return chartFromUrl.data?.uuid === editChartParam
+            ? chartFromUrl.data
+            : undefined;
+    }, [
+        isChartEditorEnabled,
+        editChartParam,
+        chartFromTile,
+        chartFromUrl.data,
+    ]);
+    const openChartEditor = useCallback(
+        (chart: SavedChart) => {
+            setChartFromTile(chart);
+            setEditChartParam(chart.uuid);
+        },
+        [setEditChartParam],
+    );
+    const closeChartEditor = useCallback(() => {
+        setChartFromTile(undefined);
+        clearChartEditorParams();
+    }, [clearChartEditorParams]);
+    // Only for the chart the url named at mount, and only while the url still
+    // carries the edits: a closed session must not resurrect them.
+    const handedOverChartVersion = useMemo(() => {
+        if (!chartVersionAtMount || chartVersionParam === null)
+            return undefined;
+        if (!chartToEdit || chartToEdit.uuid !== editChartParamAtMount)
+            return undefined;
+        return chartVersionAtMount.tableName === chartToEdit.tableName &&
+            chartVersionAtMount.metricQuery.exploreName ===
+                chartToEdit.tableName
+            ? chartVersionAtMount
+            : undefined;
+    }, [
+        chartVersionAtMount,
+        chartVersionParam,
+        chartToEdit,
+        editChartParamAtMount,
+    ]);
+    const queryClient = useQueryClient();
+    const { track } = useTracking();
+    const handleRegistryMetricEdited = useCallback(
+        (metric: AdditionalMetric) => {
+            // Server already persisted the swap; mirror it into the staged
+            // registry without clobbering other staged additions.
+            setDashboardCustomMetrics((current) =>
+                current.map((entry) =>
+                    getItemId(entry) === getItemId(metric) ? metric : entry,
+                ),
+            );
+            // Affected charts got new versions; refetch so tiles pick them up.
+            void queryClient.invalidateQueries(['saved_query']);
+            void queryClient.invalidateQueries(['dashboard_chart_ready_query']);
+            // And refresh the dashboard itself: a later save builds its config
+            // from the cached dashboard, which now holds a stale registry.
+            void queryClient.invalidateQueries(['saved_dashboard_query']);
+        },
+        [setDashboardCustomMetrics, queryClient],
+    );
+
+    const handleRegistryMetricDeleted = useCallback(
+        (metric: AdditionalMetric) => {
+            // Charts are untouched by deletion — only the registry changed.
+            setDashboardCustomMetrics((current) =>
+                current.filter(
+                    (entry) => getItemId(entry) !== getItemId(metric),
+                ),
+            );
+            void queryClient.invalidateQueries(['saved_dashboard_query']);
+        },
+        [setDashboardCustomMetrics, queryClient],
+    );
+
+    const handleOpenNewChart = useCallback(() => {
+        setIsNewChartOpen(true);
+    }, []);
+
+    const handleChartEditorSaved = useCallback(
+        (chart: SavedChart) => {
+            // Only the in-dashboard builder contributes to the registry, and
+            // only while the shared-metrics layer is enabled.
+            const previousRegistryIds = new Set(
+                dashboardCustomMetrics.map(getItemId),
+            );
+            const mergedCustomMetrics = isDashboardCustomMetricsEnabled
+                ? mergeDashboardCustomMetrics(
+                      dashboardCustomMetrics,
+                      chart.metricQuery.additionalMetrics ?? [],
+                  )
+                : dashboardCustomMetrics;
+            if (mergedCustomMetrics !== dashboardCustomMetrics) {
+                setDashboardCustomMetrics(mergedCustomMetrics);
+                setHaveCustomMetricsChanged(true);
+            }
+
+            if (dashboardUuid) {
+                const workbookEventProperties = {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid,
+                    dashboardUuid,
+                    exploreName: chart.tableName,
+                    registrySize: mergedCustomMetrics.length,
+                    // Distinct base tables — the closest explore proxy we hold
+                    distinctExploreCount: new Set(
+                        mergedCustomMetrics.map((metric) => metric.table),
+                    ).size,
+                };
+                if (isDashboardCustomMetricsEnabled) {
+                    mergedCustomMetrics.forEach((metric) => {
+                        if (!previousRegistryIds.has(getItemId(metric))) {
+                            track({
+                                name: EventName.DASHBOARD_CUSTOM_METRIC_CREATED,
+                                properties: workbookEventProperties,
+                            });
+                        }
+                    });
+                    // Selected metrics that were already shared = duplication avoided
+                    (chart.metricQuery.metrics ?? []).forEach((metricId) => {
+                        if (previousRegistryIds.has(metricId)) {
+                            track({
+                                name: EventName.DASHBOARD_CUSTOM_METRIC_REUSED,
+                                properties: workbookEventProperties,
+                            });
+                        }
+                    });
+                }
+                track({
+                    name:
+                        chart.uuid !== chartToEdit?.uuid
+                            ? EventName.DASHBOARD_CHART_CREATED_IN_PLACE
+                            : EventName.DASHBOARD_CHART_EDITED_IN_PLACE,
+                    properties: workbookEventProperties,
+                });
+            }
+
+            // New uuid means a brand-new chart; an existing tile refreshes
+            // itself via the update mutation's query cache reset.
+            if (chart.uuid !== chartToEdit?.uuid) {
+                void handleAddTiles([
+                    {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: {
+                            // Created against this dashboard, so the tile owns it.
+                            belongsToDashboard: true,
+                            savedChartUuid: chart.uuid,
+                            chartName: chart.name,
+                            hideTitle:
+                                chart.chartConfig.type === ChartType.BIG_NUMBER
+                                    ? true
+                                    : undefined,
+                        },
+                        tabUuid: activeTab?.uuid,
+                        ...getDefaultChartTileSize(chart.chartConfig.type),
+                    },
+                ]);
+            }
+            closeChartEditor();
+            setIsNewChartOpen(false);
+        },
+        [
+            chartToEdit,
+            closeChartEditor,
+            handleAddTiles,
+            activeTab?.uuid,
+            dashboardCustomMetrics,
+            setDashboardCustomMetrics,
+            setHaveCustomMetricsChanged,
+            dashboardUuid,
+            projectUuid,
+            user.data?.organizationUuid,
+            track,
+            isDashboardCustomMetricsEnabled,
+        ],
+    );
+
+    // The dashboard rides along in session storage for the trip back, as a
+    // tile's "Edit chart" link does. Every chart stores it: the route blocker
+    // reads the same key, so skipping it would cancel the hand-over.
+    const handleBeforeOpenChartPage = useCallback(() => {
+        storeDashboard(
+            dashboardTiles,
+            dashboardFilters,
+            haveTilesChanged,
+            haveFiltersChanged,
+            dashboardUuid,
+            dashboard?.name,
+            activeTab?.uuid,
+            dashboardTabs,
+            dashboard?.slug,
+        );
+    }, [
+        storeDashboard,
+        dashboardTiles,
+        dashboardFilters,
+        haveTilesChanged,
+        haveFiltersChanged,
+        dashboardUuid,
+        dashboard?.name,
+        dashboard?.slug,
+        activeTab?.uuid,
+        dashboardTabs,
+    ]);
 
     if (isDashboardLoading) {
         return <PageSpinner />;
@@ -778,15 +1183,6 @@ const Dashboard: FC = () => {
             return filter;
         });
 
-        // Prune empty controls + dangling targets on save; omit the field
-        // entirely when no controls remain so untouched dashboards don't churn.
-        const prunedDateZoomConfig = pruneDateZoomConfig(dateZoomConfig);
-        const savedDateZoomConfig = hasDateZoomConfigChanged
-            ? isEmptyDateZoomConfig(prunedDateZoomConfig)
-                ? undefined
-                : prunedDateZoomConfig
-            : dashboard.config?.dateZoomConfig;
-
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
@@ -802,22 +1198,24 @@ const Dashboard: FC = () => {
             },
             name: dashboard.name,
             tabs: dashboardTabs,
-            config: {
+            config: buildDashboardConfig({
+                existingConfig: dashboard.config,
                 isDateZoomDisabled,
                 isAddFilterDisabled,
                 pinnedParameters,
-                parameterOrder: hasParameterOrderChanged
-                    ? parameterOrder
-                    : dashboard.config?.parameterOrder,
-                dateZoomGranularities: haveDateZoomGranularitiesChanged
-                    ? dateZoomGranularities
-                    : dashboard.config?.dateZoomGranularities,
-                defaultDateZoomGranularity: hasDefaultDateZoomGranularityChanged
-                    ? defaultDateZoomGranularity
-                    : dashboard.config?.defaultDateZoomGranularity,
-                dateZoomConfig: savedDateZoomConfig,
-                requiredFiltersNote: requiredFiltersNote || undefined,
-            },
+                parameterOrder,
+                hasParameterOrderChanged,
+                dateZoomGranularities,
+                haveDateZoomGranularitiesChanged,
+                defaultDateZoomGranularity,
+                hasDefaultDateZoomGranularityChanged,
+                dateZoomConfig,
+                hasDateZoomConfigChanged,
+                requiredFiltersNote,
+                stagedCustomMetrics: haveCustomMetricsChanged
+                    ? dashboardCustomMetrics
+                    : undefined,
+            }),
             parameters: dashboardParameters,
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
@@ -843,6 +1241,7 @@ const Dashboard: FC = () => {
         onToggleFullscreen: handleToggleFullscreen,
         hasDashboardChanged:
             haveTilesChanged ||
+            haveCustomMetricsChanged ||
             haveFiltersChanged ||
             hasTemporaryFilters ||
             haveTabsChanged ||
@@ -856,6 +1255,8 @@ const Dashboard: FC = () => {
             hasDefaultDateZoomGranularityChanged ||
             hasDateZoomConfigChanged,
         onAddTiles: handleAddTiles,
+        onNewChart:
+            isChartEditorEnabled && isEditMode ? handleOpenNewChart : undefined,
         onSaveDashboard: () => {
             if (shouldShowVerificationSaveOptions) {
                 saveVerificationModalHandlers.open();
@@ -979,40 +1380,106 @@ const Dashboard: FC = () => {
                 <div>
                     <DashboardHeader {...dashboardHeaderProps} />
 
-                    {/* Coordinates filter chip / rules popovers across the dashboard */}
-                    <FilterBarPopoversProvider>
-                        <DashboardTabs
-                            isEditMode={isEditMode}
-                            hasTilesThatSupportFilters={
-                                hasTilesThatSupportFilters
+                    {isChartEditorEnabled && dashboard.uuid ? (
+                        <DashboardChartEditorModal
+                            opened={isNewChartOpen || chartToEdit !== undefined}
+                            dashboard={{
+                                uuid: dashboard.uuid,
+                                name: dashboard.name,
+                            }}
+                            editChart={chartToEdit}
+                            handedOverChartVersion={handedOverChartVersion}
+                            customMetricsEnabled={
+                                isDashboardCustomMetricsEnabled
                             }
-                            // parameters
-                            parameters={referencedParameters}
-                            shadowedReservedNames={shadowedReservedNames}
-                            parameterValues={parameterValues}
-                            onParameterChange={handleParameterChange}
-                            onParameterClearAll={clearAllParameters}
-                            isParameterLoading={!areAllChartsLoaded}
-                            missingRequiredParameters={
-                                missingRequiredParameters
+                            onBeforeOpenChartPage={handleBeforeOpenChartPage}
+                            onChartSaved={handleChartEditorSaved}
+                            onRegistryMetricEdited={handleRegistryMetricEdited}
+                            onRegistryMetricDeleted={
+                                handleRegistryMetricDeleted
                             }
-                            pinnedParameters={pinnedParameters}
-                            onParameterPin={toggleParameterPin}
-                            parameterOrder={parameterOrder}
-                            onParameterReorder={setParameterOrder}
-                            // tabs
-                            activeTab={activeTab}
-                            addingTab={addingTab}
-                            dashboardTiles={dashboardTiles}
-                            handleAddTiles={handleAddTiles}
-                            handleUpdateTiles={handleUpdateTiles}
-                            handleDeleteTile={handleDeleteTile}
-                            handleBatchDeleteTiles={handleBatchDeleteTiles}
-                            handleEditTile={handleEditTiles}
-                            setGridWidth={setGridWidth}
-                            setAddingTab={setAddingTab}
+                            onClose={() => {
+                                setIsNewChartOpen(false);
+                                closeChartEditor();
+                            }}
                         />
-                    </FilterBarPopoversProvider>
+                    ) : null}
+
+                    {dashboard.draftOverlayError ? (
+                        <DraftOverlayFailureAlert
+                            error={dashboard.draftOverlayError}
+                        />
+                    ) : null}
+
+                    {dashboard.dismissedDraftUuid ? (
+                        <DismissedDraftAlert
+                            isReopening={isReopeningDraft}
+                            onReopen={() =>
+                                reopenDraft(dashboard.dismissedDraftUuid!)
+                            }
+                        />
+                    ) : null}
+
+                    {dashboard.draftStaleness ? (
+                        <DraftStaleAlert
+                            contentLabel="dashboard"
+                            staleness={dashboard.draftStaleness}
+                            details={draftStalenessDetails}
+                            isUpdating={isRebasingDraft}
+                            onUpdate={(resolutions) =>
+                                rebaseDraft({
+                                    draftUuid:
+                                        dashboard.draftStaleness!.draftUuid,
+                                    resolutions,
+                                })
+                            }
+                        />
+                    ) : null}
+
+                    {/* Coordinates filter chip / rules popovers across the dashboard */}
+                    <DashboardChartEditContext.Provider
+                        value={
+                            isChartEditorEnabled ? openChartEditor : undefined
+                        }
+                    >
+                        <FilterBarPopoversProvider>
+                            <DashboardTabs
+                                isEditMode={isEditMode}
+                                hasTilesThatSupportFilters={
+                                    hasTilesThatSupportFilters
+                                }
+                                // parameters
+                                shadowedReservedNames={shadowedReservedNames}
+                                parameterValues={parameterValues}
+                                onParameterChange={handleParameterChange}
+                                onParameterClearAll={clearAllParameters}
+                                isParameterLoading={!areAllChartsLoaded}
+                                missingRequiredParameters={
+                                    missingRequiredParameters
+                                }
+                                pinnedParameters={pinnedParameters}
+                                onParameterPin={toggleParameterPin}
+                                parameterOrder={parameterOrder}
+                                onParameterReorder={setParameterOrder}
+                                // tabs
+                                activeTab={activeTab}
+                                addingTab={addingTab}
+                                dashboardTiles={dashboardTiles}
+                                handleAddTiles={handleAddTiles}
+                                handleUpdateTiles={handleUpdateTiles}
+                                handleDeleteTile={handleDeleteTile}
+                                handleBatchDeleteTiles={handleBatchDeleteTiles}
+                                handleEditTile={handleEditTiles}
+                                setGridWidth={setGridWidth}
+                                setAddingTab={setAddingTab}
+                                onNewChart={
+                                    isChartEditorEnabled && isEditMode
+                                        ? handleOpenNewChart
+                                        : undefined
+                                }
+                            />
+                        </FilterBarPopoversProvider>
+                    </DashboardChartEditContext.Provider>
                 </div>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
@@ -1021,7 +1488,7 @@ const Dashboard: FC = () => {
                         onClose={deleteModalHandlers.close}
                         onConfirm={() => {
                             void navigate(
-                                `/projects/${projectUuid}/dashboards`,
+                                `/projects/${projectUrlIdentifier}/dashboards`,
                                 {
                                     replace: true,
                                 },
@@ -1051,8 +1518,8 @@ const Dashboard: FC = () => {
 };
 
 const DashboardPage: FC = () => {
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid: string;
+    const projectUuid = useProjectUuid();
+    const { dashboardUuid } = useParams<{
         dashboardUuid: string;
     }>();
     const { user } = useApp();
@@ -1063,6 +1530,7 @@ const DashboardPage: FC = () => {
             key={dashboardUuid}
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
+            includeUnpublishedDraft
         >
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAiAgentContextBridge />

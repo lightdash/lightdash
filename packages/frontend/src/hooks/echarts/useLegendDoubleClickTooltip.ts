@@ -1,5 +1,8 @@
 import { px, useMantineTheme } from '@mantine/core';
 
+export const LEGEND_INTERACTION_HINT =
+    'Click to toggle visibility. Double click to isolate';
+
 export const useLegendDoubleClickTooltip = () => {
     const theme = useMantineTheme();
 
@@ -17,9 +20,11 @@ export const useLegendDoubleClickTooltip = () => {
             },
             padding: [4, Number(px(theme.spacing.xs))],
             extraCssText: `box-shadow: ${theme.shadows.subtle};`,
-            formatter: () => {
-                return `Click to toggle visibility. Double click to isolate`;
-            },
+            formatter: () => LEGEND_INTERACTION_HINT,
         },
     };
 };
+
+export type LegendDoubleClickTooltip = ReturnType<
+    typeof useLegendDoubleClickTooltip
+>['tooltip'];

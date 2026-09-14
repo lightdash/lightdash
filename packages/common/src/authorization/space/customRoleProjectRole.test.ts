@@ -1,3 +1,4 @@
+import { OrganizationMemberRole } from '../../types/organizationMemberProfile';
 import { ProjectMemberRole } from '../../types/projectMemberRole';
 import {
     convertOrganizationRoleToProjectRole,
@@ -5,7 +6,9 @@ import {
 } from '../../utils/projectMemberRole';
 import { PROJECT_ROLE_TO_SCOPES_MAP } from '../roleToScopeMapping';
 import {
+    getOrganizationRoleForRoleSetSpaceAccess,
     getOrganizationRoleForSpaceAccess,
+    getProjectRoleForRoleSetSpaceAccess,
     getProjectRoleForSpaceAccess,
 } from './customRoleProjectRole';
 
@@ -35,4 +38,51 @@ describe('getOrganizationRoleForSpaceAccess', () => {
             ).toEqual(getProjectRoleForSpaceAccess(scopes));
         },
     );
+});
+
+describe('role-set space access derivation', () => {
+    it('keeps the system role when extras add nothing higher', () => {
+        expect(
+            getProjectRoleForRoleSetSpaceAccess({
+                systemRole: ProjectMemberRole.EDITOR,
+                customRoleScopes: ['view:Dashboard'],
+            }),
+        ).toBe(ProjectMemberRole.EDITOR);
+    });
+    it('raises to the derived role when extras grant more', () => {
+        expect(
+            getProjectRoleForRoleSetSpaceAccess({
+                systemRole: ProjectMemberRole.VIEWER,
+                customRoleScopes: ['manage:Space'],
+            }),
+        ).toBe(ProjectMemberRole.ADMIN);
+    });
+    it('derives from scopes alone for custom-only sets', () => {
+        expect(
+            getProjectRoleForRoleSetSpaceAccess({
+                systemRole: null,
+                customRoleScopes: ['manage:Space@public'],
+            }),
+        ).toBe(ProjectMemberRole.EDITOR);
+        expect(
+            getOrganizationRoleForRoleSetSpaceAccess({
+                systemRole: null,
+                customRoleScopes: [],
+            }),
+        ).toBe(OrganizationMemberRole.VIEWER);
+    });
+    it('never lowers an organization system role', () => {
+        expect(
+            getOrganizationRoleForRoleSetSpaceAccess({
+                systemRole: OrganizationMemberRole.DEVELOPER,
+                customRoleScopes: ['manage:Space@public'],
+            }),
+        ).toBe(OrganizationMemberRole.DEVELOPER);
+        expect(
+            getOrganizationRoleForRoleSetSpaceAccess({
+                systemRole: OrganizationMemberRole.MEMBER,
+                customRoleScopes: ['manage:Space'],
+            }),
+        ).toBe(OrganizationMemberRole.ADMIN);
+    });
 });

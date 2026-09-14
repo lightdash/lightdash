@@ -55,6 +55,10 @@ export function generateTableCalculationTemplate(
             return {
                 type: TableCalculationTemplateType.RUNNING_TOTAL,
                 fieldId,
+                orderBy: currentSorts.map((sort) => ({
+                    fieldId: sort.fieldId,
+                    order: sort.descending ? 'desc' : 'asc',
+                })),
             };
 
         case TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL:

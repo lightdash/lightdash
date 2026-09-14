@@ -22,6 +22,7 @@ export type ValidationErrorChartResponse = ValidationResponseBase & {
     chartUuid: string | undefined; // NOTE: can be undefined if private content
     chartKind?: ChartKind;
     fieldName?: string;
+    tableName?: string; // The model/explore the broken field or chart belongs to
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
     chartViews: number;
@@ -30,6 +31,7 @@ export type ValidationErrorChartResponse = ValidationResponseBase & {
 
 export type ValidationErrorDashboardResponse = ValidationResponseBase & {
     dashboardUuid: string | undefined; // NOTE: can be undefined if private content
+    dashboardSlug?: string;
     chartName?: string;
     fieldName?: string;
     tableName?: string; // For dashboard filter errors referencing specific tables
@@ -73,6 +75,7 @@ export type CreateChartValidation = Pick<
     | 'error'
     | 'errorType'
     | 'fieldName'
+    | 'tableName'
     | 'name'
     | 'projectUuid'
     | 'chartUuid'
@@ -85,6 +88,7 @@ export type CreateDashboardValidation = Pick<
     | 'error'
     | 'errorType'
     | 'fieldName'
+    | 'tableName'
     | 'name'
     | 'projectUuid'
     | 'dashboardUuid'
@@ -142,6 +146,37 @@ export type ValidationSummary = Pick<
     'error' | 'createdAt' | 'validationUuid' | 'validationId'
 >;
 
+export type ValidationAffectedContent = {
+    uuid: string | null; // null when content is private or deleted for this user
+    name: string;
+    source: ValidationSourceType;
+    views: number;
+    errorCount: number;
+};
+
+export type ValidationErrorGroup = {
+    groupKey: string;
+    errorType: ValidationErrorType;
+    tableName: string | null; // root-cause model, when known
+    fieldName: string | null; // set for field-level groups
+    errorCount: number;
+    affectedCharts: number;
+    affectedDashboards: number;
+    affectedTables: number;
+    affectedDataApps: number;
+    sampleError: string;
+    affectedContent: ValidationAffectedContent[]; // capped, see hasMoreAffectedContent
+    hasMoreAffectedContent: boolean;
+};
+
+export type ValidationGroupedSummary = {
+    totalErrors: number;
+    totalAffectedItems: number;
+    groups: ValidationErrorGroup[];
+};
+
+export type ApiValidationSummaryResponse = ApiSuccess<ValidationGroupedSummary>;
+
 export enum ValidationErrorType {
     Chart = 'chart',
     Sorting = 'sorting',
@@ -151,6 +186,7 @@ export enum ValidationErrorType {
     Dimension = 'dimension',
     CustomMetric = 'custom metric',
     ChartConfiguration = 'chart configuration',
+    ExploreSplit = 'explore split',
 }
 
 export enum DashboardFilterValidationErrorType {
@@ -176,6 +212,13 @@ export const isChartValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorChartResponse | CreateChartValidation =>
     error.source === ValidationSourceType.Chart;
+
+/** Advisory issues that do not break content, e.g. unused chart fields. */
+export const isValidationWarning = (
+    error: ValidationResponse | CreateValidation,
+): error is ValidationErrorChartResponse | CreateChartValidation =>
+    isChartValidationError(error) &&
+    error.errorType === ValidationErrorType.ChartConfiguration;
 
 export const isDashboardValidationError = (
     error: ValidationResponse | CreateValidation,

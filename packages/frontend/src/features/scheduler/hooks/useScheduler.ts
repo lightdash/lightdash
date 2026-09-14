@@ -8,11 +8,11 @@ import {
     type ApiSchedulerRunsResponse,
     type ApiSchedulersResponse,
     type ApiTestSchedulerResponse,
-    type CreateSchedulerAndTargets,
     type KnexPaginateArgs,
     type SchedulerAndTargets,
     type SchedulerRunLog,
     type SchedulerRunStatus,
+    type SendNowScheduler,
 } from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
 import {
@@ -207,7 +207,7 @@ export const getSchedulerJobStatus = async <
         body: undefined,
     });
 
-const sendNowScheduler = async (scheduler: CreateSchedulerAndTargets) =>
+const sendNowScheduler = async (scheduler: SendNowScheduler) =>
     lightdashApi<ApiTestSchedulerResponse['results']>({
         url: `/schedulers/send`,
         method: 'POST',
@@ -619,7 +619,7 @@ export const useSendNowScheduler = () => {
     const sendNowMutation = useMutation<
         ApiTestSchedulerResponse['results'],
         ApiError,
-        CreateSchedulerAndTargets
+        SendNowScheduler
     >(
         (res) => {
             showToastInfo({

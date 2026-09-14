@@ -1,0 +1,121 @@
+.pipeline {
+    min-width: 0;
+}
+
+.node {
+    min-width: 0;
+    padding-left: 10px;
+    border-left: 2px solid var(--mantine-color-ldGray-3);
+    transition: border-color 200ms ease;
+}
+
+.node[data-status='running'] {
+    border-left-color: var(--mantine-color-indigo-4);
+}
+
+.node[data-status='success'] {
+    border-left-color: var(--mantine-color-teal-5);
+}
+
+.node[data-status='error'] {
+    border-left-color: var(--mantine-color-red-5);
+}
+
+.statusIndicator {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+}
+
+.statusIndicator[data-status='success'] {
+    color: var(--mantine-color-teal-6);
+}
+
+.statusIndicator[data-status='error'] {
+    color: var(--mantine-color-red-6);
+}
+
+.statusIcon {
+    flex-shrink: 0;
+}
+
+.statusDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.statusDot[data-status='pending'] {
+    border: 1.5px solid var(--mantine-color-ldGray-5);
+    background: transparent;
+}
+
+.statusDot[data-status='running'] {
+    background: var(--mantine-color-indigo-5);
+    animation: composer-node-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes composer-node-pulse {
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.45;
+        transform: scale(0.78);
+    }
+}
+
+.header {
+    min-width: 0;
+    margin-bottom: 5px;
+}
+
+.nodeId {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-9);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.badge {
+    flex-shrink: 0;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.detail {
+    min-width: 0;
+    flex: 1;
+}
+
+.code {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 6px;
+    background: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldGray-1)
+    );
+}
+
+.code :global(.mantine-CodeHighlight-codeHighlight) {
+    background: transparent;
+}
+
+.code :global(.mantine-CodeHighlight-code) {
+    max-height: 220px;
+    overflow: auto;
+    padding: 9px 34px 9px 11px;
+    background: transparent;
+    font-size: 11px;
+    line-height: 1.55;
+}

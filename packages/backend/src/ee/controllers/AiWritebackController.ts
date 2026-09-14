@@ -89,7 +89,7 @@ export class AiWritebackController extends BaseController {
         const parsed = aiWritebackBodySchema.safeParse(body);
         if (!parsed.success) {
             throw new ParameterError(
-                parsed.error.errors[0]?.message ?? 'Invalid request parameters',
+                parsed.error.issues[0]?.message ?? 'Invalid request parameters',
             );
         }
         const { prompt, dbtSourceUuid } = parsed.data;
@@ -217,7 +217,7 @@ export class AiWritebackController extends BaseController {
         const parsed = closePullRequestBodySchema.safeParse(body);
         if (!parsed.success) {
             throw new ParameterError(
-                parsed.error.errors[0]?.message ?? 'Invalid request parameters',
+                parsed.error.issues[0]?.message ?? 'Invalid request parameters',
             );
         }
         this.setStatus(200);
@@ -286,7 +286,7 @@ export class AiWritebackController extends BaseController {
         const parsed = mergePullRequestBodySchema.safeParse(body);
         if (!parsed.success) {
             throw new ParameterError(
-                parsed.error.errors[0]?.message ?? 'Invalid request parameters',
+                parsed.error.issues[0]?.message ?? 'Invalid request parameters',
             );
         }
         this.setStatus(200);

@@ -32,7 +32,7 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
             scrollbars="y"
             classNames={{ content: scrollAreaClasses.verticalContent }}
             type="auto"
-            style={{ flex: 1 }}
+            flex={1}
             mb="md"
         >
             <Config>
@@ -48,7 +48,6 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                             <TextInput
                                 size="xs"
                                 key={reference}
-                                radius="md"
                                 value={columnsConfig[reference].label}
                                 leftSection={
                                     fieldType && (
@@ -63,8 +62,6 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                         onMouseDown={(event) =>
                                             event.preventDefault()
                                         }
-                                        variant="subtle"
-                                        color="gray"
                                         onClick={() =>
                                             dispatch(
                                                 updateColumnVisibility({

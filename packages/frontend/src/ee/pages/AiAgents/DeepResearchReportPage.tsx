@@ -4,11 +4,13 @@ import { useNavigate, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import PageSpinner from '../../../components/PageSpinner';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { DeepResearchReport } from '../../features/aiCopilot/components/DeepResearch/DeepResearchReport';
 import { useDeepResearchReport } from '../../features/aiCopilot/hooks/useDeepResearch';
 
 const DeepResearchReportPage = () => {
-    const { projectUuid, runUuid } = useParams();
+    const { runUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const runQuery = useDeepResearchReport(projectUuid, runUuid);
 

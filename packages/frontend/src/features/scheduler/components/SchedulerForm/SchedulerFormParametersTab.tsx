@@ -65,13 +65,13 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
     return (
         <Stack key={paramKey} gap="xs">
             <Group gap="xs" wrap="nowrap" align="flex-start">
-                <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="xs" flex={1} miw={0}>
                     <Text span fw={500} fz="sm">
                         {parameter.label || paramKey}
                     </Text>
 
                     {parameter.description && (
-                        <Text span size="xs" c="ldGray.6">
+                        <Text span size="xs" c="dimmed">
                             - {parameter.description}
                         </Text>
                     )}

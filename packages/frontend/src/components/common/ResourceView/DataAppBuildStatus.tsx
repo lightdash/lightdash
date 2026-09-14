@@ -34,19 +34,10 @@ const DataAppBuildStatus: FC<DataAppBuildStatusProps> = ({
             : `Version ${latestVersionNumber} is building. Preview opens the latest ready version, v${latestReadyVersionNumber}.`;
 
     return (
-        <Tooltip
-            label={tooltipLabel}
-            position="top-start"
-            multiline
-            maw={320}
-            withinPortal
-        >
+        <Tooltip label={tooltipLabel} position="top-start" maw={320}>
             <Badge
                 size="sm"
-                radius="sm"
-                variant="light"
                 color="blue"
-                tt="none"
                 px={6}
                 leftSection={<Loader size={8} color="blue.6" />}
                 aria-label={tooltipLabel}

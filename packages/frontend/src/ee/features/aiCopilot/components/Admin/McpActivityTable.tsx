@@ -65,20 +65,20 @@ const SessionHeaderLabel: FC<{
     <Group gap="xs" wrap="nowrap">
         <MantineIcon
             icon={isCollapsed ? IconChevronRight : IconChevronDown}
-            color="ldGray.6"
+            color="dimmed"
         />
         <MantineIcon
             icon={session.sessionId ? IconLink : IconUnlink}
-            color="ldGray.6"
+            color="dimmed"
         />
         {session.sessionId ? (
-            <Tooltip withinPortal label={session.sessionId}>
-                <Text fz="xs" ff="monospace" fw={600} c="ldGray.9">
+            <Tooltip label={session.sessionId}>
+                <Text fz="xs" ff="monospace" fw={600}>
                     {session.sessionId.slice(0, 8)}
                 </Text>
             </Tooltip>
         ) : (
-            <Text fz="sm" fs="italic" c="ldGray.6">
+            <Text fz="sm" fs="italic" c="dimmed">
                 No session ID
             </Text>
         )}
@@ -95,13 +95,11 @@ const ClientCellContent: FC<{ call: McpActivityItem }> = ({ call }) => {
         : (userAgent ?? 'Unknown');
     return (
         <Tooltip
-            withinPortal
             label={userAgent ?? label}
             disabled={!isTruncated.isTruncated && !userAgent}
-            multiline
             maw={300}
         >
-            <Text c="ldGray.9" fz="sm" fw={400} truncate ref={isTruncated.ref}>
+            <Text fz="sm" fw={400} truncate ref={isTruncated.ref}>
                 {label}
             </Text>
         </Tooltip>
@@ -233,7 +231,7 @@ const McpActivityTable = ({
             size: 170,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconClock} color="ldGray.6" />
+                    <MantineIcon icon={IconClock} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -245,7 +243,6 @@ const McpActivityTable = ({
                     />
                 ) : (
                     <Tooltip
-                        withinPortal
                         label={formatToolCallTimeFull(
                             row.original.call.createdAt,
                         )}
@@ -271,7 +268,7 @@ const McpActivityTable = ({
             size: 190,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconTool} color="ldGray.6" />
+                    <MantineIcon icon={IconTool} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -294,14 +291,14 @@ const McpActivityTable = ({
             enableEditing: false,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconUser} color="ldGray.6" />
+                    <MantineIcon icon={IconUser} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
             Cell: ({ row }) =>
                 row.original.type === 'session' ? null : (
-                    <Tooltip withinPortal label={row.original.call.user.email}>
-                        <Text c="ldGray.9" fz="sm" fw={400}>
+                    <Tooltip label={row.original.call.user.email}>
+                        <Text fz="sm" fw={400}>
                             {row.original.call.user.name}
                         </Text>
                     </Tooltip>
@@ -316,13 +313,13 @@ const McpActivityTable = ({
             enableEditing: false,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconBox} color="ldGray.6" />
+                    <MantineIcon icon={IconBox} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
             Cell: ({ row }) =>
                 row.original.type === 'session' ? null : (
-                    <Text c="ldGray.9" fz="sm" fw={400}>
+                    <Text fz="sm" fw={400}>
                         {row.original.call.project?.name ?? '—'}
                     </Text>
                 ),
@@ -337,7 +334,7 @@ const McpActivityTable = ({
             size: 150,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconRobotFace} color="ldGray.6" />
+                    <MantineIcon icon={IconRobotFace} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -365,7 +362,7 @@ const McpActivityTable = ({
             size: 180,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconDeviceLaptop} color="ldGray.6" />
+                    <MantineIcon icon={IconDeviceLaptop} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -403,7 +400,7 @@ const McpActivityTable = ({
             size: 110,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconPlugConnected} color="ldGray.6" />
+                    <MantineIcon icon={IconPlugConnected} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -435,7 +432,7 @@ const McpActivityTable = ({
             mantineTableBodyCellProps: { ta: 'right' },
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconHourglass} color="ldGray.6" />
+                    <MantineIcon icon={IconHourglass} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -557,7 +554,7 @@ const McpActivityTable = ({
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}

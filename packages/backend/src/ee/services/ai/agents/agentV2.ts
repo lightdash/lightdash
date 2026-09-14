@@ -1,10 +1,12 @@
 import {
     AgentToolOutput,
+    AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     AnyType,
     assertUnreachable,
     Explore,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type CustomChartTypeLibrary,
     type ParameterDefinitions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -53,7 +55,9 @@ import { getEditProjectContext } from '../tools/editProjectContext';
 import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
+import { getFindCustomChartTypes } from '../tools/findCustomChartTypes';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
+import { getGenerateDataApp } from '../tools/generateDataApp';
 import { getGenerateHashes } from '../tools/generateHashes';
 import { getGenerateUuids } from '../tools/generateUuids';
 import { getGenerateVisualization } from '../tools/generateVisualization';
@@ -69,6 +73,7 @@ import {
     renderCandidateBlock,
     selectCandidateFields,
 } from '../tools/grepFieldsIndex';
+import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
@@ -81,6 +86,7 @@ import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
+import { getRunComposerQueries } from '../tools/runComposerQueries';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -104,14 +110,15 @@ import {
 } from '../utils/errorMessages';
 import { renderMemoryBlock } from '../utils/memoryBlock';
 import {
+    isErrorToolResult,
     isPendingToolResult,
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
-import { getDiscoverFields } from './discoverFields/tool';
 import { getMcpActiveTools } from './mcpToolGating';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
+import { TurnTimingTracker, type StepTiming } from './turnTiming';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -141,6 +148,52 @@ export const recordAgentStepUsage = async ({
     return tokens;
 };
 
+/**
+ * Separate from `recordAgentStepUsage`: that reports billing tokens exactly
+ * once per model call, this is the latency grain.
+ */
+const trackAgentStep = (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+    timing: StepTiming,
+    usage: LanguageModelUsage | undefined,
+) => {
+    const tokens = usage
+        ? languageModelUsageToTokens(usage)
+        : {
+              inputTokens: null,
+              outputTokens: null,
+              cacheReadTokens: null,
+              cacheWriteTokens: null,
+              reasoningTokens: null,
+              totalTokens: null,
+          };
+
+    dependencies.trackEvent({
+        event: 'ai_agent.step_completed',
+        userId: args.userId,
+        properties: {
+            organizationId: args.organizationId,
+            projectId: args.agentSettings.projectUuid,
+            aiAgentId: args.agentSettings.uuid,
+            promptId: args.promptUuid,
+            threadId: args.threadUuid,
+            stepIndex: timing.stepIndex,
+            model: getAiAgentModelName(args.model),
+            modelProvider:
+                typeof args.model === 'string' ? null : args.model.provider,
+            stepOffsetMs: timing.stepOffsetMs,
+            stepTotalMs: timing.stepTotalMs,
+            inferenceMs: timing.inferenceMs,
+            toolWallMs: timing.toolWallMs,
+            ttftMs: timing.ttftMs,
+            toolCallCount: timing.toolCallCount,
+            reasoningChars: timing.reasoningChars,
+            ...tokens,
+        },
+    });
+};
+
 export const DEFAULT_AGENT_MAX_STEPS = 40;
 
 export const AGENT_WRAP_UP_STEPS = 5;
@@ -158,7 +211,6 @@ export const AGENT_FINAL_STEP_INSTRUCTION =
  */
 export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
     'describeWarehouseTable',
-    'discoverFields',
     'generateVisualization',
     'getMetadata',
     'grepFields',
@@ -167,6 +219,67 @@ export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
     'searchFieldValues',
     'searchSemanticLayer',
 ]);
+
+export const DEEP_RESEARCH_COORDINATOR_TOOL_NAMES = new Set([
+    'analyzeFieldImpact',
+    'describeWarehouseTable',
+    'findContent',
+    'generateVisualization',
+    'getDashboardCharts',
+    'getKnowledgeDocumentContent',
+    'getMetadata',
+    'getProjectInfo',
+    'grepFields',
+    'listContent',
+    'listKnowledgeDocuments',
+    'listProjects',
+    'listWarehouseTables',
+    'loadProjectContext',
+    'readContent',
+    'readPinnedThread',
+    'resolveUrl',
+    'runContentQuery',
+    'runSavedChart',
+    'runSql',
+    'searchFieldValues',
+    'searchSemanticLayer',
+]);
+
+const getTrustedDeepResearchMcpToolNames = (
+    args: AiAgentArgs,
+    mcpToolSetup: AgentMcpToolSetup,
+): Set<string> => {
+    const expectedUrl = new URL(
+        `/api/v1/mcp/projects/${args.agentSettings.projectUuid}`,
+        args.siteUrl,
+    );
+    const trustedServerUuids = new Set(
+        (args.mcpServers ?? [])
+            .filter((server) => {
+                try {
+                    const serverUrl = new URL(server.url);
+                    return (
+                        serverUrl.origin === expectedUrl.origin &&
+                        serverUrl.pathname.replace(/\/$/, '') ===
+                            expectedUrl.pathname.replace(/\/$/, '')
+                    );
+                } catch {
+                    return false;
+                }
+            })
+            .map((server) => server.uuid),
+    );
+
+    return new Set(
+        Object.entries(mcpToolSetup.mcpToolNameToServerUuid)
+            .filter(
+                ([toolName, serverUuid]) =>
+                    trustedServerUuids.has(serverUuid) &&
+                    isDeepResearchWarehouseMcpTool(toolName),
+            )
+            .map(([toolName]) => toolName),
+    );
+};
 
 const PERSIST_TIMEOUT_MS = 10_000;
 
@@ -423,6 +536,28 @@ export const normalizeToolOutput = (
     }
 };
 
+const trackFailedToolResult = (
+    dependencies: Pick<AiAgentDependencies, 'trackEvent'>,
+    args: AiAgentArgs,
+    toolName: string,
+    output: unknown,
+) => {
+    if (!isErrorToolResult(output)) return;
+    dependencies.trackEvent({
+        event: 'ai_agent_tool_call_failed',
+        userId: args.userId,
+        properties: {
+            organizationId: args.organizationId,
+            projectId: args.agentSettings.projectUuid,
+            aiAgentId: args.agentSettings.uuid,
+            agentName: args.agentSettings.name,
+            toolName,
+            threadId: args.threadUuid,
+            promptId: args.promptUuid,
+        },
+    });
+};
+
 // Raw args of an invalid tool call: may be a parsed object or, when JSON
 // parsing itself failed, the raw string the model produced.
 const serializeRawToolArgs = (input: unknown): string | null => {
@@ -507,6 +642,12 @@ const buildStopWhenPromptInterrupted =
  * discussing the fix. No-op if the forced tool isn't in the registered set.
  */
 export const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
+    if (
+        args.execution?.mode === 'deep_research' &&
+        args.execution.research?.role === 'worker'
+    ) {
+        return undefined;
+    }
     if (!args.forceToolHints) return undefined;
     const forcedTool = args.toolHints[0];
     if (!forcedTool || !(forcedTool in tools)) return undefined;
@@ -520,6 +661,23 @@ export const getStepBudgetOverride = (
     execution: AiAgentArgs['execution'],
     stepNumber: number,
 ) => {
+    if (
+        execution.mode === 'deep_research' &&
+        execution.research?.role === 'worker'
+    ) {
+        if (stepNumber < Math.max(0, execution.maxSteps - 1)) {
+            return undefined;
+        }
+        return {
+            message: `This is your final step. Submit the best findings packet available now with ${AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME}, even if the evidence is incomplete or inconclusive. Do not run another query.`,
+            activeTools: [AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME],
+            toolChoice: {
+                type: 'tool' as const,
+                toolName: AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
+            },
+        };
+    }
+
     if (
         execution.mode !== 'standard' ||
         stepNumber < Math.max(0, execution.maxSteps - AGENT_WRAP_UP_STEPS)
@@ -538,7 +696,7 @@ export const getStepBudgetOverride = (
     return { message: AGENT_WRAP_UP_INSTRUCTION };
 };
 
-const buildPrepareStep = ({
+export const buildPrepareStep = ({
     args,
     dependencies,
     tools,
@@ -626,10 +784,15 @@ const buildPrepareStep = ({
             }
         }
 
-        const steers = await dependencies.consumePromptSteers({
-            promptUuid: args.promptUuid,
-            stepNumber,
-        });
+        const isDeepResearchWorker =
+            args.execution.mode === 'deep_research' &&
+            args.execution.research?.role === 'worker';
+        const steers = isDeepResearchWorker
+            ? []
+            : await dependencies.consumePromptSteers({
+                  promptUuid: args.promptUuid,
+                  stepNumber,
+              });
         if (steers.length > 0) {
             logger(
                 'Prepare Step',
@@ -681,6 +844,7 @@ export const getAgentTools = (
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
     projectParameterDefinitions: ParameterDefinitions,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ): ToolSet => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -688,57 +852,28 @@ export const getAgentTools = (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    const discoverFields = getDiscoverFields(
-        {
-            model: args.model,
-            callOptions: args.callOptions,
-            providerOptions: args.providerOptions,
-            availableExplores,
-            findExploresFieldSearchSize: args.findExploresFieldSearchSize,
-            findFieldsPageSize: args.findFieldsPageSize,
-            toolDescriptionMaxChars: args.toolDescriptionMaxChars,
-            promptUuid: args.promptUuid,
-            telemetry: {
-                agentSettings: args.agentSettings,
-                threadUuid: args.threadUuid,
-                promptUuid: args.promptUuid,
-                organizationId: args.organizationId,
-                userId: args.userId,
-                telemetryEnabled: args.telemetryEnabled,
-                model: args.model,
-                keyManagement: args.keyManagement,
-            },
-        },
-        {
-            findExplores: dependencies.findExplores,
-            findFields: dependencies.findFields,
-            getExplore: dependencies.getExplore,
-            updateProgress: dependencies.updateProgress,
-            storeToolCall: dependencies.storeToolCall,
-            storeToolResults: dependencies.storeToolResults,
-        },
-    );
+    const enableContentTools = args.enableDataAccess && args.enableContentTools;
 
-    // Experimental swap: when on, the main agent greps the in-memory annotated
-    // explores itself instead of delegating to the discoverFields sub-agent.
-    const grepFields = args.enableGrepFields
-        ? getGrepFields({
-              availableExplores,
-              findExplores: dependencies.findExplores,
-              verifiedFieldUsage,
-          })
-        : null;
+    const grepFields = getGrepFields({
+        availableExplores,
+        findExplores: dependencies.findExplores,
+        verifiedFieldUsage,
+    });
 
     // Companion to grepFields: rich detail for the explores/fields the agent
     // selected (joined tables, required filters, filter types, hints).
-    const getMetadata = args.enableGrepFields
-        ? getGetMetadata({ availableExplores, projectParameterDefinitions })
-        : null;
+    const getMetadata = getGetMetadata({
+        availableExplores,
+        projectParameterDefinitions,
+    });
 
     const findContent = getFindContent({
         findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
         toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+        dashboardDetailsToolName: enableContentTools
+            ? 'readContent'
+            : 'getDashboardCharts',
         trackCoverage: (coverage) => {
             dependencies.trackEvent({
                 event: 'ai_agent.find_content_coverage',
@@ -750,10 +885,7 @@ export const getAgentTools = (
                     agentName: args.agentSettings.name,
                     threadId: args.threadUuid,
                     promptId: args.promptUuid,
-                    searchQuery: coverage.searchQuery,
-                    totalResultCount: coverage.totalResultCount,
-                    verifiedResultCount: coverage.verifiedResultCount,
-                    topResultVerified: coverage.topResultVerified,
+                    ...coverage,
                 },
             });
         },
@@ -762,6 +894,16 @@ export const getAgentTools = (
     const listContent = getListContent({
         listContent: dependencies.listContent,
     });
+
+    // Only offered when the project has a custom chart type library — an
+    // empty library keeps zero prompt and tool overhead.
+    const findCustomChartTypes =
+        customChartTypeLibrary.totalCount > 0
+            ? getFindCustomChartTypes({
+                  findCustomChartTypes: dependencies.findCustomChartTypes,
+                  updateProgress: dependencies.updateProgress,
+              })
+            : null;
 
     const getDashboardCharts = getGetDashboardCharts({
         getDashboardCharts: dependencies.getDashboardCharts,
@@ -780,6 +922,7 @@ export const getAgentTools = (
     const generateVisualization = getGenerateVisualization({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
+        runAsyncMergeQuery: dependencies.runAsyncMergeQuery,
         getPrompt: dependencies.getPrompt,
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
@@ -788,6 +931,11 @@ export const getAgentTools = (
         exposeQueryUuid: args.execution.mode === 'deep_research',
         enableDataAccess: args.enableDataAccess,
         projectParameterDefinitions,
+        slackLinksOnly: args.slackLinksOnly,
+        enableMergeQueries: args.enableMergeQueries,
+        enableFilterExpressions: args.enableFilterExpressions,
+        resolveCustomChartType: dependencies.resolveCustomChartType,
+        exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
     });
 
     const runSavedChart = getRunSavedChart({
@@ -799,25 +947,46 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
-    const runSql = args.canRunSql
-        ? getRunSql({
+    // Composer queries supersede the standalone runSql tool: a single `sql`
+    // node is the direct equivalent, and exposing both lets the model shadow
+    // the composer path with raw runSql calls.
+    const runSql =
+        args.canRunSql && !args.enableComposerQueries
+            ? getRunSql({
+                  updateProgress: dependencies.updateProgress,
+                  runSqlJob: dependencies.runSqlJob,
+                  getPrompt: dependencies.getPrompt,
+                  sendFile: dependencies.sendFile,
+                  updateSlackMessage: dependencies.updateSlackMessage,
+                  siteUrl: args.siteUrl,
+                  waitForSqlApproval: dependencies.waitForSqlApproval,
+                  recordSqlApproval: dependencies.recordSqlApproval,
+                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  storeToolResults: dependencies.storeToolResults,
+                  createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                  maxQueryLimit: args.runSqlMaxLimit,
+                  enableDataAccess: args.enableDataAccess,
+                  slackLinksOnly: args.slackLinksOnly,
+                  sqlScope: args.sqlScope,
+                  autoApproveSql: args.autoApproveSql,
+                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+                  useSlackStreamCard: args.useSlackStreamCard,
+              })
+            : null;
+
+    const runComposerQueries = args.enableComposerQueries
+        ? getRunComposerQueries({
               updateProgress: dependencies.updateProgress,
-              runSqlJob: dependencies.runSqlJob,
+              runComposerQueries: dependencies.runComposerQueries,
               getPrompt: dependencies.getPrompt,
-              sendFile: dependencies.sendFile,
-              updateSlackMessage: dependencies.updateSlackMessage,
-              siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
-              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-              storeToolResults: dependencies.storeToolResults,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
-              sqlScope: args.sqlScope,
+              canRunSql: args.canRunSql,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
-              useSlackStreamCard: args.useSlackStreamCard,
           })
         : null;
 
@@ -859,6 +1028,18 @@ export const getAgentTools = (
         maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
     });
+
+    const generateDataApp = args.enableGenerateDataApp
+        ? getGenerateDataApp({
+              generateDataApp: dependencies.generateDataApp,
+          })
+        : null;
+
+    const iterateDataApp = args.enableGenerateDataApp
+        ? getIterateDataApp({
+              iterateDataApp: dependencies.iterateDataApp,
+          })
+        : null;
 
     const editDbtProject = args.enableAiWriteback
         ? getEditDbtProject({
@@ -934,6 +1115,8 @@ export const getAgentTools = (
 
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
+        getExplore: dependencies.getExplore,
+        enableFilterExpressions: args.enableFilterExpressions,
     });
 
     const analyzeFieldImpact = getAnalyzeFieldImpact({
@@ -1005,7 +1188,6 @@ export const getAgentTools = (
               })
             : null;
 
-    const enableContentTools = args.enableDataAccess && args.enableContentTools;
     const mcpTools = Object.fromEntries(
         Object.entries(mcpToolSetup.tools).filter(
             ([toolName]) =>
@@ -1020,10 +1202,8 @@ export const getAgentTools = (
 
     const tools: ToolSet = {
         findContent,
-        // grepFields replaces discoverFields when the ai-grep-fields flag is on,
-        // with getMetadata as its rich-detail companion.
-        ...(grepFields ? { grepFields } : { discoverFields }),
-        ...(getMetadata ? { getMetadata } : {}),
+        grepFields,
+        getMetadata,
         analyzeFieldImpact,
         searchSemanticLayer,
         listProjects,
@@ -1056,6 +1236,8 @@ export const getAgentTools = (
         runSavedChart,
         generateHashes,
         generateUuids,
+        ...(generateDataApp ? { generateDataApp } : {}),
+        ...(iterateDataApp ? { iterateDataApp } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
         ...(editRepo ? { editRepo } : {}),
@@ -1067,7 +1249,9 @@ export const getAgentTools = (
         ...(closePullRequest ? { closePullRequest } : {}),
         ...(getPullRequestDiff ? { getPullRequestDiff } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
+        ...(findCustomChartTypes ? { findCustomChartTypes } : {}),
         ...(runSql ? { runSql } : {}),
+        ...(runComposerQueries ? { runComposerQueries } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
@@ -1084,11 +1268,22 @@ export const getAgentTools = (
         args.execution.mode === 'deep_research'
             ? args.execution.research
             : undefined;
+    const trustedDeepResearchMcpToolNames = research
+        ? getTrustedDeepResearchMcpToolNames(args, mcpToolSetup)
+        : new Set<string>();
     const getResearchTools = (): ToolSet | null => {
         switch (research?.role) {
             case 'coordinator':
                 return {
-                    ...mergedTools,
+                    ...Object.fromEntries(
+                        Object.entries(mergedTools).filter(
+                            ([toolName]) =>
+                                DEEP_RESEARCH_COORDINATOR_TOOL_NAMES.has(
+                                    toolName,
+                                ) ||
+                                trustedDeepResearchMcpToolNames.has(toolName),
+                        ),
+                    ),
                     delegateResearchTask: getDelegateResearchTask({
                         runTask: research.runTask,
                     }),
@@ -1099,7 +1294,7 @@ export const getAgentTools = (
                         Object.entries(mergedTools).filter(
                             ([toolName]) =>
                                 DEEP_RESEARCH_WORKER_TOOL_NAMES.has(toolName) ||
-                                isDeepResearchWarehouseMcpTool(toolName),
+                                trustedDeepResearchMcpToolNames.has(toolName),
                         ),
                     ),
                     submitWorkerFindings: getSubmitWorkerFindings({
@@ -1225,6 +1420,31 @@ export const buildAgentMessages = ({
     ...messageHistory,
 ];
 
+export const scopeAgentConversation = ({
+    execution,
+    messageHistory,
+    compactionSummary,
+    memoryBlock,
+}: {
+    execution: AiAgentArgs['execution'];
+    messageHistory: ModelMessage[];
+    compactionSummary: string | null;
+    memoryBlock: string | null;
+}) =>
+    execution.mode === 'deep_research' && execution.research?.role === 'worker'
+        ? {
+              messageHistory: [
+                  {
+                      role: 'user' as const,
+                      content:
+                          'Carry out the isolated task packet in your system instructions.',
+                  },
+              ],
+              compactionSummary: null,
+              memoryBlock: null,
+          }
+        : { messageHistory, compactionSummary, memoryBlock };
+
 export const getDeepResearchBudgetInstruction = (
     budget: AiDeepResearchBudget,
 ): string =>
@@ -1244,24 +1464,35 @@ export const getPromptMcpServers = (
         ),
     }));
 
-const getAgentMessages = (
+export const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
     tools: ToolSet,
     verifiedFieldUsage: Map<string, number>,
     memoryBlock: string | null,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
-    const messageHistory = args.enableGrepFields
-        ? withPreGrepCandidates(
-              withToolHints(args.messageHistory, args.toolHints),
-              availableExplores,
-              verifiedFieldUsage,
-          )
-        : withToolHints(args.messageHistory, args.toolHints);
+    const scopedConversation = scopeAgentConversation({
+        execution: args.execution,
+        messageHistory: args.messageHistory,
+        compactionSummary: args.compactionSummary,
+        memoryBlock,
+    });
+    const isDeepResearchWorker =
+        args.execution.mode === 'deep_research' &&
+        args.execution.research?.role === 'worker';
+    let { messageHistory } = scopedConversation;
+    if (!isDeepResearchWorker) {
+        messageHistory = withPreGrepCandidates(
+            withToolHints(messageHistory, args.toolHints),
+            availableExplores,
+            verifiedFieldUsage,
+        );
+    }
 
     // Project context is loaded on demand via the loadProjectContext tool; the
     // system prompt only advertises that it exists (when enabled + non-empty).
@@ -1312,12 +1543,14 @@ const getAgentMessages = (
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
         requestingUser: args.requestingUser,
         availableExplores,
+        availableCustomChartTypes: customChartTypeLibrary,
         availableSkills: args.availableSkills,
         knowledgeDocuments: args.knowledgeDocuments,
         deepResearchRuns: args.deepResearchRuns,
         hasProjectContext,
         enableAiAgentMemory: args.aiAgentMemoryEnabled,
         enableDataAccess: args.enableDataAccess,
+        enableFilterExpressions: args.enableFilterExpressions,
         enableAiWriteback: args.enableAiWriteback,
         writebackAttribution: args.writebackAttribution,
         enableCodingAgent: args.enableCodingAgent,
@@ -1325,10 +1558,13 @@ const getAgentMessages = (
         enableRepoDiscovery: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        enableGrepFields: args.enableGrepFields,
         enableContentTools: args.enableDataAccess && args.enableContentTools,
+        enableGenerateDataApp: args.enableGenerateDataApp,
         slackChannelId: args.slackChannelId,
         canRunSql: args.canRunSql,
+        slackLinksOnly: args.slackLinksOnly,
+        enableComposerQueries: args.enableComposerQueries,
+        enableMergeQueries: args.enableMergeQueries,
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
         sqlScope: args.sqlScope,
@@ -1341,9 +1577,9 @@ const getAgentMessages = (
     });
     const messages = buildAgentMessages({
         systemPrompt,
-        compactionSummary: args.compactionSummary,
+        compactionSummary: scopedConversation.compactionSummary,
         messageHistory,
-        memoryBlock,
+        memoryBlock: scopedConversation.memoryBlock,
     });
 
     logger('Agent Messages', `Retrieved ${messages.length} messages.`);
@@ -1404,6 +1640,8 @@ export const generateAgentResponse = async ({
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
     const startTime = Date.now();
+    // No decide/execute split here: steps are reported once wholly finished.
+    const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
     let generatedTokenUsage = initialPromptTokenUsage(
         args.execution.mode === 'deep_research'
@@ -1412,19 +1650,22 @@ export const generateAgentResponse = async ({
     );
 
     try {
-        const [availableExplores, memoryBlock, projectParameterDefinitions] =
-            await Promise.all([
-                dependencies.listExplores(),
-                getMemoryBlock(args, dependencies),
-                dependencies.getProjectParameterDefinitions(),
-            ]);
+        const [
+            availableExplores,
+            memoryBlock,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
+        ] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+            dependencies.getProjectParameterDefinitions(),
+            dependencies.listCustomChartTypes(),
+        ]);
         // Verified-chart usage powers verified-first ranking in grep discovery;
         // degrade to an empty map if it can't be fetched.
-        const verifiedFieldUsage = args.enableGrepFields
-            ? await dependencies
-                  .getVerifiedFieldUsage()
-                  .catch(() => new Map<string, number>())
-            : new Map<string, number>();
+        const verifiedFieldUsage = await dependencies
+            .getVerifiedFieldUsage()
+            .catch(() => new Map<string, number>());
         const tools = withEarlyToolProgress(
             getAgentTools(
                 args,
@@ -1433,6 +1674,7 @@ export const generateAgentResponse = async ({
                 mcpToolSetup,
                 verifiedFieldUsage,
                 projectParameterDefinitions,
+                customChartTypeLibrary,
             ),
             dependencies.updateProgress,
             args.execution.mode === 'deep_research',
@@ -1445,6 +1687,7 @@ export const generateAgentResponse = async ({
             tools,
             verifiedFieldUsage,
             memoryBlock,
+            customChartTypeLibrary,
         );
         logger(
             'Generate Agent Response',
@@ -1491,6 +1734,17 @@ export const generateAgentResponse = async ({
                     telemetry,
                     execution: args.execution,
                 });
+                // completeStep opens the next step; these calls belong to this one.
+                const stepIndex = timing.getCurrentStepIndex();
+                trackAgentStep(
+                    args,
+                    dependencies,
+                    timing.completeStep(
+                        step.reasoningText?.length ?? 0,
+                        step.toolCalls?.length ?? 0,
+                    ),
+                    step.usage,
+                );
                 for (const toolCall of step.toolCalls) {
                     if (toolCall) {
                         logger(
@@ -1529,6 +1783,8 @@ export const generateAgentResponse = async ({
                                         toolName: toolCall.toolName,
                                         threadId: args.threadUuid,
                                         promptId: args.promptUuid,
+                                        toolCallId: toolCall.toolCallId,
+                                        stepIndex,
                                     },
                                 });
 
@@ -1618,6 +1874,12 @@ export const generateAgentResponse = async ({
                                     toolResult.toolCallId
                                 }) (RESULT: ${JSON.stringify(toolResult.output)})`,
                             );
+                            trackFailedToolResult(
+                                dependencies,
+                                args,
+                                toolResult.toolName,
+                                toolResult.output,
+                            );
                             const output = normalizeToolOutput(
                                 toolResult.output,
                             );
@@ -1694,6 +1956,11 @@ export const generateAgentResponse = async ({
                 promptUuid: args.promptUuid,
                 response: result.text,
                 tokenUsage: finalStepPromptTokenUsage(result.usage.totalTokens),
+                responseTiming: {
+                    startedAt: new Date(startTime).toISOString(),
+                    firstTokenAt: null,
+                    finishedAt: new Date().toISOString(),
+                },
             });
         }
 
@@ -1757,6 +2024,8 @@ export const streamAgentResponse = async ({
     let firstChunkTime: number | null = null;
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
+    // The turn-level timers above still feed Prometheus and responseTiming.
+    const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
     const persistPrompt = makeStreamSafePersist(
         dependencies.updatePrompt,
@@ -1773,17 +2042,20 @@ export const streamAgentResponse = async ({
     };
 
     try {
-        const [availableExplores, memoryBlock, projectParameterDefinitions] =
-            await Promise.all([
-                dependencies.listExplores(),
-                getMemoryBlock(args, dependencies),
-                dependencies.getProjectParameterDefinitions(),
-            ]);
-        const verifiedFieldUsage = args.enableGrepFields
-            ? await dependencies
-                  .getVerifiedFieldUsage()
-                  .catch(() => new Map<string, number>())
-            : new Map<string, number>();
+        const [
+            availableExplores,
+            memoryBlock,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
+        ] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+            dependencies.getProjectParameterDefinitions(),
+            dependencies.listCustomChartTypes(),
+        ]);
+        const verifiedFieldUsage = await dependencies
+            .getVerifiedFieldUsage()
+            .catch(() => new Map<string, number>());
         const tools = getAgentTools(
             args,
             dependencies,
@@ -1791,6 +2063,7 @@ export const streamAgentResponse = async ({
             mcpToolSetup,
             verifiedFieldUsage,
             projectParameterDefinitions,
+            customChartTypeLibrary,
         );
         await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
@@ -1800,6 +2073,7 @@ export const streamAgentResponse = async ({
             tools,
             verifiedFieldUsage,
             memoryBlock,
+            customChartTypeLibrary,
         );
         logger(
             'Stream Agent Response',
@@ -1836,6 +2110,7 @@ export const streamAgentResponse = async ({
             messages,
             experimental_context: new AgentContext(availableExplores),
             onChunk: (event) => {
+                timing.recordChunk();
                 // Track time to first chunk (any type) - only once
                 if (firstChunkTime === null) {
                     firstChunkTime = Date.now();
@@ -1849,6 +2124,10 @@ export const streamAgentResponse = async ({
 
                 switch (event.chunk.type) {
                     case 'tool-call':
+                        timing.recordToolCallStart(
+                            event.chunk.toolCallId,
+                            event.chunk.toolName,
+                        );
                         logger(
                             'Chunk Tool Call',
                             `Storing tool call for Prompt UUID ${
@@ -1870,6 +2149,8 @@ export const streamAgentResponse = async ({
                                 toolName: event.chunk.toolName,
                                 threadId: args.threadUuid,
                                 promptId: args.promptUuid,
+                                toolCallId: event.chunk.toolCallId,
+                                stepIndex: timing.getCurrentStepIndex(),
                             },
                         });
 
@@ -1951,12 +2232,8 @@ export const streamAgentResponse = async ({
                         break;
 
                     case 'tool-result':
-                        // The discoverFields tool emits preliminary
-                        // tool-result chunks as it streams subagent progress.
-                        // Only persist the final, non-preliminary one — N
-                        // intermediate rows for the same toolCallId would be
-                        // wasteful and the intermediate output shapes carry
-                        // streaming state, not the parent-facing result.
+                        // Only persist final tool results. Preliminary chunks
+                        // contain transient streaming state.
                         if (event.chunk.preliminary) {
                             break;
                         }
@@ -1988,6 +2265,37 @@ export const streamAgentResponse = async ({
                                     error,
                                 );
                             });
+                        trackFailedToolResult(
+                            dependencies,
+                            args,
+                            event.chunk.toolName,
+                            event.chunk.output,
+                        );
+                        const toolTiming = timing.recordToolCallEnd(
+                            event.chunk.toolCallId,
+                        );
+                        if (toolTiming) {
+                            dependencies.trackEvent({
+                                event: 'ai_agent.tool_call_completed',
+                                userId: args.userId,
+                                properties: {
+                                    organizationId: args.organizationId,
+                                    projectId: args.agentSettings.projectUuid,
+                                    aiAgentId: args.agentSettings.uuid,
+                                    toolName: event.chunk.toolName,
+                                    threadId: args.threadUuid,
+                                    promptId: args.promptUuid,
+                                    toolCallId: event.chunk.toolCallId,
+                                    stepIndex: toolTiming.stepIndex,
+                                    durationMs: toolTiming.durationMs,
+                                    status: isErrorToolResult(
+                                        event.chunk.output as AnyType,
+                                    )
+                                        ? 'error'
+                                        : 'success',
+                                },
+                            });
+                        }
                         void dependencies
                             .storeToolResults([
                                 {
@@ -2037,6 +2345,12 @@ export const streamAgentResponse = async ({
                 }
             },
             onStepFinish: (step) => {
+                trackAgentStep(
+                    args,
+                    dependencies,
+                    timing.completeStep(step.reasoningText?.length ?? 0),
+                    step.usage,
+                );
                 if (step.reasoningText && step.reasoningText.length > 0) {
                     logger(
                         'On Step Finish',
@@ -2097,6 +2411,14 @@ export const streamAgentResponse = async ({
                 const interrupted = isEmptyResponse
                     ? await dependencies.isPromptInterrupted(args.promptUuid)
                     : false;
+                const responseTiming = {
+                    startedAt: new Date(startTime).toISOString(),
+                    firstTokenAt:
+                        firstChunkTime === null
+                            ? null
+                            : new Date(firstChunkTime).toISOString(),
+                    finishedAt: new Date().toISOString(),
+                };
                 if (isEmptyResponse && !interrupted) {
                     const emptyResponseError = stepCapReached
                         ? new AiAgentStepCapReachedError(steps.length)
@@ -2125,6 +2447,7 @@ export const streamAgentResponse = async ({
                         tokenUsage: finalStepPromptTokenUsage(
                             usage.totalTokens,
                         ),
+                        responseTiming,
                     });
                 } else {
                     await persistPrompt({
@@ -2133,6 +2456,7 @@ export const streamAgentResponse = async ({
                         tokenUsage: finalStepPromptTokenUsage(
                             usage.totalTokens,
                         ),
+                        responseTiming,
                     });
                 }
 
@@ -2148,14 +2472,22 @@ export const streamAgentResponse = async ({
                         projectId: args.agentSettings.projectUuid,
                         aiAgentId: args.agentSettings.uuid,
                         agentName: args.agentSettings.name,
+                        promptId: args.promptUuid,
+                        threadId: args.threadUuid,
                         usageTokensCount: totalUsage.totalTokens ?? 0,
                         stepsCount: steps.length,
-                        model:
+                        model: modelName,
+                        modelProvider:
                             typeof args.model === 'string'
-                                ? args.model
-                                : args.model.modelId,
+                                ? null
+                                : args.model.provider,
                         finishReason,
                         stepCapReached,
+                        timeToFirstTokenMs:
+                            firstChunkTime === null
+                                ? null
+                                : firstChunkTime - startTime,
+                        durationMs: Date.now() - startTime,
                     },
                 });
                 logger(

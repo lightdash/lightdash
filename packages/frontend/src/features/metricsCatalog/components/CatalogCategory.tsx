@@ -38,7 +38,6 @@ export const CatalogCategory: FC<Props> = ({
             pos="relative"
             size="sm"
             radius="md"
-            variant="light"
             onClick={onClick}
             py={10}
             h={24}
@@ -48,7 +47,6 @@ export const CatalogCategory: FC<Props> = ({
                     <Tooltip
                         maw={200}
                         position="top"
-                        withinPortal
                         openDelay={200}
                         fz="xs"
                         label="This category cannot be removed from this metric because it was defined in the .yml file."
@@ -69,7 +67,6 @@ export const CatalogCategory: FC<Props> = ({
                 {category.name}
                 {onRemove && (
                     <ActionIcon
-                        variant="subtle"
                         size={14}
                         onClick={onRemove}
                         className={styles.removeButton}

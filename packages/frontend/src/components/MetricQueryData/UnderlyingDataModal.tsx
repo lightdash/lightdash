@@ -12,7 +12,7 @@ import {
     type Filters,
     type SortField,
 } from '@lightdash/common';
-import { Button, Divider, Group, Popover } from '@mantine/core';
+import { Box, Button, Divider, Group, Popover } from '@mantine/core';
 import { IconShare2, IconStack, IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -54,13 +54,19 @@ const UnderlyingDataModalContent: FC = () => {
         parameters,
         resolvedTimezone,
     } = useMetricQueryDataContext();
+    const source = underlyingDataConfig?.source;
+    const effectiveTableName = source?.tableName ?? tableName;
+    const effectiveMetricQuery = source?.metricQuery ?? metricQuery;
+    const effectiveQueryUuid = source?.queryUuid ?? queryUuid;
 
     const [sorts, setSorts] = useState<SortField[]>([]);
 
     const { user } = useApp();
     const { data: organization } = useOrganization();
 
-    const { data: explore } = useExplore(tableName, { refetchOnMount: false });
+    const { data: explore } = useExplore(effectiveTableName, {
+        refetchOnMount: false,
+    });
     const ability = useAbilityContext();
 
     const underlyingDataItemId = useMemo(
@@ -74,10 +80,10 @@ const UnderlyingDataModalContent: FC = () => {
 
     const nonBinCustomDimensions = useMemo(
         () =>
-            metricQuery?.customDimensions?.filter(
+            effectiveMetricQuery?.customDimensions?.filter(
                 (dimension) => !isCustomBinDimension(dimension),
             ) || [],
-        [metricQuery?.customDimensions],
+        [effectiveMetricQuery?.customDimensions],
     );
 
     const allFields = useMemo(
@@ -168,10 +174,10 @@ const UnderlyingDataModalContent: FC = () => {
 
         return combineUnderlyingDataFilters({
             filterParts,
-            exploreDimensionFilters: metricQuery?.filters?.dimensions,
+            exploreDimensionFilters: effectiveMetricQuery?.filters?.dimensions,
             allFields,
         });
-    }, [filterParts, metricQuery, allFields]);
+    }, [filterParts, effectiveMetricQuery, allFields]);
 
     const {
         error,
@@ -179,7 +185,7 @@ const UnderlyingDataModalContent: FC = () => {
         isInitialLoading,
     } = useUnderlyingDataResults(
         filters,
-        queryUuid,
+        effectiveQueryUuid,
         underlyingDataItemId,
         underlyingDataConfig?.dateZoom,
         parameters,
@@ -230,7 +236,7 @@ const UnderlyingDataModalContent: FC = () => {
                     projectUuid!,
                     {
                         context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                        underlyingDataSourceQueryUuid: queryUuid!,
+                        underlyingDataSourceQueryUuid: effectiveQueryUuid!,
                         underlyingDataItemId,
                         filters: convertDateFilters(filters),
                         dateZoom: underlyingDataConfig?.dateZoom,
@@ -251,7 +257,7 @@ const UnderlyingDataModalContent: FC = () => {
         [
             filters,
             projectUuid,
-            queryUuid,
+            effectiveQueryUuid,
             resultsData,
             underlyingDataConfig?.dateZoom,
             underlyingDataItemId,
@@ -339,7 +345,6 @@ const UnderlyingDataModalContent: FC = () => {
                     disabled={!exploreFromHereUrl}
                     loading={isCreatingShareUrl}
                     variant="light"
-                    radius="md"
                     size="compact-sm"
                 >
                     Explore from here
@@ -362,15 +367,27 @@ const UnderlyingDataModalContent: FC = () => {
             {error ? (
                 <ErrorState error={error.error} hasMarginTop={false} />
             ) : (
-                <UnderlyingDataResultsTable
-                    isLoading={isInitialLoading}
-                    resultsData={resultsData}
-                    fieldsMap={resultsData?.fields || {}}
-                    hasJoins={joinedTables.length > 0}
-                    sortByUnderlyingValues={sortByUnderlyingValues}
-                    sorts={sorts}
-                    onSortChange={setSorts}
-                />
+                <Box
+                    // Walkthrough result marker for view:UnderlyingData: the
+                    // rows that add up to the number that was clicked.
+                    data-tour-scope="view:UnderlyingData"
+                    data-tour-step="1"
+                    data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                    data-tour-label="Every number is made of records"
+                    data-tour-docs="explore/explore-view.mdx#the-explore-page:li4"
+                    data-tour-return="none"
+                    data-tour-resultdocs="explore/dashboards/interact.mdx#view-underlying-data:p3:1"
+                >
+                    <UnderlyingDataResultsTable
+                        isLoading={isInitialLoading}
+                        resultsData={resultsData}
+                        fieldsMap={resultsData?.fields || {}}
+                        hasJoins={joinedTables.length > 0}
+                        sortByUnderlyingValues={sortByUnderlyingValues}
+                        sorts={sorts}
+                        onSortChange={setSorts}
+                    />
+                </Box>
             )}
         </MantineModal>
     );

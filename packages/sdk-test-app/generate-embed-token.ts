@@ -205,7 +205,12 @@ async function main() {
                 dashboardUuid,
                 dashboardFiltersInteractivity: {
                     enabled: 'all',
-                    hidden: true,
+                    // Visible so the filter bar (uiOverrides chrome + language
+                    // map filter labels) can be exercised in the test app
+                    hidden: false,
+                },
+                parameterInteractivity: {
+                    enabled: true,
                 },
                 canExportCsv: false,
                 canExportImages: false,

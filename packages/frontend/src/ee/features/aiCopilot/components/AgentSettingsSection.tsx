@@ -27,7 +27,13 @@ export const AgentSettingsSection: FC<Props> = ({
     action,
     children,
 }) => (
-    <Paper component="section" id={id} p="xl" className={classes.root}>
+    <Paper
+        component="section"
+        id={id}
+        aria-labelledby={`${id}-title`}
+        p="xl"
+        className={classes.root}
+    >
         <Stack gap="md">
             <Group
                 align="flex-start"
@@ -36,12 +42,12 @@ export const AgentSettingsSection: FC<Props> = ({
                 wrap="wrap"
             >
                 <Group align="flex-start" gap="xs" wrap="nowrap">
-                    <Paper p="xxs" withBorder radius="sm">
+                    <Paper p="xxs" radius="sm">
                         <MantineIcon icon={icon} size="md" />
                     </Paper>
                     <Stack gap={2}>
                         <Group gap="xs" align="center">
-                            <Title order={5} c="ldGray.9" fw={700}>
+                            <Title id={`${id}-title`} order={5}>
                                 {title}
                             </Title>
                             {badge}

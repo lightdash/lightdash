@@ -93,37 +93,40 @@ describe('Organization member permissions', () => {
         );
     });
 
-    it('allows only admins to view their organization roadmap', () => {
-        const adminAbility =
-            defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);
-        const memberAbility =
-            defineAbilityForOrganizationMember(ORGANIZATION_MEMBER);
+    it.each(['view', 'manage'] as const)(
+        'allows only admins to %s their organization roadmap',
+        (action) => {
+            const adminAbility =
+                defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);
+            const memberAbility =
+                defineAbilityForOrganizationMember(ORGANIZATION_MEMBER);
 
-        expect(
-            adminAbility.can(
-                'view',
-                subject('Roadmap', {
-                    organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
-                }),
-            ),
-        ).toBe(true);
-        expect(
-            adminAbility.can(
-                'view',
-                subject('Roadmap', {
-                    organizationUuid: 'another-organization',
-                }),
-            ),
-        ).toBe(false);
-        expect(
-            memberAbility.can(
-                'view',
-                subject('Roadmap', {
-                    organizationUuid: ORGANIZATION_MEMBER.organizationUuid,
-                }),
-            ),
-        ).toBe(false);
-    });
+            expect(
+                adminAbility.can(
+                    action,
+                    subject('Roadmap', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                adminAbility.can(
+                    action,
+                    subject('Roadmap', {
+                        organizationUuid: 'another-organization',
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                memberAbility.can(
+                    action,
+                    subject('Roadmap', {
+                        organizationUuid: ORGANIZATION_MEMBER.organizationUuid,
+                    }),
+                ),
+            ).toBe(false);
+        },
+    );
 
     describe('Member permissions', () => {
         let ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
@@ -679,6 +682,19 @@ describe('Organization member permissions', () => {
                 expect(ability.can('manage', 'Organization')).toEqual(false);
             });
 
+            it('cannot manage verified content', () => {
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('VerifiedContent', {
+                            organizationUuid:
+                                ORGANIZATION_EDITOR.organizationUuid,
+                            projectUuid: 'any-project',
+                        }),
+                    ),
+                ).toEqual(false);
+            });
+
             it('can view and manage public & accessable dashboards', () => {
                 expect(
                     ability.can(
@@ -1197,6 +1213,33 @@ describe('Organization member permissions', () => {
 
             it('can use the SemanticViewer', () => {
                 expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
+            });
+
+            describe('VerifiedContent', () => {
+                it('can manage verified content', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('VerifiedContent', {
+                                organizationUuid:
+                                    ORGANIZATION_DEVELOPER.organizationUuid,
+                                projectUuid: 'any-project',
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage verified content from another organization', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('VerifiedContent', {
+                                organizationUuid: '5678',
+                                projectUuid: 'any-project',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
             });
 
             describe('JobStatus', () => {

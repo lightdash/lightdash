@@ -2,7 +2,10 @@ export type ExternalConnectionAuthType =
     | 'none'
     | 'api_key'
     | 'bearer_token'
-    | 'google_service_account';
+    | 'google_service_account'
+    | 'oauth_client_credentials';
+
+export type OAuthClientAuthMethod = 'basic' | 'body';
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */
@@ -74,8 +77,14 @@ export type ExternalConnection = {
     rateLimitPerMinute: number | null;
     apiKeyName: string | null;
     apiKeyLocation: ApiKeyLocation | null;
-    // OAuth scopes for type 'google_service_account'; null for other types.
+    // OAuth scopes for Google service accounts and OAuth client credentials.
     oauthScopes: string[] | null;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    oauthTokenUrl?: string | null;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    oauthClientId?: string | null;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     // Static non-secret headers sent on every proxied request, applied before
     // auth so the injected credential always wins (e.g. anthropic-version).
     customHeaders: Record<string, string> | null;
@@ -84,6 +93,35 @@ export type ExternalConnection = {
     updatedByUserUuid: string | null;
     createdAt: Date;
     updatedAt: Date;
+};
+
+export type ExternalConnectionListItem = ExternalConnection & {
+    linkedDataAppCount: number;
+    // Custom chart types linking this connection, counted apart from data
+    // apps so the two products' usage stays distinguishable.
+    linkedChartTypeCount: number;
+};
+
+export type ExternalConnectionLinkedApp = {
+    appUuid: string;
+    name: string;
+    slug: string;
+    kind: 'data_app' | 'project_chart_type';
+    spaceUuid: string | null;
+    spaceName: string | null;
+    aliases: string[];
+};
+
+/** Kept as an object so pagination can be added later without changing the
+ *  endpoint's top-level response shape. */
+export type ExternalConnectionLinkedApps = {
+    items: ExternalConnectionLinkedApp[];
+    total: number;
+};
+
+export type ApiListExternalConnectionLinkedAppsResponse = {
+    status: 'ok';
+    results: ExternalConnectionLinkedApps;
 };
 
 /** WRITE shape — includes the secret. */
@@ -103,9 +141,12 @@ export type CreateExternalConnection = {
     rateLimitPerMinute?: number | null;
     apiKeyName?: string | null;
     apiKeyLocation?: ApiKeyLocation | null;
-    oauthScopes?: string[] | null; // OAuth scopes for type 'google_service_account'
+    oauthScopes?: string[] | null;
+    oauthTokenUrl?: string | null;
+    oauthClientId?: string | null;
+    oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders?: Record<string, string> | null; // static non-secret headers sent on every request
-    secret?: string | null; // bearer token, api key, or service account keyfile JSON; null for type 'none'
+    secret?: string | null; // bearer token, api key, client secret, or service-account keyfile JSON; null for type 'none'
 };
 
 /** Omitted/blank `secret` means the stored secret is left unchanged. */
@@ -114,6 +155,13 @@ export type UpdateExternalConnection = Partial<CreateExternalConnection>;
 export type AppExternalConnectionLink = {
     externalConnectionUuid: string;
     alias: string;
+};
+
+/** A link as the app's connection list returns it: alias plus the
+ *  connection itself, not the uuid/alias pair the link request takes. */
+export type AppExternalConnectionLinked = {
+    alias: string;
+    connection: ExternalConnection;
 };
 
 /** Server-applied defaults for the optional numeric limits. */
@@ -134,6 +182,8 @@ export type ExternalFetchRequest = {
 export type ExternalFetchResponse = {
     status: number;
     contentType: string;
+    /** Safe upstream response headers, normalized to lowercase names. */
+    headers: Record<string, string>;
     body: unknown;
     truncated: boolean;
 };
@@ -143,6 +193,9 @@ export type ApiTestExternalConnectionRequest = {
     path: string;
     query?: Record<string, string>;
     body?: unknown;
+    /** Optional unsaved edit values to test against the stored connection.
+     *  Blank/omitted secret keeps the stored credential when it is still valid. */
+    config?: UpdateExternalConnection;
 };
 
 /** Test an unsaved connection config (incl. plaintext secret) before creating
@@ -175,9 +228,13 @@ export type ExternalConnectionConfigProposal = {
     name: string;
     origin: string;
     type: ExternalConnectionAuthType;
+    allowBrowserImages: boolean;
     apiKeyName: string | null;
     apiKeyLocation: ApiKeyLocation | null;
     oauthScopes: string[] | null;
+    oauthTokenUrl?: string | null;
+    oauthClientId?: string | null;
+    oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders: Record<string, string> | null;
     allowedMethods: ExternalConnectionMethod[];
     allowedPathPrefixes: string[];

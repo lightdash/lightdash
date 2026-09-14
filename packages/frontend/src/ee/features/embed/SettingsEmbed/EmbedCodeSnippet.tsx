@@ -23,7 +23,7 @@ export type EmbedMethod = 'iframe' | 'sdk';
 // Not sure why lint-staged is removing the value of this enum.
 // prettier-ignore
 // eslint-disable-next-line
-export enum SnippetLanguage {
+enum SnippetLanguage {
     NODE = 'node',
     PYTHON = 'python',
     GO = 'go',
@@ -1516,7 +1516,7 @@ export const EmbeddedChart = ({ embedJwt }: EmbeddedChartProps) => (
         instanceUrl="${siteUrl}"
         token={embedJwt}
         id="${data.content.contentId || '<CHART_UUID>'}"
-        styles={{
+${data.writeActions ? '        isEditMode\n' : ''}        styles={{
             // Optional: customize supported SDK styles here:
             // backgroundColor: '#fff',
             // fontFamily: 'Inter, sans-serif',

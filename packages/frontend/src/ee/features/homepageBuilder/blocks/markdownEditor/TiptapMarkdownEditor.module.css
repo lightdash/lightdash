@@ -22,11 +22,7 @@
 .editorContent :global(.ProseMirror) :global(h3) {
     margin: 12px 0 6px;
     font-weight: 600;
-    color: var(--mantine-color-ldDark-9);
-
-    @mixin dark {
-        color: var(--mantine-color-ldGray-9);
-    }
+    color: var(--mantine-color-text);
 }
 
 .editorContent :global(.ProseMirror) :global(h1) {
@@ -62,10 +58,6 @@
     font-family: var(--mantine-font-family-monospace);
     font-size: 12.5px;
     overflow-x: auto;
-
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-    }
 }
 
 .editorContent :global(.ProseMirror) :global(code) {

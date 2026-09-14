@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    AI_DEEP_RESEARCH_MAX_WORKERS,
     AiOrganizationRuntimeSettings,
     AiOrganizationSettings,
     BYO_AI_PROVIDERS,
@@ -9,8 +10,10 @@ import {
     FeatureFlags,
     ForbiddenError,
     getVisibleDataAppClaudeModels,
+    isValidRetentionWindowHours,
     LightdashUser,
     ParameterError,
+    RETENTION_WINDOW_HOURS_ERROR,
     UpdateAiOrganizationSettings,
     UpdateAiProviderApiKeys,
     type AiAgentModelConfig,
@@ -23,7 +26,6 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { BaseService } from '../../services/BaseService';
-import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import {
@@ -35,14 +37,14 @@ import {
 import {
     matchesPreset,
     type ModelPreset,
-    type ModelPresetProvider,
+    type SelectableModelProvider,
 } from './ai/models/presets';
 import {
     OrgAiCopilotConfigResolver,
     type ReviewJudgeAvailability,
 } from './ai/OrgAiCopilotConfigResolver';
 
-type AvailableModelPreset = ModelPreset<ModelPresetProvider>;
+type AvailableModelPreset = ModelPreset<SelectableModelProvider>;
 
 /**
  * Whether a stored model config still resolves to one of the models left
@@ -108,6 +110,17 @@ export const findUnconfiguredProviderKeyWrites = (
             !configuredProviders[provider],
     );
 
+const DEEP_RESEARCH_LIMIT_BOUNDS: Record<
+    keyof AiDeepResearchLimits,
+    { min: number; max: number }
+> = {
+    maxTokens: { min: 1, max: 10_000_000 },
+    maxSteps: { min: 1, max: 1_000 },
+    maxToolCalls: { min: AI_DEEP_RESEARCH_MAX_WORKERS + 1, max: 1_000 },
+    maxWarehouseQueries: { min: 1, max: 1_000 },
+    deadlineMs: { min: 1_000, max: 3_600_000 },
+};
+
 export const validateDeepResearchLimits = (
     limits: AiDeepResearchLimits,
 ): void => {
@@ -116,6 +129,12 @@ export const validateDeepResearchLimits = (
     ).forEach(([key, value]) => {
         if (!Number.isInteger(value) || value <= 0) {
             throw new ParameterError(`${key} must be a positive integer`);
+        }
+        const bounds = DEEP_RESEARCH_LIMIT_BOUNDS[key];
+        if (bounds && (value < bounds.min || value > bounds.max)) {
+            throw new ParameterError(
+                `${key} must be between ${bounds.min} and ${bounds.max}`,
+            );
         }
     });
 };
@@ -137,7 +156,6 @@ type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     organizationModel: OrganizationModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
-    featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
@@ -148,8 +166,6 @@ export class AiOrganizationSettingsService extends BaseService {
     private readonly organizationModel: OrganizationModel;
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
-
-    private readonly featureFlagService: FeatureFlagService;
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -165,7 +181,6 @@ export class AiOrganizationSettingsService extends BaseService {
         this.organizationModel = dependencies.organizationModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
-        this.featureFlagService = dependencies.featureFlagService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
@@ -320,12 +335,7 @@ export class AiOrganizationSettingsService extends BaseService {
             await this.organizationModel.getAiAgentMemoryEnabled(
                 user.organizationUuid,
             );
-        if (settingEnabled !== null) return settingEnabled;
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiAgentMemory,
-        });
-        return flag.enabled;
+        return settingEnabled ?? false;
     }
 
     private async resolveSettings(
@@ -372,12 +382,22 @@ export class AiOrganizationSettingsService extends BaseService {
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
                 mcpContentWritesEnabled: true,
+                mcpAgentsEnabled: true,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
                 dataAppModelVisibility: null,
-                providerApiKeysSet: { anthropic: false, openai: false },
-                providerApiKeyHints: { anthropic: null, openai: null },
+                providerApiKeysSet: {
+                    anthropic: false,
+                    google: false,
+                    openai: false,
+                },
+                providerApiKeyHints: {
+                    anthropic: null,
+                    google: null,
+                    openai: null,
+                },
+                threadRetentionHours: null,
                 defaultAiAgentModelOptions: effectiveOptions,
                 configurableModelOptions: configurableOptions,
                 aiAgentReviewsPausedByByok,
@@ -440,9 +460,12 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentReviewsAvailable: false,
                 defaultAiAgentModelConfig: null,
                 defaultAiAgentModelOptions: [],
+                dataAppCodingAgent:
+                    this.lightdashConfig.appRuntime.dataAppCodingAgent,
                 visibleDataAppModels: getVisibleDataAppClaudeModels(
                     dataAppModelVisibility,
                 ),
+                threadRetentionHours: null,
             };
         }
 
@@ -457,18 +480,21 @@ export class AiOrganizationSettingsService extends BaseService {
                 settings.aiAgentReviewsPausedByByok !== true,
             defaultAiAgentModelConfig: settings.defaultAiAgentModelConfig,
             defaultAiAgentModelOptions: settings.defaultAiAgentModelOptions,
+            dataAppCodingAgent:
+                this.lightdashConfig.appRuntime.dataAppCodingAgent,
             visibleDataAppModels: getVisibleDataAppClaudeModels(
                 settings.dataAppModelVisibility,
             ),
+            threadRetentionHours: settings.threadRetentionHours ?? null,
         };
     }
 
-    async isAiAgentsVisible(organizationUuid: string): Promise<boolean> {
+    async isMcpAgentsEnabled(organizationUuid: string): Promise<boolean> {
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 organizationUuid,
             );
-        return settings?.aiAgentsVisible ?? true;
+        return settings?.mcpAgentsEnabled ?? true;
     }
 
     async isDeepResearchRawSqlEnabled({
@@ -481,6 +507,40 @@ export class AiOrganizationSettingsService extends BaseService {
                 organizationUuid,
             );
         return settings?.deepResearchRawSqlEnabled ?? false;
+    }
+
+    async isThreadRetentionEnabled(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const flag = await this.commercialFeatureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.AiThreadRetention,
+        });
+        return flag.enabled;
+    }
+
+    async assertThreadRetentionWriteAllowed(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+        threadRetentionHours: number | null,
+    ): Promise<void> {
+        if (!(await this.isThreadRetentionEnabled(user))) {
+            throw new ForbiddenError(
+                'AI thread retention is not enabled for this organization',
+            );
+        }
+        if (!isValidRetentionWindowHours(threadRetentionHours)) {
+            throw new ParameterError(RETENTION_WINDOW_HOURS_ERROR);
+        }
+    }
+
+    async getThreadRetentionCeiling(
+        organizationUuid: string,
+    ): Promise<number | null> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.threadRetentionHours ?? null;
     }
 
     async upsertSettings(
@@ -511,6 +571,19 @@ export class AiOrganizationSettingsService extends BaseService {
             validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);
         }
 
+        if (aiSettingsUpdate.threadRetentionHours !== undefined) {
+            // No-op writes stay allowed: clients that round-trip the settings
+            // object must not be rejected while the flag is off.
+            const storedRetention =
+                await this.getThreadRetentionCeiling(organizationUuid);
+            if (aiSettingsUpdate.threadRetentionHours !== storedRetention) {
+                await this.assertThreadRetentionWriteAllowed(
+                    user,
+                    aiSettingsUpdate.threadRetentionHours,
+                );
+            }
+        }
+
         // Set when hiding models orphans the org's configured default, so the
         // write can repoint it in the same upsert.
         let reconciledDefaultModelConfig: AiAgentModelConfig | null | undefined;
@@ -533,15 +606,12 @@ export class AiOrganizationSettingsService extends BaseService {
             aiSettingsUpdate.providerApiKeys !== undefined ||
             aiSettingsUpdate.modelVisibility !== undefined
         ) {
-            // BYO keys and model visibility require both AI copilot (env/ai-copilot
-            // flag) and the org-ai-provider-api-keys flag to be enabled for this org.
-            const [copilotEnabled, byoKeysEnabled] = await Promise.all([
-                this.getIsCopilotEnabled(user),
-                this.orgAiCopilotConfigResolver.isEnabled(organizationUuid),
-            ]);
-            if (!copilotEnabled || !byoKeysEnabled) {
+            // BYO keys and model visibility require AI copilot (env/ai-copilot
+            // flag) to be enabled for this org.
+            const copilotEnabled = await this.getIsCopilotEnabled(user);
+            if (!copilotEnabled) {
                 throw new ForbiddenError(
-                    'Organization AI provider API keys are not enabled',
+                    'AI copilot is not enabled for this organization',
                 );
             }
         }

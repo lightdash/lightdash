@@ -114,8 +114,6 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             opened={opened}
             onOpen={onOpen}
             onClose={onClose}
-            withinPortal
-            shadow="md"
             closeOnItemClick
             closeOnEscape
             radius={0}

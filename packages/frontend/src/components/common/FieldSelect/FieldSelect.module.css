@@ -1,3 +1,7 @@
 .separatorLabel {
     font-weight: 600;
 }
+
+.optionIcon {
+    flex-shrink: 0;
+}

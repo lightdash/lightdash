@@ -439,15 +439,22 @@ const getSectionContent = (
 const getWordCount = (value: string): number =>
     value.trim().split(/\s+/).filter(Boolean).length;
 
+const isSupportedReportTitlePrefix = (prefix: string): boolean =>
+    /^(?:\s*<warning title="Report adjusted">[\s\S]*?<\/warning>)?\s*$/.test(
+        prefix,
+    );
+
 const getReportHeader = (
     preamble: string,
+    titleLineIndex?: number,
 ): { title: string | null; introductionMarkdown: string } => {
     const lines = preamble.split('\n');
     const firstContentLine = lines.findIndex((line) => line.trim().length > 0);
+    const reportTitleLine = titleLineIndex ?? firstContentLine;
     const titleMatch =
-        firstContentLine === -1
+        reportTitleLine === -1
             ? null
-            : lines[firstContentLine].match(/^# +(.+?)\s*$/);
+            : lines[reportTitleLine].match(/^# +(.+?)\s*$/);
 
     if (!titleMatch) {
         return { title: null, introductionMarkdown: preamble.trim() };
@@ -456,7 +463,7 @@ const getReportHeader = (
     return {
         title: titleMatch[1].trim(),
         introductionMarkdown: lines
-            .filter((_line, index) => index !== firstContentLine)
+            .filter((_line, index) => index !== reportTitleLine)
             .join('\n')
             .trim(),
     };
@@ -674,9 +681,21 @@ export const lintDeepResearchReport = (markdown: string): string[] => {
 export const parseDeepResearchReport = (
     markdown: string,
 ): ParsedDeepResearchReport | null => {
-    const { preamble, sections } = splitSections(maskFencedBlocks(markdown));
-    const { title: reportTitle, introductionMarkdown } =
-        getReportHeader(preamble);
+    const maskedMarkdown = maskFencedBlocks(markdown);
+    const { preamble: maskedPreamble, sections } =
+        splitSections(maskedMarkdown);
+    const reportTitleLine = maskedPreamble
+        .split('\n')
+        .findIndex((line) => /^# +(.+?)\s*$/.test(line));
+    const preamble = markdown.slice(0, maskedPreamble.length);
+    const reportTitlePrefix = preamble
+        .split('\n')
+        .slice(0, reportTitleLine)
+        .join('\n');
+    const { title: reportTitle, introductionMarkdown } = getReportHeader(
+        preamble,
+        isSupportedReportTitlePrefix(reportTitlePrefix) ? reportTitleLine : -1,
+    );
     const conclusionIndex = sections.findIndex(
         ({ title }) => title.trim().toLowerCase() === 'conclusion',
     );

@@ -1,12 +1,13 @@
 import {
     DbtProjectType,
     type AdditionalMetric,
+    type ApiCustomDimensionWriteBackPreview,
     type ApiError,
     type CustomDimension,
     type PullRequestCreated,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
@@ -23,6 +24,32 @@ const writeBackCustomDimensions = async (
         }),
     });
 };
+
+const getCustomDimensionsWriteBackPreview = async (
+    projectUuid: string,
+    customDimensions: CustomDimension[],
+): Promise<ApiCustomDimensionWriteBackPreview['results']> =>
+    lightdashApi<ApiCustomDimensionWriteBackPreview['results']>({
+        url: `/projects/${projectUuid}/git-integration/pull-requests/custom-dimensions/preview`,
+        method: 'POST',
+        body: JSON.stringify({ customDimensions }),
+    });
+
+export const useCustomDimensionsWriteBackPreview = (
+    projectUuid: string,
+    customDimensions: CustomDimension[],
+) =>
+    useQuery<ApiCustomDimensionWriteBackPreview['results'], ApiError>({
+        queryKey: [
+            'custom_dimension_write_back_preview',
+            projectUuid,
+            customDimensions,
+        ],
+        queryFn: () =>
+            getCustomDimensionsWriteBackPreview(projectUuid, customDimensions),
+        enabled: customDimensions.length > 0,
+        retry: false,
+    });
 
 export const useWriteBackCustomDimensions = (projectUuid: string) => {
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -109,5 +136,32 @@ export const useIsGitProject = (projectUuid: string) => {
     const { data: project } = useProject(projectUuid);
     return [DbtProjectType.GITHUB, DbtProjectType.GITLAB].includes(
         project?.dbtConnection.type as DbtProjectType,
+    );
+};
+
+export const useSupportsCustomFieldWriteBack = (projectUuid: string) => {
+    const { data: project } = useProject(projectUuid);
+    const connection = project?.dbtConnection;
+    if (!connection) {
+        return false;
+    }
+    if (connection.type === DbtProjectType.BITBUCKET) {
+        const host = connection.host_domain
+            ?.trim()
+            .toLowerCase()
+            .replace(/\.$/, '');
+        return !host || host === 'bitbucket.org';
+    }
+    return (
+        connection.type === DbtProjectType.GITHUB ||
+        connection.type === DbtProjectType.GITLAB
+    );
+};
+
+export const useIsNativeGitProject = (projectUuid: string) => {
+    const { data: project } = useProject(projectUuid);
+    return (
+        project?.dbtConnection.type === DbtProjectType.GITHUB &&
+        project.dbtConnection.semanticLayer === 'lightdash'
     );
 };

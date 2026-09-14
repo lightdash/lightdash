@@ -15,7 +15,7 @@ const {
     agentChatInputProps,
     agents,
     createAgentThread,
-    deepResearchEnabled,
+    deepResearchAccess,
     deepResearchHookArgs,
     navigate,
     sqlModeAvailable,
@@ -34,7 +34,7 @@ const {
         ],
     },
     createAgentThread: vi.fn(),
-    deepResearchEnabled: { current: true },
+    deepResearchAccess: { current: true },
     deepResearchHookArgs: {
         current: undefined as
             | [projectUuid: string, entryPoint: string]
@@ -54,10 +54,8 @@ vi.mock('../../../hooks/useProject', () => ({
     useProject: () => ({ data: undefined }),
 }));
 
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: deepResearchEnabled.current },
-    }),
+vi.mock('../aiCopilot/hooks/useDeepResearchAccess', () => ({
+    useDeepResearchAccess: () => deepResearchAccess.current,
 }));
 
 vi.mock('../../../providers/App/useApp', () => ({
@@ -160,13 +158,19 @@ const renderInput = (routerEnabled = false) => {
     });
     queryClient.setQueryData(['ai-router'], { enabled: routerEnabled });
 
-    return render(
+    const renderComponent = () => (
         <MantineProvider env="test">
             <QueryClientProvider client={queryClient}>
                 <DayOneAskInput projectUuid="project-1" hideSuggestions />
             </QueryClientProvider>
-        </MantineProvider>,
+        </MantineProvider>
     );
+    const result = render(renderComponent());
+
+    return {
+        ...result,
+        rerenderInput: () => result.rerender(renderComponent()),
+    };
 };
 
 const renderWithSuggestions = (labels: string[]) => {
@@ -231,7 +235,7 @@ describe('DayOneAskInput', () => {
             uuid: 'thread-1',
             firstMessage: { uuid: 'prompt-1' },
         });
-        deepResearchEnabled.current = true;
+        deepResearchAccess.current = true;
         deepResearchHookArgs.current = undefined;
         startDeepResearch.mockReset();
         startDeepResearch.mockResolvedValue(undefined);
@@ -277,10 +281,11 @@ describe('DayOneAskInput', () => {
         expect(
             agentChatInputProps.current?.onStartDeepResearch,
         ).toBeUndefined();
+        expect(agentChatInputProps.current?.onSqlModeChange).toBeUndefined();
     });
 
-    it('hides Deep Research when the feature flag is disabled', () => {
-        deepResearchEnabled.current = false;
+    it('hides Deep Research when the user cannot start a run', () => {
+        deepResearchAccess.current = false;
 
         renderInput();
 
@@ -306,6 +311,9 @@ describe('DayOneAskInput', () => {
         ];
         renderInput();
 
+        expect(agentChatInputProps.current?.sqlMode).toBe(false);
+        expect(agentChatInputProps.current?.onSqlModeChange).toBeDefined();
+
         act(() => {
             agentChatInputProps.current?.onSubmit({
                 message: 'Show revenue',
@@ -316,5 +324,47 @@ describe('DayOneAskInput', () => {
         expect(createAgentThread).toHaveBeenCalledWith(
             expect.objectContaining({ enableSqlMode: false }),
         );
+    });
+
+    it('applies the homepage SQL Runner override when creating a thread', () => {
+        agents.current = [
+            { uuid: 'agent-1', name: 'Data agent', enableSqlMode: false },
+        ];
+        renderInput();
+
+        act(() => {
+            agentChatInputProps.current?.onSqlModeChange?.(true);
+        });
+
+        expect(agentChatInputProps.current?.sqlMode).toBe(true);
+        act(() => {
+            agentChatInputProps.current?.onSubmit({
+                message: 'Show revenue',
+                toolHints: [],
+            });
+        });
+
+        expect(createAgentThread).toHaveBeenCalledWith(
+            expect.objectContaining({ enableSqlMode: true }),
+        );
+    });
+
+    it('uses each selected agent SQL default instead of another agent override', () => {
+        agents.current = [
+            { uuid: 'agent-1', name: 'Data agent', enableSqlMode: false },
+        ];
+        const { rerenderInput } = renderInput();
+
+        act(() => {
+            agentChatInputProps.current?.onSqlModeChange?.(true);
+        });
+        expect(agentChatInputProps.current?.sqlMode).toBe(true);
+
+        agents.current = [
+            { uuid: 'agent-2', name: 'Finance agent', enableSqlMode: false },
+        ];
+        rerenderInput();
+
+        expect(agentChatInputProps.current?.sqlMode).toBe(false);
     });
 });

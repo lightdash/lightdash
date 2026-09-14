@@ -36,6 +36,7 @@ import {
 } from '../../../hooks/useUserAttributes';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import classes from './UserAttributeModal.module.css';
 
 type UserAttributeFormValues = {
     name: string;
@@ -205,7 +206,6 @@ const UserAttributeModal: FC<{
 
                             <Tooltip
                                 position="right"
-                                multiline
                                 maw={200}
                                 label="This will be the default value for the attribute if no other value is assigned to the user or group."
                             >
@@ -313,7 +313,7 @@ const UserAttributeModal: FC<{
                             <Button
                                 size="xs"
                                 variant="default"
-                                style={{ alignSelf: 'flex-start' }}
+                                className={classes.addButton}
                                 leftSection={
                                     <MantineIcon icon={IconUserPlus} />
                                 }
@@ -403,7 +403,7 @@ const UserAttributeModal: FC<{
                                 <Button
                                     size="xs"
                                     variant="default"
-                                    style={{ alignSelf: 'flex-start' }}
+                                    className={classes.addButton}
                                     leftSection={
                                         <MantineIcon icon={IconUsersPlus} />
                                     }

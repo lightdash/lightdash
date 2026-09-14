@@ -38,6 +38,6 @@ export function breakingChangeDecisionBrief(
         `Detected at ${input.file}:${input.line}: ${input.pattern}`,
         'Path 1 — redesign: redesign to expand-only — e.g. deprecate-now-drop-later. Consequence: preserves a rolling-safe release.',
         `Path 2 — declare: declare — flips this release to not-rolling-safe, advises Recreate to every self-hosted customer. The declaration must be in ${input.declarationLocation}.`,
-        'Declaring is a product decision — confirm with a human before adding this export.',
+        'Declaring is a product decision — confirm with a human before adding a registry entry.',
     ].join('\n');
 }

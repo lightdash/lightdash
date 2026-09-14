@@ -1,6 +1,7 @@
-import { AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import {
     CreateEmbedJwt,
+    FilterInteractivityValues,
     ForbiddenError,
     MemberAbility,
     OrganizationMemberRole,
@@ -15,6 +16,8 @@ import {
     getAccountApiAccessContext,
     getAccountWriteContext,
 } from './account';
+import { defaultSessionUser } from './account.mock';
+import { serializeAccount } from './serializeAccount';
 
 describe('account', () => {
     describe('fromJwt', () => {
@@ -63,6 +66,225 @@ describe('account', () => {
                 email: 'external@example.com',
             },
         };
+
+        it.each(['userUuid', 'serviceAccountUserUuid'] as const)(
+            'uses %s scopes consistently in authorization and the serialized UI account',
+            (actorField) => {
+                const actorBuilder = new AbilityBuilder<MemberAbility>(Ability);
+                actorBuilder.can(
+                    'view',
+                    [
+                        'EmbedExplore',
+                        'EmbedCsvExport',
+                        'EmbedDashboardParameters',
+                    ],
+                    {
+                        projectUuid: mockEmbed.projectUuid,
+                    },
+                );
+                const decodedToken: CreateEmbedJwt = {
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid: 'test-dashboard-uuid',
+                        canExplore: false,
+                        canExportCsv: false,
+                        parameterInteractivity: { enabled: false },
+                    },
+                    writeActions: {
+                        [actorField]: defaultSessionUser.userUuid,
+                        spaceUuid: 'space',
+                        permissionsMode: 'roles',
+                    },
+                };
+                const original = structuredClone(decodedToken);
+                const result = fromJwt({
+                    decodedToken,
+                    embed: mockEmbed,
+                    source: 'test-jwt-token',
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid: 'test-dashboard-uuid',
+                        chartUuids: [],
+                        explores: [],
+                    },
+                    userAttributes: mockUserAttributes,
+                    embedWriteUser: {
+                        ...defaultSessionUser,
+                        ability: actorBuilder.build(),
+                    },
+                });
+
+                expect(result.access.parameters).toEqual({ enabled: true });
+                expect(
+                    result.user.ability.can(
+                        'view',
+                        subject('EmbedExplore', {
+                            projectUuid: mockEmbed.projectUuid,
+                            organizationUuid:
+                                mockEmbed.organization.organizationUuid,
+                        }),
+                    ),
+                ).toBe(true);
+                expect(serializeAccount(result)).toMatchObject({
+                    user: { abilityRules: result.user.ability.rules },
+                });
+                expect(
+                    result.user.ability.can(
+                        'view',
+                        subject('Explore', {
+                            projectUuid: mockEmbed.projectUuid,
+                            organizationUuid:
+                                mockEmbed.organization.organizationUuid,
+                        }),
+                    ),
+                ).toBe(true);
+                expect(
+                    result.user.ability.can(
+                        'export',
+                        subject('Dashboard', {
+                            organizationUuid:
+                                mockEmbed.organization.organizationUuid,
+                            type: 'csv',
+                        }),
+                    ),
+                ).toBe(true);
+                expect(result.user.ability.can('manage', 'Organization')).toBe(
+                    false,
+                );
+                expect(serializeAccount(result)).not.toHaveProperty(
+                    'embedPermissions',
+                );
+                expect(result.authentication.data).toEqual(original);
+                expect(decodedToken).toEqual(original);
+            },
+        );
+
+        describe.each([undefined, 'default', 'roles'] as const)(
+            'dashboard permission mode %s',
+            (permissionsMode) => {
+                it.each(['userUuid', 'serviceAccountUserUuid'] as const)(
+                    'resolves structured controls independently for %s',
+                    (actorField) => {
+                        for (const enabled of [
+                            false,
+                            true,
+                            FilterInteractivityValues.some,
+                        ]) {
+                            for (const scope of [
+                                undefined,
+                                'EmbedDashboardFilters',
+                                'EmbedDashboardFilterAddition',
+                                'EmbedDashboardParameters',
+                            ] as const) {
+                                const actor = new AbilityBuilder<MemberAbility>(
+                                    Ability,
+                                );
+                                if (scope)
+                                    actor.can('view', scope, {
+                                        projectUuid: mockEmbed.projectUuid,
+                                    });
+                                const decodedToken: CreateEmbedJwt = {
+                                    content: {
+                                        type: 'dashboard',
+                                        dashboardUuid: 'test-dashboard-uuid',
+                                        dashboardFiltersInteractivity: {
+                                            enabled,
+                                            allowedFilters: ['department'],
+                                            hidden: true,
+                                            canAddFilters: enabled === true,
+                                        },
+                                        parameterInteractivity: {
+                                            enabled: enabled === true,
+                                        },
+                                    },
+                                    writeActions: {
+                                        [actorField]:
+                                            defaultSessionUser.userUuid,
+                                        spaceUuid: 'space',
+                                        permissionsMode,
+                                    },
+                                };
+                                const original = structuredClone(decodedToken);
+                                const result = fromJwt({
+                                    decodedToken,
+                                    embed: mockEmbed,
+                                    source: 'test-jwt-token',
+                                    content: {
+                                        type: 'dashboard',
+                                        dashboardUuid: 'test-dashboard-uuid',
+                                        chartUuids: [],
+                                        explores: [],
+                                    },
+                                    userAttributes: mockUserAttributes,
+                                    embedWriteUser: {
+                                        ...defaultSessionUser,
+                                        ability: actor.build(),
+                                    },
+                                });
+                                const roleFilterInteractivity =
+                                    scope === 'EmbedDashboardFilters'
+                                        ? FilterInteractivityValues.all
+                                        : false;
+                                expect(result.access.filtering).toEqual({
+                                    enabled:
+                                        permissionsMode === 'roles'
+                                            ? roleFilterInteractivity
+                                            : enabled,
+                                    allowedFilters: ['department'],
+                                    hidden: true,
+                                    canAddFilters:
+                                        permissionsMode === 'roles'
+                                            ? scope ===
+                                              'EmbedDashboardFilterAddition'
+                                            : enabled === true,
+                                });
+                                expect(result.access.parameters).toEqual({
+                                    enabled:
+                                        permissionsMode === 'roles'
+                                            ? scope ===
+                                              'EmbedDashboardParameters'
+                                            : enabled === true,
+                                });
+                                expect(result.access.controls).toEqual(
+                                    mockUserAttributes,
+                                );
+                                expect(decodedToken).toEqual(original);
+                            }
+                        }
+                    },
+                );
+
+                it('fails closed only in role mode when the actor cannot be resolved', () => {
+                    const create = () =>
+                        fromJwt({
+                            decodedToken: {
+                                ...mockDecodedToken,
+                                writeActions: {
+                                    userUuid: 'missing',
+                                    spaceUuid: 'space',
+                                    permissionsMode,
+                                },
+                            },
+                            embed: mockEmbed,
+                            source: 'test-jwt-token',
+                            content: {
+                                type: 'dashboard',
+                                dashboardUuid: 'test-dashboard-uuid',
+                                chartUuids: [],
+                                explores: [],
+                            },
+                            userAttributes: mockUserAttributes,
+                        });
+                    if (permissionsMode === 'roles')
+                        expect(create).toThrow(ForbiddenError);
+                    else
+                        expect(create().access.filtering).toEqual({
+                            enabled: true,
+                            allowedFilters: ['department', 'region'],
+                        });
+                });
+            },
+        );
 
         it('should create an ExternalAccount from JWT with user externalId', () => {
             const result = fromJwt({

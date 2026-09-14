@@ -10,7 +10,7 @@ const TotalCalculationErrorCell: FC<{ error: unknown }> = ({ error }) => {
         : getErrorMessage(error);
 
     return (
-        <Tooltip withinPortal multiline maw={500} label={message}>
+        <Tooltip maw={500} label={message}>
             <Group
                 component="span"
                 gap={4}

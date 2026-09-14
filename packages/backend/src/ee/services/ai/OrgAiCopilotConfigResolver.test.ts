@@ -5,7 +5,6 @@ import type {
 import { vi } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
-import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
 import {
     AiOrganizationSettingsModel,
@@ -23,6 +22,7 @@ const baseConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     enabled: true,
     requiresFeatureFlag: false,
     telemetryEnabled: false,
+    threadDumpEnabled: false,
     debugLoggingEnabled: false,
     askAiButtonEnabled: false,
     embeddingEnabled: false,
@@ -44,6 +44,7 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     enabled: true,
     requiresFeatureFlag: false,
     telemetryEnabled: false,
+    threadDumpEnabled: false,
     debugLoggingEnabled: false,
     askAiButtonEnabled: false,
     embeddingEnabled: false,
@@ -59,6 +60,59 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
             zeroDataRetention: false,
         },
         anthropic: { apiKey: 'instance-anthropic-key' },
+    },
+});
+
+const allByoProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    ...bothProvidersConfig,
+    providers: {
+        ...bothProvidersConfig.providers,
+        google: {
+            apiKey: 'instance-google-key',
+            modelName: 'gemini-3.8-flash',
+        },
+    },
+});
+
+const anthropicGatewayConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    ...bothProvidersConfig,
+    providers: {
+        ...bothProvidersConfig.providers,
+        anthropic: {
+            ...bothProvidersConfig.providers.anthropic,
+            baseUrl: 'https://llm-gateway.example',
+        },
+    },
+});
+
+const googleGatewayConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    ...allByoProvidersConfig,
+    providers: {
+        ...allByoProvidersConfig.providers,
+        google: {
+            ...allByoProvidersConfig.providers.google,
+            baseUrl: 'https://gemini-gateway.example/v1beta',
+        },
+    },
+});
+
+const bedrockConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    enabled: true,
+    requiresFeatureFlag: false,
+    telemetryEnabled: false,
+    threadDumpEnabled: false,
+    debugLoggingEnabled: false,
+    askAiButtonEnabled: false,
+    embeddingEnabled: false,
+    maxQueryLimit: 100,
+    runSqlMaxLimit: 100,
+    defaultProvider: 'bedrock',
+    defaultEmbeddingModelProvider: 'openai',
+    providers: {
+        bedrock: {
+            apiKey: 'instance-bedrock-key',
+            region: 'us-east-2',
+        },
     },
 });
 
@@ -121,6 +175,40 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(result.defaultProvider).toBe('openai');
     });
 
+    it('overlays a Google key without changing the configured Gemini model', () => {
+        const result = overlayOrgProviderApiKeys(allByoProvidersConfig, {
+            google: 'org-google-key',
+        });
+
+        expect(result.providers.google?.apiKey).toBe('org-google-key');
+        expect(result.providers.google?.modelName).toBe('gemini-3.8-flash');
+        expect(result.defaultProvider).toBe('google');
+        expect(result.byoProviders).toEqual(['google']);
+    });
+
+    it('rejects an organization Anthropic key when the instance uses an Anthropic gateway', () => {
+        expect(() =>
+            overlayOrgProviderApiKeys(anthropicGatewayConfig, {
+                anthropic: 'org-anthropic-key',
+            }),
+        ).toThrow('Organization Anthropic API keys cannot be used');
+    });
+
+    it('rejects an organization Google key when the instance uses a Gemini gateway without exposing the key', () => {
+        const orgKey = 'full-fake-org-google-secret';
+
+        try {
+            overlayOrgProviderApiKeys(googleGatewayConfig, {
+                google: orgKey,
+            });
+            throw new Error('Expected Gemini gateway conflict');
+        } catch (error) {
+            if (!(error instanceof Error)) throw error;
+            expect(error.message).toContain('GEMINI_BASE_URL');
+            expect(error.message).not.toContain(orgKey);
+        }
+    });
+
     it('ignores a key for a provider the instance has not configured', () => {
         const result = overlayOrgProviderApiKeys(baseConfig, {
             anthropic: 'org-anthropic-key',
@@ -144,25 +232,40 @@ describe('overlayOrgProviderApiKeys', () => {
 });
 
 describe('resolveEffectiveModelVisibility', () => {
-    it('hides openai when a BYO anthropic key exists but no openai key', () => {
+    it('hides every unkeyed BYO provider when an Anthropic key exists', () => {
         expect(
             resolveEffectiveModelVisibility({ anthropic: 'sk-ant-x' }, null),
-        ).toEqual({ openai: { enabled: false } });
+        ).toEqual({
+            google: { enabled: false },
+            openai: { enabled: false },
+        });
     });
 
-    it('does not hide openai when both keys are present', () => {
+    it('still hides Google when Anthropic and OpenAI keys are present', () => {
         expect(
             resolveEffectiveModelVisibility(
                 { anthropic: 'sk-ant-x', openai: 'sk-x' },
                 null,
             ),
-        ).toBeNull();
+        ).toEqual({ google: { enabled: false } });
     });
 
-    it('does not hide anything with only an openai key', () => {
+    it('hides Anthropic and Google with only an OpenAI key', () => {
         expect(
             resolveEffectiveModelVisibility({ openai: 'sk-x' }, null),
-        ).toBeNull();
+        ).toEqual({
+            anthropic: { enabled: false },
+            google: { enabled: false },
+        });
+    });
+
+    it('hides Anthropic and OpenAI with only a Google key', () => {
+        expect(
+            resolveEffectiveModelVisibility({ google: 'google-key' }, null),
+        ).toEqual({
+            anthropic: { enabled: false },
+            openai: { enabled: false },
+        });
     });
 
     it('lets explicit stored visibility override the implicit hide', () => {
@@ -171,7 +274,10 @@ describe('resolveEffectiveModelVisibility', () => {
                 { anthropic: 'sk-ant-x' },
                 { openai: { enabled: true } },
             ),
-        ).toEqual({ openai: { enabled: true } });
+        ).toEqual({
+            google: { enabled: false },
+            openai: { enabled: true },
+        });
     });
 
     it('keeps stored visibility for other providers alongside the implicit hide', () => {
@@ -186,6 +292,7 @@ describe('resolveEffectiveModelVisibility', () => {
                 },
             ),
         ).toEqual({
+            google: { enabled: false },
             openai: { enabled: false },
             anthropic: { enabled: true, allowedModels: ['claude-opus-4-8'] },
         });
@@ -194,7 +301,6 @@ describe('resolveEffectiveModelVisibility', () => {
 
 describe('OrgAiCopilotConfigResolver', () => {
     type ResolverOptions = {
-        flagEnabled: boolean;
         orgKeys?: AiOrgProviderApiKeys | null;
         modelVisibility?: AiOrgModelVisibility | null;
         accessibleModelIds?: string[] | null;
@@ -202,12 +308,11 @@ describe('OrgAiCopilotConfigResolver', () => {
     };
 
     const makeResolver = ({
-        flagEnabled,
         orgKeys = { openai: 'org-openai-key' },
         modelVisibility = null,
         accessibleModelIds = null,
         instanceConfig = baseConfig,
-    }: ResolverOptions) =>
+    }: ResolverOptions = {}) =>
         new OrgAiCopilotConfigResolver({
             lightdashConfig: {
                 ai: { copilot: instanceConfig },
@@ -223,12 +328,6 @@ describe('OrgAiCopilotConfigResolver', () => {
                 AiOrganizationSettingsModel,
                 'findDecryptedProviderApiKeys' | 'findByOrganizationUuid'
             > as AiOrganizationSettingsModel,
-            featureFlagService: {
-                get: vi.fn().mockResolvedValue({
-                    id: 'org-ai-provider-api-keys',
-                    enabled: flagEnabled,
-                }),
-            } as Pick<FeatureFlagService, 'get'> as FeatureFlagService,
             aiModelCatalog: {
                 getAccessibleModelIds: vi
                     .fn()
@@ -239,24 +338,27 @@ describe('OrgAiCopilotConfigResolver', () => {
             > as AiModelCatalog,
         });
 
-    it('returns the base config untouched when the feature flag is off', async () => {
-        const result = await makeResolver({
-            flagEnabled: false,
-        }).getCopilotConfig('org-uuid');
-        expect(result.providers.openai?.apiKey).toBe('instance-openai-key');
+    it('overlays org keys onto the instance config', async () => {
+        const result = await makeResolver().getCopilotConfig('org-uuid');
+        expect(result.providers.openai?.apiKey).toBe('org-openai-key');
     });
 
-    it('overlays org keys when the feature flag is on', async () => {
-        const result = await makeResolver({
-            flagEnabled: true,
-        }).getCopilotConfig('org-uuid');
-        expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+    it('uses configured Anthropic models without probing a gateway catalog', async () => {
+        const resolver = makeResolver({
+            accessibleModelIds: null,
+        });
+
+        expect(
+            await resolver.getAccessibleModelIds('anthropic', 'gateway-token', {
+                baseUrl: 'https://llm-gateway.example',
+                availableModels: ['claude-sonnet-4-6'],
+            }),
+        ).toEqual(['claude-sonnet-4-6']);
     });
 
     describe('getClaudeCodeConfig', () => {
         it('returns the instance config unchanged without an organization uuid', async () => {
             const result = await makeResolver({
-                flagEnabled: true,
                 instanceConfig: bothProvidersConfig,
             }).getClaudeCodeConfig(null);
             expect(result.defaultProvider).toBe('openai');
@@ -265,21 +367,8 @@ describe('OrgAiCopilotConfigResolver', () => {
             );
         });
 
-        it('returns the instance config unchanged when the feature flag is off', async () => {
-            const result = await makeResolver({
-                flagEnabled: false,
-                orgKeys: { anthropic: 'org-anthropic-key' },
-                instanceConfig: bothProvidersConfig,
-            }).getClaudeCodeConfig('org-uuid');
-            expect(result.defaultProvider).toBe('openai');
-            expect(result.providers.anthropic?.apiKey).toBe(
-                'instance-anthropic-key',
-            );
-        });
-
         it('returns the instance config unchanged when the org has no keys', async () => {
             const result = await makeResolver({
-                flagEnabled: true,
                 orgKeys: null,
                 instanceConfig: bothProvidersConfig,
             }).getClaudeCodeConfig('org-uuid');
@@ -290,7 +379,6 @@ describe('OrgAiCopilotConfigResolver', () => {
 
         it('runs a BYO org on its own Anthropic key and forces the Anthropic provider', async () => {
             const result = await makeResolver({
-                flagEnabled: true,
                 orgKeys: { anthropic: 'org-anthropic-key' },
                 instanceConfig: bothProvidersConfig,
             }).getClaudeCodeConfig('org-uuid');
@@ -302,7 +390,6 @@ describe('OrgAiCopilotConfigResolver', () => {
 
         it('never leaks the instance Anthropic key to a BYO org that only keyed OpenAI', async () => {
             const result = await makeResolver({
-                flagEnabled: true,
                 orgKeys: { openai: 'org-openai-key' },
                 instanceConfig: bothProvidersConfig,
             }).getClaudeCodeConfig('org-uuid');
@@ -312,12 +399,67 @@ describe('OrgAiCopilotConfigResolver', () => {
             expect(result.providers.anthropic).toBeUndefined();
             expect(result.defaultProvider).toBe('anthropic');
         });
+
+        it('fails closed for Claude Code when the org only keyed Google', async () => {
+            const result = await makeResolver({
+                orgKeys: { google: 'org-google-key' },
+                instanceConfig: allByoProvidersConfig,
+            }).getClaudeCodeConfig('org-uuid');
+
+            expect(result.providers.anthropic).toBeUndefined();
+            expect(result.defaultProvider).toBe('anthropic');
+        });
+    });
+
+    describe('getCodexConfig', () => {
+        it('keeps instance Bedrock as the managed Codex provider', async () => {
+            const result = await makeResolver({
+                orgKeys: null,
+                instanceConfig: bedrockConfig,
+            }).getCodexConfig('org-uuid');
+            expect(result.defaultProvider).toBe('bedrock');
+            expect(result.providers.bedrock?.region).toBe('us-east-2');
+        });
+
+        it('returns the instance config unchanged without an organization uuid', async () => {
+            const result = await makeResolver({
+                instanceConfig: bothProvidersConfig,
+            }).getCodexConfig(null);
+            expect(result.providers.openai?.apiKey).toBe('instance-openai-key');
+        });
+
+        it('runs a BYO org on its own OpenAI key', async () => {
+            const result = await makeResolver({
+                orgKeys: { openai: 'org-openai-key' },
+                instanceConfig: bothProvidersConfig,
+            }).getCodexConfig('org-uuid');
+            expect(result.defaultProvider).toBe('openai');
+            expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+        });
+
+        it('never leaks the instance OpenAI key to a BYO org that only keyed Anthropic', async () => {
+            const result = await makeResolver({
+                orgKeys: { anthropic: 'org-anthropic-key' },
+                instanceConfig: bothProvidersConfig,
+            }).getCodexConfig('org-uuid');
+            expect(result.providers.openai).toBeUndefined();
+            expect(result.defaultProvider).toBe('openai');
+        });
+
+        it('fails closed for Codex when the org only keyed Google', async () => {
+            const result = await makeResolver({
+                orgKeys: { google: 'org-google-key' },
+                instanceConfig: allByoProvidersConfig,
+            }).getCodexConfig('org-uuid');
+
+            expect(result.providers.openai).toBeUndefined();
+            expect(result.defaultProvider).toBe('openai');
+        });
     });
 
     describe('resolveEffectiveModelVisibilityForOrg', () => {
         it('merges the implicit auto-hide under the submitted visibility', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: { anthropic: 'sk-ant' },
             });
             const effective =
@@ -326,6 +468,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                     { anthropic: { enabled: false } },
                 );
             expect(effective).toEqual({
+                google: { enabled: false },
                 openai: { enabled: false },
                 anthropic: { enabled: false },
             });
@@ -333,7 +476,6 @@ describe('OrgAiCopilotConfigResolver', () => {
 
         it('blocks the lockout: an anthropic-only org disabling anthropic leaves no models', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: { anthropic: 'sk-ant' },
             });
             const effective =
@@ -364,7 +506,6 @@ describe('OrgAiCopilotConfigResolver', () => {
 
         it('returns the submission unchanged when the org has no keys', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: null,
             });
             const submitted = { openai: { enabled: false } };
@@ -381,23 +522,12 @@ describe('OrgAiCopilotConfigResolver', () => {
         const none = { modelVisibility: null, keyAccessibleModelIds: null };
 
         it('returns no overrides without an organization uuid', async () => {
-            const resolver = makeResolver({ flagEnabled: true });
+            const resolver = makeResolver();
             expect(await resolver.getOrgModelOverrides(null)).toEqual(none);
-        });
-
-        it('returns no overrides when the feature flag is off', async () => {
-            const resolver = makeResolver({
-                flagEnabled: false,
-                modelVisibility: { openai: { enabled: false } },
-            });
-            expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual(
-                none,
-            );
         });
 
         it('returns no overrides without BYO keys (settings become inert)', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: null,
                 modelVisibility: { openai: { enabled: false } },
             });
@@ -408,52 +538,76 @@ describe('OrgAiCopilotConfigResolver', () => {
 
         it('returns stored visibility and key-accessible ids with an anthropic key', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: { anthropic: 'sk-ant-x' },
                 modelVisibility: { openai: { enabled: false } },
                 accessibleModelIds: ['claude-opus-4-8'],
             });
             expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
-                modelVisibility: { openai: { enabled: false } },
+                modelVisibility: {
+                    google: { enabled: false },
+                    openai: { enabled: false },
+                },
                 keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
             });
         });
 
         it('auto-hides openai when only an anthropic key is set', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: { anthropic: 'sk-ant-x' },
                 modelVisibility: null,
                 accessibleModelIds: ['claude-opus-4-8'],
             });
             expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
-                modelVisibility: { openai: { enabled: false } },
+                modelVisibility: {
+                    google: { enabled: false },
+                    openai: { enabled: false },
+                },
                 keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
             });
         });
 
         it('does not query the catalog with only an openai key', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: { openai: 'sk-x' },
                 modelVisibility: { anthropic: { enabled: true } },
                 accessibleModelIds: ['claude-opus-4-8'],
             });
             expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
-                modelVisibility: { anthropic: { enabled: true } },
+                modelVisibility: {
+                    anthropic: { enabled: true },
+                    google: { enabled: false },
+                },
                 keyAccessibleModelIds: null,
             });
         });
 
         it('fails closed when the catalog returns null', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: { anthropic: 'sk-ant-x' },
                 modelVisibility: { openai: { enabled: false } },
                 accessibleModelIds: null,
             });
             expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
-                modelVisibility: { openai: { enabled: false } },
+                modelVisibility: {
+                    google: { enabled: false },
+                    openai: { enabled: false },
+                },
+                keyAccessibleModelIds: { anthropic: null },
+            });
+        });
+
+        it('does not probe a BYO Anthropic key through an instance gateway', async () => {
+            const resolver = makeResolver({
+                orgKeys: { anthropic: 'sk-ant-x' },
+                accessibleModelIds: ['claude-opus-4-8'],
+                instanceConfig: anthropicGatewayConfig,
+            });
+
+            expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
+                modelVisibility: {
+                    google: { enabled: false },
+                    openai: { enabled: false },
+                },
                 keyAccessibleModelIds: { anthropic: null },
             });
         });
@@ -463,24 +617,14 @@ describe('OrgAiCopilotConfigResolver', () => {
         const none = { hasActiveByoKey: false, canJudgeOnByoKey: false };
 
         it('returns no BYO without an organization uuid', async () => {
-            const resolver = makeResolver({ flagEnabled: true });
+            const resolver = makeResolver();
             expect(await resolver.getReviewJudgeAvailability(null)).toEqual(
                 none,
             );
         });
 
-        it('returns no BYO when the flag is off', async () => {
-            const resolver = makeResolver({
-                flagEnabled: false,
-                orgKeys: { anthropic: 'sk-ant-x' },
-            });
-            expect(
-                await resolver.getReviewJudgeAvailability('org-uuid'),
-            ).toEqual(none);
-        });
-
         it('returns no BYO when there are no keys', async () => {
-            const resolver = makeResolver({ flagEnabled: true, orgKeys: null });
+            const resolver = makeResolver({ orgKeys: null });
             expect(
                 await resolver.getReviewJudgeAvailability('org-uuid'),
             ).toEqual(none);
@@ -488,7 +632,6 @@ describe('OrgAiCopilotConfigResolver', () => {
 
         it('can judge when the anthropic key serves haiku', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: { anthropic: 'sk-ant-x' },
                 accessibleModelIds: ['claude-haiku-4-5-20251001'],
             });
@@ -499,7 +642,6 @@ describe('OrgAiCopilotConfigResolver', () => {
 
         it('cannot judge when the anthropic key lacks haiku', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: { anthropic: 'sk-ant-x' },
                 accessibleModelIds: ['claude-opus-4-8'],
             });
@@ -510,7 +652,6 @@ describe('OrgAiCopilotConfigResolver', () => {
 
         it('fails closed when the catalog returns null', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: { anthropic: 'sk-ant-x' },
                 accessibleModelIds: null,
             });
@@ -521,9 +662,20 @@ describe('OrgAiCopilotConfigResolver', () => {
 
         it('has an active key but cannot judge with only an openai key', async () => {
             const resolver = makeResolver({
-                flagEnabled: true,
                 orgKeys: { openai: 'sk-x' },
             });
+            expect(
+                await resolver.getReviewJudgeAvailability('org-uuid'),
+            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });
+        });
+
+        it('does not judge with a BYO Anthropic key through an instance gateway', async () => {
+            const resolver = makeResolver({
+                orgKeys: { anthropic: 'sk-ant-x' },
+                accessibleModelIds: ['claude-haiku-4-5-20251001'],
+                instanceConfig: anthropicGatewayConfig,
+            });
+
             expect(
                 await resolver.getReviewJudgeAvailability('org-uuid'),
             ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });

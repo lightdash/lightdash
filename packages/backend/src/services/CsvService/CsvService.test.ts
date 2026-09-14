@@ -43,6 +43,7 @@ import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTa
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
@@ -51,6 +52,7 @@ import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
 describe('Csv service', () => {
+    const createDownloadFile = vi.fn();
     const csvService = new CsvService({
         lightdashConfig,
         analytics: analyticsMock,
@@ -95,7 +97,11 @@ describe('Csv service', () => {
             organizationModel: {} as OrganizationModel,
             projectCompileLogModel: {} as ProjectCompileLogModel,
             adminNotificationService: {} as AdminNotificationService,
+            permissionsService: new PermissionsService({
+                dashboardModel: {} as DashboardModel,
+            }),
             spacePermissionService: {} as SpacePermissionService,
+            directAccessService: {} as never,
             organizationSettingsModel: {} as OrganizationSettingsModel,
             getDataAppCustomSqlProvenance: async () => ({
                 tableCalculations: new Set(),
@@ -103,10 +109,14 @@ describe('Csv service', () => {
                 additionalMetrics: new Set(),
             }),
         }),
-        fileStorageClient: {} as FileStorageClient,
+        fileStorageClient: {
+            isEnabled: () => false,
+        } as FileStorageClient,
         savedChartModel: {} as SavedChartModel,
         dashboardModel: {} as DashboardModel,
-        downloadFileModel: {} as DownloadFileModel,
+        downloadFileModel: {
+            createDownloadFile,
+        } as unknown as DownloadFileModel,
         schedulerClient: {} as SchedulerClient,
         projectModel: {} as ProjectModel,
         savedSqlModel: {} as SavedSqlModel,
@@ -118,6 +128,27 @@ describe('Csv service', () => {
             organizationSettingsModel: {} as OrganizationSettingsModel,
         }),
         persistentDownloadFileService: {} as PersistentDownloadFileService,
+    });
+
+    it('persists the owning project for a local CSV download', async () => {
+        createDownloadFile.mockClear();
+        createDownloadFile.mockResolvedValue(undefined);
+
+        const download = await csvService.downloadCsvFile({
+            csvContent: 'column\nvalue\n',
+            fileName: 'test-file',
+            projectUuid: 'project-uuid',
+            organizationUuid: 'organization-uuid',
+            createdByUserUuid: 'user-uuid',
+        });
+
+        expect(createDownloadFile).toHaveBeenCalledWith(
+            expect.any(String),
+            download.localPath,
+            'csv',
+            'project-uuid',
+        );
+        await fs.unlink(download.localPath);
     });
 
     it('Should convert rows to CSV with format', async () => {

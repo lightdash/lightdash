@@ -1,11 +1,20 @@
 import {
     type CreateEmbedJwt,
-    type CreateSavedChartVersion,
     type LanguageMap,
     type SavedChart,
+    type SdkUiOverrides,
+    type UiStringKey,
+    type UUID,
 } from '@lightdash/common';
-import get from 'lodash/get';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useAccount } from '../../../hooks/user/useAccount';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
@@ -14,12 +23,21 @@ import {
     setToInMemoryStorage,
 } from '../../../utils/inMemoryStorage';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
-import { LightdashEventType } from '../../features/embed/events/types';
+import {
+    LightdashEventType,
+    type ChartSavedAction,
+} from '../../features/embed/events/types';
 import { useEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
 import EmbedProviderContext from './context';
 import { parseEmbedThemeParams } from './parseEmbedThemeParams';
 import { parseEmbedTimezoneParam } from './parseEmbedTimezoneParam';
-import { EMBED_KEY, type EmbedMode, type InMemoryEmbed } from './types';
+import {
+    EMBED_KEY,
+    type EmbedExploreChart,
+    type EmbedExploreOptions,
+    type EmbedMode,
+    type InMemoryEmbed,
+} from './types';
 
 type Props = {
     embedToken?: string;
@@ -27,12 +45,13 @@ type Props = {
     projectUuid?: string;
     paletteUuid?: string;
     contentOverrides?: LanguageMap;
+    uiOverrides?: SdkUiOverrides;
     embedHeaders?: Record<string, string>;
-    onExplore?: (options: {
-        chart: SavedChart | CreateSavedChartVersion;
-    }) => void;
+    onExplore?: (options: EmbedExploreOptions) => void;
     onBackToDashboard?: () => void;
-    savedChart?: SavedChart | CreateSavedChartVersion;
+    onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
+    savedChart?: EmbedExploreChart;
+    customSqlProvenanceChartUuid?: UUID;
     savedQueryUuid?: string;
     appUuid?: string;
 };
@@ -67,14 +86,32 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     projectUuid: projectUuidFromProps,
     paletteUuid,
     contentOverrides,
+    uiOverrides,
     onExplore,
     onBackToDashboard,
+    onChartSaved,
     savedChart,
+    customSqlProvenanceChartUuid,
     savedQueryUuid,
     appUuid,
 }) => {
     const embedToken = encodedToken || window.location.hash.replace('#', '');
-    const [isInitialized, setIsInitialized] = useState(false);
+    const params = useParams();
+    const projectUuid = projectUuidFromProps || params.projectUuid;
+
+    // Synced during render, not in an effect: direct embeds strip the token hash
+    // on first render, and the empty prop that follows must not wipe the store.
+    const storedEmbed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    if (
+        embedToken &&
+        (storedEmbed?.token !== embedToken ||
+            storedEmbed?.projectUuid !== projectUuid)
+    ) {
+        setToInMemoryStorage(EMBED_KEY, {
+            projectUuid,
+            token: embedToken,
+        });
+    }
 
     // Parse theme params from URL once on mount (before hash is stripped)
     const [embedThemeParams] = useState(parseEmbedThemeParams);
@@ -87,10 +124,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
     const { data: account, isLoading } = useAccount();
     const ability = useAbilityContext();
-    const params = useParams();
     const navigate = useNavigate();
-    const projectUuid = projectUuidFromProps || params.projectUuid;
     const location = useLocation();
+    const queryClient = useQueryClient();
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
     const tokenFromStorageOrProps = embedToken || embed?.token;
@@ -101,6 +137,19 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const embedJwtPayload = useMemo(
         () => decodeEmbedJwtPayload(tokenFromStorageOrProps),
         [tokenFromStorageOrProps],
+    );
+    const handleChartSaved = useCallback(
+        (chart: SavedChart, action: ChartSavedAction) => {
+            onChartSaved?.(chart, action);
+
+            if (mode === 'direct') {
+                dispatchEmbedEvent(LightdashEventType.ChartSaved, {
+                    chartUuid: chart.uuid,
+                    action,
+                });
+            }
+        },
+        [dispatchEmbedEvent, mode, onChartSaved],
     );
 
     // Remove the token from the URL.
@@ -132,24 +181,24 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         }
     }, [ability, account, isLoading]);
 
-    // There is method to this madness:
-    // When we get an embedded URL, the JWT token is added as a hash to the URL location.
-    // We immediately redirect somewhere else to a URL without the hash. Consequently, if we make
-    // this initialization in a useEffect, we will not have the hash token in the URL by the time
-    // the effect runs.
-    if (!isInitialized) {
-        setToInMemoryStorage(EMBED_KEY, {
-            projectUuid,
-            token: embedToken,
-        });
-        setIsInitialized(true);
-    }
+    // A rotated token can carry different claims, and the account query is not
+    // keyed on the token, so refetch it rather than serve stale abilities.
+    const lastSeenTokenRef = useRef(embedToken);
+    useEffect(() => {
+        if (!embedToken || lastSeenTokenRef.current === embedToken) {
+            return;
+        }
+        lastSeenTokenRef.current = embedToken;
+        void queryClient.invalidateQueries({ queryKey: ['account'] });
+    }, [embedToken, queryClient]);
 
     const value = useMemo(() => {
         return {
             embedToken: tokenFromStorageOrProps,
             filters,
-            t: (input: string) => get(contentOverrides, input),
+            // Single resolution point for UI-string overrides; a future
+            // direct-embed transport adds its source here.
+            t: (input: UiStringKey) => uiOverrides?.[input],
             projectUuid: embed?.projectUuid || projectUuid,
             content: embedJwtPayload?.content,
             writeActions: embedJwtPayload?.writeActions,
@@ -157,7 +206,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             paletteUuid,
             languageMap: contentOverrides,
             onExplore,
+            onChartSaved: handleChartSaved,
             savedChart,
+            customSqlProvenanceChartUuid,
             savedQueryUuid,
             appUuid,
             onBackToDashboard,
@@ -176,8 +227,11 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         projectUuid,
         paletteUuid,
         contentOverrides,
+        uiOverrides,
         onExplore,
+        handleChartSaved,
         savedChart,
+        customSqlProvenanceChartUuid,
         savedQueryUuid,
         appUuid,
         onBackToDashboard,

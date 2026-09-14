@@ -31,7 +31,7 @@ const VerifiedDomainsPanel: FC = () => {
             title="Verified domains"
             description="Verify domains your organization owns and route them to your SSO providers."
             actions={
-                <Menu position="bottom-end" withinPortal>
+                <Menu position="bottom-end">
                     <Menu.Target>
                         <Button
                             size="xs"
@@ -51,11 +51,7 @@ const VerifiedDomainsPanel: FC = () => {
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconWorld} />}
                             disabled
-                            rightSection={
-                                <Badge size="xs" variant="light" color="gray">
-                                    Soon
-                                </Badge>
-                            }
+                            rightSection={<Badge size="xs">Soon</Badge>}
                         >
                             DNS (TXT record)
                         </Menu.Item>
@@ -88,11 +84,7 @@ const VerifiedDomainsPanel: FC = () => {
                                         color="green"
                                     />
                                     <Text fw={500}>{d.domain}</Text>
-                                    <Badge
-                                        color="green"
-                                        variant="light"
-                                        size="sm"
-                                    >
+                                    <Badge color="green" size="sm">
                                         Verified
                                     </Badge>
                                 </Group>

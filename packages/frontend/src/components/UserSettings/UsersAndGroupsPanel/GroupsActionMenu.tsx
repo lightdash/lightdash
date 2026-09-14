@@ -28,21 +28,15 @@ const GroupsActionMenu: FC<GroupsActionMenuProps> = ({
     return (
         <>
             <Menu
-                withinPortal
                 position="bottom-start"
                 withArrow
                 arrowPosition="center"
-                shadow="md"
                 offset={-4}
                 closeOnItemClick
                 closeOnClickOutside
             >
                 <Menu.Target>
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        disabled={disabled}
-                    >
+                    <ActionIcon disabled={disabled}>
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>

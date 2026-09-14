@@ -553,6 +553,7 @@ export class CsvService extends BaseService {
             downloadFileId,
             filePath,
             DownloadFileType.CSV,
+            projectUuid,
         );
 
         const localUrl = new URL(

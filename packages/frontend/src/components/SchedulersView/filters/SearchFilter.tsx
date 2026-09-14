@@ -11,10 +11,9 @@ type SearchFilterProps =
 
 export const SearchFilter = ({ search, setSearch }: SearchFilterProps) => {
     return (
-        <Tooltip withinPortal label="Search by scheduler name">
+        <Tooltip label="Search by scheduler name">
             <TextInput
                 size="xs"
-                radius="md"
                 classNames={{
                     input: search
                         ? classes.searchInputWithValue
@@ -25,7 +24,7 @@ export const SearchFilter = ({ search, setSearch }: SearchFilterProps) => {
                 placeholder="Search schedulers by name"
                 value={search ?? ''}
                 leftSection={
-                    <MantineIcon size="md" color="ldGray.6" icon={IconSearch} />
+                    <MantineIcon size="md" color="dimmed" icon={IconSearch} />
                 }
                 onChange={(e) => setSearch(e.target.value)}
                 rightSection={

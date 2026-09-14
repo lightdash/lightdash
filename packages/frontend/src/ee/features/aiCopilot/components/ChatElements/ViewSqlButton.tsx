@@ -2,9 +2,8 @@ import { ActionIcon, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import MantineModal from '../../../../../components/common/MantineModal';
+import { AiSqlModal } from './AiSqlModal';
 
 interface ViewSqlButtonProps {
     sql?: string;
@@ -17,25 +16,17 @@ export const ViewSqlButton: FC<ViewSqlButtonProps> = memo(({ sql }) => {
 
     return (
         <>
-            <Tooltip label="View SQL" position="top" withinPortal>
+            <Tooltip label="View SQL" position="top">
                 <ActionIcon
                     size="sm"
-                    variant="subtle"
                     color="ldGray.9"
+                    aria-label="View SQL"
                     onClick={open}
                 >
                     <MantineIcon icon={IconEye} />
                 </ActionIcon>
             </Tooltip>
-            <MantineModal
-                opened={opened}
-                onClose={close}
-                title="SQL"
-                icon={IconEye}
-                size="xl"
-            >
-                <CodeBlock code={sql} language="sql" withLineNumbers />
-            </MantineModal>
+            <AiSqlModal opened={opened} onClose={close} sql={sql} />
         </>
     );
 });

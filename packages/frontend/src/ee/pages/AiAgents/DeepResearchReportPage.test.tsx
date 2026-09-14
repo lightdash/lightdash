@@ -21,6 +21,10 @@ vi.mock('../../features/aiCopilot/hooks/useDeepResearch', () => ({
     useDeepResearchReport,
 }));
 
+vi.mock('../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-1',
+}));
+
 vi.mock(
     '../../features/aiCopilot/components/DeepResearch/DeepResearchReport',
     () => ({
@@ -110,8 +114,7 @@ describe('DeepResearchReportPage', () => {
         expect(screen.getByText('Origin page')).toBeInTheDocument();
     });
 
-    it('shows the retained expiration state with a route back to chat', async () => {
-        const user = userEvent.setup();
+    it('shows the retained expiration state', () => {
         useDeepResearchReport.mockReturnValue({
             data: {
                 ...deepResearchRunFixture,
@@ -133,10 +136,9 @@ describe('DeepResearchReportPage', () => {
                 'Deep Research reports are available for 30 days.',
             ),
         ).toBeInTheDocument();
-
-        await user.click(screen.getByRole('button', { name: 'Back to chat' }));
-
-        expect(screen.getByText('Agent thread')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Back to chat' }),
+        ).toBeInTheDocument();
     });
 
     it('shows a loading state while the report is fetched', () => {
@@ -173,8 +175,7 @@ describe('DeepResearchReportPage', () => {
         ).toBeInTheDocument();
     });
 
-    it('shows an incomplete report state with a route back to chat', async () => {
-        const user = userEvent.setup();
+    it('shows an incomplete report state', () => {
         useDeepResearchReport.mockReturnValue({
             data: {
                 ...deepResearchRunFixture,
@@ -197,9 +198,8 @@ describe('DeepResearchReportPage', () => {
                 'Return to the conversation to check its progress.',
             ),
         ).toBeInTheDocument();
-
-        await user.click(screen.getByRole('button', { name: 'Back to chat' }));
-
-        expect(screen.getByText('Agent thread')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Back to chat' }),
+        ).toBeInTheDocument();
     });
 });

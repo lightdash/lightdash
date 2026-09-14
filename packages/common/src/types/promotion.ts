@@ -54,8 +54,9 @@ export type PromotionChanges = {
         action: PromotionAction;
         data: PromotedSqlChart;
     }[];
-    // Data apps referenced by DATA_APP dashboard tiles. Only populated for
-    // dashboard promotion; charts/SQL charts never carry apps.
+    // Apps the promotion carries along: data apps referenced by DATA_APP
+    // dashboard tiles, and custom chart types bound by charts' DATA_APP_VIZ
+    // configs. SQL charts never carry apps.
     dataApps?: {
         action: PromotionAction;
         data: PromotedApp;

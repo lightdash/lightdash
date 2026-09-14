@@ -1,6 +1,8 @@
 import {
     assertRegisteredAccount,
+    ForbiddenError,
     type ApiErrorPayload,
+    type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
     type ApiProposeExternalConnectionConfigRequest,
     type ApiProposeExternalConnectionConfigResponse,
@@ -11,6 +13,7 @@ import {
     type ApiTestExternalConnectionResponse,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionListItem,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
     type UpdateExternalConnection,
@@ -31,7 +34,6 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -47,7 +49,7 @@ type ApiExternalConnectionResponse = {
 
 type ApiExternalConnectionListResponse = {
     status: 'ok';
-    results: ExternalConnection[];
+    results: ExternalConnectionListItem[];
 };
 
 type ApiAppExternalConnectionListResponse = {
@@ -131,6 +133,31 @@ export class ExternalConnectionController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().get(
+                req.account,
+                projectUuid,
+                connectionUuid,
+            ),
+        };
+    }
+
+    /**
+     * List the data apps and chart types linked to an external connection
+     * @summary List apps linked to an external connection
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/linked-apps')
+    @OperationId('listExternalConnectionLinkedApps')
+    async listExternalConnectionLinkedApps(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiListExternalConnectionLinkedAppsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().listLinkedApps(
                 req.account,
                 projectUuid,
                 connectionUuid,
@@ -327,10 +354,12 @@ export class ExternalConnectionController extends BaseController {
         @Path() appUuid: string,
         @Body() body: ExternalFetchRequest,
     ): Promise<ApiExternalFetchResponse> {
-        assertRegisteredAccount(req.account);
+        if (!req.account) {
+            throw new ForbiddenError('Account is required');
+        }
         this.setStatus(200);
         const results = await this.getService().proxyFetch(
-            toSessionUser(req.account),
+            req.account,
             projectUuid,
             appUuid,
             body,
@@ -371,6 +400,7 @@ export class ExternalConnectionController extends BaseController {
                 path: body.path,
                 query: body.query,
                 body: body.body,
+                config: body.config,
             },
         );
         return { status: 'ok', results };

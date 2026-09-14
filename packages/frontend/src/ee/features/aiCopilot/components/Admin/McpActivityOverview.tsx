@@ -112,7 +112,7 @@ const OverviewCard: FC<
 > = ({ title, suffix, children }) => (
     <Paper className={styles.card} p="md">
         <Group justify="space-between" align="center" gap="xs" mb="sm">
-            <Text fz="sm" fw={600} c="ldGray.9">
+            <Text fz="sm" fw={600}>
                 {title}
             </Text>
             {suffix}
@@ -201,11 +201,11 @@ const RecentErrorsCard: FC<{
 }> = ({ errorCalls, recentErrors, onErrorSelect }) => (
     <Paper className={styles.card}>
         <Group justify="space-between" align="center" gap="xs" p="md" pb="sm">
-            <Text fz="sm" fw={600} c="ldGray.9">
+            <Text fz="sm" fw={600}>
                 Recent errors
             </Text>
             {errorCalls > 0 && (
-                <Badge variant="light" color="red" size="sm">
+                <Badge color="red" size="sm">
                     {countFormat.format(errorCalls)}
                 </Badge>
             )}
@@ -213,7 +213,7 @@ const RecentErrorsCard: FC<{
         {recentErrors.length === 0 ? (
             <Group gap={6} px="md" pb="md">
                 <Box className={styles.okDot} />
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     No errors in this period
                 </Text>
             </Group>
@@ -247,11 +247,10 @@ const RecentErrorsCard: FC<{
                                 </Text>
                             </Group>
                             <Tooltip
-                                withinPortal
                                 label={formatToolCallTimeFull(item.createdAt)}
                             >
                                 <Text
-                                    fz={11}
+                                    fz="xs"
                                     c="ldGray.5"
                                     className={styles.noShrink}
                                 >
@@ -314,7 +313,7 @@ export const McpActivityOverview: FC<McpActivityOverviewProps> = ({
             </Box>
             {stats.totalCalls === 0 ? (
                 <Paper className={styles.card} p="md">
-                    <Text fz="sm" c="ldGray.6">
+                    <Text fz="sm" c="dimmed">
                         {hasActiveFilters
                             ? 'No tool calls match the current filters.'
                             : 'No MCP tool calls in the last 90 days.'}

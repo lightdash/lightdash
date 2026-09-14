@@ -37,6 +37,8 @@ export type AppPreviewProps = {
     onLineageCancelled?: () => void;
     dataAppVizContext?: DataAppVizContext;
     onSdkManifest?: (manifest: SdkManifest) => void;
+    /** Whether the app may mirror its own state into the page URL. */
+    urlStateSync?: boolean;
 };
 
 const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
@@ -61,6 +63,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             onLineageCancelled,
             dataAppVizContext,
             onSdkManifest,
+            urlStateSync = true,
         },
         ref,
     ) => {
@@ -124,7 +127,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onLineageCancelled={onLineageCancelled}
                 capabilities={{ gsheetExport: true }}
                 dataAppVizContext={dataAppVizContext}
-                urlStateSync
+                urlStateSync={urlStateSync}
                 onSdkManifest={onSdkManifest}
             />
         );

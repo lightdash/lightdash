@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState, type FC } from 'react';
 import { lightdashApi, networkHistory } from '../../api';
 import MantineIcon from '../../components/common/MantineIcon';
 import useToaster from '../../hooks/toaster/useToaster';
+import classes from './SupportDrawerContent.module.css';
 
 type SupportDrawerContentProps = {
     // Add props here
@@ -125,12 +126,12 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                     fit="contain"
                 />
             ) : (
-                <Paper p="lg" withBorder h={200}>
+                <Paper p="lg" h={200}>
                     <Stack h="100%" align="center" justify="center" gap="xs">
                         {screenshotError ? (
                             <>
                                 <MantineIcon icon={IconIdOff} color="ldGray" />
-                                <Text color="dimmed" ta="center">
+                                <Text c="dimmed" ta="center">
                                     Screenshot could not be captured. You can
                                     still submit your report with the details
                                     below
@@ -157,18 +158,18 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                 onChange={(event) => setAllowAccess(event.target.checked)}
                 mt="xs"
             />
-            <Text size="xs" color="dimmed">
+            <Text size="xs" c="dimmed">
                 By ticking this box, you agree to give Lightdash Support access
                 to your organization for 12 hours to investigate this issue.
             </Text>
 
-            <Text size="xs" color="dimmed">
+            <Text size="xs" c="dimmed">
                 We will also share your Lightdash logs and your recent network
                 requests to help us investigate this issue.
             </Text>
             <Button
                 mt="xs"
-                style={{ alignSelf: 'flex-end' }}
+                className={classes.submitButton}
                 onClick={handleShare}
             >
                 Share

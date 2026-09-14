@@ -28,7 +28,7 @@ const FavoritesPanel: FC<Props> = ({
     if (!favoriteItems || favoriteItems.length === 0) {
         if (showEmptyState) {
             return (
-                <Card withBorder variant="dotted">
+                <Card variant="dotted">
                     <Group justify="flex-start" gap="xxs" my="xs" ml="xs">
                         <MantineIcon
                             icon={IconStar}

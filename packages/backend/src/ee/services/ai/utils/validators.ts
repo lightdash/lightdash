@@ -7,6 +7,8 @@ import {
     convertAdditionalMetric,
     convertAiTableCalcsSchemaToTableCalcs,
     CustomMetricBaseTransformed,
+    DataAppVizConfigOption,
+    DataAppVizSchema,
     dateFilterSchema,
     DEFAULT_FILTER_CASE_SENSITIVE,
     DependencyNode,
@@ -46,13 +48,16 @@ import {
     TableCalcSchema,
     TableCalcsSchema,
     TableCalculation,
-    ToolRunQueryArgsTransformed,
+    ToolRunQueryBuiltinChartConfig,
+    ToolRunQueryCustomChartTypeConfig,
     ToolSortField,
     TransformedCustomMetric,
     UnitOfTime,
     WeekDay,
     WindowFunctionType,
+    withLeadingEquals,
 } from '@lightdash/common';
+import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import { z } from 'zod';
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
@@ -1075,6 +1080,18 @@ const NUMERIC_CALCULATION_TYPES: TableCalcSchema['type'][] = [
     'running_total',
 ];
 
+function parseFormulaRefs(
+    formula: string,
+): { refs: string[] } | { error: string } {
+    try {
+        return {
+            refs: extractColumnRefs(parseFormula(withLeadingEquals(formula))),
+        };
+    } catch (e) {
+        return { error: getErrorMessage(e) };
+    }
+}
+
 function buildTableCalcSchemaDependencyGraph(
     tableCalcs: TableCalcsSchema,
 ): DependencyNode[] {
@@ -1082,6 +1099,14 @@ function buildTableCalcSchemaDependencyGraph(
 
     return tableCalcs.map((tc) => {
         const deps: string[] = [];
+
+        if (tc.type === 'formula') {
+            // Parse errors are reported by validateTableCalculations
+            const parsed = parseFormulaRefs(tc.formula);
+            if ('refs' in parsed) {
+                deps.push(...parsed.refs);
+            }
+        }
 
         // Add fieldId dependency if it exists
         if ('fieldId' in tc && tc.fieldId !== null) {
@@ -1224,6 +1249,29 @@ export function validateTableCalculations(
 
     tableCalcs.forEach((tableCalc) => {
         const { type, name } = tableCalc;
+
+        if (type === 'formula') {
+            const parsed = parseFormulaRefs(tableCalc.formula);
+            if ('error' in parsed) {
+                errors.push(
+                    `Table calculation "${name}" has an invalid formula: ${parsed.error}`,
+                );
+                return;
+            }
+
+            parsed.refs.forEach((ref) => {
+                if (!allSelectedFieldIds.includes(ref)) {
+                    errors.push(
+                        `Table calculation "${name}" references "${ref}" which is not selected in the query. ` +
+                            'Formulas can only reference selected dimensions, metrics, custom metrics, or other table calculations. ' +
+                            `Selected fields: ${allSelectedFieldIds.join(
+                                ', ',
+                            )}.`,
+                    );
+                }
+            });
+            return;
+        }
 
         if (type === 'window_function') {
             const needsFieldId = !nullaryWindowFunctions.includes(
@@ -1458,7 +1506,7 @@ export function validateYAxisMetrics(
  * @param tableCalculations - Table calculations that can be used as metrics
  */
 export function validateAxisFields(
-    chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined,
+    chartConfig: ToolRunQueryBuiltinChartConfig | null | undefined,
     selectedDimensions: string[],
     selectedMetrics: string[],
     tableCalculations?: TableCalcsSchema | TableCalculation[],
@@ -1508,6 +1556,204 @@ Remember:
 - yAxisMetrics must be included in queryConfig.metrics or tableCalculations`;
 
         Logger.error(`[AiAgent][Validate Axis Fields] ${errorMessage}`);
+
+        throw new AiAgentValidatorError(errorMessage);
+    }
+}
+
+/** The query's selected field ids, split by kind for slot pool matching. */
+export type CustomChartTypeSelectedFields = {
+    dimensions: string[];
+    /** Explore metrics plus aggregation custom metric ids. */
+    metrics: string[];
+    tableCalculations: string[];
+};
+
+const getOptionValidationError = (
+    declaration: DataAppVizConfigOption,
+    value: string | number | boolean,
+): string | null => {
+    const received = JSON.stringify(value);
+    switch (declaration.type) {
+        case 'boolean':
+            return typeof value !== 'boolean'
+                ? `Option "${declaration.name}" (boolean) expects true or false, received ${received}.`
+                : null;
+        case 'number':
+            if (typeof value !== 'number') {
+                return `Option "${declaration.name}" (number) expects a number, received ${received}.`;
+            }
+            if (declaration.min !== undefined && value < declaration.min) {
+                return `Option "${declaration.name}" (number) must be >= ${declaration.min}, received ${received}.`;
+            }
+            if (declaration.max !== undefined && value > declaration.max) {
+                return `Option "${declaration.name}" (number) must be <= ${declaration.max}, received ${received}.`;
+            }
+            return null;
+        case 'select': {
+            const choiceValues = declaration.choices.map(
+                (choice) => choice.value,
+            );
+            return typeof value !== 'string' || !choiceValues.includes(value)
+                ? `Option "${declaration.name}" (select) must be one of: ${choiceValues.join(
+                      ', ',
+                  )}. Received ${received}.`
+                : null;
+        }
+        case 'text':
+        case 'color':
+            return typeof value !== 'string'
+                ? `Option "${declaration.name}" (${declaration.type}) expects a string, received ${received}.`
+                : null;
+        default:
+            return assertUnreachable(declaration, `Unknown config option type`);
+    }
+};
+
+/**
+ * Pre-query validation for a custom chart type chartConfig: slot names exist,
+ * required slots are bound, mapped field ids are selected in the query and
+ * come from the slot's field pool (dimension/series slots take dimensions,
+ * metric slots take metrics ∪ table calculations), and option values match
+ * the type's declarations.
+ */
+export function validateCustomChartTypeChartConfig(
+    chartConfig: ToolRunQueryCustomChartTypeConfig,
+    vizSchema: DataAppVizSchema,
+    selectedFields: CustomChartTypeSelectedFields,
+) {
+    const errors: string[] = [];
+    const declaredSlots = vizSchema.fields.map((field) => field.name);
+
+    const unknownSlots = Object.keys(chartConfig.fieldMapping).filter(
+        (slot) => !declaredSlots.includes(slot),
+    );
+    if (unknownSlots.length > 0) {
+        errors.push(
+            `Unknown field slots in fieldMapping: ${unknownSlots.join(
+                ', ',
+            )}. This custom chart type declares these slots: ${declaredSlots.join(
+                ', ',
+            )}.`,
+        );
+    }
+
+    const unboundRequiredSlots = vizSchema.fields
+        .filter(
+            (field) => field.required && !chartConfig.fieldMapping[field.name],
+        )
+        .map((field) => field.name);
+    if (unboundRequiredSlots.length > 0) {
+        errors.push(
+            `Required field slots not bound in fieldMapping: ${unboundRequiredSlots.join(
+                ', ',
+            )}.`,
+        );
+    }
+
+    const selectedFieldIds = [
+        ...selectedFields.dimensions,
+        ...selectedFields.metrics,
+        ...selectedFields.tableCalculations,
+    ];
+    const selected = new Set(selectedFieldIds);
+    const unknownFieldIds = Object.entries(chartConfig.fieldMapping).filter(
+        ([, fieldId]) => !selected.has(fieldId),
+    );
+    if (unknownFieldIds.length > 0) {
+        errors.push(
+            `fieldMapping references field ids that are not selected in queryConfig: ${unknownFieldIds
+                .map(([slot, fieldId]) => `${slot} → ${fieldId}`)
+                .join(
+                    ', ',
+                )}. Fields selected in this query: ${selectedFieldIds.join(
+                ', ',
+            )}.`,
+        );
+    }
+
+    const dimensionSet = new Set(selectedFields.dimensions);
+    const metricSet = new Set(selectedFields.metrics);
+    Object.entries(chartConfig.fieldMapping).forEach(([slot, fieldId]) => {
+        const slotDeclaration = vizSchema.fields.find(
+            (field) => field.name === slot,
+        );
+        // Unknown slots and unselected field ids are already reported above.
+        if (!slotDeclaration || !selected.has(fieldId)) return;
+
+        let boundKind: 'dimension' | 'metric' | 'table calculation';
+        if (dimensionSet.has(fieldId)) {
+            boundKind = 'dimension';
+        } else if (metricSet.has(fieldId)) {
+            boundKind = 'metric';
+        } else {
+            boundKind = 'table calculation';
+        }
+        switch (slotDeclaration.type) {
+            case 'dimension':
+            case 'series':
+                if (boundKind !== 'dimension') {
+                    errors.push(
+                        `Slot "${slot}" (${slotDeclaration.type}) only accepts dimensions, but "${fieldId}" is a ${boundKind}. Dimensions selected in this query: ${selectedFields.dimensions.join(
+                            ', ',
+                        )}.`,
+                    );
+                }
+                break;
+            case 'metric':
+                if (boundKind === 'dimension') {
+                    errors.push(
+                        `Slot "${slot}" (metric) only accepts metrics or table calculations, but "${fieldId}" is a dimension. Metrics and table calculations selected in this query: ${[
+                            ...selectedFields.metrics,
+                            ...selectedFields.tableCalculations,
+                        ].join(', ')}.`,
+                    );
+                }
+                break;
+            default:
+                assertUnreachable(
+                    slotDeclaration.type,
+                    `Unknown slot type: ${slotDeclaration.type}`,
+                );
+        }
+    });
+
+    if (chartConfig.options) {
+        const declaredOptions = vizSchema.configOptions;
+        const declaredOptionNames = declaredOptions.map(
+            (option) => option.name,
+        );
+        Object.entries(chartConfig.options).forEach(([name, value]) => {
+            const declaration = declaredOptions.find(
+                (option) => option.name === name,
+            );
+            if (!declaration) {
+                errors.push(
+                    declaredOptionNames.length > 0
+                        ? `Unknown option "${name}". This custom chart type declares these options: ${declaredOptionNames.join(
+                              ', ',
+                          )}.`
+                        : `Unknown option "${name}". This custom chart type declares no options.`,
+                );
+                return;
+            }
+            const optionError = getOptionValidationError(declaration, value);
+            if (optionError) {
+                errors.push(optionError);
+            }
+        });
+    }
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid configuration for custom chart type "${
+            chartConfig.customChartTypeSlug
+        }":
+
+${errors.join('\n\n')}
+
+Use findCustomChartTypes with this slug to see the type's field slots and config options, then bind each slot to a field id selected in queryConfig.`;
+
+        Logger.error(`[AiAgent][Validate Custom Chart Type] ${errorMessage}`);
 
         throw new AiAgentValidatorError(errorMessage);
     }

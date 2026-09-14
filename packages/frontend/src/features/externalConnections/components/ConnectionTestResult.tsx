@@ -23,7 +23,7 @@ export const ConnectionTestResult: FC<Props> = ({ response }) => (
             <Badge color={statusColor(response.status)}>
                 {response.status}
             </Badge>
-            <Text fz="xs" c="ldGray.6">
+            <Text fz="xs" c="dimmed">
                 {response.contentType}
             </Text>
             {response.truncated && <Badge color="yellow">truncated</Badge>}

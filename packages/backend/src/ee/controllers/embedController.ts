@@ -616,6 +616,7 @@ export class EmbedController extends BaseController {
             tableName?: string;
             fieldId?: string;
             timezone?: string;
+            parameters?: ParametersValuesMap;
         },
     ): Promise<{
         status: 'ok';
@@ -630,6 +631,7 @@ export class EmbedController extends BaseController {
             tableName,
             fieldId,
             timezone,
+            parameters,
         } = body;
 
         assertEmbeddedAuth(req.account);
@@ -645,6 +647,7 @@ export class EmbedController extends BaseController {
             tableName,
             fieldId,
             timezone,
+            parameters,
         });
         return {
             status: 'ok',

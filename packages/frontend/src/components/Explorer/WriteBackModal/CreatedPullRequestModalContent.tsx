@@ -14,7 +14,7 @@ export const CreatedPullRequestModalContent = ({
             size="auto"
             opened
             onClose={onClose}
-            title="Write back to dbt"
+            title="Write back to project"
             icon={IconGitBranch}
             actions={<Button onClick={onClose}>Close</Button>}
             modalRootProps={{
@@ -24,14 +24,14 @@ export const CreatedPullRequestModalContent = ({
             <Stack gap="md">
                 <Text>
                     Your pull request{' '}
-                    <Anchor href={data.prUrl} target="_blank" fw={700}>
+                    <Anchor href={data.prUrl} target="_blank" fw={600}>
                         #{data.prUrl.split('/').pop()}
                     </Anchor>{' '}
                     was successfully created on git.
                 </Text>
                 <Text>
-                    Once it is merged, refresh your dbt connection to see your
-                    updated metrics and dimensions.
+                    Once it is merged, refresh your project to see your updated
+                    metrics and dimensions.
                 </Text>
             </Stack>
         </MantineModal>

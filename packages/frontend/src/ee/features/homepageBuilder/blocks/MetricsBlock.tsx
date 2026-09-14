@@ -260,7 +260,7 @@ const MetricsPickerModal: FC<{
                                     })
                                 }
                             >
-                                <MantineIcon icon={IconHash} color="ldGray.6" />
+                                <MantineIcon icon={IconHash} color="dimmed" />
                                 <Box flex={1} miw={0}>
                                     <Text size="sm" fw={500} truncate>
                                         {metric.label ?? metric.name}
@@ -269,7 +269,7 @@ const MetricsPickerModal: FC<{
                                         {metric.tableLabel ?? metric.tableName}
                                     </Text>
                                 </Box>
-                                <MantineIcon icon={IconPlus} color="ldGray.6" />
+                                <MantineIcon icon={IconPlus} color="dimmed" />
                             </Group>
                         ))}
                     {!atLimit && results.length === 0 && !isFetching && (
@@ -348,7 +348,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                     <PageGridItem
                         key={`${metricRef.tableName}-${metricRef.metricName}`}
                     >
-                        <Card withBorder p="sm" h="100%">
+                        <Card p="sm" h="100%">
                             <Group
                                 gap="xs"
                                 wrap="nowrap"
@@ -363,8 +363,6 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                                     </Text>
                                 </Box>
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="ldGray.6"
                                     size="sm"
                                     aria-label={`Remove metric ${metricRef.label}`}
                                     onClick={() =>

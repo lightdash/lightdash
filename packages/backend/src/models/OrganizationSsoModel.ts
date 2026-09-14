@@ -48,6 +48,11 @@ export type OrganizationGoogleMethod = {
     allowPassword: boolean;
 };
 
+export type OrganizationSsoPolicySummary = {
+    provider: OrganizationSsoProvider;
+    enabled: boolean;
+};
+
 /**
  * Restricts an SSO-config query to rows whose organization has verified the
  * given (already-normalized) domain. Uses an EXISTS against
@@ -177,6 +182,17 @@ export class OrganizationSsoModel {
         }));
     }
 
+    async findAllPolicySummaries(): Promise<OrganizationSsoPolicySummary[]> {
+        const rows = await this.database(
+            OrganizationSsoConfigurationsTableName,
+        ).distinct('provider', 'enabled');
+
+        return rows.map((row) => ({
+            provider: row.provider as OrganizationSsoProvider,
+            enabled: row.enabled,
+        }));
+    }
+
     async findEnabledOktaMethodByStoredIssuer(
         oauth2Issuer: string,
     ): Promise<
@@ -205,6 +221,34 @@ export class OrganizationSsoModel {
                 }),
             )
             .find((method) => method.config.oauth2Issuer === oauth2Issuer);
+    }
+
+    async findEnabledAzureAdMethodsByTenantId(
+        tenantId: string,
+    ): Promise<OrganizationSsoConfigLookup<OrganizationSsoProvider.AZUREAD>[]> {
+        const rows = await this.database(OrganizationSsoConfigurationsTableName)
+            .where(
+                `${OrganizationSsoConfigurationsTableName}.provider`,
+                OrganizationSsoProvider.AZUREAD,
+            )
+            .where(`${OrganizationSsoConfigurationsTableName}.enabled`, true)
+            .select(
+                `${OrganizationSsoConfigurationsTableName}.organization_uuid`,
+                `${OrganizationSsoConfigurationsTableName}.config`,
+            );
+
+        return rows
+            .map(
+                (
+                    row,
+                ): OrganizationSsoConfigLookup<OrganizationSsoProvider.AZUREAD> => ({
+                    organizationUuid: row.organization_uuid,
+                    config: this.decryptConfig<OrganizationSsoProvider.AZUREAD>(
+                        row.config,
+                    ),
+                }),
+            )
+            .filter((method) => method.config.oauth2TenantId === tenantId);
     }
 
     /**

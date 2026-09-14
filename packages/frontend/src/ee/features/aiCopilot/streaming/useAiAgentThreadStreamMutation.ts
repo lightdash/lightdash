@@ -14,6 +14,8 @@ import {
     addReasoning,
     addToolCall,
     appendStepProgress,
+    markFirstToken,
+    markStreamRecovering,
     markToolCallDecided,
     setError,
     setMessage,
@@ -26,9 +28,11 @@ import { useAiAgentStoreDispatch } from '../store/hooks';
 import { type AiAgentToolCall, type AiAgentToolResult } from '../types';
 import { useAiAgentThreadStreamAbortController } from './AiAgentThreadStreamAbortControllerContext';
 import {
+    parseStreamRawPartialToolCall,
     parseStreamRawToolCall,
     parseStreamRawToolResult,
 } from './parseStreamRawToolResult';
+import { createStreamInactivityMonitor } from './streamInactivityMonitor';
 
 export interface AiAgentThreadStreamOptions {
     projectUuid: string;
@@ -42,7 +46,7 @@ export interface AiAgentThreadStreamOptions {
     onError?: (error: string) => void;
     onToolCall?: (toolCall: AiAgentToolCall) => void;
     onToolResult?: (toolResult: AiAgentToolResult) => void;
-    refetchThread?: () => void;
+    refetchThread: () => void;
 }
 
 type StreamToolCallPart = Extract<StreamPart, { type: 'toolCall' }>;
@@ -63,6 +67,10 @@ type StepProgressChunk = UIMessageChunk & {
         message: string;
         // The tool the event belongs to, or null/absent when unattributed.
         toolName?: string | null;
+        // Correlates repeated events about the same unit of work (e.g. a
+        // composer pipeline node, keyed `${toolCallId}:${nodeId}`).
+        progressId?: string | null;
+        progressStatus?: 'in_progress' | 'complete' | 'error' | null;
     };
     transient?: boolean;
 };
@@ -97,7 +105,7 @@ class ChatStreamParser extends DefaultChatTransport<UIMessage> {
     }
 }
 
-const getReasoningFromPart = (part: ReasoningUIPart) => {
+export const getReasoningFromPart = (part: ReasoningUIPart) => {
     switch (true) {
         case part.providerMetadata?.openai !== undefined:
             return {
@@ -112,6 +120,11 @@ const getReasoningFromPart = (part: ReasoningUIPart) => {
         case part.providerMetadata?.bedrock !== undefined:
             return {
                 reasoningId: part.providerMetadata.bedrock.signature,
+                text: part.text,
+            };
+        case part.providerMetadata?.google !== undefined:
+            return {
+                reasoningId: part.providerMetadata.google.signature,
                 text: part.text,
             };
         default:
@@ -143,10 +156,32 @@ export const getStreamToolCallPart = (
     if (
         !toolPart ||
         !toolPart.toolName ||
-        !isAiAgentToolName(toolPart.toolName) ||
-        (toolPart.state !== 'input-available' &&
-            toolPart.state !== 'output-available' &&
-            toolPart.state !== 'output-error')
+        !isAiAgentToolName(toolPart.toolName)
+    ) {
+        return null;
+    }
+
+    // While the model is still writing the call's input, tools with a lenient
+    // partial parser (runComposerQueries) render progressively instead of
+    // waiting for input-available.
+    if (toolPart.state === 'input-streaming') {
+        const partialToolCall = parseStreamRawPartialToolCall({
+            toolName: toolPart.toolName,
+            toolArgs: toolPart.input,
+        });
+        if (!partialToolCall) return null;
+        return {
+            type: 'toolCall',
+            toolCallId: toolPart.toolCallId,
+            ...partialToolCall,
+            toolResult: null,
+        } as StreamToolCallPart;
+    }
+
+    if (
+        toolPart.state !== 'input-available' &&
+        toolPart.state !== 'output-available' &&
+        toolPart.state !== 'output-error'
     ) {
         return null;
     }
@@ -172,6 +207,9 @@ export const getStreamToolCallPart = (
             toolArgs: toolResult.toolArgs,
             toolResult: toolResult.toolResult,
             isPreliminary: toolResult.isPreliminary,
+            // Explicit false so merge-by-toolCallId in the stream slice
+            // clears the flag once the full input has arrived.
+            isArgsPartial: false,
         } as StreamToolCallPart;
     }
 
@@ -189,12 +227,37 @@ export const getStreamToolCallPart = (
         toolCallId: toolPart.toolCallId,
         ...toolCall,
         toolResult: null,
+        isArgsPartial: false,
     } as StreamToolCallPart;
 };
 
+type StreamReadResult<T> =
+    | { status: 'success'; value: T }
+    | { status: 'error'; error: unknown };
+
+export const readStreamResult = async <T>(
+    read: () => Promise<T>,
+): Promise<StreamReadResult<T>> => {
+    try {
+        return { status: 'success', value: await read() };
+    } catch (error) {
+        return { status: 'error', error };
+    }
+};
+
+const isStepProgressStatus = (
+    value: unknown,
+): value is 'in_progress' | 'complete' | 'error' =>
+    value === 'in_progress' || value === 'complete' || value === 'error';
+
 export const getStepProgressFromChunk = (
     chunk: UIMessageChunk,
-): { message: string; toolName: string | null } | null => {
+): {
+    message: string;
+    toolName: string | null;
+    progressId: string | null;
+    progressStatus: 'in_progress' | 'complete' | 'error' | null;
+} | null => {
     if (
         chunk.type === 'data-step-progress' &&
         'data' in chunk &&
@@ -207,12 +270,28 @@ export const getStepProgressFromChunk = (
                 message: data.message,
                 toolName:
                     typeof data.toolName === 'string' ? data.toolName : null,
+                progressId:
+                    typeof data.progressId === 'string'
+                        ? data.progressId
+                        : null,
+                progressStatus: isStepProgressStatus(data.progressStatus)
+                    ? data.progressStatus
+                    : null,
             };
         }
     }
 
     return null;
 };
+
+const FIRST_TOKEN_CHUNK_TYPES = new Set<UIMessageChunk['type']>([
+    'text-start',
+    'text-delta',
+    'reasoning-start',
+    'reasoning-delta',
+    'tool-input-start',
+    'tool-input-available',
+]);
 
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
@@ -236,6 +315,18 @@ export function useAiAgentThreadStreamMutation() {
         }: AiAgentThreadStreamOptions) => {
             const abortController = new AbortController();
             setAbortController(threadUuid, abortController);
+            let isRecovering = false;
+            const beginRecovery = () => {
+                if (isRecovering || abortController.signal.aborted) return;
+
+                isRecovering = true;
+                dispatch(markStreamRecovering({ threadUuid }));
+                refetchThread();
+                abortController.abort();
+            };
+            let inactivityMonitor: ReturnType<
+                typeof createStreamInactivityMonitor
+            > | null = null;
 
             try {
                 dispatch(startStreaming({ threadUuid, messageUuid }));
@@ -252,6 +343,10 @@ export function useAiAgentThreadStreamMutation() {
                     },
                 );
 
+                inactivityMonitor = createStreamInactivityMonitor({
+                    onInactive: beginRecovery,
+                });
+
                 const parser = new ChatStreamParser();
                 const chunkStream = parser.parseStream(response);
                 const [rawChunkStream, uiMessageChunkStream] =
@@ -266,12 +361,42 @@ export function useAiAgentThreadStreamMutation() {
                 const handledToolOutputIds = new Set<string>();
                 const notifiedToolCallIds = new Set<string>();
                 const notifiedToolOutputIds = new Set<string>();
+                let receivedTerminalChunk = false;
+                let receivedFirstToken = false;
+                const handleStreamReadError = () => {
+                    if (
+                        !receivedTerminalChunk &&
+                        !abortController.signal.aborted
+                    ) {
+                        beginRecovery();
+                    }
+                };
 
                 const consumeRawChunks = (async () => {
                     while (true) {
-                        const { done, value } = await rawChunkReader.read();
+                        const rawChunkResult = await readStreamResult(() =>
+                            rawChunkReader.read(),
+                        );
+                        if (rawChunkResult.status === 'error') {
+                            handleStreamReadError();
+                            break;
+                        }
+
+                        const { done, value } = rawChunkResult.value;
                         if (done) {
                             break;
+                        }
+
+                        inactivityMonitor.reset();
+                        if (value.type === 'finish') {
+                            receivedTerminalChunk = true;
+                        }
+                        if (
+                            !receivedFirstToken &&
+                            FIRST_TOKEN_CHUNK_TYPES.has(value.type)
+                        ) {
+                            receivedFirstToken = true;
+                            dispatch(markFirstToken({ threadUuid }));
                         }
 
                         const stepProgress = getStepProgressFromChunk(value);
@@ -281,6 +406,8 @@ export function useAiAgentThreadStreamMutation() {
                                     threadUuid,
                                     message: stepProgress.message,
                                     toolName: stepProgress.toolName,
+                                    progressId: stepProgress.progressId,
+                                    progressStatus: stepProgress.progressStatus,
                                 }),
                             );
                             continue;
@@ -288,8 +415,18 @@ export function useAiAgentThreadStreamMutation() {
                     }
                 })();
 
-                for await (const uiMessage of stream) {
-                    if (abortController.signal.aborted) return;
+                const uiMessageIterator = stream[Symbol.asyncIterator]();
+                while (true) {
+                    const uiMessageResult = await readStreamResult(() =>
+                        uiMessageIterator.next(),
+                    );
+                    if (uiMessageResult.status === 'error') {
+                        handleStreamReadError();
+                        break;
+                    }
+
+                    const { done, value: uiMessage } = uiMessageResult.value;
+                    if (done || abortController.signal.aborted) break;
 
                     // Extract and combine all text content from the complete message
                     const fullTextContent = uiMessage.parts
@@ -326,7 +463,7 @@ export function useAiAgentThreadStreamMutation() {
 
                     // Process tool calls from the complete message
                     for (const part of uiMessage.parts) {
-                        if (abortController.signal.aborted) return;
+                        if (abortController.signal.aborted) break;
 
                         const toolPart = getStreamToolPart(part);
                         const toolCallPart = getStreamToolCallPart(part);
@@ -368,10 +505,8 @@ export function useAiAgentThreadStreamMutation() {
                         switch (part.type) {
                             // TODO: this is a temporary solution
                             // there should be a way of leveraging ToolUIPart based on the tools available
-                            case 'tool-generateBarVizConfig':
-                            case 'tool-generateTableVizConfig':
-                            case 'tool-generateTimeSeriesVizConfig':
                             case 'tool-findExplores':
+                            case 'tool-findCustomChartTypes':
                             case 'tool-findFields':
                             case 'tool-grepFields':
                             case 'tool-getMetadata':
@@ -440,7 +575,7 @@ export function useAiAgentThreadStreamMutation() {
                                             part.toolCallId,
                                         );
 
-                                        void refetchThread?.();
+                                        refetchThread();
                                     }
 
                                     break;
@@ -511,16 +646,33 @@ export function useAiAgentThreadStreamMutation() {
                                 break;
                         }
                     }
+
+                    if (abortController.signal.aborted) break;
                 }
 
                 await consumeRawChunks;
+                if (abortController.signal.aborted) {
+                    if (!isRecovering) {
+                        dispatch(stopStreaming({ threadUuid }));
+                    }
+                    return;
+                }
+
+                if (!receivedTerminalChunk) {
+                    beginRecovery();
+                    return;
+                }
+
                 onFinish?.();
                 dispatch(stopStreaming({ threadUuid }));
             } catch (error) {
+                if (isRecovering) return;
+
                 if (error instanceof Error && error.name === 'AbortError') {
                     dispatch(stopStreaming({ threadUuid }));
                     return;
                 }
+
                 console.error('Error processing stream:', error);
                 captureException(error, {
                     tags: {
@@ -533,6 +685,8 @@ export function useAiAgentThreadStreamMutation() {
                         : 'Unknown error occurred';
                 dispatch(setError({ threadUuid, error: errorMessage }));
                 onError?.(errorMessage);
+            } finally {
+                inactivityMonitor?.stop();
             }
         },
         [dispatch, setAbortController],

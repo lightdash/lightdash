@@ -112,7 +112,10 @@ describe('PersistentDownloadFileService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockModelCreate.mockResolvedValue(undefined);
-        mockS3GetFileStream.mockResolvedValue(Readable.from(['hello,world\n']));
+        mockS3GetFileStream.mockResolvedValue({
+            stream: Readable.from(['hello,world\n']),
+            contentDisposition: null,
+        });
     });
 
     afterEach(() => {
@@ -268,6 +271,38 @@ describe('PersistentDownloadFileService', () => {
                 s3Key: 'exports/test-file.csv',
             });
             expect(mockS3GetFileStream).toHaveBeenCalledOnce();
+        });
+
+        it('returns the content disposition stored on the object', async () => {
+            mockS3GetFileStream.mockResolvedValue({
+                stream: Readable.from(['hello,world\n']),
+                contentDisposition: 'attachment; filename="My Chart.csv"',
+            });
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR),
+            );
+
+            await expect(
+                createService().getFileStream(
+                    'test-nanoid-123456789',
+                    requestContext(accountWith()),
+                ),
+            ).resolves.toMatchObject({
+                contentDisposition: 'attachment; filename="My Chart.csv"',
+            });
+        });
+
+        it('returns a null content disposition when the object has none', async () => {
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR),
+            );
+
+            await expect(
+                createService().getFileStream(
+                    'test-nanoid-123456789',
+                    requestContext(accountWith()),
+                ),
+            ).resolves.toMatchObject({ contentDisposition: null });
         });
 
         it('denies another project member for a creator-bound export', async () => {

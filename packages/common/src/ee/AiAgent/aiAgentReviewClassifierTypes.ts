@@ -402,6 +402,7 @@ export type AiAgentReviewItemWritebackBlockedReason =
     | 'insufficient_source_code_access'
     | 'unsupported_source_control'
     | 'git_app_not_installed'
+    | 'bitbucket_token_missing'
     | 'missing_writeback_config'
     | 'pull_request_open'
     | 'source_thread_writeback_exists'
@@ -505,7 +506,7 @@ export const aiAgentJudgeProjectContextEntrySchema = z
     .superRefine((entry, ctx) => {
         if (entry.op === 'update' && !entry.id) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'id is required when op is update',
                 path: ['id'],
             });
@@ -683,7 +684,7 @@ const judgeOutputRefinement = (
         output.primaryRootCause === 'not_a_failure'
     ) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message:
                 'promotedToFinding must be false when primaryRootCause is not_a_failure',
             path: ['promotedToFinding'],
@@ -691,7 +692,7 @@ const judgeOutputRefinement = (
     }
     if (output.promotedToFinding && NOT_A_FAILURE_SIGNALS.has(output.signal)) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: `promotedToFinding must be false when signal is ${output.signal}; promoted findings need a failure signal`,
             path: ['signal'],
         });
@@ -701,7 +702,7 @@ const judgeOutputRefinement = (
         output.recommendation?.actionType === 'no_action'
     ) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message:
                 'promoted findings must carry an actionable recommendation, not no_action',
             path: ['recommendation', 'actionType'],
@@ -761,6 +762,7 @@ export type AiAgentReviewItem = {
     statusUpdatedAt: Date;
     statusUpdatedByUserUuid: string | null;
     linkedIssueUrl: string | null;
+    linkedJiraIssueUrl?: string | null;
     linkedPrUrl: string | null;
     prState: AiAgentReviewItemPrState | null;
     prWritebackStatus: AiAgentReviewItemWritebackStatus | null;

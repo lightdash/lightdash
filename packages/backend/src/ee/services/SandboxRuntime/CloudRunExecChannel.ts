@@ -11,10 +11,6 @@ import {
 } from './types';
 
 /**
- * Fold `cwd`/`envs` into a single `/bin/sh -c` command line. The gateway exec
- * takes only a command (its own `--workdir`/`-e` flags exist but folding keeps
- * one wire shape for buffered and detached runs alike).
- *
  * `export PATH;` first: the sandbox exec shell has a PATH *variable* (with
  * /usr/local/bin) but does not export it, so child processes fall back to
  * glibc's `/bin:/usr/bin` default and `#!/usr/bin/env node` shebangs (pnpm,
@@ -28,28 +24,17 @@ import {
  * ~90s into a run, so they are disabled for every command in the sandbox —
  * they only affect the `claude` CLI and are harmless to other commands.
  */
-const buildCommandLine = (command: string, options?: RunOptions): string => {
-    const parts: string[] = [
-        'export PATH DISABLE_AUTOUPDATER=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1;',
-    ];
-    if (options?.cwd) parts.push(`cd ${shQuote(options.cwd)} &&`);
-    if (options?.envs) {
-        const exports = Object.entries(options.envs)
-            .map(([key, value]) => {
-                // Keys are interpolated unquoted into the sh -c string — only
-                // POSIX identifiers are safe.
-                if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
-                    throw new Error(
-                        `Invalid sandbox env var name: ${JSON.stringify(key)}`,
-                    );
-                }
-                return `${key}=${shQuote(value)}`;
-            })
-            .join(' ');
-        if (exports) parts.push(`export ${exports};`);
+const buildCommandLine = (command: string): string =>
+    `export PATH DISABLE_AUTOUPDATER=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1; ${command}`;
+
+const validateEnvKeys = (envs: Record<string, string> | undefined): void => {
+    for (const key of Object.keys(envs ?? {})) {
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+            throw new Error(
+                `Invalid sandbox env var name: ${JSON.stringify(key)}`,
+            );
+        }
     }
-    parts.push(command);
-    return parts.join(' ');
 };
 
 /**
@@ -304,6 +289,7 @@ export class CloudRunExecChannel {
         command: string,
         options?: RunOptions,
     ): Promise<CommandResult> {
+        validateEnvKeys(options?.envs);
         const controller = new AbortController();
         const timeoutMs =
             options?.timeoutMs && options.timeoutMs > 0
@@ -323,7 +309,9 @@ export class CloudRunExecChannel {
                 'exec',
                 {
                     sandboxId: this.sandboxId,
-                    command: buildCommandLine(command, options),
+                    command: buildCommandLine(command),
+                    cwd: options?.cwd,
+                    env: options?.envs,
                     timeout: serverTimeoutMs,
                 },
                 {
@@ -390,17 +378,18 @@ export class CloudRunExecChannel {
         options: RunOptions & { timeoutMs: number },
     ): Promise<CommandResult> {
         const runDir = `/tmp/.lightdash-exec/${randomUUID()}`;
-        // cwd/envs are folded into the inner command line; the subshell keeps
-        // compound inner commands (a && b) under one redirect.
-        const inner = buildCommandLine(command, options);
-        const wrapped = `( ${inner} ) > ${runDir}/out.log 2> ${runDir}/err.log; echo $? > ${runDir}/exit`;
+        const wrapped = `( ${command} ) > ${runDir}/out.log 2> ${runDir}/err.log; echo $? > ${runDir}/exit`;
         // setsid makes the wrapper the leader of a fresh process group whose
         // PGID equals the recorded PID, so a kill can target the whole command
         // tree (`kill -- -PID`) — signalling only the wrapper shell would
         // orphan its children (claude, pnpm, …).
         await this.runBuffered(
             `mkdir -p ${shQuote(runDir)}; nohup setsid /bin/sh -c ${shQuote(wrapped)} < /dev/null > /dev/null 2>&1 & echo $! > ${shQuote(`${runDir}/pid`)}`,
-            { timeoutMs: INTERNAL_EXEC_TIMEOUT_MS },
+            {
+                cwd: options.cwd,
+                envs: options.envs,
+                timeoutMs: INTERNAL_EXEC_TIMEOUT_MS,
+            },
         );
 
         const startedAt = Date.now();

@@ -24,7 +24,8 @@ export type UnusedAgentRoutingSignal =
 
 /**
  * Parameters: member_uuids, project_uuid, member_uuids, project_uuid,
- * member_uuids, project_uuid, member_uuids, inactive_days, limit
+ * member_uuids, project_uuid, member_uuids, inactive_days, inactive_days,
+ * limit
  */
 export const inactiveUsersSql = () => `
 WITH activity AS (
@@ -68,7 +69,12 @@ WHERE u.user_uuid = ANY(string_to_array(?, ',')::uuid[])
   AND u.is_active = true
   AND u.is_internal = false
   AND (
-    latest.timestamp IS NULL
+    -- Never-active users only count as inactive once their account has
+    -- existed for the full window; a user invited yesterday is not inactive
+    (
+      latest.timestamp IS NULL
+      AND u.created_at < now() - make_interval(days => ?)
+    )
     OR latest.timestamp < now() - make_interval(days => ?)
   )
 ORDER BY latest.timestamp ASC NULLS FIRST

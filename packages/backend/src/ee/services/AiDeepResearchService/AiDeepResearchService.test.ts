@@ -5,7 +5,6 @@ import {
     AiResultType,
     AnyType,
     ConflictError,
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -18,6 +17,7 @@ import {
 } from '@lightdash/common';
 import { AiDeepResearchActiveRunError } from '../../models/AiDeepResearchRunModel';
 import {
+    AiDeepResearchExecutorStageError,
     AiDeepResearchService,
     getAiDeepResearchRunBudget,
 } from './AiDeepResearchService';
@@ -206,7 +206,10 @@ const runRow = (overrides: Record<string, unknown> = {}) => ({
     prompt_uuid: 'prompt-1',
     tool_call_id: null,
     prompt: 'Investigate revenue',
+    resume_from_run_uuid: null,
     status: 'queued',
+    terminal_reason: null,
+    failure_stage: null,
     entry_point: 'ask_ai',
     result_markdown: null,
     report_expires_at: null,
@@ -242,7 +245,6 @@ const buildService = (
         aiAgentService?: Record<string, unknown>;
         aiOrganizationSettingsModel?: Record<string, unknown>;
         projectModel?: Record<string, unknown>;
-        featureFlagModel?: Record<string, unknown>;
         schedulerClient?: Record<string, unknown>;
         asyncQueryService?: Record<string, unknown>;
         queryHistoryModel?: Record<string, unknown>;
@@ -258,6 +260,7 @@ const buildService = (
             .fn()
             .mockResolvedValue(runRow({ status: 'running' })),
         markCompleted: vi.fn().mockResolvedValue(true),
+        checkpointReport: vi.fn().mockResolvedValue(true),
         markPartiallyCompleted: vi.fn().mockResolvedValue(true),
         markFailed: vi.fn().mockResolvedValue(true),
         markCancelled: vi.fn().mockResolvedValue(true),
@@ -301,6 +304,7 @@ const buildService = (
     };
     const aiAgentService = {
         assertDeepResearchAccess: vi.fn().mockResolvedValue(undefined),
+        getIsCopilotEnabled: vi.fn().mockResolvedValue(true),
         resolveDeepResearchExecutionContext: vi
             .fn()
             .mockResolvedValue(executionContextSnapshot),
@@ -321,14 +325,8 @@ const buildService = (
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
+        getQueryTimezone: vi.fn().mockResolvedValue('Europe/London'),
         ...overrides.projectModel,
-    };
-    const featureFlagModel = {
-        get: vi.fn().mockResolvedValue({
-            id: FeatureFlags.AiDeepResearch,
-            enabled: true,
-        }),
-        ...overrides.featureFlagModel,
     };
     const schedulerClient = {
         aiDeepResearch: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
@@ -360,7 +358,6 @@ const buildService = (
         aiAgentService: aiAgentService as AnyType,
         aiOrganizationSettingsModel: aiOrganizationSettingsModel as AnyType,
         projectModel: projectModel as AnyType,
-        featureFlagModel: featureFlagModel as AnyType,
         schedulerClient: schedulerClient as AnyType,
         asyncQueryService: asyncQueryService as AnyType,
         queryHistoryModel: queryHistoryModel as AnyType,
@@ -373,7 +370,6 @@ const buildService = (
         aiAgentService,
         aiOrganizationSettingsModel,
         projectModel,
-        featureFlagModel,
         schedulerClient,
         asyncQueryService,
         queryHistoryModel,
@@ -401,7 +397,6 @@ describe('AiDeepResearchService', () => {
                 aiAgentModel,
                 aiAgentService,
                 schedulerClient,
-                featureFlagModel,
             } = buildService();
 
             const run = await service.createRun({
@@ -446,10 +441,9 @@ describe('AiDeepResearchService', () => {
                 projectUuid: 'project-1',
                 userUuid: 'user-1',
             });
-            expect(featureFlagModel.get).toHaveBeenCalledWith({
-                user: expect.objectContaining({ userUuid: 'user-1' }),
-                featureFlagId: FeatureFlags.AiDeepResearch,
-            });
+            expect(aiAgentService.getIsCopilotEnabled).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: 'user-1' }),
+            );
             expect(run.status).toBe('queued');
         });
 
@@ -735,13 +729,10 @@ describe('AiDeepResearchService', () => {
             expect(model.create).not.toHaveBeenCalled();
         });
 
-        it('rejects run creation when Deep Research is disabled', async () => {
+        it('rejects run creation when AI Agents are unavailable', async () => {
             const { service, model } = buildService({
-                featureFlagModel: {
-                    get: vi.fn().mockResolvedValue({
-                        id: FeatureFlags.AiDeepResearch,
-                        enabled: false,
-                    }),
+                aiAgentService: {
+                    getIsCopilotEnabled: vi.fn().mockResolvedValue(false),
                 },
             });
 
@@ -766,7 +757,7 @@ describe('AiDeepResearchService', () => {
                 ...userWithProjectAccess(),
                 ability: build(),
             } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
+            const { service, model, aiAgentService } = buildService();
 
             await expect(
                 service.createRun({
@@ -774,7 +765,7 @@ describe('AiDeepResearchService', () => {
                     user,
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(aiAgentService.getIsCopilotEnabled).not.toHaveBeenCalled();
             expect(model.create).not.toHaveBeenCalled();
         });
 
@@ -795,7 +786,7 @@ describe('AiDeepResearchService', () => {
                 ...userWithProjectAccess(),
                 ability: build(),
             } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
+            const { service, model, aiAgentService } = buildService();
 
             await expect(
                 service.createRun({
@@ -803,7 +794,7 @@ describe('AiDeepResearchService', () => {
                     user,
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(aiAgentService.getIsCopilotEnabled).not.toHaveBeenCalled();
             expect(model.create).not.toHaveBeenCalled();
         });
 
@@ -820,7 +811,7 @@ describe('AiDeepResearchService', () => {
                 ...userWithProjectAccess(),
                 ability: build(),
             } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
+            const { service, model, aiAgentService } = buildService();
 
             await expect(
                 service.createRun({
@@ -828,7 +819,7 @@ describe('AiDeepResearchService', () => {
                     user,
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(aiAgentService.getIsCopilotEnabled).not.toHaveBeenCalled();
             expect(model.create).not.toHaveBeenCalled();
         });
 
@@ -901,6 +892,7 @@ describe('AiDeepResearchService', () => {
                 'run-1',
                 'Deep Research could not finish. Please try again.',
                 'internal_error',
+                'enqueue',
             );
             expect(model.deleteUnstartedFailedRun).toHaveBeenCalledWith(
                 'run-1',
@@ -928,6 +920,27 @@ describe('AiDeepResearchService', () => {
     });
 
     describe('access and cancellation', () => {
+        it('does not expose checkpoint markdown before terminal completion', async () => {
+            const { service } = buildService({
+                model: {
+                    findByUuidScoped: vi.fn().mockResolvedValue(
+                        runRow({
+                            status: 'running',
+                            result_markdown: 'Unverified checkpoint',
+                        }),
+                    ),
+                },
+            });
+
+            const run = await service.getRun(
+                userWithProjectAccess(),
+                'project-1',
+                'run-1',
+            );
+
+            expect(run.resultMarkdown).toBeNull();
+        });
+
         it('does not expose a run through a different project path', async () => {
             const { service, model, projectModel } = buildService({
                 model: {
@@ -1171,10 +1184,93 @@ describe('AiDeepResearchService', () => {
 
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
+            expect(model.checkpointReport).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+            );
+            expect(
+                model.checkpointReport.mock.invocationCallOrder[0],
+            ).toBeLessThan(model.markCompleted.mock.invocationCallOrder[0]);
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 reportMarkdown,
             );
+        });
+
+        it('retries transient evidence preparation failures after checkpointing', async () => {
+            const getToolCallsAndResultsForPrompt = vi
+                .fn()
+                .mockRejectedValueOnce(new Error('temporary database error'))
+                .mockResolvedValue([]);
+            const { service, model } = buildService({
+                aiAgentModel: { getToolCallsAndResultsForPrompt },
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            expect(model.checkpointReport).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+            );
+            expect(getToolCallsAndResultsForPrompt).toHaveBeenCalledTimes(2);
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+            );
+            expect(model.markFailed).not.toHaveBeenCalled();
+        });
+
+        it('publishes the checkpointed narrative when evidence preparation stays unavailable', async () => {
+            const getToolCallsAndResultsForPrompt = vi
+                .fn()
+                .mockRejectedValue(new Error('database unavailable'));
+            const { service, model } = buildService({
+                aiAgentModel: { getToolCallsAndResultsForPrompt },
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            expect(getToolCallsAndResultsForPrompt).toHaveBeenCalledTimes(3);
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+            );
+            expect(model.markFailed).not.toHaveBeenCalled();
+        });
+
+        it('retries terminal persistence without discarding the checkpoint', async () => {
+            const markCompleted = vi
+                .fn()
+                .mockRejectedValueOnce(new Error('temporary database error'))
+                .mockResolvedValue(true);
+            const { service, model } = buildService({
+                model: { markCompleted },
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            expect(markCompleted).toHaveBeenCalledTimes(2);
+            expect(model.markFailed).not.toHaveBeenCalled();
+        });
+
+        it('leaves an exhausted terminal write checkpointed for stale recovery', async () => {
+            const terminalError = new Error('database unavailable');
+            const { service, model } = buildService({
+                model: {
+                    markCompleted: vi.fn().mockRejectedValue(terminalError),
+                },
+            });
+
+            await expect(
+                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+            ).rejects.toBe(terminalError);
+
+            expect(model.checkpointReport).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+            );
+            expect(model.markCompleted).toHaveBeenCalledTimes(3);
+            expect(model.markFailed).not.toHaveBeenCalled();
         });
 
         it('emits one terminal rollup from the persisted metrics snapshot', async () => {
@@ -1215,6 +1311,7 @@ describe('AiDeepResearchService', () => {
                 properties: expect.objectContaining({
                     status: 'completed',
                     terminalReason: null,
+                    failureStage: null,
                     inputTokens: 150,
                     outputTokens: 100,
                     cacheReadTokens: 200,
@@ -1243,33 +1340,44 @@ describe('AiDeepResearchService', () => {
             {
                 status: 'partially_completed' as const,
                 terminalReason: 'tool_limit' as const,
+                failureStage: 'investigation' as const,
                 executorResult: {
                     status: 'partially_completed' as const,
                     report,
                     warehouseQueryUuids: [],
                     terminalReason: 'tool_limit' as const,
+                    failureStage: 'investigation' as const,
                 },
             },
             {
                 status: 'failed' as const,
                 terminalReason: 'provider_error' as const,
+                failureStage: 'finalization' as const,
                 executorResult: {
                     status: 'failed' as const,
                     errorMessage: 'provider unavailable',
                     terminalReason: 'provider_error' as const,
+                    failureStage: 'finalization' as const,
                 },
             },
             {
                 status: 'cancelled' as const,
                 terminalReason: 'user_cancellation' as const,
+                failureStage: 'investigation' as const,
                 executorResult: {
                     status: 'cancelled' as const,
                     terminalReason: 'user_cancellation' as const,
+                    failureStage: 'investigation' as const,
                 },
             },
         ])(
             'emits one $status terminal event with its stable reason',
-            async ({ status, terminalReason, executorResult }) => {
+            async ({
+                status,
+                terminalReason,
+                failureStage,
+                executorResult,
+            }) => {
                 const { service, analytics } = buildService({
                     executor: vi.fn().mockResolvedValue(executorResult),
                     model: {
@@ -1286,6 +1394,7 @@ describe('AiDeepResearchService', () => {
                                     status === 'partially_completed'
                                         ? reportMarkdown
                                         : null,
+                                failure_stage: failureStage,
                                 ...persistedMetrics,
                             }),
                         ),
@@ -1326,6 +1435,7 @@ describe('AiDeepResearchService', () => {
                         properties: expect.objectContaining({
                             status,
                             terminalReason,
+                            failureStage,
                             durationMs: 5_000,
                             completionClass,
                             reportOutcome:
@@ -1455,6 +1565,25 @@ describe('AiDeepResearchService', () => {
             );
         });
 
+        it('records persistence when preparing a verified report fails', async () => {
+            const error = new Error('provenance unavailable');
+            const { service, model } = buildService();
+            vi.spyOn(
+                service as AnyType,
+                'persistAndPrepareEvidenceReport',
+            ).mockRejectedValue(error);
+
+            await expect(
+                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+            ).rejects.toBe(error);
+            expect(model.markFailed).toHaveBeenCalledWith(
+                'run-1',
+                'Deep Research could not finish. Please try again.',
+                'internal_error',
+                'persistence',
+            );
+        });
+
         it('accepts a chart that references a verified table calculation', async () => {
             const { service, model } = buildService({
                 executor: vi.fn().mockResolvedValue({
@@ -1519,7 +1648,9 @@ describe('AiDeepResearchService', () => {
             const { service, model, queryHistoryModel } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
-                    report: chartReport,
+                    report: {
+                        markdown: `# Evidence report\n\n${chartReportMarkdown}`,
+                    },
                     warehouseQueryUuids: [chart.queryUuid],
                 }),
             });
@@ -1540,6 +1671,16 @@ describe('AiDeepResearchService', () => {
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.stringContaining('The baseline trend is stable.'),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
+            );
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringMatching(
+                    /^# Evidence report\n\n<warning title="Report adjusted">/,
+                ),
                 {
                     repaired: [],
                     dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
@@ -1710,7 +1851,10 @@ describe('AiDeepResearchService', () => {
 
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
-            expect(model.markCancelled).toHaveBeenCalledWith('run-1');
+            expect(model.markCancelled).toHaveBeenCalledWith(
+                'run-1',
+                'persistence',
+            );
         });
 
         it('persists executor failures and keeps the job failed', async () => {
@@ -1726,6 +1870,27 @@ describe('AiDeepResearchService', () => {
                 'run-1',
                 'Deep Research could not finish. Please try again.',
                 'internal_error',
+                'investigation',
+            );
+        });
+
+        it('persists the stage attached to an executor infrastructure error', async () => {
+            const error = new AiDeepResearchExecutorStageError(
+                'authorization',
+                new Error('account lookup failed'),
+            );
+            const { service, model } = buildService({
+                executor: vi.fn().mockRejectedValue(error),
+            });
+
+            await expect(
+                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+            ).rejects.toBe(error);
+            expect(model.markFailed).toHaveBeenCalledWith(
+                'run-1',
+                'Deep Research could not finish. Please try again.',
+                'internal_error',
+                'authorization',
             );
         });
 
@@ -1736,6 +1901,7 @@ describe('AiDeepResearchService', () => {
                     errorMessage:
                         'Deep Research could not find relevant data for this question.',
                     terminalReason: 'no_relevant_data',
+                    failureStage: 'finalization',
                 }),
             });
 
@@ -1745,6 +1911,7 @@ describe('AiDeepResearchService', () => {
                 'run-1',
                 'Deep Research could not find relevant data for this question.',
                 'no_relevant_data',
+                'finalization',
             );
         });
 
@@ -1782,6 +1949,12 @@ describe('AiDeepResearchService', () => {
             metricQuery: {
                 dimensions: ['orders_order_month'],
                 metrics: ['orders_total_revenue'],
+                filters: {
+                    dimensions: { id: 'filter-1', and: [] },
+                },
+                sorts: [{ fieldId: 'orders_order_month', descending: true }],
+                limit: 400,
+                timezone: 'America/New_York',
             },
             fields: {},
         };
@@ -1817,6 +1990,8 @@ describe('AiDeepResearchService', () => {
 
             expect(hasEvidenceBuildFailures).toBe(false);
             expect(pack.question).toBe('Investigate revenue');
+            expect(pack.timezone).toBe('Europe/London');
+            expect(pack.generatedAt).toEqual(expect.any(String));
             expect(pack.queries).toHaveLength(1);
             expect(pack.queries[0]).toMatchObject({
                 type: 'metric_query',
@@ -1826,6 +2001,15 @@ describe('AiDeepResearchService', () => {
                 // its 20-row slice as the whole result.
                 rowCount: 400,
                 truncated: true,
+                filters: evidenceQueryHistory.metricQuery.filters,
+                sorts: evidenceQueryHistory.metricQuery.sorts,
+                limit: 400,
+                timezone: 'America/New_York',
+                warnings: [
+                    expect.stringContaining('first 20 of 400'),
+                    expect.stringContaining('filtered'),
+                    expect.stringContaining('400-row query limit'),
+                ],
                 // The execution carries a chart config, so the finalizer is
                 // told it may reference this queryUuid as a chart.
                 chartable: true,
@@ -2232,10 +2416,12 @@ describe('AiDeepResearchService', () => {
                 projectUuid: 'project-1',
                 metricQuery: refreshQueryHistory.metricQuery,
                 context: QueryExecutionContext.AI,
+                pivotConfiguration: undefined,
             });
             expect(result).toEqual({
                 source: 'semantic',
                 type: AiResultType.QUERY_RESULT,
+                mergeQuery: null,
                 query: {
                     queryUuid: 'query-2',
                     cacheMetadata: { cacheHit: true },
@@ -2251,6 +2437,87 @@ describe('AiDeepResearchService', () => {
                     description: null,
                 },
             });
+        });
+
+        it('pivots the refreshed query by the chart group-by dimension', async () => {
+            const groupedChartConfig = {
+                ...chart.chartConfig,
+                yAxisMetrics: ['orders_unique_order_count'],
+                groupBy: ['orders_status'],
+            };
+            const groupedMetricQuery = {
+                ...refreshQueryHistory.metricQuery,
+                dimensions: ['orders_order_month', 'orders_status'],
+                metrics: ['orders_unique_order_count'],
+            };
+            const { service, asyncQueryService } = buildService({
+                model: {
+                    findByUuidScoped: vi
+                        .fn()
+                        .mockResolvedValue(
+                            runRow({ result_markdown: chartReportMarkdown }),
+                        ),
+                },
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([
+                        {
+                            ...chartProvenance()[0],
+                            toolCall: {
+                                ...chartProvenance()[0].toolCall,
+                                toolArgs: {
+                                    ...chartToolArgs,
+                                    queryConfig: {
+                                        ...chartToolArgs.queryConfig,
+                                        dimensions:
+                                            groupedMetricQuery.dimensions,
+                                        metrics: groupedMetricQuery.metrics,
+                                    },
+                                    chartConfig: groupedChartConfig,
+                                },
+                            },
+                        },
+                    ]),
+                },
+                queryHistoryModel: {
+                    getByQueryUuid: vi.fn().mockResolvedValue({
+                        ...refreshQueryHistory,
+                        metricQuery: groupedMetricQuery,
+                    }),
+                },
+                asyncQueryService: {
+                    executeAsyncMetricQuery: vi.fn().mockResolvedValue({
+                        queryUuid: 'query-2',
+                        cacheMetadata: { cacheHit: true },
+                        metricQuery: groupedMetricQuery,
+                        fields: {},
+                        warnings: [],
+                    }),
+                },
+            });
+
+            await service.refreshChart({
+                account: {} as AnyType,
+                user: userWithProjectAccess(),
+                projectUuid: 'project-1',
+                aiDeepResearchRunUuid: 'run-1',
+                chartKey: chart.queryUuid,
+            });
+
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    metricQuery: groupedMetricQuery,
+                    pivotConfiguration: expect.objectContaining({
+                        groupByColumns: [{ reference: 'orders_status' }],
+                        valuesColumns: [
+                            expect.objectContaining({
+                                reference: 'orders_unique_order_count',
+                            }),
+                        ],
+                    }),
+                }),
+            );
         });
 
         it('rejects a chart key that is not part of the persisted report', async () => {

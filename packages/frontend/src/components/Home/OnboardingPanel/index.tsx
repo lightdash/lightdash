@@ -7,7 +7,7 @@ import { EventName } from '../../../types/Events';
 import MantineLinkButton from '../../common/MantineLinkButton';
 
 interface Props {
-    projectUuid: string;
+    projectUrlIdentifier: string;
     userName?: string;
 }
 
@@ -29,7 +29,7 @@ const onboardingSteps = [
     },
 ];
 
-const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
+const OnboardingPanel: FC<Props> = ({ projectUrlIdentifier, userName }) => {
     return (
         <Stack justify="flex-start" gap="xs" mt="4xl">
             <Title order={3}>
@@ -39,7 +39,7 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
                 You&apos;re ready to start exploring. Here&apos;s what you can
                 do with Lightdash:
             </Text>
-            <Paper withBorder p="xl" mt="lg">
+            <Paper p="xl" mt="lg">
                 <Group justify="center">
                     {onboardingSteps.map((step) => (
                         <Card key={step.title} mx="xl">
@@ -49,13 +49,13 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
                             <Title order={5} fw={500} ta="center">
                                 {step.title}
                             </Title>
-                            <Text fz="sm" c="ldGray.6" ta="center">
+                            <Text fz="sm" c="dimmed" ta="center">
                                 {step.description}
                             </Text>
                         </Card>
                     ))}
                     <MantineLinkButton
-                        href={`/projects/${projectUuid}/tables`}
+                        href={`/projects/${projectUrlIdentifier}/tables`}
                         trackingEvent={{
                             name: EventName.ONBOARDING_STEP_CLICKED,
                             properties: {

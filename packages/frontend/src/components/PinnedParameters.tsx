@@ -56,14 +56,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
     }, [onUnpin, parameterKey]);
 
     return (
-        <Popover
-            position="bottom-start"
-            withArrow
-            shadow="md"
-            offset={1}
-            arrowOffset={14}
-            withinPortal
-        >
+        <Popover position="bottom-start" withArrow offset={1} arrowOffset={14}>
             <Popover.Target>
                 <Button
                     size="xs"
@@ -100,11 +93,9 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                         ) : undefined
                     }
                 >
-                    <Text fz="inherit" truncate>
-                        <Text fz="inherit" span>
-                            {parameter.label || parameterKey}:
-                        </Text>{' '}
-                        <Text fz="inherit" fw={700} span>
+                    <Text truncate>
+                        <Text span>{parameter.label || parameterKey}:</Text>{' '}
+                        <Text fw={600} span>
                             {displayValue}
                         </Text>
                     </Text>

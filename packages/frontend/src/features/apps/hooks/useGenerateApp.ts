@@ -6,13 +6,14 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type DataAppClaudeModel,
+    type DataAppCodexModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
-type GenerateAppParams = {
+export type GenerateAppParams = {
     projectUuid: string;
     prompt: string;
     template?: DataAppTemplate;
@@ -24,6 +25,7 @@ type GenerateAppParams = {
     clarifications?: AppClarification[];
     spaceUuid?: string; // create directly inside this space (skips the personal-app step)
     claudeModel?: DataAppClaudeModel;
+    codexModel?: DataAppCodexModel;
     // Theme (org design) to apply. `undefined` lets the server fall back to
     // the org default; `null` explicitly opts out of any theme; a uuid picks
     // a specific theme.
@@ -46,6 +48,7 @@ const generateApp = async ({
     clarifications,
     spaceUuid,
     claudeModel,
+    codexModel,
     designUuid,
     externalConnections,
 }: GenerateAppParams): Promise<GenerateAppResult> => {
@@ -63,6 +66,7 @@ const generateApp = async ({
             clarifications,
             spaceUuid,
             claudeModel,
+            codexModel,
             externalConnections,
             // Send only when defined: `null` means "no theme"; `undefined`
             // means "honor org default" and omitting from the JSON body lets

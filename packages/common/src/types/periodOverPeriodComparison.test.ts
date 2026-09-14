@@ -1,4 +1,6 @@
+import { MetricType, type Metric } from './field';
 import {
+    buildPopAdditionalMetric,
     getPopComparisonConfigKey,
     hashPopComparisonConfigKeyToSuffix,
 } from './periodOverPeriodComparison';
@@ -95,5 +97,26 @@ describe('periodOverPeriodComparison helpers', () => {
             periodOffset: 1,
         });
         expect(withPipe).not.toEqual(normal);
+    });
+
+    test('generated PoP metrics preserve sum_distinct keys', () => {
+        const { additionalMetric } = buildPopAdditionalMetric({
+            metric: {
+                table: 'orders',
+                name: 'deduplicated_revenue',
+                label: 'Deduplicated revenue',
+                type: MetricType.SUM_DISTINCT,
+                sql: '${TABLE}.revenue',
+                distinctKeys: ['orders.order_id', 'orders.payment_id'],
+            } as Metric,
+            timeDimensionId: 'orders_order_date_month',
+            granularity: TimeFrames.MONTH,
+            periodOffset: 1,
+        });
+
+        expect(additionalMetric.distinctKeys).toEqual([
+            'orders.order_id',
+            'orders.payment_id',
+        ]);
     });
 });

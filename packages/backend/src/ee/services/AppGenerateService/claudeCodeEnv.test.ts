@@ -110,6 +110,66 @@ describe('buildClaudeCodeEnv', () => {
         expect(env).toEqual({ ANTHROPIC_API_KEY: 'anthropic-key' });
     });
 
+    test('routes Anthropic-wire traffic through the gateway with bearer auth', () => {
+        const env = buildClaudeCodeEnv(
+            {
+                defaultProvider: 'anthropic',
+                providers: {
+                    anthropic: {
+                        apiKey: 'gateway-token',
+                        baseUrl: 'https://llm-gateway.example/anthropic/v1/',
+                    },
+                },
+            },
+            () => 'gateway-token',
+        );
+
+        expect(env).toEqual({
+            ANTHROPIC_BASE_URL: 'https://llm-gateway.example/anthropic',
+            ANTHROPIC_AUTH_TOKEN: 'gateway-token',
+        });
+    });
+
+    test('routes Bedrock-wire traffic through the gateway and can skip Bedrock auth', () => {
+        const env = buildClaudeCodeEnv(
+            {
+                defaultProvider: 'bedrock',
+                providers: {
+                    bedrock: {
+                        ...bedrockApiKey,
+                        baseUrl: 'https://llm-gateway.example/bedrock',
+                        claudeCodeSkipAuth: true,
+                    },
+                },
+            },
+            () => 'unused',
+        );
+
+        expect(env).toEqual({
+            CLAUDE_CODE_USE_BEDROCK: '1',
+            AWS_REGION: 'us-east-1',
+            ANTHROPIC_BEDROCK_BASE_URL: 'https://llm-gateway.example/bedrock',
+            CLAUDE_CODE_SKIP_BEDROCK_AUTH: '1',
+        });
+    });
+
+    test('rejects Bedrock skip-auth without a gateway endpoint', () => {
+        expect(() =>
+            buildClaudeCodeEnv(
+                {
+                    defaultProvider: 'bedrock',
+                    providers: {
+                        bedrock: {
+                            ...bedrockApiKey,
+                            claudeCodeSkipAuth: true,
+                        },
+                    },
+                },
+                () => 'unused',
+            ),
+        ).toThrow('requires BEDROCK_BASE_URL');
+    });
+
     test('throws when defaultProvider is bedrock but no Bedrock creds are configured', () => {
         expect(() =>
             buildClaudeCodeEnv(
@@ -216,6 +276,32 @@ describe('claudeCodeAllowedHosts', () => {
             'bedrock-runtime.ap-southeast-1.amazonaws.com',
             'bedrock.ap-southeast-1.amazonaws.com',
         ]);
+    });
+
+    test('allows only the configured gateway host', () => {
+        expect(
+            claudeCodeAllowedHosts({
+                defaultProvider: 'anthropic',
+                providers: {
+                    anthropic: {
+                        apiKey: 'k',
+                        baseUrl: 'https://gateway.example/anthropic',
+                    },
+                },
+            }),
+        ).toEqual(['gateway.example']);
+        expect(
+            claudeCodeAllowedHosts({
+                defaultProvider: 'bedrock',
+                providers: {
+                    bedrock: {
+                        apiKey: 'k',
+                        region: 'us-east-1',
+                        baseUrl: 'https://gateway.example/bedrock',
+                    },
+                },
+            }),
+        ).toEqual(['gateway.example']);
     });
 
     test('throws when Bedrock is selected but unconfigured', () => {

@@ -35,7 +35,6 @@ export const CartesianChartFormatConfig: FC<Props> = ({
 
     return (
         <Select
-            radius="md"
             data={formatOptions}
             renderOption={({ option }) => (
                 <Group wrap="nowrap" gap="xs">

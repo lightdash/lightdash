@@ -1,6 +1,7 @@
 import {
     AnyType,
     appendUuidQueryParam,
+    applyChartFilterOverrides,
     applyDimensionOverrides,
     assertUnreachable,
     BackfillDefaultUserSpacesPayload,
@@ -22,7 +23,6 @@ import {
     expandSelectedTabs,
     ExportContentPayload,
     ExportCsvDashboardPayload,
-    FeatureFlags,
     FieldReferenceError,
     FieldType,
     ForbiddenError,
@@ -67,6 +67,7 @@ import {
     isTableChartConfig,
     isTileInSelectedTabs,
     isVizTableConfig,
+    JobStepType,
     LightdashPage,
     MAX_DELIVERY_QUERIES,
     MAX_SAFE_INTEGER,
@@ -97,6 +98,7 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerResourceType,
+    SendNowScheduler,
     SessionUser,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
@@ -180,6 +182,7 @@ import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
+import { ContentAsCodeWritebackService } from '../services/ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import {
     CsvService,
     getSchedulerCsvLimit,
@@ -189,7 +192,6 @@ import { DeployService } from '../services/DeployService';
 import { EmailWhitelabelService } from '../services/EmailWhitelabelService/EmailWhitelabelService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
 import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
-import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
 import { resolveOrganizationExportLimits } from '../services/OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
@@ -204,6 +206,7 @@ import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
+import { buildGoogleSheetsFilterSummaryRows } from '../utils/googleSheetsFilterSummary';
 import { SchedulerClient } from './SchedulerClient';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
@@ -219,11 +222,15 @@ export type SchedulerDeliveryQuery = {
 
 export interface SchedulerAiAugmentationRunner {
     runForDelivery(args: {
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
+        scheduler: SchedulerAndTargets | SendNowScheduler;
         createdBy: string;
         deliveryQueries?: SchedulerDeliveryQuery[];
     }): Promise<string | null>;
 }
+
+type SlackDeliveryFile = NonNullable<
+    NotificationPayloadBase['page']['csvUrls']
+>[number];
 
 export type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;
@@ -233,6 +240,7 @@ export type SchedulerTaskArguments = {
     dashboardService: DashboardService;
     deployService: DeployService;
     projectService: ProjectService;
+    contentAsCodeWritebackService: ContentAsCodeWritebackService;
     schedulerService: SchedulerService;
     unfurlService: UnfurlService;
     userService: UserService;
@@ -248,7 +256,6 @@ export type SchedulerTaskArguments = {
     googleChatClient: GoogleChatClient;
     renameService: RenameService;
     asyncQueryService: AsyncQueryService;
-    featureFlagService: FeatureFlagService;
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
@@ -506,6 +513,8 @@ export default class SchedulerTask {
 
     protected readonly projectService: ProjectService;
 
+    protected readonly contentAsCodeWritebackService: ContentAsCodeWritebackService;
+
     protected readonly schedulerService: SchedulerService;
 
     protected readonly unfurlService: UnfurlService;
@@ -536,8 +545,6 @@ export default class SchedulerTask {
 
     protected readonly asyncQueryService: AsyncQueryService;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     protected readonly persistentDownloadFileService: PersistentDownloadFileService;
 
     protected readonly preAggregateMaterializationService: PreAggregateMaterializationService;
@@ -562,6 +569,7 @@ export default class SchedulerTask {
         this.unfurlService = args.unfurlService;
         this.userService = args.userService;
         this.validationService = args.validationService;
+        this.contentAsCodeWritebackService = args.contentAsCodeWritebackService;
         this.emailClient = args.emailClient;
         this.googleDriveClient = args.googleDriveClient;
         this.fileStorageClient = args.fileStorageClient;
@@ -573,7 +581,6 @@ export default class SchedulerTask {
         this.googleChatClient = args.googleChatClient;
         this.renameService = args.renameService;
         this.asyncQueryService = args.asyncQueryService;
-        this.featureFlagService = args.featureFlagService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.preAggregateModel = args.preAggregateModel;
         this.preAggregateMaterializationService =
@@ -619,11 +626,57 @@ export default class SchedulerTask {
     }
 
     private static getCsvOptions(
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
     ) {
         return isSchedulerCsvOptions(scheduler.options)
             ? scheduler.options
             : undefined;
+    }
+
+    // Sequential uploads (Slack rate-limits them); a failed file never fails the delivery.
+    private async postDeliveryFilesToSlackThread({
+        organizationUuid,
+        channel,
+        threadTs,
+        files,
+        fileType,
+    }: {
+        organizationUuid: string;
+        channel: string;
+        threadTs: string;
+        files: SlackDeliveryFile[];
+        fileType: SchedulerFormat.CSV | SchedulerFormat.XLSX;
+    }): Promise<void> {
+        await files.reduce<Promise<void>>(async (previous, file) => {
+            await previous;
+            if (file.path === '#no-results') return;
+            try {
+                const response = await fetch(file.localPath);
+                if (!response.ok) {
+                    throw new Error(
+                        `HTTP ${response.status} ${response.statusText}`,
+                    );
+                }
+                const extension = `.${fileType}`;
+                await this.slackClient.postFileToThread({
+                    organizationUuid,
+                    channelId: channel,
+                    threadTs,
+                    file: Buffer.from(await response.arrayBuffer()),
+                    title: file.chartName ?? file.filename,
+                    // Dashboard files are named after the chart or workbook; Slack needs the extension to preview them
+                    filename: file.filename.endsWith(extension)
+                        ? file.filename
+                        : `${file.filename}${extension}`,
+                    fileType,
+                });
+            } catch (e) {
+                Logger.error(
+                    `Failed to attach delivery file "${file.filename}" to the Slack thread: ${getErrorMessage(e)}`,
+                    { fileUrl: file.localPath.split('?')[0] },
+                );
+            }
+        }, Promise.resolve());
     }
 
     protected async getChartOrDashboard(
@@ -657,9 +710,16 @@ export default class SchedulerTask {
                 await this.schedulerService.savedChartModel.getSummary(
                     chartUuid,
                 );
+            // Saved deliveries hand the headless page the scheduler uuid so it
+            // can render with the delivery's filter overrides.
+            const chartQueryParams = new URLSearchParams();
+            if (context) chartQueryParams.set('context', context);
+            if (schedulerUuid) {
+                chartQueryParams.set('schedulerUuid', schedulerUuid);
+            }
             return {
                 url: `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
-                minimalUrl: `${this.lightdashConfig.headlessBrowser.internalLightdashHost}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?context=${context}`,
+                minimalUrl: `${this.lightdashConfig.headlessBrowser.internalLightdashHost}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?${chartQueryParams.toString()}`,
                 details: {
                     name: chart.name,
                     description: chart.description,
@@ -714,7 +774,7 @@ export default class SchedulerTask {
     // Renders the app once in delivery capture mode and returns the manifest of
     // queries it ran. Must be called once per job, before the per-channel fan-out.
     protected async captureAppDeliveryQueries(
-        scheduler: CreateSchedulerAndTargets,
+        scheduler: SendNowScheduler,
         jobId: string,
     ): Promise<DeliveryCaptureManifest> {
         if (!isAppCreateScheduler(scheduler)) {
@@ -747,7 +807,7 @@ export default class SchedulerTask {
     }
 
     protected async getNotificationPageData(
-        scheduler: CreateSchedulerAndTargets,
+        scheduler: SendNowScheduler,
         jobId: string,
         isFinalAttempt: boolean,
         expirationSecondsOverride?: number,
@@ -801,14 +861,25 @@ export default class SchedulerTask {
                 ? scheduler.filters
                 : undefined;
 
+        const chartSchedulerFilters = isChartScheduler(scheduler)
+            ? scheduler.filters
+            : undefined;
+        const chartSchedulerParameters = isChartScheduler(scheduler)
+            ? scheduler.parameters
+            : undefined;
+        const sendNowSchedulerChartFilters = !schedulerUuid
+            ? chartSchedulerFilters
+            : undefined;
+
         const sendNowSchedulerParameters =
             exportOptions?.parameters ??
-            (!schedulerUuid && isDashboardScheduler(scheduler)
+            (!schedulerUuid &&
+            (isDashboardScheduler(scheduler) || isChartScheduler(scheduler))
                 ? scheduler.parameters
                 : undefined);
 
         const selectedTabs = isDashboardScheduler(scheduler)
-            ? scheduler.selectedTabs
+            ? (scheduler.selectedTabs ?? null)
             : null;
 
         const context =
@@ -899,6 +970,7 @@ export default class SchedulerTask {
                         sendNowSchedulerDashboardFilters:
                             exportOptions?.dashboardFilters,
                         sendNowSchedulerFilters,
+                        sendNowSchedulerChartFilters,
                         sendNowSchedulerParameters,
                     });
                     if (unfurlImage.imageUrl === undefined) {
@@ -1014,6 +1086,7 @@ export default class SchedulerTask {
                             sendNowSchedulerDashboardFilters:
                                 exportOptions?.dashboardFilters,
                             sendNowSchedulerFilters,
+                            sendNowSchedulerChartFilters,
                             sendNowSchedulerParameters,
                         });
                         if (!unfurlPdf.pdfFile) {
@@ -1456,6 +1529,8 @@ export default class SchedulerTask {
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     limit: getSchedulerCsvLimit(csvOptions),
                                     pivotResults: shouldPivotResults,
+                                    schedulerFilters: chartSchedulerFilters,
+                                    parameters: chartSchedulerParameters,
                                 },
                             );
                         const downloadResult =
@@ -1951,7 +2026,7 @@ export default class SchedulerTask {
             return undefined;
         }
         try {
-            const stream =
+            const { stream } =
                 await this.fileStorageClient.getFileStream(imageS3Key);
             const chunks: Buffer[] = [];
             for await (const chunk of stream) {
@@ -2170,9 +2245,11 @@ export default class SchedulerTask {
                     try {
                         // Add the pdf to the thread
                         const pdfBuffer = this.fileStorageClient.isEnabled()
-                            ? await this.fileStorageClient.getFileStream(
-                                  pdfFile.fileName,
-                              )
+                            ? (
+                                  await this.fileStorageClient.getFileStream(
+                                      pdfFile.fileName,
+                                  )
+                              ).stream
                             : await fs.readFile(pdfFile.source);
 
                         await this.slackClient.postFileToThread({
@@ -2221,9 +2298,11 @@ export default class SchedulerTask {
 
                 // Post PDF file as a separate message
                 const pdfBuffer = this.fileStorageClient.isEnabled()
-                    ? await this.fileStorageClient.getFileStream(
-                          pdfFile.fileName,
-                      )
+                    ? (
+                          await this.fileStorageClient.getFileStream(
+                              pdfFile.fileName,
+                          )
+                      ).stream
                     : await fs.readFile(pdfFile.source);
 
                 await this.slackClient.postFileToThread({
@@ -2236,6 +2315,7 @@ export default class SchedulerTask {
                 });
             } else {
                 let blocks;
+                let deliveryFiles: SlackDeliveryFile[];
                 if (savedChartUuid) {
                     if (csvUrl === undefined) {
                         throw new Error('Missing CSV URL');
@@ -2248,6 +2328,7 @@ export default class SchedulerTask {
                                 ? csvUrl.path
                                 : undefined,
                     });
+                    deliveryFiles = [{ ...csvUrl, chartName: details.name }];
                 } else if (dashboardUuid || appUuid) {
                     if (csvUrls === undefined) {
                         throw new Error('Missing CSV URLS');
@@ -2258,15 +2339,31 @@ export default class SchedulerTask {
                         failures,
                         notices,
                     });
+                    deliveryFiles = csvUrls;
                 } else {
                     throw new Error('Not implemented');
                 }
-                await this.slackClient.postMessage({
+                const message = await this.slackClient.postMessage({
                     organizationUuid,
                     text: name,
                     channel,
                     blocks,
                 });
+                const csvOptions = SchedulerTask.getCsvOptions(scheduler);
+                if (
+                    message.ts &&
+                    (format === SchedulerFormat.CSV ||
+                        format === SchedulerFormat.XLSX) &&
+                    csvOptions?.asAttachment
+                ) {
+                    await this.postDeliveryFilesToSlackThread({
+                        organizationUuid,
+                        channel,
+                        threadTs: message.ts,
+                        files: deliveryFiles,
+                        fileType: format,
+                    });
+                }
             }
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
@@ -2781,6 +2878,16 @@ export default class SchedulerTask {
                 payload.projectUuid,
                 getRequestMethod(payload.requestMethod),
                 payload.jobUuid,
+                payload.syncContentAfterCompile
+                    ? {
+                          stepType: JobStepType.SYNCING_CONTENT,
+                          run: () =>
+                              this.syncContentFromRepo(
+                                  user,
+                                  payload.projectUuid,
+                              ),
+                      }
+                    : undefined,
             );
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
@@ -2802,19 +2909,12 @@ export default class SchedulerTask {
                     organizationUuid: payload.organizationUuid,
                 });
             }
-            const { enabled: canReplaceCustomMetrics } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.ReplaceCustomMetricsOnCompile,
-                });
-            if (canReplaceCustomMetrics) {
-                // Don't wait for replaceCustomFields response
-                void this.schedulerClient.replaceCustomFields({
-                    userUuid: payload.userUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                });
-            }
+            // Don't wait for replaceCustomFields response
+            void this.schedulerClient.replaceCustomFields({
+                userUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+            });
         } catch (e) {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
@@ -2828,6 +2928,24 @@ export default class SchedulerTask {
                 },
             });
             throw e;
+        }
+    }
+
+    // Files that could not be applied fail the step so the job details say why
+    private async syncContentFromRepo(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const summary = await this.contentAsCodeWritebackService.pullFromGit(
+            user,
+            projectUuid,
+        );
+        if (summary.failures.length > 0) {
+            throw new Error(
+                `Applied ${summary.charts} charts and ${summary.dashboards} dashboards from the repo; ${summary.failures.length} file(s) could not be applied: ${summary.failures
+                    .map((failure) => `${failure.file}: ${failure.message}`)
+                    .join('; ')}`,
+            );
         }
     }
 
@@ -3396,6 +3514,7 @@ export default class SchedulerTask {
                 metricQuery,
                 context: QueryExecutionContext.GSHEETS,
                 pivotConfiguration,
+                parameters: payload.parameters,
             },
             SCHEDULER_POLLING_OPTIONS,
         );
@@ -3570,7 +3689,11 @@ export default class SchedulerTask {
 
             // Email-only: strips the branded template in favour of a text body.
             const plainText = plainTextEmail
-                ? { cadence: getCronCadence(scheduler.cron) }
+                ? {
+                      cadence: scheduler.cron
+                          ? getCronCadence(scheduler.cron)
+                          : undefined,
+                  }
                 : undefined;
 
             await this.schedulerService.logSchedulerJob({
@@ -4037,6 +4160,9 @@ export default class SchedulerTask {
             const tabName = isSchedulerGsheetsOptions(scheduler.options)
                 ? scheduler.options.tabName
                 : undefined;
+            const showFilters =
+                isSchedulerGsheetsOptions(scheduler.options) &&
+                scheduler.options.showFilters === true;
 
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
@@ -4083,6 +4209,9 @@ export default class SchedulerTask {
                 const shouldPivot =
                     isTableChartConfig(chart.chartConfig.config) &&
                     !!getPivotConfig(chart);
+                const chartSchedulerFilters = isChartScheduler(scheduler)
+                    ? scheduler.filters
+                    : undefined;
 
                 const {
                     rows,
@@ -4098,6 +4227,10 @@ export default class SchedulerTask {
                         context:
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                         pivotResults: shouldPivot,
+                        schedulerFilters: chartSchedulerFilters,
+                        parameters: isChartScheduler(scheduler)
+                            ? scheduler.parameters
+                            : undefined,
                     },
                     SCHEDULER_POLLING_OPTIONS,
                 );
@@ -4136,6 +4269,17 @@ export default class SchedulerTask {
                     reportUrl,
                 );
                 const pivotConfig = getPivotConfig(chart);
+                const filterSummaryRows = showFilters
+                    ? buildGoogleSheetsFilterSummaryRows(
+                          chartSchedulerFilters
+                              ? applyChartFilterOverrides(
+                                    chart.metricQuery.filters,
+                                    chartSchedulerFilters,
+                                )
+                              : chart.metricQuery.filters,
+                          itemMap,
+                      )
+                    : [];
                 if (
                     pivotConfig &&
                     pivotDetails &&
@@ -4162,7 +4306,7 @@ export default class SchedulerTask {
                     await this.googleDriveClient.appendCsvToSheet(
                         refreshToken,
                         gdriveId,
-                        pivotedResults,
+                        [...filterSummaryRows, ...pivotedResults],
                         tabName,
                     );
                 } else {
@@ -4177,6 +4321,7 @@ export default class SchedulerTask {
                         customLabels,
                         getHiddenTableFields(chart.chartConfig),
                         displayTimezone ?? undefined,
+                        filterSummaryRows,
                     );
                 }
             } else if (dashboardUuid) {
@@ -4584,7 +4729,7 @@ export default class SchedulerTask {
                     readyItems,
                     pacingDelayMs,
                     async (item) => {
-                        const { rows, fields, displayTimezone } =
+                        const { rows, fields, displayTimezone, metricQuery } =
                             await this.asyncQueryService.getRawAsyncQueryResults(
                                 {
                                     account: account!,
@@ -4605,6 +4750,12 @@ export default class SchedulerTask {
                                 ),
                             ),
                         );
+                        const filterSummaryRows = showFilters
+                            ? buildGoogleSheetsFilterSummaryRows(
+                                  metricQuery?.filters,
+                                  fields,
+                              )
+                            : [];
 
                         // appendCsvToSheet creates the tab itself when given
                         // a tabName — itemTabName is already fully
@@ -4618,7 +4769,11 @@ export default class SchedulerTask {
                                 this.googleDriveClient.appendCsvToSheet(
                                     refreshToken,
                                     gdriveId,
-                                    [columnNames, ...dataRows],
+                                    [
+                                        ...filterSummaryRows,
+                                        columnNames,
+                                        ...dataRows,
+                                    ],
                                     itemTabName,
                                 ),
                             undefined,
@@ -4864,7 +5019,7 @@ export default class SchedulerTask {
 
         const persistedOrInlineScheduler:
             | SchedulerAndTargets
-            | CreateSchedulerAndTargets = isInlineScheduler
+            | SendNowScheduler = isInlineScheduler
             ? schedulerPayload
             : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
                   schedulerPayload.schedulerUuid,
@@ -5010,7 +5165,7 @@ export default class SchedulerTask {
                                 projectUuid: schedulerPayload.projectUuid,
                                 chartUuid: savedChartUuid,
                                 context: QueryExecutionContext.SCHEDULED_CHART,
-                                filterOverrides: chartFilterOverrides,
+                                schedulerFilters: chartFilterOverrides,
                                 parameters: chartParameterOverrides,
                             },
                             SCHEDULER_POLLING_OPTIONS,
@@ -5829,9 +5984,12 @@ export default class SchedulerTask {
                 zipNameBase,
             )}-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
 
+            // The key stays sanitised and timestamped; the download name keeps
+            // the dashboard name as typed.
             await this.fileStorageClient.uploadZip(
                 fsSync.createReadStream(zipPath),
                 zipFileName,
+                `${zipNameBase}.zip`,
             );
         } finally {
             await fs.unlink(zipPath).catch(() => {});
@@ -5934,6 +6092,7 @@ export default class SchedulerTask {
             await this.fileStorageClient.uploadExcel(
                 fsSync.createReadStream(workbookPath),
                 workbookFileName,
+                `${workbookNameBase}.xlsx`,
             );
         } finally {
             await fs.unlink(workbookPath).catch(() => {});

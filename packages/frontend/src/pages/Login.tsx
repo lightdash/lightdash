@@ -12,13 +12,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
                 <Box mx="auto" my="lg">
                     <LightdashLogo />
                 </Box>
-                <Card
-                    id={LOGIN_PAGE_ID}
-                    p="xl"
-                    radius="xs"
-                    withBorder
-                    shadow="xs"
-                >
+                <Card id={LOGIN_PAGE_ID} p="xl" radius="md">
                     <Title order={3} ta="center" mb="md">
                         Sign in
                     </Title>

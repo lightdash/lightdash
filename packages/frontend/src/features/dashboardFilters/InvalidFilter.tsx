@@ -3,6 +3,7 @@ import { ActionIcon, Button, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 
 type Props = {
     isEditMode: boolean;
@@ -11,10 +12,10 @@ type Props = {
 };
 
 const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
+    const getUiString = useUiStrings();
     return (
         <Tooltip
             position="top-start"
-            withinPortal
             offset={0}
             arrowOffset={16}
             label={
@@ -36,19 +37,13 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
                 }
                 rightSection={
                     isEditMode && (
-                        <ActionIcon
-                            onClick={onRemove}
-                            size="xs"
-                            color="dark"
-                            radius="xl"
-                            variant="subtle"
-                        >
+                        <ActionIcon onClick={onRemove} size="xs" radius="xl">
                             <MantineIcon size="sm" icon={IconX} />
                         </ActionIcon>
                     )
                 }
             >
-                Invalid filter
+                {getUiString('filters.invalidFilter')}
             </Button>
         </Tooltip>
     );

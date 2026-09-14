@@ -1,12 +1,17 @@
 import merge from 'lodash/merge';
 import partition from 'lodash/partition';
 import {
+    getManifestNamespaceKey,
+    qualifyManifestNames,
+} from '../dbt/qualifiedName';
+import {
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
     convertToAiHints,
     convertToGroups,
     patchPathParts,
+    RESERVED_MODEL_META_KEYS,
     SupportedDbtAdapter,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
@@ -18,11 +23,14 @@ import {
 import {
     CompileError,
     MissingCatalogEntryError,
+    NotSupportedError,
     ParseError,
 } from '../types/errors';
 import {
     InlineErrorType,
     isExploreError,
+    JoinRelationship,
+    type CustomMetaValue,
     type Explore,
     type ExploreError,
     type InlineError,
@@ -47,9 +55,13 @@ import {
 import { OrderFieldsByStrategy, type FieldGroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import {
+    getCatalogNestedColumnShape,
     getCatalogTimestampDomain,
+    WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
     type WarehouseCatalog,
+    type WarehouseNestedColumnShape,
     type WarehouseSqlBuilder,
+    type WarehouseTableSchema,
 } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
@@ -151,19 +163,26 @@ const convertFilterAutocomplete = (
         ({ value }, index, allValues) =>
             allValues.findIndex((item) => item.value === value) === index,
     );
-    const warnings =
-        duplicateValues && duplicateValues.length > 0
-            ? [
-                  {
-                      type: InlineErrorType.FIELD_ERROR,
-                      message: `Duplicate filter autocomplete values found for dimension "${dimensionName}" in dbt model "${modelName}": ${[
-                          ...new Set(duplicateValues),
-                      ].join(
-                          ', ',
-                      )}. Keeping the first value and ignoring duplicates.`,
-                  },
-              ]
-            : [];
+    const warnings: InlineError[] = [];
+    if (duplicateValues && duplicateValues.length > 0) {
+        warnings.push({
+            type: InlineErrorType.FIELD_ERROR,
+            message: `Duplicate filter autocomplete values found for dimension "${dimensionName}" in dbt model "${modelName}": ${[
+                ...new Set(duplicateValues),
+            ].join(', ')}. Keeping the first value and ignoring duplicates.`,
+        });
+    }
+
+    const optionsFromDimension = filterAutocomplete.options_from_dimension;
+    if (
+        optionsFromDimension &&
+        filterAutocomplete.fetch_from_warehouse === false
+    ) {
+        warnings.push({
+            type: InlineErrorType.FIELD_ERROR,
+            message: `Dimension "${dimensionName}" in dbt model "${modelName}" sets both "options_from_dimension" and "fetch_from_warehouse: false". Curated values are used and "options_from_dimension" is ignored.`,
+        });
+    }
 
     return {
         filterAutocomplete: {
@@ -171,6 +190,20 @@ const convertFilterAutocomplete = (
             fetchFromWarehouse: filterAutocomplete.fetch_from_warehouse ?? true,
             ...(filterAutocomplete.label_dimension
                 ? { labelDimension: filterAutocomplete.label_dimension }
+                : {}),
+            ...(optionsFromDimension
+                ? {
+                      optionsFromDimension: {
+                          model: optionsFromDimension.model,
+                          dimension: optionsFromDimension.dimension,
+                          ...(optionsFromDimension.label_dimension
+                              ? {
+                                    labelDimension:
+                                        optionsFromDimension.label_dimension,
+                                }
+                              : {}),
+                      },
+                  }
                 : {}),
         },
         warnings,
@@ -625,6 +658,12 @@ function validateSets(
     return warnings;
 }
 
+const getColumnMeta = (column: DbtModelColumn): DbtColumnMetadata =>
+    merge({}, column.meta, column.config?.meta);
+
+const hasRepeatedAncestor = (column: DbtModelColumn): boolean =>
+    (column.repeated_ancestors?.length ?? 0) > 0;
+
 export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
@@ -635,6 +674,7 @@ export const convertTable = (
     allowPartialCompilation?: boolean,
     additionalTimeIntervals?: ResolvedAdditionalTimeIntervals,
     granularityLabels?: Partial<Record<TimeFrames, string>>,
+    unnestRepeatedColumns?: boolean,
 ): Omit<Table, 'lineageGraph'> => {
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
@@ -646,23 +686,40 @@ export const convertTable = (
         Record<string, Metric>,
     ] = Object.values(model.columns).reduce(
         ([prevDimensions, prevMetrics], column, index) => {
-            const dimension = convertDimension(
-                index,
-                adapterType,
-                model,
-                tableLabel,
-                column,
-                undefined,
-                undefined,
-                startOfWeek,
-                undefined,
-                disableTimestampConversion,
-                tableWarnings,
-                granularityLabels,
-            );
-
             // Config block takes priority, then meta block
             const columnMeta = merge({}, column.meta, column.config?.meta);
+            const routedByUnnest =
+                unnestRepeatedColumns && !columnMeta.dimension?.sql;
+            // Leaves under an array belong to the unnested table, unless
+            // custom SQL made the column scalar on purpose.
+            if (routedByUnnest && hasRepeatedAncestor(column)) {
+                return [prevDimensions, prevMetrics];
+            }
+            // A struct or array can't be selected as a scalar, but the
+            // additional dimensions and explicit-SQL metrics declared under
+            // it dereference its fields and stay on the model.
+            const isContainer =
+                routedByUnnest && column.nested_shape !== undefined;
+            const isScalarArray =
+                isContainer &&
+                column.nested_shape?.repeated === true &&
+                column.nested_shape.record === false;
+            const dimension = isContainer
+                ? undefined
+                : convertDimension(
+                      index,
+                      adapterType,
+                      model,
+                      tableLabel,
+                      column,
+                      undefined,
+                      undefined,
+                      startOfWeek,
+                      undefined,
+                      disableTimestampConversion,
+                      tableWarnings,
+                      granularityLabels,
+                  );
 
             const processIntervalDimension = (
                 dim: Dimension,
@@ -747,7 +804,12 @@ export const convertTable = (
                                     startOfWeek,
                                     'isAdditionalDimension' in dim &&
                                         dim.isAdditionalDimension,
-                                    disableTimestampConversion,
+                                    // Additional-dim children derive from the
+                                    // parent's compiled sql, which already
+                                    // carries the timestamp conversion.
+                                    dim.isAdditionalDimension
+                                        ? true
+                                        : disableTimestampConversion,
                                     undefined,
                                     granularityLabels,
                                 ),
@@ -822,9 +884,9 @@ export const convertTable = (
                 return {};
             };
 
-            let extraDimensions = {
-                ...processIntervalDimension(dimension, undefined),
-            };
+            let extraDimensions = dimension
+                ? { ...processIntervalDimension(dimension, undefined) }
+                : {};
 
             extraDimensions = Object.entries(
                 columnMeta.additional_dimensions || {},
@@ -866,21 +928,30 @@ export const convertTable = (
                 };
             }, extraDimensions);
 
+            // Metrics under an array of scalars aggregate its elements and
+            // live on the unnested table. A struct's metrics stay: a count
+            // of the struct itself is valid SQL and was how errors were
+            // counted before containers stopped being dimensions.
             const columnMetrics = Object.fromEntries(
-                Object.entries(columnMeta.metrics || {}).map(
-                    ([name, metric]) => [
+                Object.entries(columnMeta.metrics || {})
+                    .filter(() => !isScalarArray)
+                    .map(([name, metric]) => [
                         name,
                         convertColumnMetric({
                             modelName: model.name,
-                            dimensionName: dimension.name,
-                            dimensionSql: dimension.sql,
-                            dimensionType: dimension.type,
-                            dimensionTimeInterval: dimension.timeInterval,
+                            dimensionName: dimension?.name,
+                            dimensionSql:
+                                dimension?.sql ?? defaultSql(column.name),
+                            dimensionType:
+                                dimension?.type ??
+                                column.data_type ??
+                                DimensionType.STRING,
+                            dimensionTimeInterval: dimension?.timeInterval,
                             name,
                             metric,
                             tableLabel,
-                            requiredAttributes: dimension.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
-                            anyAttributes: dimension.anyAttributes, // TODO Join dimension any_attributes with metric any_attributes
+                            requiredAttributes: dimension?.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
+                            anyAttributes: dimension?.anyAttributes, // TODO Join dimension any_attributes with metric any_attributes
                             spotlightConfig: {
                                 ...spotlightConfig,
                                 default_visibility:
@@ -892,14 +963,13 @@ export const convertTable = (
                             defaultShowUnderlyingValues:
                                 meta.default_show_underlying_values,
                         }),
-                    ],
-                ),
+                    ]),
             );
 
             return [
                 {
                     ...prevDimensions,
-                    [column.name]: dimension,
+                    ...(dimension ? { [column.name]: dimension } : {}),
                     ...extraDimensions,
                 },
                 { ...prevMetrics, ...columnMetrics },
@@ -1070,6 +1140,9 @@ export const convertTable = (
         ...(meta.sets ? { sets: meta.sets } : {}),
         ...(tableWarnings.length > 0 ? { warnings: tableWarnings } : {}),
         ...(model.package_name ? { dbtPackageName: model.package_name } : {}),
+        ...(model.lightdash_source_uuid
+            ? { dbtSourceUuid: model.lightdash_source_uuid }
+            : {}),
         ...(model.patch_path
             ? { ymlPath: patchPathParts(model.patch_path).path }
             : {}),
@@ -1081,15 +1154,13 @@ const translateDbtModelsToTableLineage = (
     models: DbtModelNode[],
 ): Record<string, Pick<Table, 'lineageGraph'>> => {
     const graph = buildModelGraph(models);
-    return models.reduce<Record<string, Pick<Table, 'lineageGraph'>>>(
-        (previousValue, currentValue) => ({
-            ...previousValue,
-            [currentValue.name]: {
-                lineageGraph: generateTableLineage(currentValue, graph),
-            },
-        }),
-        {},
-    );
+    const lineageByModelName: Record<string, Pick<Table, 'lineageGraph'>> = {};
+    models.forEach((currentValue) => {
+        lineageByModelName[currentValue.name] = {
+            lineageGraph: generateTableLineage(currentValue, graph),
+        };
+    });
+    return lineageByModelName;
 };
 
 export type ExplorePostProcessor = (
@@ -1097,29 +1168,396 @@ export type ExplorePostProcessor = (
     context: {
         model: DbtModelNode;
         meta: Record<string, unknown>;
+        startOfWeek: WeekDay | null;
     },
 ) => (Explore | ExploreError)[];
+
+export const getNestedTableName = (modelName: string, columnPath: string) =>
+    `${modelName}__${columnPath.split('.').join('__')}`;
+
+const getOffsetColumnSql = (quoteChar: string, tableName: string) =>
+    `${quoteChar}${tableName}__offset${quoteChar}`;
+
+// The full FROM item, alias included, because the offset alias has to follow
+// the table alias and the join renderer only appends an ON clause.
+const getUnnestFromSql = (
+    adapterType: SupportedDbtAdapter,
+    quoteChar: string,
+    parentTable: string,
+    columnSegment: string,
+    tableName: string,
+): string => {
+    const q = quoteChar;
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            return `UNNEST(${q}${parentTable}${q}.${columnSegment}) AS ${q}${tableName}${q} WITH OFFSET AS ${q}${tableName}__offset${q}`;
+        default:
+            throw new NotSupportedError(
+                `Repeated column "${columnSegment}" can't be unnested on ${adapterType}. Unnesting repeated columns is only supported on BigQuery.`,
+            );
+    }
+};
+
+type NestedTableTemplate = {
+    nodePath: string;
+    segment: string;
+    parentPath: string;
+    /** Leaf columns renamed to the remainder of their path below the node. */
+    columns: DbtModelColumn[];
+    label: string | undefined;
+    description: string | undefined;
+};
+
+const isRepeatedScalarColumn = (column: DbtModelColumn): boolean =>
+    column.nested_shape?.repeated === true &&
+    column.nested_shape.record === false &&
+    !getColumnMeta(column).dimension?.sql;
+
+/**
+ * An array of scalars has no leaves of its own: the element is the value, so
+ * the virtual table exposes it as a single `value` dimension whose SQL is the
+ * unnest alias itself. The container's dimension config (type, format...)
+ * applies to that element; its label names the table instead.
+ */
+const getScalarElementColumn = (container: DbtModelColumn): DbtModelColumn => {
+    const {
+        repeated_ancestors: _ancestors,
+        nested_shape: _shape,
+        config: _config,
+        ...column
+    } = container;
+    const {
+        dimension,
+        additional_dimensions: _additionalDimensions,
+        ...meta
+    } = getColumnMeta(container);
+    const { label: _label, ...dimensionConfig } = dimension ?? {};
+    return {
+        ...column,
+        name: 'value',
+        description: container.description ?? `Element of ${container.name}`,
+        meta: { ...meta, dimension: { ...dimensionConfig, sql: '${TABLE}' } },
+    };
+};
+
+/**
+ * One template per repeated node: every array of records reached by a
+ * documented leaf, and every documented array of scalars. Outermost first so
+ * a child's join always follows its parent's. Templates carry no table
+ * names: the same model can be joined under several aliases, and the UNNEST
+ * has to reference the parent by the name it has in that explore.
+ */
+export const getNestedTableTemplates = (
+    model: DbtModelNode,
+): NestedTableTemplate[] => {
+    const columns = Object.values(model.columns);
+    const isRoutedLeaf = (column: DbtModelColumn) =>
+        hasRepeatedAncestor(column) && !getColumnMeta(column).dimension?.sql;
+    const nodePaths = Array.from(
+        new Set([
+            ...columns
+                .filter(isRoutedLeaf)
+                .flatMap((column) => column.repeated_ancestors ?? []),
+            ...columns
+                .filter(isRepeatedScalarColumn)
+                .flatMap((column) => [
+                    ...(column.repeated_ancestors ?? []),
+                    column.name,
+                ]),
+        ]),
+    ).sort(
+        (a, b) =>
+            a.split('.').length - b.split('.').length || a.localeCompare(b),
+    );
+    // A node can sit below a struct inside its repeated parent, so the
+    // parent is the deepest repeated prefix, not the previous path segment.
+    const getParentPath = (nodePath: string) =>
+        nodePaths
+            .filter((candidate) => nodePath.startsWith(`${candidate}.`))
+            .sort((a, b) => b.length - a.length)[0] ?? '';
+    return nodePaths.map((nodePath) => {
+        const parentPath = getParentPath(nodePath);
+        const container = model.columns[nodePath];
+        const leafColumns = columns
+            .filter(
+                (column) =>
+                    isRoutedLeaf(column) &&
+                    column.repeated_ancestors?.[
+                        column.repeated_ancestors.length - 1
+                    ] === nodePath,
+            )
+            .map(
+                ({
+                    repeated_ancestors: _ancestors,
+                    nested_shape: nestedShape,
+                    ...column
+                }): DbtModelColumn => ({
+                    ...column,
+                    name: column.name.slice(nodePath.length + 1),
+                    ...(nestedShape ? { nested_shape: nestedShape } : {}),
+                }),
+            );
+        return {
+            nodePath,
+            segment: parentPath
+                ? nodePath.slice(parentPath.length + 1)
+                : nodePath,
+            parentPath,
+            columns:
+                container && isRepeatedScalarColumn(container)
+                    ? [getScalarElementColumn(container)]
+                    : leafColumns,
+            label: container
+                ? getColumnMeta(container).dimension?.label
+                : undefined,
+            description: container?.description,
+        };
+    });
+};
+
+type InstantiateNestedTablesArgs = {
+    adapterType: SupportedDbtAdapter;
+    model: DbtModelNode;
+    templates: NestedTableTemplate[];
+    /** Name the parent model has in the explore: its own name or its join alias. */
+    parentAlias: string;
+    parentLabel: string;
+    reservedTableNames: Set<string>;
+    fieldQuoteChar: string;
+    spotlightConfig: LightdashProjectConfig['spotlight'];
+    startOfWeek?: WeekDay | null;
+    disableTimestampConversion?: boolean;
+    customGranularities?: Record<string, CustomGranularity>;
+    allowPartialCompilation?: boolean;
+    additionalTimeIntervals?: ResolvedAdditionalTimeIntervals;
+    granularityLabels?: Partial<Record<TimeFrames, string>>;
+};
+
+/**
+ * Turns a model's templates into virtual tables for one parent alias. Each is
+ * a synthetic model run through convertTable, so leaves keep every column
+ * feature; its FROM item is the UNNEST of the parent's column and it is
+ * joined ON TRUE as one-to-many. Field ids follow the alias, exactly as an
+ * aliased join renames its own fields.
+ */
+export const instantiateNestedTables = ({
+    adapterType,
+    model,
+    templates,
+    parentAlias,
+    parentLabel,
+    reservedTableNames,
+    fieldQuoteChar,
+    spotlightConfig,
+    startOfWeek,
+    disableTimestampConversion,
+    customGranularities,
+    allowPartialCompilation,
+    additionalTimeIntervals,
+    granularityLabels,
+}: InstantiateNestedTablesArgs): {
+    tables: Omit<Table, 'lineageGraph'>[];
+    joins: NonNullable<DbtModelNode['meta']['joins']>;
+} => {
+    const labelsByPath = new Map<string, string>();
+    return templates.reduce<{
+        tables: Omit<Table, 'lineageGraph'>[];
+        joins: NonNullable<DbtModelNode['meta']['joins']>;
+    }>(
+        (acc, template) => {
+            const { nodePath, segment, parentPath } = template;
+            const parentTable = parentPath
+                ? getNestedTableName(parentAlias, parentPath)
+                : parentAlias;
+            const tableName = getNestedTableName(parentAlias, nodePath);
+            if (reservedTableNames.has(tableName)) {
+                throw new ParseError(
+                    `Repeated column "${nodePath}" in model "${model.name}" would be unnested as table "${tableName}" under "${parentAlias}", but that name is already used by another table in the explore. Rename one of them.`,
+                );
+            }
+            const label =
+                template.label ??
+                [
+                    labelsByPath.get(parentPath) ?? parentLabel,
+                    ...segment.split('.').map(friendlyName),
+                ].join(': ');
+            labelsByPath.set(nodePath, label);
+
+            const offsetColumn: DbtModelColumn = {
+                name: 'offset',
+                description: `Position of the element within ${nodePath}, starting at 0`,
+                data_type: DimensionType.NUMBER,
+                meta: {
+                    dimension: {
+                        type: DimensionType.NUMBER,
+                        sql: getOffsetColumnSql(fieldQuoteChar, tableName),
+                    },
+                },
+            };
+            const syntheticModel: DbtModelNode = {
+                ...model,
+                name: tableName,
+                alias: tableName,
+                unique_id: `${model.unique_id}.${parentAlias}.${nodePath}`,
+                description:
+                    template.description ??
+                    `Elements of ${nodePath} in ${parentAlias}`,
+                relation_name: getUnnestFromSql(
+                    adapterType,
+                    fieldQuoteChar,
+                    parentTable,
+                    segment,
+                    tableName,
+                ),
+                columns: Object.fromEntries(
+                    [...template.columns, offsetColumn].map((column) => [
+                        column.name,
+                        column,
+                    ]),
+                ),
+                meta: { label },
+                config: { ...model.config, meta: {} },
+            };
+            const table: Omit<Table, 'lineageGraph'> = {
+                ...convertTable(
+                    adapterType,
+                    syntheticModel,
+                    spotlightConfig,
+                    startOfWeek,
+                    disableTimestampConversion,
+                    customGranularities,
+                    allowPartialCompilation,
+                    additionalTimeIntervals,
+                    granularityLabels,
+                    true,
+                ),
+                nestedFrom: { parentTable, columnPath: nodePath },
+            };
+            return {
+                tables: [...acc.tables, table],
+                joins: [
+                    ...acc.joins,
+                    {
+                        join: tableName,
+                        sql_on: 'TRUE',
+                        type: 'left',
+                        relationship: JoinRelationship.ONE_TO_MANY,
+                        label,
+                        description: table.description,
+                    },
+                ],
+            };
+        },
+        { tables: [], joins: [] },
+    );
+};
 
 export type ConvertExploresOptions = {
     disableTimestampConversion?: boolean;
     allowPartialCompilation?: boolean;
     postProcessors?: ExplorePostProcessor[];
+    unnestRepeatedColumns?: boolean;
 };
 
-export const convertExplores = async (
+const RESERVED_MODEL_META_KEY_SET = new Set<string>(RESERVED_MODEL_META_KEYS);
+
+const MODELS_PER_EVENT_LOOP_YIELD = 200;
+
+// setImmediate has no timer clamp but exists only on Node; this package is
+// bundled for the browser too.
+const yieldToEventLoop = (): Promise<void> =>
+    new Promise((resolve) => {
+        if (typeof setImmediate === 'function') {
+            setImmediate(resolve);
+        } else {
+            setTimeout(resolve, 0);
+        }
+    });
+
+export async function* iterateExplores(
     models: DbtModelNode[],
     loadSources: boolean,
     adapterType: SupportedDbtAdapter,
     warehouseSqlBuilder: WarehouseSqlBuilder,
     lightdashProjectConfig: LightdashProjectConfig,
     options?: ConvertExploresOptions,
-): Promise<(Explore | ExploreError)[]> => {
+): AsyncGenerator<Explore | ExploreError> {
     const {
         disableTimestampConversion,
         allowPartialCompilation,
         postProcessors,
+        unnestRepeatedColumns = false,
     } = options ?? {};
-    const tableLineage = translateDbtModelsToTableLineage(models);
+    const resolvedNamesByUniqueId = qualifyManifestNames(
+        models.map((model) => ({
+            uniqueId: model.unique_id,
+            name: model.name,
+            lightdash_source_name: model.lightdash_source_name,
+            package_name: model.package_name,
+        })),
+        'model',
+    );
+    const modelsByNamespaceAndName = new Map<string, DbtModelNode>();
+    models.forEach((model) => {
+        const namespaceKey = getManifestNamespaceKey(model, model.name);
+        if (namespaceKey !== undefined) {
+            modelsByNamespaceAndName.set(namespaceKey, model);
+        }
+    });
+    const resolveJoins = (
+        model: DbtModelNode,
+        joins: DbtModelNode['meta']['joins'],
+    ): DbtModelNode['meta']['joins'] =>
+        joins?.map((join) => {
+            const namespaceKey = getManifestNamespaceKey(model, join.join);
+            if (namespaceKey === undefined) {
+                return join;
+            }
+            const joinedModel = modelsByNamespaceAndName.get(namespaceKey);
+            const resolvedJoinName = joinedModel
+                ? resolvedNamesByUniqueId.get(joinedModel.unique_id)
+                : undefined;
+            if (!resolvedJoinName || resolvedJoinName === join.join) {
+                return join;
+            }
+            return {
+                ...join,
+                join: resolvedJoinName,
+                alias: join.alias ?? join.join,
+            };
+        });
+    const resolvedModels = models.map((model) => {
+        const resolvedName =
+            resolvedNamesByUniqueId.get(model.unique_id) ?? model.name;
+        const metaJoins = resolveJoins(model, model.meta.joins);
+        const configMetaJoins = resolveJoins(model, model.config?.meta?.joins);
+        return {
+            ...model,
+            name: resolvedName,
+            meta:
+                metaJoins === model.meta.joins
+                    ? model.meta
+                    : { ...model.meta, joins: metaJoins },
+            config:
+                configMetaJoins === model.config?.meta?.joins
+                    ? model.config
+                    : {
+                          ...model.config,
+                          meta: {
+                              ...model.config?.meta,
+                              joins: configMetaJoins,
+                          },
+                      },
+        };
+    });
+    const originalNamesByUniqueId = new Map(
+        models.map((model) => [model.unique_id, model.name]),
+    );
+    const tableLineage = translateDbtModelsToTableLineage(resolvedModels);
+    const nestedTemplatesByModel = new Map<
+        string,
+        { model: DbtModelNode; templates: NestedTableTemplate[] }
+    >();
     const additionalTimeIntervals = resolveAdditionalTimeIntervals(
         lightdashProjectConfig.defaults?.additional_time_intervals,
         lightdashProjectConfig.custom_granularities,
@@ -1127,74 +1565,165 @@ export const convertExplores = async (
     const granularityLabels = resolveGranularityLabels(
         lightdashProjectConfig.defaults?.granularity_labels,
     );
-    const [tables, exploreErrors] = models.reduce(
-        ([accTables, accErrors], model) => {
-            // Config block takes priority, then meta block
-            const meta = merge({}, model.meta, model.config?.meta);
+    const tables: Table[] = [];
+    const exploreErrors: ExploreError[] = [];
+    // eslint-disable-next-line no-restricted-syntax
+    for (const [modelIndex, model] of resolvedModels.entries()) {
+        // Config block takes priority, then meta block
+        const meta = merge({}, model.meta, model.config?.meta);
 
-            // model.config.tags has type string[] | string | undefined - normalise it to string[]
-            const configTags =
-                typeof model.config?.tags === 'string'
-                    ? [model.config.tags]
-                    : model.config?.tags;
+        // model.config.tags has type string[] | string | undefined - normalise it to string[]
+        const configTags =
+            typeof model.config?.tags === 'string'
+                ? [model.config.tags]
+                : model.config?.tags;
 
-            // model.config.tags takes priority over model.tags - if config tags is an empty list, we'll use model tags
-            const tags =
-                configTags && configTags.length > 0 ? configTags : model.tags;
+        // model.config.tags takes priority over model.tags - if config tags is an empty list, we'll use model tags
+        const tags =
+            configTags && configTags.length > 0 ? configTags : model.tags;
 
-            // If there are any errors compiling the table return an ExploreError
-            try {
-                const table = convertTable(
-                    adapterType,
-                    model,
-                    lightdashProjectConfig.spotlight,
-                    warehouseSqlBuilder.getStartOfWeek(),
-                    disableTimestampConversion,
-                    lightdashProjectConfig.custom_granularities,
-                    allowPartialCompilation,
-                    additionalTimeIntervals,
-                    granularityLabels,
-                );
+        // If there are any errors compiling the table return an ExploreError
+        try {
+            const table = convertTable(
+                adapterType,
+                model,
+                lightdashProjectConfig.spotlight,
+                warehouseSqlBuilder.getStartOfWeek(),
+                disableTimestampConversion,
+                lightdashProjectConfig.custom_granularities,
+                allowPartialCompilation,
+                additionalTimeIntervals,
+                granularityLabels,
+                unnestRepeatedColumns,
+            );
 
-                // add lineage
-                const tableWithLineage: Table = {
-                    ...table,
-                    ...tableLineage[model.name],
-                };
+            // add lineage
+            const tableWithLineage: Table = {
+                ...table,
+                ...(originalNamesByUniqueId.get(model.unique_id) !== model.name
+                    ? {
+                          originalName: originalNamesByUniqueId.get(
+                              model.unique_id,
+                          ),
+                      }
+                    : {}),
+                ...tableLineage[model.name],
+            };
 
-                return [[...accTables, tableWithLineage], accErrors];
-            } catch (e: unknown) {
-                const exploreError: ExploreError = {
-                    name: model.name,
-                    label: meta.label || friendlyName(model.name),
-                    tags,
-                    groupLabel: meta.group_label,
-                    ...(meta.groups && meta.groups.length > 0
-                        ? { groups: meta.groups }
-                        : {}),
-                    errors: [
-                        {
-                            type:
-                                e instanceof ParseError
-                                    ? InlineErrorType.METADATA_PARSE_ERROR
-                                    : InlineErrorType.NO_DIMENSIONS_FOUND,
-                            message:
-                                e instanceof Error
-                                    ? e.message
-                                    : `Could not convert dbt model: "${model.name}" in to a Lightdash explore`,
-                        },
-                    ],
-                };
-                return [accTables, [...accErrors, exploreError]];
+            tables.push(tableWithLineage);
+            if (unnestRepeatedColumns) {
+                const templates = getNestedTableTemplates(model);
+                if (templates.length > 0) {
+                    nestedTemplatesByModel.set(model.name, {
+                        model,
+                        templates,
+                    });
+                }
             }
-        },
-        [[], []] as [Table[], ExploreError[]],
-    );
-    const tableLookup: Record<string, Table> = tables.reduce(
-        (prev, table) => ({ ...prev, [table.name]: table }),
-        {},
-    );
-    const validModels = models.filter(
+        } catch (e: unknown) {
+            const exploreError: ExploreError = {
+                name: model.name,
+                label: meta.label || friendlyName(model.name),
+                tags,
+                groupLabel: meta.group_label,
+                ...(meta.groups && meta.groups.length > 0
+                    ? { groups: meta.groups }
+                    : {}),
+                errors: [
+                    {
+                        type:
+                            e instanceof ParseError
+                                ? InlineErrorType.METADATA_PARSE_ERROR
+                                : InlineErrorType.NO_DIMENSIONS_FOUND,
+                        message:
+                            e instanceof Error
+                                ? e.message
+                                : `Could not convert dbt model: "${model.name}" in to a Lightdash explore`,
+                    },
+                ],
+            };
+            exploreErrors.push(exploreError);
+        }
+
+        if ((modelIndex + 1) % MODELS_PER_EVENT_LOOP_YIELD === 0) {
+            // eslint-disable-next-line no-await-in-loop
+            await yieldToEventLoop();
+        }
+    }
+    const tableLookup: Record<string, Table> = {};
+    tables.forEach((table) => {
+        tableLookup[table.name] = table;
+    });
+    // Virtual tables are instantiated per explore, once for the base model
+    // and once per join, named after the join alias; their joins go right
+    // after the parent's so a child never precedes its parent.
+    const attachNestedTables = (
+        baseModelName: string,
+        joins: NonNullable<DbtModelNode['meta']['joins']>,
+        exploreTables: Record<string, Table>,
+    ): {
+        joins: NonNullable<DbtModelNode['meta']['joins']>;
+        tables: Record<string, Table>;
+    } => {
+        // Copying the table map per explore is quadratic in project size, so
+        // explores without repeated columns are passed through untouched.
+        if (
+            !nestedTemplatesByModel.has(baseModelName) &&
+            !joins.some((join) => nestedTemplatesByModel.has(join.join))
+        ) {
+            return { joins, tables: exploreTables };
+        }
+        const reservedTableNames = new Set([
+            ...Object.keys(exploreTables),
+            ...joins.map((join) => join.alias ?? join.join),
+        ]);
+        const nestedTables: Record<string, Table> = {};
+        const instantiate = (
+            modelName: string,
+            parentAlias: string,
+            parentLabel: string | undefined,
+        ): NonNullable<DbtModelNode['meta']['joins']> => {
+            const entry = nestedTemplatesByModel.get(modelName);
+            if (!entry) return [];
+            const nested = instantiateNestedTables({
+                adapterType,
+                model: entry.model,
+                templates: entry.templates,
+                parentAlias,
+                parentLabel:
+                    parentLabel ??
+                    exploreTables[modelName]?.label ??
+                    friendlyName(parentAlias),
+                reservedTableNames,
+                fieldQuoteChar: warehouseSqlBuilder.getFieldQuoteChar(),
+                spotlightConfig: lightdashProjectConfig.spotlight,
+                startOfWeek: warehouseSqlBuilder.getStartOfWeek(),
+                disableTimestampConversion,
+                customGranularities:
+                    lightdashProjectConfig.custom_granularities,
+                allowPartialCompilation,
+                additionalTimeIntervals,
+                granularityLabels,
+            });
+            nested.tables.forEach((table) => {
+                reservedTableNames.add(table.name);
+                nestedTables[table.name] = { ...table, lineageGraph: {} };
+            });
+            return nested.joins;
+        };
+        const nestedJoins = [
+            ...instantiate(baseModelName, baseModelName, undefined),
+            ...joins.flatMap((join) => [
+                join,
+                ...instantiate(join.join, join.alias ?? join.join, join.label),
+            ]),
+        ];
+        return {
+            joins: nestedJoins,
+            tables: { ...exploreTables, ...nestedTables },
+        };
+    };
+    const validModels = resolvedModels.filter(
         (model) =>
             tableLookup[model.name] !== undefined &&
             // Seeds are compiled as tables (for join resolution) but should
@@ -1205,11 +1734,19 @@ export const convertExplores = async (
     const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder, {
         allowPartialCompilation,
     });
-    const explores: (Explore | ExploreError)[] = validModels.reduce<
-        (Explore | ExploreError)[]
-    >((acc, model) => {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const [modelIndex, model] of validModels.entries()) {
         // Config block takes priority, then meta block
         const meta = merge({}, model.meta, model.config?.meta);
+        const customMeta = Object.fromEntries(
+            Object.entries(meta).filter(
+                (entry): entry is [string, CustomMetaValue] =>
+                    !RESERVED_MODEL_META_KEY_SET.has(entry[0]) &&
+                    (typeof entry[1] === 'string' ||
+                        typeof entry[1] === 'number' ||
+                        typeof entry[1] === 'boolean'),
+            ),
+        );
 
         const configTags =
             typeof model.config?.tags === 'string'
@@ -1248,7 +1785,7 @@ export const convertExplores = async (
                               meta.label || friendlyName(model.name);
 
                           // Convert explore-scoped additional dimensions
-                          let exploreScopedDimensions: Record<
+                          const exploreScopedDimensions: Record<
                               string,
                               Dimension
                           > = {};
@@ -1270,10 +1807,10 @@ export const convertExplores = async (
                                           adapterType,
                                           warehouseSqlBuilder.getStartOfWeek(),
                                       );
-                                  exploreScopedDimensions = {
-                                      ...exploreScopedDimensions,
-                                      ...convertedDims,
-                                  };
+                                  Object.assign(
+                                      exploreScopedDimensions,
+                                      convertedDims,
+                                  );
                               });
                           }
 
@@ -1336,6 +1873,12 @@ export const convertExplores = async (
         // Properties created from `exploreToCreate` are specific to each explore. e.g. each explore can have a different name, label & joins
         const compiledExplores = exploresToCreate.map((exploreToCreate) => {
             try {
+                const { joins: exploreJoins, tables: exploreTables } =
+                    attachNestedTables(
+                        model.name,
+                        exploreToCreate.joins,
+                        exploreToCreate.tables,
+                    );
                 const compiled = exploreCompiler.compileExplore({
                     name: exploreToCreate.name,
                     label: exploreToCreate.label,
@@ -1347,7 +1890,7 @@ export const convertExplores = async (
                         ? { groups: exploreToCreate.groups }
                         : {}),
                     caseSensitive: exploreToCreate.caseSensitive,
-                    joinedTables: exploreToCreate.joins.map((join) => ({
+                    joinedTables: exploreJoins.map((join) => ({
                         table: join.join,
                         sqlOn: join.sql_on,
                         type: join.type,
@@ -1359,7 +1902,7 @@ export const convertExplores = async (
                         relationship: join.relationship,
                         description: join.description,
                     })),
-                    tables: exploreToCreate.tables,
+                    tables: exploreTables,
                     targetDatabase: adapterType,
                     warehouse: model.config?.snowflake_warehouse,
                     databricksCompute: model.config?.databricks_compute,
@@ -1370,6 +1913,9 @@ export const convertExplores = async (
                     spotlightConfig: lightdashProjectConfig.spotlight,
                     ...(meta.ai_hint
                         ? { aiHint: convertToAiHints(meta.ai_hint) }
+                        : {}),
+                    ...(Object.keys(customMeta).length > 0
+                        ? { customMeta }
                         : {}),
                     meta: {
                         ...meta,
@@ -1433,6 +1979,7 @@ export const convertExplores = async (
         const postProcessorContext = {
             model,
             meta,
+            startOfWeek: warehouseSqlBuilder.getStartOfWeek() ?? null,
         };
         const postProcessedExplores = (postProcessors ?? []).reduce<
             (Explore | ExploreError)[]
@@ -1444,10 +1991,49 @@ export const convertExplores = async (
             return [...errors, ...processor(successes, postProcessorContext)];
         }, successfulExplores);
 
-        return [...acc, ...compileErrors, ...postProcessedExplores];
-    }, []);
+        yield* compileErrors;
+        yield* postProcessedExplores;
 
-    return [...explores, ...exploreErrors];
+        if ((modelIndex + 1) % MODELS_PER_EVENT_LOOP_YIELD === 0) {
+            // eslint-disable-next-line no-await-in-loop
+            await yieldToEventLoop();
+        }
+    }
+
+    yield* exploreErrors;
+}
+
+export const convertExplores = async (
+    models: DbtModelNode[],
+    loadSources: boolean,
+    adapterType: SupportedDbtAdapter,
+    warehouseSqlBuilder: WarehouseSqlBuilder,
+    lightdashProjectConfig: LightdashProjectConfig,
+    options?: ConvertExploresOptions,
+): Promise<(Explore | ExploreError)[]> => {
+    const explores: (Explore | ExploreError)[] = [];
+    for await (const explore of iterateExplores(
+        models,
+        loadSources,
+        adapterType,
+        warehouseSqlBuilder,
+        lightdashProjectConfig,
+        options,
+    )) {
+        explores.push(explore);
+    }
+    return explores;
+};
+
+export type AttachTypesDiagnostics = {
+    durationMs: number;
+    modelCount: number;
+    columnCount: number;
+    catalogTableCount: number;
+    schemaPairs: { databaseSchema: string; models: number }[];
+    exactLookups: number;
+    caseInsensitiveLookups: number;
+    missingLookups: number;
 };
 
 export const attachTypesToModels = (
@@ -1455,39 +2041,103 @@ export const attachTypesToModels = (
     warehouseCatalog: WarehouseCatalog,
     throwOnMissingCatalogEntry: boolean = true,
     caseSensitiveMatching: boolean = true,
+    onDiagnostics?: (diagnostics: AttachTypesDiagnostics) => void,
 ): DbtModelNode[] => {
+    const startedAt = Date.now();
+    let exactLookups = 0;
+    let caseInsensitiveLookups = 0;
+    let missingLookups = 0;
+    let columnCount = 0;
+
+    // Indexed once instead of rescanning Object.keys() at three catalog levels for every
+    // column of every model, which made the cost models x columns x tables-in-schema.
+    const exactIndex = new Map<string, WarehouseTableSchema>();
+    const foldedIndex = new Map<string, WarehouseTableSchema>();
+    const exactLocation = new Map<
+        string,
+        { database: string; schema: string; table: string }
+    >();
+    const foldedLocation = new Map<
+        string,
+        { database: string; schema: string; table: string }
+    >();
+    const key = (database: string, schema: string, table: string) =>
+        `${database}\u0000${schema}\u0000${table}`;
+    const foldedKey = (database: string, schema: string, table: string) =>
+        key(database.toLowerCase(), schema.toLowerCase(), table.toLowerCase());
+
+    let catalogTableCount = 0;
+    Object.keys(warehouseCatalog).forEach((database) => {
+        // The reserved timestamp-domain sidecar sits beside the database keys and is not one.
+        if (database === WAREHOUSE_TIMESTAMP_DOMAINS_KEY) return;
+        const schemas = warehouseCatalog[database];
+        if (schemas === undefined || schemas === null) return;
+        Object.keys(schemas).forEach((schema) => {
+            const tables = schemas[schema];
+            if (tables === undefined || tables === null) return;
+            Object.keys(tables).forEach((table) => {
+                const columns = tables[table];
+                if (columns === undefined || columns === null) return;
+                catalogTableCount += 1;
+                const location = { database, schema, table };
+                const exact = key(database, schema, table);
+                // Object.keys() yields insertion order and the replaced code took the FIRST
+                // match, so only absent keys are set — that preserves which duplicate wins.
+                if (!exactIndex.has(exact)) {
+                    exactIndex.set(exact, columns);
+                    exactLocation.set(exact, location);
+                }
+                const folded = foldedKey(database, schema, table);
+                if (!foldedIndex.has(folded)) {
+                    foldedIndex.set(folded, columns);
+                    foldedLocation.set(folded, location);
+                }
+            });
+        });
+    });
+
+    const lookup = (
+        database: string,
+        schema: string,
+        table: string,
+    ):
+        | {
+              columns: WarehouseTableSchema;
+              location: { database: string; schema: string; table: string };
+              caseInsensitive: boolean;
+          }
+        | undefined => {
+        const exact = key(database, schema, table);
+        const exactHit = exactIndex.get(exact);
+        if (exactHit !== undefined) {
+            return {
+                columns: exactHit,
+                location: exactLocation.get(exact)!,
+                caseInsensitive: false,
+            };
+        }
+        if (caseSensitiveMatching) return undefined;
+        const folded = foldedKey(database, schema, table);
+        const foldedHit = foldedIndex.get(folded);
+        if (foldedHit !== undefined) {
+            return {
+                columns: foldedHit,
+                location: foldedLocation.get(folded)!,
+                caseInsensitive: true,
+            };
+        }
+        return undefined;
+    };
+
     // Check that all models appear in the warehouse
     models.forEach(({ database, schema, name }) => {
-        const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
-            caseSensitiveMatching
-                ? db === database
-                : db.toLowerCase() === database.toLowerCase(),
-        );
-        // Explicit undefined checks: a matched key can be the empty string
-        // (ClickHouse table_catalog), which is falsy but a real match.
-        const schemaMatch =
-            databaseMatch !== undefined
-                ? Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
-                      caseSensitiveMatching
-                          ? s === schema
-                          : s.toLowerCase() === schema.toLowerCase(),
-                  )
-                : undefined;
-        const tableMatch =
-            databaseMatch !== undefined && schemaMatch !== undefined
-                ? Object.keys(
-                      warehouseCatalog[databaseMatch][schemaMatch],
-                  ).find((t) =>
-                      caseSensitiveMatching
-                          ? t === name
-                          : t.toLowerCase() === name.toLowerCase(),
-                  )
-                : undefined;
-        if (tableMatch === undefined && throwOnMissingCatalogEntry) {
-            throw new MissingCatalogEntryError(
-                `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
-                {},
-            );
+        if (lookup(database, schema, name) === undefined) {
+            if (throwOnMissingCatalogEntry) {
+                throw new MissingCatalogEntryError(
+                    `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
+                    {},
+                );
+            }
         }
     });
 
@@ -1495,63 +2145,56 @@ export const attachTypesToModels = (
         { database, schema, name, alias }: DbtModelNode,
         columnName: string,
     ):
-        | { type: DimensionType; timestampDomain: TimestampDomain | undefined }
+        | {
+              type: DimensionType;
+              timestampDomain: TimestampDomain | undefined;
+              nestedShape: WarehouseNestedColumnShape | undefined;
+              repeatedAncestors: string[];
+          }
         | undefined => {
         const tableName = alias || name;
-        const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
-            caseSensitiveMatching
-                ? db === database
-                : db.toLowerCase() === database.toLowerCase(),
-        );
-        const schemaMatch =
-            databaseMatch !== undefined
-                ? Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
-                      caseSensitiveMatching
-                          ? s === schema
-                          : s.toLowerCase() === schema.toLowerCase(),
-                  )
-                : undefined;
-        const tableMatch =
-            databaseMatch !== undefined && schemaMatch !== undefined
-                ? Object.keys(
-                      warehouseCatalog[databaseMatch][schemaMatch],
-                  ).find((t) =>
-                      caseSensitiveMatching
-                          ? t === tableName
-                          : t.toLowerCase() === tableName.toLowerCase(),
-                  )
-                : undefined;
-        const columnMatch =
-            databaseMatch !== undefined &&
-            schemaMatch !== undefined &&
-            tableMatch !== undefined
-                ? Object.keys(
-                      warehouseCatalog[databaseMatch][schemaMatch][tableMatch],
-                  ).find((c) =>
-                      caseSensitiveMatching
-                          ? c === columnName
-                          : c.toLowerCase() === columnName.toLowerCase(),
-                  )
-                : undefined;
-        if (
-            databaseMatch !== undefined &&
-            schemaMatch !== undefined &&
-            tableMatch !== undefined &&
-            columnMatch !== undefined
-        ) {
-            return {
-                type: warehouseCatalog[databaseMatch][schemaMatch][tableMatch][
-                    columnMatch
-                ],
-                timestampDomain: getCatalogTimestampDomain(
-                    warehouseCatalog,
-                    databaseMatch,
-                    schemaMatch,
-                    tableMatch,
-                    columnMatch,
-                ),
-            };
+        const hit = lookup(database, schema, tableName);
+        if (hit !== undefined) {
+            const columnMatch = Object.keys(hit.columns).find((column) =>
+                caseSensitiveMatching
+                    ? column === columnName
+                    : column.toLowerCase() === columnName.toLowerCase(),
+            );
+            if (columnMatch !== undefined) {
+                // A lookup is only exact when BOTH the table and the column matched exactly.
+                if (hit.caseInsensitive || columnMatch !== columnName) {
+                    caseInsensitiveLookups += 1;
+                } else {
+                    exactLookups += 1;
+                }
+                const getShape = (columnPath: string) =>
+                    getCatalogNestedColumnShape(
+                        warehouseCatalog,
+                        hit.location.database,
+                        hit.location.schema,
+                        hit.location.table,
+                        columnPath,
+                    );
+                const segments = columnMatch.split('.');
+                const repeatedAncestors = segments
+                    .slice(0, -1)
+                    .map((_, index) => segments.slice(0, index + 1).join('.'))
+                    .filter((prefix) => getShape(prefix)?.repeated === true);
+                return {
+                    type: hit.columns[columnMatch],
+                    timestampDomain: getCatalogTimestampDomain(
+                        warehouseCatalog,
+                        hit.location.database,
+                        hit.location.schema,
+                        hit.location.table,
+                        columnMatch,
+                    ),
+                    nestedShape: getShape(columnMatch),
+                    repeatedAncestors,
+                };
+            }
         }
+        missingLookups += 1;
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
                 `Column "${columnName}" from model "${tableName}" does not exist.\n "${tableName}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${tableName}. Try rerunning dbt to update your warehouse.`,
@@ -1562,10 +2205,11 @@ export const attachTypesToModels = (
     };
 
     // Update the dbt models with type info
-    return models.map((model) => ({
+    const typedModels = models.map((model) => ({
         ...model,
         columns: Object.fromEntries(
             Object.entries(model.columns).map(([column_name, column]) => {
+                columnCount += 1;
                 const columnType = getColumnType(model, column_name);
                 return [
                     column_name,
@@ -1577,11 +2221,46 @@ export const attachTypesToModels = (
                         ...(columnType?.timestampDomain
                             ? { timestamp_domain: columnType.timestampDomain }
                             : {}),
+                        ...(columnType?.nestedShape
+                            ? { nested_shape: columnType.nestedShape }
+                            : {}),
+                        ...(columnType &&
+                        columnType.repeatedAncestors.length > 0
+                            ? {
+                                  repeated_ancestors:
+                                      columnType.repeatedAncestors,
+                              }
+                            : {}),
                     },
                 ];
             }),
         ),
     }));
+
+    if (onDiagnostics) {
+        const modelsByPair = new Map<string, number>();
+        models.forEach(({ database, schema }) => {
+            const pair = `${database}.${schema}`;
+            modelsByPair.set(pair, (modelsByPair.get(pair) ?? 0) + 1);
+        });
+        onDiagnostics({
+            durationMs: Date.now() - startedAt,
+            modelCount: models.length,
+            columnCount,
+            catalogTableCount,
+            schemaPairs: [...modelsByPair.entries()]
+                .map(([databaseSchema, count]) => ({
+                    databaseSchema,
+                    models: count,
+                }))
+                .sort((a, b) => b.models - a.models),
+            exactLookups,
+            caseInsensitiveLookups,
+            missingLookups,
+        });
+    }
+
+    return typedModels;
 };
 
 export const getSchemaStructureFromDbtModels = (

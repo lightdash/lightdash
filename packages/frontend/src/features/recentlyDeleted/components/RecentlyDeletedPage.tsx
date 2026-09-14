@@ -2,7 +2,9 @@ import {
     assertUnreachable,
     ChartSourceType,
     ContentType,
+    DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
+    type DataAppVizsFilter,
     type DeletedContentWithDescendants,
 } from '@lightdash/common';
 import {
@@ -23,6 +25,7 @@ import {
     IconClock,
     IconFolder,
     IconLayoutDashboard,
+    IconPuzzle,
     IconRefresh,
     IconSearch,
     IconTextCaption,
@@ -48,6 +51,10 @@ import {
     useRestoreDeletedContent,
 } from '../hooks/useDeletedContent';
 import { useDeletedContentFilters } from '../hooks/useDeletedContentFilters';
+import {
+    CHART_TYPES_FILTER_VALUE,
+    type DeletedContentTypeFilter,
+} from '../types';
 import { ContentTypeFilter } from './ContentTypeFilter';
 import { DeletedByFilter } from './DeletedByFilter';
 import DeletedContentActionMenu from './DeletedContentActionMenu';
@@ -132,13 +139,8 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
 
-    const [selectedContentType, setSelectedContentType] = useState<
-        | 'all'
-        | ContentType.CHART
-        | ContentType.DASHBOARD
-        | ContentType.SPACE
-        | ContentType.DATA_APP
-    >('all');
+    const [selectedContentType, setSelectedContentType] =
+        useState<DeletedContentTypeFilter>('all');
 
     const {
         search,
@@ -158,12 +160,28 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         300,
     );
 
-    // Convert selectedContentType to array format for API
+    // Convert selectedContentType to array format for API. Custom chart
+    // types share ContentType.DATA_APP; the dataAppVizsFilter splits them.
     const contentTypesFilter = useMemo(() => {
-        if (debouncedSearchAndFilters.selectedContentType === 'all') {
+        const selected = debouncedSearchAndFilters.selectedContentType;
+        if (selected === 'all') {
             return debouncedSearchAndFilters.apiFilters.contentTypes;
         }
-        return [debouncedSearchAndFilters.selectedContentType];
+        if (selected === CHART_TYPES_FILTER_VALUE) {
+            return [ContentType.DATA_APP];
+        }
+        return [selected];
+    }, [debouncedSearchAndFilters]);
+
+    const dataAppVizsFilter = useMemo<DataAppVizsFilter | undefined>(() => {
+        switch (debouncedSearchAndFilters.selectedContentType) {
+            case ContentType.DATA_APP:
+                return 'exclude';
+            case CHART_TYPES_FILTER_VALUE:
+                return 'only';
+            default:
+                return undefined;
+        }
     }, [debouncedSearchAndFilters]);
 
     const { data, fetchNextPage, isError, isFetching, isLoading, refetch } =
@@ -174,6 +192,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             contentTypes: contentTypesFilter,
             deletedByUserUuids:
                 debouncedSearchAndFilters.apiFilters.deletedByUserUuids,
+            dataAppVizsFilter,
         });
 
     const flatData = useMemo<DeletedContentWithDescendants[]>(
@@ -217,7 +236,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 size: 300,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
+                        <MantineIcon icon={IconTextCaption} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -247,7 +266,15 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                     />
                                 );
                             case ContentType.DATA_APP:
-                                return (
+                                // Custom chart types share the content type;
+                                // give them their own icon so rows read right.
+                                return row.original.template ===
+                                    DATA_APP_VIZ_TEMPLATE ? (
+                                    <IconBox
+                                        icon={IconPuzzle}
+                                        color="indigo.6"
+                                    />
+                                ) : (
                                     <IconBox
                                         icon={IconAppWindow}
                                         color="orange.6"
@@ -272,7 +299,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                     {row.original.name}
                                 </Text>
                                 {description && (
-                                    <Text fz={12} c="dimmed" lineClamp={1}>
+                                    <Text fz="xs" c="dimmed" lineClamp={1}>
                                         {description}
                                     </Text>
                                 )}
@@ -293,10 +320,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                               column: { columnDef: { header: string } };
                           }) => (
                               <Group gap="two" wrap="nowrap">
-                                  <MantineIcon
-                                      icon={IconUser}
-                                      color="ldGray.6"
-                                  />
+                                  <MantineIcon icon={IconUser} color="dimmed" />
                                   {column.columnDef.header}
                               </Group>
                           ),
@@ -306,12 +330,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                               row: { original: DeletedContentWithDescendants };
                           }) =>
                               row.original.deletedBy ? (
-                                  <Text fz="xs" c="ldGray.6">
+                                  <Text fz="xs" c="dimmed">
                                       {row.original.deletedBy.firstName}{' '}
                                       {row.original.deletedBy.lastName}
                                   </Text>
                               ) : (
-                                  <Text fz="xs" c="ldGray.6">
+                                  <Text fz="xs" c="dimmed">
                                       Unknown
                                   </Text>
                               ),
@@ -324,12 +348,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 size: 130,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconCalendar} color="ldGray.6" />
+                        <MantineIcon icon={IconCalendar} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text fz="xs" c="ldGray.6">
+                    <Text fz="xs" c="dimmed">
                         {new Date(row.original.deletedAt).toLocaleDateString()}
                     </Text>
                 ),
@@ -340,7 +364,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -398,6 +422,9 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                         restoreContent({
                                             uuid: item.uuid,
                                             contentType: item.contentType,
+                                            isChartType:
+                                                item.template ===
+                                                DATA_APP_VIZ_TEMPLATE,
                                         });
                                         break;
                                     default:
@@ -536,11 +563,10 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 p={`${theme.spacing.sm} ${theme.spacing.md}`}
                 wrap="nowrap"
             >
-                <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                    <Tooltip withinPortal label="Search by item name">
+                <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
+                    <Tooltip label="Search by item name">
                         <TextInput
                             size="xs"
-                            radius="md"
                             type="search"
                             variant="default"
                             placeholder="Search deleted items..."
@@ -548,7 +574,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                             leftSection={
                                 <MantineIcon
                                     size="md"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                     icon={IconSearch}
                                 />
                             }
@@ -622,14 +648,10 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                         </Text>
                     </Box>
                     <Tooltip label="Click to refresh the list">
-                        <ActionIcon
-                            onClick={() => refetch()}
-                            variant="subtle"
-                            size="xs"
-                        >
+                        <ActionIcon onClick={() => refetch()} size="xs">
                             <MantineIcon
                                 icon={IconRefresh}
-                                color="ldGray.6"
+                                color="dimmed"
                                 stroke={2}
                             />
                         </ActionIcon>

@@ -1,16 +1,13 @@
+import type { MigrationReadinessWarning } from '@lightdash/common';
 import type { MigrationLeaseManager } from '../../database/migrationLease';
 import Logger from '../../logging/logger';
 import type { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 
 export type ReadinessResult =
-    | { status: 'ready' }
+    | { status: 'ready'; warnings?: MigrationReadinessWarning[] }
     | {
           status: 'not_ready';
-          reason:
-              | 'schema_pending'
-              | 'migration_parked'
-              | 'migration_ledger_unavailable'
-              | 'db_unavailable';
+          reason: 'schema_pending' | 'db_unavailable';
       };
 
 type ReadinessServiceArguments = {
@@ -87,13 +84,16 @@ export class ReadinessService {
 
             const runHistory = await this.migrationRunLedger.readRunHistory(1);
             if (!runHistory.initialized) {
+                Logger.warn(
+                    'Migration run ledger is unavailable; readiness remains ready',
+                );
                 return {
-                    status: 'not_ready',
-                    reason: 'migration_ledger_unavailable',
+                    status: 'ready',
+                    warnings: ['migration_ledger_unavailable'],
                 };
             }
             if (runHistory.runs[0]?.outcome === 'parked') {
-                return { status: 'not_ready', reason: 'migration_parked' };
+                return { status: 'ready', warnings: ['migration_parked'] };
             }
 
             return { status: 'ready' };

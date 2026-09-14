@@ -1,26 +1,40 @@
 import { type PreAggregateMaterializationSummary } from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine/core';
+import { IconDatabaseExport } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../common/MantineIcon';
 
 export const StatusBadge: FC<{
     summary: PreAggregateMaterializationSummary;
 }> = ({ summary }) => {
     if (summary.definitionError) {
         return (
-            <Tooltip label={summary.definitionError} multiline maw={300}>
-                <Badge color="red" variant="light" size="sm">
+            <Tooltip label={summary.definitionError} maw={300}>
+                <Badge color="red" size="sm">
                     Definition error
                 </Badge>
             </Tooltip>
         );
     }
 
-    if (!summary.materialization) {
+    if (summary.externalTable) {
         return (
-            <Badge color="gray" variant="light" size="sm">
-                Never materialized
-            </Badge>
+            <Tooltip label="Served from a customer-managed warehouse table">
+                <Badge
+                    color="indigo"
+                    size="sm"
+                    leftSection={
+                        <MantineIcon icon={IconDatabaseExport} size="xs" />
+                    }
+                >
+                    External
+                </Badge>
+            </Tooltip>
         );
+    }
+
+    if (!summary.materialization) {
+        return <Badge size="sm">Never materialized</Badge>;
     }
 
     const { status, errorMessage } = summary.materialization;
@@ -28,39 +42,27 @@ export const StatusBadge: FC<{
     switch (status) {
         case 'active':
             return (
-                <Badge color="green" variant="light" size="sm">
+                <Badge color="green" size="sm">
                     Active
                 </Badge>
             );
         case 'in_progress':
             return (
-                <Badge color="blue" variant="light" size="sm">
+                <Badge color="blue" size="sm">
                     Building
                 </Badge>
             );
         case 'failed':
             return (
-                <Tooltip
-                    label={errorMessage ?? 'Unknown error'}
-                    multiline
-                    maw={300}
-                >
-                    <Badge color="red" variant="light" size="sm">
+                <Tooltip label={errorMessage ?? 'Unknown error'} maw={300}>
+                    <Badge color="red" size="sm">
                         Failed
                     </Badge>
                 </Tooltip>
             );
         case 'superseded':
-            return (
-                <Badge color="gray" variant="light" size="sm">
-                    Superseded
-                </Badge>
-            );
+            return <Badge size="sm">Superseded</Badge>;
         default:
-            return (
-                <Badge color="gray" variant="light" size="sm">
-                    {status}
-                </Badge>
-            );
+            return <Badge size="sm">{status}</Badge>;
     }
 };

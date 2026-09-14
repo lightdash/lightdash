@@ -3,7 +3,7 @@ import type {
     AiAgentAdminSort,
     AiAgentAdminSortField,
 } from '@lightdash/common';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import useSearchParams from '../../../../hooks/useSearchParams';
 
@@ -46,6 +46,10 @@ export const useAiAgentAdminFilters = () => {
     );
     const sortByParam = useSearchParams<AiAgentAdminSortField>('sortBy');
     const sortDirectionParam = useSearchParams<'asc' | 'desc'>('sortDirection');
+
+    // View preference for the filter dropdowns, not a thread filter — kept out
+    // of the URL and out of hasActiveFilters
+    const [hidePreviewProjects, setHidePreviewProjects] = useState(true);
 
     const currentFilters = useMemo(
         () => ({
@@ -205,6 +209,7 @@ export const useAiAgentAdminFilters = () => {
 
     const resetFilters = useCallback(() => {
         updateUrl(DEFAULT_FILTERS);
+        setHidePreviewProjects(true);
     }, [updateUrl]);
 
     const hasActiveFilters = useMemo(() => {
@@ -276,6 +281,9 @@ export const useAiAgentAdminFilters = () => {
         setSelectedSource,
         setSelectedFeedback,
         setSorting,
+
+        hidePreviewProjects,
+        setHidePreviewProjects,
 
         resetFilters,
         hasActiveFilters,

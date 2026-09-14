@@ -66,7 +66,7 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
             <SettingsGridCard>
                 <Stack gap="xs">
                     <Title order={5}>Delivery defaults</Title>
-                    <Text c="ldGray.6" fz="sm">
+                    <Text c="dimmed" fz="sm">
                         Default settings applied to all of this project's
                         scheduled deliveries. Owners can override these
                         per-delivery when creating or editing a scheduler.

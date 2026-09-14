@@ -42,13 +42,29 @@ const PKCE_TEST_VALUES = {
     codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
 };
 
-// Helper to extract redirect URL from HTML response
-const extractRedirectUrlFromHtml = (html: string): string => {
-    const match = /window\.location\.href = "([^"]+)"/.exec(html);
-    if (!match) {
-        throw new Error('No redirect URL found in HTML response');
+const getRedirectLocation = (response: {
+    status: number;
+    body: unknown;
+    headers: Headers;
+}): string => {
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    if (typeof response.body !== 'string') {
+        throw new Error('Missing OAuth redirect page');
     }
-    return match[1];
+    const match = /<meta http-equiv="refresh" content="0;url=([^"]+)" \/>/.exec(
+        response.body,
+    );
+    if (!match) {
+        throw new Error('Missing OAuth meta refresh');
+    }
+    return match[1]
+        .replaceAll('&amp;', '&')
+        .replaceAll('&#x3D;', '=')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#x27;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>');
 };
 
 /**
@@ -160,12 +176,12 @@ async function postFormEncoded<T = unknown>(
     ) => Promise<{ status: number; body: unknown; headers: Headers }>,
     path: string,
     body: Record<string, string>,
-): Promise<{ status: number; body: T }> {
+): Promise<{ status: number; body: T; headers: Headers }> {
     return fetchWithAuth(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams(body).toString(),
-    }) as Promise<{ status: number; body: T }>;
+    }) as Promise<{ status: number; body: T; headers: Headers }>;
 }
 
 describe('OAuth API Integration Tests', () => {
@@ -280,11 +296,7 @@ describe('OAuth API Integration Tests', () => {
                 `${apiUrl}/authorize`,
                 formData,
             );
-            expect(postResponse.status).toBe(200);
-
-            const location = extractRedirectUrlFromHtml(
-                postResponse.body as string,
-            );
+            const location = getRedirectLocation(postResponse);
             const redirectUrl = new URL(location);
             const code = redirectUrl.searchParams.get('code') || '';
 
@@ -314,10 +326,7 @@ describe('OAuth API Integration Tests', () => {
                 `${apiUrl}/authorize`,
                 formData,
             );
-            expect(postResponse.status).toBe(200);
-            const location = extractRedirectUrlFromHtml(
-                postResponse.body as string,
-            );
+            const location = getRedirectLocation(postResponse);
             const redirectUrl = new URL(location);
             const code = redirectUrl.searchParams.get('code') || '';
             expect(code).not.toBe('');
@@ -369,10 +378,7 @@ describe('OAuth API Integration Tests', () => {
                 `${apiUrl}/authorize`,
                 formData,
             );
-            expect(postResponse.status).toBe(200);
-            const location = extractRedirectUrlFromHtml(
-                postResponse.body as string,
-            );
+            const location = getRedirectLocation(postResponse);
             const redirectUrl = new URL(location);
             const code = redirectUrl.searchParams.get('code') || '';
             expect(code).not.toBe('');
@@ -483,10 +489,7 @@ describe('OAuth API Integration Tests', () => {
                 `${apiUrl}/authorize`,
                 formData,
             );
-            expect(postResponse.status).toBe(200);
-            const location = extractRedirectUrlFromHtml(
-                postResponse.body as string,
-            );
+            const location = getRedirectLocation(postResponse);
             const redirectUrl = new URL(location);
             const code = redirectUrl.searchParams.get('code') || '';
             expect(code).not.toBe('');
@@ -624,10 +627,7 @@ describe('OAuth API Integration Tests', () => {
                 `${apiUrl}/authorize`,
                 formData,
             );
-            expect(postResponse.status).toBe(200);
-            const location = extractRedirectUrlFromHtml(
-                postResponse.body as string,
-            );
+            const location = getRedirectLocation(postResponse);
             const redirectUrl = new URL(location);
             const code = redirectUrl.searchParams.get('code') || '';
             expect(code).not.toBe('');
@@ -695,10 +695,7 @@ describe('OAuth API Integration Tests', () => {
                 `${apiUrl}/authorize`,
                 formData,
             );
-            expect(postResponse.status).toBe(200);
-            const location = extractRedirectUrlFromHtml(
-                postResponse.body as string,
-            );
+            const location = getRedirectLocation(postResponse);
             const code = new URL(location).searchParams.get('code') || '';
             expect(code).not.toBe('');
 
@@ -760,10 +757,7 @@ describe('OAuth API Integration Tests', () => {
                 `${apiUrl}/authorize`,
                 formData,
             );
-            expect(postResponse.status).toBe(200);
-            const location = extractRedirectUrlFromHtml(
-                postResponse.body as string,
-            );
+            const location = getRedirectLocation(postResponse);
             const code = new URL(location).searchParams.get('code') || '';
 
             const tokenResponse = await postFormEncoded<OAuthTokenResponse>(
@@ -908,10 +902,7 @@ describe('OAuth API Integration Tests', () => {
                 `${apiUrl}/authorize`,
                 formData,
             );
-            expect(postResponse.status).toBe(200);
-            const location = extractRedirectUrlFromHtml(
-                postResponse.body as string,
-            );
+            const location = getRedirectLocation(postResponse);
             const redirectUrl = new URL(location);
             const code = redirectUrl.searchParams.get('code') || '';
             expect(code).not.toBe('');

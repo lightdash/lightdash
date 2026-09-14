@@ -41,10 +41,7 @@
 }
 
 .row[data-selected] {
-    background: light-dark(
-        var(--mantine-color-ldGray-1),
-        var(--mantine-color-dark-5)
-    );
+    background: var(--mantine-color-default-hover);
 }
 
 .rowDot {

@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
+import { postSchedulerWebhook } from '../../utils/schedulerWebhookValidation';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
 // Google Chat renders a subset of HTML in textParagraph.text, and app delivery
@@ -23,18 +24,15 @@ const stripMarkup = (text: string): string =>
 /* eslint-disable class-methods-use-this */
 export class GoogleChatClient {
     private async sendWebhook(webhookUrl: string, payload: AnyType) {
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json; charset=UTF-8',
-            },
-            body: JSON.stringify(payload),
-        });
+        const response = await postSchedulerWebhook(
+            webhookUrl,
+            payload,
+            'application/json; charset=UTF-8',
+        );
 
-        if (!response.ok) {
-            const responseText = await response.text();
+        if (response.status < 200 || response.status >= 300) {
             Logger.error(
-                `Google Chat webhook returned an error: ${response.status} ${responseText}`,
+                `Google Chat webhook returned an error: ${response.status} ${response.bodyText}`,
             );
             Logger.debug(
                 `Google Chat webhook payload ${JSON.stringify(

@@ -467,6 +467,18 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                                 },
                             },
                             {
+                                path: 'battle/:threadUuidA/:threadUuidB',
+                                lazy: async () => {
+                                    const AiAgentBattlePage =
+                                        await loadLazyRouteDefault(
+                                            './pages/AiAgents/AiAgentBattlePage',
+                                            () =>
+                                                import('./pages/AiAgents/AiAgentBattlePage'),
+                                        );
+                                    return { Component: AiAgentBattlePage };
+                                },
+                            },
+                            {
                                 path: ':threadUuid',
                                 lazy: async () => {
                                     const AiAgentThreadPage =

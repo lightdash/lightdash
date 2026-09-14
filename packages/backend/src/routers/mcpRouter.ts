@@ -23,6 +23,7 @@ import {
     ExtraContext,
     isProjectScopedMcpTool,
     McpService,
+    type McpServerToolOptions,
 } from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
 import { userAttributeOverridesSchema } from '../services/UserAttributesService/UserAttributeUtils';
@@ -109,7 +110,7 @@ const legacyToolCallSchema = z
         params: z
             .object({
                 name: z.string(),
-                arguments: z.record(z.unknown()).optional(),
+                arguments: z.record(z.string(), z.unknown()).optional(),
             })
             .passthrough(),
     })
@@ -154,18 +155,26 @@ function extractProtocolVersionFromHeader(
 }
 
 /**
- * Only single-message bodies are inspected: an initialize inside a JSON-RPC
- * batch array is missed (batching was removed in protocol 2025-06-18, so this
- * only affects older clients).
+ * Only single-message bodies are inspected: a method inside a JSON-RPC batch
+ * array is missed (batching was removed in protocol 2025-06-18, so this only
+ * affects older clients).
  */
-function isInitializeRequest(req: express.Request): boolean {
+function getJsonRpcMethod(req: express.Request): string | undefined {
     const { body }: { body: unknown } = req;
-    return (
-        typeof body === 'object' &&
+    return typeof body === 'object' &&
         body !== null &&
         'method' in body &&
-        body.method === 'initialize'
-    );
+        typeof body.method === 'string'
+        ? body.method
+        : undefined;
+}
+
+function isInitializeRequest(req: express.Request): boolean {
+    return getJsonRpcMethod(req) === 'initialize';
+}
+
+function isToolsListRequest(req: express.Request): boolean {
+    return getJsonRpcMethod(req) === 'tools/list';
 }
 
 const MCP_SESSION_ID_HEADER = 'Mcp-Session-Id';
@@ -364,12 +373,6 @@ mcpRouter.all(
                         userAgent,
                     });
                 }
-                // Dark launch: the grep-based discovery tools are only
-                // registered (and thus only listed/invocable) when the
-                // AiGrepFields flag is enabled for this caller. Resolved here
-                // because tool registration in setupHandlers is synchronous
-                // (createServer only awaits to register skill resources
-                // afterwards).
                 // Content-write tools are only registered when the org-level
                 // setting allows it, so admins can lock down MCP edits.
                 // run_sql is only registered when the caller has
@@ -378,13 +381,12 @@ mcpRouter.all(
                 // These lookups are independent, so resolve them together
                 // rather than paying each round trip serially per request.
                 const [
-                    grepFieldsEnabled,
                     mcpContentWritesEnabled,
                     scheduledDeliveryEnabled,
                     runSqlEnabled,
                     runMetricQueryEnabled,
+                    filterExpressionsEnabled,
                 ] = await Promise.all([
-                    mcpService.isAiGrepFieldsEnabled(req.user!),
                     mcpService.isContentToolsEnabled(req.user!),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
                     mcpService.isRunSqlEnabled(req.user!, pinnedProjectUuid),
@@ -392,18 +394,19 @@ mcpRouter.all(
                         req.user!,
                         pinnedProjectUuid,
                     ),
+                    mcpService.isFilterExpressionsEnabled(req.user!),
                 ]);
-                const mcpServer = await mcpService.createServer({
-                    projectPinned: pinnedProjectUuid !== undefined,
-                    // The run_ai_writeback tool is always registered now that
-                    // AI writeback has graduated from its dark-launch flag.
-                    aiWritebackEnabled: true,
-                    grepFieldsEnabled,
-                    mcpContentWritesEnabled,
-                    scheduledDeliveryEnabled,
-                    runSqlEnabled,
-                    runMetricQueryEnabled,
-                });
+                const toolOptions: McpServerToolOptions = {
+                    req: { pinnedProjectUuid },
+                    featureAvailability: {
+                        mcpContentWritesEnabled,
+                        scheduledDeliveryEnabled,
+                        runSqlEnabled,
+                        runMetricQueryEnabled,
+                        filterExpressionsEnabled,
+                    },
+                };
+                const mcpServer = await mcpService.createServer(toolOptions);
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,
                     sessionIdGenerator: undefined,
@@ -481,7 +484,16 @@ mcpRouter.all(
                     };
                 }
 
-                return await transport.handleRequest(authReq, res, req.body);
+                const startedAt = Date.now();
+                await transport.handleRequest(authReq, res, req.body);
+                if (authReq.auth && isToolsListRequest(req)) {
+                    mcpService.recordToolList({
+                        catalogue: toolOptions,
+                        authInfo: authReq.auth,
+                        durationMs: Date.now() - startedAt,
+                    });
+                }
+                return undefined;
             }
 
             res.status(405).json({ error: 'Method not allowed' });

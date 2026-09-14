@@ -45,6 +45,7 @@ const OmnibarItem: FC<Props> = ({
                 {itemHasValidationError(item) ? (
                     <OmnibarItemIconWithIndicator
                         item={item}
+                        boxSize={26}
                         projectUuid={projectUuid}
                         canUserManageValidation={canUserManageValidation}
                     />
@@ -84,7 +85,6 @@ const OmnibarItem: FC<Props> = ({
                 {itemHasVerification(item) && (
                     <Badge
                         size="xs"
-                        variant="light"
                         color="green"
                         leftSection={<IconCircleCheckFilled size={10} />}
                         className={classes.verifiedBadge}

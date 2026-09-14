@@ -108,7 +108,6 @@ export const GithubMcpConnectModal: FC<Props> = ({
                                 href={GITHUB_FINE_GRAINED_TOKEN_URL}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                fz="inherit"
                             >
                                 GitHub → Fine-grained tokens
                             </Anchor>

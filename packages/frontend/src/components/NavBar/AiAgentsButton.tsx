@@ -75,6 +75,8 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                 fz="sm"
                 leftSection={<AiAgentIcon size={14} />}
                 onClick={goToAskAi}
+                data-tour-nav="ask-ai"
+                data-tour-hint="Click Ask AI"
             >
                 <Text span truncate="end" maw={150} size="sm">
                     Ask AI
@@ -89,12 +91,10 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         return (
             <HoverCard
                 width={240}
-                shadow="lg"
                 position="bottom-start"
                 offset={6}
                 openDelay={120}
                 closeDelay={80}
-                withinPortal
                 portalProps={{ target: '#navbar-header' }}
             >
                 <HoverCard.Target>
@@ -104,6 +104,8 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                         fz="sm"
                         leftSection={<AiAgentIcon size={14} />}
                         onClick={goToAskAi}
+                        data-tour-nav="ask-ai"
+                        data-tour-hint="Click Ask AI"
                     >
                         <Text span truncate="end" maw={150} size="sm">
                             Ask AI
@@ -140,12 +142,10 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
     return (
         <HoverCard
             width={290}
-            shadow="lg"
             position="bottom-start"
             offset={6}
             openDelay={120}
             closeDelay={80}
-            withinPortal
             portalProps={{ target: '#navbar-header' }}
             onOpen={() => setIsPreviewOpen(true)}
             onClose={() => setIsPreviewOpen(false)}
@@ -157,6 +157,8 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                     fz="sm"
                     leftSection={<AiAgentIcon size={15} animated calm />}
                     onClick={goToAskAi}
+                    data-tour-nav="ask-ai"
+                    data-tour-hint="Click Ask AI"
                 >
                     <Text span truncate="end" maw={150} size="sm">
                         Ask AI

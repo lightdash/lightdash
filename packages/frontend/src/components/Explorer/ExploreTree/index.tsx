@@ -31,6 +31,7 @@ import {
     selectMissingFieldIds,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useModalHostedDashboardMetricIds } from '../../../providers/Explorer/useIsModalHosted';
 import MantineIcon from '../../common/MantineIcon';
 import SelectedFieldsSection, {
     type SelectedField,
@@ -59,6 +60,8 @@ type ExploreTreeProps = {
     explore: Explore;
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
     selection?: ExploreTreeSelection;
+    selectedFieldsOverride?: SelectedField[];
+    hideSelectedFields?: boolean;
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
@@ -72,6 +75,8 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     explore,
     onSelectedFieldChange,
     selection,
+    selectedFieldsOverride,
+    hideSelectedFields = false,
 }) => {
     const explorerAdditionalMetrics = useExplorerSelector(
         selectAdditionalMetrics,
@@ -104,6 +109,9 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     const missingCustomMetrics = selection
         ? EMPTY_METRICS
         : explorerMissingCustomMetrics;
+    // Registry metrics are badged and frozen only in the dashboard host.
+    const hostDashboardMetricIds = useModalHostedDashboardMetricIds();
+    const dashboardMetricIds = selection ? undefined : hostDashboardMetricIds;
     const missingCustomDimensions = selection
         ? EMPTY_DIMENSIONS
         : explorerMissingCustomDimensions;
@@ -276,6 +284,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             customDimensions: customDimensions ?? [],
             missingCustomMetrics,
             missingCustomDimensions,
+            dashboardMetricIds,
             missingFieldIds,
             selectedDimensions,
             activeFields,
@@ -291,6 +300,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         isSearching,
         missingCustomDimensions,
         missingCustomMetrics,
+        dashboardMetricIds,
         missingFieldIds,
         searchResultsMap,
         sectionNodeMaps,
@@ -303,7 +313,6 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             <TextInput
                 leftSection={<MantineIcon icon={IconSearch} />}
                 rightSectionPointerEvents={isPending ? 'none' : 'all'}
-                radius="md"
                 rightSection={
                     isPending ? (
                         <Loader
@@ -314,8 +323,6 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                         <ActionIcon
                             aria-label="Clear search"
                             onMouseDown={(event) => event.preventDefault()}
-                            variant="subtle"
-                            color="gray"
                             onClick={handleClearSearch}
                         >
                             <MantineIcon icon={IconX} />
@@ -328,10 +335,12 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 data-testid="ExploreTree/SearchInput"
             />
 
-            <SelectedFieldsSection
-                fields={selectedFields}
-                onDeselect={onSelectedFieldChange}
-            />
+            {!hideSelectedFields && (
+                <SelectedFieldsSection
+                    fields={selectedFieldsOverride ?? selectedFields}
+                    onDeselect={onSelectedFieldChange}
+                />
+            )}
 
             <VirtualizedTreeList
                 data={virtualizedTreeData}

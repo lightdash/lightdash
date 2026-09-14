@@ -21,7 +21,7 @@ vi.mock('ai', () => ({
 
 // Mock appAuthz so permission checks are controllable in tests
 vi.mock('./appAuthz', () => ({
-    assertCanViewApp: vi.fn().mockResolvedValue(undefined),
+    assertCanViewApp: vi.fn().mockResolvedValue({ directOnly: false } as never),
 }));
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ function buildService(overrides: {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
     const spacePermissionService = {
-        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+        resolveAccess: vi.fn().mockResolvedValue({}),
     };
 
     const svc = new AppGenerateService({
@@ -212,6 +212,7 @@ function buildService(overrides: {
         analytics: { track: analyticsTrackSpy } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: fullAppModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: fullOrganizationDesignModel as never,
@@ -230,6 +231,9 @@ function buildService(overrides: {
         externalConnectionModel: fullExternalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
 
     vi.spyOn(
@@ -260,7 +264,9 @@ describe('AppGenerateService.getAppCode', () => {
     });
 
     beforeEach(() => {
-        vi.mocked(assertCanViewApp).mockResolvedValue(undefined);
+        vi.mocked(assertCanViewApp).mockResolvedValue({
+            directOnly: false,
+        } as never);
         analyticsTrackSpy.mockClear();
     });
 
@@ -445,6 +451,55 @@ describe('AppGenerateService.getAppCode', () => {
         const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
 
         expect(result.manifest).not.toHaveProperty('vizSchema');
+    });
+
+    it('includes the app icon in the manifest for a chart type', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue({
+                ...fakeApp,
+                template: 'data_app_viz',
+                icon: 'chart-sankey',
+            }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(result.manifest.icon).toBe('chart-sankey');
+    });
+
+    it('normalizes an icon retired from the curated set to null in the manifest', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue({
+                ...fakeApp,
+                template: 'data_app_viz',
+                icon: 'a-retired-icon',
+            }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(result.manifest.icon).toBeNull();
+    });
+
+    it('omits icon from the manifest for a non-chart-type app', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi
+                .fn()
+                .mockResolvedValue({ ...fakeApp, icon: 'chart-sankey' }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(result.manifest).not.toHaveProperty('icon');
     });
 
     it('emits app external-connection links as {alias, connectionSlug} in the manifest', async () => {

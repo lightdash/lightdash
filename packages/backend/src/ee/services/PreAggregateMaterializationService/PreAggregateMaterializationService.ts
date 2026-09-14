@@ -3,6 +3,7 @@ import {
     getIntrinsicUserAttributes,
     NotFoundError,
     PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
+    preAggregateMaterialization,
     QueryExecutionContext,
     QueryHistoryStatus,
     type Account,
@@ -22,7 +23,8 @@ import { type AsyncQueryService } from '../../../services/AsyncQueryService/Asyn
 import { BaseService } from '../../../services/BaseService';
 import { traceSpan } from '../../../tracing/tracing';
 import { PreAggregateModel } from '../../models/PreAggregateModel';
-import { getDefaultMaterializationSorts } from './buildMaterializationMetricQuery';
+
+const { getDefaultMaterializationSorts } = preAggregateMaterialization;
 
 const QUERY_POLL_INTERVAL_MS = 1000;
 const QUERY_POLL_TIMEOUT_MS = 30 * 60 * 1000;

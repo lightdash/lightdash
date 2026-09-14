@@ -13,6 +13,7 @@ import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useEvalSectionContext } from '../../hooks/useEvalSectionContext';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
+import classes from './EvalPromptThreadReference.module.css';
 
 type Props = {
     projectUuid: string;
@@ -50,7 +51,7 @@ export const EvalPromptThreadReference: FC<Props> = ({
 
     if (isLoading) {
         return (
-            <Card p="sm" withBorder>
+            <Card p="sm">
                 <Group gap="sm">
                     <MantineIcon icon={IconMessageCircle} color="dimmed" />
                     <Loader size="sm" />
@@ -80,20 +81,14 @@ export const EvalPromptThreadReference: FC<Props> = ({
     return (
         <Card
             p="sm"
-            withBorder
-            style={{
-                cursor: 'pointer',
-            }}
+            className={classes.clickableCard}
             onClick={handleOpenThread}
         >
             <Stack gap="xs">
                 <Group justify="space-between" align="flex-start">
-                    <Group gap="xs" style={{ flex: 1 }} align="flex-start">
-                        <MantineIcon
-                            icon={IconMessageCircle}
-                            color="ldGray.6"
-                        />
-                        <Box style={{ flex: 1 }}>
+                    <Group gap="xs" flex={1} align="flex-start">
+                        <MantineIcon icon={IconMessageCircle} color="dimmed" />
+                        <Box flex={1}>
                             <Stack gap="xs"></Stack>
                             <Group gap="xs" align="center">
                                 <Title order={6} lineClamp={1} lh={1.2}>

@@ -25,6 +25,7 @@ import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExploreByProjectUuid } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
+import { useProjectUuid } from './useProjectUuid';
 
 type ExplorerQueryManagerArgs = {
     projectUuid?: string;
@@ -69,16 +70,21 @@ export const useExplorerQueryManager = ({
     );
 
     const embed = useEmbed();
+    const customSqlProvenanceChartUuid =
+        embed?.customSqlProvenanceChartUuid ??
+        (embed?.savedChart && 'uuid' in embed.savedChart
+            ? embed.savedChart.uuid
+            : undefined);
+    const routeProjectUuid = useProjectUuid();
     const params = useParams<{
         savedQueryUuid: string;
-        projectUuid: string;
     }>();
     const savedQueryUuid =
         explicitSavedQueryUuid ||
         embed?.savedQueryUuid ||
         params.savedQueryUuid;
     const projectUuid =
-        explicitProjectUuid || embed?.projectUuid || params.projectUuid!;
+        explicitProjectUuid || embed?.projectUuid || routeProjectUuid!;
     const viewModeQueryArgs = useMemo(() => {
         return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
     }, [savedQueryUuid]);
@@ -180,6 +186,7 @@ export const useExplorerQueryManager = ({
             dateZoomGranularity,
             minimal,
             usePreAggregateCache: preAggCacheEnabled,
+            customSqlProvenanceChartUuid,
             savedChart: chartConfigForQuery,
         });
 
@@ -200,6 +207,7 @@ export const useExplorerQueryManager = ({
         dateZoomGranularity,
         minimal,
         preAggCacheEnabled,
+        customSqlProvenanceChartUuid,
         chartConfigForQuery,
         dispatch,
     ]);

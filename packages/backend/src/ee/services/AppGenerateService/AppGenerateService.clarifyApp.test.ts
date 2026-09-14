@@ -17,12 +17,6 @@ vi.mock('ai', () => ({
     generateObject: vi.fn(),
 }));
 vi.mock('../ai/models', () => ({
-    getModel: vi.fn(() => ({
-        model: { provider: 'anthropic', modelId: 'claude-sonnet-4-5' },
-        callOptions: {},
-        providerOptions: {},
-        keyManagement: 'lightdash',
-    })),
     resolveKeyManagement: vi.fn(() => 'lightdash'),
 }));
 vi.mock('../ai/utils/aiCallTelemetry', () => ({
@@ -58,8 +52,16 @@ const CATALOG_ITEMS = [
     },
 ];
 
+const FAST_MODEL_OPTIONS = {
+    model: { provider: 'openai.responses', modelId: 'gpt-5.6-luna' },
+    callOptions: {},
+    providerOptions: {},
+    keyManagement: 'lightdash-managed',
+};
+
 function buildService() {
     const getCatalogItemsSummary = vi.fn().mockResolvedValue(CATALOG_ITEMS);
+    const resolveFastModel = vi.fn().mockResolvedValue(FAST_MODEL_OPTIONS);
     const service = new AppGenerateService({
         lightdashConfig: {
             appRuntime: { sampleDataEnabled: true },
@@ -67,6 +69,7 @@ function buildService() {
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,
         catalogModel: { getCatalogItemsSummary } as never,
+        userModel: {} as never,
         appModel: {} as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -98,14 +101,18 @@ function buildService() {
         orgAiCopilotConfigResolver: {
             getCopilotConfig: vi
                 .fn()
-                .mockResolvedValue({ defaultProvider: 'anthropic' }),
+                .mockResolvedValue({ defaultProvider: 'openai' }),
+            resolveFastModel,
         } as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     // Bypass real CASL — the prompt/context selection is what these tests cover.
     (
         service as unknown as { createAuditedAbility: () => unknown }
     ).createAuditedAbility = () => ({ cannot: () => false });
-    return { service, getCatalogItemsSummary };
+    return { service, getCatalogItemsSummary, resolveFastModel };
 }
 
 const generateObjectMock = vi.mocked(generateObject);
@@ -141,6 +148,32 @@ async function clarify(template: DataAppTemplate | undefined) {
 beforeEach(() => {
     generateObjectMock.mockReset();
     mockQuestions([]);
+});
+
+describe('AppGenerateService.clarifyApp model resolution', () => {
+    it('uses the org-resolved fast model for the LLM call', async () => {
+        const { service, resolveFastModel } = buildService();
+
+        await service.clarifyApp(USER, 'project-1', 'a radial gauge');
+
+        expect(resolveFastModel).toHaveBeenCalledWith(
+            { defaultProvider: 'openai' },
+            { enableReasoning: false },
+        );
+        expect(generateObjectMock).toHaveBeenCalledWith(
+            expect.objectContaining({ model: FAST_MODEL_OPTIONS.model }),
+        );
+    });
+
+    it('falls through to no questions when no fast model resolves', async () => {
+        const { service, resolveFastModel } = buildService();
+        resolveFastModel.mockRejectedValueOnce(new Error('not configured'));
+
+        await expect(
+            service.clarifyApp(USER, 'project-1', 'a radial gauge'),
+        ).resolves.toEqual({ questions: [] });
+        expect(generateObjectMock).not.toHaveBeenCalled();
+    });
 });
 
 describe('AppGenerateService.clarifyApp for the data app viz template', () => {

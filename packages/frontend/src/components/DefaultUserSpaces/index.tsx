@@ -13,7 +13,7 @@ export const DefaultUserSpaces: FC<{ projectUuid: string }> = ({
         <SettingsGridCard>
             <Box>
                 <Title order={5}>Personal spaces</Title>
-                <Text c="ldGray.6" fz="xs">
+                <Text c="dimmed" fz="xs">
                     When enabled, each project member will automatically get a
                     personal space where they can save their own charts and
                     dashboards.

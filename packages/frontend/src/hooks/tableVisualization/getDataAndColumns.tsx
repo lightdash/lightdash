@@ -5,7 +5,6 @@ import {
     isCustomDimension,
     isDimension,
     isField,
-    isNumericItem,
     normalizePivotMatchRaw,
     type ItemsMap,
     type GroupedPivotRowSubtotals,
@@ -27,6 +26,7 @@ import {
     type TableColumn,
     type TableHeader,
 } from '../../components/common/Table/types';
+import { canHaveWarehouseTotal } from '../../utils/canHaveWarehouseTotal';
 import { getFormattedValueCell } from '../useColumns';
 
 type Args = {
@@ -268,14 +268,14 @@ const getDataAndColumns = ({
                                 parameters,
                             );
                         }
-                        if (totalsError && isNumericItem(item)) {
+                        if (totalsError && canHaveWarehouseTotal(item)) {
                             return (
                                 <TotalCalculationErrorCell
                                     error={totalsError}
                                 />
                             );
                         }
-                        if (totalsLoading && isNumericItem(item)) {
+                        if (totalsLoading && canHaveWarehouseTotal(item)) {
                             return (
                                 <Skeleton
                                     height={16}
@@ -335,7 +335,7 @@ const getDataAndColumns = ({
                             if (
                                 subtotalValue === undefined &&
                                 subtotalsError &&
-                                isNumericItem(item)
+                                canHaveWarehouseTotal(item)
                             ) {
                                 return (
                                     <TotalCalculationErrorCell
@@ -347,7 +347,7 @@ const getDataAndColumns = ({
                             if (
                                 subtotalValue === undefined &&
                                 subtotalsLoading &&
-                                isNumericItem(item)
+                                canHaveWarehouseTotal(item)
                             ) {
                                 return (
                                     <Skeleton

@@ -112,7 +112,7 @@ const ResourceView: FC<ResourceViewProps> = ({
 
     return (
         <>
-            <Paper withBorder>
+            <Paper>
                 {hasTabs || hasHeader ? (
                     <>
                         <Group>
@@ -146,18 +146,14 @@ const ResourceView: FC<ResourceViewProps> = ({
                                                                 icon={
                                                                     IconInfoCircle
                                                                 }
-                                                                color="ldGray.6"
+                                                                color="dimmed"
                                                             />
                                                         </Tooltip>
                                                     ) : null
                                                 }
                                             >
                                                 {tab.name ? (
-                                                    <Text
-                                                        c="ldGray.9"
-                                                        fz={15}
-                                                        fw={500}
-                                                    >
+                                                    <Text fz={15} fw={500}>
                                                         {tab.name}
                                                     </Text>
                                                 ) : null}
@@ -176,7 +172,7 @@ const ResourceView: FC<ResourceViewProps> = ({
                                     flex={1}
                                 >
                                     {headerProps?.title ? (
-                                        <Title order={5} fw={600}>
+                                        <Title order={5}>
                                             {headerProps.title}
                                         </Title>
                                     ) : null}
@@ -191,7 +187,7 @@ const ResourceView: FC<ResourceViewProps> = ({
                                         >
                                             <MantineIcon
                                                 icon={IconInfoCircle}
-                                                color="ldGray.6"
+                                                color="dimmed"
                                                 size={18}
                                             />
                                         </Tooltip>

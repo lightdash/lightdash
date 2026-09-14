@@ -27,7 +27,7 @@ const BooleanSwitch: FC<BooleanSwitchProps> = ({
     return (
         <Stack className={`input-wrapper ${className}`} gap="two">
             <Group gap="xs" justify="space-between">
-                <Text fw={450} fz="sm">
+                <Text fw={500} fz="sm">
                     {label} <span style={{ flex: 1 }}>{requiredLabel}</span>
                 </Text>
 

@@ -8,6 +8,7 @@ type Props = {
     projectUuid: string | undefined;
     chartUuid?: string;
     dashboardUuid?: string;
+    dataAppUuid?: string;
     clickedFrom: AiAgentAskClickedSource;
     variant?: ActionIconProps['variant'];
     size?: ActionIconProps['size'];
@@ -24,6 +25,7 @@ export const AskAiAgentButton: FC<Props> = ({
     projectUuid,
     chartUuid,
     dashboardUuid,
+    dataAppUuid,
     clickedFrom,
     variant = 'subtle',
     size = 'sm',
@@ -34,13 +36,14 @@ export const AskAiAgentButton: FC<Props> = ({
         projectUuid,
         chartUuid,
         dashboardUuid,
+        dataAppUuid,
         clickedFrom,
     });
 
     if (!canAsk) return null;
 
     return (
-        <Tooltip label="Ask AI Agent" withinPortal>
+        <Tooltip label="Ask AI Agent">
             <ActionIcon
                 variant={variant}
                 size={size}

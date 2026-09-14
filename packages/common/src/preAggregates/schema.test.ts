@@ -59,6 +59,66 @@ const validateInBothSchemas = (
     expect(validateModelYaml(modelDocument)).toBe(expected);
 };
 
+describe('pre-aggregate external table schema', () => {
+    it('keeps the dbt and model-as-code table contracts identical', () => {
+        const dbtTableSchema =
+            lightdashDbtYamlSchema.$defs.modelMeta.properties.pre_aggregates
+                .items.properties.table;
+        const modelTableSchema =
+            modelAsCodeSchema.definitions.BaseModel.properties.pre_aggregates
+                .items.properties.table;
+
+        expect(dbtTableSchema).toStrictEqual(modelTableSchema);
+    });
+
+    it.each([
+        {
+            name: 'an external table',
+            preAggregate: {
+                ...basePreAggregate,
+                table: 'analytics.orders_rollup_mv',
+            },
+            valid: true,
+        },
+        {
+            name: 'omitted table',
+            preAggregate: basePreAggregate,
+            valid: true,
+        },
+        {
+            name: 'an empty table',
+            preAggregate: { ...basePreAggregate, table: '' },
+            valid: false,
+        },
+        {
+            name: 'a quoted external table',
+            preAggregate: {
+                ...basePreAggregate,
+                table: '"analytics"."orders rollup"',
+            },
+            valid: true,
+        },
+        {
+            name: 'an external table SQL expression',
+            preAggregate: {
+                ...basePreAggregate,
+                table: '(SELECT * FROM orders)',
+            },
+            valid: false,
+        },
+        {
+            name: 'an external table with multiple statements',
+            preAggregate: {
+                ...basePreAggregate,
+                table: 'orders; DROP TABLE users',
+            },
+            valid: false,
+        },
+    ])('$name is valid: $valid', ({ preAggregate, valid }) => {
+        validateInBothSchemas(preAggregate, valid);
+    });
+});
+
 describe('pre-aggregate sort schema parity', () => {
     it('keeps the dbt and model-as-code sort contracts identical', () => {
         const dbtSortSchema =

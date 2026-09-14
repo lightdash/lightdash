@@ -44,9 +44,6 @@ export const DefaultAgentButton: React.FC<Props> = ({
         >
             <ActionIcon
                 className={[styles.button, className].filter(Boolean).join(' ')}
-                radius="md"
-                variant="subtle"
-                color="gray"
                 onClick={async () => {
                     if (isDefault) {
                         await deleteUserPreferences();

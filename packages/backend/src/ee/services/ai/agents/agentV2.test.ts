@@ -1,5 +1,11 @@
 import { type AnyType } from '@lightdash/common';
-import { APICallError, generateText, streamText, type ModelMessage } from 'ai';
+import {
+    APICallError,
+    generateText,
+    streamText,
+    type ModelMessage,
+    type ToolSet,
+} from 'ai';
 import {
     registerAiUsageTracker,
     type AiUsageEvent,
@@ -20,13 +26,16 @@ import {
     buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
     buildForcedFirstStep,
+    buildPrepareStep,
     generateAgentResponse,
+    getAgentMessages,
     getAgentTools,
     getDeepResearchBudgetInstruction,
     getPromptMcpServers,
     getStepBudgetOverride,
     normalizeToolOutput,
     recordAgentStepUsage,
+    scopeAgentConversation,
     storeInvalidAgentToolCall,
     streamAgentResponse,
     withEarlyToolProgress,
@@ -43,7 +52,11 @@ const buildAgentDependencies = (updatePrompt: ReturnType<typeof vi.fn>) =>
     new Proxy(
         {
             listExplores: vi.fn().mockResolvedValue([]),
+            getVerifiedFieldUsage: vi.fn().mockResolvedValue(new Map()),
             getProjectParameterDefinitions: vi.fn().mockResolvedValue({}),
+            listCustomChartTypes: vi
+                .fn()
+                .mockResolvedValue({ types: [], totalCount: 0 }),
             updatePrompt,
             perf: new Proxy({}, { get: () => vi.fn() }),
         },
@@ -75,12 +88,9 @@ const buildAgentArgs = (
         enableContentTools: false,
         enableDataAccess: false,
         enableEditProjectContext: false,
-        enableGrepFields: false,
         enablePreviewDeploySetup: false,
         enableRepoDiscovery: false,
         execution,
-        findExploresFieldSearchSize: 10,
-        findFieldsPageSize: 10,
         forceToolHints: false,
         getDashboardChartsPageSize: 10,
         keyManagement: 'self-managed',
@@ -407,6 +417,11 @@ describe('generateAgentResponse token usage persistence', () => {
                 totalTokens: 31000,
                 finalStepTotalTokens: 31000,
             },
+            responseTiming: {
+                startedAt: expect.any(String),
+                firstTokenAt: null,
+                finishedAt: expect.any(String),
+            },
         });
     });
 });
@@ -458,7 +473,8 @@ describe('recordAgentStepUsage', () => {
             event: 'ai.usage',
             properties: {
                 feature: 'agent',
-                inputTokens: 10,
+                // The total includes the cache tokens: 10 uncached + 4 read + 2 write.
+                inputTokens: 16,
                 outputTokens: 7,
                 cacheReadTokens: 4,
                 cacheWriteTokens: 2,
@@ -518,7 +534,8 @@ describe('recordAgentStepUsage', () => {
             runUuid: 'run-1',
             phase: 'investigating',
             tokens: {
-                inputTokens: 10,
+                // The total includes the cache tokens: 10 uncached + 4 read + 2 write.
+                inputTokens: 16,
                 outputTokens: 7,
                 cacheReadTokens: 4,
                 cacheWriteTokens: 2,
@@ -673,6 +690,94 @@ describe('getStepBudgetOverride', () => {
                 9,
             ),
         ).toBeUndefined();
+    });
+
+    it('reserves a worker final step for findings submission', () => {
+        const execution = {
+            mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
+            maxSteps: 5,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+                maxSteps: 5,
+                deadlineMs: 600_000,
+            },
+            canUseRawSql: true,
+            initialTokenUsage: 0,
+            research: {
+                role: 'worker',
+                task: { id: 'task-1', question: 'Why?', focus: 'Orders' },
+                onFindings: vi.fn(),
+            },
+        } as const;
+
+        expect(getStepBudgetOverride(execution, 3)).toBeUndefined();
+        expect(getStepBudgetOverride(execution, 4)).toEqual({
+            message: expect.stringContaining('Submit the best findings packet'),
+            activeTools: ['submitWorkerFindings'],
+            toolChoice: {
+                type: 'tool',
+                toolName: 'submitWorkerFindings',
+            },
+        });
+    });
+});
+
+describe('buildPrepareStep worker isolation', () => {
+    it('does not consume or inject prompt-wide steers for a worker', async () => {
+        const args = buildAgentArgs({
+            mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
+            maxSteps: 5,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+                maxSteps: 5,
+                deadlineMs: 600_000,
+            },
+            canUseRawSql: true,
+            initialTokenUsage: 0,
+            research: {
+                role: 'worker',
+                task: { id: 'task-1', question: 'Why?', focus: 'Orders' },
+                onFindings: vi.fn(),
+            },
+        });
+        const consumePromptSteers = vi
+            .fn()
+            .mockResolvedValue([{ message: 'Coordinator-only guidance' }]);
+        const prepareStep = buildPrepareStep({
+            args,
+            dependencies: {
+                ...buildAgentDependencies(vi.fn()),
+                consumePromptSteers,
+            },
+            tools: { submitWorkerFindings: {} as never },
+            mcpToolNames: [],
+            logger: vi.fn(),
+            invalidToolCallIds: new Set(),
+        });
+
+        const result = await prepareStep({ stepNumber: 4, messages: [] });
+
+        expect(consumePromptSteers).not.toHaveBeenCalled();
+        expect(JSON.stringify(result)).not.toContain(
+            'Coordinator-only guidance',
+        );
+        expect(result).toMatchObject({
+            activeTools: ['submitWorkerFindings'],
+            toolChoice: {
+                type: 'tool',
+                toolName: 'submitWorkerFindings',
+            },
+        });
     });
 });
 
@@ -853,12 +958,12 @@ describe('withEarlyToolProgress', () => {
         );
         const execute = vi.fn(streamingTool.execute);
         const tools = withEarlyToolProgress(
-            { discoverFields: { execute } } as never,
+            { streamingTool: { execute } } as never,
             updateProgress,
             true,
         );
 
-        const execution = tools.discoverFields.execute?.({}, {
+        const execution = tools.streamingTool.execute?.({}, {
             toolCallId: 'tool-call-1',
         } as never);
         expect(execute).not.toHaveBeenCalled();
@@ -871,12 +976,12 @@ describe('withEarlyToolProgress', () => {
 
     it('preserves async iterable tools in the standard execution path', () => {
         const tools = withEarlyToolProgress(
-            { discoverFields: streamingTool } as never,
+            { streamingTool } as never,
             vi.fn().mockResolvedValue(undefined),
             false,
         );
 
-        const execution = tools.discoverFields.execute?.({}, {
+        const execution = tools.streamingTool.execute?.({}, {
             toolCallId: 'tool-call-1',
         } as never);
 
@@ -904,36 +1009,50 @@ describe('getAgentTools workstream tool gate', () => {
         closeMcpClients: () => Promise.resolve(),
     };
 
-    const buildArgs = (flags: {
+    type ToolFlags = {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
         canCreateDashboards?: boolean;
-    }): AiAgentArgs =>
+        canRunSql?: boolean;
+        enableComposerQueries?: boolean;
+        enableContentTools?: boolean;
+        enableDataAccess?: boolean;
+        enableGenerateDataApp?: boolean;
+        enableFilterExpressions?: boolean;
+    };
+
+    const buildArgs = (flags: ToolFlags): AiAgentArgs =>
         ({
             canCreateDashboards: true,
-            agentSettings: { name: 'test-agent' },
+            agentSettings: {
+                uuid: 'agent-1',
+                name: 'test-agent',
+                projectUuid: 'project-1',
+            },
             autoApproveSql: false,
             autoApproveSqlUserUuid: null,
             availableSkills: [],
             callOptions: {},
+            compactionSummary: null,
             canManageAgent: false,
             canRunSql: true,
             debugLoggingEnabled: false,
             enableContentTools: false,
             enableDataAccess: false,
             enableEditProjectContext: false,
-            enableGrepFields: false,
+            enableGenerateDataApp: false,
             enablePreviewDeploySetup: false,
             enableRepoDiscovery: false,
+            enableFilterExpressions: false,
             execution: {
                 mode: 'standard',
                 maxSteps: 10,
             },
-            findExploresFieldSearchSize: 10,
-            findFieldsPageSize: 10,
             getDashboardChartsPageSize: 10,
             maxQueryLimit: 5000,
+            messageHistory: [{ role: 'user', content: 'Question' }],
+            mcpServers: [],
             model: {},
             organizationId: 'org-1',
             aiAgentMemoryEnabled: false,
@@ -945,27 +1064,74 @@ describe('getAgentTools workstream tool gate', () => {
             telemetryEnabled: false,
             threadUuid: 'thread-1',
             toolDescriptionMaxChars: 1000,
+            toolHints: [],
             userId: 'user-1',
             useSlackStreamCard: false,
+            slackLinksOnly: false,
             ...flags,
         }) as unknown as AiAgentArgs;
 
-    const toolNames = (flags: {
-        enableCodingAgent: boolean;
-        enableAiWriteback: boolean;
-        aiAgentMemoryEnabled?: boolean;
-        canCreateDashboards?: boolean;
-    }) =>
-        Object.keys(
-            getAgentTools(
-                buildArgs(flags),
-                depsStub(),
+    const buildToolsForArgs = (args: AiAgentArgs) =>
+        getAgentTools(
+            args,
+            depsStub(),
+            [],
+            mcpStub,
+            new Map(),
+            {},
+            {
+                types: [],
+                totalCount: 0,
+            },
+        );
+
+    const buildTools = (flags: ToolFlags) =>
+        buildToolsForArgs(buildArgs(flags));
+
+    const toolNames = (flags: ToolFlags) => Object.keys(buildTools(flags));
+
+    it.each([false, true])(
+        'matches the %s filter prompt to the selected tool contracts',
+        (enableFilterExpressions) => {
+            const args = buildArgs({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+                enableDataAccess: true,
+                enableFilterExpressions,
+            });
+            const tools = buildToolsForArgs(args);
+            const systemMessage = getAgentMessages(
+                args,
                 [],
                 mcpStub,
+                tools,
                 new Map(),
-                {},
-            ),
-        );
+                null,
+                { types: [], totalCount: 0 },
+            ).find(({ role }) => role === 'system');
+            if (!systemMessage || typeof systemMessage.content !== 'string') {
+                throw new Error('Expected a string system message');
+            }
+
+            expect({
+                promptUsesExpressions: systemMessage.content.includes(
+                    '## Filter expressions',
+                ),
+                visualizationUsesExpressions:
+                    tools.generateVisualization.description?.includes(
+                        'follow the Lightdash Agent system prompt',
+                    ) ?? false,
+                fieldValueSearchUsesExpressions:
+                    tools.searchFieldValues.description?.includes(
+                        'follow the Lightdash Agent system prompt',
+                    ) ?? false,
+            }).toEqual({
+                promptUsesExpressions: enableFilterExpressions,
+                visualizationUsesExpressions: enableFilterExpressions,
+                fieldValueSearchUsesExpressions: enableFilterExpressions,
+            });
+        },
+    );
 
     it('exposes listWorkstreams + closePullRequest when AI writeback is enabled (coding agent off)', () => {
         const names = toolNames({
@@ -979,6 +1145,24 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('editRepo');
     });
 
+    it('exposes generateDataApp and iterateDataApp only when the data app gate is satisfied', () => {
+        const withGate = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            enableGenerateDataApp: true,
+        });
+        const withoutGate = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            enableGenerateDataApp: false,
+        });
+
+        expect(withGate).toContain('generateDataApp');
+        expect(withGate).toContain('iterateDataApp');
+        expect(withoutGate).not.toContain('generateDataApp');
+        expect(withoutGate).not.toContain('iterateDataApp');
+    });
+
     it('exposes loadProjectContext when AI agent memory is enabled', () => {
         const names = toolNames({
             enableCodingAgent: false,
@@ -987,6 +1171,47 @@ describe('getAgentTools workstream tool gate', () => {
         });
 
         expect(names).toContain('loadProjectContext');
+    });
+
+    it('uses grepFields and getMetadata as the only field discovery path', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+        });
+
+        expect(names).toContain('grepFields');
+        expect(names).toContain('getMetadata');
+        expect(names).not.toContain('discoverFields');
+    });
+
+    it('matches dashboard detail guidance to the available content tool', () => {
+        const contentTools = buildTools({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            enableContentTools: true,
+            enableDataAccess: true,
+        });
+        expect(Object.keys(contentTools)).toContain('readContent');
+        expect(Object.keys(contentTools)).not.toContain('getDashboardCharts');
+        expect(contentTools.findContent.description).toContain('"readContent"');
+        expect(contentTools.findContent.description).not.toContain(
+            '"getDashboardCharts"',
+        );
+
+        const legacyTools = buildTools({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            enableContentTools: false,
+            enableDataAccess: true,
+        });
+        expect(Object.keys(legacyTools)).toContain('getDashboardCharts');
+        expect(Object.keys(legacyTools)).not.toContain('readContent');
+        expect(legacyTools.findContent.description).toContain(
+            '"getDashboardCharts"',
+        );
+        expect(legacyTools.findContent.description).not.toContain(
+            '"readContent"',
+        );
     });
 
     it('withholds generateDashboard from users who cannot save one', () => {
@@ -1036,6 +1261,7 @@ describe('getAgentTools workstream tool gate', () => {
             },
             new Map(),
             {},
+            { types: [], totalCount: 0 },
         );
 
         expect(Object.keys(tools)).toEqual(
@@ -1092,6 +1318,31 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('getPullRequestDiff');
     });
 
+    it('withholds runSql when composer queries are enabled — a sql node supersedes it', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            canRunSql: true,
+            enableComposerQueries: true,
+        });
+        expect(names).toContain('runComposerQueries');
+        expect(names).not.toContain('runSql');
+        // The SQL discovery companions stay: composer sql nodes need them.
+        expect(names).toContain('listWarehouseTables');
+        expect(names).toContain('describeWarehouseTable');
+    });
+
+    it('keeps runSql when composer queries are disabled', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            canRunSql: true,
+            enableComposerQueries: false,
+        });
+        expect(names).toContain('runSql');
+        expect(names).not.toContain('runComposerQueries');
+    });
+
     const buildResearchArgs = (
         research: AiDeepResearchExecutionRole,
         canUseRawSql = true,
@@ -1124,26 +1375,57 @@ describe('getAgentTools workstream tool gate', () => {
     const getResearchTools = (
         research: AiDeepResearchExecutionRole,
         canUseRawSql = true,
-    ) =>
-        Object.keys(
+        includeSpoofedMcp = false,
+    ) => {
+        const args = buildResearchArgs(research, canUseRawSql);
+        args.agentSettings.projectUuid = 'project-1';
+        args.mcpServers = [
+            {
+                uuid: 'lightdash-mcp',
+                url: 'http://localhost/api/v1/mcp/projects/project-1',
+            },
+            ...(includeSpoofedMcp
+                ? [
+                      {
+                          uuid: 'external-mcp',
+                          url: 'https://untrusted.example/mcp',
+                      },
+                  ]
+                : []),
+        ] as AiAgentArgs['mcpServers'];
+        const researchMcpTools: ToolSet = {
+            mcp_github__create_issue: {} as never,
+            mcp_lightdash__run_metric_query: {} as never,
+            mcp_lightdash__run_sql: {} as never,
+        };
+        const researchMcpToolServers: Record<string, string> = {
+            mcp_github__create_issue: 'github-mcp',
+            mcp_lightdash__run_metric_query: 'lightdash-mcp',
+            mcp_lightdash__run_sql: 'lightdash-mcp',
+        };
+        if (includeSpoofedMcp) {
+            researchMcpTools.mcp_external__run_sql = {} as never;
+            researchMcpToolServers.mcp_external__run_sql = 'external-mcp';
+        }
+
+        return Object.keys(
             getAgentTools(
-                buildResearchArgs(research, canUseRawSql),
+                args,
                 depsStub(),
                 [],
                 {
                     ...mcpStub,
-                    tools: {
-                        mcp_github__create_issue: {} as never,
-                        mcp_lightdash__run_metric_query: {} as never,
-                        mcp_lightdash__run_sql: {} as never,
-                    },
+                    tools: researchMcpTools,
+                    mcpToolNameToServerUuid: researchMcpToolServers,
                 },
                 new Map(),
                 {},
+                { types: [], totalCount: 0 },
             ),
         );
+    };
 
-    it('adds delegation while preserving inherited built-in and MCP tools for the coordinator', () => {
+    it('limits the coordinator to read-only research tools', () => {
         const names = getResearchTools({
             role: 'coordinator',
             runTask: vi.fn(),
@@ -1152,13 +1434,18 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).toEqual(
             expect.arrayContaining([
                 'delegateResearchTask',
-                'editDbtProject',
+                'findContent',
                 'generateVisualization',
-                'loadMcpTools',
-                'mcp_github__create_issue',
                 'mcp_lightdash__run_sql',
             ]),
         );
+        expect(names).not.toContain('createContent');
+        expect(names).not.toContain('createScheduledDelivery');
+        expect(names).not.toContain('editDbtProject');
+        expect(names).not.toContain('editRepo');
+        expect(names).not.toContain('loadMcpTools');
+        expect(names).not.toContain('mcp_github__create_issue');
+        expect(names).not.toContain('updateUserName');
     });
 
     it('removes native and MCP raw SQL when Deep Research SQL is disabled', () => {
@@ -1170,6 +1457,17 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('runSql');
         expect(names).not.toContain('mcp_lightdash__run_sql');
         expect(names).toContain('mcp_lightdash__run_metric_query');
+    });
+
+    it('rejects warehouse-named tools from untrusted MCP servers', () => {
+        const names = getResearchTools(
+            { role: 'coordinator', runTask: vi.fn() },
+            true,
+            true,
+        );
+
+        expect(names).toContain('mcp_lightdash__run_sql');
+        expect(names).not.toContain('mcp_external__run_sql');
     });
 
     // Workers are not given attached MCP servers at all (see
@@ -1245,5 +1543,143 @@ describe('buildAgentMessages', () => {
 
         expect(messages).toHaveLength(2);
         expect(messages[1]).toEqual({ role: 'user', content: 'Question' });
+    });
+});
+
+describe('scopeAgentConversation', () => {
+    const history: ModelMessage[] = [
+        { role: 'user', content: 'Original user question' },
+        { role: 'assistant', content: 'Coordinator investigation' },
+    ];
+
+    it('removes rebuilt thread, compaction, and memory context from workers', () => {
+        expect(
+            scopeAgentConversation({
+                execution: {
+                    mode: 'deep_research',
+                    runUuid: 'run-1',
+                    phase: 'investigating',
+                    maxSteps: 5,
+                    budget: {
+                        maxTokens: 10_000,
+                        maxToolCalls: 20,
+                        maxWarehouseQueries: 10,
+                        maxResultRows: 1_000,
+                        maxSteps: 5,
+                        deadlineMs: 600_000,
+                    },
+                    canUseRawSql: true,
+                    initialTokenUsage: 0,
+                    research: {
+                        role: 'worker',
+                        task: {
+                            id: 'task-1',
+                            question: 'Why?',
+                            focus: 'Orders',
+                        },
+                        onFindings: vi.fn(),
+                    },
+                },
+                messageHistory: history,
+                compactionSummary: 'Coordinator summary',
+                memoryBlock: 'Agent memory',
+            }),
+        ).toEqual({
+            messageHistory: [
+                {
+                    role: 'user',
+                    content:
+                        'Carry out the isolated task packet in your system instructions.',
+                },
+            ],
+            compactionSummary: null,
+            memoryBlock: null,
+        });
+    });
+
+    it('builds a worker prompt with a conversation kickoff and no coordinator text', () => {
+        const args = buildAgentArgs({
+            mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
+            maxSteps: 5,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+                maxSteps: 5,
+                deadlineMs: 600_000,
+            },
+            canUseRawSql: true,
+            initialTokenUsage: 0,
+            research: {
+                role: 'worker',
+                task: { id: 'task-1', question: 'Why?', focus: 'Orders' },
+                onFindings: vi.fn(),
+            },
+        });
+        args.messageHistory = history;
+        args.compactionSummary = 'Coordinator summary';
+        args.toolHints = ['runSql'];
+        args.forceToolHints = true;
+        const messages = getAgentMessages(
+            args,
+            [],
+            mcpToolSetup(),
+            {},
+            new Map(),
+            'Agent memory',
+            { types: [], totalCount: 0 },
+        );
+
+        expect(messages[0].role).toBe('system');
+        expect(messages.slice(1)).toEqual([
+            {
+                role: 'user',
+                content:
+                    'Carry out the isolated task packet in your system instructions.',
+            },
+        ]);
+        expect(JSON.stringify(messages)).not.toContain('Coordinator');
+        expect(JSON.stringify(messages)).not.toContain(
+            'Original user question',
+        );
+        expect(JSON.stringify(messages)).not.toContain('Agent memory');
+        expect(messages[1].content).not.toContain('runSql');
+        expect(
+            buildForcedFirstStep(args, { runSql: {} as never }),
+        ).toBeUndefined();
+    });
+
+    it('preserves coordinator conversation context', () => {
+        expect(
+            scopeAgentConversation({
+                execution: {
+                    mode: 'deep_research',
+                    runUuid: 'run-1',
+                    phase: 'planning',
+                    maxSteps: 16,
+                    budget: {
+                        maxTokens: 10_000,
+                        maxToolCalls: 20,
+                        maxWarehouseQueries: 10,
+                        maxResultRows: 1_000,
+                        maxSteps: 16,
+                        deadlineMs: 600_000,
+                    },
+                    canUseRawSql: true,
+                    initialTokenUsage: 0,
+                    research: { role: 'coordinator', runTask: vi.fn() },
+                },
+                messageHistory: history,
+                compactionSummary: 'Coordinator summary',
+                memoryBlock: 'Agent memory',
+            }),
+        ).toEqual({
+            messageHistory: history,
+            compactionSummary: 'Coordinator summary',
+            memoryBlock: 'Agent memory',
+        });
     });
 });

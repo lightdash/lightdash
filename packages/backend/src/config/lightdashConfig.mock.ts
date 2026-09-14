@@ -8,6 +8,9 @@ import { LightdashConfig } from './parseConfig';
 export const lightdashConfigMock: LightdashConfig = {
     allowMultiOrgs: false,
     auth: {
+        mobileLogin: {
+            enabled: true,
+        },
         pat: {
             enabled: false,
             allowedOrgRoles: Object.values(OrganizationMemberRole),
@@ -56,6 +59,10 @@ export const lightdashConfigMock: LightdashConfig = {
             privateKeyFile: undefined,
             openIdConnectMetadataEndpoint: undefined,
         },
+        microsoftManagedSignIn: {
+            iosClientId: undefined,
+            androidClientId: undefined,
+        },
         oidc: {
             authMethod: undefined,
             authSigningAlg: undefined,
@@ -88,6 +95,12 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     lightdashCloudInstance: 'test-instance',
+    mobileAppAssociation: {
+        appleTeamId: 'TEAMID',
+        appleBundleId: 'com.lightdash.mobile',
+        androidPackageName: 'com.lightdash.mobile',
+        androidCertificateFingerprints: [],
+    },
     openaiAppsChallengeToken: undefined,
     k8s: {
         podNamespace: undefined,
@@ -108,6 +121,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     dbt: {
         environmentVariableAllowlist: [],
+        sourceFetchConcurrency: undefined,
     },
     dashboard: {
         maxTilesPerTab: 50,
@@ -150,6 +164,9 @@ export const lightdashConfigMock: LightdashConfig = {
         auditActorAsString: false,
     },
     maxPayloadSize: '',
+    httpServer: {
+        keepAliveTimeoutMs: 620_000,
+    },
     pivotTable: { maxColumnLimit: 0 },
     enableImprovedExcelDates: false,
     s3: {
@@ -199,6 +216,15 @@ export const lightdashConfigMock: LightdashConfig = {
                 schedule: '0 2 * * *',
             },
         },
+        scimRequestLogs: {
+            cleanup: {
+                enabled: true,
+                retentionDays: 30,
+                batchSize: 1000,
+                delayMs: 100,
+                maxBatches: 100,
+            },
+        },
     },
     secureCookies: false,
     sentry: {
@@ -224,8 +250,26 @@ export const lightdashConfigMock: LightdashConfig = {
     helpMenuUrl: undefined,
     trustProxy: false,
     mode: LightdashMode.DEFAULT,
+    mobile: {
+        minimumSupportedVersion: {
+            android: null,
+            ios: null,
+        },
+    },
+    mobilePushNotifications: {
+        enabled: false,
+        bundleId: 'com.lightdash.mobile',
+        teamId: undefined,
+        sandbox: undefined,
+        production: undefined,
+        fcm: undefined,
+    },
     license: {
         licenseKey: null,
+        licenseCertificate: null,
+    },
+    roadmap: {
+        baseUrl: 'https://roadmap.lightdash.com',
     },
     groups: {
         enabled: false,
@@ -256,11 +300,12 @@ export const lightdashConfigMock: LightdashConfig = {
             maxQueryLimit: 10000,
             runSqlMaxLimit: 5000,
             telemetryEnabled: false,
+            threadDumpEnabled: false,
             requiresFeatureFlag: false,
             askAiButtonEnabled: false,
             embeddingEnabled: true,
             defaultProvider: 'openai',
-            selfManagedProviders: [],
+            lightdashManagedProviders: [],
             providers: {
                 openai: {
                     apiKey: 'mock_api_key',
@@ -279,6 +324,9 @@ export const lightdashConfigMock: LightdashConfig = {
         },
         agentMemory: {
             consolidationDryRun: false,
+        },
+        promptInputRequestClassifier: {
+            enabled: false,
         },
     },
     embedding: {
@@ -347,7 +395,7 @@ export const lightdashConfigMock: LightdashConfig = {
         sessionTimeoutMs: 300000,
     },
     aiWriteback: {
-        anthropicApiKey: null,
+        legacyAnthropicApiKey: null,
         codingAgentMaxRepoSizeMb: 500,
     },
     mcp: {
@@ -386,6 +434,17 @@ export const lightdashConfigMock: LightdashConfig = {
     dashboardComments: {
         enabled: true,
     },
+    externalSources: {
+        maxFileSizeBytes: 100 * 1024 * 1024,
+        maxRows: 1_000_000,
+        maxOrganizationBytes: 5 * 1024 * 1024 * 1024,
+        maxConcurrentIngestsPerOrganization: 2,
+        maxConcurrentDuckdbQueriesPerOrganization: 2,
+        googleSheetsBatchRows: 5_000,
+        stagedUploadTtlHours: 24,
+        ingestLeaseMs: 35 * 60 * 1000,
+        garbageCollectionBatchSize: 100,
+    },
     preAggregates: {
         enabled: false,
         parquetEnabled: false,
@@ -414,6 +473,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     appRuntime: {
         enabled: false,
+        dataAppCodingAgent: 'claude',
         lightdashOrigin: 'https://test.lightdash.cloud',
         cdnOrigin: null,
         previewOrigin: null,
@@ -476,6 +536,7 @@ export const lightdashConfigMock: LightdashConfig = {
         // Off in the test fixture (real default is `true`) so tests never make
         // a live OSV call.
         dependencyMalwareCheckEnabled: false,
+        chartRegistry: { url: null, allowInsecure: false, channel: 'stable' },
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

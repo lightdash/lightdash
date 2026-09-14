@@ -98,6 +98,49 @@ describe('deepResearchRegistry', () => {
         ]);
     });
 
+    it('keeps working from memory when localStorage writes fail', () => {
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new DOMException('Quota exceeded', 'QuotaExceededError');
+        });
+
+        expect(() =>
+            registerDeepResearchRun(
+                failedRegistration({ runUuid: 'memory-run' }),
+            ),
+        ).not.toThrow();
+        expect(
+            findRetryableDeepResearchRun({
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                threadUuid: 'thread-1',
+                userUuid: 'user-1',
+                question: 'Why did retention fall?',
+            }),
+        ).toMatchObject({ runUuid: 'memory-run' });
+    });
+
+    it('keeps working from memory when localStorage reads fail', () => {
+        registerDeepResearchRun(
+            failedRegistration({
+                runUuid: 'memory-read-run',
+                createdAt: '2026-07-24T09:02:00.000Z',
+            }),
+        );
+        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+            throw new DOMException('Storage blocked', 'SecurityError');
+        });
+
+        expect(
+            findRetryableDeepResearchRun({
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                threadUuid: 'thread-1',
+                userUuid: 'user-1',
+                question: 'Why did retention fall?',
+            }),
+        ).toMatchObject({ runUuid: 'memory-read-run' });
+    });
+
     it('restores the failed prompt in the matching thread composer', () => {
         const listener = vi.fn();
         const unsubscribe = subscribeToDeepResearchComposerPrompt(listener);

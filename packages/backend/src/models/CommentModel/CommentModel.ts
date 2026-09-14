@@ -31,6 +31,43 @@ export class CommentModel {
         this.database = args.database;
     }
 
+    private getDashboardCommentExistsQuery(dashboardUuid: string) {
+        return this.database
+            .select(this.database.raw('1'))
+            .from(DashboardTilesTableName)
+            .join(
+                DashboardVersionsTableName,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+                '=',
+                `${DashboardTilesTableName}.dashboard_version_id`,
+            )
+            .join(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                '=',
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .where(
+                `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                '=',
+                this.database.ref(
+                    `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
+                ),
+            )
+            .andWhere(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`);
+    }
+
+    private getCommentThreadQuery(dashboardUuid: string, commentId: string) {
+        return this.database(DashboardTileCommentsTableName)
+            .where((builder) => {
+                void builder
+                    .where('comment_id', commentId)
+                    .orWhere('reply_to', commentId);
+            })
+            .whereExists(this.getDashboardCommentExistsQuery(dashboardUuid));
+    }
+
     private static parseComments(
         commentsWithUsers: (DbDashboardTileComments &
             Pick<DbUser, 'first_name' | 'last_name'> & {
@@ -293,24 +330,29 @@ export class CommentModel {
         }));
     }
 
-    async resolveComment(commentId: string): Promise<void> {
-        await this.database(DashboardTileCommentsTableName)
-            .update({ resolved: true })
-            .where('comment_id', commentId)
-            .orWhere('reply_to', commentId);
+    async resolveComment(
+        dashboardUuid: string,
+        commentId: string,
+    ): Promise<void> {
+        await this.getCommentThreadQuery(dashboardUuid, commentId).update({
+            resolved: true,
+        });
     }
 
-    async unresolveComment(commentId: string): Promise<void> {
-        await this.database(DashboardTileCommentsTableName)
-            .update({ resolved: false })
-            .where('comment_id', commentId)
-            .orWhere('reply_to', commentId);
+    async unresolveComment(
+        dashboardUuid: string,
+        commentId: string,
+    ): Promise<void> {
+        await this.getCommentThreadQuery(dashboardUuid, commentId).update({
+            resolved: false,
+        });
     }
 
-    async getComment(commentId: string) {
+    async getComment(dashboardUuid: string, commentId: string) {
         const result = await this.database(DashboardTileCommentsTableName)
             .select('user_uuid', 'dashboard_tile_uuid', 'reply_to', 'mentions')
             .where('comment_id', commentId)
+            .whereExists(this.getDashboardCommentExistsQuery(dashboardUuid))
             .first();
 
         if (result === undefined) throw new NotFoundError('Comment not found');
@@ -323,10 +365,10 @@ export class CommentModel {
         };
     }
 
-    async deleteComment(commentId: string): Promise<void> {
-        await this.database(DashboardTileCommentsTableName)
-            .delete()
-            .where('reply_to', commentId)
-            .orWhere('comment_id', commentId);
+    async deleteComment(
+        dashboardUuid: string,
+        commentId: string,
+    ): Promise<void> {
+        await this.getCommentThreadQuery(dashboardUuid, commentId).delete();
     }
 }

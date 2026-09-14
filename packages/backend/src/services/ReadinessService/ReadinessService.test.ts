@@ -1,4 +1,5 @@
 import type { MigrationLeaseManager } from '../../database/migrationLease';
+import Logger from '../../logging/logger';
 import type { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { ReadinessService } from './ReadinessService';
 
@@ -19,6 +20,10 @@ const createDependencies = () => {
 };
 
 describe('ReadinessService', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     it('returns ready when the schema and migration ledger are healthy', async () => {
         const dependencies = createDependencies();
         const service = new ReadinessService({
@@ -50,7 +55,7 @@ describe('ReadinessService', () => {
         ).not.toHaveBeenCalled();
     });
 
-    it('returns migration_parked for the latest parked run', async () => {
+    it('returns ready with a warning for the latest parked run', async () => {
         const dependencies = createDependencies();
         vi.mocked(
             dependencies.migrationRunLedger.readRunHistory,
@@ -83,9 +88,34 @@ describe('ReadinessService', () => {
         });
 
         await expect(service.getReadiness()).resolves.toEqual({
-            status: 'not_ready',
-            reason: 'migration_parked',
+            status: 'ready',
+            warnings: ['migration_parked'],
         });
+    });
+
+    it('returns ready with a warning and logs when the migration ledger is unavailable', async () => {
+        const dependencies = createDependencies();
+        vi.mocked(
+            dependencies.migrationRunLedger.readRunHistory,
+        ).mockResolvedValue({
+            initialized: false,
+            runs: [],
+        });
+        const loggerWarn = vi
+            .spyOn(Logger, 'warn')
+            .mockImplementation(() => Logger);
+        const service = new ReadinessService({
+            ...dependencies,
+            ttlMs: 10_000,
+        });
+
+        await expect(service.getReadiness()).resolves.toEqual({
+            status: 'ready',
+            warnings: ['migration_ledger_unavailable'],
+        });
+        expect(loggerWarn).toHaveBeenCalledWith(
+            'Migration run ledger is unavailable; readiness remains ready',
+        );
     });
 
     it('returns db_unavailable when the readiness round cannot query the database', async () => {

@@ -1,11 +1,14 @@
 import {
+    derivePivotConfigurationFromChart,
     MergeJoinType,
+    type ApiCompiledMergeQueryResults,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
     type MergeQuery,
     type Filters,
     type MergeQueryError,
     type ParametersValuesMap,
+    type SavedChartDAO,
     type SavedMergeQuery,
 } from '@lightdash/common';
 import {
@@ -17,49 +20,23 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
-import { executeMergeQuery } from '../hooks/useMergeQuery';
 import {
-    MergeContext,
-    type MergeFocus,
-    type MergeJoinPart,
-    type MergeQueryBState,
-} from './context';
+    DEFAULT_ADDITIONAL_SOURCE_ID,
+    emptyMergeSource,
+    MAX_MERGE_SOURCES,
+    PRIMARY_SOURCE_ID,
+} from '../constants';
+import { executeMergeQuery } from '../hooks/useMergeQuery';
+import { MergeContext, type MergeFocus, type MergeJoinPart } from './context';
 import {
     MERGE_URL_PARAM,
     parseMergeState,
     serializeMergeState,
 } from './mergeUrlState';
-
-const EMPTY_QUERY_B: MergeQueryBState = {
-    exploreName: null,
-    dimensions: [],
-    metrics: [],
-};
-
-/**
- * Turns a chart's stored merge back into editable state.
- *
- * Without this a saved merged chart opens looking unmerged, and saving it
- * again would drop the merge it arrived with.
- */
-const fromSavedMerge = (saved: SavedMergeQuery) => ({
-    focus: 'a' as MergeFocus,
-    queryB: {
-        exploreName: saved.secondQuery.metricQuery.exploreName,
-        dimensions: saved.secondQuery.metricQuery.dimensions,
-        metrics: saved.secondQuery.metricQuery.metrics,
-        additionalMetrics: saved.secondQuery.metricQuery.additionalMetrics,
-        customDimensions: saved.secondQuery.metricQuery.customDimensions,
-    },
-    joinParts: saved.joinKey.map((part) => ({
-        fieldA: part.chartFieldId,
-        fieldB: part.secondFieldId,
-    })),
-    joinType: saved.joinType,
-    filtersB: saved.secondQuery.metricQuery.filters ?? {},
-});
+import { restoreSavedMerge } from './restoreSavedMerge';
 
 /**
  * Merge state lives above the explorer page because the field picker and the
@@ -74,7 +51,7 @@ export const MergeProvider: FC<
         readOnly?: boolean;
     }>
 > = ({ children, savedMerge, readOnly = false }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchParams, setSearchParams] = useSearchParams();
     // Restored once, on mount. A link wins over the chart's stored merge, so
     // that sharing a modified merge shows what was shared rather than what was
@@ -82,64 +59,161 @@ export const MergeProvider: FC<
     const [restored] = useState(
         () =>
             parseMergeState(searchParams.get(MERGE_URL_PARAM)) ??
-            (savedMerge ? fromSavedMerge(savedMerge) : null),
+            (savedMerge ? restoreSavedMerge(savedMerge) : null),
+    );
+    // A restored merge the rules refuse never runs, so nothing may wait on it.
+    const [restoredRunRefused, setRestoredRunRefused] = useState(false);
+    const refuseRestoredRun = useCallback(
+        () => setRestoredRunRefused(true),
+        [],
     );
 
-    const [isMerging, setIsMerging] = useState(restored !== null);
-    const [focus, setFocus] = useState<MergeFocus>(restored?.focus ?? 'a');
-    const [queryB, setQueryB] = useState<MergeQueryBState>(
-        restored?.queryB ?? EMPTY_QUERY_B,
+    const [focus, setFocus] = useState<MergeFocus>(
+        restored?.focus ?? {
+            kind: 'source',
+            sourceId: PRIMARY_SOURCE_ID,
+        },
+    );
+    const [additionalSources, setAdditionalSources] = useState(
+        restored?.additionalSources ?? [],
     );
     const [joinParts, setJoinParts] = useState<MergeJoinPart[]>(
-        restored?.joinParts ?? [{ fieldA: null, fieldB: null }],
+        restored?.joinParts ?? [
+            {
+                fieldIdBySourceId: {
+                    [PRIMARY_SOURCE_ID]: null,
+                    [DEFAULT_ADDITIONAL_SOURCE_ID]: null,
+                },
+            },
+        ],
     );
     const [joinType, setJoinType] = useState<MergeJoinType>(
         restored?.joinType ?? MergeJoinType.FULL,
     );
-    const [filtersB, setFiltersB] = useState<Filters>(restored?.filtersB ?? {});
+    const isMerging = additionalSources.length > 0;
     const activeRun = useRef(0);
+    const lastRun = useRef<{
+        mergeQuery: MergeQuery;
+        parameters?: ParametersValuesMap;
+        savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
+    } | null>(null);
     const [runState, setRunState] = useState<{
         isRunning: boolean;
         errors: MergeQueryError[];
         started: ApiExecuteAsyncMetricQueryResults | null;
+        unpivotedStarted: ApiExecuteAsyncMetricQueryResults | null;
         error: ApiError | null;
-    }>({ isRunning: false, errors: [], started: null, error: null });
+        unpivotedErrors: MergeQueryError[];
+        unpivotedError: ApiError | null;
+        parameterReferences: string[];
+        fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
+    }>({
+        isRunning: false,
+        errors: [],
+        started: null,
+        unpivotedStarted: null,
+        error: null,
+        unpivotedErrors: [],
+        unpivotedError: null,
+        parameterReferences: [],
+        fieldOrigins: {},
+    });
 
-    const addQuery = useCallback(() => {
-        setIsMerging(true);
-        setFocus('b');
-    }, []);
+    const addSource = useCallback(
+        (
+            sourceId: string,
+            initialFocus: MergeFocus = { kind: 'source', sourceId },
+        ) => {
+            if (
+                additionalSources.some((source) => source.id === sourceId) ||
+                additionalSources.length + 1 >= MAX_MERGE_SOURCES
+            ) {
+                return;
+            }
+            setAdditionalSources((current) => [
+                ...current,
+                emptyMergeSource(sourceId),
+            ]);
+            setJoinParts((current) =>
+                current.map((part) => ({
+                    ...part,
+                    fieldIdBySourceId: {
+                        ...part.fieldIdBySourceId,
+                        [sourceId]: null,
+                    },
+                })),
+            );
+            setFocus(initialFocus);
+        },
+        [additionalSources],
+    );
 
-    const removeQuery = useCallback(() => {
+    const removeSource = useCallback((sourceId: string) => {
         activeRun.current += 1;
-        setIsMerging(false);
-        setFocus('a');
-        setQueryB(EMPTY_QUERY_B);
-        setJoinParts([{ fieldA: null, fieldB: null }]);
-        setFiltersB({});
+        setFocus({ kind: 'source', sourceId: PRIMARY_SOURCE_ID });
+        setAdditionalSources((current) =>
+            current.filter((source) => source.id !== sourceId),
+        );
+        setJoinParts((current) =>
+            current.map((part) => {
+                const { [sourceId]: _, ...fieldIdBySourceId } =
+                    part.fieldIdBySourceId;
+                return { fieldIdBySourceId };
+            }),
+        );
         setRunState({
             isRunning: false,
             errors: [],
             started: null,
+            unpivotedStarted: null,
             error: null,
+            unpivotedErrors: [],
+            unpivotedError: null,
+            parameterReferences: [],
+            fieldOrigins: {},
         });
     }, []);
 
-    const setExploreB = useCallback((exploreName: string | null) => {
-        // Fields belong to an explore, so changing it clears what was picked
-        // rather than leaving ids that no longer resolve.
-        setQueryB({ exploreName, dimensions: [], metrics: [] });
-        setJoinParts((current) =>
-            current.map((part) => ({ ...part, fieldB: null })),
-        );
-        setFiltersB({});
-    }, []);
+    const setSourceExplore = useCallback(
+        (sourceId: string, exploreName: string | null) => {
+            // Fields belong to an explore, so changing it clears what was picked
+            // rather than leaving ids that no longer resolve.
+            setAdditionalSources((current) =>
+                current.map((source) =>
+                    source.id === sourceId
+                        ? {
+                              ...emptyMergeSource(sourceId),
+                              exploreName,
+                          }
+                        : source,
+                ),
+            );
+            setJoinParts((current) =>
+                current.map((part) => ({
+                    ...part,
+                    fieldIdBySourceId: {
+                        ...part.fieldIdBySourceId,
+                        [sourceId]: null,
+                    },
+                })),
+            );
+        },
+        [],
+    );
 
     const setJoinField = useCallback(
-        (index: number, side: 'fieldA' | 'fieldB', fieldId: string | null) => {
+        (index: number, sourceId: string, fieldId: string | null) => {
             setJoinParts((current) =>
                 current.map((part, partIndex) =>
-                    partIndex === index ? { ...part, [side]: fieldId } : part,
+                    partIndex === index
+                        ? {
+                              ...part,
+                              fieldIdBySourceId: {
+                                  ...part.fieldIdBySourceId,
+                                  [sourceId]: fieldId,
+                              },
+                          }
+                        : part,
                 ),
             );
         },
@@ -147,8 +221,18 @@ export const MergeProvider: FC<
     );
 
     const addJoinPart = useCallback(() => {
-        setJoinParts((current) => [...current, { fieldA: null, fieldB: null }]);
-    }, []);
+        setJoinParts((current) => [
+            ...current,
+            {
+                fieldIdBySourceId: Object.fromEntries(
+                    [
+                        PRIMARY_SOURCE_ID,
+                        ...additionalSources.map((source) => source.id),
+                    ].map((sourceId) => [sourceId, null]),
+                ),
+            },
+        ]);
+    }, [additionalSources]);
 
     const removeJoinPart = useCallback((index: number) => {
         setJoinParts((current) =>
@@ -160,18 +244,32 @@ export const MergeProvider: FC<
         // leave it pointing at a different one.
     }, []);
 
-    const toggleFieldB = useCallback(
-        (fieldId: string, isDimension: boolean) => {
-            setQueryB((current) => {
-                const key = isDimension ? 'dimensions' : 'metrics';
-                const selected = current[key];
-                return {
-                    ...current,
-                    [key]: selected.includes(fieldId)
-                        ? selected.filter((id) => id !== fieldId)
-                        : [...selected, fieldId],
-                };
-            });
+    const toggleSourceField = useCallback(
+        (sourceId: string, fieldId: string, isDimension: boolean) => {
+            setAdditionalSources((current) =>
+                current.map((source) => {
+                    if (source.id !== sourceId) return source;
+                    const key = isDimension ? 'dimensions' : 'metrics';
+                    const selected = source[key];
+                    return {
+                        ...source,
+                        [key]: selected.includes(fieldId)
+                            ? selected.filter((id) => id !== fieldId)
+                            : [...selected, fieldId],
+                    };
+                }),
+            );
+        },
+        [],
+    );
+
+    const setSourceFilters = useCallback(
+        (sourceId: string, filters: Filters) => {
+            setAdditionalSources((current) =>
+                current.map((source) =>
+                    source.id === sourceId ? { ...source, filters } : source,
+                ),
+            );
         },
         [],
     );
@@ -191,10 +289,9 @@ export const MergeProvider: FC<
                         MERGE_URL_PARAM,
                         serializeMergeState({
                             focus,
-                            queryB,
+                            additionalSources,
                             joinParts,
                             joinType,
-                            filtersB,
                         }),
                     );
                 } else {
@@ -208,10 +305,9 @@ export const MergeProvider: FC<
         readOnly,
         isMerging,
         focus,
-        queryB,
+        additionalSources,
         joinParts,
         joinType,
-        filtersB,
         setSearchParams,
     ]);
 
@@ -223,41 +319,149 @@ export const MergeProvider: FC<
     );
 
     const run = useCallback(
-        (mergeQuery: MergeQuery, parameters?: ParametersValuesMap) => {
+        (
+            mergeQuery: MergeQuery,
+            parameters?: ParametersValuesMap,
+            savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
+        ) => {
             if (!projectUuid) return;
+            lastRun.current = { mergeQuery, parameters, savedChart };
             const runId = activeRun.current + 1;
             activeRun.current = runId;
-            setRunState({
+            setRunState((current) => ({
                 isRunning: true,
                 errors: [],
                 started: null,
+                unpivotedStarted: null,
                 error: null,
-            });
-            executeMergeQuery(projectUuid, mergeQuery, parameters)
-                .then((result) => {
+                unpivotedErrors: [],
+                unpivotedError: null,
+                parameterReferences: current.parameterReferences,
+                fieldOrigins: current.fieldOrigins,
+            }));
+            executeMergeQuery(projectUuid, mergeQuery, parameters, savedChart)
+                .then(async (result) => {
                     if (activeRun.current !== runId) return;
-                    setRunState({
-                        isRunning: false,
-                        errors: result.errors,
-                        started: result.started,
-                        error: null,
-                    });
+                    if (result.outcome === 'refused') {
+                        setRunState({
+                            isRunning: false,
+                            errors: result.errors,
+                            started: null,
+                            unpivotedStarted: null,
+                            error: null,
+                            unpivotedErrors: [],
+                            unpivotedError: null,
+                            parameterReferences: result.parameterReferences,
+                            fieldOrigins: result.fieldOrigins,
+                        });
+                    } else {
+                        const pivotConfiguration = savedChart
+                            ? derivePivotConfigurationFromChart(
+                                  savedChart,
+                                  result.query.metricQuery,
+                                  result.query.fields,
+                              )
+                            : undefined;
+                        let unpivoted = null;
+                        if (pivotConfiguration) {
+                            try {
+                                unpivoted = await executeMergeQuery(
+                                    projectUuid,
+                                    mergeQuery,
+                                    parameters,
+                                );
+                            } catch (error) {
+                                if (activeRun.current !== runId) return;
+                                setRunState({
+                                    isRunning: false,
+                                    errors: [],
+                                    started: result.query,
+                                    unpivotedStarted: null,
+                                    error: null,
+                                    unpivotedErrors: [],
+                                    unpivotedError: error as ApiError,
+                                    parameterReferences:
+                                        result.parameterReferences,
+                                    fieldOrigins: result.fieldOrigins,
+                                });
+                                return;
+                            }
+                        }
+                        if (activeRun.current !== runId) return;
+                        if (unpivoted?.outcome === 'refused') {
+                            setRunState({
+                                isRunning: false,
+                                errors: [],
+                                started: result.query,
+                                unpivotedStarted: null,
+                                error: null,
+                                unpivotedErrors: unpivoted.errors,
+                                unpivotedError: null,
+                                parameterReferences: result.parameterReferences,
+                                fieldOrigins: result.fieldOrigins,
+                            });
+                            return;
+                        }
+                        setRunState({
+                            isRunning: false,
+                            errors: [],
+                            started: result.query,
+                            unpivotedStarted: unpivoted?.query ?? null,
+                            error: null,
+                            unpivotedErrors: [],
+                            unpivotedError: null,
+                            parameterReferences: result.parameterReferences,
+                            fieldOrigins: result.fieldOrigins,
+                        });
+                    }
                 })
                 .catch((error: ApiError) => {
                     if (activeRun.current !== runId) return;
-                    setRunState({
+                    setRunState((current) => ({
                         isRunning: false,
                         errors: [],
                         started: null,
+                        unpivotedStarted: null,
                         error,
-                    });
+                        unpivotedErrors: [],
+                        unpivotedError: null,
+                        parameterReferences: current.parameterReferences,
+                        fieldOrigins: current.fieldOrigins,
+                    }));
                 });
         },
         [projectUuid],
     );
 
-    const { started } = runState;
+    const getDownloadQueryUuid = useCallback(
+        async (limit: number | null, exportPivotedResults = false) => {
+            if (!projectUuid || !lastRun.current) {
+                throw new Error('Missing merged query');
+            }
+            const { mergeQuery, parameters, savedChart } = lastRun.current;
+            const result = await executeMergeQuery(
+                projectUuid,
+                mergeQuery,
+                parameters,
+                exportPivotedResults ? savedChart : undefined,
+                limit,
+            );
+            if (result.outcome === 'refused') {
+                throw new Error(
+                    result.errors.map((error) => error.message).join(' '),
+                );
+            }
+            return result.query.queryUuid;
+        },
+        [projectUuid],
+    );
+
+    const { started, unpivotedStarted } = runState;
     const results = useInfiniteQueryResults(projectUuid, started?.queryUuid);
+    const unpivotedResults = useInfiniteQueryResults(
+        projectUuid,
+        unpivotedStarted?.queryUuid,
+    );
 
     const mergeResults = useMemo(
         () =>
@@ -273,59 +477,80 @@ export const MergeProvider: FC<
                           ...started.metricQuery.dimensions,
                           ...started.metricQuery.metrics,
                       ],
+                      fieldOrigins: runState.fieldOrigins,
+                      usedParametersValues: started.usedParametersValues,
                       results,
+                      unpivotedResults: unpivotedStarted
+                          ? unpivotedResults
+                          : null,
                   }
                 : null,
-        [started, results],
+        [
+            started,
+            unpivotedStarted,
+            results,
+            unpivotedResults,
+            runState.fieldOrigins,
+        ],
     );
 
     const value = useMemo(
         () => ({
             isMerging,
             readOnly,
-            wasRestored: restored !== null,
+            wasRestored: restored !== null && !restoredRunRefused,
+            refuseRestoredRun,
             run,
+            getDownloadQueryUuid,
             isRunning: runState.isRunning,
             runErrors: runState.errors,
             runError: runState.error,
+            unpivotedRunErrors: runState.unpivotedErrors,
+            unpivotedRunError: runState.unpivotedError,
+            parameterReferences: runState.parameterReferences,
             mergeResults,
             focus,
-            queryB,
+            additionalSources,
             joinParts,
             joinType,
-            filtersB,
-            addQuery,
-            removeQuery,
+            addSource,
+            removeSource,
             setFocus,
-            setExploreB,
-            toggleFieldB,
+            setSourceExplore,
+            toggleSourceField,
             setJoinField,
             addJoinPart,
             removeJoinPart,
             setJoinType,
-            setFiltersB,
+            setSourceFilters,
         }),
         [
             isMerging,
             readOnly,
             restored,
+            restoredRunRefused,
+            refuseRestoredRun,
             run,
+            getDownloadQueryUuid,
             runState.isRunning,
             runState.errors,
             runState.error,
+            runState.unpivotedErrors,
+            runState.unpivotedError,
+            runState.parameterReferences,
             mergeResults,
             focus,
-            queryB,
+            additionalSources,
             joinParts,
             joinType,
-            filtersB,
-            addQuery,
-            removeQuery,
-            setExploreB,
-            toggleFieldB,
+            addSource,
+            removeSource,
+            setSourceExplore,
+            toggleSourceField,
             setJoinField,
             addJoinPart,
             removeJoinPart,
+            setSourceFilters,
         ],
     );
 

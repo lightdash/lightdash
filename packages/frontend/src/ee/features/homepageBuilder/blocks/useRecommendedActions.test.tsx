@@ -74,6 +74,7 @@ const organizationProject = (
     overrides: Partial<OrganizationProject>,
 ): OrganizationProject => ({
     projectUuid: 'project-uuid',
+    slug: 'project',
     name: 'Project',
     type: ProjectType.DEFAULT,
     createdByUserUuid: null,

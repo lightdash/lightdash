@@ -19,9 +19,12 @@ import { Knex } from 'knex';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
+import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
+import { ProjectGroupAccessCustomRolesTableName } from '../database/entities/projectGroupAccessCustomRoles';
+import { ProjectMembershipCustomRolesTableName } from '../database/entities/projectMembershipCustomRoles';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { ProjectTableName } from '../database/entities/projects';
 import { ScopedRolesTableName } from '../database/entities/roles';
@@ -63,6 +66,26 @@ const parseUserMetadataRow = (
             : null,
 });
 
+/** `uuid[]` of extra custom roles for the parent row, ordered deterministically. */
+const extraRoleUuidsSubquery = (
+    trx: Knex,
+    extrasTable: string,
+    parentTable: string,
+    keys: [string, string],
+) =>
+    trx.raw(
+        `COALESCE((SELECT array_agg(x.role_uuid ORDER BY x.created_at, x.role_uuid) FROM ?? AS x WHERE x.?? = ??.?? AND x.?? = ??.??), '{}')`,
+        [
+            extrasTable,
+            keys[0],
+            parentTable,
+            keys[0],
+            keys[1],
+            parentTable,
+            keys[1],
+        ],
+    );
+
 export type RawSpaceUserAccess = {
     userUuid: string;
     email: string | null;
@@ -88,6 +111,8 @@ export type RawSpaceDirectAccess = {
  */
 export type ProjectSpaceAccessWithCustomRole = ProjectSpaceAccess & {
     roleUuid: string | null;
+    /** Extra custom roles unioned on top of `role`/`roleUuid`. */
+    extraRoleUuids: string[];
 };
 
 /**
@@ -96,6 +121,8 @@ export type ProjectSpaceAccessWithCustomRole = ProjectSpaceAccess & {
  */
 export type OrganizationSpaceAccessWithCustomRole = OrganizationSpaceAccess & {
     roleUuid: string | null;
+    /** Extra custom roles unioned on top of `role`/`roleUuid`. */
+    extraRoleUuids: string[];
 };
 
 export class SpacePermissionModel {
@@ -440,6 +467,12 @@ export class SpacePermissionModel {
                             spaceUuid: `${SpaceTableName}.space_uuid`,
                             role: `${ProjectMembershipsTableName}.role`,
                             roleUuid: `${ProjectMembershipsTableName}.role_uuid`,
+                            extraRoleUuids: extraRoleUuidsSubquery(
+                                trx,
+                                ProjectMembershipCustomRolesTableName,
+                                ProjectMembershipsTableName,
+                                ['project_id', 'user_id'],
+                            ),
                             from: trx.raw(
                                 `'${ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP}'`,
                             ),
@@ -481,6 +514,12 @@ export class SpacePermissionModel {
                                     spaceUuid: `${SpaceTableName}.space_uuid`,
                                     role: `${ProjectGroupAccessTableName}.role`,
                                     roleUuid: `${ProjectGroupAccessTableName}.role_uuid`,
+                                    extraRoleUuids: extraRoleUuidsSubquery(
+                                        trx,
+                                        ProjectGroupAccessCustomRolesTableName,
+                                        ProjectGroupAccessTableName,
+                                        ['project_uuid', 'group_uuid'],
+                                    ),
                                     from: trx.raw(
                                         `'${ProjectSpaceAccessOrigin.GROUP_MEMBERSHIP}'`,
                                     ),
@@ -591,6 +630,12 @@ export class SpacePermissionModel {
                             spaceUuid: `${SpaceTableName}.space_uuid`,
                             role: `${OrganizationMembershipsTableName}.role`,
                             roleUuid: `${OrganizationMembershipsTableName}.role_uuid`,
+                            extraRoleUuids: extraRoleUuidsSubquery(
+                                trx,
+                                OrganizationMembershipCustomRolesTableName,
+                                OrganizationMembershipsTableName,
+                                ['organization_id', 'user_id'],
+                            ),
                         })
                         .innerJoin(
                             ProjectTableName,

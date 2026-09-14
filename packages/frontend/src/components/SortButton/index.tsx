@@ -32,10 +32,9 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
     };
 
     return (
-        <Popover position="top-start" shadow="subtle" disabled={!isEditMode}>
+        <Popover position="top-start" disabled={!isEditMode}>
             <Popover.Target>
                 <Badge
-                    variant="light"
                     color="blue"
                     className={`${classes.badge} ${isEditMode ? classes.interactive : ''}`}
                     rightSection={
@@ -44,7 +43,7 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
                         ) : null
                     }
                 >
-                    <Group gap={2}>
+                    <Group className={classes.content} gap={2} wrap="nowrap">
                         {sorts.length === 1 && (
                             <MantineIcon
                                 icon={
@@ -59,7 +58,7 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
                         <Text span fw={400} fz="xs">
                             Sorted by
                         </Text>
-                        <Text fw={600} fz="xs">
+                        <Text className={classes.field} fw={600} fz="xs">
                             {getSortText()}
                         </Text>
                     </Group>

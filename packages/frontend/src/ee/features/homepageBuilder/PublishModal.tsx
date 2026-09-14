@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     type Group as OrgGroup,
@@ -37,8 +38,7 @@ import {
     useUpdateGroupPriorities,
 } from './hooks/useProjectHomepage';
 import classes from './PublishModal.module.css';
-
-const RESOLUTION_STEPS = ['Group priority', 'Role', 'Org default'];
+import { RESOLUTION_STEPS } from './resolution';
 
 const ROLE_DESCRIPTIONS: Record<ProjectMemberRole, string> = {
     [ProjectMemberRole.VIEWER]: 'Read-only consumers of dashboards',
@@ -55,6 +55,81 @@ const segmentedLabel = (icon: typeof IconWorld, label: string) => (
         {label}
     </Group>
 );
+
+const AUDIENCE_MODES = ['everyone', 'groups', 'roles'] as const;
+type AudienceMode = (typeof AUDIENCE_MODES)[number];
+
+const isAudienceMode = (value: string): value is AudienceMode =>
+    AUDIENCE_MODES.some((mode) => mode === value);
+
+const initialModeFor = (ownAssignments: HomepageAssignment[]): AudienceMode => {
+    if (ownAssignments.some((a) => a.targetType === 'group')) return 'groups';
+    if (ownAssignments.some((a) => a.targetType === 'role')) return 'roles';
+    return 'everyone';
+};
+
+const pluralise = (count: number, noun: string) =>
+    `${count} ${noun}${count === 1 ? '' : 's'}`;
+
+const confirmLabelFor = (
+    mode: AudienceMode,
+    groupCount: number,
+    roleCount: number,
+): string => {
+    switch (mode) {
+        case 'everyone':
+            return 'Publish to everyone';
+        case 'groups':
+            return groupCount > 0
+                ? `Publish to ${pluralise(groupCount, 'group')}`
+                : 'Publish';
+        case 'roles':
+            return roleCount > 0
+                ? `Publish to ${pluralise(roleCount, 'role')}`
+                : 'Publish';
+        default:
+            return assertUnreachable(mode, 'Unknown audience mode');
+    }
+};
+
+// Publishing the homepage also flips every draft announcement live. The
+// query stays in the body (mounted while the modal is closed) so the callout
+// is already resolved by the time the modal opens.
+const useDraftAnnouncementCounts = (projectUuid: string) => {
+    const { data: announcementsPage } = useAnnouncements(projectUuid, {
+        page: 1,
+        pageSize: 100,
+        includeUnpublished: true,
+    });
+    const draftAnnouncements = (announcementsPage?.items ?? []).filter(
+        (announcement) => !announcement.published,
+    );
+    return {
+        draftCount: draftAnnouncements.length,
+        queuedSlackCount: draftAnnouncements.filter(
+            (announcement) => announcement.pendingSlackChannelId !== null,
+        ).length,
+    };
+};
+
+const DraftAnnouncementsCallout: FC<{
+    draftCount: number;
+    queuedSlackCount: number;
+}> = ({ draftCount, queuedSlackCount }) => {
+    if (draftCount === 0) return null;
+    return (
+        <Callout variant="warning">
+            <Text size="sm">
+                Publishing will also make{' '}
+                {pluralise(draftCount, 'draft announcement')} live
+                {queuedSlackCount > 0
+                    ? ' and send queued Slack notifications'
+                    : ''}
+                .
+            </Text>
+        </Callout>
+    );
+};
 
 type Props = {
     opened: boolean;
@@ -126,29 +201,13 @@ const PublishModalBody: FC<BodyProps> = ({
     assignments,
     reorderGroups,
 }) => {
-    // Publishing the homepage also flips every draft announcement live.
-    const { data: announcementsPage } = useAnnouncements(projectUuid, {
-        page: 1,
-        pageSize: 100,
-        includeUnpublished: true,
-    });
-    const draftAnnouncements = (announcementsPage?.items ?? []).filter(
-        (announcement) => !announcement.published,
-    );
-    const queuedSlackCount = draftAnnouncements.filter(
-        (announcement) => announcement.pendingSlackChannelId !== null,
-    ).length;
-
+    const draftAnnouncements = useDraftAnnouncementCounts(projectUuid);
     const ownAssignments = assignments.filter(
         (assignment) => assignment.homepageUuid === homepageUuid,
     );
-    const initialMode = ownAssignments.some((a) => a.targetType === 'group')
-        ? 'groups'
-        : ownAssignments.some((a) => a.targetType === 'role')
-          ? 'roles'
-          : 'everyone';
-
-    const [mode, setMode] = useState<string>(initialMode);
+    const [mode, setMode] = useState<AudienceMode>(() =>
+        initialModeFor(ownAssignments),
+    );
     const [selectedGroups, setSelectedGroups] = useState<string[]>(() =>
         ownAssignments
             .filter((a) => a.targetType === 'group')
@@ -202,20 +261,11 @@ const PublishModalBody: FC<BodyProps> = ({
         }
     };
 
-    const confirmLabel =
-        mode === 'groups'
-            ? selectedGroups.length > 0
-                ? `Publish to ${selectedGroups.length} group${
-                      selectedGroups.length === 1 ? '' : 's'
-                  }`
-                : 'Publish'
-            : mode === 'roles'
-              ? selectedRoles.length > 0
-                  ? `Publish to ${selectedRoles.length} role${
-                        selectedRoles.length === 1 ? '' : 's'
-                    }`
-                  : 'Publish'
-              : 'Publish to everyone';
+    const confirmLabel = confirmLabelFor(
+        mode,
+        selectedGroups.length,
+        selectedRoles.length,
+    );
 
     return (
         <MantineModal
@@ -243,7 +293,9 @@ const PublishModalBody: FC<BodyProps> = ({
                 <SegmentedControl
                     fullWidth
                     value={mode}
-                    onChange={setMode}
+                    onChange={(value) => {
+                        if (isAudienceMode(value)) setMode(value);
+                    }}
                     data={[
                         {
                             value: 'everyone',
@@ -312,7 +364,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                     <MantineIcon
                                         icon={IconUsersGroup}
                                         size={16}
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                     <Text fz={13.5} fw={500} flex={1}>
                                         {group.name}
@@ -331,11 +383,11 @@ const PublishModalBody: FC<BodyProps> = ({
                         {groupAssignments.length > 1 && (
                             <Box p="sm" className={classes.borderedPanel}>
                                 <Text
-                                    fz={11}
+                                    fz="xs"
                                     fw={600}
                                     tt="uppercase"
                                     lts="0.05em"
-                                    c="ldGray.6"
+                                    c="dimmed"
                                     mb={4}
                                 >
                                     If someone’s in more than one group
@@ -361,7 +413,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                                     {index + 1}
                                                 </span>
                                                 <Box flex={1}>
-                                                    <Text fz={13} fw={500}>
+                                                    <Text fz="sm" fw={500}>
                                                         {assignment.groupName}
                                                     </Text>
                                                     <Text fz={11.5} c="dimmed">
@@ -372,8 +424,6 @@ const PublishModalBody: FC<BodyProps> = ({
                                                     </Text>
                                                 </Box>
                                                 <ActionIcon
-                                                    variant="subtle"
-                                                    color="ldGray.6"
                                                     size="sm"
                                                     disabled={index === 0}
                                                     aria-label={`Move ${assignment.groupName} up`}
@@ -390,8 +440,6 @@ const PublishModalBody: FC<BodyProps> = ({
                                                     />
                                                 </ActionIcon>
                                                 <ActionIcon
-                                                    variant="subtle"
-                                                    color="ldGray.6"
                                                     size="sm"
                                                     disabled={
                                                         index ===
@@ -444,13 +492,13 @@ const PublishModalBody: FC<BodyProps> = ({
                                     <MantineIcon
                                         icon={IconShieldCheck}
                                         size={16}
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                     <Box flex={1}>
                                         <Text fz={13.5} fw={500}>
                                             {ProjectMemberRoleLabels[role]}
                                         </Text>
-                                        <Text fz={12} c="dimmed">
+                                        <Text fz="xs" c="dimmed">
                                             {ROLE_DESCRIPTIONS[role]}
                                         </Text>
                                     </Box>
@@ -458,25 +506,13 @@ const PublishModalBody: FC<BodyProps> = ({
                                 </label>
                             ))}
                         </div>
-                        <Text fz={12} c="dimmed" lh={1.45}>
+                        <Text fz="xs" c="dimmed" lh={1.45}>
                             A group assignment always wins over a role.
                         </Text>
                     </>
                 )}
 
-                {draftAnnouncements.length > 0 && (
-                    <Callout variant="warning">
-                        <Text size="sm">
-                            Publishing will also make{' '}
-                            {draftAnnouncements.length} draft announcement
-                            {draftAnnouncements.length === 1 ? '' : 's'} live
-                            {queuedSlackCount > 0
-                                ? ' and send queued Slack notifications'
-                                : ''}
-                            .
-                        </Text>
-                    </Callout>
-                )}
+                <DraftAnnouncementsCallout {...draftAnnouncements} />
 
                 <Group gap={7} p="10px 12px" className={classes.resolvesBar}>
                     <Text fz={11.5} fw={500} c="ldGray.5">

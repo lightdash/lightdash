@@ -174,7 +174,7 @@ export const EvalRunDetails: FC<Props> = ({
                             result.assessment?.passed,
                         );
                         return isEvalRunning ? (
-                            <Badge w={68} variant="transparent" color="gray">
+                            <Badge w={68} variant="transparent">
                                 {result.status === 'assessing' ? (
                                     <Loader size={12} color="gray" />
                                 ) : (
@@ -319,12 +319,10 @@ export const EvalRunDetails: FC<Props> = ({
                     px="sm"
                 >
                     <Group gap="xs">
-                        <Paper p="xxs" withBorder radius="sm">
+                        <Paper p="xxs" radius="sm">
                             <MantineIcon icon={IconTarget} size="md" />
                         </Paper>
-                        <Title order={5} c="ldGray.9" fw={700}>
-                            Run Overview
-                        </Title>
+                        <Title order={5}>Run Overview</Title>
                     </Group>
 
                     <Group>
@@ -357,7 +355,6 @@ export const EvalRunDetails: FC<Props> = ({
                             color={evalStatus.color}
                             variant="dot"
                             size="lg"
-                            radius="sm"
                             c="ldGray.7"
                         >
                             {evalStatus.label}

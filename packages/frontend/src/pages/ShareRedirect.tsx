@@ -12,7 +12,7 @@ const ShareRedirect: FC = () => {
 
     useEffect(() => {
         if (data && data.url) {
-            void navigate(data.url);
+            void navigate(data.url, { replace: true });
         }
     }, [data, navigate]);
 

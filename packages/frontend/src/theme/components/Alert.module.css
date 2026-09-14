@@ -1,0 +1,11 @@
+.title {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    /* Aligns the title with the icon's optical center. */
+    line-height: var(--mantine-line-height-md);
+}
+
+.message {
+    font-size: var(--mantine-font-size-sm);
+    line-height: var(--mantine-line-height-sm);
+}

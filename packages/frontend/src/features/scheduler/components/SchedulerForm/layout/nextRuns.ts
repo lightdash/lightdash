@@ -4,7 +4,26 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
-export type NextRun = { label: string; relative: string };
+export type NextRun = {
+    label: string;
+    relative: string;
+    timeZoneName: string;
+};
+
+const getShortTimeZoneName = (date: Date, timeZone: string): string => {
+    try {
+        return (
+            new Intl.DateTimeFormat(undefined, {
+                timeZone,
+                timeZoneName: 'short',
+            })
+                .formatToParts(date)
+                .find((part) => part.type === 'timeZoneName')?.value ?? timeZone
+        );
+    } catch {
+        return timeZone;
+    }
+};
 
 export const getNextRuns = (
     cron: string,
@@ -16,9 +35,12 @@ export const getNextRuns = (
         const schedule = getSchedule(stringToArray(cron), new Date(), timezone);
         return Array.from({ length: count }, () => {
             const next = schedule.next();
+            const jsDate = next.toJSDate();
+            const timeZoneName = getShortTimeZoneName(jsDate, next.zoneName);
             return {
-                label: next.toFormat('ccc, LLL d · h:mm a'),
-                relative: dayjs(next.toJSDate()).fromNow(),
+                label: `${next.toFormat('ccc, LLL d · h:mm a')} ${timeZoneName}`,
+                relative: dayjs(jsDate).fromNow(),
+                timeZoneName,
             };
         });
     } catch {

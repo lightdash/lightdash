@@ -9,11 +9,14 @@ import {
     aiDeepResearchWorkerFindingsInputSchema,
     AiResultType,
     applyDeepResearchChartRefsWithAdjustments,
+    buildDeepResearchVizConfig,
     ConflictError,
-    FeatureFlags,
+    derivePivotConfigurationFromChart,
     findDeepResearchChartRefs,
     ForbiddenError,
     getErrorMessage,
+    getGroupByDimensions,
+    getWebAiChartConfig,
     isAiDeepResearchEvidencePackEmpty,
     isAiDeepResearchRunTerminal,
     isUserWithOrg,
@@ -22,7 +25,8 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
-    toolRunQueryArgsSchema,
+    sleep,
+    toolRunQueryArgsSchemaPersisted,
     UnexpectedServerError,
     type Account,
     type AiAgentToolResult,
@@ -35,6 +39,7 @@ import {
     type AiDeepResearchEvidencePack,
     type AiDeepResearchEvidenceQuery,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchFailureStage,
     type AiDeepResearchJobPayload,
     type AiDeepResearchProgress,
     type AiDeepResearchReportAdjustment,
@@ -43,11 +48,11 @@ import {
     type AiDeepResearchTerminalStatus,
     type AiDeepResearchWarehouseChart,
     type ApiAiAgentThreadMessageVizQuery,
+    type PivotConfiguration,
     type SessionUser,
 } from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
@@ -60,6 +65,7 @@ import {
 import { type AiAgentModel } from '../../models/AiAgentModel';
 import {
     AiDeepResearchActiveRunError,
+    AiDeepResearchPromptExecutionModeError,
     type AiDeepResearchRunModel,
     type DbAiDeepResearchEventWithCursor,
 } from '../../models/AiDeepResearchRunModel';
@@ -67,6 +73,7 @@ import { type AiOrganizationSettingsModel } from '../../models/AiOrganizationSet
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
+import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from './constants';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
 import {
     isDeepResearchEvidenceQueryTool,
@@ -75,11 +82,44 @@ import {
 
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
-const STALE_RUN_THRESHOLD_MINUTES = 75;
+const REPORT_FINALIZATION_RETRY_DELAYS_MS = [100, 500] as const;
 const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
 const FAILED_RUN_ERROR_MESSAGE =
     'Deep Research could not finish. Please try again.';
+const REPORT_ADJUSTED_WARNING =
+    '<warning title="Report adjusted">Some chart evidence was omitted because it could not be verified. The remaining narrative and verified evidence are preserved.</warning>';
+
+const retryReportFinalization = async <T>(
+    operation: () => Promise<T>,
+    onRetry: (error: unknown, attempt: number) => void,
+    attempt = 0,
+): Promise<T> => {
+    try {
+        return await operation();
+    } catch (error) {
+        const delay = REPORT_FINALIZATION_RETRY_DELAYS_MS[attempt];
+        if (delay === undefined) {
+            throw error;
+        }
+        onRetry(error, attempt + 1);
+        await sleep(delay);
+        return retryReportFinalization(operation, onRetry, attempt + 1);
+    }
+};
+
+const addReportAdjustedWarning = (markdown: string): string => {
+    const reportTitle = markdown.match(/^# +.+$/m);
+    if (!reportTitle || reportTitle.index === undefined) {
+        return `${REPORT_ADJUSTED_WARNING}\n\n${markdown}`;
+    }
+
+    const reportTitleEnd = reportTitle.index + reportTitle[0].length;
+    return `${markdown.slice(
+        0,
+        reportTitleEnd,
+    )}\n\n${REPORT_ADJUSTED_WARNING}${markdown.slice(reportTitleEnd)}`;
+};
 
 const getCompletionClass = (
     status: DbAiDeepResearchRun['status'],
@@ -94,7 +134,9 @@ const getCompletionClass = (
 };
 
 const getReportQuality = (run: DbAiDeepResearchRun) => {
-    const hasReport = run.result_markdown !== null;
+    const hasReport =
+        (run.status === 'completed' || run.status === 'partially_completed') &&
+        run.result_markdown !== null;
     const structureValid = hasReport
         ? lintDeepResearchReport(run.result_markdown ?? '').length === 0
         : false;
@@ -217,6 +259,17 @@ export type AiDeepResearchEvidenceBuildResult = {
     hasEvidenceBuildFailures: boolean;
 };
 
+export class AiDeepResearchExecutorStageError extends Error {
+    readonly name = 'AiDeepResearchExecutorStageError';
+
+    constructor(
+        readonly failureStage: AiDeepResearchFailureStage,
+        cause: unknown,
+    ) {
+        super(getErrorMessage(cause), { cause });
+    }
+}
+
 export type AiDeepResearchExecutorResult =
     | {
           status: 'completed';
@@ -229,15 +282,18 @@ export type AiDeepResearchExecutorResult =
           report: AiDeepResearchSubmittedReport;
           warehouseQueryUuids: string[];
           terminalReason: AiDeepResearchTerminalReason;
+          failureStage: AiDeepResearchFailureStage;
       }
     | {
           status: 'failed';
           errorMessage: string;
           terminalReason: AiDeepResearchTerminalReason;
+          failureStage: AiDeepResearchFailureStage;
       }
     | {
           status: 'cancelled';
           terminalReason: AiDeepResearchTerminalReason;
+          failureStage: AiDeepResearchFailureStage;
       };
 
 export type AiDeepResearchExecutor = (
@@ -256,14 +312,15 @@ type Dependencies = {
     >;
     aiAgentService: Pick<
         AiAgentService,
-        'assertDeepResearchAccess' | 'resolveDeepResearchExecutionContext'
+        | 'assertDeepResearchAccess'
+        | 'getIsCopilotEnabled'
+        | 'resolveDeepResearchExecutionContext'
     >;
     aiOrganizationSettingsModel: Pick<
         AiOrganizationSettingsModel,
         'findByOrganizationUuid'
     >;
     projectModel: ProjectModel;
-    featureFlagModel: FeatureFlagModel;
     schedulerClient: CommercialSchedulerClient;
     asyncQueryService: AsyncQueryService;
     queryHistoryModel: Pick<QueryHistoryModel, 'getByQueryUuid'>;
@@ -346,7 +403,11 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => {
         prompt: row.prompt,
         status: row.status,
         terminalReason: row.terminal_reason,
-        resultMarkdown: isReportExpired ? null : row.result_markdown,
+        resultMarkdown:
+            isReportExpired ||
+            (row.status !== 'completed' && row.status !== 'partially_completed')
+                ? null
+                : row.result_markdown,
         reportExpiresAt: reportExpiresAt?.toISOString() ?? null,
         reportExpiredAt: row.report_expired_at?.toISOString() ?? null,
         isReportExpired,
@@ -491,14 +552,14 @@ export class AiDeepResearchService extends BaseService {
 
     private readonly aiAgentService: Pick<
         AiAgentService,
-        'assertDeepResearchAccess' | 'resolveDeepResearchExecutionContext'
+        | 'assertDeepResearchAccess'
+        | 'getIsCopilotEnabled'
+        | 'resolveDeepResearchExecutionContext'
     >;
 
     private readonly aiOrganizationSettingsModel: Dependencies['aiOrganizationSettingsModel'];
 
     private readonly projectModel: ProjectModel;
-
-    private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly schedulerClient: CommercialSchedulerClient;
 
@@ -518,7 +579,6 @@ export class AiDeepResearchService extends BaseService {
         aiAgentService,
         aiOrganizationSettingsModel,
         projectModel,
-        featureFlagModel,
         schedulerClient,
         asyncQueryService,
         queryHistoryModel,
@@ -531,7 +591,6 @@ export class AiDeepResearchService extends BaseService {
         this.aiAgentService = aiAgentService;
         this.aiOrganizationSettingsModel = aiOrganizationSettingsModel;
         this.projectModel = projectModel;
-        this.featureFlagModel = featureFlagModel;
         this.schedulerClient = schedulerClient;
         this.asyncQueryService = asyncQueryService;
         this.queryHistoryModel = queryHistoryModel;
@@ -586,6 +645,7 @@ export class AiDeepResearchService extends BaseService {
                     args.run.result_markdown !== null,
                 ),
                 terminalReason: args.event.terminal_reason,
+                failureStage: args.run.failure_stage,
                 durationMs: args.run.duration_ms,
                 inputTokens: args.run.input_tokens,
                 outputTokens: args.run.output_tokens,
@@ -753,12 +813,8 @@ export class AiDeepResearchService extends BaseService {
             throw new ParameterError('Deep Research prompt is required');
         }
         await this.assertCanCreateRun(args.user, args.projectUuid);
-        const featureFlag = await this.featureFlagModel.get({
-            user: args.user,
-            featureFlagId: FeatureFlags.AiDeepResearch,
-        });
-        if (!featureFlag.enabled) {
-            throw new ForbiddenError('Deep Research is not enabled');
+        if (!(await this.aiAgentService.getIsCopilotEnabled(args.user))) {
+            throw new ForbiddenError('AI Copilot is not enabled');
         }
         const organizationSettings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
@@ -914,6 +970,9 @@ export class AiDeepResearchService extends BaseService {
                     { activeRunUuid: error.activeRunUuid },
                 );
             }
+            if (error instanceof AiDeepResearchPromptExecutionModeError) {
+                throw new ConflictError(error.message);
+            }
             throw error;
         }
 
@@ -927,6 +986,7 @@ export class AiDeepResearchService extends BaseService {
                 run.ai_deep_research_run_uuid,
                 FAILED_RUN_ERROR_MESSAGE,
                 'internal_error',
+                'enqueue',
             );
             await this.aiDeepResearchRunModel.deleteUnstartedFailedRun(
                 run.ai_deep_research_run_uuid,
@@ -1013,11 +1073,13 @@ export class AiDeepResearchService extends BaseService {
             projectUuid: args.projectUuid,
             metricQuery: chart.metricQuery,
             context: QueryExecutionContext.AI,
+            pivotConfiguration: this.getChartPivotConfiguration(chart),
         });
 
         return {
             source: 'semantic',
             type: AiResultType.QUERY_RESULT,
+            mergeQuery: null,
             query: {
                 queryUuid: query.queryUuid,
                 cacheMetadata: query.cacheMetadata,
@@ -1033,6 +1095,37 @@ export class AiDeepResearchService extends BaseService {
                 description: null,
             },
         };
+    }
+
+    // Grouped charts expect server-pivoted results, matching the chat viz path.
+    private getChartPivotConfiguration(
+        chart: AiDeepResearchChartData,
+    ): PivotConfiguration | undefined {
+        try {
+            const webAiChartConfig = getWebAiChartConfig({
+                vizConfig: buildDeepResearchVizConfig(chart),
+                metricQuery: chart.metricQuery,
+                fieldsMap: chart.fields,
+                overrideChartType: chart.chartConfig.defaultVizType,
+            });
+            const groupByDimensions = getGroupByDimensions(webAiChartConfig);
+            if (!groupByDimensions?.length) {
+                return undefined;
+            }
+            return derivePivotConfigurationFromChart(
+                {
+                    chartConfig: webAiChartConfig.echartsConfig,
+                    pivotConfig: { columns: groupByDimensions },
+                },
+                chart.metricQuery,
+                chart.fields,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Deep Research chart ${chart.queryUuid} refresh falls back to unpivoted results: ${getErrorMessage(error)}`,
+            );
+            return undefined;
+        }
     }
 
     async getChart(args: {
@@ -1179,6 +1272,7 @@ export class AiDeepResearchService extends BaseService {
                 payload.aiDeepResearchRunUuid,
                 'Deep Research executor is not configured',
                 'internal_error',
+                'enqueue',
             );
             await this.dispatchPendingLifecycleAnalytics(
                 payload.aiDeepResearchRunUuid,
@@ -1186,27 +1280,39 @@ export class AiDeepResearchService extends BaseService {
             throw new Error('Deep Research executor is not configured');
         }
 
+        let checkpointedReport: AiDeepResearchSubmittedReport | null = null;
+        let currentStage: AiDeepResearchFailureStage = 'investigation';
         try {
             const result = await this.executor(run, { signal });
+            currentStage = 'persistence';
             if (result.status === 'completed') {
-                const report = await this.prepareEvidenceReport(
+                const report = await this.persistAndPrepareEvidenceReport(
                     run,
                     result.report,
                     new Set(result.warehouseQueryUuids),
                 );
+                checkpointedReport = result.report;
                 const hasAdjustments =
                     report.adjustments.repaired.length > 0 ||
                     report.adjustments.dropped.length > 0;
-                const completed = hasAdjustments
-                    ? await this.aiDeepResearchRunModel.markCompleted(
-                          payload.aiDeepResearchRunUuid,
-                          report.markdown,
-                          report.adjustments,
-                      )
-                    : await this.aiDeepResearchRunModel.markCompleted(
-                          payload.aiDeepResearchRunUuid,
-                          report.markdown,
-                      );
+                const completed = await retryReportFinalization(
+                    () =>
+                        hasAdjustments
+                            ? this.aiDeepResearchRunModel.markCompleted(
+                                  payload.aiDeepResearchRunUuid,
+                                  report.markdown,
+                                  report.adjustments,
+                              )
+                            : this.aiDeepResearchRunModel.markCompleted(
+                                  payload.aiDeepResearchRunUuid,
+                                  report.markdown,
+                              ),
+                    (error, attempt) => {
+                        this.logger.warn(
+                            `Deep Research run ${run.ai_deep_research_run_uuid} could not persist completion (retry ${attempt}): ${getErrorMessage(error)}`,
+                        );
+                    },
+                );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
@@ -1219,26 +1325,37 @@ export class AiDeepResearchService extends BaseService {
                 return;
             }
             if (result.status === 'partially_completed') {
-                const report = await this.prepareEvidenceReport(
+                const report = await this.persistAndPrepareEvidenceReport(
                     run,
                     result.report,
                     new Set(result.warehouseQueryUuids),
                 );
+                checkpointedReport = result.report;
                 const hasAdjustments =
                     report.adjustments.repaired.length > 0 ||
                     report.adjustments.dropped.length > 0;
-                const completed = hasAdjustments
-                    ? await this.aiDeepResearchRunModel.markPartiallyCompleted(
-                          payload.aiDeepResearchRunUuid,
-                          report.markdown,
-                          result.terminalReason,
-                          report.adjustments,
-                      )
-                    : await this.aiDeepResearchRunModel.markPartiallyCompleted(
-                          payload.aiDeepResearchRunUuid,
-                          report.markdown,
-                          result.terminalReason,
-                      );
+                const completed = await retryReportFinalization(
+                    () =>
+                        hasAdjustments
+                            ? this.aiDeepResearchRunModel.markPartiallyCompleted(
+                                  payload.aiDeepResearchRunUuid,
+                                  report.markdown,
+                                  result.terminalReason,
+                                  result.failureStage,
+                                  report.adjustments,
+                              )
+                            : this.aiDeepResearchRunModel.markPartiallyCompleted(
+                                  payload.aiDeepResearchRunUuid,
+                                  report.markdown,
+                                  result.terminalReason,
+                                  result.failureStage,
+                              ),
+                    (error, attempt) => {
+                        this.logger.warn(
+                            `Deep Research run ${run.ai_deep_research_run_uuid} could not persist partial completion (retry ${attempt}): ${getErrorMessage(error)}`,
+                        );
+                    },
+                );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
@@ -1260,6 +1377,7 @@ export class AiDeepResearchService extends BaseService {
                         ? AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE
                         : FAILED_RUN_ERROR_MESSAGE,
                     result.terminalReason,
+                    result.failureStage,
                 );
                 await this.dispatchPendingLifecycleAnalytics(
                     payload.aiDeepResearchRunUuid,
@@ -1269,6 +1387,7 @@ export class AiDeepResearchService extends BaseService {
 
             const cancelled = await this.aiDeepResearchRunModel.markCancelled(
                 payload.aiDeepResearchRunUuid,
+                result.failureStage,
                 result.terminalReason,
             );
             if (cancelled) {
@@ -1280,6 +1399,7 @@ export class AiDeepResearchService extends BaseService {
                     payload.aiDeepResearchRunUuid,
                     'Deep Research stopped without a cancellation request',
                     'internal_error',
+                    result.failureStage,
                 );
                 await this.dispatchPendingLifecycleAnalytics(
                     payload.aiDeepResearchRunUuid,
@@ -1289,15 +1409,62 @@ export class AiDeepResearchService extends BaseService {
             this.logger.error(
                 `Deep Research run ${payload.aiDeepResearchRunUuid} threw: ${getErrorMessage(error)}`,
             );
-            await this.aiDeepResearchRunModel.markFailed(
-                payload.aiDeepResearchRunUuid,
-                FAILED_RUN_ERROR_MESSAGE,
-                'internal_error',
-            );
+            if (!checkpointedReport) {
+                await this.aiDeepResearchRunModel.markFailed(
+                    payload.aiDeepResearchRunUuid,
+                    FAILED_RUN_ERROR_MESSAGE,
+                    'internal_error',
+                    error instanceof AiDeepResearchExecutorStageError
+                        ? error.failureStage
+                        : currentStage,
+                );
+            }
             await this.dispatchPendingLifecycleAnalytics(
                 payload.aiDeepResearchRunUuid,
             );
             throw error;
+        }
+    }
+
+    private async persistAndPrepareEvidenceReport(
+        run: DbAiDeepResearchRun,
+        report: AiDeepResearchSubmittedReport,
+        runQueryUuids: Set<string>,
+    ): Promise<{
+        markdown: string;
+        adjustments: AiDeepResearchReportAdjustment;
+    }> {
+        await retryReportFinalization(
+            async () => {
+                await this.aiDeepResearchRunModel.checkpointReport(
+                    run.ai_deep_research_run_uuid,
+                    report.markdown,
+                );
+            },
+            (error, attempt) => {
+                this.logger.warn(
+                    `Deep Research run ${run.ai_deep_research_run_uuid} could not checkpoint its report (retry ${attempt}): ${getErrorMessage(error)}`,
+                );
+            },
+        );
+
+        try {
+            return await retryReportFinalization(
+                () => this.prepareEvidenceReport(run, report, runQueryUuids),
+                (error, attempt) => {
+                    this.logger.warn(
+                        `Deep Research run ${run.ai_deep_research_run_uuid} could not verify its report evidence (retry ${attempt}): ${getErrorMessage(error)}`,
+                    );
+                },
+            );
+        } catch (error) {
+            this.logger.error(
+                `Deep Research run ${run.ai_deep_research_run_uuid} is publishing its checkpointed report after evidence verification failed: ${getErrorMessage(error)}`,
+            );
+            return {
+                markdown: report.markdown,
+                adjustments: { repaired: [], dropped: [] },
+            };
         }
     }
 
@@ -1398,7 +1565,7 @@ export class AiDeepResearchService extends BaseService {
         const hasDroppedCharts = chartReport.adjustments.dropped.length > 0;
         return {
             markdown: hasDroppedCharts
-                ? `<warning title="Report adjusted">Some chart evidence was omitted because it could not be verified. The remaining narrative and verified evidence are preserved.</warning>\n\n${chartReport.markdown}`
+                ? addReportAdjustedWarning(chartReport.markdown)
                 : chartReport.markdown,
             adjustments: chartReport.adjustments,
         };
@@ -1465,6 +1632,9 @@ export class AiDeepResearchService extends BaseService {
         run: DbAiDeepResearchRun,
         depth = 0,
     ): Promise<AiDeepResearchEvidenceBuildResult> {
+        const timezone =
+            (await this.projectModel.getQueryTimezone(run.project_uuid)) ??
+            'UTC';
         const provenance =
             await this.aiAgentModel.getToolCallsAndResultsForPrompt(
                 run.prompt_uuid,
@@ -1533,6 +1703,8 @@ export class AiDeepResearchService extends BaseService {
 
         const currentPack: AiDeepResearchEvidencePack = {
             question: run.prompt,
+            generatedAt: new Date().toISOString(),
+            timezone,
             queries: queryResults.flatMap((query) => (query ? [query] : [])),
             workerFindings,
         };
@@ -1550,6 +1722,8 @@ export class AiDeepResearchService extends BaseService {
                 const source = await this.buildEvidencePack(sourceRun, 1);
                 evidencePack = {
                     question: run.prompt,
+                    generatedAt: currentPack.generatedAt,
+                    timezone: currentPack.timezone,
                     queries: [
                         ...source.evidencePack.queries,
                         ...currentPack.queries,
@@ -1617,7 +1791,18 @@ export class AiDeepResearchService extends BaseService {
                 truncated:
                     (queryHistory.totalRowCount ?? page.rows.length) >
                     AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
+                warnings: [] as string[],
             };
+            if (baseEvidence.rowCount <= AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS) {
+                baseEvidence.warnings.push(
+                    `Small result set (${baseEvidence.rowCount} rows): verify the expected grain before making broad magnitude claims.`,
+                );
+            }
+            if (baseEvidence.truncated) {
+                baseEvidence.warnings.push(
+                    `Only the first ${AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS} of ${baseEvidence.rowCount} rows are included in this evidence pack.`,
+                );
+            }
             if (isRawSql) {
                 let columns = Object.keys(queryHistory.columns ?? {});
                 if (columns.length === 0) {
@@ -1637,11 +1822,24 @@ export class AiDeepResearchService extends BaseService {
                 };
             }
 
-            const parsedArgs = toolRunQueryArgsSchema.safeParse(toolArgs);
+            // Persisted args may predate the current advertised contract.
+            const parsedArgs =
+                toolRunQueryArgsSchemaPersisted.safeParse(toolArgs);
             const resolvedChart = resolveDeepResearchWarehouseChart(
                 toolArgs,
                 queryUuid,
             );
+            const { metricQuery } = queryHistory;
+            if (Object.keys(metricQuery.filters).length > 0) {
+                baseEvidence.warnings.push(
+                    'This query is filtered; do not generalize its results outside the filtered population.',
+                );
+            }
+            if (baseEvidence.rowCount >= metricQuery.limit) {
+                baseEvidence.warnings.push(
+                    `The result reached its ${metricQuery.limit}-row query limit and may not represent the full population.`,
+                );
+            }
             return {
                 ...baseEvidence,
                 type: 'metric_query',
@@ -1649,8 +1847,12 @@ export class AiDeepResearchService extends BaseService {
                 description: parsedArgs.success
                     ? parsedArgs.data.description
                     : '',
-                dimensions: queryHistory.metricQuery.dimensions,
-                metrics: queryHistory.metricQuery.metrics,
+                dimensions: metricQuery.dimensions,
+                metrics: metricQuery.metrics,
+                filters: metricQuery.filters,
+                sorts: metricQuery.sorts,
+                limit: metricQuery.limit,
+                timezone: metricQuery.timezone ?? null,
                 chartable: resolvedChart !== null,
                 visualizationType:
                     resolvedChart?.chart.chartConfig.defaultVizType ?? null,
@@ -1717,6 +1919,7 @@ export class AiDeepResearchService extends BaseService {
         ) {
             const cancelled = await this.aiDeepResearchRunModel.markCancelled(
                 aiDeepResearchRunUuid,
+                'persistence',
             );
             if (cancelled) {
                 await this.dispatchPendingLifecycleAnalytics(
@@ -1742,12 +1945,12 @@ export class AiDeepResearchService extends BaseService {
 
     async sweepStaleRuns(): Promise<number> {
         const runs = await this.aiDeepResearchRunModel.markStaleRunsAsFailed(
-            STALE_RUN_THRESHOLD_MINUTES,
+            AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES,
             STALE_RUN_ERROR_MESSAGE,
         );
         if (runs.length > 0) {
             this.logger.warn(
-                `Swept ${runs.length} stale Deep Research run(s) after ${STALE_RUN_THRESHOLD_MINUTES} minutes`,
+                `Swept ${runs.length} stale Deep Research run(s) after ${AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES} minutes`,
             );
         }
         await this.dispatchPendingLifecycleAnalytics();

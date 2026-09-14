@@ -30,10 +30,7 @@ export const ToolCallChip: FC<ToolCallChipProps> = ({
 }) => (
     <Badge
         component="span"
-        color="gray"
-        variant="light"
         size="xs"
-        radius="sm"
         maw={maxWidth}
         {...rest}
         style={{

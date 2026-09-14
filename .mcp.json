@@ -11,10 +11,6 @@
     "sentry": {
       "type": "http",
       "url": "https://mcp.sentry.dev/mcp"
-    },
-    "spotlight": {
-      "command": "pnpx",
-      "args": ["@spotlightjs/spotlight@latest", "mcp"]
     }
   }
 }

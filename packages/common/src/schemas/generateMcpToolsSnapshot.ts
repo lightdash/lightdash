@@ -1,24 +1,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { type z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 import { mcpToolDefinitions } from '../ee/AiAgent/schemas/tools/toolDefinitions';
+import { toJsonSchema } from '../utils/zodJsonSchema';
 
 /**
- * Generates a committed snapshot of the DECLARED MCP tool surface
- * (`packages/common/src/schemas/json/mcp-tools-1.0.json`) consumed by the
- * release-safety marker's MCP breaking-change diff (PROD-8359, P3 —
- * `scripts/mcp-tools-diff.ts`).
+ * Generates the committed stable/default MCP tool surface used for
+ * release-safety checks.
  *
- * The snapshot is built from `mcpToolDefinitions` (every MCP-available tool, the
- * superset that ignores runtime feature-flag gating) via each tool's `for('mcp')`
- * view, serializing the input/output Zod schemas to JSON Schema with the same
- * `zodToJsonSchema(..., { target: 'jsonSchema7' })` settings as the runtime
- * contract snapshot test (`mcpToolContracts.snapshot.test.ts`). Tools and object
- * keys are sorted so the file is byte-stable across regenerations.
+ * `mcpToolDefinitions` intentionally excludes temporary runtime-selected
+ * rollout variants with the same public tool names. Flag-ON rollout contracts
+ * are covered by runtime contract snapshots. When a rollout variant replaces
+ * the default, promote it into the default definitions and regenerate this
+ * snapshot.
  *
- * Mirrors `generateChartAsCodeSchema.ts`: run to write the file, or with
- * `--check` to fail when the committed file is stale (CI freshness guard).
+ * Input and output schemas use the runtime contract snapshot's JSON Schema
+ * settings. Tools and object keys are sorted for byte-stable regeneration. Run
+ * with `--check` to verify the committed snapshot is current.
  */
 
 type JsonValue =
@@ -42,9 +40,16 @@ export const getOutputPath = (): string =>
         'packages/common/src/schemas/json/mcp-tools-1.0.json',
     );
 
-const schemaToJson = (schema: z.ZodTypeAny | undefined | null): JsonValue => {
+// The MCP SDK rebuilds registered object schemas from their shape before
+// converting, so top-level object metadata never reaches `tools/list`.
+const schemaToJson = (
+    schema: z.ZodType | undefined | null,
+    io: 'input' | 'output',
+): JsonValue => {
     if (!schema) return null;
-    return zodToJsonSchema(schema, { target: 'jsonSchema7' }) as JsonValue;
+    const served =
+        schema instanceof z.ZodObject ? z.object(schema.shape) : schema;
+    return toJsonSchema(served, { io }) as JsonValue;
 };
 
 /**
@@ -61,11 +66,12 @@ export const buildMcpToolsSnapshot = (): JsonObject => {
                 description: view.description,
                 annotations: (view.annotations ?? {}) as unknown as JsonValue,
                 inputSchema: schemaToJson(
-                    view.inputSchema as unknown as z.ZodTypeAny,
+                    view.inputSchema as unknown as z.ZodType,
+                    'input',
                 ),
                 outputSchema:
                     'outputSchema' in view && view.outputSchema
-                        ? schemaToJson(view.outputSchema as z.ZodTypeAny)
+                        ? schemaToJson(view.outputSchema as z.ZodType, 'output')
                         : null,
             };
             return entry;

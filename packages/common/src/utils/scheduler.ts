@@ -41,9 +41,11 @@ export function getTimezoneLabel(timezone: string | undefined) {
 }
 
 export function getHumanReadableCronExpression(
-    cronExpression: string,
+    cronExpression: string | undefined,
     timezone: string,
 ) {
+    if (!cronExpression) return '';
+
     const value = cronstrue.toString(cronExpression, {
         verbose: true,
         throwExceptionOnParseError: false,

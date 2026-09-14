@@ -1,31 +1,26 @@
-import { FeatureFlags, OrganizationMemberRole } from '@lightdash/common';
-import { Box, Button, Group, Tooltip } from '@mantine/core';
+import { OrganizationMemberRole } from '@lightdash/common';
+import { Button, Stack, Text } from '@mantine/core';
 import { IconLogout } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
+import { DeleteOrganizationPanel } from '../DeleteOrganizationPanel';
 import { LeaveOrganizationModal } from './LeaveOrganizationModal';
 
-export const LeaveOrganizationPanel: FC = () => {
+export const LeaveOrganizationPanel: FC<{ showDeleteAction?: boolean }> = ({
+    showDeleteAction = true,
+}) => {
     const { user } = useApp();
     const { isInitialLoading: isOrganizationLoading, data: organization } =
         useOrganization();
-
-    const { data: leaveOrganizationFlag } = useServerFeatureFlag(
-        FeatureFlags.LeaveOrganization,
-    );
-    const isLeaveOrganizationEnabled = leaveOrganizationFlag?.enabled === true;
 
     const isAdmin = user.data?.role === OrganizationMemberRole.ADMIN;
 
     // Only admins can list org users — non-admins skip this query.
     const { data: orgUsers, isInitialLoading: isOrgUsersLoading } =
-        useOrganizationUsers({
-            enabled: isAdmin && isLeaveOrganizationEnabled,
-        });
+        useOrganizationUsers({ enabled: isAdmin });
 
     const [showModal, setShowModal] = useState(false);
 
@@ -39,7 +34,6 @@ export const LeaveOrganizationPanel: FC = () => {
         );
     }, [isAdmin, orgUsers, user.data?.userUuid]);
 
-    if (!isLeaveOrganizationEnabled) return null;
     if (isOrganizationLoading || !organization || !user.data) return null;
     if (isAdmin && isOrgUsersLoading) return null;
 
@@ -51,29 +45,31 @@ export const LeaveOrganizationPanel: FC = () => {
             onClick={() => setShowModal(true)}
             disabled={isOnlyAdmin}
         >
-            Leave '{organization.name}'
+            Leave '{organization.name.trim() || 'Unnamed organization'}'
         </Button>
     );
 
     return (
-        <Group justify="flex-end">
+        <Stack align="flex-end" gap="sm">
+            {button}
             {isOnlyAdmin ? (
-                <Tooltip
-                    label="You are the only admin in this organization. Promote another member to admin before leaving."
-                    multiline
-                    w={260}
-                    withArrow
-                >
-                    <Box>{button}</Box>
-                </Tooltip>
-            ) : (
-                button
-            )}
+                <>
+                    <Text fz="sm" c="dimmed" maw={360} ta="right">
+                        {orgUsers?.length === 1
+                            ? 'You are the only member. To leave, permanently delete this organization and its content.'
+                            : 'You are the only admin. Add or promote another admin before leaving. To remove this workspace instead, delete the organization.'}
+                    </Text>
+                    {showDeleteAction &&
+                        user.data.ability.can('delete', 'Organization') && (
+                            <DeleteOrganizationPanel />
+                        )}
+                </>
+            ) : null}
 
             <LeaveOrganizationModal
                 opened={showModal}
                 onClose={() => setShowModal(false)}
             />
-        </Group>
+        </Stack>
     );
 };

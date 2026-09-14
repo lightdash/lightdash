@@ -308,11 +308,20 @@ describe('AiAgentReviewClassifierService', () => {
             deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
             deepResearchRawSqlEnabled: false,
             mcpContentWritesEnabled: true,
+            mcpAgentsEnabled: true,
             requireExplicitSlackChannelLinking: false,
             defaultAiAgentModelConfig: null,
             modelVisibility: null,
-            providerApiKeysSet: { anthropic: false, openai: false },
-            providerApiKeyHints: { anthropic: null, openai: null },
+            providerApiKeysSet: {
+                anthropic: false,
+                google: false,
+                openai: false,
+            },
+            providerApiKeyHints: {
+                anthropic: null,
+                google: null,
+                openai: null,
+            },
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -379,11 +388,20 @@ describe('AiAgentReviewClassifierService', () => {
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
                 mcpContentWritesEnabled: true,
+                mcpAgentsEnabled: true,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: null,
-                providerApiKeysSet: { anthropic: false, openai: false },
-                providerApiKeyHints: { anthropic: null, openai: null },
+                providerApiKeysSet: {
+                    anthropic: false,
+                    google: false,
+                    openai: false,
+                },
+                providerApiKeyHints: {
+                    anthropic: null,
+                    google: null,
+                    openai: null,
+                },
             },
         );
 

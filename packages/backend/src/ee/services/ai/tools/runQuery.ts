@@ -3,29 +3,58 @@ import {
     AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
+    generateVisualizationFilterExpressionToolDefinition,
+    generateVisualizationToolDefinition,
+    getItemId,
     getReferencedExploreParameterDefinitions,
+    getRunQueryAgentViewRejectingMerge,
+    getRunQueryFilterExpressionAgentViewRejectingMerge,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
+    isCustomChartTypeSlugChartConfig,
+    isMergeMetricSource,
     isSlackPrompt,
-    runQueryToolDefinition,
+    MERGE_TABLE_NAME,
     toolRunQueryArgsSchemaTransformed,
+    toolRunQueryExpressionArgsSchema,
+    toolRunQueryExpressionArgsSchemaV2RejectingMerge,
+    type AiCustomChartTypeChartArtifactConfig,
+    type AiMergeChartArtifactConfig,
+    type AiSemanticChartArtifactConfig,
     type Explore,
+    type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type SlackPrompt,
+    type ToolRunQueryArgs,
     type ToolRunQueryArgsTransformed,
+    type ToolRunQueryExpressionArgs,
+    type ToolRunQueryExpressionResolvedArgs,
+    type ToolRunQueryExpressionRuntimeArgs,
 } from '@lightdash/common';
-import { tool } from 'ai';
+import { tool, type Schema } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
+    ExportCustomChartTypeImageFn,
     GetPromptFn,
+    ResolveCustomChartTypeFn,
+    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     SendFileFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
+import {
+    buildAiMergeQuery,
+    buildAiMergeSourceConfigs,
+} from '../utils/buildAiMergeQuery';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import {
+    formatFilterExpressionError,
+    resolveFilterExpressionArgs,
+} from '../utils/filterExpressions';
 import { getPivotedResults } from '../utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
@@ -41,6 +70,7 @@ import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateAxisFields,
+    validateCustomChartTypeChartConfig,
     validateCustomMetricFilters,
     validateCustomMetricsDefinition,
     validateFieldEntityType,
@@ -54,6 +84,8 @@ import {
     validateTableCalculations,
 } from '../utils/validators';
 
+type RunQueryToolInput = ToolRunQueryArgs | ToolRunQueryExpressionRuntimeArgs;
+
 type Dependencies = {
     updateProgress: UpdateProgressFn;
     runAsyncQuery: RunAsyncQueryFn;
@@ -65,8 +97,14 @@ type Dependencies = {
     /** Deep Research report charts must cite the execution they came from. */
     exposeQueryUuid: boolean;
     enableDataAccess: boolean;
+    slackLinksOnly: boolean;
     // Project-level parameter definitions; model-level ones come from the explore.
     projectParameterDefinitions: ParameterDefinitions;
+    enableMergeQueries: boolean;
+    enableFilterExpressions: boolean;
+    runAsyncMergeQuery: RunAsyncMergeQueryFn;
+    resolveCustomChartType: ResolveCustomChartTypeFn;
+    exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
 };
 
 // The parameter state a query actually ran with — explicit vs
@@ -113,8 +151,6 @@ export const summarizeAppliedParameters = (
         ? ` Parameter values this query ran with — ${parts.join('; ')}.`
         : '';
 };
-
-const toolDefinition = runQueryToolDefinition.for('agent');
 
 export const validateRunQueryTool = (
     queryTool: ToolRunQueryArgsTransformed,
@@ -170,16 +206,24 @@ export const validateRunQueryTool = (
         queryTool.queryConfig.filters,
     );
 
+    // groupBy/axis checks only apply to the builtin branch; the custom chart
+    // type branch is validated separately against the type's schema.
+    const builtinChartConfig = isCustomChartTypeSlugChartConfig(
+        queryTool.chartConfig,
+    )
+        ? null
+        : queryTool.chartConfig;
+
     // Validate groupBy fields
     validateGroupByFields(
         explore,
-        queryTool.chartConfig?.groupBy,
+        builtinChartConfig?.groupBy,
         queryTool.queryConfig.dimensions,
     );
 
     // Validate axis fields
     validateAxisFields(
-        queryTool.chartConfig,
+        builtinChartConfig,
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
         queryTool.queryConfig.tableCalculations,
@@ -221,6 +265,143 @@ export const validateRunQueryTool = (
     );
 };
 
+const CUSTOM_CHART_TYPE_IMAGE_BUDGET_MS = 60_000;
+const CUSTOM_CHART_TYPE_IMAGE_ATTEMPTS = 2;
+
+type ResolvedRunQueryArtifactConfig =
+    | AiSemanticChartArtifactConfig
+    | AiMergeChartArtifactConfig
+    | AiCustomChartTypeChartArtifactConfig;
+
+const buildResolvedRunQueryArtifactConfig = ({
+    persistedArgs,
+    dataAppVizUuid,
+}: {
+    persistedArgs: ToolRunQueryExpressionResolvedArgs;
+    dataAppVizUuid: string | null;
+}): ResolvedRunQueryArtifactConfig => {
+    if (persistedArgs.mergeConfig !== null) {
+        return {
+            source: 'merge',
+            schemaVersion: 1,
+            config: persistedArgs,
+        };
+    }
+
+    if (dataAppVizUuid !== null) {
+        return {
+            source: 'customChartType',
+            schemaVersion: 1,
+            dataAppVizUuid,
+            config: persistedArgs,
+        };
+    }
+
+    return {
+        source: 'semantic',
+        config: persistedArgs,
+    };
+};
+
+// One retry inside a total wall-clock budget. An image failure must never
+// fail the answer — null means fall back to CSV.
+const exportCustomChartTypeImageBounded = async (
+    exportImage: () => Promise<Buffer>,
+): Promise<Buffer | null> => {
+    const deadline = Date.now() + CUSTOM_CHART_TYPE_IMAGE_BUDGET_MS;
+    for (
+        let attempt = 0;
+        attempt < CUSTOM_CHART_TYPE_IMAGE_ATTEMPTS;
+        attempt += 1
+    ) {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0) break;
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            const attemptPromise = exportImage();
+            // Swallow a late failure after the timeout wins the race.
+            attemptPromise.catch(() => {});
+            // eslint-disable-next-line no-await-in-loop
+            return await Promise.race([
+                attemptPromise,
+                new Promise<never>((_, reject) => {
+                    timer = setTimeout(
+                        () =>
+                            reject(
+                                new Error(
+                                    'Custom chart type image export timed out',
+                                ),
+                            ),
+                        remainingMs,
+                    );
+                }),
+            ]);
+        } catch {
+            // Retry, or fall through to the CSV fallback.
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+    return null;
+};
+
+// Renders the chart as an image for Slack, or sends the results as a CSV for
+// table visualizations. Returns the chart image URL when one was sent.
+const sendSlackVisualization = async ({
+    prompt,
+    queryTool,
+    queryResults,
+    sendFile,
+    exportImage,
+}: {
+    prompt: SlackPrompt;
+    queryTool: ToolRunQueryArgsTransformed;
+    queryResults: { rows: Record<string, unknown>[]; fields: ItemsMap };
+    sendFile: SendFileFn;
+    // Pre-bound export of the answer's artifact; null when no artifact
+    // can be exported (merge branch).
+    exportImage: (() => Promise<Buffer>) | null;
+}): Promise<string | undefined> => {
+    const echartsOptions = await getSlackAiEchartsConfig({
+        toolArgs: {
+            type: AiResultType.QUERY_RESULT,
+            tool: queryTool,
+        },
+        queryResults,
+        getPivotedResults,
+    });
+    let chartImage: Buffer | null = null;
+    if (echartsOptions) {
+        chartImage = await renderEcharts(echartsOptions);
+    } else if (
+        isCustomChartTypeSlugChartConfig(queryTool.chartConfig) &&
+        exportImage
+    ) {
+        chartImage = await exportCustomChartTypeImageBounded(exportImage);
+    }
+    if (chartImage) {
+        return sendFile({
+            channelId: prompt.slackChannelId,
+            threadTs: prompt.slackThreadTs,
+            organizationUuid: prompt.organizationUuid,
+            title: queryTool.title || 'Generated by Lightdash',
+            comment: queryTool.description || 'Chart generated by Lightdash',
+            filename: 'lightdash-chart.png',
+            file: chartImage,
+        });
+    }
+    await sendFile({
+        channelId: prompt.slackChannelId,
+        threadTs: prompt.slackThreadTs,
+        organizationUuid: prompt.organizationUuid,
+        title: queryTool.title || 'Generated by Lightdash',
+        comment: queryTool.description || 'Table generated by Lightdash',
+        filename: 'lightdash-results.csv',
+        file: Buffer.from(convertQueryResultsToCsv(queryResults), 'utf-8'),
+    });
+    return undefined;
+};
+
 export const getRunQuery = ({
     updateProgress,
     runAsyncQuery,
@@ -231,29 +412,304 @@ export const getRunQuery = ({
     maxContextRows,
     exposeQueryUuid,
     enableDataAccess,
+    slackLinksOnly,
     projectParameterDefinitions,
-}: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    enableMergeQueries,
+    enableFilterExpressions,
+    runAsyncMergeQuery,
+    resolveCustomChartType,
+    exportCustomChartTypeImage,
+}: Dependencies) => {
+    const toolView = (() => {
+        if (enableFilterExpressions) {
+            return enableMergeQueries
+                ? generateVisualizationFilterExpressionToolDefinition.for(
+                      'agent',
+                  )
+                : getRunQueryFilterExpressionAgentViewRejectingMerge();
+        }
+        return enableMergeQueries
+            ? generateVisualizationToolDefinition.for('agent')
+            : getRunQueryAgentViewRejectingMerge();
+    })();
+    const inputSchema: Schema<RunQueryToolInput> = toolView.inputSchema;
+
+    return tool({
+        ...toolView,
+        inputSchema,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 await updateProgress('Running your query...');
 
-                const queryTool =
-                    toolRunQueryArgsSchemaTransformed.parse(toolArgs);
                 const ctx = AgentContext.from(context);
+                let queryTool: ToolRunQueryArgsTransformed;
+                let persistedExpressionArgs: ToolRunQueryExpressionResolvedArgs | null =
+                    null;
+
+                if (enableFilterExpressions) {
+                    let normalizedExpressionToolArgs: ToolRunQueryExpressionArgs;
+                    if (enableMergeQueries) {
+                        normalizedExpressionToolArgs =
+                            toolRunQueryExpressionArgsSchema.parse(toolArgs);
+                    } else {
+                        const parsedExpressionToolArgs =
+                            toolRunQueryExpressionArgsSchemaV2RejectingMerge.parse(
+                                toolArgs,
+                            );
+                        normalizedExpressionToolArgs = {
+                            ...parsedExpressionToolArgs,
+                            mergeConfig: null,
+                        };
+                    }
+                    const resolution = await resolveFilterExpressionArgs({
+                        toolArgs: normalizedExpressionToolArgs,
+                        getExplore: (exploreName) =>
+                            ctx.getExplore(exploreName),
+                    });
+                    if (!resolution.success) {
+                        return {
+                            result: formatFilterExpressionError(
+                                resolution.error,
+                            ),
+                            metadata: { status: 'error' as const },
+                        };
+                    }
+
+                    queryTool = resolution.data.transformed;
+                    persistedExpressionArgs = resolution.data.persistedArgs;
+                } else {
+                    queryTool =
+                        toolRunQueryArgsSchemaTransformed.parse(toolArgs);
+                }
+
                 const explore = ctx.getExplore(
                     queryTool.queryConfig.exploreName,
                 );
 
-                validateRunQueryTool(queryTool, explore);
-                validateQueryParameters(
-                    queryTool.queryConfig.parameters,
-                    explore,
-                    projectParameterDefinitions,
-                );
+                if (!queryTool.mergeConfig) {
+                    validateRunQueryTool(queryTool, explore);
+                    validateQueryParameters(
+                        queryTool.queryConfig.parameters,
+                        explore,
+                        projectParameterDefinitions,
+                    );
+                }
+
+                // Merge × custom chart type has no defined contract yet —
+                // reject explicitly rather than silently falling back.
+                if (
+                    queryTool.mergeConfig &&
+                    isCustomChartTypeSlugChartConfig(queryTool.chartConfig)
+                ) {
+                    throw new AiAgentValidatorError(
+                        'Custom chart types cannot be combined with mergeConfig. Either set mergeConfig to null to render this answer through the custom chart type, or keep the merge and use a builtin chartConfig.',
+                    );
+                }
 
                 const prompt = await getPrompt();
+
+                if (queryTool.mergeConfig) {
+                    if (!enableMergeQueries) {
+                        throw new AiAgentValidatorError(
+                            'Merge queries are not enabled for this organization.',
+                        );
+                    }
+
+                    buildAiMergeSourceConfigs(queryTool).forEach(
+                        ({ queryConfig }) => {
+                            const sourceExplore = ctx.getExplore(
+                                queryConfig.exploreName,
+                            );
+                            const sourceTool = {
+                                ...queryTool,
+                                queryConfig,
+                                chartConfig: null,
+                                mergeConfig: null,
+                            };
+                            validateRunQueryTool(sourceTool, sourceExplore);
+                            validateQueryParameters(
+                                queryConfig.parameters,
+                                sourceExplore,
+                                projectParameterDefinitions,
+                            );
+                        },
+                    );
+                    const mergeQuery = buildAiMergeQuery({
+                        toolArgs: queryTool,
+                        getExplore: (exploreName) =>
+                            ctx.getExplore(exploreName),
+                        maxQueryLimit: maxLimit,
+                    });
+
+                    // Custom chart configs were rejected above; the guard
+                    // narrows chartConfig to the builtin branch.
+                    if (
+                        queryTool.chartConfig &&
+                        !isCustomChartTypeSlugChartConfig(queryTool.chartConfig)
+                    ) {
+                        // Merged output columns are fields of the merge/source
+                        // "tables", so getItemId is the naming authority.
+                        const dimensionIds = queryTool.mergeConfig.joinKey.map(
+                            (part) =>
+                                getItemId({
+                                    table: MERGE_TABLE_NAME,
+                                    name: part.name,
+                                }),
+                        );
+                        const metricIds = mergeQuery.sources
+                            .filter(isMergeMetricSource)
+                            .flatMap((source) =>
+                                source.metricQuery.metrics.map((metricId) =>
+                                    getItemId({
+                                        table: source.id,
+                                        name: metricId,
+                                    }),
+                                ),
+                            );
+                        const selected = new Set([
+                            ...dimensionIds,
+                            ...metricIds,
+                        ]);
+                        const configuredFields = [
+                            queryTool.chartConfig.xAxisDimension,
+                            ...(queryTool.chartConfig.yAxisMetrics ?? []),
+                            ...(queryTool.chartConfig.groupBy ?? []),
+                            queryTool.chartConfig.secondaryYAxisMetric,
+                        ].filter((field): field is string => field !== null);
+                        const unknownFields = configuredFields.filter(
+                            (field) => !selected.has(field),
+                        );
+                        if (unknownFields.length > 0) {
+                            throw new AiAgentValidatorError(
+                                `Merged chart references unknown fields: ${unknownFields.join(
+                                    ', ',
+                                )}. Available fields: ${[
+                                    ...dimensionIds,
+                                    ...metricIds,
+                                ].join(', ')}.`,
+                            );
+                        }
+                    }
+
+                    const createMergeArtifactHook = () =>
+                        createOrUpdateArtifact({
+                            threadUuid: prompt.threadUuid,
+                            promptUuid: prompt.promptUuid,
+                            artifactType: 'chart',
+                            title: toolArgs.title,
+                            description: toolArgs.description,
+                            vizConfig:
+                                persistedExpressionArgs === null
+                                    ? {
+                                          source: 'merge',
+                                          schemaVersion: 1,
+                                          config: toolArgs,
+                                      }
+                                    : buildResolvedRunQueryArtifactConfig({
+                                          persistedArgs:
+                                              persistedExpressionArgs,
+                                          dataAppVizUuid: null,
+                                      }),
+                        });
+
+                    if (
+                        !enableDataAccess &&
+                        (!isSlackPrompt(prompt) || slackLinksOnly)
+                    ) {
+                        await createMergeArtifactHook();
+                        return {
+                            result: 'Success',
+                            metadata: { status: 'success' },
+                        };
+                    }
+
+                    const queryResults = await runAsyncMergeQuery(
+                        mergeQuery,
+                        queryTool.queryConfig.parameters ?? undefined,
+                    );
+
+                    if (queryResults.rows.length === 0) {
+                        return {
+                            result: NO_RESULTS_RETRY_PROMPT,
+                            metadata: { status: 'success' },
+                        };
+                    }
+
+                    await createMergeArtifactHook();
+
+                    let chartImageUrl: string | undefined;
+                    if (isSlackPrompt(prompt) && !slackLinksOnly) {
+                        chartImageUrl = await sendSlackVisualization({
+                            prompt,
+                            queryTool,
+                            queryResults,
+                            sendFile,
+                            // Merge × custom chart type is rejected above.
+                            exportImage: null,
+                        });
+                    }
+
+                    const resultSummary = getQueryResultSummary({
+                        rowCount: queryResults.rows.length,
+                        requestedLimit: queryTool.queryConfig.limit,
+                        effectiveLimit: mergeQuery.limit,
+                        maxLimit,
+                    });
+                    const csv = convertQueryResultsToCsv(
+                        queryResults,
+                        maxContextRows,
+                    );
+                    return {
+                        result: enableDataAccess
+                            ? [
+                                  `${resultSummary}${getContextTruncationNote({
+                                      rowCount: queryResults.rows.length,
+                                      maxContextRows,
+                                  })}`,
+                                  serializeData(csv, 'csv'),
+                              ].join('\n\n')
+                            : `Success. ${resultSummary}`,
+                        metadata: {
+                            status: 'success',
+                            chartImageUrl,
+                            queryUuid: queryResults.queryUuid,
+                        },
+                    };
+                }
+
+                // Custom chart type answers: resolve the slug project-scoped
+                // and validate the field mapping against the type's schema.
+                // The resolved uuid is persisted beside the replay payload.
+                let customChartTypeDataAppVizUuid: string | null = null;
+                if (isCustomChartTypeSlugChartConfig(queryTool.chartConfig)) {
+                    const customChartConfig = queryTool.chartConfig;
+                    const resolved = await resolveCustomChartType(
+                        customChartConfig.customChartTypeSlug,
+                    );
+                    if (!resolved) {
+                        throw new AiAgentValidatorError(
+                            `Custom chart type "${customChartConfig.customChartTypeSlug}" was not found in this project. Use findCustomChartTypes to browse the available types and their slugs.`,
+                        );
+                    }
+                    const aggregations = filterAggregationCustomMetrics(
+                        queryTool.queryConfig.customMetrics,
+                    );
+                    validateCustomChartTypeChartConfig(
+                        customChartConfig,
+                        resolved.schema,
+                        {
+                            dimensions: queryTool.queryConfig.dimensions,
+                            metrics: [
+                                ...queryTool.queryConfig.metrics,
+                                ...(aggregations ?? []).map(getItemId),
+                            ],
+                            tableCalculations: (
+                                queryTool.queryConfig.tableCalculations ?? []
+                            ).map((tableCalc) => tableCalc.name),
+                        },
+                    );
+                    customChartTypeDataAppVizUuid = resolved.dataAppVizUuid;
+                }
 
                 const populatedCustomMetrics = populateCustomMetricsSQL(
                     queryTool.queryConfig.customMetrics,
@@ -270,22 +726,68 @@ export const getRunQuery = ({
                 // emits yAxisMetrics with only the base metric id (it can't
                 // know the auto-generated PoP ids); the server fills them
                 // in here before persisting the artifact.
-                const expandedToolArgs =
+                let expandedToolArgs: typeof toolArgs = toolArgs;
+                if (
                     expandedMetrics.length >
                         queryTool.queryConfig.metrics.length &&
-                    toolArgs.chartConfig
+                    toolArgs.chartConfig &&
+                    !isCustomChartTypeSlugChartConfig(toolArgs.chartConfig)
+                ) {
+                    expandedToolArgs = {
+                        ...toolArgs,
+                        chartConfig: {
+                            ...toolArgs.chartConfig,
+                            yAxisMetrics: expandMetricsWithPopAdditionalMetrics(
+                                toolArgs.chartConfig.yAxisMetrics,
+                                populatedCustomMetrics,
+                            ),
+                        },
+                    };
+                }
+
+                const expandedPersistedExpressionArgs =
+                    persistedExpressionArgs !== null &&
+                    expandedMetrics.length >
+                        queryTool.queryConfig.metrics.length &&
+                    persistedExpressionArgs.chartConfig &&
+                    !isCustomChartTypeSlugChartConfig(
+                        persistedExpressionArgs.chartConfig,
+                    )
                         ? {
-                              ...toolArgs,
+                              ...persistedExpressionArgs,
                               chartConfig: {
-                                  ...toolArgs.chartConfig,
+                                  ...persistedExpressionArgs.chartConfig,
                                   yAxisMetrics:
                                       expandMetricsWithPopAdditionalMetrics(
-                                          toolArgs.chartConfig.yAxisMetrics,
+                                          persistedExpressionArgs.chartConfig
+                                              .yAxisMetrics,
                                           populatedCustomMetrics,
                                       ),
                               },
                           }
-                        : toolArgs;
+                        : persistedExpressionArgs;
+
+                const structuredArtifactConfig =
+                    customChartTypeDataAppVizUuid === null
+                        ? {
+                              source: 'semantic',
+                              config: expandedToolArgs,
+                          }
+                        : {
+                              // Envelope: model output verbatim,
+                              // server-derived uuid beside it.
+                              source: 'customChartType',
+                              schemaVersion: 1,
+                              dataAppVizUuid: customChartTypeDataAppVizUuid,
+                              config: toolArgs,
+                          };
+                const artifactConfig =
+                    expandedPersistedExpressionArgs === null
+                        ? structuredArtifactConfig
+                        : buildResolvedRunQueryArtifactConfig({
+                              persistedArgs: expandedPersistedExpressionArgs,
+                              dataAppVizUuid: customChartTypeDataAppVizUuid,
+                          });
 
                 const createOrUpdateArtifactHook = () =>
                     createOrUpdateArtifact({
@@ -294,14 +796,14 @@ export const getRunQuery = ({
                         artifactType: 'chart',
                         title: toolArgs.title,
                         description: toolArgs.description,
-                        vizConfig: {
-                            source: 'semantic',
-                            config: expandedToolArgs,
-                        },
+                        vizConfig: artifactConfig,
                     });
 
                 // Early artifact creation for non-data-access mode
-                if (!enableDataAccess && !isSlackPrompt(prompt)) {
+                if (
+                    !enableDataAccess &&
+                    (!isSlackPrompt(prompt) || slackLinksOnly)
+                ) {
                     await createOrUpdateArtifactHook();
                     return {
                         result: `Success`,
@@ -353,49 +855,17 @@ export const getRunQuery = ({
                     };
                 }
 
-                await createOrUpdateArtifactHook();
+                const artifact = await createOrUpdateArtifactHook();
 
                 let chartImageUrl: string | undefined;
-
-                // Render chart as image for Slack, or send CSV for tables
-                if (isSlackPrompt(prompt)) {
-                    const echartsOptions = await getSlackAiEchartsConfig({
-                        toolArgs: {
-                            type: AiResultType.QUERY_RESULT,
-                            tool: queryTool,
-                        },
+                if (isSlackPrompt(prompt) && !slackLinksOnly) {
+                    chartImageUrl = await sendSlackVisualization({
+                        prompt,
+                        queryTool,
                         queryResults,
-                        getPivotedResults,
+                        sendFile,
+                        exportImage: () => exportCustomChartTypeImage(artifact),
                     });
-
-                    if (echartsOptions) {
-                        const chartImage = await renderEcharts(echartsOptions);
-                        chartImageUrl = await sendFile({
-                            channelId: prompt.slackChannelId,
-                            threadTs: prompt.slackThreadTs,
-                            organizationUuid: prompt.organizationUuid,
-                            title: toolArgs.title || 'Generated by Lightdash',
-                            comment:
-                                toolArgs.description ||
-                                'Chart generated by Lightdash',
-                            filename: 'lightdash-chart.png',
-                            file: chartImage,
-                        });
-                    } else {
-                        // Table visualization - send CSV file
-                        const csvData = convertQueryResultsToCsv(queryResults);
-                        await sendFile({
-                            channelId: prompt.slackChannelId,
-                            threadTs: prompt.slackThreadTs,
-                            organizationUuid: prompt.organizationUuid,
-                            title: toolArgs.title || 'Generated by Lightdash',
-                            comment:
-                                toolArgs.description ||
-                                'Table generated by Lightdash',
-                            filename: 'lightdash-results.csv',
-                            file: Buffer.from(csvData, 'utf-8'),
-                        });
-                    }
                 }
 
                 const resultSummary =
@@ -456,3 +926,4 @@ export const getRunQuery = ({
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
+};

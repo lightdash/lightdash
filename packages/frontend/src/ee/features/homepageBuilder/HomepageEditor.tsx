@@ -202,6 +202,24 @@ const collisionDetectionStrategy: CollisionDetection = (args) => {
         : closestCorners(args);
 };
 
+/**
+ * Walkthrough action for manage:ProjectHomepage: publishing the draft. The
+ * publish dialog's confirm and the logo (back home) follow.
+ */
+const publishTourAction = {
+    'data-tour-scope': 'manage:ProjectHomepage',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/homepage-builder',
+    'data-tour-label': 'Click Publish',
+    'data-tour-title': 'Edit the project homepage',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="home"] >> [data-tour-anchor="customize-homepage"] >> [data-tour-anchor="homepage-block"][data-tour-value="Call to action"]',
+    'data-tour-then':
+        '[data-tour-anchor="modal-confirm"] >> [data-tour-nav="home"]',
+    'data-tour-docs': 'explore/homepage.mdx#preview-and-publish:p7:1-2',
+};
+
 const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
     definition,
     onAdd,
@@ -218,6 +236,12 @@ const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
             className={classes.railCard}
             data-dragging={isDragging}
             onClick={onAdd}
+            // Anchor for scope walkthroughs (data-tour-via): a block to add,
+            // by its label. The hint's {value} is the label:
+            //   data-tour-anchor="homepage-block" data-tour-hint="Add the {value} block"
+            data-tour-anchor="homepage-block"
+            data-tour-hint="Add the {value} block"
+            data-tour-value={definition.label}
         >
             <IconSquare icon={definition.icon} />
             <Box miw={0}>
@@ -269,7 +293,7 @@ const RowGap: FC<{
                                     leftSection={
                                         <MantineIcon
                                             icon={definition.icon}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
                                     }
                                     onClick={() => onQuickAdd(definition)}
@@ -358,7 +382,7 @@ const ColumnGutter: FC<{
                             leftSection={
                                 <MantineIcon
                                     icon={definition.icon}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             }
                             onClick={() => onAdd(definition)}
@@ -452,7 +476,7 @@ const BlockCard: FC<BlockCardProps> = ({
                     aria-label={`Drag ${definition.label} block`}
                 >
                     <span className={classes.blockHandle}>
-                        <MantineIcon icon={IconGripVertical} color="ldGray.6" />
+                        <MantineIcon icon={IconGripVertical} color="dimmed" />
                     </span>
                     <span className={classes.blockTypeLabel}>
                         {definition.label}
@@ -460,42 +484,24 @@ const BlockCard: FC<BlockCardProps> = ({
                 </div>
                 <Group gap={2} className={classes.blockActions} wrap="nowrap">
                     <Tooltip label="Move up">
-                        <ActionIcon
-                            variant="subtle"
-                            color="ldGray.6"
-                            disabled={!canUp}
-                            onClick={onUp}
-                        >
+                        <ActionIcon disabled={!canUp} onClick={onUp}>
                             <MantineIcon icon={IconArrowUp} />
                         </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Move down">
-                        <ActionIcon
-                            variant="subtle"
-                            color="ldGray.6"
-                            disabled={!canDown}
-                            onClick={onDown}
-                        >
+                        <ActionIcon disabled={!canDown} onClick={onDown}>
                             <MantineIcon icon={IconArrowDown} />
                         </ActionIcon>
                     </Tooltip>
                     {!definition.singleton && (
                         <Tooltip label="Duplicate">
-                            <ActionIcon
-                                variant="subtle"
-                                color="ldGray.6"
-                                onClick={onDuplicate}
-                            >
+                            <ActionIcon onClick={onDuplicate}>
                                 <MantineIcon icon={IconCopy} />
                             </ActionIcon>
                         </Tooltip>
                     )}
                     <Tooltip label="Remove">
-                        <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            onClick={onRemove}
-                        >
+                        <ActionIcon color="red" onClick={onRemove}>
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>
                     </Tooltip>
@@ -785,7 +791,7 @@ export const HomepageEditor: FC<Props> = ({
                                 <MantineIcon
                                     icon={IconUsers}
                                     size={15}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                                 Editing:{' '}
                                 <strong>
@@ -797,7 +803,7 @@ export const HomepageEditor: FC<Props> = ({
                                 <MantineIcon
                                     icon={IconChevronDown}
                                     size={13}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             </button>
                         </Menu.Target>
@@ -879,6 +885,7 @@ export const HomepageEditor: FC<Props> = ({
                     className={classes.tbBtnPrimary}
                     disabled={publishMutation.isLoading}
                     onClick={handleOpenPublish}
+                    {...publishTourAction}
                 >
                     Publish
                     <MantineIcon icon={IconArrowRight} size={14} />
@@ -920,7 +927,15 @@ export const HomepageEditor: FC<Props> = ({
             >
                 <div className={classes.body}>
                     {!isPreviewing && (
-                        <aside className={classes.rail}>
+                        <aside
+                            className={classes.rail}
+                            // Walkthrough look at the block library.
+                            data-tour-scope="manage:ProjectHomepage"
+                            data-tour-look="1"
+                            data-tour-after='[data-tour-anchor="customize-homepage"]'
+                            data-tour-label="The block library"
+                            data-tour-docs="explore/homepage.mdx#build-a-homepage:li1"
+                        >
                             <div className={classes.railTitle}>Blocks</div>
                             <Stack gap={6}>
                                 {availableBlocks.map((definition) => (

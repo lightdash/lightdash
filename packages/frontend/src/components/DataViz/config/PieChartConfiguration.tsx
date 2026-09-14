@@ -46,7 +46,7 @@ export const PieChartConfiguration = ({
 
     return (
         <Stack gap="sm" mb="lg">
-            <Title order={5} fz="sm" c="ldGray.9">
+            <Title order={5} fz="sm">
                 Data
             </Title>
 

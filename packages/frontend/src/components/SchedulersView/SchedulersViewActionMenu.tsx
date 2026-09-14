@@ -85,17 +85,15 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
     return (
         <>
             <Menu
-                withinPortal
                 position="bottom-start"
                 withArrow
                 arrowPosition="center"
-                shadow="md"
                 offset={-4}
                 closeOnItemClick
                 closeOnClickOutside
             >
                 <Menu.Target>
-                    <ActionIcon variant="subtle" color="gray">
+                    <ActionIcon>
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>

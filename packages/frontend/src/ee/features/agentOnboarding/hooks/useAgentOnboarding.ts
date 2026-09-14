@@ -115,6 +115,7 @@ export const useAgentOnboardingFile = (
         ],
         queryFn: () => getFile(projectUuid!, runUuid!, file!.path),
         enabled: !!projectUuid && !!runUuid && !!file,
+        keepPreviousData: true,
     });
 
 export const useStartAgentOnboardingRun = () => {

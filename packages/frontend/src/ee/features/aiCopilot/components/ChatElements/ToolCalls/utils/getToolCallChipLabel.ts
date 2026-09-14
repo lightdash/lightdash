@@ -2,10 +2,11 @@ import type {
     DiscoverFieldsInput,
     ToolGrepFieldsArgs,
     ToolGetMetadataArgs,
-    ToolDashboardArgs,
+    ToolDashboardV2Args,
     ToolDescribeWarehouseTableArgs,
     ToolFindChartsArgs,
     ToolFindContentArgs,
+    ToolFindCustomChartTypesArgs,
     ToolFindDashboardsArgs,
     ToolFindExploresArgsV1,
     ToolFindExploresArgsV2,
@@ -20,9 +21,6 @@ import type {
     ToolRunQueryArgs,
     ToolSearchFieldValuesArgs,
     ToolSearchSemanticLayerArgs,
-    ToolTableVizArgs,
-    ToolTimeSeriesArgs,
-    ToolVerticalBarArgs,
 } from '@lightdash/common';
 import { type ToolCallSummary } from './types';
 
@@ -52,17 +50,8 @@ export const getToolCallChipLabel = (
     // input chunks for the call. Bail before any cast-and-access pattern.
     if (!toolArgs || typeof toolArgs !== 'object') return null;
     switch (toolName) {
-        case 'generateBarVizConfig':
-        case 'generateTableVizConfig':
-        case 'generateTimeSeriesVizConfig': {
-            const args = toolArgs as
-                | ToolTableVizArgs
-                | ToolTimeSeriesArgs
-                | ToolVerticalBarArgs;
-            return args.title ?? null;
-        }
         case 'generateDashboard': {
-            const args = toolArgs as ToolDashboardArgs;
+            const args = toolArgs as ToolDashboardV2Args;
             return args.title ?? null;
         }
         case 'generateVisualization':
@@ -84,6 +73,10 @@ export const getToolCallChipLabel = (
         case 'findFields': {
             const args = toolArgs as ToolFindFieldsArgs;
             return args.fieldSearchQueries?.[0]?.label ?? null;
+        }
+        case 'findCustomChartTypes': {
+            const args = toolArgs as ToolFindCustomChartTypesArgs;
+            return args.query ?? args.slug ?? null;
         }
         case 'discoverFields': {
             const args = toolArgs as DiscoverFieldsInput;
@@ -177,6 +170,10 @@ export const getToolCallChipLabel = (
         }
         case 'discoverRepos':
             return null;
+        case 'runComposerQueries': {
+            const args = toolArgs as { title?: string | null };
+            return args.title ?? null;
+        }
         case 'runSql':
         case 'runSavedChart':
         case 'generateHashes':

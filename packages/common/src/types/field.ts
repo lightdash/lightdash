@@ -492,6 +492,13 @@ export type TableCalculationTemplate =
           type: TableCalculationTemplateType.RUNNING_TOTAL;
           /** Field ID to apply the template to */
           fieldId: string;
+          // undefined = legacy: follows the results-table sort at query time; [] = explicitly unordered.
+          // Never normalize undefined to [] — it changes the SQL of every pre-existing running total.
+          /** Fields to order by for the running total */
+          orderBy?: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
       }
     | {
           /** Type of template calculation */
@@ -707,7 +714,34 @@ export type FilterAutocompleteConfig = {
     values?: FilterAutocompleteValue[];
     fetchFromWarehouse: boolean;
     labelDimension?: string;
+    optionsFromDimension?: {
+        model: string;
+        dimension: string;
+        labelDimension?: string;
+    };
 };
+
+/**
+ * The label source follows the value source: when values come from another
+ * model, only that lookup's own label dimension is in scope.
+ */
+export const getFilterAutocompleteLabelDimension = (
+    filterAutocomplete: FilterAutocompleteConfig | undefined,
+): string | undefined =>
+    filterAutocomplete?.optionsFromDimension
+        ? filterAutocomplete.optionsFromDimension.labelDimension
+        : filterAutocomplete?.labelDimension;
+
+/**
+ * There is nothing to autocomplete: warehouse fetching is off and no curated
+ * values are provided, so filter inputs fall back to plain manual entry.
+ */
+export const isFilterAutocompleteManualOnly = (
+    filterAutocomplete: FilterAutocompleteConfig | undefined,
+): boolean =>
+    filterAutocomplete !== undefined &&
+    !filterAutocomplete.fetchFromWarehouse &&
+    (filterAutocomplete.values?.length ?? 0) === 0;
 
 /**
  * Whether a dimension's curated `filter_autocomplete` values can answer a value
@@ -727,10 +761,10 @@ export const shouldUseStaticFilterAutocomplete = (
     );
 };
 
-export const filterStaticFilterAutocompleteValues = (
+export const searchFilterAutocompleteValues = (
     values: FilterAutocompleteValue[],
     search: string,
-): string[] => {
+): FilterAutocompleteValue[] => {
     const normalizedSearch = search.trim().toLowerCase();
     const matched =
         normalizedSearch.length === 0
@@ -743,14 +777,19 @@ export const filterStaticFilterAutocompleteValues = (
               );
     const seen = new Set<string>();
     return matched
-        .map(({ value }) => value)
-        .filter((value) => {
+        .filter(({ value }) => {
             if (seen.has(value)) return false;
             seen.add(value);
             return true;
         })
-        .sort((a, b) => a.localeCompare(b));
+        .sort((a, b) => a.value.localeCompare(b.value));
 };
+
+export const filterStaticFilterAutocompleteValues = (
+    values: FilterAutocompleteValue[],
+    search: string,
+): string[] =>
+    searchFilterAutocompleteValues(values, search).map(({ value }) => value);
 
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
@@ -850,6 +889,10 @@ export const isDimension = (
     field: ItemsMap[string] | AdditionalMetric | undefined, // NOTE: `ItemsMap converts AdditionalMetric to Metric
 ): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
+
+export const isCompiledDimension = (
+    field: ItemsMap[string] | AdditionalMetric | undefined,
+): field is CompiledDimension => isDimension(field) && 'compiledSql' in field;
 
 export const isTimeBasedDimension = (
     item: ItemsMap[string] | AdditionalMetric | undefined,

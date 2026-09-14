@@ -14,6 +14,7 @@ import {
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
+import { OrganizationMembershipCustomRolesTableName } from '../../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { RolesTableName } from '../../database/entities/roles';
 import { DbUser, UserTableName } from '../../database/entities/users';
@@ -396,6 +397,18 @@ export class ServiceAccountModel {
                             )
                             .select('user_id'),
                     );
+                // A singular write replaces the whole role set, so extras go too.
+                await trx(OrganizationMembershipCustomRolesTableName)
+                    .whereIn(
+                        'user_id',
+                        trx('users')
+                            .where(
+                                'user_uuid',
+                                existing.service_account_user_uuid,
+                            )
+                            .select('user_id'),
+                    )
+                    .delete();
             }
 
             const updatedServiceAccounts = await trx(ServiceAccountsTableName)
@@ -470,6 +483,24 @@ export class ServiceAccountModel {
             ...ServiceAccountModel.mapDbObjectToServiceAccount(row),
             token,
         };
+    }
+
+    async getSpaceShareCandidates(
+        organizationUuid: string,
+        userUuids?: string[],
+    ): Promise<Pick<ServiceAccount, 'userUuid' | 'description'>[]> {
+        const query = this.database(ServiceAccountsTableName)
+            .where('organization_uuid', organizationUuid)
+            .whereNotNull('service_account_user_uuid')
+            .whereRaw('NOT (scopes @> ?)', [[ServiceAccountScope.SCIM_MANAGE]])
+            .select<Pick<ServiceAccount, 'userUuid' | 'description'>[]>({
+                userUuid: 'service_account_user_uuid',
+                description: 'description',
+            });
+        if (userUuids) {
+            void query.whereIn('service_account_user_uuid', userUuids);
+        }
+        return query;
     }
 
     async getAllForOrganization(

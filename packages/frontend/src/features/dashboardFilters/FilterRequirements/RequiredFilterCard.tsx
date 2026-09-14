@@ -17,7 +17,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import classes from './RequiredFilterCard.module.css';
-import { useFilterableItemsMap } from './useFilterableItemsMap';
+import { useDashboardFilterField } from './useDashboardFilterField';
 import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
 import { getDashboardFilterRuleLabel, getSelectableFilters } from './utils';
 
@@ -40,7 +40,7 @@ const RequiredFilterCard: FC<Props> = ({
 
     const isActive = !!filterRule.required || !!filterRule.requiredGroupId;
 
-    const fieldsMap = useFilterableItemsMap();
+    const getField = useDashboardFilterField();
 
     const allFilterRules = useMemo(
         () => [...dashboardFilters.dimensions, ...dashboardFilters.metrics],
@@ -72,8 +72,8 @@ const RequiredFilterCard: FC<Props> = ({
     );
 
     const selectableFilters = useMemo<SelectableFilter[]>(
-        () => getSelectableFilters(allFilterRules, [filterRule.id], fieldsMap),
-        [allFilterRules, filterRule.id, fieldsMap],
+        () => getSelectableFilters(allFilterRules, [filterRule.id], getField),
+        [allFilterRules, filterRule.id, getField],
     );
 
     const handleAddAlternative = useCallback(
@@ -143,7 +143,6 @@ const RequiredFilterCard: FC<Props> = ({
                             <Button
                                 size="compact-xs"
                                 variant="light"
-                                color="blue"
                                 radius="xl"
                                 w="max-content"
                                 leftSection={<MantineIcon icon={IconPlus} />}
@@ -156,7 +155,7 @@ const RequiredFilterCard: FC<Props> = ({
             )}
             {sharesRule && (
                 <Stack gap={6} className={classes.groupSection}>
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         Shares a rule. Viewers can satisfy it by setting this or
                         an alternative:
                     </Text>
@@ -167,10 +166,8 @@ const RequiredFilterCard: FC<Props> = ({
                                 variant="outline"
                                 color="yellow"
                                 radius="xl"
-                                tt="none"
-                                fw={500}
                             >
-                                {getDashboardFilterRuleLabel(member, fieldsMap)}
+                                {getDashboardFilterRuleLabel(member, getField)}
                             </Badge>
                         ))}
                         {onEditRules && (

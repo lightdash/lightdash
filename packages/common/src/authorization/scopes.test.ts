@@ -11,6 +11,16 @@ import {
 } from './scopes';
 
 describe('scope dependency graph helpers', () => {
+    it('impersonate:User depends on managing member profiles to reach Users & groups', () => {
+        const scope = getScopes({ isEnterprise: true }).find(
+            ({ name }) => name === 'impersonate:User',
+        );
+
+        expect(scope?.dependencies.map(({ name }) => name)).toEqual([
+            'manage:OrganizationMemberProfile',
+        ]);
+    });
+
     it('declares the Deep Research core and conditional dependencies', () => {
         const scope = getScopes({ isEnterprise: true }).find(
             ({ name }) => name === 'create:AiDeepResearch',

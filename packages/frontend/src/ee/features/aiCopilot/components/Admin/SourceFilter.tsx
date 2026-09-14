@@ -20,7 +20,7 @@ export const SourceFilter = ({
     const data = [
         {
             label: (
-                <Tooltip withinPortal label="All sources">
+                <Tooltip label="All sources">
                     <Box>
                         <Text fz="xs" fw={500}>
                             All
@@ -32,7 +32,7 @@ export const SourceFilter = ({
         },
         {
             label: (
-                <Tooltip withinPortal label="Web app threads">
+                <Tooltip label="Web app threads">
                     <Box>
                         <MantineIcon
                             icon={IconMessageCircleStar}
@@ -45,7 +45,7 @@ export const SourceFilter = ({
         },
         {
             label: (
-                <Tooltip withinPortal label="Slack threads">
+                <Tooltip label="Slack threads">
                     <Box>
                         <MantineIcon icon={IconBrandSlack} {...iconProps} />
                     </Box>
@@ -57,7 +57,6 @@ export const SourceFilter = ({
     return (
         <SegmentedControl
             size="xs"
-            radius="md"
             value={selectedSource}
             onChange={(value) =>
                 setSelectedSource(value as 'all' | 'web_app' | 'slack')

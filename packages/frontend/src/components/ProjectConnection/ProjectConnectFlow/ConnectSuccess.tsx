@@ -3,6 +3,7 @@ import { IconCheck } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -17,6 +18,7 @@ interface ConnectSuccessProps {
 
 const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
     const { track } = useTracking();
+    const { data: organization } = useOrganization();
 
     return (
         <OnboardingWrapper>
@@ -69,6 +71,8 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                             track({
                                 name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED,
                                 properties: {
+                                    organizationId:
+                                        organization?.organizationUuid ?? null,
                                     projectId: projectUuid,
                                     onboardingFlow: 'legacy',
                                 },

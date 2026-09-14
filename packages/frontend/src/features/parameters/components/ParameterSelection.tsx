@@ -107,7 +107,6 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                     </Text>
                                     {parameters?.[paramKey]?.description && (
                                         <Tooltip
-                                            withinPortal
                                             position="top"
                                             maw={350}
                                             label={
@@ -117,7 +116,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                         >
                                             <MantineIcon
                                                 icon={IconInfoCircle}
-                                                color="ldGray.6"
+                                                color="dimmed"
                                                 size="sm"
                                             />
                                         </Tooltip>

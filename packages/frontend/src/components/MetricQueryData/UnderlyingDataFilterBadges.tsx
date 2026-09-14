@@ -40,8 +40,6 @@ const UnderlyingDataFilterBadges: FC<Props> = ({ filterRules, fields }) => {
     return (
         <HoverCard
             withArrow
-            withinPortal
-            shadow="md"
             position="bottom-start"
             offset={4}
             arrowOffset={10}
@@ -55,8 +53,6 @@ const UnderlyingDataFilterBadges: FC<Props> = ({ filterRules, fields }) => {
                     radius="md"
                     size="lg"
                     fz="xs"
-                    fw={500}
-                    tt="none"
                     leftSection={<MantineIcon icon={IconFilter} size="sm" />}
                 >
                     {labelledRules.length} filter
@@ -73,11 +69,9 @@ const UnderlyingDataFilterBadges: FC<Props> = ({ filterRules, fields }) => {
                             key={id}
                             variant="outline"
                             color="ldGray.4"
-                            radius="sm"
                             size="lg"
                             fz="xs"
                             fw="normal"
-                            tt="none"
                         >
                             <Text fw={600} span inherit c="foreground">
                                 {labels.field}:

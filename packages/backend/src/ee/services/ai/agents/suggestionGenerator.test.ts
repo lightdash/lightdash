@@ -43,4 +43,18 @@ describe('buildSuggestionSystemPrompt', () => {
         expect(postResponse).toContain('AFTER the agent has just replied');
         expect(emptyState).toContain('starter "chips"');
     });
+
+    it('prioritizes pinned content in both suggestion modes', () => {
+        const postResponse = buildSuggestionSystemPrompt({
+            isPostResponse: true,
+            canManageContent: true,
+        });
+        const emptyState = buildSuggestionSystemPrompt({
+            isPostResponse: false,
+            canManageContent: true,
+        });
+
+        expect(postResponse).toContain('<pinnedContext>');
+        expect(emptyState).toContain('pinnedContext: PRIMARY SIGNAL');
+    });
 });

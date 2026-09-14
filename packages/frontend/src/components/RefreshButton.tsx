@@ -4,13 +4,11 @@ import {
     Button,
     Group,
     Kbd,
-    rgba,
-    Text,
     Tooltip,
     type MantineSize,
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
-import { IconPlayerPlay, IconX } from '@tabler/icons-react';
+import { IconPlayerPlay } from '@tabler/icons-react';
 import { memo, useCallback, useTransition, type FC } from 'react';
 import {
     explorerActions,
@@ -90,101 +88,77 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
 
     useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
 
+    const isRunning = isLoading || !!merge.isRunning;
+
     return (
         <Box pos="relative">
             <Button.Group>
                 <Tooltip
                     label={
                         mergeBlockedReason ?? (
-                            <Group gap="xxs">
-                                <Kbd fw={600}>
+                            <Group gap={4} wrap="nowrap">
+                                <Kbd size="xs">
                                     {os === 'macos' || os === 'ios'
                                         ? '⌘'
-                                        : 'ctrl'}
+                                        : 'Ctrl'}
                                 </Kbd>
-
-                                <Text fw={600}>+</Text>
-
-                                <Kbd fw={600}>Enter</Kbd>
+                                <Kbd size="xs">↵</Kbd>
                             </Group>
                         )
                     }
                     position="bottom"
-                    withArrow
-                    withinPortal
                     disabled={
-                        isLoading || (!canRunQuery && !mergeBlockedReason)
+                        isRunning || (!canRunQuery && !mergeBlockedReason)
                     }
                 >
                     <Button
                         size={size}
-                        pr={limit ? 'xs' : undefined}
                         // data-disabled keeps the button hoverable so the
                         // tooltip can say why the merge cannot run yet.
                         disabled={!canRunQuery && !mergeBlockedReason}
                         data-disabled={mergeBlockedReason ? true : undefined}
+                        aria-disabled={mergeBlockedReason ? true : undefined}
                         leftSection={<MantineIcon icon={IconPlayerPlay} />}
-                        loading={isLoading || !!merge.isRunning}
+                        loading={isRunning}
                         onClick={onClick}
-                        style={(theme) => ({
-                            flex: 1,
-                            borderRight: canRunQuery
-                                ? `1px solid ${rgba(theme.colors.ldGray[5], 0.6)}`
-                                : undefined,
-                            borderTopRightRadius: 0,
-                            borderBottomRightRadius: 0,
-                        })}
                         data-testid="RefreshButton/RunQueryButton"
+                        // Anchor for scope walkthroughs (data-tour-via), and
+                        // the action of the manage:Explore walkthrough: a
+                        // query of one's own is what the scope unlocks.
+                        // See scripts/scope-tours.
+                        data-tour-anchor="run-query"
+                        data-tour-hint="Run the query"
+                        data-tour-scope="manage:Explore"
+                        data-tour-step="2"
+                        data-tour-route="/projects/:projectUuid/tables/:tableName"
+                        data-tour-label="Run the query"
+                        data-tour-title="Explore data"
+                        data-tour-interactive="true"
+                        data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-table"] >> [data-tour-anchor="explore-metric"] >> [data-tour-anchor="explore-dimension"]'
+                        data-tour-docs="explore/explore-view.mdx#select-your-fields:li3"
                     >
-                        {`Run query (${limit})`}
+                        Run query
                     </Button>
                 </Tooltip>
 
-                {isLoading ? (
-                    <Tooltip
-                        label={'Cancel query'}
-                        position="bottom"
-                        withArrow
-                        withinPortal
-                    >
-                        <Button
-                            size={size}
-                            p="xs"
-                            onClick={() =>
-                                startTransition(() => {
-                                    cancelQuery();
-                                })
-                            }
-                            style={{
-                                borderTopLeftRadius: 0,
-                                borderBottomLeftRadius: 0,
-                            }}
-                        >
-                            <MantineIcon icon={IconX} size="sm" />
-                        </Button>
-                    </Tooltip>
-                ) : (
-                    <RunQuerySettings
-                        disabled={!isValidQuery}
-                        size={size}
-                        maxLimit={maxLimit}
-                        limit={limit}
-                        onLimitChange={setRowLimit}
-                        showAutoFetchSetting
-                        showPreAggregateSetting={preAggVisible}
-                        showTimezoneSetting={
-                            timezoneSupportFlag?.enabled ?? false
-                        }
-                        timezone={timezone ?? undefined}
-                        onTimezoneChange={setTimeZone}
-                        targetProps={{
-                            style: {
-                                borderTopLeftRadius: 0,
-                                borderBottomLeftRadius: 0,
-                            },
-                        }}
-                    />
-                )}
+                <RunQuerySettings
+                    disabled={!canRunQuery}
+                    size={size}
+                    maxLimit={maxLimit}
+                    limit={limit}
+                    onLimitChange={setRowLimit}
+                    showAutoFetchSetting
+                    showPreAggregateSetting={preAggVisible}
+                    showTimezoneSetting={timezoneSupportFlag?.enabled ?? false}
+                    timezone={timezone ?? undefined}
+                    onTimezoneChange={setTimeZone}
+                    isQueryRunning={isLoading}
+                    onCancelQuery={() =>
+                        startTransition(() => {
+                            cancelQuery();
+                        })
+                    }
+                />
             </Button.Group>
             <PreAggregateStatusBadge />
         </Box>

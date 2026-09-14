@@ -6,6 +6,7 @@ import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { LicenseService } from '../LicenseService/LicenseService';
+import type { ReadinessResult } from '../ReadinessService/ReadinessService';
 import { HealthService } from './HealthService';
 import { BaseResponse, userMock } from './HealthService.mock';
 
@@ -87,6 +88,61 @@ describe('health', () => {
         });
     });
 
+    it('can disable the mobile login capability without changing its version', async () => {
+        const service = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    mobileLogin: { enabled: false },
+                },
+            },
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+
+        expect(
+            (await service.getHealthState(undefined)).auth.mobileLogin,
+        ).toEqual({
+            loginExperienceVersion: 1,
+            available: false,
+        });
+    });
+
+    it('returns independently configured mobile minimum versions', async () => {
+        const service = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                mobile: {
+                    minimumSupportedVersion: {
+                        android: '1.10',
+                        ios: '2.3.4',
+                    },
+                },
+            },
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+
+        await expect(service.getHealthState(undefined)).resolves.toEqual({
+            ...BaseResponse,
+            mobile: {
+                minimumSupportedVersion: {
+                    android: '1.10',
+                    ios: '2.3.4',
+                },
+            },
+        });
+    });
+
     it('advertises playground projects only when a license key is configured', async () => {
         expect(
             (await healthService.getHealthState(undefined))
@@ -100,6 +156,7 @@ describe('health', () => {
                 ...lightdashConfigMock,
                 license: {
                     licenseKey: 'test-license-key',
+                    licenseCertificate: null,
                 },
             },
             licenseService,
@@ -219,6 +276,31 @@ describe('health', () => {
                 requiresMigration: true,
             });
         });
+    });
+
+    it('reports a parked migration warning', async () => {
+        const getReadiness = vi.fn(
+            async (): Promise<ReadinessResult> => ({
+                status: 'ready',
+                warnings: ['migration_parked'],
+            }),
+        );
+        const service = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: lightdashConfigMock,
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+            readinessService: { getReadiness },
+        });
+
+        await expect(service.getHealthState(undefined)).resolves.toEqual({
+            ...BaseResponse,
+            migrationWarnings: ['migration_parked'],
+        });
+        expect(vi.mocked(getReadiness)).toHaveBeenCalledOnce();
     });
 
     describe('getPylonVerificationHash', () => {

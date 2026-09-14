@@ -1,17 +1,18 @@
 import { CallSettings } from 'ai';
 import { ProviderOptionsMap } from './types';
 
-export type ModelPresetProvider = 'openai' | 'anthropic' | 'bedrock';
+export type ModelPresetProvider = 'openai' | 'anthropic' | 'google' | 'bedrock';
+export type SelectableModelProvider = ModelPresetProvider | 'openrouter';
 
 export type ReasoningStyle = 'budget' | 'adaptive';
 
-export type ModelPreset<P extends ModelPresetProvider> = {
+export type ModelPreset<P extends SelectableModelProvider> = {
     name: string;
     provider: P;
     modelId: string;
     displayName: string;
     description: string;
-    contextWindowTokens: number;
+    groupLabel?: string;
     supportsReasoning: boolean;
     // How the provider exposes extended reasoning. 'budget' uses the original
     // `thinking.type: 'enabled'` + `budgetTokens` API; 'adaptive' uses the newer
@@ -23,11 +24,16 @@ export type ModelPreset<P extends ModelPresetProvider> = {
     deprecated?: boolean;
     callOptions: CallSettings;
     providerOptions: ProviderOptionsMap[P] | undefined;
-};
+} & (
+    | { custom?: false; contextWindowTokens: number }
+    // Pass-through gateway models are the only ones whose window is unknown
+    | { custom: true; contextWindowTokens: null }
+);
 
 export const MODEL_PRESETS: {
     openai: ModelPreset<'openai'>[];
     anthropic: ModelPreset<'anthropic'>[];
+    google: ModelPreset<'google'>[];
     bedrock: ModelPreset<'bedrock'>[];
 } = {
     openai: [
@@ -259,6 +265,33 @@ export const MODEL_PRESETS: {
             providerOptions: undefined,
         },
     ],
+    google: [
+        {
+            name: 'gemini-3.8-flash',
+            provider: 'google',
+            modelId: 'gemini-3.8-flash',
+            displayName: 'Gemini 3.8 Flash',
+            description: 'Latest Gemini model for fast agentic tasks',
+            // Deliberately compact below the model's 1,048,576-token maximum
+            // to bound per-turn cost while retaining a large working context.
+            contextWindowTokens: 400_000,
+            supportsReasoning: true,
+            callOptions: {},
+            providerOptions: undefined,
+        },
+        {
+            name: 'gemini-3.5-flash-lite',
+            provider: 'google',
+            modelId: 'gemini-3.5-flash-lite',
+            displayName: 'Gemini 3.5 Flash-Lite',
+            description: 'Fast, cost-effective model for lightweight tasks',
+            // Keep lightweight/background tasks under the same cost ceiling.
+            contextWindowTokens: 400_000,
+            supportsReasoning: true,
+            callOptions: {},
+            providerOptions: undefined,
+        },
+    ],
     bedrock: [
         {
             name: 'claude-sonnet-5',
@@ -334,8 +367,131 @@ export const MODEL_PRESETS: {
     ],
 };
 
+// Pass-through preset for model names served by an OpenAI-compatible gateway
+// (e.g. LiteLLM's "bedrock/eu.anthropic.claude-sonnet-4-6") that don't exist
+// in the preset table. The name is sent to the endpoint verbatim.
+export function customGatewayPreset(modelName: string): ModelPreset<'openai'> {
+    return {
+        name: modelName,
+        provider: 'openai',
+        modelId: modelName,
+        displayName: modelName,
+        description: 'Custom model served by the configured OpenAI endpoint',
+        custom: true,
+        contextWindowTokens: null,
+        supportsReasoning: false,
+        callOptions: {},
+        providerOptions: undefined,
+    };
+}
+
+const OPENROUTER_MODEL_METADATA: Record<
+    string,
+    {
+        displayName: string;
+        description: string;
+        groupLabel: string;
+        contextWindowTokens: number;
+        supportsReasoning: boolean;
+    }
+> = {
+    'qwen/qwen3.5-9b': {
+        displayName: 'Qwen3.5 9B',
+        description:
+            'Compact multimodal model for affordable reasoning, coding, and visual analysis',
+        groupLabel: 'Qwen',
+        contextWindowTokens: 262_144,
+        supportsReasoning: false,
+    },
+    'moonshotai/kimi-k3': {
+        displayName: 'Kimi K3',
+        description:
+            'Open-weight multimodal model for complex coding and long-running agents',
+        groupLabel: 'Moonshot AI',
+        contextWindowTokens: 1_048_576,
+        supportsReasoning: false,
+    },
+    'minimax/minimax-m3': {
+        displayName: 'MiniMax M3',
+        description:
+            'Multimodal 1M-context model for coding and long-horizon agent work',
+        groupLabel: 'MiniMax',
+        contextWindowTokens: 1_048_576,
+        supportsReasoning: false,
+    },
+    'deepseek/deepseek-v4-flash-0731': {
+        displayName: 'DeepSeek V4 Flash',
+        description:
+            'Fast mixture-of-experts reasoning for coding and tool-driven workflows',
+        groupLabel: 'DeepSeek',
+        contextWindowTokens: 1_310_720,
+        supportsReasoning: false,
+    },
+    'z-ai/glm-5.3-flash': {
+        displayName: 'GLM 5.3 Flash',
+        description:
+            'Efficient multimodal model for coding and long-context agent tasks',
+        groupLabel: 'Z.ai',
+        contextWindowTokens: 1_310_720,
+        supportsReasoning: false,
+    },
+    'z-ai/glm-5.3': {
+        displayName: 'GLM 5.3',
+        description:
+            'Large reasoning model for complex engineering and long-horizon agent tasks',
+        groupLabel: 'Z.ai',
+        contextWindowTokens: 1_310_720,
+        supportsReasoning: false,
+    },
+    'qwen/qwen3.8-flash': {
+        displayName: 'Qwen3.8 Flash',
+        description:
+            'Fast multimodal reasoning model for agentic workflows and chart analysis',
+        groupLabel: 'Qwen',
+        contextWindowTokens: 1_000_000,
+        supportsReasoning: false,
+    },
+    'openai/gpt-oss-120b': {
+        displayName: 'GPT-OSS 120B',
+        description:
+            'Open-weight MoE reasoning model; served by fast-inference upstreams',
+        groupLabel: 'OpenAI (open weights)',
+        contextWindowTokens: 131_072,
+        supportsReasoning: false,
+    },
+};
+
+export function openRouterPreset(modelName: string): ModelPreset<'openrouter'> {
+    const metadata = OPENROUTER_MODEL_METADATA[modelName];
+
+    if (metadata) {
+        return {
+            name: modelName,
+            provider: 'openrouter',
+            modelId: modelName,
+            ...metadata,
+            custom: false,
+            callOptions: {},
+            providerOptions: undefined,
+        };
+    }
+
+    return {
+        name: modelName,
+        provider: 'openrouter',
+        modelId: modelName,
+        displayName: modelName,
+        description: 'Model served through OpenRouter',
+        custom: true,
+        contextWindowTokens: null,
+        supportsReasoning: false,
+        callOptions: {},
+        providerOptions: undefined,
+    };
+}
+
 export function matchesPreset(
-    preset: ModelPreset<ModelPresetProvider>,
+    preset: ModelPreset<SelectableModelProvider>,
     name: string,
 ): boolean {
     return preset.name === name || preset.modelId === name;

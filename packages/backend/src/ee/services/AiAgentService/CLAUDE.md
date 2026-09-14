@@ -8,6 +8,7 @@
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | **AI Agents thread access consent** (`aiThreadAccessConsent`) | When enabled, AI can read previous messages in a thread when user @mentions the bot. Provides conversation context. |
 | **AI Agents OAuth requirement** (`aiRequireOAuth`)            | Require users to authenticate via OAuth before using AI agents.                                                     |
+| **Links only** (`aiLinksOnly`)                                | Never post query results into Slack: no chart images or CSV files, and the prompt forbids values in the reply. Users open results in Lightdash. Pair with data access off on the agent for a strict guarantee. |
 | **Multi-agent channel** (`aiMultiAgentChannelId`)             | Designated channel where users can access multiple AI agents.                                                       |
 
 ### Agent Settings (AI Agent → Integrations → Slack)
@@ -69,7 +70,8 @@ if (botUserId && event.text?.includes(`<@${botUserId}>`)) {
 
 Query results in Slack (from `ai/tools/runQuery.ts`):
 
-| Type  | Output              |
-| ----- | ------------------- |
-| Chart | PNG image (echarts) |
-| Table | CSV file attachment |
+| Type              | Output                                                        |
+| ----------------- | ------------------------------------------------------------- |
+| Chart             | PNG image (echarts)                                           |
+| Custom chart type | PNG image (headless artifact export; CSV fallback on failure) |
+| Table             | CSV file attachment                                           |

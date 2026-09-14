@@ -1,9 +1,7 @@
-import { FeatureFlags } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
 import { type DestinationType } from '../../../features/scheduler/hooks/useSchedulerFilters';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import FilterFacet, { type FilterFacetOption } from '../../common/FilterFacet';
 
 interface DestinationFilterProps {
@@ -23,10 +21,6 @@ const DestinationFilter: FC<DestinationFilterProps> = ({
     setSelectedDestinations,
 }) => {
     const health = useHealth();
-    const { data: googleChatFlag } = useServerFeatureFlag(
-        FeatureFlags.GoogleChatEnabled,
-    );
-    const isGoogleChatEnabled = googleChatFlag?.enabled === true;
     const slack = useGetSlack();
     const organizationHasSlack = !!slack.data?.organizationUuid;
 
@@ -35,12 +29,12 @@ const DestinationFilter: FC<DestinationFilterProps> = ({
         if (health.data?.hasEmailClient) destinations.push('email');
         if (organizationHasSlack) destinations.push('slack');
         if (health.data?.hasMicrosoftTeams) destinations.push('msteams');
-        if (isGoogleChatEnabled) destinations.push('googlechat');
+        destinations.push('googlechat');
         return destinations.map((destination) => ({
             value: destination,
             label: DESTINATION_LABELS[destination],
         }));
-    }, [health.data, organizationHasSlack, isGoogleChatEnabled]);
+    }, [health.data, organizationHasSlack]);
 
     return (
         <FilterFacet

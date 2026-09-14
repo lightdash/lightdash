@@ -14,6 +14,7 @@ import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
 import { LicenseService } from '../LicenseService/LicenseService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
+import type { ReadinessService } from '../ReadinessService/ReadinessService';
 
 type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -21,6 +22,7 @@ type HealthServiceArguments = {
     organizationModel: OrganizationModel;
     migrationModel: MigrationModel;
     organizationSettingsModel: OrganizationSettingsModel;
+    readinessService?: Pick<ReadinessService, 'getReadiness'>;
 };
 
 export class HealthService extends BaseService {
@@ -34,12 +36,15 @@ export class HealthService extends BaseService {
 
     private readonly organizationSettingsModel: OrganizationSettingsModel;
 
+    private readonly readinessService?: Pick<ReadinessService, 'getReadiness'>;
+
     constructor({
         organizationModel,
         migrationModel,
         lightdashConfig,
         licenseService,
         organizationSettingsModel,
+        readinessService,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -47,6 +52,7 @@ export class HealthService extends BaseService {
         this.organizationModel = organizationModel;
         this.migrationModel = migrationModel;
         this.organizationSettingsModel = organizationSettingsModel;
+        this.readinessService = readinessService;
     }
 
     private isEnterpriseEnabled(): boolean {
@@ -83,6 +89,7 @@ export class HealthService extends BaseService {
             await this.migrationModel.getMigrationStatus();
         const migrationExecutionTime = performance.now() - migrationStartTime;
         const requiresMigration = migrationStatus < 0;
+        const readiness = await this.readinessService?.getReadiness();
 
         if (migrationStatus > 0) {
             console.warn(
@@ -118,9 +125,12 @@ export class HealthService extends BaseService {
         return {
             healthy: true,
             requiresMigration,
+            migrationWarnings:
+                readiness?.status === 'ready' ? readiness.warnings : undefined,
             license: this.licenseService.getLicenseStatus(),
             mode: this.lightdashConfig.mode,
             version: VERSION,
+            mobile: this.lightdashConfig.mobile,
             localDbtEnabled,
             defaultProject: undefined,
             isAuthenticated,
@@ -174,6 +184,8 @@ export class HealthService extends BaseService {
             hasGitlab:
                 this.lightdashConfig.gitlab.clientId !== undefined &&
                 this.lightdashConfig.gitlab.clientSecret !== undefined,
+            hasJira: true,
+            hasLinear: true,
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,
@@ -218,6 +230,10 @@ export class HealthService extends BaseService {
                     enabled:
                         !!this.lightdashConfig.auth.databricks.clientId &&
                         this.isEnterpriseEnabled(),
+                },
+                mobileLogin: {
+                    loginExperienceVersion: 1,
+                    available: this.lightdashConfig.auth.mobileLogin.enabled,
                 },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
@@ -270,6 +286,9 @@ export class HealthService extends BaseService {
                 isAmbientAiEnabled:
                     !!this.lightdashConfig.ai.copilot.providers.anthropic
                         ?.apiKey,
+                threadDumpEnabled:
+                    this.isEnterpriseEnabled() &&
+                    this.lightdashConfig.ai.copilot.threadDumpEnabled,
             },
             echarts6: {
                 enabled: false,

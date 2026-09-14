@@ -1,8 +1,12 @@
 import { DimensionType } from './field';
 import {
+    buildMergeQueryFromSaved,
+    getMergeCompiledSqlText,
     getUnaccountedDimensions,
     MergeJoinType,
     MergeQueryErrorKind,
+    parseSavedMergeQuery,
+    SAVED_MERGE_QUERY_SCHEMA_VERSION,
     validateMergeQuery,
     type MergeQuery,
     type MergeQuerySource,
@@ -175,6 +179,29 @@ describe('validateMergeQuery', () => {
             );
         });
 
+        it('rejects "merge" as a source id', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    sources: [{ ...queryA(), id: 'merge' }, queryB()],
+                    joinKey: [
+                        {
+                            name: 'date_day',
+                            fieldIdBySourceId: {
+                                merge: 'followers_created_date',
+                                b: 'follower_snapshots_date',
+                            },
+                        },
+                    ],
+                }),
+            );
+
+            expect(errors.map((error) => error.kind)).toEqual(
+                expect.arrayContaining([
+                    MergeQueryErrorKind.RESERVED_SOURCE_ID,
+                ]),
+            );
+        });
+
         it('rejects an empty join key', () => {
             const errors = validateMergeQuery(mergeQuery({ joinKey: [] }));
 
@@ -225,6 +252,51 @@ describe('validateMergeQuery', () => {
                     MergeQueryErrorKind.UNKNOWN_SOURCE_IN_JOIN_KEY,
                 ]),
             );
+        });
+
+        it('rejects a join key naming a field a source does not group by', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    joinKey: [
+                        {
+                            name: 'date_day',
+                            fieldIdBySourceId: {
+                                a: 'followers_signup_date',
+                                b: 'follower_snapshots_date',
+                            },
+                        },
+                    ],
+                }),
+            );
+
+            expect(errors).toContainEqual(
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.JOIN_KEY_NOT_SELECTED,
+                    sourceId: 'a',
+                    fieldIds: ['followers_signup_date'],
+                }),
+            );
+        });
+    });
+
+    describe('merge calculations', () => {
+        it('rejects two calculations sharing a name', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    tableCalculations: [
+                        { name: 'net', displayName: 'Net', sql: '1' },
+                        { name: 'net', displayName: 'Net again', sql: '2' },
+                    ],
+                }),
+            );
+
+            expect(errors).toEqual([
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.DUPLICATE_CALCULATION_NAME,
+                    sourceId: null,
+                    fieldIds: ['net'],
+                }),
+            ]);
         });
     });
 });
@@ -317,6 +389,40 @@ describe('join key comparability', () => {
     });
 });
 
+describe('result sources', () => {
+    const resultSource = { id: 'b', queryUuid: 'existing-query-uuid' };
+
+    test('defer structural checks the validator cannot see to the compiler', () => {
+        const errors = validateMergeQuery(
+            mergeQuery({ sources: [queryA(), resultSource] }),
+        );
+        // No fan-out or join-key-not-selected errors for the result source:
+        // its structure lives in stored metadata the compiler resolves.
+        expect(errors).toEqual([]);
+    });
+
+    test('still validates join key coverage for result sources', () => {
+        const errors = validateMergeQuery(
+            mergeQuery({
+                sources: [queryA(), resultSource],
+                joinKey: [
+                    {
+                        name: 'date_day',
+                        fieldIdBySourceId: { a: 'followers_created_date' },
+                    },
+                ],
+            }),
+        );
+        expect(errors.map((error) => error.kind)).toContain(
+            MergeQueryErrorKind.JOIN_KEY_COVERAGE,
+        );
+    });
+
+    test('contribute no unaccounted dimensions', () => {
+        expect(getUnaccountedDimensions(resultSource, dateJoinKey)).toEqual([]);
+    });
+});
+
 describe('getUnaccountedDimensions', () => {
     it('reports the dimension that would fan the merge out', () => {
         expect(
@@ -329,5 +435,112 @@ describe('getUnaccountedDimensions', () => {
 
     it('reports nothing when every dimension joins', () => {
         expect(getUnaccountedDimensions(queryA(), dateJoinKey)).toEqual([]);
+    });
+});
+
+describe('saved merge query schemas', () => {
+    it('round-trips every source and key in a version 2 payload', () => {
+        const saved = {
+            primarySourceId: 'payments',
+            sources: [
+                { id: 'orders', kind: 'chart' as const },
+                {
+                    id: 'payments',
+                    kind: 'query' as const,
+                    metricQuery: metricQuery(
+                        'payments',
+                        ['payments_month'],
+                        ['payments_total'],
+                    ),
+                },
+                {
+                    id: 'subscriptions',
+                    kind: 'query' as const,
+                    metricQuery: metricQuery(
+                        'subscriptions',
+                        ['subscriptions_month'],
+                        ['subscriptions_mrr'],
+                    ),
+                },
+            ],
+            joinKey: [
+                {
+                    name: 'month',
+                    fieldIdBySourceId: {
+                        orders: 'orders_month',
+                        payments: 'payments_month',
+                        subscriptions: 'subscriptions_month',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.LEFT,
+            tableCalculations: [],
+        };
+
+        const parsed = parseSavedMergeQuery(
+            SAVED_MERGE_QUERY_SCHEMA_VERSION,
+            saved,
+        );
+        expect(parsed).toEqual(saved);
+        expect(
+            buildMergeQueryFromSaved(
+                metricQuery('orders', ['orders_month'], ['orders_total']),
+                parsed!,
+            ).sources.map(({ id }) => id),
+        ).toEqual(['payments', 'orders', 'subscriptions']);
+    });
+
+    it('rejects unknown schemas and incomplete source mappings', () => {
+        expect(parseSavedMergeQuery(1, {})).toBeNull();
+        expect(parseSavedMergeQuery(99, {})).toBeNull();
+        expect(
+            parseSavedMergeQuery(SAVED_MERGE_QUERY_SCHEMA_VERSION, {
+                primarySourceId: 'orders',
+                sources: [
+                    { id: 'orders', kind: 'chart' },
+                    {
+                        id: 'payments',
+                        kind: 'query',
+                        metricQuery: metricQuery('payments', [], []),
+                    },
+                ],
+                joinKey: [
+                    {
+                        name: 'month',
+                        fieldIdBySourceId: { orders: 'orders_month' },
+                    },
+                ],
+                joinType: 'full',
+                tableCalculations: [],
+            }),
+        ).toBeNull();
+    });
+});
+
+describe('getMergeCompiledSqlText', () => {
+    it('lists each leg under its source, then the join', () => {
+        const text = getMergeCompiledSqlText({
+            legs: [
+                { sourceId: 'orders', sql: 'SELECT 1 AS orders_month' },
+                { sourceId: 'payments', sql: null },
+            ],
+            sql: 'SELECT * FROM "merge_source_0" FULL OUTER JOIN "merge_source_1" USING (month)',
+        });
+
+        expect(text).toBe(
+            [
+                '-- Query A ("orders"): runs on the warehouse',
+                'SELECT 1 AS orders_month',
+                '',
+                '-- Query B ("payments"): existing results, nothing runs',
+                '',
+                '-- Merge: runs on the compose engine over the results above, read as merge_source_0, merge_source_1, ...',
+                'SELECT * FROM "merge_source_0" FULL OUTER JOIN "merge_source_1" USING (month)',
+            ].join('\n'),
+        );
+    });
+
+    it('is null when the merge did not compile', () => {
+        expect(getMergeCompiledSqlText({ legs: [], sql: null })).toBeNull();
     });
 });

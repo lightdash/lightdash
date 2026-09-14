@@ -78,7 +78,7 @@ const getDashboardComments = async ({
 };
 
 const useDashboardComments = (
-    dashboardUuid: string,
+    dashboardUuid: string | undefined,
     projectUuid: string | undefined,
     enabled: boolean,
     resolved: boolean,
@@ -86,6 +86,7 @@ const useDashboardComments = (
     useQuery<ApiGetComments['results'], ApiError>(
         ['comments', dashboardUuid, projectUuid, { resolved }],
         async () => {
+            if (!dashboardUuid) throw new Error('dashboardUuid is required');
             if (!projectUuid) throw new Error('projectUuid is required');
             return getDashboardComments({
                 dashboardUuid,
@@ -97,12 +98,12 @@ const useDashboardComments = (
             // Only poll the active (unresolved) comments
             refetchInterval: resolved ? undefined : 3 * 60 * 1000,
             retry: (_, error) => error.error.statusCode !== 403,
-            enabled: enabled && !!projectUuid,
+            enabled: enabled && !!dashboardUuid && !!projectUuid,
         },
     );
 
 export const useGetComments = (
-    dashboardUuid: string,
+    dashboardUuid: string | undefined,
     projectUuid: string | undefined,
     enabled: boolean,
 ) => useDashboardComments(dashboardUuid, projectUuid, enabled, false);

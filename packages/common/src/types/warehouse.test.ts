@@ -4,9 +4,12 @@ import {
     ensureCatalogTimestampDomainsKey,
     getCatalogTimestampDomain,
     getUserAttributeQueryTags,
+    getWarehouseTableType,
+    isWarehouseTableType,
     sanitizeQueryTagKey,
     sanitizeQueryTagValue,
     setCatalogTimestampDomain,
+    WarehouseTableType,
     type WarehouseCatalog,
 } from './warehouse';
 
@@ -123,5 +126,37 @@ describe('catalog timestamp domain sidecar', () => {
                 'created_at',
             ),
         ).toEqual('aware');
+    });
+});
+
+describe('getWarehouseTableType', () => {
+    it.each([
+        ['BASE TABLE', WarehouseTableType.TABLE],
+        ['MANAGED', WarehouseTableType.TABLE],
+        ['STREAMING_TABLE', WarehouseTableType.TABLE],
+        ['MergeTree', WarehouseTableType.TABLE],
+        ['VIEW', WarehouseTableType.VIEW],
+        ['View', WarehouseTableType.VIEW],
+        ['VIRTUAL_VIEW', WarehouseTableType.VIEW],
+        ['MATERIALIZED VIEW', WarehouseTableType.MATERIALIZED_VIEW],
+        ['MATERIALIZED_VIEW', WarehouseTableType.MATERIALIZED_VIEW],
+        ['MaterializedView', WarehouseTableType.MATERIALIZED_VIEW],
+        ['EXTERNAL', WarehouseTableType.EXTERNAL],
+        ['EXTERNAL TABLE', WarehouseTableType.EXTERNAL],
+        ['EXTERNAL_TABLE', WarehouseTableType.EXTERNAL],
+        ['FOREIGN', WarehouseTableType.EXTERNAL],
+        [null, WarehouseTableType.TABLE],
+        [undefined, WarehouseTableType.TABLE],
+        [42, WarehouseTableType.TABLE],
+    ])('maps %s to %s', (raw, expected) => {
+        expect(getWarehouseTableType(raw)).toBe(expected);
+    });
+});
+
+describe('isWarehouseTableType', () => {
+    it('accepts stored enum values and rejects raw warehouse strings', () => {
+        expect(isWarehouseTableType('view')).toBe(true);
+        expect(isWarehouseTableType('VIEW')).toBe(false);
+        expect(isWarehouseTableType(null)).toBe(false);
     });
 });

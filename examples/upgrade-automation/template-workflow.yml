@@ -7,34 +7,45 @@ on:
   repository_dispatch:
     types:
       - lightdash-release
+  issues:
+    types:
+      - labeled
+      - unlabeled
+      - closed
+      - reopened
   workflow_run:
     workflows:
       - Deploy Lightdash
     types:
       - completed
 
-permissions:
-  actions: read
-  contents: write
-  issues: write
-  pull-requests: write
+permissions: {}
 
 concurrency:
-  group: lightdash-upgrade-${{ github.repository }}
+  group: >-
+    lightdash-upgrade-${{ github.repository }}-${{
+    github.event_name == 'workflow_run' && 'verify'
+    || github.event_name == 'issues' && 'freeze-announce'
+    || 'plan' }}
   cancel-in-progress: false
 
 env:
   LIGHTDASH_INSTANCE_URL: https://lightdash.example.com
   LIGHTDASH_BUMP_TARGET: deploy/values.yml#lightdash.image.tag
+  LIGHTDASH_TITLE_SCOPE: ''
   LIGHTDASH_TAG_SUFFIX: ''
   LIGHTDASH_REGISTRY_CHECK: ''
   LIGHTDASH_VERIFY_WINDOW: 20m
   LIGHTDASH_AUTO_MERGE: 'false'
   LIGHTDASH_FREEZE_LABEL: upgrade-freeze
+  LIGHTDASH_HOLD_LABEL: upgrade-hold
+  LIGHTDASH_HOLD_REMINDER_INTERVAL: 24h
 
 jobs:
   freeze-check:
-    if: github.event_name != 'workflow_run'
+    if: github.event_name != 'workflow_run' && github.event_name != 'issues'
+    permissions:
+      issues: read
     runs-on: ubuntu-latest
     outputs:
       frozen: ${{ steps.freeze.outputs.frozen }}
@@ -54,7 +65,11 @@ jobs:
 
   plan:
     needs: freeze-check
-    if: needs.freeze-check.outputs.frozen == 'false'
+    if: github.event_name != 'issues' && needs.freeze-check.outputs.frozen == 'false'
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -65,11 +80,15 @@ jobs:
       - uses: lightdash/lightdash/examples/upgrade-automation/plan@REPLACE_WITH_LIGHTDASH_COMMIT_SHA
         with:
           bump_target: ${{ env.LIGHTDASH_BUMP_TARGET }}
+          title_scope: ${{ env.LIGHTDASH_TITLE_SCOPE }}
           tag_suffix: ${{ env.LIGHTDASH_TAG_SUFFIX }}
           registry_check: ${{ env.LIGHTDASH_REGISTRY_CHECK }}
           auto_merge: ${{ env.LIGHTDASH_AUTO_MERGE }}
           escalation: ${{ secrets.LIGHTDASH_UPGRADE_SLACK_WEBHOOK }}
           freeze_label: ${{ env.LIGHTDASH_FREEZE_LABEL }}
+          hold_label: ${{ env.LIGHTDASH_HOLD_LABEL }}
+          hold_reminder_interval: ${{ env.LIGHTDASH_HOLD_REMINDER_INTERVAL }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.UPGRADE_AUTOMATION_TOKEN || github.token }}
 
   verify:
@@ -78,6 +97,10 @@ jobs:
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
       github.event.workflow_run.head_branch == github.event.repository.default_branch
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -85,10 +108,12 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           token: ${{ secrets.UPGRADE_AUTOMATION_TOKEN || github.token }}
+          persist-credentials: false
       - uses: lightdash/lightdash/examples/upgrade-automation/verify@REPLACE_WITH_LIGHTDASH_COMMIT_SHA
         with:
           instance_url: ${{ env.LIGHTDASH_INSTANCE_URL }}
           bump_target: ${{ env.LIGHTDASH_BUMP_TARGET }}
+          title_scope: ${{ env.LIGHTDASH_TITLE_SCOPE }}
           tag_suffix: ${{ env.LIGHTDASH_TAG_SUFFIX }}
           verify_window: ${{ env.LIGHTDASH_VERIFY_WINDOW }}
           escalation: ${{ secrets.LIGHTDASH_UPGRADE_SLACK_WEBHOOK }}
@@ -96,4 +121,28 @@ jobs:
           deploy_run_url: ${{ github.event.workflow_run.html_url }}
           deploy_conclusion: ${{ github.event.workflow_run.conclusion }}
           deployed_sha: ${{ github.event.workflow_run.head_sha }}
+          github_token: ${{ secrets.UPGRADE_AUTOMATION_TOKEN || github.token }}
+
+  freeze-announce:
+    if: github.event_name == 'issues'
+    permissions:
+      issues: read
+    runs-on: ubuntu-latest
+    steps:
+      - if: >-
+          ((github.event.action == 'labeled' || github.event.action == 'unlabeled') &&
+          github.event.label.name == env.LIGHTDASH_FREEZE_LABEL) ||
+          ((github.event.action == 'closed' || github.event.action == 'reopened') &&
+          contains(github.event.issue.labels.*.name, env.LIGHTDASH_FREEZE_LABEL))
+        uses: lightdash/lightdash/examples/upgrade-automation/freeze-announce@REPLACE_WITH_LIGHTDASH_COMMIT_SHA
+        with:
+          event_action: ${{ github.event.action }}
+          issue_url: ${{ github.event.issue.html_url }}
+          issue_title: ${{ github.event.issue.title }}
+          issue_state: ${{ github.event.issue.state }}
+          issue_body: ${{ github.event.issue.body }}
+          actor_login: ${{ github.actor }}
+          label_name: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && github.event.label.name || env.LIGHTDASH_FREEZE_LABEL }}
+          freeze_label: ${{ env.LIGHTDASH_FREEZE_LABEL }}
+          escalation: ${{ secrets.LIGHTDASH_UPGRADE_SLACK_WEBHOOK }}
           github_token: ${{ secrets.UPGRADE_AUTOMATION_TOKEN || github.token }}

@@ -15,6 +15,8 @@ type Props = {
     /** Matches the composer's mode tint. */
     accent?: 'none' | 'indigo';
     className?: string;
+    /** Walkthrough markers placed by the composer (see scripts/scope-tours). */
+    [tourAttribute: `data-tour-${string}`]: string | undefined;
 };
 
 export const ComposerSubmitButton = ({
@@ -27,8 +29,10 @@ export const ComposerSubmitButton = ({
     destructive = false,
     accent = 'none',
     className,
+    ...tourAttributes
 }: Props) => (
     <ActionIcon
+        {...tourAttributes}
         variant="filled"
         size={size === 'lg' ? 'lg' : 'md'}
         className={`${classes.submitButton} ${className ?? ''}`}

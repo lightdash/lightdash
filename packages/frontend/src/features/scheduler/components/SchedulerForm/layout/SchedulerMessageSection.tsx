@@ -46,7 +46,6 @@ export const SchedulerMessageSection: FC = () => {
                 <Tooltip
                     label="You must have at least one email recipient to send as plain text"
                     position="top-end"
-                    withinPortal
                     disabled={hasEmailTargets}
                 >
                     <Box>

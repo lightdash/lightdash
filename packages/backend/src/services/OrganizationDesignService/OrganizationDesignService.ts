@@ -33,6 +33,7 @@ import {
     validateOrganizationDesignFileContent,
     validateOrganizationDesignFileMetadata,
     type Account,
+    type OrganizationDesignFileKind,
     type OrganizationDesignPackageImportResult,
     type OrganizationDesignPackageManifest,
     type UuidOrSlug,
@@ -53,6 +54,10 @@ import {
     parseOrganizationDesignPackage,
     type OrganizationDesignPackageFile,
 } from './OrganizationDesignPackage';
+import {
+    inspectAppleFont,
+    restrictedAppleFontUploadMessage,
+} from './restrictedAppleFonts';
 
 type OrganizationDesignServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -102,7 +107,29 @@ const sanitizeOrganizationDesignFile = (
     return sanitizedBody;
 };
 
-const getEffectiveOrganizationDesignFiles = (
+const validateOrganizationDesignFontPolicy = async ({
+    body,
+    filename,
+    kind,
+}: {
+    body: Buffer;
+    filename: string;
+    kind: OrganizationDesignFileKind;
+}): Promise<void> => {
+    if (kind !== 'font') return;
+
+    const inspection = await inspectAppleFont({ body, filename });
+    if (inspection.status === 'restricted') {
+        throw new ParameterError(
+            restrictedAppleFontUploadMessage({
+                filename,
+                match: inspection.match,
+            }),
+        );
+    }
+};
+
+export const getEffectiveOrganizationDesignFiles = (
     files: ApiOrganizationDesignFile[],
 ): Map<string, ApiOrganizationDesignFile> => {
     const effectiveFiles = new Map<string, ApiOrganizationDesignFile>();
@@ -514,6 +541,19 @@ export class OrganizationDesignService extends BaseService {
             }
         }
 
+        // Preserve a byte-identical legacy theme package as a no-op. New or
+        // changed packages are subject to the current font policy before any
+        // bytes are staged in S3.
+        /* eslint-disable no-await-in-loop */
+        for (const file of validatedFiles) {
+            await validateOrganizationDesignFontPolicy({
+                body: file.body,
+                filename: file.filename,
+                kind: file.kind,
+            });
+        }
+        /* eslint-enable no-await-in-loop */
+
         const designUuid = existing?.designUuid ?? uuidv4();
         const stagedFiles = validatedFiles.map((file) => {
             const fileUuid = uuidv4();
@@ -785,6 +825,11 @@ export class OrganizationDesignService extends BaseService {
         }
 
         validateOrganizationDesignFileContent({ body: rawBody, filename });
+        await validateOrganizationDesignFontPolicy({
+            body: rawBody,
+            filename,
+            kind,
+        });
         const body = sanitizeOrganizationDesignFile(rawBody, filename);
 
         const contentType =

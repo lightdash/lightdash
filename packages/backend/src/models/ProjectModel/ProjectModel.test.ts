@@ -8,6 +8,7 @@ import {
     CreateDuckdbMotherduckCredentials,
     CreatePostgresCredentials,
     CreateSnowflakeCredentials,
+    CreateWarehouseCredentials,
     DatabricksAuthenticationType,
     DbtCloudIDEProjectConfig,
     DbtGithubProjectConfig,
@@ -23,6 +24,7 @@ import {
     ProjectMemberRole,
     ServiceAccountScope,
     SpaceMemberRole,
+    USER_MANAGED_EXPLORE_TYPES,
     WarehouseTypes,
 } from '@lightdash/common';
 import { MotherduckInstanceCache } from '@lightdash/warehouses';
@@ -31,14 +33,22 @@ import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { DashboardsTableName } from '../../database/entities/dashboards';
+import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
+import { OrganizationMembershipCustomRolesTableName } from '../../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
+import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
+import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
 import { ProjectMembershipsTableName } from '../../database/entities/projectMemberships';
+import { ProjectMergedManifestsTableName } from '../../database/entities/projectMergedManifests';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
+import { SavedChartSlugMappingsTableName } from '../../database/entities/savedChartSlugMappings';
 import {
     SpaceTableName,
     SpaceUserAccessTableName,
@@ -59,6 +69,15 @@ import {
     tableSelectionMock,
     updateTableSelectionMock,
 } from './ProjectModel.mock';
+
+const { chunkAsyncRowsByBytesMock } = vi.hoisted(() => ({
+    chunkAsyncRowsByBytesMock: vi.fn(),
+}));
+
+vi.mock('../../utils/chunkRowsByBytes', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../utils/chunkRowsByBytes')>()),
+    chunkAsyncRowsByBytes: chunkAsyncRowsByBytesMock,
+}));
 
 function queryMatcher(
     tableName: string,
@@ -98,6 +117,46 @@ describe('ProjectModel', () => {
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
     });
+    test('should get the primary dbt source identity', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    dbt_source_uuid: 'dbt-source-uuid',
+                    dbt_source_name: 'dbt_project',
+                },
+            ]);
+
+        await expect(model.getDbtSourceIdentity(projectUuid)).resolves.toEqual({
+            dbtSourceUuid: 'dbt-source-uuid',
+            dbtSourceName: 'dbt_project',
+        });
+    });
+    test('should use the project uuid when the primary dbt source uuid is null', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    project_uuid: projectUuid,
+                    dbt_source_uuid: null,
+                    dbt_source_name: 'dbt_project',
+                },
+            ]);
+
+        await expect(model.getDbtSourceIdentity(projectUuid)).resolves.toEqual({
+            dbtSourceUuid: projectUuid,
+            dbtSourceName: 'dbt_project',
+        });
+    });
+    test('should throw when getting the dbt source identity for a missing project', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([]);
+
+        await expect(
+            model.getDbtSourceIdentity(projectUuid),
+        ).rejects.toBeInstanceOf(NotFoundError);
+    });
     test('should get project tables configuration', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
@@ -107,6 +166,83 @@ describe('ProjectModel', () => {
 
         expect(result).toEqual(expectedTablesConfiguration);
         expect(tracker.history.select).toHaveLength(1);
+    });
+    describe('getExploreFromCache', () => {
+        const createQualifiedExplore = (name: string) => ({
+            ...exploreWithMetricFilters,
+            name,
+            label: name,
+            baseTable: name,
+            tables: {
+                [name]: {
+                    ...exploreWithMetricFilters.tables.payments,
+                    name,
+                    originalName: 'orders',
+                },
+            },
+        });
+
+        test('returns a structured error when an explore was split', async () => {
+            const sourceAExplore = createQualifiedExplore('sourceA__orders');
+            const sourceBExplore = createQualifiedExplore('sourceB__orders');
+            const bystanderExplore = createQualifiedExplore(
+                'orders_with_custom_dims',
+            );
+            const findExploresFromCache = vi
+                .spyOn(model, 'findExploresFromCache')
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({
+                    [sourceAExplore.name]: sourceAExplore,
+                    [sourceBExplore.name]: sourceBExplore,
+                    [bystanderExplore.name]: bystanderExplore,
+                });
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'orders'),
+            ).rejects.toMatchObject({
+                name: 'NotFoundError',
+                statusCode: 404,
+                data: {
+                    exploreName: 'orders',
+                    candidateExploreNames: [
+                        'sourceA__orders',
+                        'sourceB__orders',
+                    ],
+                },
+            });
+            expect(findExploresFromCache).toHaveBeenCalledTimes(2);
+        });
+
+        test('keeps the plain not found error when no split candidates exist', async () => {
+            const findExploresFromCache = vi
+                .spyOn(model, 'findExploresFromCache')
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({
+                    payments: exploreWithMetricFilters,
+                });
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'orders'),
+            ).rejects.toEqual(
+                new NotFoundError('Explore "orders" does not exist.'),
+            );
+            expect(findExploresFromCache).toHaveBeenCalledTimes(2);
+        });
+
+        test('keeps the plain not found error for one original-name match', async () => {
+            const sourceAExplore = createQualifiedExplore('sourceA__orders');
+            vi.spyOn(model, 'findExploresFromCache')
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({
+                    [sourceAExplore.name]: sourceAExplore,
+                });
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'orders'),
+            ).rejects.toEqual(
+                new NotFoundError('Explore "orders" does not exist.'),
+            );
+        });
     });
     test('should update project tables configuration', async () => {
         tracker.on
@@ -125,6 +261,70 @@ describe('ProjectModel', () => {
         );
 
         expect(tracker.history.update).toHaveLength(1);
+    });
+
+    describe('merged manifest', () => {
+        test('inserts and atomically replaces the project artifact', async () => {
+            const firstManifest = Buffer.from('first');
+            const secondManifest = Buffer.from('second');
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([]);
+
+            await model.upsertMergedManifest(projectUuid, firstManifest);
+            await model.upsertMergedManifest(projectUuid, secondManifest);
+
+            expect(tracker.history.insert).toHaveLength(2);
+            expect(tracker.history.insert[0].sql).toContain(
+                'on conflict ("project_uuid") do update',
+            );
+            expect(tracker.history.insert[0].bindings).toEqual(
+                expect.arrayContaining([projectUuid, firstManifest]),
+            );
+            expect(tracker.history.insert[1].bindings).toEqual(
+                expect.arrayContaining([projectUuid, secondManifest]),
+            );
+        });
+
+        test('returns the stored gzip bytes', async () => {
+            const storedManifest = Buffer.from('stored');
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([{ manifest: storedManifest }]);
+
+            await expect(model.getMergedManifest(projectUuid)).resolves.toEqual(
+                storedManifest,
+            );
+        });
+
+        test('reports when the project has no stored manifest', async () => {
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([]);
+
+            await expect(model.getMergedManifest(projectUuid)).rejects.toThrow(
+                'No merged dbt manifest has been persisted for this project',
+            );
+        });
+
+        test('deletes the stored manifest for a project', async () => {
+            tracker.on
+                .delete(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response(1);
+
+            await model.deleteMergedManifest(projectUuid);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].bindings).toEqual([projectUuid]);
+        });
     });
 
     test('invalidates the previous MotherDuck connection after a credential update', async () => {
@@ -163,6 +363,37 @@ describe('ProjectModel', () => {
             'md:analytics?motherduck_token=previous-token&saas_mode=true',
             'credentials_updated',
         );
+    });
+
+    test('updates a project that was created without warehouse credentials', async () => {
+        vi.spyOn(model, 'getWarehouseCredentialsForProject').mockRejectedValue(
+            new NotFoundError('Cannot find any warehouse credentials'),
+        );
+        const invalidate = vi
+            .spyOn(MotherduckInstanceCache, 'invalidateByConnectionString')
+            .mockImplementation(() => undefined);
+        tracker.on
+            .update(({ sql }) => sql.includes('projects'))
+            .response([{ project_id: 1 }]);
+        tracker.on
+            .insert(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+
+        await model.update(projectUuid, {
+            name: expectedProject.name,
+            dbtConnection: expectedProject.dbtConnection,
+            dbtVersion: expectedProject.dbtVersion,
+            warehouseConnection: {
+                type: WarehouseTypes.BIGQUERY,
+            } as CreateWarehouseCredentials,
+        });
+
+        expect(
+            tracker.history.insert.some(({ sql }) =>
+                sql.includes('warehouse_credentials'),
+            ),
+        ).toBe(true);
+        expect(invalidate).not.toHaveBeenCalled();
     });
 
     test('checks project membership without requiring an email row', async () => {
@@ -239,6 +470,18 @@ describe('ProjectModel', () => {
         ]);
         tracker.on.insert(matchSql(ProjectMembershipsTableName)).response([]);
         tracker.on.insert(matchSql(ProjectGroupAccessTableName)).response([]);
+        tracker.on
+            .delete(matchSql(ProjectMembershipCustomRolesTableName))
+            .response(0);
+        tracker.on
+            .delete(matchSql(ProjectGroupAccessCustomRolesTableName))
+            .response(0);
+        tracker.on
+            .insert(matchSql(ProjectMembershipCustomRolesTableName))
+            .response([]);
+        tracker.on
+            .insert(matchSql(ProjectGroupAccessCustomRolesTableName))
+            .response([]);
 
         const copyAccess = () =>
             model.copyProjectAccess(upstreamProjectUuid, previewProjectUuid);
@@ -251,18 +494,321 @@ describe('ProjectModel', () => {
         await expect(copyAccess()).resolves.toEqual(expectedResult);
         await expect(copyAccess()).resolves.toEqual(expectedResult);
 
-        expect(tracker.history.insert).toHaveLength(4);
-        expect(tracker.history.insert[0].bindings).toEqual(
+        const membershipInserts = tracker.history.insert.filter(({ sql }) =>
+            sql.includes(`"${ProjectMembershipsTableName}"`),
+        );
+        const groupInserts = tracker.history.insert.filter(({ sql }) =>
+            sql.includes(`"${ProjectGroupAccessTableName}"`),
+        );
+        const extraRoleInserts = tracker.history.insert.filter(
+            ({ sql }) =>
+                sql.includes(ProjectMembershipCustomRolesTableName) ||
+                sql.includes(ProjectGroupAccessCustomRolesTableName),
+        );
+        expect(membershipInserts).toHaveLength(2);
+        expect(groupInserts).toHaveLength(2);
+        expect(extraRoleInserts).toHaveLength(4);
+        expect(membershipInserts[0].bindings).toEqual(
             expect.arrayContaining([1, 2, ProjectMemberRole.EDITOR]),
         );
-        expect(tracker.history.insert[0].bindings).not.toContain(3);
-        expect(tracker.history.insert[0].sql).toContain('on conflict');
-        expect(tracker.history.insert[1].sql).toContain('on conflict');
+        expect(membershipInserts[0].bindings).not.toContain(3);
+        expect(membershipInserts[0].sql).toContain('on conflict');
+        expect(groupInserts[0].sql).toContain('on conflict');
+        // extra custom roles are copied from upstream (1) into preview (2) for the eligible user only
+        expect(extraRoleInserts[0].bindings).toEqual(
+            expect.arrayContaining([2, 1, [1]]),
+        );
         const groupAccessQuery = tracker.history.select.find(({ sql }) =>
             sql.includes(ProjectGroupAccessTableName),
         );
         expect(groupAccessQuery?.sql).toContain('groups');
         expect(groupAccessQuery?.bindings).toContain(10);
+    });
+
+    test('updateProjectAccess clears extra custom roles for every updated membership', async () => {
+        tracker.on
+            .any(/UPDATE project_memberships/)
+            .response({ rows: [{ project_id: 5, user_id: 7 }] });
+        tracker.on
+            .delete(({ sql }: RawQuery) =>
+                sql.includes(ProjectMembershipCustomRolesTableName),
+            )
+            .response(0);
+
+        await model.updateProjectAccess(
+            projectUuid,
+            'user-uuid',
+            ProjectMemberRole.EDITOR,
+        );
+
+        const [clear] = tracker.history.delete;
+        expect(clear.sql).toContain(ProjectMembershipCustomRolesTableName);
+        expect(clear.bindings).toEqual([5, 7]);
+    });
+
+    test('training trees get new tree and metric IDs without copying locks', async () => {
+        tracker.on.select('metrics_trees').response([
+            {
+                metrics_tree_uuid: 'source-tree',
+                name: 'Completed orders',
+                slug: 'completed-orders',
+                description: null,
+                source: 'ui',
+            },
+        ]);
+        tracker.on
+            .select(
+                ({ sql, bindings }: RawQuery) =>
+                    sql.includes('from "catalog_search"') &&
+                    bindings.includes('source-project'),
+            )
+            .response([
+                {
+                    catalog_search_uuid: 'source-metric',
+                    table_name: 'orders',
+                    name: 'amount',
+                    type: 'field',
+                },
+            ]);
+        tracker.on
+            .select(
+                ({ sql, bindings }: RawQuery) =>
+                    sql.includes('from "catalog_search"') &&
+                    bindings.includes('target-project'),
+            )
+            .response([
+                {
+                    catalog_search_uuid: 'target-metric',
+                    table_name: 'orders',
+                    name: 'amount',
+                    type: 'field',
+                },
+            ]);
+        tracker.on.select('metrics_tree_nodes').response([
+            {
+                catalog_search_uuid: 'source-metric',
+                x_position: 0,
+                y_position: 200,
+                source: 'ui',
+            },
+        ]);
+        tracker.on
+            .insert('metrics_trees')
+            .response([{ metrics_tree_uuid: 'target-tree' }]);
+        tracker.on.insert('metrics_tree_nodes').response([]);
+        tracker.on.select('metrics_tree_edges').response([]);
+        await model.copyMetricsTreesForTrainingCopy(
+            'source-project',
+            'target-project',
+            'learner',
+        );
+        const treeInsert = tracker.history.insert.find(({ sql }) =>
+            sql.includes('metrics_trees'),
+        )!;
+        expect(treeInsert.bindings).toContain('target-project');
+        expect(treeInsert.bindings).toContain('learner');
+        expect(treeInsert.bindings).not.toContain('source-project');
+        const nodeInsert = tracker.history.insert.find(({ sql }) =>
+            sql.includes('metrics_tree_nodes'),
+        )!;
+        expect(nodeInsert.bindings).toContain('target-metric');
+        expect(nodeInsert.bindings).toContain('target-tree');
+        expect(nodeInsert.bindings).not.toContain('source-metric');
+        expect(tracker.history.update).toHaveLength(0);
+        expect(tracker.history.delete).toHaveLength(0);
+        expect(
+            tracker.history.insert.some(({ sql }) => sql.includes('locks')),
+        ).toBe(false);
+    });
+
+    test('training tree copying fails before writing a tree with unresolved metrics', async () => {
+        tracker.on
+            .select('metrics_trees')
+            .response([{ metrics_tree_uuid: 'source-tree' }]);
+        tracker.on.select('catalog_search').response([]);
+        tracker.on
+            .select('metrics_tree_nodes')
+            .response([{ catalog_search_uuid: 'missing-metric' }]);
+        await expect(
+            model.copyMetricsTreesForTrainingCopy(
+                'source',
+                'target',
+                'learner',
+            ),
+        ).rejects.toThrow('missing a tree metric');
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(0);
+    });
+
+    test('training tree copying rejects the source project as its target', async () => {
+        await expect(
+            model.copyMetricsTreesForTrainingCopy(
+                'source',
+                'source',
+                'learner',
+            ),
+        ).rejects.toThrow('different project');
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    test('copies chart aliases to the mapped preview chart UUIDs only', async () => {
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([
+            { saved_query_uuid: 'source-chart-1', slug: 'old-chart-1' },
+            { saved_query_uuid: 'source-chart-2', slug: 'old-chart-2' },
+        ]);
+        tracker.on.insert(SavedChartSlugMappingsTableName).responseOnce([]);
+
+        await model.copyChartSlugMappingsToPreview(
+            database,
+            'source-project',
+            'preview-project',
+            [
+                {
+                    sourceChartUuid: 'source-chart-1',
+                    previewChartUuid: 'preview-chart-1',
+                },
+                {
+                    sourceChartUuid: 'source-chart-2',
+                    previewChartUuid: 'preview-chart-2',
+                },
+            ],
+        );
+
+        const [selectQuery] = tracker.history.select;
+        expect(selectQuery.bindings).toEqual(
+            expect.arrayContaining([
+                'source-project',
+                'source-chart-1',
+                'source-chart-2',
+            ]),
+        );
+        const [insertQuery] = tracker.history.insert;
+        expect(insertQuery.bindings).toEqual(
+            expect.arrayContaining([
+                'preview-project',
+                'preview-chart-1',
+                'old-chart-1',
+                'preview-chart-2',
+                'old-chart-2',
+            ]),
+        );
+        expect(insertQuery.bindings).not.toContain('source-chart-1');
+        expect(insertQuery.bindings).not.toContain('source-chart-2');
+    });
+
+    test('resolves the original chart UUID from preview content mapping', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_id: 22 }]);
+        tracker.on.select('preview_content').responseOnce([
+            {
+                project_uuid: 'source-project',
+                content_mapping: {
+                    charts: [{ id: 11, newId: 22 }],
+                    chartVersions: [],
+                    spaces: [],
+                    dashboards: [],
+                    dashboardVersions: [],
+                    savedSql: [],
+                    savedSqlVersions: [],
+                    aiAgents: [],
+                },
+            },
+        ]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_uuid: 'source-chart-uuid' }]);
+
+        await expect(
+            model.getUpstreamChartUuidFromPreview(
+                'preview-project',
+                'preview-chart-uuid',
+            ),
+        ).resolves.toBe('source-chart-uuid');
+
+        expect(tracker.history.select[2].bindings).toEqual(
+            expect.arrayContaining(['source-project', 11]),
+        );
+    });
+
+    test('copies dashboard aliases to the mapped preview dashboard UUIDs only', async () => {
+        tracker.on.select(DashboardSlugMappingsTableName).responseOnce([
+            { dashboard_uuid: 'source-dashboard-1', slug: 'old-dashboard-1' },
+            { dashboard_uuid: 'source-dashboard-2', slug: 'old-dashboard-2' },
+        ]);
+        tracker.on.insert(DashboardSlugMappingsTableName).responseOnce([]);
+
+        await model.copyDashboardSlugMappingsToPreview(
+            database,
+            'source-project',
+            'preview-project',
+            [
+                {
+                    sourceDashboardUuid: 'source-dashboard-1',
+                    previewDashboardUuid: 'preview-dashboard-1',
+                },
+                {
+                    sourceDashboardUuid: 'source-dashboard-2',
+                    previewDashboardUuid: 'preview-dashboard-2',
+                },
+            ],
+        );
+
+        const [selectQuery] = tracker.history.select;
+        expect(selectQuery.bindings).toEqual(
+            expect.arrayContaining([
+                'source-project',
+                'source-dashboard-1',
+                'source-dashboard-2',
+            ]),
+        );
+        const [insertQuery] = tracker.history.insert;
+        expect(insertQuery.bindings).toEqual(
+            expect.arrayContaining([
+                'preview-project',
+                'preview-dashboard-1',
+                'old-dashboard-1',
+                'preview-dashboard-2',
+                'old-dashboard-2',
+            ]),
+        );
+        expect(insertQuery.bindings).not.toContain('source-dashboard-1');
+        expect(insertQuery.bindings).not.toContain('source-dashboard-2');
+    });
+
+    test('resolves the original dashboard UUID from preview content mapping', async () => {
+        tracker.on
+            .select(DashboardsTableName)
+            .responseOnce([{ dashboard_id: 22 }]);
+        tracker.on.select('preview_content').responseOnce([
+            {
+                project_uuid: 'source-project',
+                content_mapping: {
+                    dashboards: [{ id: 11, newId: 22 }],
+                    chartVersions: [],
+                    spaces: [],
+                    charts: [],
+                    dashboardVersions: [],
+                    savedSql: [],
+                    savedSqlVersions: [],
+                    aiAgents: [],
+                },
+            },
+        ]);
+        tracker.on
+            .select(DashboardsTableName)
+            .responseOnce([{ dashboard_uuid: 'source-dashboard-uuid' }]);
+
+        await expect(
+            model.getUpstreamDashboardUuidFromPreview(
+                'preview-project',
+                'preview-dashboard-uuid',
+            ),
+        ).resolves.toBe('source-dashboard-uuid');
+
+        expect(tracker.history.select[2].bindings).toEqual(
+            expect.arrayContaining(['source-project', 11]),
+        );
     });
 
     describe('should convert outdated metric filters in explores', () => {
@@ -282,7 +828,355 @@ describe('ProjectModel', () => {
         });
     });
 
+    describe('findExploreContainingTable', () => {
+        test('returns an explore containing a joined-only table', async () => {
+            tracker.on
+                .select(
+                    queryMatcher(CachedExploreTableName, [
+                        'orders',
+                        'orders',
+                        projectUuid,
+                        1,
+                    ]),
+                )
+                .response([
+                    {
+                        explore: exploreWithMetricFilters,
+                        baseMatch: false,
+                    },
+                ]);
+
+            await expect(
+                model.findExploreContainingTable(projectUuid, 'orders'),
+            ).resolves.toEqual(exploreWithMetricFilters);
+        });
+    });
+
     describe('saveExploresToCache', () => {
+        test('prunes deleted models while preserving unselected and user-managed explores', async () => {
+            const incoming = { ...exploresWithSameName[0], name: 'selected' };
+            const cached = [
+                { ...incoming, name: 'deleted' },
+                { ...incoming, name: 'retained' },
+                { ...incoming, name: 'virtual', type: ExploreType.VIRTUAL },
+                {
+                    ...incoming,
+                    name: 'external',
+                    type: ExploreType.EXTERNAL_SOURCE,
+                },
+            ];
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response(cached.map((explore) => ({ explore })));
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ cached_explore_uuid: 'selected-uuid' }]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response(1);
+
+            await model.saveExploresToCache(projectUuid, [incoming], false, [
+                'retained',
+                'selected',
+            ]);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].bindings).toEqual([
+                projectUuid,
+                'deleted',
+            ]);
+        });
+
+        test('preserves cached explores when the payload is not explicitly complete', async () => {
+            const cachedExplore = exploresWithSameName[0];
+            const incomingExplore = {
+                ...cachedExplore,
+                name: 'incoming_explore',
+            };
+            const virtualView = {
+                ...cachedExplore,
+                name: 'virtual_view',
+                type: ExploreType.VIRTUAL,
+            };
+
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([
+                    { explore: cachedExplore },
+                    { explore: virtualView },
+                ]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ cached_explore_uuid: 'incoming-uuid' }]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+
+            await model.saveExploresToCache(projectUuid, [incomingExplore]);
+
+            expect(tracker.history.delete).toHaveLength(0);
+            expect(tracker.history.select).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ bindings: [projectUuid] }),
+                ]),
+            );
+            expect(tracker.history.insert).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        sql: expect.stringContaining(
+                            'on conflict ("name", "project_uuid")',
+                        ),
+                    }),
+                    expect.objectContaining({
+                        bindings: expect.arrayContaining([
+                            JSON.stringify(incomingExplore),
+                        ]),
+                    }),
+                ]),
+            );
+            // The cached explores are preserved by upserting the incoming row and deleting
+            // nothing, rather than by rewriting a whole-set value. The only write to
+            // cached_explores is the lock row, which carries an empty array.
+            tracker.history.insert
+                .filter(({ sql }) => sql.includes('"cached_explores"'))
+                .forEach(({ bindings }) => {
+                    expect(bindings).toEqual([[], projectUuid]);
+                });
+        });
+
+        test.each([
+            { inventory: [], expectedDeleted: ['retained', 'deleted'] },
+            { inventory: ['retained'], expectedDeleted: ['deleted'] },
+        ])(
+            'prunes with an empty selection and inventory $inventory',
+            async ({ inventory, expectedDeleted }) => {
+                tracker.on
+                    .select(({ sql }) => sql.includes('"cached_explores"'))
+                    .response([]);
+                tracker.on
+                    .select(({ sql }) => sql.includes('"cached_explore"'))
+                    .response(
+                        ['retained', 'deleted'].map((name) => ({
+                            explore: { ...exploresWithSameName[0], name },
+                        })),
+                    );
+                tracker.on
+                    .insert(({ sql }) => sql.includes('"cached_explores"'))
+                    .response([]);
+                tracker.on
+                    .delete(({ sql }) => sql.includes('"cached_explore"'))
+                    .response(expectedDeleted.length);
+                await expect(
+                    model.saveExploresToCache(
+                        projectUuid,
+                        [],
+                        false,
+                        inventory,
+                    ),
+                ).resolves.toEqual({ cachedExploreUuids: [] });
+                expect(tracker.history.delete[0].bindings).toEqual([
+                    projectUuid,
+                    ...expectedDeleted,
+                ]);
+            },
+        );
+
+        test('preserves generated explores for surviving unselected models', async () => {
+            const base = exploresWithSameName[0];
+            const cached = [
+                {
+                    ...base,
+                    name: 'retained_preagg',
+                    type: ExploreType.PRE_AGGREGATE,
+                    preAggregateSource: {
+                        sourceExploreName: 'retained',
+                        preAggregateName: 'summary',
+                    },
+                },
+                {
+                    ...base,
+                    name: 'deleted_preagg',
+                    type: ExploreType.PRE_AGGREGATE,
+                    preAggregateSource: {
+                        sourceExploreName: 'deleted',
+                        preAggregateName: 'summary',
+                    },
+                },
+                {
+                    ...base,
+                    name: 'nested',
+                    baseTable: 'nested',
+                    tables: {
+                        nested: {
+                            ...Object.values(base.tables ?? {})[0],
+                            nestedFrom: {
+                                parentTable: 'retained',
+                                columnPath: 'items',
+                            },
+                        },
+                    },
+                },
+            ];
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response(cached.map((explore) => ({ explore })));
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response(1);
+            await model.saveExploresToCache(projectUuid, [], false, [
+                'retained',
+            ]);
+            expect(tracker.history.delete[0].bindings).toEqual([
+                projectUuid,
+                'deleted_preagg',
+            ]);
+        });
+
+        test('preserves cached combined-source explores when an inventory is supplied', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([
+                    {
+                        explore: {
+                            ...exploresWithSameName[0],
+                            name: 'other_source',
+                            tables: {
+                                source: { dbtSourceUuid: 'source-uuid' },
+                            },
+                        },
+                    },
+                    {
+                        explore: {
+                            name: 'source_error',
+                            label: 'Error',
+                            errors: [],
+                        },
+                    },
+                ]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            await model.saveExploresToCache(projectUuid, [], false, []);
+            expect(tracker.history.delete).toHaveLength(0);
+        });
+
+        test('accepts an empty additive payload when cached explores exist', async () => {
+            const cachedExplore = exploresWithSameName[0];
+
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ explore: cachedExplore }]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+
+            await expect(
+                model.saveExploresToCache(projectUuid, []),
+            ).resolves.toEqual({ cachedExploreUuids: [] });
+            expect(tracker.history.delete).toHaveLength(0);
+        });
+
+        test('rejects an empty additive payload when no cached explores exist', async () => {
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([]);
+
+            await expect(
+                model.saveExploresToCache(projectUuid, []),
+            ).rejects.toThrow('No explores to save');
+        });
+
+        test('replaces absent cached explores only when explicitly complete', async () => {
+            const cachedExplore = exploresWithSameName[0];
+            const incomingExplore = {
+                ...cachedExplore,
+                name: 'incoming_explore',
+            };
+            const virtualView = {
+                ...cachedExplore,
+                name: 'incoming_explore',
+                type: ExploreType.VIRTUAL,
+            };
+
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([
+                    { explore: cachedExplore },
+                    { explore: virtualView },
+                ]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response([]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ cached_explore_uuid: 'virtual-uuid' }]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+
+            await model.saveExploresToCache(
+                projectUuid,
+                [incomingExplore],
+                true,
+            );
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.select).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        bindings: [
+                            projectUuid,
+                            [...USER_MANAGED_EXPLORE_TYPES],
+                        ],
+                    }),
+                ]),
+            );
+            expect(tracker.history.insert).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        bindings: expect.arrayContaining([
+                            JSON.stringify(virtualView),
+                        ]),
+                    }),
+                ]),
+            );
+            tracker.history.insert
+                .filter(({ sql }) => sql.includes('"cached_explores"'))
+                .forEach(({ bindings }) => {
+                    expect(bindings).toEqual([[], projectUuid]);
+                });
+        });
+
         // TODO: this test is skipped because there is an issue in our version of knex-mock-client
         // which makes it not handle batch inserts correctly. If we upgrade to a newer version,
         // we can remove the skip. There are a lot of breaking changes in the new version though.
@@ -325,6 +1219,389 @@ describe('ProjectModel', () => {
             expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.delete).toHaveLength(1);
             expect(tracker.history.insert).toHaveLength(2);
+        });
+    });
+
+    describe('saveExploreStreamToCache', () => {
+        const oneRowChunks = () => {
+            vi.mocked(chunkAsyncRowsByBytesMock).mockImplementation(
+                async function* singleRowChunks(rows) {
+                    for await (const row of rows) {
+                        yield { rows: [row.row], bytes: row.bytes };
+                    }
+                },
+            );
+        };
+
+        const stream = async function* exploreStream<T>(items: T[]) {
+            for (const item of items) {
+                yield item;
+            }
+        };
+
+        const mockStagedCacheQueries = ({
+            getUserManagedExplores = () => [],
+            getLockedNames,
+            onLock,
+            stageError,
+            swapError,
+        }: {
+            getUserManagedExplores?: () => {
+                explore: { name: string; label?: string };
+            }[];
+            getLockedNames?: () => string[];
+            onLock?: () => void;
+            stageError?: Error;
+            swapError?: Error;
+        } = {}) => {
+            const stagedRows = new Map<
+                string,
+                {
+                    name: string;
+                    cached_explore_uuid: string;
+                    label?: string;
+                }
+            >();
+            const stageExplore = (explore: {
+                name: string;
+                label?: string;
+            }) => {
+                const existing = stagedRows.get(explore.name);
+                stagedRows.set(explore.name, {
+                    name: explore.name,
+                    cached_explore_uuid:
+                        existing?.cached_explore_uuid ??
+                        `${explore.name}-${explore.label}`,
+                    label: explore.label,
+                });
+            };
+            const stageInsert = tracker.on.insert(
+                ({ sql }) =>
+                    sql.includes('"cached_explore_staging"') &&
+                    sql.includes('values'),
+            );
+            if (stageError) {
+                stageInsert.simulateError(stageError);
+            } else {
+                stageInsert.response(({ bindings }) => {
+                    bindings
+                        .filter(
+                            (binding): binding is string =>
+                                typeof binding === 'string' &&
+                                binding.startsWith('{'),
+                        )
+                        .map(
+                            (binding) =>
+                                JSON.parse(binding) as {
+                                    name: string;
+                                    label?: string;
+                                },
+                        )
+                        .forEach(stageExplore);
+                    return [];
+                });
+            }
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response(() => {
+                    onLock?.();
+                    return [];
+                });
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([{}]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response([]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore_staging"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore_staging"'))
+                .response(() => {
+                    const names =
+                        getLockedNames?.() ?? Array.from(stagedRows.keys());
+                    return names.map((name) => ({ name }));
+                });
+            tracker.on
+                .any(
+                    ({ sql }) =>
+                        sql.startsWith('INSERT INTO') &&
+                        sql.includes('"cached_explore_staging"') &&
+                        sql.includes("explore->>'type'"),
+                )
+                .response(() => {
+                    const managedRows = getUserManagedExplores();
+                    managedRows.forEach(({ explore }) => stageExplore(explore));
+                    return {
+                        rows: managedRows.map(({ explore }) =>
+                            stagedRows.get(explore.name),
+                        ),
+                    };
+                });
+            const promotion = tracker.on.any(
+                ({ sql }) =>
+                    sql.startsWith('INSERT INTO "cached_explore"') &&
+                    sql.includes('SELECT cached_explore_uuid'),
+            );
+            if (swapError) {
+                promotion.simulateError(swapError);
+            } else {
+                promotion.response(() => ({
+                    rows: Array.from(stagedRows.values()),
+                }));
+            }
+            return { stagedRows };
+        };
+
+        test('fully consumes the generator before taking the transaction lock', async () => {
+            oneRowChunks();
+            let consumed = false;
+            mockStagedCacheQueries({
+                onLock: () => expect(consumed).toBe(true),
+            });
+            async function* observedStream() {
+                yield exploreWithMetricFilters;
+                consumed = true;
+            }
+
+            await model.saveExploreStreamToCache(projectUuid, observedStream());
+
+            expect(consumed).toBe(true);
+        });
+
+        test('locks the project before the exact staged name set and promotion', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+
+            await model.saveExploreStreamToCache(
+                projectUuid,
+                stream([exploreWithMetricFilters]),
+            );
+
+            const transactionQueries = tracker.history.transactions[0].queries;
+            const projectLockIndex = transactionQueries.findIndex(
+                ({ sql }) =>
+                    sql.includes('"cached_explores"') &&
+                    sql.includes('for update'),
+            );
+            const stagedLockIndex = transactionQueries.findIndex(
+                ({ sql }) =>
+                    sql.includes('"cached_explore_staging"') &&
+                    sql.includes('for update'),
+            );
+            const liveDeleteIndex = transactionQueries.findIndex(({ sql }) =>
+                sql.startsWith('delete from "cached_explore"'),
+            );
+            const promotionIndex = transactionQueries.findIndex(
+                ({ sql }) =>
+                    sql.startsWith('INSERT INTO "cached_explore"') &&
+                    sql.includes('SELECT cached_explore_uuid'),
+            );
+            expect(projectLockIndex).toBeGreaterThanOrEqual(0);
+            expect(stagedLockIndex).toBeGreaterThan(projectLockIndex);
+            expect(liveDeleteIndex).toBeGreaterThan(stagedLockIndex);
+            expect(promotionIndex).toBeGreaterThan(liveDeleteIndex);
+        });
+
+        test('keeps managed overrides, late managed writes, and result order', async () => {
+            oneRowChunks();
+            const managedOverride = {
+                ...exploreWithMetricFilters,
+                name: 'managed_override',
+                label: 'managed',
+                type: ExploreType.VIRTUAL,
+            };
+            const managedAppend = {
+                ...exploreWithMetricFilters,
+                name: 'managed_append',
+                label: 'append',
+                type: ExploreType.VIRTUAL,
+            };
+            const incomingOverride = {
+                ...exploreWithMetricFilters,
+                name: 'managed_override',
+                label: 'incoming',
+            };
+            const incoming = {
+                ...exploreWithMetricFilters,
+                name: 'incoming',
+                label: 'incoming',
+            };
+            let userManagedExplores: { explore: typeof managedOverride }[] = [];
+            const { stagedRows } = mockStagedCacheQueries({
+                getUserManagedExplores: () => userManagedExplores,
+                onLock: () => {
+                    userManagedExplores = [
+                        { explore: managedOverride },
+                        { explore: managedAppend },
+                    ];
+                },
+            });
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([incomingOverride, incoming]),
+                ),
+            ).resolves.toEqual({
+                cachedExploreUuids: [
+                    'managed_override-incoming',
+                    'incoming-incoming',
+                    'managed_append-append',
+                ],
+            });
+            expect(stagedRows.get('managed_override')?.label).toBe('managed');
+        });
+
+        test('keeps the last duplicate within and across streamed batches while preserving first-name order', async () => {
+            vi.mocked(chunkAsyncRowsByBytesMock).mockImplementation(
+                async function* twoRowChunks(rows) {
+                    let pending: { row: AnyType; bytes: number }[] = [];
+                    for await (const row of rows) {
+                        pending.push(row);
+                        if (pending.length === 2) {
+                            yield {
+                                rows: pending.map((item) => item.row),
+                                bytes: pending.reduce(
+                                    (total, item) => total + item.bytes,
+                                    0,
+                                ),
+                            };
+                            pending = [];
+                        }
+                    }
+                    if (pending.length > 0) {
+                        yield {
+                            rows: pending.map((item) => item.row),
+                            bytes: pending.reduce(
+                                (total, item) => total + item.bytes,
+                                0,
+                            ),
+                        };
+                    }
+                },
+            );
+            const first = {
+                ...exploreWithMetricFilters,
+                name: 'duplicate',
+                label: 'first',
+            };
+            const second = { ...first, label: 'second' };
+            const other = {
+                ...exploreWithMetricFilters,
+                name: 'other',
+                label: 'other',
+            };
+            const third = { ...first, label: 'third' };
+            const { stagedRows } = mockStagedCacheQueries();
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([first, second, other, third]),
+                ),
+            ).resolves.toEqual({
+                cachedExploreUuids: ['duplicate-second', 'other-other'],
+            });
+            expect(stagedRows.get('duplicate')?.label).toBe('third');
+        });
+
+        test('rejects an empty stream', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+
+            await expect(
+                model.saveExploreStreamToCache(projectUuid, stream([])),
+            ).rejects.toThrow('No explores to save');
+        });
+
+        test('propagates source stream failures', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+            async function* failingStream() {
+                yield exploreWithMetricFilters;
+                throw new Error('stream failed');
+            }
+
+            await expect(
+                model.saveExploreStreamToCache(projectUuid, failingStream()),
+            ).rejects.toThrow('stream failed');
+            expect(
+                tracker.history.delete.filter(({ sql }) =>
+                    sql.includes('"cached_explore"'),
+                ),
+            ).toHaveLength(0);
+            expect(
+                tracker.history.insert.some(({ sql }) =>
+                    sql.includes('"cached_explores"'),
+                ),
+            ).toBe(false);
+            expect(
+                tracker.history.all.some(({ sql }) =>
+                    sql.startsWith('delete from "cached_explore_staging"'),
+                ),
+            ).toBe(true);
+        });
+
+        test('propagates staging insert failures without entering the swap', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries({
+                stageError: new Error('stage insert failed'),
+            });
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([exploreWithMetricFilters]),
+                ),
+            ).rejects.toThrow('stage insert failed');
+            expect(
+                tracker.history.delete.filter(({ sql }) =>
+                    sql.includes('"cached_explore"'),
+                ),
+            ).toHaveLength(0);
+            expect(
+                tracker.history.insert.some(({ sql }) =>
+                    sql.includes('"cached_explores"'),
+                ),
+            ).toBe(false);
+        });
+
+        test('propagates swap failures after deletion', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries({
+                swapError: new Error('swap insert failed'),
+            });
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([exploreWithMetricFilters]),
+                ),
+            ).rejects.toThrow('swap insert failed');
+            expect(
+                tracker.history.delete.filter(({ sql }) =>
+                    sql.includes('"cached_explore"'),
+                ),
+            ).toHaveLength(1);
+        });
+
+        test('rejects a changed staged name set before deleting live rows', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries({ getLockedNames: () => [] });
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([exploreWithMetricFilters]),
+                ),
+            ).rejects.toThrow('Cached explore staging name set mismatch');
+            expect(
+                tracker.history.delete.filter(({ sql }) =>
+                    sql.includes('"cached_explore"'),
+                ),
+            ).toHaveLength(0);
         });
     });
 
@@ -497,6 +1774,77 @@ describe('ProjectModel', () => {
     });
 
     describe('mergeMissingDbtConfigSecrets', () => {
+        const bitbucketConfig = {
+            type: DbtProjectType.BITBUCKET as const,
+            username: 'user',
+            personal_access_token: 'saved-token',
+            repository: 'workspace/repository',
+            branch: 'main',
+            project_sub_path: '/',
+            host_domain: 'bitbucket.org',
+        };
+
+        test.each([
+            { repository: 'workspace/another-repository' },
+            { repository: 'another-workspace/repository' },
+            { username: 'another-user' },
+            { host_domain: 'bitbucket.example.com' },
+        ])(
+            'does not restore a Bitbucket token after destination change %j',
+            (change) => {
+                const incoming = {
+                    ...bitbucketConfig,
+                    ...change,
+                    personal_access_token: '',
+                };
+                expect(
+                    ProjectModel.mergeMissingDbtConfigSecrets(
+                        incoming,
+                        bitbucketConfig,
+                    ),
+                ).toEqual(incoming);
+            },
+        );
+
+        test.each([
+            {},
+            { branch: 'another-branch' },
+            { project_sub_path: '/dbt' },
+            { host_domain: 'BITBUCKET.ORG.' },
+        ])(
+            'restores a Bitbucket token for the same destination %j',
+            (change) => {
+                const incoming = {
+                    ...bitbucketConfig,
+                    ...change,
+                    personal_access_token: '',
+                };
+                expect(
+                    ProjectModel.mergeMissingDbtConfigSecrets(
+                        incoming,
+                        bitbucketConfig,
+                    ),
+                ).toEqual({
+                    ...incoming,
+                    personal_access_token: 'saved-token',
+                });
+            },
+        );
+
+        test('preserves an explicitly supplied token when the Bitbucket destination changes', () => {
+            const incoming = {
+                ...bitbucketConfig,
+                repository: 'workspace/another-repository',
+                personal_access_token: 'replacement-token',
+            };
+            expect(
+                ProjectModel.mergeMissingDbtConfigSecrets(
+                    incoming,
+                    bitbucketConfig,
+                ),
+            ).toEqual(incoming);
+        });
+
         test('should NOT merge the dbt Cloud API key when the discovery endpoint changes', () => {
             const completeConfig: DbtCloudIDEProjectConfig = {
                 type: DbtProjectType.DBT_CLOUD_IDE,
@@ -1001,6 +2349,9 @@ describe('ProjectModel', () => {
             tracker.on
                 .update(matchSql(OrganizationMembershipsTableName))
                 .response([]);
+            tracker.on
+                .delete(matchSql(OrganizationMembershipCustomRolesTableName))
+                .response(0);
 
             await model.setServiceAccountProjectAccess(
                 SA_UUID,
@@ -1015,6 +2366,11 @@ describe('ProjectModel', () => {
             expect(tracker.history.update[1].bindings).toContain(
                 OrganizationMemberRole.MEMBER,
             );
+            // singular org-role write also clears extra custom roles
+            const extrasClear = tracker.history.delete.find(({ sql }) =>
+                sql.includes(OrganizationMembershipCustomRolesTableName),
+            );
+            expect(extrasClear).toBeDefined();
         });
     });
 });

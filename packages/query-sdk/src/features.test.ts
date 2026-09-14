@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     SDK_FEATURE_KEYS,
+    SDK_FEATURE_TARGETS,
     SDK_FEATURES,
     SDK_MANIFEST_MESSAGE_TYPE,
 } from './features';
@@ -28,6 +29,21 @@ describe('SDK_FEATURES registry', () => {
             expect(feature.description.trim().length).toBeGreaterThan(0);
         }
         expect(SDK_FEATURE_KEYS).toEqual(keys);
+    });
+
+    it('declares at least one known target per feature, without duplicates', () => {
+        for (const feature of SDK_FEATURES) {
+            expect(
+                feature.appliesTo.length,
+                `${feature.key} must apply to at least one target`,
+            ).toBeGreaterThan(0);
+            expect(new Set(feature.appliesTo).size).toEqual(
+                feature.appliesTo.length,
+            );
+            for (const target of feature.appliesTo) {
+                expect(SDK_FEATURE_TARGETS).toContain(target);
+            }
+        }
     });
 
     it('covers every *:available message literal in the SDK source (drift guard)', () => {

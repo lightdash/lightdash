@@ -15,7 +15,8 @@ vi.mock('../store/hooks', () => ({
 
 vi.mock('../store/aiArtifactSlice', () => ({
     clearPreview: () => ({ type: 'clearPreview' }),
-    setArtifact: (payload: unknown) => ({ type: 'setArtifact', payload }),
+    setPreview: (payload: unknown) => ({ type: 'setPreview', payload }),
+    selectArtifactPreview: () => null,
 }));
 
 vi.mock('./useDeepResearch', () => ({
@@ -91,7 +92,7 @@ describe('useAiAgentThreadArtifact', () => {
         );
 
         expect(dispatchMock).not.toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'setArtifact' }),
+            expect.objectContaining({ type: 'setPreview' }),
         );
     });
 
@@ -106,8 +107,9 @@ describe('useAiAgentThreadArtifact', () => {
         );
 
         expect(dispatchMock).toHaveBeenCalledWith({
-            type: 'setArtifact',
+            type: 'setPreview',
             payload: {
+                type: 'artifact',
                 artifactUuid: 'regular-artifact',
                 versionUuid: 'regular-version',
                 messageUuid: 'regular-prompt',
@@ -134,7 +136,7 @@ describe('useAiAgentThreadArtifact', () => {
         );
 
         expect(dispatchMock).not.toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'setArtifact' }),
+            expect.objectContaining({ type: 'setPreview' }),
         );
     });
 
@@ -165,7 +167,7 @@ describe('useAiAgentThreadArtifact', () => {
         rerender();
 
         expect(dispatchMock).not.toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'setArtifact' }),
+            expect.objectContaining({ type: 'setPreview' }),
         );
     });
 });

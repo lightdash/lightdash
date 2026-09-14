@@ -13,6 +13,7 @@ import { type FC } from 'react';
 import { Link } from 'react-router';
 import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
 import TruncatedText from '../../../../components/common/TruncatedText';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import { useRecentContents } from '../hooks/useRecentContents';
 import { BlockHeader } from './BlockShell';
@@ -24,11 +25,16 @@ const RecentRow: FC<{
     projectUuid: string;
     viewedAt: Date | undefined;
 }> = ({ content, projectUuid, viewedAt }) => {
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const timeAgo = useTimeAgo(viewedAt ?? new Date(0));
     const isDashboard = content.contentType === ContentType.DASHBOARD;
     return (
         <Link
-            to={getResourceUrl(projectUuid, contentToResourceViewItem(content))}
+            to={getResourceUrl(
+                projectUuid,
+                contentToResourceViewItem(content),
+                projectUrlIdentifier,
+            )}
             className={`${classes.listRow} ${classes.clickable} ${classes.plainLink}`}
         >
             <div className={classes.iconSquare}>

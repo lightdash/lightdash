@@ -1,7 +1,7 @@
 import Lightdash from '@lightdash/sdk';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { SavedChart } from '../../../common/src';
+import type { SavedChart, SdkUiOverrides } from '../../../common/src';
 import { ExampleLayout } from '../components/ExampleLayout';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { getRepoSourceUrl } from '../lib/repo';
@@ -39,6 +39,9 @@ export function I18nExamplePage({ embedConfig }: I18nExamplePageProps) {
     useEffect(() => {
         setSavedChart(null);
     }, [embedConfig.remountKey]);
+
+    const uiOverrides = i18n.getResourceBundle(i18n.language, 'translation')
+        ?.uiOverrides as SdkUiOverrides | undefined;
 
     const controls = (
         <div style={controlsStyle}>
@@ -99,11 +102,12 @@ export function I18nExamplePage({ embedConfig }: I18nExamplePageProps) {
                         <div style={chartContainerStyle}>
                             {savedChart ? (
                                 <Lightdash.Explore
-                                    key={`${embedConfig.remountKey}:${savedChart.uuid}`}
+                                    key={`${embedConfig.remountKey}:${savedChart.uuid}:${i18n.language}`}
                                     instanceUrl={embedConfig.instanceUrl}
                                     token={embedConfig.token}
                                     exploreId={savedChart.tableName}
                                     savedChart={savedChart}
+                                    uiOverrides={uiOverrides}
                                 />
                             ) : (
                                 <Lightdash.Dashboard
@@ -117,6 +121,7 @@ export function I18nExamplePage({ embedConfig }: I18nExamplePageProps) {
                                         i18n.language,
                                         'translation',
                                     )}
+                                    uiOverrides={uiOverrides}
                                     onExplore={({ chart }) =>
                                         setSavedChart(chart)
                                     }
@@ -182,13 +187,14 @@ export function I18nExamplePage({ embedConfig }: I18nExamplePageProps) {
                         <div style={singleChartContainerStyle}>
                             {chartUuidOrSlug ? (
                                 <Lightdash.Chart
-                                    key={`${embedConfig.remountKey}:${chartUuidOrSlug}`}
+                                    key={`${embedConfig.remountKey}:${chartUuidOrSlug}:${i18n.language}`}
                                     instanceUrl={embedConfig.instanceUrl}
                                     token={embedConfig.token}
                                     styles={{
                                         backgroundColor: 'transparent',
                                     }}
                                     id={chartUuidOrSlug}
+                                    uiOverrides={uiOverrides}
                                 />
                             ) : (
                                 <div

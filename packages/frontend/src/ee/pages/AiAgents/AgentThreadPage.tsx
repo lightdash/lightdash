@@ -1,10 +1,9 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
 import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { matchesModelConfig } from '../../../components/common/ModelSelector/utils';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
@@ -16,6 +15,7 @@ import {
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ThreadWorkstreamsPanel } from '../../features/aiCopilot/components/ChatElements/ThreadWorkstreamsPanel';
+import { ThreadRetentionNotice } from '../../features/aiCopilot/components/ThreadRetentionNotice';
 import { findRetryableDeepResearchRun } from '../../features/aiCopilot/deepResearch/deepResearchRegistry';
 import { runDeepResearchAgain } from '../../features/aiCopilot/deepResearch/runAgain';
 import {
@@ -35,6 +35,7 @@ import {
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
 } from '../../features/aiCopilot/hooks/useDeepResearch';
+import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
@@ -57,7 +58,8 @@ import { getDashboardNavigationUrlFromContentToolResult } from '../../features/a
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
-    const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
+    const { agentUuid, threadUuid, promptUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const isEmbed = isEmbedAiAgentRoute();
     const { user } = useApp();
@@ -159,7 +161,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         },
     );
 
-    const { isStreaming, isPending } = usePendingThreadRefetch(
+    const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadUuid!,
         refetch,
@@ -178,7 +180,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const updateReviewItemStatus = useUpdateAiAgentReviewItemStatus();
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const startDeepResearch = useStartDeepResearchMutation({
         projectUuid: projectUuid!,
         agentUuid: agentUuid!,
@@ -256,6 +258,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         dashboardUuidOrSlug: pinnedDashboardUuid,
     });
     const dashboardUuid = searchParams.get('dashboardUuid');
+    const dataAppUuid = searchParams.get('dataAppUuid');
     const {
         contextInput: pageContextInput,
         previewItems: pagePreviewItems,
@@ -263,6 +266,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     } = usePinnedContext({
         projectUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dataAppUuidOrSlug: dataAppUuid,
     });
 
     const contentMentionItems = useMemo(
@@ -303,6 +307,9 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const handleStartDeepResearch = async ({
         question,
     }: StartDeepResearchArgs) => {
+        if (!canStartDeepResearch) {
+            return;
+        }
         const retryableRun = findRetryableDeepResearchRun({
             projectUuid: projectUuid!,
             agentUuid: agentUuid!,
@@ -328,8 +335,12 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     };
     const handleRunDeepResearchAgain = async (
         registration: DeepResearchRunRegistration,
-    ) =>
-        runDeepResearchAgain({
+    ) => {
+        if (!canStartDeepResearch) {
+            return;
+        }
+
+        return runDeepResearchAgain({
             registration,
             createPrompt: (question) =>
                 createAgentThreadMessage({
@@ -341,10 +352,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 }),
             startRun: startDeepResearch.mutateAsync,
         });
+    };
     const isBusy = Boolean(
         isCreatingMessage ||
         isStreaming ||
-        isPending ||
+        isThreadPending ||
         startDeepResearch.isLoading,
     );
     const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;
@@ -387,7 +399,9 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     agentUuid={agentUuid}
                     showAddToEvalsButton={canManage}
                     onDashboardLinkClick={handleDashboardLinkClick}
-                    canRetryDeepResearch={!inputDisabled && !isBusy}
+                    canRetryDeepResearch={
+                        canStartDeepResearch && !inputDisabled && !isBusy
+                    }
                     onRunDeepResearchAgain={(registration) => {
                         void handleRunDeepResearchAgain(registration).catch(
                             () => undefined,
@@ -400,10 +414,17 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     <AgentChatInput
                         disabled={inputDisabled}
                         disabledReason={inputDisabledReason}
+                        footerNotice={
+                            <ThreadRetentionNotice
+                                agentThreadRetentionHours={
+                                    agent.threadRetentionHours ?? null
+                                }
+                            />
+                        }
                         loading={isBusy}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={
-                            deepResearchFlag.data?.enabled
+                            canStartDeepResearch
                                 ? handleStartDeepResearch
                                 : undefined
                         }

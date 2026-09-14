@@ -13,12 +13,12 @@ const InfoRow: FC<InfoRowProps> = ({ icon: Icon, label, children }) => {
     return (
         <Group justify="space-between" wrap="nowrap">
             <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={Icon} color="ldGray.6" size={14} />
-                <Text fz="xs" c="ldGray.6">
+                <MantineIcon icon={Icon} color="dimmed" size={14} />
+                <Text fz="xs" c="dimmed">
                     {label}
                 </Text>
             </Group>
-            <Text fz="xs" c="ldGray.9" fw={500}>
+            <Text fz="xs" fw={500}>
                 {children}
             </Text>
         </Group>

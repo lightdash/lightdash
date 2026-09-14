@@ -89,7 +89,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
                     {table.label}
                 </Text>
                 {!isExpanded && (
-                    <Text size="xs" c="ldGray.6" fw={400}>
+                    <Text size="xs" c="dimmed" fw={400}>
                         {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
                     </Text>
                 )}

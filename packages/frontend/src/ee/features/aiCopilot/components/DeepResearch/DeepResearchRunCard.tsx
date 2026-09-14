@@ -48,6 +48,7 @@ const PREVIEW_MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
     a: PreviewLink as unknown as NonNullable<
         StreamdownProps['components']
     >['a'],
+    img: () => null,
 };
 
 const STATUS_CONFIG: Record<DeepResearchRunView['status'], { label: string }> =
@@ -138,7 +139,7 @@ export const DeepResearchRunHeading = ({
                 <Group gap="xs" align="baseline" wrap="nowrap">
                     <Text
                         size="xs"
-                        fw={700}
+                        fw={600}
                         ff="monospace"
                         tt="uppercase"
                         className={styles.eyebrow}
@@ -221,6 +222,12 @@ export const DeepResearchRunCard = ({
             p="lg"
             radius="md"
             aria-label="Deep research run"
+            // Walkthrough look at the run card once the thread opens.
+            data-tour-scope="create:AiDeepResearch"
+            data-tour-look="1"
+            data-tour-after='[data-tour-anchor="agent-thread"][data-tour-value="Why returns rose in the spring"]'
+            data-tour-label="The run card stays with the question"
+            data-tour-docs="agents/deep-research.mdx#follow-progress:1"
         >
             <Stack gap="md">
                 <DeepResearchRunHeading
@@ -419,9 +426,9 @@ export const DeepResearchRunCard = ({
                                 <MantineIcon
                                     icon={IconCheck}
                                     size={16}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
-                                <Text size="sm" fw={700}>
+                                <Text size="sm" fw={600}>
                                     Research summary
                                 </Text>
                             </Group>
@@ -441,6 +448,9 @@ export const DeepResearchRunCard = ({
                                 color="ldDark"
                                 size="xs"
                                 w="fit-content"
+                                // Anchor for scope walkthroughs (data-tour-via)
+                                data-tour-anchor="research-report-open"
+                                data-tour-hint="Open the full report"
                                 onClick={() => {
                                     if (
                                         run.status === 'completed' ||
@@ -493,7 +503,7 @@ export const DeepResearchRunCard = ({
                         >
                             {isActivityOpen ? 'Hide activity' : 'View activity'}
                         </Button>
-                        <Collapse id={activityId} in={isActivityOpen}>
+                        <Collapse id={activityId} expanded={isActivityOpen}>
                             <Box
                                 component="ul"
                                 className={styles.timeline}

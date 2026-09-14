@@ -1,4 +1,4 @@
-import { formatSql } from '@lightdash/common';
+import { formatSql, getMergeCompiledSqlText } from '@lightdash/common';
 import {
     Alert,
     Box,
@@ -10,7 +10,6 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
 import { useMergeCompiledSql } from '../features/mergeQuery/hooks/useMergeCompiledSql';
 import {
     getLightdashMonacoTheme,
@@ -20,6 +19,7 @@ import {
 } from '../features/sqlRunner/utils/monaco';
 import { useCompiledSql } from '../hooks/useCompiledSql';
 import { useProject } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import Editor, { type BeforeMount, type EditorProps } from './MonacoEditor';
 
 const MONACO_READ_ONLY: EditorProps['options'] = {
@@ -37,15 +37,15 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
     selectedView = 'query',
 }) => {
     const { colorScheme } = useMantineColorScheme();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const language = useMemo(
         () => getMonacoLanguage(project?.warehouseConnection?.type),
         [project],
     );
     const { data, error, isInitialLoading } = useCompiledSql();
-    // With a merge configured, the merged statement is what Run executes;
-    // Query A's SQL alone would be SQL that does not run.
+    // With a merge configured, each leg and then the join are what Run
+    // executes; Query A's SQL alone would be SQL that does not run.
     const merge = useMergeCompiledSql();
 
     const beforeMount: BeforeMount = useCallback(
@@ -76,7 +76,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
 
     const formattedSql = useMemo(() => {
         const sqlToFormat = merge.isMergeActive
-            ? merge.data?.sql
+            ? merge.data && getMergeCompiledSqlText(merge.data)
             : effectiveView === 'pivotQuery'
               ? data?.pivotQuery
               : data?.query;
@@ -87,7 +87,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
         data?.pivotQuery,
         effectiveView,
         merge.isMergeActive,
-        merge.data?.sql,
+        merge.data,
         project?.warehouseConnection?.type,
     ]);
 

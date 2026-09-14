@@ -1,4 +1,4 @@
-import { Badge, Text } from '@mantine/core';
+import { Kbd, Text } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { type CSSProperties, type FC, type MouseEvent } from 'react';
@@ -17,32 +17,30 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
 
     return (
         <PolymorphicGroupButton
-            px="sm"
-            gap="sm"
+            px="xs"
+            gap="xs"
             role="search"
-            h={30}
             onClick={onOpen}
             style={style}
             wrap="nowrap"
             w={{
-                xs: 110,
-                sm: 130,
-                md: 150,
-                lg: 170,
-                xl: 190,
+                xs: 120,
+                sm: 150,
+                md: 180,
+                lg: 220,
+                xl: 260,
             }}
             className={classes.container}
         >
-            <MantineIcon icon={IconSearch} className={classes.icon} />
+            <MantineIcon icon={IconSearch} size="sm" className={classes.icon} />
 
-            <Text c="ldDark.9" size="xs" truncate className={classes.text}>
+            <Text size="sm" truncate className={classes.text}>
                 {placeholder}
             </Text>
 
-            <Badge fw={600} radius="sm" className={classes.badge}>
-                {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
-                +K
-            </Badge>
+            <Kbd size="xs">
+                {os === 'macos' || os === 'ios' ? '⌘' : 'Ctrl'}K
+            </Kbd>
         </PolymorphicGroupButton>
     );
 };

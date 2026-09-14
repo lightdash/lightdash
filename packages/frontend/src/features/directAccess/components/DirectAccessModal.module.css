@@ -1,0 +1,4 @@
+.content {
+    /* Prevent long names from expanding the ScrollArea's intrinsic minimum width. */
+    contain: inline-size;
+}

@@ -3,6 +3,7 @@ import {
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_PATH,
     extractAppSdkRouteProjectUuid,
     isAllowedAppSdkRoute,
@@ -14,6 +15,7 @@ import {
     type AppColorScheme,
     type DashboardFilters,
     type DataAppVizContext,
+    type ExternalFetchResponse,
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
@@ -48,6 +50,11 @@ const resolveFetchUrl = (path: string): string => {
     // SDK persists with a trailing slash; `path` always starts with `/`.
     return `${instanceUrl.replace(/\/$/, '')}${path}`;
 };
+
+const getEmbedAuthHeaders = (
+    embedToken: string | undefined,
+): Record<string, string> =>
+    embedToken ? { [JWT_HEADER_NAME]: embedToken } : {};
 
 export type QueryEventTableCalculation = {
     name: string;
@@ -269,6 +276,15 @@ export type UseAppSdkBridgeParams = {
         path: string;
         body: unknown;
     };
+    /**
+     * Handles the viz drill-down virtual route
+     * (`APP_SDK_VIZ_DRILL_DOWN_PATH`): resolves the click intent and opens the
+     * host drill dialog. Never forwarded to the API. Absent = the capability
+     * is off and the route answers with an error — availability is enforced
+     * here, not in the iframe's menu. Throws on invalid intent (untrusted
+     * iframe input).
+     */
+    onVizDrillDownIntent?: (intentBody: unknown) => void;
     // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
     // are validated and forwarded. Left undefined, they're ignored.
     onUrlStateChange?: (state: Record<string, unknown>) => void;
@@ -310,6 +326,7 @@ export function useAppSdkBridge({
     onExternalRequestEvent,
     dataAppVizContext,
     rewriteVizUnderlyingDataRequest,
+    onVizDrillDownIntent,
     onUrlStateChange,
     onSdkManifest,
     deliveryCapture,
@@ -608,21 +625,6 @@ export function useAppSdkBridge({
 
                 emitExternal({ status: 'pending' });
 
-                // External fetch is not available to embedded apps: the proxy
-                // endpoint requires a registered session, not an embed JWT.
-                // Fail clearly rather than make a doomed authenticated call.
-                if (embedToken) {
-                    const embedError =
-                        'External data access is not available in embedded apps';
-                    emitExternal({
-                        status: 'error',
-                        error: embedError,
-                        durationMs: Date.now() - startedAt,
-                    });
-                    respondExternal({ error: embedError });
-                    return;
-                }
-
                 // Build the EE request body from app-supplied fields ONLY.
                 // No URL, no headers, no connection UUID — the backend resolves
                 // the alias and attaches the connection's secrets. The
@@ -644,6 +646,7 @@ export function useAppSdkBridge({
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                ...getEmbedAuthHeaders(embedToken),
                             },
                             body: JSON.stringify(externalFetchBody),
                         },
@@ -651,12 +654,7 @@ export function useAppSdkBridge({
                     const json = await res.json();
                     if (json.status === 'ok') {
                         const result = json.results as
-                            | {
-                                  status?: number;
-                                  contentType?: string;
-                                  body?: unknown;
-                                  truncated?: boolean;
-                              }
+                            | ExternalFetchResponse
                             | undefined;
                         emitExternal({
                             status: 'ready',
@@ -732,6 +730,30 @@ export function useAppSdkBridge({
                     });
                     return;
                 }
+            }
+
+            // Bridge-only virtual route: the viz posts a drill click intent;
+            // the host resolves it and opens its drill dialog. Answered here —
+            // nothing is forwarded to the API.
+            if (path === APP_SDK_VIZ_DRILL_DOWN_PATH) {
+                if (!onVizDrillDownIntent) {
+                    respond({
+                        error: 'Drill-down is not available for this visualization.',
+                    });
+                    return;
+                }
+                try {
+                    onVizDrillDownIntent(body);
+                    respond({ result: {} });
+                } catch (err) {
+                    respond({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Invalid drill-down request.',
+                    });
+                }
+                return;
             }
 
             if (!isAllowedAppSdkRoute(method, path)) {
@@ -888,9 +910,7 @@ export function useAppSdkBridge({
                     method,
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(embedToken
-                            ? { [JWT_HEADER_NAME]: embedToken }
-                            : {}),
+                        ...getEmbedAuthHeaders(embedToken),
                         // Self-reported app attribution; the backend tags
                         // warehouse queries with it. Tracking only.
                         ...(appUuid
@@ -1084,6 +1104,7 @@ export function useAppSdkBridge({
             onExternalRequestEvent,
             pushDataAppVizContext,
             rewriteVizUnderlyingDataRequest,
+            onVizDrillDownIntent,
             pushColorScheme,
             onUrlStateChange,
             onSdkManifest,

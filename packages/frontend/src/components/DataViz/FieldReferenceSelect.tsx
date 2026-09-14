@@ -11,7 +11,6 @@ type Props = SelectProps & {
 export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {
     return (
         <Select
-            radius="md"
             {...props}
             leftSection={<TableFieldIcon fieldType={fieldType} />}
             classNames={{

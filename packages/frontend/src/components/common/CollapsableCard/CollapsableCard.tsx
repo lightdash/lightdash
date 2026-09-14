@@ -1,4 +1,4 @@
-import { Box, Button, Card, Flex, Group, Title, Tooltip } from '@mantine/core';
+import { Button, Card, Flex, Group, Title, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, type FC, type MouseEvent, type Ref } from 'react';
 import MantineIcon from './../MantineIcon';
@@ -17,11 +17,17 @@ interface CollapsableCardProps {
     rightHeaderElement?: React.ReactNode;
     isVisualizationCard?: boolean;
     hideHeading?: boolean;
+    minimal?: boolean;
+    /** Walkthrough markers for the card itself (a surface worth a look). */
+    tourProps?: Record<`data-tour-${string}`, string>;
+    /** Walkthrough markers for the heading, whose click opens the card. */
+    headingTourProps?: Record<`data-tour-${string}`, string>;
 }
 
 const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     isVisualizationCard = false,
     hideHeading = false,
+    minimal = false,
     children,
     onToggle,
     isOpen = false,
@@ -32,6 +38,8 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     headerElement,
     rightHeaderElement,
     minHeight = 300,
+    tourProps,
+    headingTourProps,
 }) => {
     const handleToggle = useCallback(
         (value: boolean) => onToggle?.(value),
@@ -48,14 +56,16 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     return (
         <Card
             component={Flex}
-            p="xxs"
+            p={minimal ? 0 : 'xxs'}
+            shadow={minimal ? undefined : 'subtle'}
+            unstyled={minimal}
             style={{
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'visible',
                 ...(shouldExpand ? { flex: 1 } : undefined),
             }}
-            shadow="subtle"
+            {...tourProps}
         >
             {!hideHeading && (
                 <Flex
@@ -63,14 +73,16 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                     gap="xxs"
                     align="center"
                     mr="xs"
-                    h="xxl"
+                    mih="xxl"
                     w="100%"
+                    wrap="wrap"
                     onClick={onClickHeading}
                     className={
                         disabled
                             ? classes.inactiveCardHeading
                             : classes.activeCardHeading
                     }
+                    {...headingTourProps}
                 >
                     <Tooltip
                         position="top-start"
@@ -103,29 +115,35 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                             />
                         </Button>
                     </Tooltip>
-                    <Group>
-                        <Title order={5} fw={500} fz="sm">
+                    <Group className={classes.leftHeader} gap="xs" wrap="wrap">
+                        <Title
+                            className={classes.title}
+                            order={5}
+                            fw={500}
+                            fz="sm"
+                        >
                             {title}
                         </Title>
                         <Group
+                            className={classes.headerElement}
                             gap="xs"
+                            wrap="wrap"
                             onClick={(e: MouseEvent) => e.stopPropagation()}
                         >
                             {headerElement}
                         </Group>
                     </Group>
                     {rightHeaderElement && (
-                        <>
-                            <Box flex={1} />
-                            <Group
-                                gap="xs"
-                                pos="relative"
-                                right={2}
-                                onClick={(e: MouseEvent) => e.stopPropagation()}
-                            >
-                                {rightHeaderElement}
-                            </Group>
-                        </>
+                        <Group
+                            className={classes.rightHeaderElement}
+                            gap="xs"
+                            pos="relative"
+                            right={2}
+                            wrap="wrap"
+                            onClick={(e: MouseEvent) => e.stopPropagation()}
+                        >
+                            {rightHeaderElement}
+                        </Group>
                     )}
                 </Flex>
             )}
@@ -157,8 +175,12 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                             >
                                 <div
                                     style={{
-                                        height: COLLAPSIBLE_CARD_GAP_SIZE,
-                                        minHeight: COLLAPSIBLE_CARD_GAP_SIZE,
+                                        height: minimal
+                                            ? 0
+                                            : COLLAPSIBLE_CARD_GAP_SIZE,
+                                        minHeight: minimal
+                                            ? 0
+                                            : COLLAPSIBLE_CARD_GAP_SIZE,
                                     }}
                                 />
                                 {children}

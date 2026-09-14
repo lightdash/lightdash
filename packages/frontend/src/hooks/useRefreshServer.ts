@@ -8,10 +8,10 @@ import {
     type JobStep,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useToaster from './toaster/useToaster';
+import { useProjectUuid } from './useProjectUuid';
 
 export const jobStepStatusLabel = (status: JobStepStatusType) => {
     switch (status) {
@@ -46,16 +46,37 @@ export const jobStatusLabel = (status: JobStatusType, jobType?: JobType) => {
     }
     switch (status) {
         case JobStatusType.DONE:
-            return 'Successfully synced dbt project!';
+            return 'Successfully synced project!';
         case JobStatusType.STARTED:
             return 'Pending sync';
         case JobStatusType.ERROR:
-            return 'Error while syncing dbt project';
+            return 'Error while syncing project';
         case JobStatusType.RUNNING:
-            return 'Syncing dbt project';
+            return 'Syncing project';
         default:
             throw new Error('Unknown job status');
     }
+};
+
+export const getJobCompletionToast = (
+    job: Job,
+): { variant: 'success' | 'warning'; title: string } => {
+    if (
+        job.jobType === JobType.COMPILE_PROJECT &&
+        job.jobResults?.errorCount !== undefined &&
+        job.jobResults.errorCount > 0 &&
+        job.jobResults.total !== undefined
+    ) {
+        return {
+            variant: 'warning',
+            title: `Synced: ${job.jobResults.errorCount} of ${job.jobResults.total} tables have errors`,
+        };
+    }
+
+    return {
+        variant: 'success',
+        title: jobStatusLabel(job.jobStatus, job.jobType),
+    };
 };
 
 export const runningStepsInfo = (steps: JobStep[]) => {
@@ -82,11 +103,16 @@ export const runningStepsInfo = (steps: JobStep[]) => {
 
 export const TOAST_KEY_FOR_REFRESH_JOB = 'refresh-job';
 
-const refresh = async (projectUuid: string) =>
+export type RefreshServerVariables = { syncContent: boolean };
+
+const refresh = async (
+    projectUuid: string,
+    { syncContent }: RefreshServerVariables,
+) =>
     lightdashApi<ApiRefreshResults>({
         method: 'POST',
         url: `/projects/${projectUuid}/refresh`,
-        body: undefined,
+        body: JSON.stringify({ syncContent }),
     });
 
 const getJob = async (jobUuid: string) =>
@@ -124,19 +150,19 @@ export const useJob = (
 };
 
 export const useRefreshServer = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();
-    return useMutation<ApiRefreshResults, ApiError>({
+    return useMutation<ApiRefreshResults, ApiError, RefreshServerVariables>({
         mutationKey: ['refresh', projectUuid],
-        mutationFn: () => refresh(projectUuid!),
+        mutationFn: (variables) => refresh(projectUuid!, variables),
         onSettled: async () =>
             queryClient.setQueryData(['status', projectUuid], 'loading'),
         onSuccess: (data) => setActiveJobId(data.jobUuid),
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Error syncing dbt project',
+                title: 'Error syncing project',
                 apiError: error,
             }),
     });

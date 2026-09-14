@@ -4,6 +4,7 @@ set -euo pipefail
 
 ACTION_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 RELEASE_INDEX_URL=https://raw.githubusercontent.com/lightdash/lightdash/main/release-safety-index.json
+RELEASE_DETAIL_URL_TEMPLATE=${RELEASE_DETAIL_URL_TEMPLATE:-"https://raw.githubusercontent.com/lightdash/lightdash/{version}/release-safety.json"}
 
 require_value() {
     local name=$1
@@ -25,6 +26,10 @@ public_version() {
         return 1
     fi
     printf '%s\n' "$mapped_version"
+}
+
+safe_branch_version() {
+    tr -c 'A-Za-z0-9._-' '-' <<<"$1" | sed 's/-$//'
 }
 
 version_gte() {
@@ -105,6 +110,7 @@ validate_verdict_json() {
         (.fromVersion | type == "string") and
         (.toVersion | type == "string") and
         (.safe | type == "boolean") and
+        (.verdict | type == "boolean" or . == "unknown") and
         (.requiredStops | type == "array") and
         all(.requiredStops[]; type == "string" and test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
         (.coveredVersions | type == "array") and

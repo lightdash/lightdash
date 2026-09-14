@@ -1,0 +1,26 @@
+.root {
+    background-color: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-5)
+    );
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+.root[data-variant='outline'] {
+    background-color: transparent;
+    border: 1px solid var(--mantine-color-default-border);
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+}
+
+.root[data-variant='outline']:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.remove {
+    color: var(--mantine-color-dimmed);
+}
+
+.remove:hover {
+    color: var(--mantine-color-text);
+}

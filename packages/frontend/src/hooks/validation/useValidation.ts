@@ -3,10 +3,12 @@ import {
     type ApiError,
     type ApiJobScheduledResponse,
     type ApiPaginatedValidateResponse,
+    type ApiValidationSummaryResponse,
     type Explore,
     type ExploreError,
     type KnexPaginatedData,
     type ValidationErrorType,
+    type ValidationGroupedSummary,
     type ValidationResponse,
     type ValidationSourceType,
     type ValidationTarget,
@@ -122,6 +124,47 @@ export const useValidation = (
     });
 };
 
+const getValidationSummary = async (
+    projectUuid: string,
+): Promise<ValidationGroupedSummary> =>
+    lightdashApi<ApiValidationSummaryResponse['results']>({
+        url: `/projects/${projectUuid}/validate/summary`,
+        method: 'GET',
+        body: undefined,
+        version: 'v2',
+    });
+
+export const useValidationSummary = (
+    projectUuid: string,
+    user: UseQueryResult<UserWithAbility, ApiError>,
+) => {
+    const organizationUuid = user.data?.organizationUuid;
+    const canManageValidation = user.data?.ability.can(
+        'manage',
+        subject('Validation', {
+            organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    return useQuery<ValidationGroupedSummary, ApiError>({
+        queryKey: ['validationSummary', projectUuid],
+        queryFn: () => getValidationSummary(projectUuid),
+        enabled: canManageValidation,
+        retry: (_, error) => error.error.statusCode !== 403,
+    });
+};
+
+// Full unpaginated validation list, fetched on demand (e.g. to resolve every
+// content item affected by one root cause before a bulk delete)
+export const useAllValidations = (projectUuid: string, enabled: boolean) =>
+    useQuery<ValidationResponse[], ApiError>({
+        queryKey: ['validation', 'all', projectUuid],
+        queryFn: () => getValidation(projectUuid, false),
+        enabled,
+        staleTime: 0,
+    });
+
 const getPaginatedValidation = async (
     projectUuid: string,
     page: number,
@@ -132,6 +175,8 @@ const getPaginatedValidation = async (
         sortDirection?: 'asc' | 'desc';
         sourceTypes?: ValidationSourceType[];
         errorTypes?: ValidationErrorType[];
+        tableName?: string;
+        fieldName?: string;
         includeChartConfigWarnings?: boolean;
         fromSettings?: boolean;
     },
@@ -149,6 +194,8 @@ const getPaginatedValidation = async (
         params.set('sourceTypes', options.sourceTypes.join(','));
     if (options?.errorTypes?.length)
         params.set('errorTypes', options.errorTypes.join(','));
+    if (options?.tableName) params.set('tableName', options.tableName);
+    if (options?.fieldName) params.set('fieldName', options.fieldName);
     if (options?.includeChartConfigWarnings != null)
         params.set(
             'includeChartConfigWarnings',
@@ -175,6 +222,8 @@ export const usePaginatedValidation = (
         sortDirection?: 'asc' | 'desc';
         sourceTypes?: ValidationSourceType[];
         errorTypes?: ValidationErrorType[];
+        tableName?: string;
+        fieldName?: string;
         includeChartConfigWarnings?: boolean;
     },
 ) => {
@@ -199,6 +248,8 @@ export const usePaginatedValidation = (
             options?.sortDirection,
             options?.sourceTypes,
             options?.errorTypes,
+            options?.tableName,
+            options?.fieldName,
             options?.includeChartConfigWarnings,
         ],
         queryFn: async ({ pageParam = 1 }) =>
@@ -208,6 +259,8 @@ export const usePaginatedValidation = (
                 sortDirection: options?.sortDirection,
                 sourceTypes: options?.sourceTypes,
                 errorTypes: options?.errorTypes,
+                tableName: options?.tableName,
+                fieldName: options?.fieldName,
                 includeChartConfigWarnings: options?.includeChartConfigWarnings,
                 fromSettings: true,
             }),
@@ -259,6 +312,9 @@ export const useValidationMutation = (
                     });
                     await queryClient.invalidateQueries({
                         queryKey: ['paginatedValidation'],
+                    });
+                    await queryClient.invalidateQueries({
+                        queryKey: ['validationSummary'],
                     });
                     showToastSuccess({ title: 'Validation completed' });
                 })
@@ -336,6 +392,7 @@ export const useDeleteValidation = (projectUuid: string) => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['validation']);
                 await queryClient.invalidateQueries(['paginatedValidation']);
+                await queryClient.invalidateQueries(['validationSummary']);
                 showToastSuccess({
                     title: 'Validation dismissed',
                 });

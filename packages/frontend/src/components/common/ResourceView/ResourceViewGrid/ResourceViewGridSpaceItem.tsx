@@ -41,7 +41,6 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
             ref={ref}
             pos="relative"
             p={0}
-            withBorder
             className={classes.gridCard}
             h="100%"
         >

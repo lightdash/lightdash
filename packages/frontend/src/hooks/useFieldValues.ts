@@ -15,8 +15,18 @@ import {
     type FilterableItem,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    hashQueryKey,
+    useQuery,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useState,
+} from 'react';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
@@ -109,6 +119,7 @@ const getEmbedFilterValues = async (options: {
     tableName: string | undefined;
     fieldId: string | undefined;
     timezone: string | null;
+    parameters: ParametersValuesMap | undefined;
 }) => {
     return lightdashApi<FieldValueSearchResult>({
         url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
@@ -121,6 +132,7 @@ const getEmbedFilterValues = async (options: {
             tableName: options.tableName,
             fieldId: options.fieldId,
             timezone: options.timezone ?? undefined,
+            parameters: options.parameters,
         }),
     });
 };
@@ -323,6 +335,21 @@ export const useFieldValues = (
     );
     const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
 
+    const filtersKey = useMemo(
+        () => hashQueryKey([stripTileTargetsFromFilters(filters)?.and ?? []]),
+        [filters],
+    );
+    const [previousFiltersKey, setPreviousFiltersKey] = useState(filtersKey);
+
+    useLayoutEffect(() => {
+        if (previousFiltersKey !== filtersKey) {
+            setPreviousFiltersKey(filtersKey);
+            setSearches(new Set<string>());
+            setResultValueMap(createAutocompleteValueMap(initialOptions));
+            setResultCounts(new Map());
+        }
+    }, [filtersKey, previousFiltersKey, initialOptions]);
+
     const tableName = useMemo(
         () => (isField(field) ? field.table : undefined),
         [field],
@@ -377,6 +404,7 @@ export const useFieldValues = (
         parameterValues,
         useAsyncPath ? 'v2' : 'v1',
         sessionTimezone,
+        filtersKey,
     ];
 
     const query = useQuery<FieldValueSearchResult, ApiError>(
@@ -393,6 +421,7 @@ export const useFieldValues = (
                     tableName,
                     fieldId,
                     timezone: sessionTimezone,
+                    parameters: parameterValues,
                 });
             }
             if (useAsyncPath) {

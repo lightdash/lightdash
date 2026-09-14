@@ -31,6 +31,7 @@ export const hasMinQueryLength = (query: string | undefined): boolean => {
 
 type Params = UseQueryOptions<SearchResults, ApiError, SearchResultMap> & {
     projectUuid: string;
+    projectUrlIdentifier?: string;
     query?: string;
     filters?: SearchFilters;
     source: 'omnibar' | 'ai_search_box';
@@ -38,6 +39,7 @@ type Params = UseQueryOptions<SearchResults, ApiError, SearchResultMap> & {
 
 const useSearch = ({
     projectUuid,
+    projectUrlIdentifier = projectUuid,
     query = '',
     filters,
     source,
@@ -49,7 +51,8 @@ const useSearch = ({
             getSearchResults({ projectUuid, query, filters, source }),
         retry: false,
         enabled: hasMinQueryLength(query),
-        select: (data) => getSearchItemMap(data, projectUuid),
+        select: (data) =>
+            getSearchItemMap(data, projectUuid, projectUrlIdentifier),
         ...params,
     });
 

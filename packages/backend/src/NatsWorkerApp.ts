@@ -1,3 +1,4 @@
+import './tracing/bootstrap'; // Must run before modules that can load Knex
 import { createTerminus } from '@godaddy/terminus';
 import { MotherduckInstanceCache } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -259,6 +260,8 @@ export default class NatsWorkerApp {
             );
         }
         const server = http.createServer(app);
+        server.keepAliveTimeout =
+            this.lightdashConfig.httpServer.keepAliveTimeoutMs;
 
         createTerminus(server, {
             signals: ['SIGUSR2', 'SIGTERM', 'SIGINT', 'SIGHUP', 'SIGABRT'],

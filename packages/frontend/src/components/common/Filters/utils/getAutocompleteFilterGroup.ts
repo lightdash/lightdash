@@ -1,5 +1,6 @@
 import {
     getItemId,
+    isDashboardDataAppTileType,
     isField,
     type AndFilterGroup,
     type DashboardFilterableField,
@@ -40,13 +41,17 @@ export const getAutocompleteFilterGroup = ({
         (f) => f.id === filterId,
     );
 
-    // Only consider tiles on the active tab when checking overlap.
+    // Only chart tiles can prove that two filters overlap on a shared query.
+    // Data Apps choose their fields at runtime, so treating one as a shared
+    // target would make otherwise independent filters constrain each other's
+    // autocomplete values.
     // Without this, tab-scoped filters from other tabs leak into
     // autocomplete queries via tile overlap on those other tabs.
-    const tilesForOverlapCheck =
-        activeTabUuid && dashboardTiles
-            ? dashboardTiles.filter((tile) => tile.tabUuid === activeTabUuid)
-            : dashboardTiles;
+    const tilesForOverlapCheck = dashboardTiles?.filter(
+        (tile) =>
+            !isDashboardDataAppTileType(tile) &&
+            (!activeTabUuid || tile.tabUuid === activeTabUuid),
+    );
 
     // Get tiles that the current filter applies to
     const currentFilterTileUuids =

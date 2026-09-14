@@ -33,6 +33,7 @@ import {
     createOneLoginStrategyForConfig,
     isOneLoginPassportStrategyAvailableToUse,
 } from '../controllers/authentication/strategies/oneLoginStrategy';
+import { chartRegistryAssetRouter } from '../ee/routers/chartRegistryAssetRouter';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
 import { createAuditLogEvent } from '../logging/auditLog';
 import { createActorFromUser } from '../logging/caslAuditWrapper';
@@ -178,7 +179,10 @@ const registerAzureAdStrategyForOrg = (
     const strategyName = `azuread:${organizationUuid}`;
     const existing = azureAdStrategyCache.get(strategyName);
     // Always re-register so config changes (e.g. rotated secret) take effect.
-    passport.use(strategyName, createAzureAdOidcStrategyForConfig(config));
+    passport.use(
+        strategyName,
+        createAzureAdOidcStrategyForConfig(config, organizationUuid),
+    );
     if (existing) {
         clearTimeout(existing.timer);
     }
@@ -239,7 +243,7 @@ const registerGenericOidcStrategyForOrg = async (
     // Always re-register so config changes (e.g. rotated secret) take effect.
     passport.use(
         strategyName,
-        await createGenericOidcStrategyForConfig(config),
+        await createGenericOidcStrategyForConfig(config, organizationUuid),
     );
     if (existing) {
         clearTimeout(existing.timer);
@@ -296,7 +300,10 @@ const registerOneLoginStrategyForOrg = (
 ): string => {
     const strategyName = `oneLogin:${organizationUuid}`;
     const existing = oneLoginStrategyCache.get(strategyName);
-    passport.use(strategyName, createOneLoginStrategyForConfig(config));
+    passport.use(
+        strategyName,
+        createOneLoginStrategyForConfig(config, organizationUuid),
+    );
     if (existing) {
         clearTimeout(existing.timer);
     }
@@ -897,3 +904,4 @@ apiV1Router.use('/jobs', jobsRouter);
 apiV1Router.use('/headless-browser', headlessBrowserRouter);
 apiV1Router.use('/mcp', mcpRouter);
 apiV1Router.use('/oauth', oauthRouter);
+apiV1Router.use('/ee/chart-registry', chartRegistryAssetRouter);

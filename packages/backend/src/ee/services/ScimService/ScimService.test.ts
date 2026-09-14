@@ -1,9 +1,11 @@
 import {
+    ForbiddenError,
     GroupWithMembers,
     LightdashUser,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    ProjectType,
     ScimError,
     ScimSchemaType,
     ScimUserRole,
@@ -880,8 +882,218 @@ describe('ScimService', () => {
                         roleId: 'custom-role-1-uuid',
                     },
                 ],
-                true, // excludeProjectPreviews
+                true, // excludeProjectPreviews,
             );
+        });
+
+        describe('role sets (multiple roles)', () => {
+            const baseUser = {
+                schemas: [ScimSchemaType.USER],
+                userName: mockUser.email,
+                name: {
+                    givenName: mockUser.firstName,
+                    familyName: mockUser.lastName,
+                },
+                active: true,
+                emails: [{ value: mockUser.email, primary: true }],
+            };
+            const multiRoles = [
+                {
+                    value: OrganizationMemberRole.EDITOR,
+                    display: 'Editor',
+                    type: 'Organization',
+                    primary: true,
+                },
+                organizationCustomScimRole,
+                {
+                    value: 'project-1-uuid:viewer',
+                    display: 'Analytics Project - Viewer',
+                    type: 'Project - Analytics Project',
+                    primary: false,
+                },
+                {
+                    value: 'project-1-uuid:custom-role-1-uuid',
+                    display: 'Analytics Project - Data Analyst',
+                    type: 'Project - Analytics Project',
+                    primary: false,
+                },
+            ];
+
+            afterEach(() => {
+                vi.mocked(
+                    ScimServiceArgumentsMock.commercialFeatureFlagModel.get,
+                ).mockResolvedValue({ id: 'custom-roles', enabled: false });
+            });
+
+            test('rejects multiple roles per level when custom roles are disabled', async () => {
+                const { rolesModel } = ScimServiceArgumentsMock;
+                await expect(
+                    service.updateUser({
+                        account: mockScimAccount,
+                        user: { ...baseUser, roles: multiRoles },
+                        userUuid: mockUser.userUuid,
+                        organizationUuid: mockUser.organizationUuid,
+                    }),
+                ).rejects.toMatchObject({ status: '400' });
+                expect(
+                    rolesModel.replaceOrganizationUserRoleSet,
+                ).not.toHaveBeenCalled();
+                expect(
+                    rolesModel.setUserOrgAndProjectRoles,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('replaces organization and project role sets when the flag is on', async () => {
+                const { rolesModel, commercialFeatureFlagModel } =
+                    ScimServiceArgumentsMock;
+                vi.mocked(commercialFeatureFlagModel.get).mockResolvedValue({
+                    id: 'custom-roles',
+                    enabled: true,
+                });
+
+                await service.updateUser({
+                    account: mockScimAccount,
+                    user: { ...baseUser, roles: multiRoles },
+                    userUuid: mockUser.userUuid,
+                    organizationUuid: mockUser.organizationUuid,
+                });
+
+                expect(
+                    rolesModel.setUserOrgAndProjectRoleSets,
+                ).toHaveBeenCalledWith(
+                    mockUser.organizationUuid,
+                    mockUser.userUuid,
+                    {
+                        systemRole: OrganizationMemberRole.EDITOR,
+                        customRoleUuids: [mockOrganizationCustomRole.roleUuid],
+                    },
+                    [
+                        {
+                            projectUuid: 'project-1-uuid',
+                            roleSet: {
+                                systemRole: 'viewer',
+                                customRoleUuids: ['custom-role-1-uuid'],
+                            },
+                        },
+                    ],
+                    true,
+                );
+                expect(
+                    rolesModel.setUserOrgAndProjectRoles,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('rejects two system organization roles even when the flag is on', async () => {
+                const { commercialFeatureFlagModel } = ScimServiceArgumentsMock;
+                vi.mocked(commercialFeatureFlagModel.get).mockResolvedValue({
+                    id: 'custom-roles',
+                    enabled: true,
+                });
+                await expect(
+                    service.updateUser({
+                        account: mockScimAccount,
+                        user: {
+                            ...baseUser,
+                            roles: [
+                                {
+                                    value: OrganizationMemberRole.EDITOR,
+                                    type: 'Organization',
+                                    primary: true,
+                                },
+                                {
+                                    value: OrganizationMemberRole.VIEWER,
+                                    type: 'Organization',
+                                    primary: false,
+                                },
+                            ],
+                        },
+                        userUuid: mockUser.userUuid,
+                        organizationUuid: mockUser.organizationUuid,
+                    }),
+                ).rejects.toMatchObject({ status: '400' });
+            });
+
+            test('demoting the last admin through SCIM is blocked', async () => {
+                const { rolesModel } = ScimServiceArgumentsMock;
+                vi.mocked(
+                    rolesModel.setUserOrgAndProjectRoles,
+                ).mockRejectedValueOnce(
+                    new ForbiddenError(
+                        'Organization must have at least one admin',
+                    ),
+                );
+                await expect(
+                    service.updateUser({
+                        account: mockScimAccount,
+                        user: {
+                            ...baseUser,
+                            roles: [
+                                {
+                                    value: OrganizationMemberRole.VIEWER,
+                                    type: 'Organization',
+                                    primary: true,
+                                },
+                            ],
+                        },
+                        userUuid: mockUser.userUuid,
+                        organizationUuid: mockUser.organizationUuid,
+                    }),
+                ).rejects.toMatchObject({
+                    status: '403',
+                    detail: 'Organization must have at least one admin',
+                });
+                expect(
+                    rolesModel.setUserOrgAndProjectRoleSets,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('deactivating the last admin through SCIM is blocked', async () => {
+                const { rolesModel, organizationMemberProfileModel } =
+                    ScimServiceArgumentsMock;
+                vi.mocked(
+                    organizationMemberProfileModel.getOrganizationMemberByUuid,
+                ).mockResolvedValueOnce({
+                    ...mockUser,
+                    role: OrganizationMemberRole.ADMIN,
+                } as never);
+                vi.mocked(
+                    rolesModel.setUserOrgAndProjectRoles,
+                ).mockRejectedValueOnce(
+                    new ForbiddenError(
+                        'Organization must have at least one admin',
+                    ),
+                );
+                await expect(
+                    service.updateUser({
+                        account: mockScimAccount,
+                        user: { ...baseUser, active: false },
+                        userUuid: mockUser.userUuid,
+                        organizationUuid: mockUser.organizationUuid,
+                    }),
+                ).rejects.toMatchObject({
+                    status: '403',
+                    detail: 'Organization must have at least one admin',
+                });
+                // the model guard rejected the deactivation reset; nothing else ran
+                expect(
+                    rolesModel.setUserOrgAndProjectRoles,
+                ).toHaveBeenCalledWith(
+                    mockUser.organizationUuid,
+                    mockUser.userUuid,
+                    OrganizationMemberRole.MEMBER,
+                    [],
+                    false,
+                );
+                expect(
+                    ScimServiceArgumentsMock.groupsModel
+                        .removeUserFromAllGroups,
+                ).not.toHaveBeenCalled();
+                // guard must fire before user row is touched
+
+                expect(
+                    ScimServiceArgumentsMock.userModel.updateUser,
+                ).not.toHaveBeenCalled();
+            });
         });
 
         test('should update user with an organization-level custom role', async () => {
@@ -1096,7 +1308,7 @@ describe('ScimService', () => {
                 mockUser.userUuid,
                 OrganizationMemberRole.VIEWER,
                 [],
-                true, // excludeProjectPreviews
+                true, // excludeProjectPreviews,
             );
         });
     });
@@ -1235,6 +1447,90 @@ describe('ScimService', () => {
 
             expect(userModel.updateUser).not.toHaveBeenCalled();
             expect(rolesModel.setUserOrgAndProjectRoles).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('createGroup', () => {
+        const createdGroup: GroupWithMembers = {
+            uuid: 'group-uuid',
+            name: 'Data Platform',
+            createdAt: new Date('2024-01-01'),
+            createdByUserUuid: null,
+            updatedAt: new Date('2024-01-01'),
+            updatedByUserUuid: null,
+            organizationUuid: mockUser.organizationUuid,
+            members: [],
+            memberUuids: [],
+        };
+
+        test('should accept schema extensions alongside the core group schema', async () => {
+            const createGroup = vi.fn().mockResolvedValue(createdGroup);
+            const groupService = new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    find: vi.fn().mockResolvedValue({ data: [] }),
+                    createGroup,
+                } as never,
+            });
+
+            await expect(
+                groupService.createGroup(
+                    mockScimAccount,
+                    mockUser.organizationUuid,
+                    {
+                        schemas: [
+                            ScimSchemaType.GROUP,
+                            'urn:example:params:scim:schemas:extension:2.0:Group',
+                        ],
+                        displayName: createdGroup.name,
+                        members: [],
+                    },
+                ),
+            ).resolves.toMatchObject({
+                schemas: [ScimSchemaType.GROUP],
+                displayName: createdGroup.name,
+            });
+
+            expect(createGroup).toHaveBeenCalledOnce();
+        });
+
+        test.each([
+            { name: 'an empty array', schemas: [] },
+            {
+                name: 'an extension without the core group schema',
+                schemas: [
+                    'urn:example:params:scim:schemas:extension:2.0:Group',
+                ],
+            },
+        ])('should reject $name', async ({ schemas }) => {
+            const find = vi.fn();
+            const createGroup = vi.fn();
+            const groupService = new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    find,
+                    createGroup,
+                } as never,
+            });
+
+            await expect(
+                groupService.createGroup(
+                    mockScimAccount,
+                    mockUser.organizationUuid,
+                    {
+                        schemas,
+                        displayName: createdGroup.name,
+                        members: [],
+                    },
+                ),
+            ).rejects.toMatchObject({
+                detail: `schemas must include ${ScimSchemaType.GROUP}`,
+                status: '400',
+                scimType: 'invalidValue',
+            });
+
+            expect(find).not.toHaveBeenCalled();
+            expect(createGroup).not.toHaveBeenCalled();
         });
     });
 

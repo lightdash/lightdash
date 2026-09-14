@@ -69,7 +69,6 @@ const GithubUserSettingsPanel: FC = () => {
                             size="xs"
                             component="a"
                             target="_blank"
-                            color="blue"
                             href={`${GITHUB_USER_AUTHORIZE_URL}?redirect=/generalSettings/profile`}
                             leftSection={<MantineIcon icon={IconBrandGithub} />}
                         >

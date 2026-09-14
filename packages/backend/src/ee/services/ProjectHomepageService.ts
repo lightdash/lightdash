@@ -1,11 +1,15 @@
 import { subject } from '@casl/ability';
 import {
     ANNOUNCEMENT_BODY_MAX_LENGTH,
+    ANNOUNCEMENT_CATEGORY_META,
     assertUnreachable,
     CommercialFeatureFlags,
+    convertOrganizationRoleToProjectRole,
     defaultHomepageConfig,
     ForbiddenError,
     getErrorMessage,
+    getHighestProjectRole,
+    isSystemRole,
     NotFoundError,
     ParameterError,
     parseHomepageConfig,
@@ -42,9 +46,11 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import type { RecentContentService } from '../../services/RecentContentService/RecentContentService';
 import { secureFetch } from '../../utils/secureFetch/secureFetch';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
@@ -166,12 +172,12 @@ const readImageDimensions = (buffer: Buffer): ImageDimensions | null =>
     readJpegDimensions(buffer);
 
 export type ProjectHomepageServiceArguments = {
+    recentContentService: Pick<RecentContentService, 'getRecentlyViewed'>;
     projectHomepageModel: Pick<
         ProjectHomepageModel,
         | 'getDefault'
         | 'getByUuid'
         | 'getPublishedDefault'
-        | 'getRecentlyViewed'
         | 'getAssignments'
         | 'updateGroupPriorities'
         | 'resolvePublished'
@@ -195,7 +201,11 @@ export type ProjectHomepageServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
-    projectModel: Pick<ProjectModel, 'getProjectMemberAccess' | 'getSummary'>;
+    projectModel: Pick<
+        ProjectModel,
+        'getProjectMemberAccess' | 'getProjectGroupAccesses' | 'getSummary'
+    >;
+    userModel: Pick<UserModel, 'getUserDetailsByUuid'>;
     fileStorageClient: FileStorageClient;
     persistentDownloadFileService: PersistentDownloadFileService;
     slackClient: Pick<SlackClient, 'postMessage'>;
@@ -211,6 +221,7 @@ export type ProjectHomepageServiceArguments = {
 };
 
 export class ProjectHomepageService extends BaseService {
+    private readonly recentContentService: ProjectHomepageServiceArguments['recentContentService'];
     private readonly projectHomepageModel: ProjectHomepageServiceArguments['projectHomepageModel'];
 
     private readonly analytics: ProjectHomepageServiceArguments['analytics'];
@@ -220,6 +231,8 @@ export class ProjectHomepageService extends BaseService {
     private readonly groupsModel: ProjectHomepageServiceArguments['groupsModel'];
 
     private readonly projectModel: ProjectHomepageServiceArguments['projectModel'];
+
+    private readonly userModel: ProjectHomepageServiceArguments['userModel'];
 
     private readonly fileStorageClient: ProjectHomepageServiceArguments['fileStorageClient'];
 
@@ -236,10 +249,12 @@ export class ProjectHomepageService extends BaseService {
     constructor(args: ProjectHomepageServiceArguments) {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
+        this.recentContentService = args.recentContentService;
         this.analytics = args.analytics;
         this.featureFlagService = args.featureFlagService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
+        this.userModel = args.userModel;
         this.fileStorageClient = args.fileStorageClient;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.slackClient = args.slackClient;
@@ -443,7 +458,7 @@ export class ProjectHomepageService extends BaseService {
         groupUuids: string[];
         role: ProjectMemberRole | undefined;
     }> {
-        const [groups, membership] = await Promise.all([
+        const [groups, membership, groupAccesses, user] = await Promise.all([
             organizationUuid
                 ? this.groupsModel.findUserGroups({
                       userUuid,
@@ -451,11 +466,27 @@ export class ProjectHomepageService extends BaseService {
                   })
                 : Promise.resolve([]),
             this.projectModel.getProjectMemberAccess(projectUuid, userUuid),
+            this.projectModel.getProjectGroupAccesses(projectUuid),
+            this.userModel.getUserDetailsByUuid(userUuid),
         ]);
-        return {
-            groupUuids: groups.map((group) => group.uuid),
-            role: membership?.role,
-        };
+        const groupUuids = groups.map((group) => group.uuid);
+        // Custom roles resolve to their stored placeholder, not a scope-derived tier.
+        const highestRole = getHighestProjectRole([
+            {
+                type: 'organization',
+                role: user.role
+                    ? convertOrganizationRoleToProjectRole(user.role)
+                    : undefined,
+            },
+            { type: 'project', role: membership?.role },
+            ...groupAccesses
+                .filter((access) => groupUuids.includes(access.groupUuid))
+                .map((access) => ({
+                    type: 'group' as const,
+                    role: isSystemRole(access.role) ? access.role : undefined,
+                })),
+        ]);
+        return { groupUuids, role: highestRole?.role };
     }
 
     async getResolvedHomepage(
@@ -532,10 +563,15 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<HomepageRecentlyViewedItem[]> {
         await this.assertFlagEnabled(user);
         await this.assertCanView(user, projectUuid);
-        return this.projectHomepageModel.getRecentlyViewed(
+        const entries = await this.recentContentService.getRecentlyViewed(
+            user,
             projectUuid,
-            user.userUuid,
         );
+        return entries.map(({ contentType, uuid, viewedAt }) => ({
+            contentType,
+            uuid,
+            viewedAt,
+        }));
     }
 
     async getHomepageForBuilder(
@@ -835,6 +871,50 @@ export class ProjectHomepageService extends BaseService {
             .trim();
     }
 
+    private static announcementCategoryLabel(
+        announcement: ProjectAnnouncement,
+    ): string | null {
+        if (announcement.category == null) {
+            return null;
+        }
+        return ANNOUNCEMENT_CATEGORY_META[announcement.category]?.label ?? null;
+    }
+
+    // Context-line attribution only — omit missing parts so Slack never
+    // shows an empty "Posted by" or a dangling separator.
+    private static announcementSlackAttribution(
+        announcement: ProjectAnnouncement,
+    ): string | null {
+        const parts: string[] = [];
+        const categoryLabel =
+            ProjectHomepageService.announcementCategoryLabel(announcement);
+        if (categoryLabel) {
+            parts.push(categoryLabel);
+        }
+        if (announcement.authorName) {
+            parts.push(`Posted by ${announcement.authorName}`);
+        }
+        return parts.length > 0 ? parts.join(' · ') : null;
+    }
+
+    private static announcementSlackFallbackText(
+        announcement: ProjectAnnouncement,
+    ): string {
+        const categoryLabel =
+            ProjectHomepageService.announcementCategoryLabel(announcement);
+        const author = announcement.authorName;
+        if (categoryLabel && author) {
+            return `📢 ${categoryLabel} from ${author}: ${announcement.title}`;
+        }
+        if (categoryLabel) {
+            return `📢 ${categoryLabel}: ${announcement.title}`;
+        }
+        if (author) {
+            return `📢 New announcement from ${author}: ${announcement.title}`;
+        }
+        return `📢 New announcement: ${announcement.title}`;
+    }
+
     private async notifyAnnouncementToSlack(
         organizationUuid: string,
         projectUuid: string,
@@ -848,6 +928,8 @@ export class ProjectHomepageService extends BaseService {
         const image = announcement.body
             ? this.announcementSlackImage(announcement.body)
             : null;
+        const attribution =
+            ProjectHomepageService.announcementSlackAttribution(announcement);
         const blocks: (KnownBlock | SlackMarkdownBlock)[] = [
             {
                 type: 'header',
@@ -857,6 +939,19 @@ export class ProjectHomepageService extends BaseService {
                     emoji: true,
                 },
             },
+            ...(attribution
+                ? [
+                      {
+                          type: 'context' as const,
+                          elements: [
+                              {
+                                  type: 'mrkdwn' as const,
+                                  text: attribution,
+                              },
+                          ],
+                      },
+                  ]
+                : []),
             ...(markdown
                 ? [{ type: 'markdown' as const, text: markdown }]
                 : []),
@@ -879,7 +974,8 @@ export class ProjectHomepageService extends BaseService {
                 ],
             },
         ];
-        const text = `📢 New announcement: ${announcement.title}`;
+        const text =
+            ProjectHomepageService.announcementSlackFallbackText(announcement);
         try {
             await this.slackClient.postMessage({
                 organizationUuid,

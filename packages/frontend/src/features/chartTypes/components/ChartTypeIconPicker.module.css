@@ -1,0 +1,10 @@
+/* Six rows of md ActionIcons, so the fold lands on a row edge */
+.scroll {
+    max-height: calc(6 * rem(28px) + 5 * var(--mantine-spacing-xs));
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--mantine-spacing-xs);
+}

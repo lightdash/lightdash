@@ -4,6 +4,7 @@ import {
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     FilterOperator,
+    JWT_HEADER_NAME,
     LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
     LightdashSignedDownloadHeader,
@@ -930,6 +931,7 @@ describe('external-fetch branch', () => {
             results: {
                 status: 200,
                 contentType: 'application/json',
+                headers: {},
                 body: { ok: true },
                 truncated: false,
             },
@@ -957,33 +959,40 @@ describe('external-fetch branch', () => {
             query: { limit: '10' },
             body: { amount: 500 },
         });
-        // No app-supplied headers leak through; external fetch never sends the
-        // embed JWT (it is not supported in embed mode).
+        // No app-supplied headers leak through.
         expect(Object.keys(init.headers)).toEqual(['Content-Type']);
     });
 
-    it('rejects external fetch in embed mode without calling the backend', async () => {
+    it('authenticates external fetches in embed mode with the embed JWT', async () => {
         mockUseEmbed.mockReturnValue({
             embedToken: 'embed-jwt',
-            projectUuid: undefined,
+            projectUuid: PROJECT_UUID,
         });
         renderBridge(() => undefined);
-        const { responses } = captureResponses();
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                status: 200,
+                contentType: 'application/json',
+                headers: {},
+                body: { temperature: 18 },
+                truncated: false,
+            },
+        });
 
         postExternalFetch({ alias: 'weather', path: '/today' });
 
         await vi.waitFor(() =>
-            expect(
-                responses.find(
-                    (r) =>
-                        r['type'] === 'lightdash:sdk:external-fetch-response',
-                ),
-            ).toMatchObject({
-                id: POST_ID,
-                error: 'External data access is not available in embedded apps',
-            }),
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/ee/projects/${PROJECT_UUID}/apps/${APP_UUID}/external-fetch`,
+                expect.objectContaining({ method: 'POST' }),
+            ),
         );
-        expect(fetch).not.toHaveBeenCalled();
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(init.headers).toEqual({
+            'Content-Type': 'application/json',
+            [JWT_HEADER_NAME]: 'embed-jwt',
+        });
     });
 
     it('posts back the result on success', async () => {
@@ -992,6 +1001,7 @@ describe('external-fetch branch', () => {
         const result = {
             status: 200,
             contentType: 'application/json',
+            headers: { 'retry-after': '2' },
             body: 1,
             truncated: false,
         };
@@ -1172,7 +1182,11 @@ describe('data-app-viz-context push', () => {
         ],
         options: { showLegend: true, barColor: '#ff0000' },
         colorPalette: ['#7162FF', '#1A1B1E'],
+        seriesColors: {},
+        valueColors: {},
+        pivotDetails: null,
         underlyingData: { enabled: false },
+        drillDown: { enabled: false },
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
@@ -1202,6 +1216,7 @@ describe('data-app-viz-context push', () => {
                 rows: dataAppVizContext.rows,
                 options: dataAppVizContext.options,
                 colorPalette: dataAppVizContext.colorPalette,
+                pivotDetails: null,
             }),
             '*',
         );
@@ -1809,6 +1824,107 @@ describe('viz underlying-data virtual route', () => {
                     type: 'lightdash:sdk:fetch-response',
                     id: POST_ID,
                     error: expect.stringMatching(/^Blocked:/),
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+});
+
+describe('viz drill-down virtual route', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    const VIRTUAL_PATH = '/__sdk/viz/drill-down';
+    const INTENT = { row: {}, metric: 'x' };
+
+    function renderBridgeWithDrillDown(
+        onVizDrillDownIntent?: (intentBody: unknown) => void,
+    ) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onVizDrillDownIntent,
+            }),
+        );
+    }
+
+    function postVirtualRoute() {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: VIRTUAL_PATH,
+            body: INTENT,
+        });
+    }
+
+    it('answers with an error when no handler is mounted', async () => {
+        renderBridgeWithDrillDown(undefined);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: 'Drill-down is not available for this visualization.',
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('invokes the handler and acks without forwarding to the API', async () => {
+        const handler = vi.fn();
+        renderBridgeWithDrillDown(handler);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    result: {},
+                }),
+                '*',
+            ),
+        );
+        expect(handler).toHaveBeenCalledWith(INTENT);
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('answers with the thrown message when the handler rejects the intent', async () => {
+        renderBridgeWithDrillDown(() => {
+            throw new Error('"x" is not a metric on this chart.');
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: '"x" is not a metric on this chart.',
                 }),
                 '*',
             ),

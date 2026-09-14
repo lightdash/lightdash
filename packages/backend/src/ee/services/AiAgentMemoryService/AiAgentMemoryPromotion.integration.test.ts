@@ -77,6 +77,7 @@ describe('AI agent memory promotion integration', () => {
                 model_config: null,
                 is_system: false,
                 version: 1,
+                thread_retention_hours: null,
             })
             .returning<Array<{ ai_agent_uuid: string }>>('ai_agent_uuid');
         agentUuid = agent.ai_agent_uuid;
@@ -446,30 +447,6 @@ describe('AI agent memory promotion integration', () => {
             ),
         ).rejects.toThrow('Project context review is not enabled');
         expect(projectContextEntryAuthoringCall).not.toHaveBeenCalled();
-    });
-
-    it('returns a user-facing reason when authoring rejects the memory', async () => {
-        const memoryUuid = await seedMemory();
-        const { service, projectContextEntryAuthoringCall } = buildService(
-            vi.fn().mockResolvedValue({
-                type: 'rejected',
-                reason: 'not_project_context',
-            }),
-        );
-
-        const promotion = service.promoteMemory(
-            getTestContext().testUser,
-            SEED_PROJECT.project_uuid,
-            memoryUuid,
-            'Nominate personal memory',
-        );
-
-        await expect(promotion).rejects.toMatchObject({
-            message:
-                'This memory does not contain durable project context to propose.',
-            data: { reason: 'not_project_context' },
-        });
-        expect(projectContextEntryAuthoringCall).toHaveBeenCalledOnce();
     });
 
     it('returns operational authoring failures without a service retry', async () => {

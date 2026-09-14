@@ -67,6 +67,7 @@ export const AgentSettingsSectionNav: FC<Props> = ({ mode }) => {
                     key={section.id}
                     className={classes.item}
                     data-active={activeId === section.id}
+                    aria-current={activeId === section.id ? 'true' : undefined}
                     onClick={() => handleClick(section.id)}
                 >
                     {section.label}

@@ -26,7 +26,6 @@ import {
     Select,
     Stack,
     Text,
-    useMantineColorScheme,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, { memo, useCallback, useMemo, useState, type FC } from 'react';
@@ -49,17 +48,16 @@ type Props = {
 const ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH = 2;
 
 const AddFilterButton: FC<{ onClick: () => void }> = ({ onClick }) => {
-    const { colorScheme } = useMantineColorScheme();
     return (
         <Box
             pos="relative"
-            bg={colorScheme === 'dark' ? 'ldDark.6' : 'white'}
+            bg="var(--mantine-color-body)"
             style={{
                 zIndex: 2,
             }}
         >
             <Button
-                variant="outline"
+                variant="light"
                 size="xs"
                 leftSection={<MantineIcon icon={IconPlus} />}
                 onClick={onClick}

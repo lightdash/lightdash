@@ -17,10 +17,10 @@ material correction to a published advisory.
 
 Use these affected-product identifiers consistently:
 
-| Product | Ecosystem | Package name |
-| --- | --- | --- |
-| Lightdash server and official container image | Other | `lightdash/lightdash` |
-| Lightdash CLI | npm | `@lightdash/cli` |
+| Product                                       | Ecosystem | Package name          |
+| --------------------------------------------- | --------- | --------------------- |
+| Lightdash server and official container image | Other     | `lightdash/lightdash` |
+| Lightdash CLI                                 | npm       | `@lightdash/cli`      |
 
 Do not use the unscoped npm package `lightdash`; it is unrelated to this
 project.

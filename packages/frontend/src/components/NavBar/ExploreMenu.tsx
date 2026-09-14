@@ -12,6 +12,8 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
+import useCreateInAnySpaceAccess from '../../hooks/user/useCreateInAnySpaceAccess';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
@@ -20,12 +22,21 @@ import MantineIcon from '../common/MantineIcon';
 import DashboardCreateModal from '../common/modal/DashboardCreateModal';
 import SpaceActionModal from '../common/SpaceActionModal';
 import { ActionType } from '../common/SpaceActionModal/types';
+import AppColorSchemeScope from './AppColorSchemeScope';
 
 type Props = {
     projectUuid: string;
+    projectUrlIdentifier?: string;
 };
 
-const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
+const ExploreMenu: FC<Props> = memo((props) => {
+    const { projectUuid, projectUrlIdentifier: projectUrlIdentifierProp } =
+        props;
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ??
+        projectUrlIdentifierProp ??
+        projectUuid;
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -35,6 +46,11 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] = useState(false);
+    const userCanCreateDashboards = useCreateInAnySpaceAccess(
+        projectUuid,
+        'Dashboard',
+        { enabled: isOpen },
+    );
 
     return (
         <>
@@ -47,10 +63,11 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
             >
                 <Menu
                     withArrow
-                    shadow="lg"
                     position="bottom-start"
                     arrowOffset={16}
                     offset={-2}
+                    opened={isOpen}
+                    onChange={setIsOpen}
                     zIndex={getDefaultZIndex('max')}
                     portalProps={{ target: '#navbar-header' }}
                 >
@@ -61,12 +78,14 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             fz="sm"
                             leftSection={
                                 <MantineIcon
-                                    color="ldGray.6"
+                                    color="dimmed"
                                     icon={IconSquareRoundedPlus}
                                 />
                             }
-                            onClick={() => setIsOpen(!isOpen)}
                             data-testid="ExploreMenu/NewButton"
+                            // Navigation anchor for scope walkthroughs
+                            data-tour-nav="new"
+                            data-tour-hint="Click New"
                         >
                             New
                         </Button>
@@ -77,8 +96,10 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             component={Link}
                             title="Chart"
                             description="Build queries and save them as charts."
-                            to={`/projects/${projectUuid}/tables`}
+                            to={`/projects/${projectUrlIdentifier}/tables`}
                             icon={IconTable}
+                            data-tour-nav="new-chart"
+                            data-tour-hint="Choose Chart"
                         />
 
                         <Can
@@ -92,18 +113,20 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 component={Link}
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
-                                to={`/projects/${projectUuid}/sql-runner`}
+                                to={`/projects/${projectUrlIdentifier}/sql-runner`}
+                                data-tour-nav="new-sql-runner"
+                                data-tour-hint="Choose Query using SQL runner"
                                 onClick={(
                                     event: React.MouseEvent<HTMLAnchorElement>,
                                 ) => {
                                     if (
                                         location.pathname.startsWith(
-                                            `/projects/${projectUuid}/sql-runner`,
+                                            `/projects/${projectUrlIdentifier}/sql-runner`,
                                         )
                                     ) {
                                         event.preventDefault();
                                         window.open(
-                                            `/projects/${projectUuid}/sql-runner`,
+                                            `/projects/${projectUrlIdentifier}/sql-runner`,
                                             '_blank',
                                         );
                                     }
@@ -111,21 +134,17 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 icon={IconTerminal2}
                             />
                         </Can>
-                        <Can
-                            I="create"
-                            this={subject('Dashboard', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
+                        {userCanCreateDashboards && (
                             <LargeMenuItem
                                 title="Dashboard"
                                 description="Arrange multiple charts into a single view."
                                 onClick={() => setIsCreateDashboardOpen(true)}
                                 icon={IconLayoutDashboard}
                                 data-testid="ExploreMenu/NewDashboardButton"
+                                data-tour-nav="new-dashboard"
+                                data-tour-hint="Choose Dashboard"
                             />
-                        </Can>
+                        )}
 
                         {dataAppsFlag.data?.enabled && (
                             <Can
@@ -138,6 +157,9 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             >
                                 <LargeMenuItem
                                     component={Link}
+                                    // Navigation anchor for scope walkthroughs (data-tour-via)
+                                    data-tour-nav="new-app"
+                                    data-tour-hint="Choose Data App"
                                     title="Data App"
                                     description="Build an interactive app powered by your data."
                                     to={`/projects/${projectUuid}/apps/generate`}
@@ -166,35 +188,39 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
             </Can>
 
             {isCreateSpaceOpen && (
-                <SpaceActionModal
-                    projectUuid={projectUuid}
-                    actionType={ActionType.CREATE}
-                    title="Create new space"
-                    confirmButtonLabel="Create"
-                    icon={IconFolderPlus}
-                    onClose={() => setIsCreateSpaceOpen(false)}
-                    onSubmitForm={(space) => {
-                        if (space)
-                            void navigate(
-                                `/projects/${projectUuid}/spaces/${space.uuid}`,
-                            );
-                    }}
-                    parentSpaceUuid={null}
-                />
+                <AppColorSchemeScope>
+                    <SpaceActionModal
+                        projectUuid={projectUuid}
+                        actionType={ActionType.CREATE}
+                        title="Create new space"
+                        confirmButtonLabel="Create"
+                        icon={IconFolderPlus}
+                        onClose={() => setIsCreateSpaceOpen(false)}
+                        onSubmitForm={(space) => {
+                            if (space)
+                                void navigate(
+                                    `/projects/${projectUrlIdentifier}/spaces/${space.uuid}`,
+                                );
+                        }}
+                        parentSpaceUuid={null}
+                    />
+                </AppColorSchemeScope>
             )}
             {isCreateDashboardOpen && (
-                <DashboardCreateModal
-                    projectUuid={projectUuid}
-                    opened={isCreateDashboardOpen}
-                    onClose={() => setIsCreateDashboardOpen(false)}
-                    onConfirm={(dashboard) => {
-                        void navigate(
-                            `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
-                        );
+                <AppColorSchemeScope>
+                    <DashboardCreateModal
+                        projectUuid={projectUuid}
+                        opened={isCreateDashboardOpen}
+                        onClose={() => setIsCreateDashboardOpen(false)}
+                        onConfirm={(dashboard) => {
+                            void navigate(
+                                `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/edit`,
+                            );
 
-                        setIsCreateDashboardOpen(false);
-                    }}
-                />
+                            setIsCreateDashboardOpen(false);
+                        }}
+                    />
+                </AppColorSchemeScope>
             )}
         </>
     );

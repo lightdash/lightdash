@@ -4,6 +4,7 @@ import {
     ApiAddDeployBatchResponse,
     ApiErrorPayload,
     ApiFinalizeDeployResponse,
+    ApiSetExploresResponse,
     ApiStartDeploySessionResponse,
     assertRegisteredAccount,
     LightdashCliVersionHeader,
@@ -14,6 +15,7 @@ import {
     OperationId,
     Path,
     Post,
+    Put,
     Request,
     Response,
     Route,
@@ -33,6 +35,41 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Project')
 export class DeployController extends BaseController {
+    /**
+     * Deploy explores with the full dbt model inventory for selective cleanup.
+     * @summary Deploy explores
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/')
+    @OperationId('deployExplores')
+    async deployExplores(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: {
+            explores: AnyType[];
+            complete: boolean;
+            dbtModelNames: string[];
+        },
+    ): Promise<ApiSetExploresResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getProjectService()
+            .setExplores(
+                toSessionUser(req.account),
+                projectUuid,
+                body.explores,
+                req.header(LightdashCliVersionHeader),
+                body.complete,
+                body.dbtModelNames,
+            );
+        return { status: 'ok', results };
+    }
+
     /**
      * Start a new deploy session for batched explore uploads
      * @summary Start deploy session
@@ -87,6 +124,7 @@ export class DeployController extends BaseController {
                 sessionUuid,
                 (body as unknown as ApiAddDeployBatchRequest).explores,
                 (body as unknown as ApiAddDeployBatchRequest).batchNumber,
+                (body as unknown as ApiAddDeployBatchRequest).complete,
             );
         return {
             status: 'ok',
@@ -110,6 +148,7 @@ export class DeployController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() sessionUuid: string,
+        @Body() body?: { dbtModelNames?: string[] },
     ): Promise<ApiFinalizeDeployResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -120,6 +159,7 @@ export class DeployController extends BaseController {
                 projectUuid,
                 sessionUuid,
                 req.header(LightdashCliVersionHeader),
+                body?.dbtModelNames,
             );
         return {
             status: 'ok',

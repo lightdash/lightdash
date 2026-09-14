@@ -98,7 +98,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
         <Drawer
             title={
                 <Group gap={6}>
-                    <Paper p="xxs" withBorder radius="sm">
+                    <Paper p="xxs" radius="sm">
                         <MantineIcon icon={IconBug} size="sm" />
                     </Paper>
                     <Text fw={500} size="md">
@@ -235,7 +235,6 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                         <Badge
                                                             color="red"
                                                             size="xs"
-                                                            variant="light"
                                                         >
                                                             Error
                                                         </Badge>
@@ -243,7 +242,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                 </Group>
                                             </Group>
                                         </Box>
-                                        <Collapse in={isExpanded}>
+                                        <Collapse expanded={isExpanded}>
                                             <Stack gap="sm" p="sm">
                                                 {/* Tool Arguments */}
                                                 {argsJson ? (

@@ -560,7 +560,7 @@ export class AiAgentReviewClassifierModel {
         this.database = database;
     }
 
-    private jsonb(value: unknown): Knex.Raw {
+    private jsonb<T>(value: T): Knex.Raw<T> {
         return this.database.raw('?::jsonb', [JSON.stringify(value)]);
     }
 
@@ -728,10 +728,10 @@ export class AiAgentReviewClassifierModel {
                 organization_uuid: args.organizationUuid,
                 review_agent_version: args.reviewAgentVersion,
                 judge_prompt_hash: args.judgePromptHash,
-                run_scope: this.jsonb(args.runScope) as never,
+                run_scope: this.jsonb(args.runScope),
                 agent_config_snapshot_hash: args.agentConfigSnapshotHash,
                 agent_config_snapshot: args.agentConfigSnapshot
-                    ? (this.jsonb(args.agentConfigSnapshot) as never)
+                    ? this.jsonb(args.agentConfigSnapshot)
                     : null,
                 agent_config_snapshot_agent_updated_at:
                     args.agentConfigSnapshotAgentUpdatedAt,
@@ -1417,6 +1417,7 @@ export class AiAgentReviewClassifierModel {
                     statusUpdatedByUserUuid:
                         item?.status_updated_by_user_uuid ?? null,
                     linkedIssueUrl: item?.linked_issue_url ?? null,
+                    linkedJiraIssueUrl: item?.jira_linked_issue_url ?? null,
                     linkedPrUrl: item?.linked_pr_url ?? null,
                     prState: item?.pr_state ?? null,
                     prWritebackStatus: writebackStale
@@ -1593,6 +1594,7 @@ export class AiAgentReviewClassifierModel {
                     statusUpdatedAt: row.status_updated_at ?? row.updated_at,
                     statusUpdatedByUserUuid: row.status_updated_by_user_uuid,
                     linkedIssueUrl: row.linked_issue_url,
+                    linkedJiraIssueUrl: row.jira_linked_issue_url,
                     linkedPrUrl: row.linked_pr_url,
                     prState: row.pr_state,
                     prWritebackStatus: writebackStale
@@ -1660,7 +1662,9 @@ export class AiAgentReviewClassifierModel {
                 primary_root_cause: args.primaryRootCause,
                 priority: args.priority,
                 target_refs:
-                    args.targetRefs.length > 0 ? args.targetRefs : null,
+                    args.targetRefs.length > 0
+                        ? this.jsonb(args.targetRefs)
+                        : null,
                 status: 'open',
                 assigned_to_user_uuid: args.assignedToUserUuid,
                 created_by_user_uuid: args.createdByUserUuid,
@@ -1751,9 +1755,7 @@ export class AiAgentReviewClassifierModel {
             primary_root_cause: 'project_context' as const,
             priority: 'none' as const,
             target_refs: null,
-            project_context_entry: JSON.stringify(
-                args.projectContextEntry,
-            ) as never,
+            project_context_entry: this.jsonb(args.projectContextEntry),
             nomination_reason: args.nominationReason,
             status: 'open' as const,
             dismissed_reason: null,
@@ -2546,6 +2548,135 @@ export class AiAgentReviewClassifierModel {
             .ignore();
     }
 
+    async listUnlinkedReviewItemsForLinearExport(args: {
+        organizationUuid: string;
+        projectUuids: string[] | null;
+    }): Promise<Array<{ fingerprint: string; projectUuid: string }>> {
+        if (args.projectUuids && args.projectUuids.length === 0) {
+            return [];
+        }
+
+        const query = this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .select('fingerprint', 'project_uuid')
+            .where('organization_uuid', args.organizationUuid)
+            .whereNull('linked_issue_url')
+            .whereNotNull('project_uuid')
+            .whereIn('status', ['triage', 'open', 'in_progress']);
+        const rows = await (args.projectUuids
+            ? query.whereIn('project_uuid', args.projectUuids)
+            : query);
+
+        return rows.flatMap((row) =>
+            row.project_uuid
+                ? [
+                      {
+                          fingerprint: row.fingerprint,
+                          projectUuid: row.project_uuid,
+                      },
+                  ]
+                : [],
+        );
+    }
+
+    async listUnlinkedReviewItemsForJiraExport(args: {
+        organizationUuid: string;
+        projectUuids: string[] | null;
+    }): Promise<Array<{ fingerprint: string; projectUuid: string }>> {
+        if (args.projectUuids && args.projectUuids.length === 0) return [];
+        const query = this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .select('fingerprint', 'project_uuid')
+            .where('organization_uuid', args.organizationUuid)
+            .whereNull('jira_linked_issue_url')
+            .whereNotNull('project_uuid')
+            .whereIn('status', ['triage', 'open', 'in_progress']);
+        const rows = await (args.projectUuids
+            ? query.whereIn('project_uuid', args.projectUuids)
+            : query);
+        return rows.flatMap((row) =>
+            row.project_uuid
+                ? [
+                      {
+                          fingerprint: row.fingerprint,
+                          projectUuid: row.project_uuid,
+                      },
+                  ]
+                : [],
+        );
+    }
+
+    // Holds a row lock while the external issue is created so concurrent jobs
+    // for the same item cannot each create one.
+    async withReviewItemLinkedIssueLock<T>(
+        args: { fingerprint: string; organizationUuid: string },
+        run: (
+            linkedIssueUrl: string | null,
+            setLinkedIssueUrl: (linkedIssueUrl: string) => Promise<void>,
+        ) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            )
+                .select('linked_issue_url')
+                .where('fingerprint', args.fingerprint)
+                .where('organization_uuid', args.organizationUuid)
+                .forUpdate()
+                .first();
+
+            return run(
+                row?.linked_issue_url ?? null,
+                async (linkedIssueUrl) => {
+                    await trx<AiAgentReviewItemTable>(
+                        AiAgentReviewItemTableName,
+                    )
+                        .where('fingerprint', args.fingerprint)
+                        .where('organization_uuid', args.organizationUuid)
+                        .update({
+                            linked_issue_url: linkedIssueUrl,
+                            updated_at: trx.fn.now() as never,
+                        });
+                },
+            );
+        });
+    }
+
+    async withReviewItemJiraLinkedIssueLock<T>(
+        args: { fingerprint: string; organizationUuid: string },
+        run: (
+            linkedIssueUrl: string | null,
+            setLinkedIssueUrl: (linkedIssueUrl: string) => Promise<void>,
+        ) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            )
+                .select('jira_linked_issue_url')
+                .where('fingerprint', args.fingerprint)
+                .where('organization_uuid', args.organizationUuid)
+                .forUpdate()
+                .first();
+            return run(
+                row?.jira_linked_issue_url ?? null,
+                async (linkedIssueUrl) => {
+                    await trx<AiAgentReviewItemTable>(
+                        AiAgentReviewItemTableName,
+                    )
+                        .where('fingerprint', args.fingerprint)
+                        .where('organization_uuid', args.organizationUuid)
+                        .update({
+                            jira_linked_issue_url: linkedIssueUrl,
+                            updated_at: trx.fn.now() as never,
+                        });
+                },
+            );
+        });
+    }
+
     async updateReviewItemAssignee(args: {
         fingerprint: string;
         organizationUuid: string;
@@ -2806,49 +2937,45 @@ export class AiAgentReviewClassifierModel {
                     project_uuid: turnSignal.subject.projectUuid,
                     agent_uuid: turnSignal.subject.agentUuid,
                     interaction_source: turnSignal.interactionSource,
-                    source_ref: this.jsonb(turnSignal.sourceRef) as never,
+                    source_ref: this.jsonb(turnSignal.sourceRef),
                     signal: turnSignal.signal,
                     implicit_signal_sources: this.jsonb(
                         turnSignal.implicitSignalSources,
-                    ) as never,
+                    ),
                     confidence: turnSignal.confidence,
                     promoted_to_finding: turnSignal.promotedToFinding,
                     promotion_reason: turnSignal.promotionReason,
-                    tool_evidence_refs: this.jsonb(
-                        turnSignal.toolEvidenceRefs,
-                    ) as never,
+                    tool_evidence_refs: this.jsonb(turnSignal.toolEvidenceRefs),
                     fingerprint: finding?.reviewItem.fingerprint,
                     primary_root_cause: finding?.primaryRootCause,
                     secondary_root_causes: finding
-                        ? (this.jsonb(finding.secondaryRootCauses) as never)
+                        ? this.jsonb(finding.secondaryRootCauses)
                         : null,
                     subcategories: finding
-                        ? (this.jsonb(finding.subcategories) as never)
+                        ? this.jsonb(finding.subcategories)
                         : null,
                     fix_targets: finding
-                        ? (this.jsonb(finding.fixTargets) as never)
+                        ? this.jsonb(finding.fixTargets)
                         : null,
                     target_refs: finding
-                        ? (this.jsonb(finding.targetRefs) as never)
+                        ? this.jsonb(finding.targetRefs)
                         : null,
                     evidence_excerpts: finding
-                        ? (this.jsonb(finding.evidenceExcerpts) as never)
+                        ? this.jsonb(finding.evidenceExcerpts)
                         : null,
-                    recommendation: finding
-                        ? (this.jsonb(finding.recommendation) as never)
+                    recommendation: finding?.recommendation
+                        ? this.jsonb(finding.recommendation)
                         : null,
-                    project_context_entry: finding
-                        ? (this.jsonb(finding.projectContextEntry) as never)
+                    project_context_entry: finding?.projectContextEntry
+                        ? this.jsonb(finding.projectContextEntry)
                         : null,
                     owner_type: finding?.reviewItem.ownerType,
                     review_item_title: finding?.reviewItem.title,
                     review_item_description: finding?.reviewItem.description,
                     runtime_context_snapshot: this.jsonb(
                         turnSignal.runtimeContextSnapshot,
-                    ) as never,
-                    model_metadata: this.jsonb(
-                        turnSignal.modelMetadata,
-                    ) as never,
+                    ),
+                    model_metadata: this.jsonb(turnSignal.modelMetadata),
                 })
                 .returning('ai_agent_review_turn_signal_uuid');
 
@@ -2947,6 +3074,7 @@ export class AiAgentReviewClassifierModel {
                         .whereIn('status', ['triage', 'open'])
                         .whereNull('assigned_to_user_uuid')
                         .whereNull('linked_issue_url')
+                        .whereNull('jira_linked_issue_url')
                         .whereNull('linked_pr_url')
                         .whereNull('pr_writeback_thread_uuid')
                         .whereNull('status_updated_by_user_uuid')

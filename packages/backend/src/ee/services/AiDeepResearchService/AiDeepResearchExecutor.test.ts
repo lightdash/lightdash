@@ -1,4 +1,6 @@
 import {
+    ForbiddenError,
+    InvalidUser,
     type AiDeepResearchEvidencePack,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchWorkerFindings,
@@ -9,6 +11,7 @@ import {
 import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
 import { AI_DEEP_RESEARCH_REPORT_TOOL_NAME } from './AiDeepResearchAgent';
 import { AiDeepResearchExecutor } from './AiDeepResearchExecutor';
+import { AiDeepResearchExecutorStageError } from './AiDeepResearchService';
 
 const budget = {
     maxTokens: 10_000,
@@ -117,6 +120,7 @@ const run = (
     resume_from_run_uuid: null,
     status: 'running',
     terminal_reason: null,
+    failure_stage: null,
     entry_point: 'ask_ai',
     result_markdown: null,
     report_expires_at: null,
@@ -256,6 +260,8 @@ const evidencePack = (
     overrides: Partial<AiDeepResearchEvidencePack> = {},
 ): AiDeepResearchEvidencePack => ({
     question: 'Investigate revenue',
+    generatedAt: '2026-08-13T10:00:00.000Z',
+    timezone: 'Europe/London',
     queries: [
         {
             type: 'metric_query',
@@ -267,6 +273,11 @@ const evidencePack = (
             rowCount: 12,
             rowsCsv: 'Month,Revenue\n2026-01,100',
             truncated: false,
+            warnings: [],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            timezone: 'Europe/London',
             chartable: true,
             visualizationType: 'line',
         },
@@ -282,12 +293,14 @@ const evidenceBuildResult = (
 
 const buildExecutor = ({
     generateAgentThreadResponse = respondByRole(),
+    assertDeepResearchAccess = vi.fn().mockResolvedValue(undefined),
     provenance = [],
     childProvenance = provenance,
     generateDeepResearchReport = vi.fn().mockResolvedValue(report),
     buildEvidencePack = vi.fn().mockResolvedValue(evidenceBuildResult()),
 }: {
     generateAgentThreadResponse?: AnyType;
+    assertDeepResearchAccess?: AnyType;
     provenance?: AnyType[];
     childProvenance?: AnyType[];
     generateDeepResearchReport?: AnyType;
@@ -315,7 +328,7 @@ const buildExecutor = ({
     };
     const executor = new AiDeepResearchExecutor({
         aiAgentService: {
-            assertDeepResearchAccess: vi.fn().mockResolvedValue(undefined),
+            assertDeepResearchAccess,
             generateAgentThreadResponse,
             generateDeepResearchReport,
         },
@@ -333,6 +346,7 @@ const buildExecutor = ({
         aiAgentModel,
         aiDeepResearchRunModel,
         userService,
+        assertDeepResearchAccess,
     };
 };
 
@@ -358,6 +372,7 @@ describe('AiDeepResearchExecutor', () => {
             errorMessage:
                 'Deep Research cannot run because its creator is inactive',
             terminalReason: 'permission_revoked',
+            failureStage: 'authorization',
         });
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
@@ -384,6 +399,158 @@ describe('AiDeepResearchExecutor', () => {
         expect(generateAgentThreadResponse).toHaveBeenCalled();
     });
 
+    it('propagates transient initial access-check errors for job retry', async () => {
+        const temporaryError = new Error('temporary database error');
+        const { executor, generateAgentThreadResponse } = buildExecutor({
+            assertDeepResearchAccess: vi.fn().mockRejectedValue(temporaryError),
+        });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).rejects.toMatchObject({
+            name: 'AiDeepResearchExecutorStageError',
+            failureStage: 'authorization',
+            cause: temporaryError,
+        } satisfies Partial<AiDeepResearchExecutorStageError>);
+        expect(generateAgentThreadResponse).not.toHaveBeenCalled();
+    });
+
+    it('classifies an explicit initial forbidden result as revocation', async () => {
+        const { executor, generateAgentThreadResponse } = buildExecutor({
+            assertDeepResearchAccess: vi
+                .fn()
+                .mockRejectedValue(new ForbiddenError('Access revoked')),
+        });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toEqual({
+            status: 'failed',
+            errorMessage: 'Access revoked',
+            terminalReason: 'permission_revoked',
+            failureStage: 'authorization',
+        });
+        expect(generateAgentThreadResponse).not.toHaveBeenCalled();
+    });
+
+    it('classifies a missing initial organization membership as revocation', async () => {
+        const { executor, userService, generateAgentThreadResponse } =
+            buildExecutor();
+        userService.getAccountByUserUuidAndOrg.mockRejectedValue(
+            new InvalidUser('User is no longer an organization member'),
+        );
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toMatchObject({ terminalReason: 'permission_revoked' });
+        expect(generateAgentThreadResponse).not.toHaveBeenCalled();
+    });
+
+    it('retries transient periodic access-check errors without aborting the run', async () => {
+        vi.useFakeTimers();
+        let finishCoordinator: ((value: string) => void) | undefined;
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: () =>
+                new Promise<string>((resolve) => {
+                    finishCoordinator = resolve;
+                }),
+        });
+        const assertDeepResearchAccess = vi
+            .fn()
+            .mockResolvedValueOnce(undefined)
+            .mockRejectedValueOnce(new Error('temporary database error'))
+            .mockResolvedValue(undefined);
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            assertDeepResearchAccess,
+        });
+
+        const pending = executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(15_000);
+        expect(assertDeepResearchAccess).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(15_000);
+        expect(assertDeepResearchAccess).toHaveBeenCalledTimes(3);
+        finishCoordinator?.('coordinated');
+
+        await expect(pending).resolves.toMatchObject({ status: 'completed' });
+        vi.useRealTimers();
+    });
+
+    it('aborts when a periodic access check explicitly returns forbidden', async () => {
+        vi.useFakeTimers();
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: (options: AnyType) =>
+                new Promise<string>((_resolve, reject) => {
+                    options.execution.abortSignal.addEventListener(
+                        'abort',
+                        () => reject(new Error('aborted')),
+                    );
+                }),
+        });
+        const assertDeepResearchAccess = vi
+            .fn()
+            .mockResolvedValueOnce(undefined)
+            .mockRejectedValueOnce(new ForbiddenError('Access revoked'));
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            assertDeepResearchAccess,
+        });
+
+        const pending = executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(15_000);
+
+        await expect(pending).resolves.toMatchObject({
+            status: 'failed',
+            terminalReason: 'permission_revoked',
+        });
+        vi.useRealTimers();
+    });
+
+    it('aborts when the creator loses organization membership', async () => {
+        vi.useFakeTimers();
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: (options: AnyType) =>
+                new Promise<string>((_resolve, reject) => {
+                    options.execution.abortSignal.addEventListener(
+                        'abort',
+                        () => reject(new Error('aborted')),
+                    );
+                }),
+        });
+        const { executor, userService } = buildExecutor({
+            generateAgentThreadResponse,
+        });
+        userService.getAccountByUserUuidAndOrg
+            .mockResolvedValueOnce(registeredAccount())
+            .mockRejectedValueOnce(
+                new InvalidUser('User is no longer an organization member'),
+            );
+
+        const pending = executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(15_000);
+
+        await expect(pending).resolves.toMatchObject({
+            status: 'failed',
+            terminalReason: 'permission_revoked',
+        });
+        vi.useRealTimers();
+    });
+
     it('does not start an already cancelled run', async () => {
         const generateAgentThreadResponse = vi.fn();
         const { executor } = buildExecutor({ generateAgentThreadResponse });
@@ -395,6 +562,7 @@ describe('AiDeepResearchExecutor', () => {
         ).resolves.toEqual({
             status: 'cancelled',
             terminalReason: 'internal_error',
+            failureStage: 'authorization',
         });
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
@@ -673,6 +841,7 @@ describe('AiDeepResearchExecutor', () => {
         await expect(pendingRun).resolves.toEqual({
             status: 'cancelled',
             terminalReason: 'internal_error',
+            failureStage: 'investigation',
         });
         expect(workerSignals.every((signal) => signal.aborted)).toBe(true);
     });
@@ -707,6 +876,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(result).toMatchObject({
             status: 'partially_completed',
             terminalReason: 'tool_limit',
+            failureStage: 'investigation',
             report,
         });
     });
@@ -738,6 +908,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(result).toMatchObject({
             status: 'partially_completed',
             terminalReason: 'query_limit',
+            failureStage: 'investigation',
             report,
         });
     });
@@ -782,6 +953,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(result).toMatchObject({
             status: 'partially_completed',
             terminalReason: 'token_limit',
+            failureStage: 'investigation',
             report,
         });
     });
@@ -810,6 +982,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(result).toMatchObject({
             status: 'partially_completed',
             terminalReason: 'time_limit',
+            failureStage: 'investigation',
             report,
         });
     });
@@ -844,8 +1017,19 @@ describe('AiDeepResearchExecutor', () => {
     });
 
     it('reports from evidence after a budget abort instead of returning a stub', async () => {
+        const resolvedExecutionContextSnapshot = {
+            ...executionContextSnapshot,
+            model: {
+                ...executionContextSnapshot.model,
+                provider: 'anthropic.messages',
+                modelName: 'claude-sonnet-selected-for-run',
+            },
+        };
         const generateAgentThreadResponse = respondByRole({
             onCoordinate: async (options: AnyType) => {
+                await options.execution.onExecutionContextResolved(
+                    resolvedExecutionContextSnapshot,
+                );
                 options.execution.onWarehouseQuery();
                 options.execution.onWarehouseQuery();
                 return 'coordinated';
@@ -869,6 +1053,7 @@ describe('AiDeepResearchExecutor', () => {
             expect.anything(),
             expect.objectContaining({
                 reason: 'the maxWarehouseQueries budget was exhausted',
+                model: resolvedExecutionContextSnapshot.model,
             }),
         );
     });
@@ -952,6 +1137,7 @@ describe('AiDeepResearchExecutor', () => {
         );
 
         expect(result.status).toBe('partially_completed');
+        expect(result).toMatchObject({ failureStage: 'investigation' });
         expect(
             result.status === 'partially_completed' && result.report.markdown,
         ).toContain('maxWarehouseQueries');
@@ -991,6 +1177,7 @@ describe('AiDeepResearchExecutor', () => {
             report,
             warehouseQueryUuids: [],
             terminalReason: 'provider_error',
+            failureStage: 'investigation',
         });
     });
 
@@ -1036,6 +1223,7 @@ describe('AiDeepResearchExecutor', () => {
             errorMessage:
                 'Deep Research could not find relevant data for this question.',
             terminalReason: 'no_relevant_data',
+            failureStage: 'finalization',
         });
         // No point paying a model to write a report with nothing behind it.
         expect(generateDeepResearchReport).not.toHaveBeenCalled();
@@ -1116,6 +1304,7 @@ describe('AiDeepResearchExecutor', () => {
             status: 'failed',
             errorMessage: 'provider disconnected',
             terminalReason: 'provider_error',
+            failureStage: 'investigation',
         });
     });
 
@@ -1165,6 +1354,7 @@ describe('AiDeepResearchExecutor', () => {
         ).resolves.toMatchObject({
             status: 'partially_completed',
             terminalReason: 'provider_error',
+            failureStage: 'finalization',
         });
     });
 

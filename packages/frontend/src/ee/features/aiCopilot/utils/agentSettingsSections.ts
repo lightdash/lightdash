@@ -1,11 +1,9 @@
 const AGENT_SETTINGS_SECTION_IDS = [
     'identity',
     'behaviour',
-    'knowledge',
-    'data-access',
-    'who-can-use',
-    'mcp-servers',
-    'slack',
+    'knowledge-and-data',
+    'permissions',
+    'integrations',
     'danger-zone',
 ] as const;
 
@@ -22,11 +20,9 @@ type AgentSettingsSectionMeta = {
 const SECTIONS: AgentSettingsSectionMeta[] = [
     { id: 'identity', label: 'Identity', editOnly: false },
     { id: 'behaviour', label: 'Behaviour', editOnly: false },
-    { id: 'knowledge', label: 'Knowledge', editOnly: true },
-    { id: 'data-access', label: 'Data access', editOnly: false },
-    { id: 'who-can-use', label: 'Who can use it', editOnly: false },
-    { id: 'mcp-servers', label: 'MCP servers', editOnly: false },
-    { id: 'slack', label: 'Slack', editOnly: false },
+    { id: 'knowledge-and-data', label: 'Knowledge & data', editOnly: false },
+    { id: 'permissions', label: 'Permissions', editOnly: false },
+    { id: 'integrations', label: 'Integrations', editOnly: false },
     { id: 'danger-zone', label: 'Danger zone', editOnly: true },
 ];
 

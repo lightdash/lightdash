@@ -1,10 +1,11 @@
 import { type SavedChart } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineModal from '../../../../../components/common/MantineModal';
 import EmbedProviderContext from '../../../../providers/Embed/context';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import EmbedExplore from '../../EmbedExplore/components/EmbedExplore';
+import { type ChartSavedAction } from '../../events/types';
 
 type Props = {
     opened: boolean;
@@ -35,6 +36,13 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
         setPickedExploreId(undefined);
         onClose();
     };
+    const handleChartSaved = useCallback(
+        (chart: SavedChart, action: ChartSavedAction) => {
+            embedContext.onChartSaved?.(chart, action);
+            onChartSaved(chart);
+        },
+        [embedContext, onChartSaved],
+    );
 
     // The explorer renders over the dashboard, not instead of it: suppress the
     // header's "Back to Dashboard" button (closing the modal is the way back)
@@ -44,10 +52,11 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
             ...embedContext,
             onBackToDashboard: undefined,
             savedChart: undefined,
+            customSqlProvenanceChartUuid: editChart?.uuid,
             savedQueryUuid: undefined,
-            onChartSaved,
+            onChartSaved: handleChartSaved,
         }),
-        [embedContext, onChartSaved],
+        [editChart?.uuid, embedContext, handleChartSaved],
     );
 
     return (

@@ -4,6 +4,7 @@ import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
@@ -40,6 +41,7 @@ const AddFilterButton: FC<Props> = ({
     unsavedFiltersTooltip,
 }) => {
     const popoverId = useId();
+    const getUiString = useUiStrings();
     const isAddFilterDisabled = useDashboardContext(
         (c) => c.isAddFilterDisabled,
     );
@@ -126,13 +128,12 @@ const AddFilterButton: FC<Props> = ({
     if (isAddFilterDisabled && !isEditMode) {
         if (showResetFiltersButton)
             return (
-                <Tooltip label="Reset all filters" withinPortal>
+                <Tooltip label={getUiString('filters.resetAll')}>
                     <Button
                         data-dashboard-filter-control
-                        aria-label="Reset all filters"
+                        aria-label={getUiString('filters.resetAll')}
                         size="xs"
                         variant="default"
-                        radius="md"
                         color="gray"
                         onClick={() => {
                             setHaveFiltersChanged(false);
@@ -165,10 +166,8 @@ const AddFilterButton: FC<Props> = ({
                 disabled={disabled}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
-                shadow="md"
                 offset={1}
                 arrowOffset={14}
-                withinPortal
                 classNames={{ dropdown: dropdownClassName }}
             >
                 <Popover.Target>
@@ -177,7 +176,6 @@ const AddFilterButton: FC<Props> = ({
                             isPopoverOpen || isEditMode || tooltipLabel === null
                         }
                         position="top-start"
-                        withinPortal
                         offset={0}
                         arrowOffset={16}
                         label={tooltipLabel}
@@ -211,7 +209,7 @@ const AddFilterButton: FC<Props> = ({
                                     : onPopoverOpen(popoverId)
                             }
                         >
-                            Add filter
+                            {getUiString('filters.addFilter')}
                         </Button>
                     </Tooltip>
                 </Popover.Target>
@@ -253,7 +251,6 @@ const AddFilterButton: FC<Props> = ({
                                 ? 'Hidden from viewers. Click to show.'
                                 : 'Visible to viewers. Click to hide.'
                         }
-                        withinPortal
                     >
                         <Button
                             aria-label="Toggle filter visibility for viewers"
@@ -288,12 +285,11 @@ const AddFilterButton: FC<Props> = ({
                 <>
                     <Divider orientation="vertical" />
 
-                    <Tooltip label="Reset all filters" withinPortal>
+                    <Tooltip label="Reset all filters">
                         <Button
                             aria-label="Reset all filters"
                             size="xs"
                             variant="default"
-                            radius="md"
                             color="gray"
                             onClick={() => {
                                 setHaveFiltersChanged(false);

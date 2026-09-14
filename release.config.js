@@ -62,14 +62,6 @@ module.exports = {
             },
         ],
 
-        [
-            '@semantic-release/exec',
-            {
-                prepareCmd: 'pnpm build-published-packages',
-                publishCmd: 'pnpm release-packages',
-            },
-        ],
-
         // Generate the release-safety marker (PROD-8359). Runs before the github
         // plugin so the asset exists at publish time.
         //

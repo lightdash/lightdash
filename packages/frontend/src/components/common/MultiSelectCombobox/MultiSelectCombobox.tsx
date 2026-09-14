@@ -1,5 +1,7 @@
 import {
+    CheckIcon,
     Combobox,
+    Group,
     Pill,
     PillsInput,
     ScrollArea,
@@ -16,7 +18,6 @@ import {
     type KeyboardEvent,
     type ReactNode,
 } from 'react';
-import classes from './MultiSelectCombobox.module.css';
 
 export type MultiSelectComboboxOption = {
     value: string;
@@ -25,7 +26,7 @@ export type MultiSelectComboboxOption = {
     group?: string;
 };
 
-type Props = Omit<PillsInputProps, 'onChange'> & {
+type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     options: MultiSelectComboboxOption[];
     value: string[];
     selectedValues?: string[];
@@ -45,6 +46,8 @@ type Props = Omit<PillsInputProps, 'onChange'> & {
     onCreate?: (value: string) => void;
     shouldCreate?: (value: string) => boolean;
     filterOptions?: boolean;
+    /** When false, no dropdown is shown — the input is plain entry (type + Enter). */
+    withDropdown?: boolean;
     limit?: number;
     hidePickedOptions?: boolean;
     maxValues?: number;
@@ -94,6 +97,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             onCreate,
             shouldCreate = (query) => query.trim().length > 0,
             filterOptions = true,
+            withDropdown = true,
             limit = Infinity,
             hidePickedOptions = false,
             maxValues,
@@ -277,7 +281,12 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                 (clearable ? 'all' : undefined)
                             }
                             onClick={() => {
-                                if (!disabled && !readOnly && !atMaxValues) {
+                                if (
+                                    withDropdown &&
+                                    !disabled &&
+                                    !readOnly &&
+                                    !atMaxValues
+                                ) {
                                     combobox.openDropdown();
                                 }
                             }}
@@ -332,11 +341,14 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                             onSearchChange(
                                                 event.currentTarget.value,
                                             );
-                                            combobox.openDropdown();
-                                            combobox.updateSelectedOptionIndex();
+                                            if (withDropdown) {
+                                                combobox.openDropdown();
+                                                combobox.updateSelectedOptionIndex();
+                                            }
                                         }}
                                         onFocus={(event) => {
                                             if (
+                                                withDropdown &&
                                                 !disabled &&
                                                 !readOnly &&
                                                 !atMaxValues
@@ -358,7 +370,9 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                     </Combobox.DropdownTarget>
 
                     <Combobox.Dropdown
-                        hidden={disabled || readOnly || atMaxValues}
+                        hidden={
+                            !withDropdown || disabled || readOnly || atMaxValues
+                        }
                     >
                         <Combobox.Options>
                             <ScrollArea.Autosize
@@ -382,16 +396,23 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                                     value={option.value}
                                                     disabled={option.disabled}
                                                     active={selected}
-                                                    className={classes.option}
-                                                    fz="sm"
-                                                    ff="inherit"
-                                                    px="sm"
-                                                    py="xxs"
                                                 >
-                                                    {renderOption?.(
-                                                        option,
-                                                        selected,
-                                                    ) ?? option.label}
+                                                    <Group
+                                                        gap="xs"
+                                                        wrap="nowrap"
+                                                    >
+                                                        <CheckIcon
+                                                            size={12}
+                                                            opacity={
+                                                                selected ? 1 : 0
+                                                            }
+                                                            aria-hidden
+                                                        />
+                                                        {renderOption?.(
+                                                            option,
+                                                            selected,
+                                                        ) ?? option.label}
+                                                    </Group>
                                                 </Combobox.Option>
                                             );
                                         },
@@ -400,9 +421,6 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                         <Combobox.Group
                                             key={`${group.group}-${groupIndex}`}
                                             label={group.group}
-                                            fz="sm"
-                                            ff="inherit"
-                                            px="sm"
                                         >
                                             {children}
                                         </Combobox.Group>
@@ -414,12 +432,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                     <Combobox.Option
                                         value={CREATE_VALUE}
                                         data-create-option
-                                        fz="xs"
                                         fw={500}
-                                        c="dark"
-                                        ff="inherit"
-                                        px="sm"
-                                        py="xxs"
                                     >
                                         {createLabel ?? (
                                             <Text c="indigo">

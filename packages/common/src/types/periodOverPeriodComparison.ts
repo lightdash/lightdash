@@ -160,6 +160,7 @@ export const buildPopAdditionalMetric = ({
         | 'compact'
         | 'format'
         | 'formatOptions'
+        | 'distinctKeys'
     >;
     timeDimensionId: string;
     granularity: TimeFrames;
@@ -190,6 +191,7 @@ export const buildPopAdditionalMetric = ({
         compact: metric.compact,
         format: metric.format,
         formatOptions: metric.formatOptions,
+        distinctKeys: metric.distinctKeys,
         generationType: 'periodOverPeriod',
         baseMetricId,
         timeDimensionId,

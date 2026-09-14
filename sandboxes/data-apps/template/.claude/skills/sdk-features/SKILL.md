@@ -20,11 +20,13 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | "select an element", editor element picker | `inspect` | none (automatic) |
 | thumbnails / screenshots / scheduled deliveries | `screenshot` | required — see below |
 | drill down, click into a chart | `drill-down` | app code opt-in |
+| drill into a viz data point (reusable visualization) | `viz-drill-down` | app code opt-in |
 | "share this view", URL that restores state | `url-state` | app code opt-in |
 | Google Sheets export | `gsheet-export` | app code opt-in |
 | "delivery has all tabs", full data in scheduled deliveries | `delivery-render` | app code opt-in |
 | external API data | `external-fetch` | app code opt-in |
 | runs inside a dashboard tile | `viz-context` | required — see below |
+| reusable chart/table with pivoted results | `viz-pivoted-results` | required — see below |
 | "view underlying data", raw rows behind a point (viz only) | `viz-underlying-data` | app code opt-in |
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
 
@@ -83,10 +85,28 @@ For colours CSS can't reach (a chart library's theme object, a logo swap), read
 the mode: `const colorScheme = useColorScheme();` — `'light' | 'dark'`,
 re-rendering on every host toggle.
 
+### `viz-pivoted-results` — reusable visualization pivots
+
+Read `pivotDetails` from `useVizContext()`. When it is non-null, match
+`pivotDetails.valuesColumns` to the mapped metric by `referenceField`, derive series
+labels from `pivotValues`, and read each generated `pivotColumnName` with
+`getRaw(row, pivotColumnName)` or `getFormatted(row, pivotColumnName)`. Generated and
+ordinary row keys both contain `VizContextCell` objects; never coerce `row[fieldId]`
+directly. Use the remaining metadata for the visualization's actual shape: `indexColumn` and
+`originalColumns` provide row-grain/type semantics, `groupByColumns` provides header
+order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation, and
+`passthroughDimensions` identifies hidden fields retained on rows. Preserve the ordinary
+`fieldMapping` path when `pivotDetails` is null. The full contract is in the
+`reusable-visualization` skill.
+
 ### App-code opt-ins (call the API where it fits the app)
 
 - `drill-down`: `drillDown(...)` derives a more detailed query from a clicked
   result row — wire it to click handlers on charts/rows.
+- `viz-drill-down`: in a reusable visualization, the data-point action menu
+  offers "Drill into …" when `useVizContext().drillDown.enabled`; selection
+  calls `drillDown.open({ row, metric })` and Lightdash opens its drill
+  dialog. Distinct from `drill-down`, which is the full-app query helper.
 - `url-state`: `useUrlState(...)` syncs a piece of app state into the page URL
   so views can be shared and restored.
 - `gsheet-export`: `exportToSheets(...)` sends tabular results to a new

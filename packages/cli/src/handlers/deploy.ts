@@ -26,7 +26,7 @@ import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import {
-    compile,
+    compileProject,
     hasBlockingCompileError,
     stripWarehouseColumnErrors,
 } from './compile';
@@ -61,7 +61,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     warehouseCredentials?: boolean;
     organizationCredentials?: string;
     assumeYes?: boolean;
-    useBatchedDeploy?: boolean;
+    batchedDeploy?: boolean;
     batchSize?: string;
     parallelBatches?: string;
     gzip?: boolean;
@@ -72,6 +72,8 @@ type DeployHandlerOptions = DbtCompileOptions & {
 
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
+    complete?: boolean;
+    dbtModelNames?: string[];
 };
 
 const logDeployWarnings = (
@@ -212,7 +214,7 @@ const retryBatchUpload = async <T>(
 const deployBatched = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
-): Promise<void> => {
+): Promise<boolean> => {
     const batchSize = parseInt(options.batchSize || '50', 10);
     if (Number.isNaN(batchSize) || batchSize < 1 || batchSize > 1000) {
         throw new Error(
@@ -240,14 +242,27 @@ const deployBatched = async (
 
     // Start deploy session
     GlobalState.log(`Starting deploy session...`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const startSessionResponse = (await lightdashApi<any>({
-        method: 'POST',
-        url: `/api/v2/projects/${options.projectUuid}/deploy`,
-        body: JSON.stringify({}),
-    })) as { deploySessionUuid: string };
+    let sessionUuid: string;
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const startSessionResponse = (await lightdashApi<any>({
+            method: 'POST',
+            url: `/api/v2/projects/${options.projectUuid}/deploy`,
+            body: JSON.stringify({}),
+        })) as { deploySessionUuid: string };
+        sessionUuid = startSessionResponse.deploySessionUuid;
+    } catch (error) {
+        if (error instanceof LightdashError && error.statusCode === 404) {
+            GlobalState.log(
+                styles.info(
+                    'Batched deploy is not supported by this server; falling back to legacy deploy',
+                ),
+            );
+            return false;
+        }
+        throw error;
+    }
 
-    const sessionUuid = startSessionResponse.deploySessionUuid;
     GlobalState.log(styles.success(`Deploy session created: ${sessionUuid}`));
 
     // Split explores into batches
@@ -276,6 +291,7 @@ const deployBatched = async (
                     body: JSON.stringify({
                         explores: batch,
                         batchNumber: batchIndex,
+                        complete: options.complete === true,
                     }),
                 }) as Promise<{ batchNumber: number; exploreCount: number }>,
             batchIndex + 1,
@@ -323,7 +339,7 @@ const deployBatched = async (
     >({
         method: 'POST',
         url: `/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/finalize`,
-        body: JSON.stringify({}),
+        body: JSON.stringify({ dbtModelNames: options.dbtModelNames }),
     });
 
     GlobalState.log(
@@ -340,6 +356,7 @@ const deployBatched = async (
             durationMs: Date.now() - deployStartTime,
         },
     });
+    return true;
 };
 
 export const deploy = async (
@@ -431,20 +448,49 @@ export const deploy = async (
         );
     }
 
-    // Use batched deploy if enabled
-    if (options.useBatchedDeploy) {
-        await deployBatched(deployableExplores, options);
-    } else {
+    const shouldUseLegacyDeploy =
+        options.batchedDeploy === false ||
+        !(await deployBatched(deployableExplores, options));
+    if (shouldUseLegacyDeploy) {
         const deployStartTime = Date.now();
-        const deployPayload = JSON.stringify(deployableExplores);
+        const deployPayload = JSON.stringify(
+            options.dbtModelNames === undefined
+                ? deployableExplores
+                : {
+                      explores: deployableExplores,
+                      dbtModelNames: options.dbtModelNames,
+                      complete: options.complete === true,
+                  },
+        );
         try {
             const deployResponse = await lightdashApi<ApiDeployExploresResults>(
                 {
                     method: 'PUT',
-                    url: `/api/v1/projects/${options.projectUuid}/explores`,
+                    url:
+                        options.dbtModelNames === undefined
+                            ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}`
+                            : `/api/v2/projects/${options.projectUuid}/deploy`,
                     body: deployPayload,
                 },
-            );
+            ).catch(async (error: unknown) => {
+                if (
+                    options.dbtModelNames === undefined ||
+                    !(error instanceof LightdashError) ||
+                    error.statusCode !== 404
+                ) {
+                    throw error;
+                }
+                GlobalState.log(
+                    styles.warning(
+                        'This server does not support deleted dbt model cleanup; deploying without cleanup. Upgrade the server to enable it.',
+                    ),
+                );
+                return lightdashApi<ApiDeployExploresResults>({
+                    method: 'PUT',
+                    url: `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}`,
+                    body: JSON.stringify(deployableExplores),
+                });
+            });
             if (deployResponse) {
                 logDeployWarnings(deployResponse.warnings);
             }
@@ -696,7 +742,8 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
             );
     }
 
-    const explores = await compile(options);
+    const { explores, isProjectComplete, dbtModelNames } =
+        await compileProject(options);
 
     let projectUuid: string;
 
@@ -726,7 +773,12 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         );
     }
 
-    await deploy(explores, { ...options, projectUuid });
+    await deploy(explores, {
+        ...options,
+        projectUuid,
+        complete: isProjectComplete,
+        dbtModelNames,
+    });
 
     const serverUrl = config.context?.serverUrl?.replace(/\/$/, '');
     let displayUrl = options.create

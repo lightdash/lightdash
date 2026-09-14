@@ -213,4 +213,70 @@ describe('AiAgentAdminReviewItemsTable', () => {
         await user.click(screen.getByRole('button', { name: 'Create PR' }));
         expect(onReviewItemSelect).not.toHaveBeenCalled();
     });
+
+    it('filters issues by status and clears the selection', async () => {
+        const user = userEvent.setup();
+        const rows = [
+            makeReviewItem({
+                uuid: 'triage-review',
+                fingerprint: 'triage-review',
+                source: 'manual',
+                title: 'Triage issue',
+                status: 'triage',
+                latestFinding: null,
+            }),
+            makeReviewItem({
+                uuid: 'open-review',
+                fingerprint: 'open-review',
+                source: 'manual',
+                title: 'To Do issue',
+                status: 'open',
+                latestFinding: null,
+            }),
+            makeReviewItem({
+                uuid: 'in-progress-review',
+                fingerprint: 'in-progress-review',
+                source: 'manual',
+                title: 'In Progress issue',
+                status: 'in_progress',
+                latestFinding: null,
+            }),
+        ];
+        mockUseAiAgentAdminReviewItems.mockImplementation(
+            (
+                _args: unknown,
+                options?: {
+                    select?: (
+                        items: AiAgentReviewItemSummary[],
+                    ) => AiAgentReviewItemSummary[];
+                },
+            ) => ({
+                data: options?.select ? options.select(rows) : rows,
+                isLoading: false,
+            }),
+        );
+
+        renderWithProviders(
+            <MemoryRouter>
+                <AiAgentAdminReviewItemsTable />
+            </MemoryRouter>,
+        );
+
+        expect(screen.getByText('Triage issue')).toBeInTheDocument();
+        expect(screen.getByText('To Do issue')).toBeInTheDocument();
+        expect(screen.getByText('In Progress issue')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Status' }));
+        await user.click(screen.getByText('Needs triage', { exact: true }));
+
+        expect(screen.getByText('Triage issue')).toBeInTheDocument();
+        expect(screen.queryByText('To Do issue')).not.toBeInTheDocument();
+        expect(screen.queryByText('In Progress issue')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+        expect(screen.getByText('Triage issue')).toBeInTheDocument();
+        expect(screen.getByText('To Do issue')).toBeInTheDocument();
+        expect(screen.getByText('In Progress issue')).toBeInTheDocument();
+    });
 });

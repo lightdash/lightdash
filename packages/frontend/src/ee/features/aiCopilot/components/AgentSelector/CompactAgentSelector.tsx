@@ -56,8 +56,6 @@ export const CompactAgentSelector = ({
             <Combobox.Target>
                 <Tooltip
                     label={tooltipLabel}
-                    withArrow
-                    withinPortal
                     fz="xs"
                     fw={500}
                     disabled={!hasAgents}
@@ -72,7 +70,7 @@ export const CompactAgentSelector = ({
                         <Group gap="two">
                             {isAuto ? (
                                 <Avatar size="md" color="ldGray" radius="xl">
-                                    <Text size="xs" fw={700} c="ldGray.6">
+                                    <Text size="xs" fw={600} c="dimmed">
                                         AI
                                     </Text>
                                 </Avatar>
@@ -91,7 +89,7 @@ export const CompactAgentSelector = ({
                             {!hasOneOption && hasAgents && (
                                 <MantineIcon
                                     icon={IconChevronDown}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                     strokeWidth={1.5}
                                 />
                             )}
@@ -105,7 +103,7 @@ export const CompactAgentSelector = ({
                     <Combobox.Option value={AI_ROUTING_AUTO_VALUE}>
                         <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
                             <Avatar size={22} color="ldGray" radius="xl">
-                                <Text size="10px" fw={700} c="ldGray.6">
+                                <Text size="10px" fw={600} c="dimmed">
                                     AI
                                 </Text>
                             </Avatar>

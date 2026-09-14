@@ -12,6 +12,7 @@ import {
     TMP_PROFILES_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
+import type { RepoContext } from './types';
 
 // Warehouse-aware guidance injected mid-prompt. Points the agent at the skill
 // files before any edit that changes a column's emitted type — the class of
@@ -86,7 +87,7 @@ export const buildSystemPrompt = (
     context: {
         projectName: string;
         repository: string;
-        repoContext: string | null;
+        repoContext: RepoContext | null;
         warehouseType: WarehouseTypes | null;
         hasWarehouseSkill: boolean;
         profilesStaged: boolean;
@@ -112,7 +113,7 @@ ${buildWarehouseSkillGuidance(context.warehouseType, context.hasWarehouseSkill)}
 
 ${buildDbtSqlSkillGuidance()}
 ${
-    context.repoContext
+    context.repoContext?.kind === 'full'
         ? `
 ## Repo context (pre-computed)
 
@@ -132,11 +133,36 @@ not cover the rest of the repository.
   find its real file and edit THAT file — not any copy under \`dbt_packages/\`.
 
 <repo_context>
-${context.repoContext}
+${context.repoContext.listing}
 </repo_context>
 `
         : ''
-}
+}${
+        context.repoContext?.kind === 'summarised'
+            ? `
+## Repo context (directory summary)
+
+This dbt project has ${context.repoContext.fileCount} \`.sql\`/\`.yml\`/\`.yaml\`
+files under \`${dbtProjectDir}\` — too many to list in full here. The block below
+is a directory-level summary instead: one line per directory, with the number of
+files it contains.
+
+- Use it to orient yourself — it shows where models live and how the project is
+  organised — then use \`Glob\` (e.g. \`**/dim_orders*\`) or \`Grep\` to find the
+  specific files you need. This is expected here; the full listing is NOT
+  available, so exploring is the correct approach.
+- The summary covers \`${dbtProjectDir}\` ONLY. In a monorepo the project can
+  import models from \`local:\` packages (declared in \`packages.yml\`) whose real
+  source files live ELSEWHERE in the repository. If a model the request refers
+  to is not under the directories below, \`Glob\`/\`Grep\` from the repo root and
+  edit the real file — not any copy under \`dbt_packages/\`.
+
+<repo_context_summary>
+${context.repoContext.listing}
+</repo_context_summary>
+`
+            : ''
+    }
 If you made any file changes, perform these follow-up steps before you finish:
 ${
     context.profilesStaged
@@ -197,6 +223,59 @@ If you did not change any files, skip these steps entirely and do not emit the
 blocks.
 `.trim();
 
+export const buildNativeSystemPrompt = (
+    projectDir: string,
+    context: {
+        projectName: string;
+        repository: string;
+        repoContext: RepoContext | null;
+        warehouseType: WarehouseTypes | null;
+        hasWarehouseSkill: boolean;
+    },
+): string =>
+    `
+You are editing the native Lightdash YAML project "${context.projectName}" in ${context.repository}.
+The connected project directory is \`${projectDir}\`, relative to the cloned repository.
+Edit the original source files inside that directory. Preserve comments, unrelated definitions,
+and existing field identities. The host owns git: do not commit, push, or run git commands.
+
+This project uses native Lightdash models, not dbt schemas. Models are recursively loaded from
+\`models/\` if it exists, otherwise \`lightdash/models/\`, beneath the connected project directory.
+Each model file has a top-level \`type: model\` (also model/v1 or model/v1beta), \`name\`,
+\`sql_from\`, and a \`dimensions\` sequence. Edit the actual model file; never create a dbt
+\`models: [...]\` schema wrapper, \`meta\` wrapper, profiles, packages, or generated build output.
+Native dimensions have name, type and sql; metrics belong to the model's metrics mapping or
+the relevant dimension's metrics mapping. Reuse existing fields and native field references.
+Inspect the existing model syntax before editing joins, filters, metrics, or AI hints.
+
+Project-level knowledge and explore routing belong in \`lightdash.project_context.yml\` in
+the connected project directory. Preserve its existing schema and entries; inspect it before
+applying a Reviews context fix. Model-specific semantic fixes belong in the original model YAML.
+
+${buildWarehouseSkillGuidance(context.warehouseType, context.hasWarehouseSkill).replaceAll('`schema.yml`', 'native YAML')}
+Reuse existing dimensions and metrics in SQL. Avoid correlated subqueries; use existing joins
+or aggregated model expressions where appropriate.
+
+${context.repoContext ? `Connected project file ${context.repoContext.kind === 'full' ? 'listing' : 'directory summary'}:\n<repo_context>\n${context.repoContext.listing}\n</repo_context>` : 'Use Glob/Grep to locate the source files inside the connected project directory.'}
+
+The host validates the edited models, project configuration and project context with the shared
+native compiler before opening or updating a pull request. No warehouse credentials, dbt
+profiles, dependency installation, or sandbox CLI build are needed. Do not claim compilation
+passed yourself. Invalid native source fails the run before any remote branch or PR mutation.
+
+If you changed files, end your final reply with these metadata blocks, each tag on its own line:
+${PR_TITLE_OPEN}
+single-line PR title, plain text, max 72 characters
+${PR_TITLE_CLOSE}
+${PR_DESCRIPTION_OPEN}
+concise PR description in markdown
+${PR_DESCRIPTION_CLOSE}
+${PR_SUMMARY_OPEN}
+one or two sentences describing the user-visible outcome
+${PR_SUMMARY_CLOSE}
+If no files changed, omit these blocks.
+`.trim();
+
 // System prompt for the GENERAL coding agent (editRepo). Repo-generic: no dbt,
 // no warehouse skills, no compile step. The agent reads/edits files in the
 // cloned repo to satisfy the request and leaves the PR metadata on disk; the
@@ -205,7 +284,7 @@ blocks.
 export const buildGeneralSystemPrompt = (context: {
     repository: string;
     /** Pre-computed file listing of the repo, or null if unavailable. */
-    repoContext: string | null;
+    repoContext: RepoContext | null;
 }): string =>
     `
 You are an autonomous coding agent working inside a checkout of a git repository.
@@ -223,7 +302,7 @@ You are an autonomous coding agent working inside a checkout of a git repository
   credential files). The host rejects any commit touching these.
 - Do NOT commit or push — the host handles git after you finish.
 ${
-    context.repoContext
+    context.repoContext?.kind === 'full'
         ? `
 ## Repo context (pre-computed)
 
@@ -231,11 +310,29 @@ The block below lists files in the repository. Consult it FIRST to locate
 files; \`Read\` them directly rather than re-discovering paths with Glob.
 
 <repo_context>
-${context.repoContext}
+${context.repoContext.listing}
 </repo_context>
 `
         : ''
-}
+}${
+        context.repoContext?.kind === 'summarised'
+            ? `
+## Repo context (directory summary)
+
+This repository has ${context.repoContext.fileCount} files — too many to list in
+full here. The block below is a directory-level summary instead: one line per
+directory, with the number of files it contains.
+
+Use it to orient yourself, then use \`Glob\` or \`Grep\` to find the specific
+files you need. The full listing is NOT available, so exploring is the correct
+approach here.
+
+<repo_context_summary>
+${context.repoContext.listing}
+</repo_context_summary>
+`
+            : ''
+    }
 When you have finished making changes, end your final reply with the three
 structured-output blocks below. The host parses the PR metadata from them and
 strips the blocks before showing your reply to the user, so emit them verbatim,

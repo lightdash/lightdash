@@ -70,7 +70,8 @@ projectRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const { type, fromDate, toDate, createdByUuid } = req.query;
+            const { type, fromDate, toDate, createdByUuid, verifiedOnly } =
+                req.query;
             const results = await req.services
                 .getSearchService()
                 .getSearchResults(
@@ -83,6 +84,7 @@ projectRouter.get(
                         fromDate: fromDate?.toString(),
                         toDate: toDate?.toString(),
                         createdByUuid: createdByUuid?.toString(),
+                        verifiedOnly: verifiedOnly === 'true',
                     },
                 );
             res.json({ status: 'ok', results });
@@ -94,13 +96,18 @@ projectRouter.get(
 
 projectRouter.get(
     '/csv/:nanoId',
-
+    allowApiKeyAuthentication,
+    isAuthenticated,
     async (req, res, next) => {
         try {
             const { nanoId } = req.params;
             const { path: filePath } = await req.services
                 .getDownloadFileService()
-                .getDownloadFile(nanoId);
+                .getDownloadFileForProject(
+                    req.account!,
+                    getObjectValue(req.params, 'projectUuid'),
+                    nanoId,
+                );
             const filename = path.basename(filePath);
             const normalizedPath = path.resolve('/tmp/', filename);
             if (!normalizedPath.startsWith('/tmp/')) {

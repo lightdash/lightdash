@@ -2,7 +2,6 @@ import {
     AnyType,
     BackfillDefaultUserSpacesPayload,
     CompileProjectPayload,
-    CreateSchedulerAndTargets,
     CreateSchedulerTarget,
     EmailBatchNotificationPayload,
     EmailNotificationPayload,
@@ -42,6 +41,7 @@ import {
     SchedulerMsTeamsTarget,
     SchedulerSlackTarget,
     SchedulerTaskName,
+    SendNowScheduler,
     SlackBatchNotificationPayload,
     SlackNotificationPayload,
     SqlRunnerPayload,
@@ -564,7 +564,7 @@ export class SchedulerClient {
     private async addNotificationJob(
         date: Date,
         jobGroup: string,
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
         target: CreateSchedulerTarget | undefined,
         targetUuid: string | undefined,
         page: NotificationPayloadBase['page'] | undefined,
@@ -996,7 +996,7 @@ export class SchedulerClient {
 
     async generateJobsForSchedulerTargets(
         scheduledTime: Date,
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
         page: NotificationPayloadBase['page'] | undefined,
         parentJobId: string,
         traceProperties: TraceTaskBase,
@@ -1433,6 +1433,22 @@ export class SchedulerClient {
         });
 
         return { jobId };
+    }
+
+    async hasCreateProjectWithCompileJob(jobUuid: string): Promise<boolean> {
+        const graphileClient = await this.graphileUtils;
+        const result = await graphileClient.withPgClient((pgClient) =>
+            pgClient.query<{ exists: boolean }>(
+                `SELECT EXISTS (
+                    SELECT 1
+                    FROM graphile_worker.jobs
+                    WHERE task_identifier = $1
+                      AND payload->>'jobUuid' = $2
+                ) AS exists`,
+                [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE, jobUuid],
+            ),
+        );
+        return result.rows[0]?.exists ?? false;
     }
 
     async testAndCompileProject(payload: CompileProjectPayload) {

@@ -15,7 +15,7 @@ const InlineErrorState: FC<InlineErrorStateProps> = ({
 }) => (
     <Paper variant="dotted" p="md" {...paperProps}>
         <Group justify="space-between" gap="xs">
-            <Text fz="sm" c="ldGray.6">
+            <Text fz="sm" c="dimmed">
                 {message}
             </Text>
             {onRetry && (

@@ -99,6 +99,8 @@ Every upload runs `ensureContentMatchesExtension` after the body is buffered:
 - **Text kinds** (`.css/.md/.svg`) — `TextDecoder('utf-8', { fatal: true })` rejects invalid UTF-8; first 1KB must contain no null bytes.
 - **`.svg` specifically** — must start with `<?xml`, `<svg`, `<!--`, or `<!DOCTYPE`.
 
+Font uploads receive an additional metadata-policy check after signature validation. A narrow, bounds-checked reader extracts internal family, full, PostScript, and typographic-family names; WOFF/WOFF2 decompression uses asynchronous native zlib with explicit output limits. Restricted Apple system-font families are rejected with the filename, matching evidence, and an actionable system-stack fallback. If metadata is absent or cannot be safely inspected, the filename is used as fallback evidence and the otherwise-valid font remains accepted. Theme-package import uses the same check after its byte-identical `NO_CHANGES` path, preserving legacy download/upload round-trips. Generation rechecks only effective last-write-wins legacy files before copying them into a Data App sandbox.
+
 ### SVG sanitize-on-write via DOMPurify
 
 SVGs run through DOMPurify with `USE_PROFILES: { svg: true, svgFilters: true }` before the bytes hit S3. Strips `<script>`, `on*=` handlers, `<foreignObject>`, and `javascript:` hrefs. **The sanitized buffer is what's stored**, so downstream consumers can't accidentally serve the unsanitized original.

@@ -1,4 +1,5 @@
 import {
+    getDashboardFilterField,
     type DashboardFilterableField,
     type DashboardFilters,
     type DashboardTile,
@@ -45,11 +46,13 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
 }: Props<T>) => {
     const getField = useCallback(
         (filterRule: FilterRule) => {
-            if (itemsMap) {
-                return itemsMap[filterRule.target.fieldId];
-            }
+            return getDashboardFilterField(
+                itemsMap,
+                filterRule,
+                filterableFieldsByTileUuid,
+            );
         },
-        [itemsMap],
+        [itemsMap, filterableFieldsByTileUuid],
     );
 
     const getAutocompleteFilterGroupCallback = useCallback(

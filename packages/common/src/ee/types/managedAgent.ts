@@ -332,7 +332,14 @@ export type ApiManagedAgentRunsListResponse =
 
 export type ManagedAgentActionFilters = {
     date?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    /** @deprecated Use `actionTypes`. Still accepted and merged into it. */
     actionType?: ManagedAgentActionType;
+    actionTypes?: ManagedAgentActionType[];
+    targetTypes?: ManagedAgentTargetType[];
+    search?: string;
     sessionId?: string;
     runUuid?: string;
+    limit?: number;
 };

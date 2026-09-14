@@ -5,6 +5,7 @@ import {
     OrganizationMemberRoleLabels,
     type OrganizationMemberProfile,
     type OrganizationMemberProfileWithGroups,
+    type OrganizationRoleSet,
     type Role,
 } from '@lightdash/common';
 import {
@@ -28,6 +29,11 @@ import {
     useState,
     type FC,
 } from 'react';
+import { OrganizationRoleSetCell } from '../../../features/roleSets/components/OrganizationRoleSetCell';
+import {
+    useMultipleRolesEnabled,
+    useReplaceOrganizationUserRoleSetMutation,
+} from '../../../features/roleSets/hooks/useRoleSets';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
@@ -51,10 +57,9 @@ import { UsersTopToolbar } from './UsersTopToolbar';
 
 const fetchSize = 50;
 
-type PendingRoleChange = {
-    userId: string;
-    roleId: string;
-};
+type PendingRoleChange =
+    | { userId: string; roleId: string }
+    | { userId: string; roleSet: OrganizationRoleSet };
 
 const UsersTable: FC = () => {
     const theme = useMantineTheme();
@@ -124,6 +129,8 @@ const UsersTable: FC = () => {
     }, [debouncedSearchValue, scrollToTop]);
 
     const updateUserRole = useUpsertOrganizationUserRoleAssignmentMutation();
+    const replaceRoleSet = useReplaceOrganizationUserRoleSetMutation();
+    const multipleRolesEnabled = useMultipleRolesEnabled();
     const organizationRolesQuery = useOrganizationRoles();
 
     const handleRoleChange = useCallback(
@@ -150,17 +157,40 @@ const UsersTable: FC = () => {
         [activeUser.data?.userUuid, updateUserRole],
     );
 
+    const handleRoleSetChange = useCallback(
+        (user: OrganizationMemberProfile, roleSet: OrganizationRoleSet) => {
+            const isCurrentUser = activeUser.data?.userUuid === user.userUuid;
+            const isAdminSelfDowngrade =
+                isCurrentUser &&
+                user.role === OrganizationMemberRole.ADMIN &&
+                roleSet.systemRole !== OrganizationMemberRole.ADMIN;
+
+            if (isAdminSelfDowngrade) {
+                setPendingRoleChange({ userId: user.userUuid, roleSet });
+                return;
+            }
+            replaceRoleSet.mutate({ userUuid: user.userUuid, roleSet });
+        },
+        [activeUser.data?.userUuid, replaceRoleSet],
+    );
+
     const handleConfirmAdminSelfDowngrade = useCallback(() => {
         if (!pendingRoleChange) {
             return;
         }
-
-        updateUserRole.mutate(pendingRoleChange, {
-            onSuccess: () => {
-                setPendingRoleChange(null);
-            },
-        });
-    }, [pendingRoleChange, updateUserRole]);
+        const onSuccess = () => setPendingRoleChange(null);
+        if ('roleSet' in pendingRoleChange) {
+            replaceRoleSet.mutate(
+                {
+                    userUuid: pendingRoleChange.userId,
+                    roleSet: pendingRoleChange.roleSet,
+                },
+                { onSuccess },
+            );
+            return;
+        }
+        updateUserRole.mutate(pendingRoleChange, { onSuccess });
+    }, [pendingRoleChange, updateUserRole, replaceRoleSet]);
 
     const organizationRoleOptions = useMemo(() => {
         const systemRoles = Object.values(OrganizationMemberRole).map(
@@ -194,6 +224,9 @@ const UsersTable: FC = () => {
         false;
     const canInvite =
         activeUser.data?.ability?.can('create', 'InviteLink') ?? false;
+    const canImpersonate =
+        activeUser.data?.ability?.can('impersonate', 'User') ?? false;
+    const showActions = canManageUsers || canInvite || canImpersonate;
 
     const columns: ContentTableColumnDef<
         OrganizationMemberProfile | OrganizationMemberProfileWithGroups
@@ -208,7 +241,7 @@ const UsersTable: FC = () => {
                 size: 300,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconUserCircle} color="ldGray.6" />
+                        <MantineIcon icon={IconUserCircle} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -223,14 +256,12 @@ const UsersTable: FC = () => {
                         <Stack gap="xs">
                             {!user.isActive ? (
                                 <Stack gap="xxs" align="flex-start">
-                                    <Text fw={600} fz="sm" c="ldGray.6">
+                                    <Text fw={600} fz="sm" c="dimmed">
                                         {user.firstName
                                             ? `${user.firstName} ${user.lastName}`
                                             : user.email}
                                     </Text>
-                                    <Badge variant="light" color="red">
-                                        Inactive
-                                    </Badge>
+                                    <Badge color="red">Inactive</Badge>
                                 </Stack>
                             ) : user.isPending ? (
                                 <Stack gap="xxs" align="flex-start">
@@ -240,7 +271,7 @@ const UsersTable: FC = () => {
                                         </Text>
                                     )}
                                     <Group gap="xs">
-                                        <Badge variant="light" color="orange">
+                                        <Badge color="orange">
                                             {!user.isInviteExpired
                                                 ? 'Pending'
                                                 : 'Link expired'}
@@ -253,11 +284,7 @@ const UsersTable: FC = () => {
                                         {user.firstName} {user.lastName}
                                     </Text>
 
-                                    {user.email && (
-                                        <Badge variant="light" color="gray">
-                                            {user.email}
-                                        </Badge>
-                                    )}
+                                    {user.email && <Badge>{user.email}</Badge>}
                                 </Stack>
                             )}
                             {showInviteSuccess && (
@@ -284,6 +311,21 @@ const UsersTable: FC = () => {
                 size: 200,
                 Cell: ({ row }) => {
                     const user = row.original;
+                    if (multipleRolesEnabled) {
+                        return (
+                            <OrganizationRoleSetCell
+                                user={user}
+                                organizationRoles={organizationRolesQuery.data}
+                                disabled={
+                                    organizationRolesQuery.isLoading ||
+                                    replaceRoleSet.isLoading
+                                }
+                                onChange={(roleSet) =>
+                                    handleRoleSetChange(user, roleSet)
+                                }
+                            />
+                        );
+                    }
                     return (
                         <Select
                             data={organizationRoleOptions}
@@ -314,26 +356,23 @@ const UsersTable: FC = () => {
                             !user.groups
                         ) {
                             return (
-                                <Text fz="sm" c="ldGray.6">
+                                <Text fz="sm" c="dimmed">
                                     0 groups
                                 </Text>
                             );
                         }
 
                         return (
-                            <HoverCard
-                                shadow="sm"
-                                disabled={user.groups.length < 1}
-                            >
+                            <HoverCard disabled={user.groups.length < 1}>
                                 <HoverCard.Target>
-                                    <Text fz="sm" c="ldGray.6">
+                                    <Text fz="sm" c="dimmed">
                                         {`${user.groups.length} group${
                                             user.groups.length !== 1 ? 's' : ''
                                         }`}
                                     </Text>
                                 </HoverCard.Target>
                                 <HoverCard.Dropdown p="sm">
-                                    <Text fz="xs" fw={600} c="ldGray.6">
+                                    <Text fz="xs" fw={600} c="dimmed">
                                         User groups:
                                     </Text>
                                     <List size="xs" ml="xs" mt="xs" fz="xs">
@@ -349,7 +388,9 @@ const UsersTable: FC = () => {
                     },
                 });
             }
+        }
 
+        if (showActions) {
             cols.push({
                 id: 'actions',
                 header: '',
@@ -373,6 +414,7 @@ const UsersTable: FC = () => {
                                 user={user}
                                 disabled={disabled}
                                 canInvite={canInvite}
+                                canDelete={canManageUsers}
                                 inviteLink={inviteLink}
                                 onInviteSent={handleInviteSent}
                             />
@@ -385,11 +427,16 @@ const UsersTable: FC = () => {
         return cols;
     }, [
         canManageUsers,
+        showActions,
         inviteLink,
         inviteSuccessFor,
         isGroupManagementEnabled,
         handleRoleChange,
+        handleRoleSetChange,
+        multipleRolesEnabled,
+        replaceRoleSet.isLoading,
         organizationRoleOptions,
+        organizationRolesQuery.data,
         organizationRolesQuery.isLoading,
         activeUser.data?.userUuid,
         flatData.length,
@@ -474,7 +521,7 @@ const UsersTable: FC = () => {
                                 ? 'Scroll for more users'
                                 : 'All users loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${totalFetched} of ${totalDBRowCount} loaded)`
                                 : `(${totalFetched})`}
@@ -498,7 +545,7 @@ const UsersTable: FC = () => {
             <ContentTable table={table} />
             <ConfirmAdminSelfDowngradeModal
                 opened={pendingRoleChange !== null}
-                loading={updateUserRole.isLoading}
+                loading={updateUserRole.isLoading || replaceRoleSet.isLoading}
                 onClose={() => setPendingRoleChange(null)}
                 onConfirm={handleConfirmAdminSelfDowngrade}
             />

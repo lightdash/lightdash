@@ -147,11 +147,11 @@ Password: demo_password!
 # View recent API logs
 ./agent-harness/agent-cli.sh <ID> logs api
 
-# Check for errors using Spotlight MCP
-mcp__spotlight__search_errors with filters: {"timeWindow": 300}
+# Check for errors in Maple (local tracing)
+maple errors --since 5m
 
-# Get trace details
-mcp__spotlight__get_traces with traceId: "<8-char-prefix-from-logs>"
+# Get trace details (full 32-char trace ID from the logs)
+maple trace <trace-id>
 ```
 
 ### Debugging frontend issues

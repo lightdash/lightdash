@@ -11,6 +11,8 @@ import {
     PullRequestWithStatus,
     SessionUser,
 } from '@lightdash/common';
+import pLimit from 'p-limit';
+import * as BitbucketClient from '../../clients/bitbucket/Bitbucket';
 import * as GithubClient from '../../clients/github/Github';
 import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -57,13 +59,62 @@ export class PullRequestsService extends BaseService {
         repo: string,
         prNumbers: number[],
         credentials: {
-            type: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
+            type:
+                | DbtProjectType.GITHUB
+                | DbtProjectType.GITLAB
+                | DbtProjectType.BITBUCKET;
+            owner: string;
+            repo: string;
             hostDomain?: string;
             token: string;
             installationId?: string;
         },
     ): Promise<Record<number, PullRequestMetadata>> {
         try {
+            if (
+                provider === PullRequestProvider.BITBUCKET &&
+                credentials.type === DbtProjectType.BITBUCKET &&
+                owner === credentials.owner &&
+                repo === credentials.repo
+            ) {
+                const limit = pLimit(8);
+                const results = await Promise.allSettled(
+                    prNumbers.map((pullNumber) =>
+                        limit(() =>
+                            BitbucketClient.getPullRequest({
+                                owner,
+                                repo,
+                                token: credentials.token,
+                                pullNumber,
+                            }),
+                        ),
+                    ),
+                );
+                const failedCount = results.filter(
+                    (result) => result.status === 'rejected',
+                ).length;
+                if (failedCount > 0) {
+                    this.logger.warn(
+                        'Failed to resolve Bitbucket pull request metadata',
+                        { owner, repo, failedCount },
+                    );
+                }
+                return Object.fromEntries(
+                    results.flatMap((result) =>
+                        result.status === 'fulfilled'
+                            ? [
+                                  [
+                                      result.value.number,
+                                      {
+                                          title: result.value.title,
+                                          state: result.value.state,
+                                      },
+                                  ],
+                              ]
+                            : [],
+                    ),
+                );
+            }
             if (
                 provider === PullRequestProvider.GITHUB &&
                 credentials.type === DbtProjectType.GITHUB
@@ -136,10 +187,17 @@ export class PullRequestsService extends BaseService {
         // can't be resolved, still return the stored rows without title/state.
         let credentials;
         try {
-            credentials = await this.gitIntegrationService.getGitCredentials(
-                user,
-                projectUuid,
-            );
+            const project = await this.projectModel.get(projectUuid);
+            credentials =
+                project.dbtConnection.type === DbtProjectType.BITBUCKET
+                    ? await this.gitIntegrationService.getBitbucketCredentials(
+                          user,
+                          projectUuid,
+                      )
+                    : await this.gitIntegrationService.getGitCredentials(
+                          user,
+                          projectUuid,
+                      );
         } catch (error) {
             this.logger.warn(
                 'Could not resolve git credentials for pull requests',
@@ -155,7 +213,7 @@ export class PullRequestsService extends BaseService {
             };
         }
 
-        // Group by provider + repo so each group is one batched API call.
+        // Group by provider + repo before resolving metadata.
         const groups = new Map<string, PullRequest[]>();
         pullRequests.forEach((pr) => {
             const key = `${pr.provider}:${pr.owner}/${pr.repo}`;

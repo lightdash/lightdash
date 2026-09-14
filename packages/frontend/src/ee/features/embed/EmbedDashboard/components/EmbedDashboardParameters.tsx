@@ -1,10 +1,12 @@
+import { type ParameterDefinitions } from '@lightdash/common';
 import { Box, Group, Text } from '@mantine/core';
 import { IconAdjustmentsHorizontal } from '@tabler/icons-react';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { type FC, type ReactNode } from 'react';
 import FilterGroupSeparator from '../../../../../features/dashboardFilters/FilterGroupSeparator';
 import { Parameters } from '../../../../../features/parameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../../providers/Dashboard/useDashboardTileStatusContext';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 
 const parametersSeparator: ReactNode = (
@@ -24,30 +26,22 @@ const parametersSeparator: ReactNode = (
     />
 );
 
-const EmbedDashboardParameters: FC = () => {
+type Props = {
+    /** Parameters referenced by the charts on the active tab */
+    parameters: ParameterDefinitions;
+};
+
+const EmbedDashboardParameters: FC<Props> = ({ parameters }) => {
+    const getUiString = useUiStrings();
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const handleParameterChange = useDashboardContext((c) => c.setParameter);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
-    const parameterDefinitions = useDashboardContext(
-        (c) => c.parameterDefinitions,
-    );
-    const parameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
-    );
     const areAllChartsLoaded = useDashboardTileStatusContext(
         (c) => c.areAllChartsLoaded,
     );
     const missingRequiredParameters = useDashboardContext(
         (c) => c.missingRequiredParameters,
     );
-
-    const referencedParameters = useMemo(() => {
-        return Object.fromEntries(
-            Object.entries(parameterDefinitions).filter(([key]) =>
-                parameterReferences.has(key),
-            ),
-        );
-    }, [parameterDefinitions, parameterReferences]);
 
     return (
         <Group
@@ -60,7 +54,7 @@ const EmbedDashboardParameters: FC = () => {
                 parameterValues={parameterValues}
                 onParameterChange={handleParameterChange}
                 onClearAll={clearAllParameters}
-                parameters={referencedParameters}
+                parameters={parameters}
                 isLoading={!areAllChartsLoaded}
                 missingRequiredParameters={missingRequiredParameters}
                 triggerClassName={embedContractClass('ld-dashboard-parameter')}
@@ -68,6 +62,7 @@ const EmbedDashboardParameters: FC = () => {
                     'ld-dashboard-parameter-dropdown',
                 )}
                 separator={parametersSeparator}
+                getUiString={getUiString}
             />
         </Group>
     );

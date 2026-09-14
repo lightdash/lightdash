@@ -1,4 +1,8 @@
-import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+    DeleteObjectCommand,
+    GetObjectCommand,
+    HeadObjectCommand,
+} from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -159,6 +163,18 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             );
             return null;
         }
+    }
+
+    async deleteFile(key: string): Promise<void> {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+        await this.s3.send(
+            new DeleteObjectCommand({
+                Bucket: this.configuration.bucket,
+                Key: key,
+            }),
+        );
     }
 
     async getDownloadStream(

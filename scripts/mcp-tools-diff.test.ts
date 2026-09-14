@@ -29,7 +29,7 @@ function test(name: string, fn: () => void): void {
 }
 
 const snap = (tools: SnapshotTool[]): ToolsSnapshot => ({ schemaVersion: '1', tools });
-const tool = (name: string, props: Record<string, string> = {}, required: string[] = []): SnapshotTool => ({
+const tool = (name: string, props: Record<string, string | string[]> = {}, required: string[] = []): SnapshotTool => ({
     name,
     inputSchema: {
         type: 'object',
@@ -95,6 +95,49 @@ test('R4: input field type change is breaking', () => {
         snap([tool('a', { x: 'number' }, [])]),
     );
     assert.deepStrictEqual(r.changes, ['MCP tool `a`: input `x` type changed string → number']);
+});
+
+test('equivalent nullable type encodings are NOT breaking', () => {
+    const before = snap([tool('a', { x: ['boolean', 'null'] })]);
+    const after = snap([{
+        name: 'a',
+        inputSchema: {
+            type: 'object',
+            properties: { x: { anyOf: [{ type: 'boolean' }, { type: 'null' }] } },
+        },
+    }]);
+
+    const r = diffSnapshots(before, after);
+    assert.strictEqual(r.breaking, false);
+    assert.deepStrictEqual(r.changes, []);
+});
+
+test('equivalent oneOf type encodings are NOT breaking', () => {
+    const before = snap([tool('a', { x: ['null', 'string'] })]);
+    const after = snap([{
+        name: 'a',
+        inputSchema: {
+            type: 'object',
+            properties: { x: { oneOf: [{ type: 'string' }, { type: 'null' }] } },
+        },
+    }]);
+
+    assert.strictEqual(diffSnapshots(before, after).breaking, false);
+});
+
+test('an unconstrained union branch remains unknown', () => {
+    const before = snap([tool('a', { x: 'string' })]);
+    const after = snap([{
+        name: 'a',
+        inputSchema: {
+            type: 'object',
+            properties: { x: { anyOf: [{ type: 'string' }, {}] } },
+        },
+    }]);
+
+    assert.deepStrictEqual(diffSnapshots(before, after).changes, [
+        'MCP tool `a`: input `x` type changed string → unknown',
+    ]);
 });
 
 test('description/title/output/annotation-only changes are NOT breaking', () => {

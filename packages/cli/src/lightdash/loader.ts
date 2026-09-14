@@ -1,53 +1,13 @@
-/**
- * Loader for Lightdash YAML model files
- */
-
-import { ParseError, type LightdashModel } from '@lightdash/common';
+import { type LightdashModelWithSource } from '@lightdash/common';
+import { loadLightdashModels as loadNativeLightdashModels } from '@lightdash/common/lightdash/loader';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 import GlobalState from '../globalState';
 
-/**
- * Load a single Lightdash YAML model file
- */
-export async function loadLightdashModel(
-    filePath: string,
-): Promise<LightdashModel> {
-    try {
-        const fileContents = await fs.promises.readFile(filePath, 'utf8');
-        const parsed = yaml.load(fileContents) as LightdashModel;
+export { loadLightdashModel } from '@lightdash/common/lightdash/loader';
 
-        // Basic validation
-        if (!parsed.type || !parsed.name || !parsed.dimensions) {
-            throw new ParseError(
-                `Invalid Lightdash model in ${filePath}: must have type, name, and dimensions`,
-            );
-        }
-
-        if (!parsed.sql_from) {
-            throw new ParseError(
-                `Invalid Lightdash model in ${filePath}: must have sql_from`,
-            );
-        }
-
-        return parsed;
-    } catch (error) {
-        if (error instanceof ParseError) {
-            throw error;
-        }
-        throw new ParseError(
-            `Failed to load Lightdash model from ${filePath}: ${
-                error instanceof Error ? error.message : String(error)
-            }`,
-        );
-    }
-}
-
-/**
- * Check if a YAML file contains a Lightdash model definition
- * A valid model file must have a `type` field with value 'model', 'model/v1beta', or 'model/v1'
- */
+// Format detection must tolerate files that dbt may ignore or handle itself.
 async function isLightdashModelFile(filePath: string): Promise<boolean> {
     try {
         const fileContents = await fs.promises.readFile(filePath, 'utf8');
@@ -129,33 +89,9 @@ export async function findLightdashModelFiles(
     return modelFiles;
 }
 
-/**
- * Load all Lightdash YAML models from a project directory
- */
 export async function loadLightdashModels(
     projectDir: string,
-): Promise<LightdashModel[]> {
-    const modelFiles = await findLightdashModelFiles(projectDir);
-
-    GlobalState.debug(
-        `Found ${modelFiles.length} Lightdash model files in ${projectDir}`,
-    );
-
-    const models: LightdashModel[] = [];
-
-    for await (const filePath of modelFiles) {
-        try {
-            const model = await loadLightdashModel(filePath);
-            models.push(model);
-            GlobalState.debug(`Loaded Lightdash model: ${model.name}`);
-        } catch (error) {
-            console.error(
-                `Warning: Failed to load ${filePath}: ${
-                    error instanceof Error ? error.message : String(error)
-                }`,
-            );
-        }
-    }
-
-    return models;
+): Promise<LightdashModelWithSource[]> {
+    if ((await findLightdashModelFiles(projectDir)).length === 0) return [];
+    return loadNativeLightdashModels(projectDir);
 }

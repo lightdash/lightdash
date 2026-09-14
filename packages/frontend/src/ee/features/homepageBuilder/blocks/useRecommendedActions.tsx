@@ -1,10 +1,14 @@
-import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     DbtProjectType,
     DbtProjectTypeLabels,
     ProjectType,
+    type AgentOnboardingRun,
+    type HealthState,
     type HomepageRecommendedActionKey,
+    type Organization,
+    type OrganizationProject,
+    type Project,
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
 import { useGithubConfig } from '../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
@@ -22,6 +26,7 @@ import useApp from '../../../../providers/App/useApp';
 import { isPlaygroundProvisioningSource } from '../../../../utils/playgroundProject';
 import { useActiveAgentOnboardingRun } from '../../agentOnboarding/hooks/useAgentOnboarding';
 import { getAgentOnboardingRunUrl } from '../../agentOnboarding/utils';
+import { useCanManageProject } from '../hooks/useHomepageAbilities';
 import { useHomepageRecommendedActionSkips } from '../hooks/useHomepageRecommendedActionSkips';
 import { RECOMMENDED_ACTION_KEYS } from './recommendedActionDefaults';
 
@@ -39,6 +44,32 @@ const isTermPending = (
     query: { isFetched: boolean },
 ) => isGateOpen === undefined || (isGateOpen && !query.isFetched);
 
+type GatedQuery = readonly [
+    isGateOpen: boolean | undefined,
+    query: { isFetched: boolean },
+];
+
+const isAnyTermPending = (terms: GatedQuery[]): boolean =>
+    terms.some(([isGateOpen, query]) => isTermPending(isGateOpen, query));
+
+// A gate is unknown until the query that decides it has settled.
+const gate = (isSettled: boolean, isOpen: boolean): boolean | undefined =>
+    isSettled ? isOpen : undefined;
+
+const isFlagOn = (flag: { data: { enabled: boolean } | undefined }): boolean =>
+    flag.data?.enabled === true;
+
+const integrationFlags = (health: HealthState | undefined) => ({
+    hasGithub: !!health?.hasGithub,
+    hasGitlab: !!health?.hasGitlab,
+    hasSlack: !!health?.hasSlack,
+});
+
+type DbtConnection = Project['dbtConnection'] | undefined;
+
+const hasSemanticLayer = (dbtConnection: DbtConnection): boolean =>
+    !!dbtConnection && dbtConnection.type !== DbtProjectType.NONE;
+
 export type ActionStatus = {
     isVisible: boolean;
     isComplete: boolean;
@@ -47,6 +78,138 @@ export type ActionStatus = {
     doneIcon: ReactNode | null;
     url: string;
     ctaLabel: string;
+};
+
+// A playground is a project, so `needsProject` alone would report the
+// warehouse step as done on sample data
+const resolveWarehouse = (
+    organization: Organization | undefined,
+    projects: OrganizationProject[] | undefined,
+    project: Project | undefined,
+) => {
+    const hasRealWarehouseProject =
+        organization?.needsProject === false &&
+        (projects ?? []).some(
+            ({ type, provisioningSource }) =>
+                type === ProjectType.DEFAULT &&
+                !isPlaygroundProvisioningSource(provisioningSource),
+        );
+    const warehouseType =
+        hasRealWarehouseProject &&
+        !isPlaygroundProvisioningSource(project?.provisioningSource)
+            ? project?.warehouseConnection?.type
+            : undefined;
+    return { hasRealWarehouseProject, warehouseType };
+};
+
+const warehouseStatus = ({
+    hasRealWarehouseProject,
+    warehouseType,
+}: ReturnType<typeof resolveWarehouse>): ActionStatus => ({
+    isVisible: true,
+    isComplete: hasRealWarehouseProject,
+    annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
+    doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 'sm') : null,
+    url: '/onboarding/data-source',
+    ctaLabel: DEFAULT_CTA_LABEL,
+});
+
+// An agent run left mid-flight is resumable, so the step points at the run
+// instead of restarting the flow
+const semanticLayerUrl = (
+    projectUuid: string | null,
+    activeAgentRun: AgentOnboardingRun | null,
+    hasAgentSemanticLayerEntry: boolean,
+): string => {
+    if (activeAgentRun) {
+        return getAgentOnboardingRunUrl(
+            activeAgentRun.agentOnboardingRunUuid,
+            activeAgentRun.projectUuid,
+        );
+    }
+    if (hasAgentSemanticLayerEntry) {
+        return `/projects/${projectUuid}/onboarding/agent`;
+    }
+    return `/generalSettings/projectManagement/${projectUuid}/settings`;
+};
+
+const semanticLayerStatus = ({
+    projectUuid,
+    dbtConnection,
+    activeAgentRun,
+    hasAgentSemanticLayerEntry,
+}: {
+    projectUuid: string | null;
+    dbtConnection: DbtConnection;
+    activeAgentRun: AgentOnboardingRun | null;
+    hasAgentSemanticLayerEntry: boolean;
+}): ActionStatus => ({
+    isVisible: !!projectUuid,
+    isComplete: hasSemanticLayer(dbtConnection),
+    annotation: dbtConnection ? DbtProjectTypeLabels[dbtConnection.type] : null,
+    doneIcon: null,
+    url: semanticLayerUrl(
+        projectUuid,
+        activeAgentRun,
+        hasAgentSemanticLayerEntry,
+    ),
+    ctaLabel: activeAgentRun ? 'Resume' : DEFAULT_CTA_LABEL,
+});
+
+const sourceControlAnnotation = (
+    isGithubConnected: boolean,
+    isGitlabConnected: boolean,
+    dbtConnection: DbtConnection,
+): string | null => {
+    if (isGithubConnected) return 'GitHub';
+    if (isGitlabConnected) return 'GitLab';
+    if (dbtConnection && dbtConnection.type !== DbtProjectType.NONE) {
+        return DbtProjectTypeLabels[dbtConnection.type];
+    }
+    return null;
+};
+
+const sourceControlStatus = ({
+    hasGithub,
+    hasGitlab,
+    isGithubConnected,
+    isGitlabConnected,
+    dbtConnection,
+}: {
+    hasGithub: boolean;
+    hasGitlab: boolean;
+    isGithubConnected: boolean;
+    isGitlabConnected: boolean;
+    dbtConnection: DbtConnection;
+}): ActionStatus => ({
+    isVisible: hasGithub || hasGitlab,
+    isComplete:
+        isGithubConnected ||
+        isGitlabConnected ||
+        hasSemanticLayer(dbtConnection),
+    annotation: sourceControlAnnotation(
+        isGithubConnected,
+        isGitlabConnected,
+        dbtConnection,
+    ),
+    doneIcon: null,
+    url: '/onboarding/dbt',
+    ctaLabel: DEFAULT_CTA_LABEL,
+});
+
+const slackStatus = (
+    hasSlack: boolean,
+    slackQuery: ReturnType<typeof useGetSlack>,
+): ActionStatus => {
+    const { data: slack, isSuccess } = slackQuery;
+    return {
+        isVisible: hasSlack,
+        isComplete: isSuccess && !!slack && slack.hasRequiredScopes !== false,
+        annotation: slack?.slackTeamName ?? 'Connected',
+        doneIcon: null,
+        url: '/generalSettings/integrations',
+        ctaLabel: DEFAULT_CTA_LABEL,
+    };
 };
 
 const useActionStatuses = (
@@ -61,11 +224,6 @@ const useActionStatuses = (
     const projectsQuery = useProjects();
     const githubConfigQuery = useGithubConfig();
     const slackQuery = useGetSlack();
-    const { data: organization } = organizationQuery;
-    const { data: project } = projectQuery;
-    const { data: projects } = projectsQuery;
-    const { data: githubConfig } = githubConfigQuery;
-    const { data: slack, isSuccess: isSlackSuccess } = slackQuery;
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const codingAgentOnboardingFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
@@ -73,11 +231,8 @@ const useActionStatuses = (
     const areFlagsSettled =
         newOnboardingFlag.isFetched && codingAgentOnboardingFlag.isFetched;
     const hasAgentSemanticLayerEntry =
-        newOnboardingFlag.data?.enabled === true &&
-        codingAgentOnboardingFlag.data?.enabled === true;
+        isFlagOn(newOnboardingFlag) && isFlagOn(codingAgentOnboardingFlag);
 
-    // An agent run left mid-flight is resumable, so the step points at the run
-    // instead of restarting the flow
     const activeAgentRunQuery = useActiveAgentOnboardingRun(
         projectUuid ?? undefined,
         { enabled: hasAgentSemanticLayerEntry },
@@ -85,14 +240,11 @@ const useActionStatuses = (
     const activeAgentRun = activeAgentRunQuery.data ?? null;
 
     const isHealthSettled = health.isFetched;
-    const hasGithub = !!health.data?.hasGithub;
-    const hasGitlab = !!health.data?.hasGitlab;
-    const hasSlack = !!health.data?.hasSlack;
+    const { hasGithub, hasGitlab, hasSlack } = integrationFlags(health.data);
     const gitlabQuery = useGitlabRepositories({
         enabled: hasGitlab,
     });
-    const { isSuccess: isGitlabConnected } = gitlabQuery;
-    const isGithubConnected = githubConfig?.enabled === true;
+    const isGithubConnected = githubConfigQuery.data?.enabled === true;
 
     // Every step defaults to incomplete, so rendering before these have
     // settled flashes steps that are already done. Health decides which
@@ -100,107 +252,55 @@ const useActionStatuses = (
     // is looked up, so those answers gate the terms below rather than each
     // query's own idle state.
     const isLoading =
-        isTermPending(true, health) ||
-        isTermPending(true, organizationQuery) ||
-        isTermPending(!!projectUuid, projectQuery) ||
-        isTermPending(true, projectsQuery) ||
-        isTermPending(
-            isHealthSettled ? hasGithub : undefined,
-            githubConfigQuery,
-        ) ||
-        isTermPending(isHealthSettled ? hasGitlab : undefined, gitlabQuery) ||
-        isTermPending(isHealthSettled ? hasSlack : undefined, slackQuery) ||
-        isTermPending(
-            areFlagsSettled
-                ? !!projectUuid && hasAgentSemanticLayerEntry
-                : undefined,
-            activeAgentRunQuery,
-        ) ||
-        !areFlagsSettled;
+        !areFlagsSettled ||
+        isAnyTermPending([
+            [true, health],
+            [true, organizationQuery],
+            [!!projectUuid, projectQuery],
+            [true, projectsQuery],
+            [gate(isHealthSettled, hasGithub), githubConfigQuery],
+            [gate(isHealthSettled, hasGitlab), gitlabQuery],
+            [gate(isHealthSettled, hasSlack), slackQuery],
+            [
+                gate(
+                    areFlagsSettled,
+                    !!projectUuid && hasAgentSemanticLayerEntry,
+                ),
+                activeAgentRunQuery,
+            ],
+        ]);
 
-    const dbtConnection = project?.dbtConnection;
-    const hasSemanticLayer =
-        !!dbtConnection && dbtConnection.type !== DbtProjectType.NONE;
-    const isSlackConnected =
-        isSlackSuccess && !!slack && slack.hasRequiredScopes !== false;
-
-    // A playground is a project, so `needsProject` alone would report the
-    // warehouse step as done on sample data
-    const hasRealWarehouseProject =
-        organization?.needsProject === false &&
-        (projects?.some(
-            ({ type, provisioningSource }) =>
-                type === ProjectType.DEFAULT &&
-                !isPlaygroundProvisioningSource(provisioningSource),
-        ) ??
-            false);
-    const warehouseType =
-        hasRealWarehouseProject &&
-        !isPlaygroundProvisioningSource(project?.provisioningSource)
-            ? project?.warehouseConnection?.type
-            : undefined;
+    const dbtConnection = projectQuery.data?.dbtConnection;
 
     return {
         isLoading,
         statuses: {
-            'connect-warehouse': {
-                isVisible: true,
-                isComplete: hasRealWarehouseProject,
-                annotation: warehouseType
-                    ? getWarehouseLabel(warehouseType)
-                    : null,
-                doneIcon: warehouseType
-                    ? getWarehouseIcon(warehouseType, 'sm')
-                    : null,
-                url: '/onboarding/data-source',
-                ctaLabel: DEFAULT_CTA_LABEL,
-            },
-            'add-semantic-layer': {
-                isVisible: !!projectUuid,
-                isComplete: hasSemanticLayer,
-                annotation: dbtConnection
-                    ? DbtProjectTypeLabels[dbtConnection.type]
-                    : null,
-                doneIcon: null,
-                url: activeAgentRun
-                    ? getAgentOnboardingRunUrl(
-                          activeAgentRun.agentOnboardingRunUuid,
-                          activeAgentRun.projectUuid,
-                      )
-                    : hasAgentSemanticLayerEntry
-                      ? `/projects/${projectUuid}/onboarding/agent`
-                      : `/generalSettings/projectManagement/${projectUuid}/settings`,
-                ctaLabel: activeAgentRun ? 'Resume' : DEFAULT_CTA_LABEL,
-            },
-            'connect-source-control': {
-                isVisible: hasGithub || hasGitlab,
-                isComplete:
-                    isGithubConnected || isGitlabConnected || hasSemanticLayer,
-                annotation: isGithubConnected
-                    ? 'GitHub'
-                    : isGitlabConnected
-                      ? 'GitLab'
-                      : hasSemanticLayer
-                        ? DbtProjectTypeLabels[dbtConnection.type]
-                        : null,
-                doneIcon: null,
-                url: '/onboarding/dbt',
-                ctaLabel: DEFAULT_CTA_LABEL,
-            },
-            'connect-slack': {
-                isVisible: hasSlack,
-                isComplete: isSlackConnected,
-                annotation: slack?.slackTeamName ?? 'Connected',
-                doneIcon: null,
-                url: '/generalSettings/integrations',
-                ctaLabel: DEFAULT_CTA_LABEL,
-            },
+            'connect-warehouse': warehouseStatus(
+                resolveWarehouse(
+                    organizationQuery.data,
+                    projectsQuery.data,
+                    projectQuery.data,
+                ),
+            ),
+            'add-semantic-layer': semanticLayerStatus({
+                projectUuid,
+                dbtConnection,
+                activeAgentRun,
+                hasAgentSemanticLayerEntry,
+            }),
+            'connect-source-control': sourceControlStatus({
+                hasGithub,
+                hasGitlab,
+                isGithubConnected,
+                isGitlabConnected: gitlabQuery.isSuccess,
+                dbtConnection,
+            }),
+            'connect-slack': slackStatus(hasSlack, slackQuery),
         },
     };
 };
 
 export const useRecommendedActions = (projectUuid: string | null) => {
-    const { user } = useApp();
     const { statuses, isLoading: areStatusesLoading } =
         useActionStatuses(projectUuid);
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
@@ -208,15 +308,7 @@ export const useRecommendedActions = (projectUuid: string | null) => {
     const isPlaygroundProject = isPlaygroundProvisioningSource(
         project?.provisioningSource,
     );
-
-    const canManageProject =
-        user.data?.ability?.can(
-            'manage',
-            subject('Project', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid: projectUuid ?? undefined,
-            }),
-        ) ?? false;
+    const canManageProject = useCanManageProject(projectUuid);
 
     const {
         skippedActions = [],
@@ -239,7 +331,7 @@ export const useRecommendedActions = (projectUuid: string | null) => {
         : RECOMMENDED_ACTION_KEYS.filter((key) => statuses[key].isVisible);
     const skippedActionKeys = new Set<string>(skippedActions);
     const hasPendingActions =
-        newOnboardingFlag.data?.enabled === true &&
+        isFlagOn(newOnboardingFlag) &&
         !isLoading &&
         canManageProject &&
         visibleActions.some(

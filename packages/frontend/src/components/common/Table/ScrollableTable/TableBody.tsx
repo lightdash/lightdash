@@ -517,7 +517,6 @@ const VirtualizedTableBody: FC<{
                                   >
                                       <Center>
                                           <Tooltip
-                                              withinPortal
                                               position="top"
                                               label={`Loading more rows...`}
                                           >

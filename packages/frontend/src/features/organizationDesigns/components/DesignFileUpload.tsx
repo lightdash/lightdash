@@ -164,7 +164,7 @@ export const DesignFileUpload: FC<Props> = ({
                 ) : (
                     <MantineIcon icon={IconUpload} size="lg" color="dimmed" />
                 )}
-                <Text size="sm" c="ldGray.6" ta="center">
+                <Text size="sm" c="dimmed" ta="center">
                     {uploadFile.isLoading
                         ? 'Uploading…'
                         : 'Drop files here or click to browse'}

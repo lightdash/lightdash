@@ -141,7 +141,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
     );
 
     return (
-        <Paper withBorder radius="md" className={classes.window}>
+        <Paper radius="md" className={classes.window}>
             {/* TODO: re-enable browser chrome header preview
             <Group className={classes.chrome} gap="xs" wrap="nowrap">
                 <Group gap={6} wrap="nowrap">
@@ -168,7 +168,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                         />
                     ) : (
                         <Box className={classes.navLogoFallback}>
-                            <Text size="xs" fw={700} c={primary}>
+                            <Text size="xs" fw={600} c={primary}>
                                 {displayName[0]?.toUpperCase() ?? 'A'}
                             </Text>
                         </Box>
@@ -198,7 +198,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                 <Group justify="space-between" align="flex-start" wrap="nowrap">
                     <Stack gap={2}>
                         <Text
-                            fw={700}
+                            fw={600}
                             fz={22}
                             ff={titleFamily}
                             className={classes.title}
@@ -219,18 +219,18 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                 </Group>
 
                 <Group gap="sm" grow align="stretch" wrap="nowrap">
-                    <Paper withBorder radius="md" className={classes.card}>
+                    <Paper radius="md" className={classes.card}>
                         <Text size="xs" c="dimmed" ff={bodyFamily}>
                             Total revenue
                         </Text>
-                        <Text fw={700} fz={24} ff={titleFamily}>
+                        <Text fw={600} fz={24} ff={titleFamily}>
                             $1.24M
                         </Text>
                         <Text size="xs" c="teal" ff={bodyFamily}>
                             +12.8% vs last quarter
                         </Text>
                     </Paper>
-                    <Paper withBorder radius="md" className={classes.card}>
+                    <Paper radius="md" className={classes.card}>
                         <Text size="xs" c="dimmed" mb={6} ff={bodyFamily}>
                             Weekly trend
                         </Text>
@@ -248,7 +248,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                 </Group>
 
                 <Group gap="sm" grow align="stretch" wrap="nowrap">
-                    <Paper withBorder radius="md" className={classes.card}>
+                    <Paper radius="md" className={classes.card}>
                         <Text size="xs" c="dimmed" mb="xs" ff={bodyFamily}>
                             Revenue by channel
                         </Text>
@@ -263,7 +263,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                             ))}
                         </Box>
                     </Paper>
-                    <Paper withBorder radius="md" className={classes.card}>
+                    <Paper radius="md" className={classes.card}>
                         <Text size="xs" c="dimmed" mb="xs" ff={bodyFamily}>
                             Revenue share
                         </Text>

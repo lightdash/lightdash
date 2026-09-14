@@ -39,13 +39,13 @@
  */
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
+import { isMigrationPath } from './release-safety-migrations';
 
 const MODEL = 'claude-opus-4-8';
 const MIGRATION_DIRS = [
     'packages/backend/src/database/migrations',
     'packages/backend/src/ee/database/migrations',
 ];
-const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
 const MAX_FILE_CHARS = 8000;
 const MAX_TOOL_CALLS = 40;
 const MAX_GREP_LINES = 80;
@@ -105,7 +105,7 @@ export function addedMigrationPaths(
         const parts = line.split('\t');
         if (parts[0].charAt(0) !== 'A') continue;
         const p = parts[parts.length - 1];
-        if (MIGRATION_FILENAME_RE.test(p.split('/').pop() as string)) paths.push(p);
+        if (isMigrationPath(p)) paths.push(p);
     }
     return paths.sort();
 }
