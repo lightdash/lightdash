@@ -1,3 +1,15 @@
+# [2.208.0](https://github.com/lightdash/lightdash/compare/2.207.1...2.208.0) (2026-09-14)
+
+
+### Bug Fixes
+
+* refresh custom chart tiles after version changes ([#29134](https://github.com/lightdash/lightdash/issues/29134)) ([bf3f0ba](https://github.com/lightdash/lightdash/commit/bf3f0ba8641b86a14da0f39dc5a1d4d3e31bcfe8))
+
+
+### Features
+
+* **content-review:** show reuse suggestions when saving and requesting review ([#29154](https://github.com/lightdash/lightdash/issues/29154)) ([5cf826a](https://github.com/lightdash/lightdash/commit/5cf826a3dfc74116844875d1970d451cf4286bed))
+
 ## [2.207.1](https://github.com/lightdash/lightdash/compare/2.207.0...2.207.1) (2026-09-14)
 
 

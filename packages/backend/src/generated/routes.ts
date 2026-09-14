@@ -33519,6 +33519,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                matchReason: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['same_name'] },
+                        { dataType: 'enum', enums: ['similar_name'] },
+                    ],
+                },
                 score: { dataType: 'double', required: true },
                 isVerified: { dataType: 'boolean', required: true },
                 spaceName: { dataType: 'string', required: true },
