@@ -41,6 +41,7 @@ import { LinearAppInstallationsModel } from './LinearAppInstallations/LinearAppI
 import { ManagedSignInModel } from './ManagedSignInModel';
 import { McpContextModel } from './McpContextModel';
 import { MigrationModel } from './MigrationModel/MigrationModel';
+import { MobileSetupCodeModel } from './MobileSetupCodeModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
@@ -131,6 +132,7 @@ export type ModelManifest = {
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
     inviteLinkModel: InviteLinkModel;
     jobModel: JobModel;
+    mobileSetupCodeModel: MobileSetupCodeModel;
     managedSignInModel: ManagedSignInModel;
     mcpContextModel: McpContextModel;
     migrationModel: MigrationModel;
@@ -589,6 +591,13 @@ export class ModelRepository
         return this.getModel(
             'notificationsModel',
             () => new NotificationsModel({ database: this.database }),
+        );
+    }
+
+    public getMobileSetupCodeModel(): MobileSetupCodeModel {
+        return this.getModel(
+            'mobileSetupCodeModel',
+            () => new MobileSetupCodeModel(this.database),
         );
     }
 
