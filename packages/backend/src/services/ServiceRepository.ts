@@ -51,6 +51,7 @@ import { GroupsService } from './GroupService';
 import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
 import { JiraAppService } from './JiraAppService/JiraAppService';
+import { LearnSandboxService } from './LearnSandboxService/LearnSandboxService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { LinearAppService } from './LinearAppService/LinearAppService';
@@ -121,6 +122,7 @@ interface ServiceManifest {
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
     jiraAppService: JiraAppService;
+    learnSandboxService: LearnSandboxService;
     linearAppService: LinearAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
@@ -664,6 +666,7 @@ export class ServiceRepository
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
                     readinessService: this.readinessService,
+                    learnSandboxService: this.getLearnSandboxService(),
                 }),
         );
     }
@@ -1603,6 +1606,23 @@ export class ServiceRepository
                     recentContentModel: this.models.getRecentContentModel(),
                     projectModel: this.models.getProjectModel(),
                     contentService: this.getContentService(),
+                }),
+        );
+    }
+
+    public getLearnSandboxService(): LearnSandboxService {
+        return this.getService(
+            'learnSandboxService',
+            () =>
+                new LearnSandboxService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    learnWorkspaceModel: this.models.getLearnWorkspaceModel(),
+                    projectModel: this.models.getProjectModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    personalAccessTokenService:
+                        this.getPersonalAccessTokenService(),
+                    userService: this.getUserService(),
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }
