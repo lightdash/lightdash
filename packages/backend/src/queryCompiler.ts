@@ -359,6 +359,12 @@ const compileAdditionalMetric = ({
     return {
         ...metric,
         compiledSql: compiledMetric.sql,
+        ...(compiledMetric.sqlTemplate
+            ? { compiledSqlTemplate: compiledMetric.sqlTemplate }
+            : {}),
+        ...(compiledMetric.valueSqlTemplate
+            ? { compiledValueSqlTemplate: compiledMetric.valueSqlTemplate }
+            : {}),
         tablesReferences: Array.from(compiledMetric.tablesReferences),
         ...(compiledMetric.compiledRelativeDateFilters
             ? {
