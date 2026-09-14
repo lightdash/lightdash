@@ -91,10 +91,12 @@ describe('runAutopilotAgent', () => {
         });
 
         expect(executeTool).toHaveBeenCalledTimes(1);
-        expect(executeTool).toHaveBeenCalledWith('get_recent_actions', {
-            limit: 5,
-        });
-        expect(result).toEqual({
+        expect(executeTool).toHaveBeenCalledWith(
+            'get_recent_actions',
+            { limit: 5 },
+            expect.any(AbortSignal),
+        );
+        expect(result).toMatchObject({
             slackSummary: 'Nothing to report.',
             stepCount: 3,
             stopReason: 'end_turn',
@@ -120,7 +122,7 @@ describe('runAutopilotAgent', () => {
             executeTool: vi.fn().mockResolvedValue('[]'),
         });
 
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             slackSummary: null,
             stepCount: 2,
             stopReason: 'step_cap',
@@ -170,14 +172,14 @@ describe('runAutopilotAgent', () => {
             executeTool,
         });
 
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             slackSummary: 'Partial run.',
             stepCount: 1,
             stopReason: 'timeout',
         });
     });
 
-    it('rethrows provider errors that are not a timeout', async () => {
+    it('records provider errors that are not a timeout', async () => {
         const model = new MockLanguageModelV3({
             modelId: 'mock-autopilot-model',
             doGenerate: async () => {
@@ -192,6 +194,133 @@ describe('runAutopilotAgent', () => {
                 callOptions: { maxRetries: 0 },
                 executeTool: vi.fn(),
             }),
-        ).rejects.toThrow('invalid api key');
+        ).resolves.toMatchObject({
+            stopReason: 'error',
+            error: 'invalid api key',
+        });
     });
+    it('serializes same-step actions so the last deletion slot cannot be spent twice', async () => {
+        let count = 24;
+        const first = toolCallTurn('soft_delete_content', {
+            target_uuid: 'first',
+        });
+        const second = toolCallTurn('soft_delete_content', {
+            target_uuid: 'second',
+        });
+        const model = new MockLanguageModelV3({
+            doGenerate: async () => ({
+                ...first,
+                content: [
+                    first.content[0],
+                    { ...second.content[0], toolCallId: 'second' },
+                ],
+            }),
+        });
+        await runAutopilotAgent({
+            ...baseArgs,
+            model,
+            maxSteps: 1,
+            executeTool: async () => {
+                const previousCount = count;
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 5);
+                });
+                if (previousCount < 25) count += 1;
+                return '{}';
+            },
+        });
+        expect(count).toBe(25);
+    });
+
+    it('drains an active action on timeout and never starts queued actions', async () => {
+        let effectFinished = false;
+        const first = toolCallTurn('get_recent_actions', {});
+        const second = toolCallTurn('get_stale_charts', {});
+        const model = new MockLanguageModelV3({
+            doGenerate: async () => ({
+                ...first,
+                content: [first.content[0], second.content[0]],
+            }),
+        });
+        const executeTool = vi.fn().mockImplementation(async () => {
+            await new Promise((resolve) => {
+                setTimeout(resolve, 60);
+            });
+            effectFinished = true;
+            return '{}';
+        });
+        const result = await runAutopilotAgent({
+            ...baseArgs,
+            model,
+            maxSteps: 1,
+            timeoutMs: 20,
+            executeTool,
+        });
+        expect(executeTool).toHaveBeenCalledTimes(1);
+        expect(effectFinished).toBe(true);
+        expect(result.stopReason).toBe('timeout');
+    });
+
+    it.each(['length', 'content-filter', 'error', 'other'] as const)(
+        'records %s termination as an incomplete run',
+        async (reason) => {
+            const model = new MockLanguageModelV3({
+                doGenerate: async () => ({
+                    ...textTurn('Partial run'),
+                    finishReason: { unified: reason, raw: undefined },
+                }),
+            });
+            const result = await runAutopilotAgent({
+                ...baseArgs,
+                model,
+                executeTool: vi.fn(),
+            });
+            expect(result.stopReason).not.toBe('end_turn');
+            expect(result).toHaveProperty('error', expect.any(String));
+        },
+    );
+
+    it('keeps the summary when the next provider call fails', async () => {
+        let turn = 0;
+        const model = new MockLanguageModelV3({
+            doGenerate: async () => {
+                turn += 1;
+                if (turn === 1)
+                    return toolCallTurn('write_slack_summary', {
+                        summary: 'Partial run.',
+                    });
+                throw new Error('provider failed');
+            },
+        });
+        await expect(
+            runAutopilotAgent({ ...baseArgs, model, executeTool: vi.fn() }),
+        ).resolves.toMatchObject({
+            slackSummary: 'Partial run.',
+            stepCount: 1,
+            stopReason: 'error',
+            error: 'provider failed',
+        });
+    });
+});
+
+describe('runAutopilotAgent configuration bounds', () => {
+    it.each([
+        { maxSteps: 0 },
+        { maxSteps: -1 },
+        { timeoutMs: 0 },
+        { timeoutMs: 2_147_483_648 },
+    ])(
+        'rejects invalid configuration before calling the model: %o',
+        async (override) => {
+            const { model, calls } = buildScriptedModel([{ text: 'done' }]);
+            const result = await runAutopilotAgent({
+                ...baseArgs,
+                ...override,
+                model,
+                executeTool: vi.fn(),
+            });
+            expect(result.stopReason).toBe('error');
+            expect(calls).toEqual([]);
+        },
+    );
 });

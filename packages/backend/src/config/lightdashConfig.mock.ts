@@ -389,6 +389,7 @@ export const lightdashConfigMock: LightdashConfig = {
         projectId: 'test-project-id',
     },
     managedAgent: {
+        validatedModels: [],
         runtime: 'anthropic-managed',
         anthropicApiKey: null,
         skillIds: [],

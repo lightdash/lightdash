@@ -49,8 +49,23 @@ export const loadAutopilotSkill = async (
     switch (name) {
         case AUTOPILOT_SLACK_SKILL_NAME:
             return loadSlackSkill();
-        case AUTOPILOT_CHART_SKILL_NAME:
-            return loadBuiltInSkill(name);
+        case AUTOPILOT_CHART_SKILL_NAME: {
+            const builtIn = await loadBuiltInSkill(name);
+            if (!builtIn) return undefined;
+            return {
+                ...builtIn,
+                body: await fs.readFile(
+                    path.join(__dirname, 'chart-workflows.md'),
+                    'utf8',
+                ),
+                resources:
+                    builtIn.resources?.filter(
+                        (resource) =>
+                            resource.name.endsWith('-chart-reference') ||
+                            resource.name === 'field-formatting-reference',
+                    ) ?? [],
+            };
+        }
         default:
             return undefined;
     }

@@ -55,6 +55,10 @@ import {
     normalizeAnthropicGatewayBaseUrl,
     normalizeLlmGatewayBaseUrl,
 } from './aiGatewayConfig';
+import {
+    parseAutopilotValidatedModels,
+    type AutopilotValidatedModel,
+} from './autopilotConfig';
 
 enum TokenEnvironmentVariable {
     SERVICE_ACCOUNT = 'LD_SETUP_SERVICE_ACCOUNT_TOKEN',
@@ -1731,6 +1735,7 @@ export type LightdashConfig = {
         schedule: string;
         sessionTimeoutMs: number;
         maxSteps: number;
+        validatedModels: AutopilotValidatedModel[];
     };
     aiWriteback: {
         /**
@@ -3691,6 +3696,9 @@ export const parseConfig = (): LightdashConfig => {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
         managedAgent: {
+            validatedModels: parseAutopilotValidatedModels(
+                process.env.MANAGED_AGENT_VALIDATED_MODELS,
+            ),
             runtime:
                 parseEnum<ManagedAgentRuntime>(
                     process.env.MANAGED_AGENT_RUNTIME,

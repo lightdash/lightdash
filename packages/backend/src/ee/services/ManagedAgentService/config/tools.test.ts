@@ -43,9 +43,11 @@ describe('buildAutopilotTools', () => {
             limit: 5,
         });
 
-        expect(handler).toHaveBeenCalledWith('get_recent_actions', {
-            limit: 5,
-        });
+        expect(handler).toHaveBeenCalledWith(
+            'get_recent_actions',
+            { limit: 5 },
+            undefined,
+        );
         expect(result).toBe('{"actions":[]}');
     });
 

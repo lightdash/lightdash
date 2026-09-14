@@ -30,6 +30,7 @@ import {
 import crypto from 'crypto';
 import { Knex } from 'knex';
 import { customAlphabet, nanoid } from 'nanoid';
+import { setTimeout as abortableSleep } from 'node:timers/promises';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import {
     DbQueryHistory,
@@ -496,6 +497,7 @@ export class QueryHistoryModel {
         timeoutMs = 5 * 60 * 1000,
         throwOnCancelled = true,
         throwOnError = true,
+        abortSignal,
     }: {
         queryUuid: string;
         account: Account | null;
@@ -505,6 +507,7 @@ export class QueryHistoryModel {
         timeoutMs?: number;
         throwOnCancelled?: boolean;
         throwOnError?: boolean;
+        abortSignal?: AbortSignal;
     }): Promise<QueryHistory> {
         const startTime = Date.now();
         const getQueryHistory = () =>
@@ -513,13 +516,16 @@ export class QueryHistoryModel {
                 : this.get(queryUuid, projectUuid, account);
 
         const poll = async (backoffMs: number): Promise<QueryHistory> => {
+            abortSignal?.throwIfAborted();
             if (Date.now() - startTime > timeoutMs) {
                 throw new Error(`Query polling timed out after ${timeoutMs}ms`);
             }
 
             const queryHistory = await getQueryHistory();
             if (!queryHistory) {
-                await sleep(backoffMs);
+                await abortableSleep(backoffMs, undefined, {
+                    signal: abortSignal,
+                });
                 return poll(Math.min(backoffMs * 2, maxBackoffMs));
             }
 
@@ -540,7 +546,9 @@ export class QueryHistoryModel {
                 case QueryHistoryStatus.PENDING:
                 case QueryHistoryStatus.QUEUED:
                 case QueryHistoryStatus.EXECUTING:
-                    await sleep(backoffMs);
+                    await abortableSleep(backoffMs, undefined, {
+                        signal: abortSignal,
+                    });
                     return poll(Math.min(backoffMs * 2, maxBackoffMs));
                 case QueryHistoryStatus.READY:
                     return queryHistory;

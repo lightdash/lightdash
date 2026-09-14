@@ -100,6 +100,7 @@ import type {
     ExternalConnectionLinkedApps,
     ExternalConnectionSample,
     ExternalFetchResponse,
+    ManagedAgentRuntimeInfo,
 } from '../ee';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
@@ -1601,6 +1602,7 @@ type ApiResults =
     | ApiOrganizationBrandResponse['results']
     | ApiAgentOnboardingFileResponse['results']
     | ApiAgentOnboardingRunResponse['results']
+    | ManagedAgentRuntimeInfo
     | ApiManagedAgentRunResponse['results']
     | ApiManagedAgentRunsListResponse['results']
     | ApiManagedAgentActionResponse['results']

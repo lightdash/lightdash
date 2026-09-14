@@ -811,3 +811,8 @@
 .targetIcon {
     flex-shrink: 0;
 }
+
+.runSummary {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}

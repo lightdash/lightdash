@@ -1,3 +1,4 @@
+import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
     AUTOPILOT_CHART_SKILL_NAME,
     AUTOPILOT_SLACK_SKILL_NAME,
@@ -19,11 +20,23 @@ describe('loadAutopilotSkill', () => {
         expect(skill?.body).toContain('Agent Positioning');
     });
 
-    it('delegates the chart skill to the built-in skills', async () => {
+    it('adapts chart workflows while reusing chart reference resources', async () => {
         const builtIn = {
             name: AUTOPILOT_CHART_SKILL_NAME,
             description: 'Chart-as-code reference',
-            body: '# Developing in Lightdash',
+            body: 'Use readContent and editContent',
+            resources: [
+                {
+                    name: 'cartesian-chart-reference',
+                    description: 'Cartesian',
+                    content: 'Chart schema',
+                },
+                {
+                    name: 'dashboard-reference',
+                    description: 'Dashboard',
+                    content: 'Dashboard edits',
+                },
+            ],
         };
         const loadBuiltInSkill = vi.fn().mockResolvedValue(builtIn);
 
@@ -35,7 +48,12 @@ describe('loadAutopilotSkill', () => {
         expect(loadBuiltInSkill).toHaveBeenCalledWith(
             AUTOPILOT_CHART_SKILL_NAME,
         );
-        expect(skill).toBe(builtIn);
+        expect(skill?.body).toContain('fix_broken_chart');
+        expect(skill?.body).toContain('runMetricQuery');
+        expect(skill?.body).not.toMatch(
+            /readContent|editContent|createContent|runContentQuery/,
+        );
+        expect(skill?.resources).toEqual([builtIn.resources[0]]);
     });
 
     it('does not expose other built-in skills to Autopilot', async () => {
@@ -49,5 +67,19 @@ describe('loadAutopilotSkill', () => {
 
         expect(loadBuiltInSkill).not.toHaveBeenCalled();
         expect(skill).toBeUndefined();
+    });
+    it('serves real chart references without chat-only tool instructions', async () => {
+        const skill = await loadAutopilotSkill(
+            AUTOPILOT_CHART_SKILL_NAME,
+            (name) => BuiltInSkills.getAiAgentSkill(name),
+        );
+        expect(skill?.resources?.length).toBeGreaterThan(5);
+        const text = [
+            skill?.body,
+            ...(skill?.resources?.map((resource) => resource.content) ?? []),
+        ].join('\n');
+        expect(text).not.toMatch(
+            /\b(readContent|editContent|createContent|runContentQuery|generateHashes|generate_hashes)\b/,
+        );
     });
 });

@@ -10,8 +10,10 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FC, useState } from 'react';
 import { lightdashApi } from '../../../api';
+import Callout from '../../../components/common/Callout';
 import MantineModal from '../../../components/common/MantineModal';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useManagedAgentRuntime } from './hooks/useManagedAgentRuntime';
 import classes from './ManagedAgentSetupModal.module.css';
 
 const updateSettings = async (
@@ -39,7 +41,7 @@ const CAPABILITIES = [
     {
         icon: IconClock,
         title: 'Stale content cleanup',
-        detail: 'Flags charts & dashboards not viewed in 3+ months and preview projects older than 3 months. Zero-view content is soft-deleted.',
+        detail: 'Reviews stale charts, dashboards, and preview projects. Flags or deletes content according to the cleanup mode and project protections.',
     },
     {
         icon: IconTool,
@@ -66,6 +68,7 @@ export const ManagedAgentSetupModal: FC<{
     onEnabled: () => void;
 }> = ({ projectUuid, opened, onClose, onEnabled }) => {
     const queryClient = useQueryClient();
+    const runtime = useManagedAgentRuntime(projectUuid, opened);
     const { showToastApiError } = useToaster();
     const [schedule, setSchedule] = useState(ManagedAgentScheduleOption.DAILY);
 
@@ -102,6 +105,9 @@ export const ManagedAgentSetupModal: FC<{
             onConfirm={() => mutation.mutate()}
             confirmLabel="Enable"
             confirmLoading={mutation.isLoading}
+            confirmDisabled={
+                runtime.isLoading || runtime.isError || !!runtime.data?.error
+            }
             cancelDisabled={mutation.isLoading}
         >
             <Stack gap="xl">
@@ -112,6 +118,39 @@ export const ManagedAgentSetupModal: FC<{
                     charts, and surfacing insights. All actions are logged and
                     reversible.
                 </Text>
+
+                {runtime.isLoading ? (
+                    <Text fz="sm" c="dimmed">
+                        Checking AI configuration…
+                    </Text>
+                ) : runtime.isError || runtime.data?.error ? (
+                    <Callout
+                        variant="danger"
+                        title="AI configuration unavailable"
+                    >
+                        {runtime.data?.error ??
+                            'Could not load the AI configuration. Close and reopen setup to retry.'}
+                    </Callout>
+                ) : runtime.data ? (
+                    <Stack gap="xs">
+                        <Text fz="sm">
+                            {runtime.data.provider} · {runtime.data.model}
+                        </Text>
+                        <Text fz="xs" c="dimmed">
+                            Uses{' '}
+                            {runtime.data.keySource === 'organization'
+                                ? "your organization's"
+                                : 'the instance’s'}{' '}
+                            AI key. Scheduled runs consume tokens on this key.
+                            Uses the current AI settings for each run.
+                        </Text>
+                        {runtime.data.notice ? (
+                            <Callout variant="warning">
+                                {runtime.data.notice}
+                            </Callout>
+                        ) : null}
+                    </Stack>
+                ) : null}
 
                 {/* Capabilities */}
                 <Stack gap="xs">
