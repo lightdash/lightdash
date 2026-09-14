@@ -106,7 +106,18 @@ export class AiService extends BaseService {
 
     async isAmbientAiEnabled(user: SessionUser): Promise<boolean> {
         try {
-            await this.getAmbientAiModel(user);
+            const config =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    user.organizationUuid ?? null,
+                );
+            // Configuration only: cached review submissions must not contact providers.
+            if (config.providers.anthropic?.apiKey) return true;
+            const flag = await this.featureFlagService.get({
+                user,
+                featureFlagId: CommercialFeatureFlags.AiCopilot,
+            });
+            if (!flag.enabled) return false;
+            getModel(config, { enableReasoning: false, useFastModel: true });
             return true;
         } catch {
             return false;

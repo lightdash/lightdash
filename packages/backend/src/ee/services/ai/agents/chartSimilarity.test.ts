@@ -227,6 +227,9 @@ it.each([
             context,
         );
         expect(result[0].relationship).toBe('related');
+        expect(result[0].explanation).toBe(
+            'Query settings differ. Compare the charts before reusing.',
+        );
     },
 );
 

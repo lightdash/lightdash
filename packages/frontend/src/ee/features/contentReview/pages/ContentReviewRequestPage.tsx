@@ -70,6 +70,7 @@ import {
     getContentTypeNoun,
     getUserFullName,
     getUserInitials,
+    getSimilarityMatchLabel,
 } from '../utils';
 import classes from './ContentReviewRequestPage.module.css';
 
@@ -593,14 +594,15 @@ const SimilarContentFooter: FC<{
                                 key={item.contentUuid}
                                 contentType={item.contentType}
                                 name={item.name}
-                                meta={`${item.matchReason === 'same_name' ? 'Same name' : 'Similar name'} · in ${item.spaceName}`}
+                                meta={`${getSimilarityMatchLabel(item.matchReason)} · in ${item.spaceName}`}
+                                description={item.explanation}
                                 href={getContentHref(
                                     projectUuid,
                                     item.contentType,
                                     item,
                                 )}
                                 isVerified={item.isVerified}
-                                compact
+                                compact={!item.explanation}
                             />
                         ))}
                     </Stack>

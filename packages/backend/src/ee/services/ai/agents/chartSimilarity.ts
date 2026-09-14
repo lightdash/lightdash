@@ -76,23 +76,28 @@ export const sanitizeChartSimilarity = (
                 );
             return match.relationship !== 'unrelated' && hasSharedField;
         })
-        .map((match) => ({
-            ...match,
-            // Conservative duplicate label: semantic differences (including
-            // filters, calculations and limits) must never be waved away by AI.
-            relationship:
+        .map((match) => {
+            const downgraded =
                 match.relationship === 'potential_duplicate' &&
                 !isEqual(
                     queryContext(input.source),
                     queryContext(candidates.get(match.uuid)!),
-                )
+                );
+            // Discard equivalence claims when the query comparison contradicts them.
+            const explanation = downgraded
+                ? 'Query settings differ. Compare the charts before reusing.'
+                : match.explanation;
+            return {
+                ...match,
+                relationship: downgraded
                     ? ('related' as const)
                     : match.relationship,
-            explanation:
-                match.explanation.length > 240
-                    ? `${match.explanation.slice(0, 237).trimEnd()}…`
-                    : match.explanation,
-        }))
+                explanation:
+                    explanation.length > 240
+                        ? `${explanation.slice(0, 237).trimEnd()}…`
+                        : explanation,
+            };
+        })
         .sort(
             (a, b) =>
                 Number(b.relationship === 'potential_duplicate') -

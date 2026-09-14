@@ -32,13 +32,15 @@ const setup = () => {
     const featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
+    const orgAiCopilotConfigResolver = {
+        getCopilotConfig: vi.fn().mockResolvedValue({ providers: {} }),
+        getAccessibleModelIds: vi.fn(),
+    };
     const service = new AiService({
         featureFlagService,
-        orgAiCopilotConfigResolver: {
-            getCopilotConfig: vi.fn().mockResolvedValue({ providers: {} }),
-        },
+        orgAiCopilotConfigResolver,
     } as unknown as ConstructorParameters<typeof AiService>[0]);
-    return { service, featureFlagService };
+    return { service, featureFlagService, orgAiCopilotConfigResolver };
 };
 beforeEach(() =>
     vi.mocked(compareChartQueries).mockReset().mockResolvedValue([]),
@@ -131,4 +133,37 @@ it('treats configuration lookup failures as unavailable', async () => {
     featureFlagService.get.mockRejectedValue(new Error('Unavailable'));
     expect(await service.isAmbientAiEnabled(user)).toBe(false);
     expect(compareChartQueries).not.toHaveBeenCalled();
+});
+
+it('checks configured Anthropic and cached results without provider discovery', async () => {
+    const { service, orgAiCopilotConfigResolver } = setup();
+    await service.compareCharts(user, 'project', input);
+    orgAiCopilotConfigResolver.getCopilotConfig.mockResolvedValue({
+        providers: { anthropic: { apiKey: 'test-key' } },
+    });
+    orgAiCopilotConfigResolver.getAccessibleModelIds.mockImplementation(
+        () => new Promise(() => {}),
+    );
+    expect(await service.isAmbientAiEnabled(user)).toBe(true);
+    expect(await service.compareCharts(user, 'project', input, true)).toEqual(
+        [],
+    );
+    expect(
+        await service.compareCharts(user, 'uncached-project', input, true),
+    ).toBeUndefined();
+    expect(
+        orgAiCopilotConfigResolver.getAccessibleModelIds,
+    ).not.toHaveBeenCalled();
+    expect(compareChartQueries).toHaveBeenCalledTimes(1);
+});
+
+it('treats configuration failures as unavailable without provider discovery', async () => {
+    const { service, orgAiCopilotConfigResolver } = setup();
+    orgAiCopilotConfigResolver.getCopilotConfig.mockRejectedValue(
+        new Error('Unavailable'),
+    );
+    expect(await service.isAmbientAiEnabled(user)).toBe(false);
+    expect(
+        orgAiCopilotConfigResolver.getAccessibleModelIds,
+    ).not.toHaveBeenCalled();
 });
