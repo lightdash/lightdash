@@ -1,8 +1,17 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { lazy, memo, Suspense, useEffect, useState } from 'react';
+import {
+    lazy,
+    memo,
+    Suspense,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { Provider } from 'react-redux';
-import { useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import ChangeChartExploreModal from '../components/common/modal/ChangeChartExploreModal';
 import Page from '../components/common/Page/Page';
@@ -19,9 +28,11 @@ import {
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import { tryParseCreateSavedChartVersionParam } from '../hooks/useExplorerRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useSavedQuery } from '../hooks/useSavedQuery';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
 import { getCandidateExploreNames } from '../utils/exploreSplitError';
@@ -69,6 +80,10 @@ const SavedExplorer = () => {
     }>();
 
     const isEditMode = mode === 'edit';
+    const chartEditorFlag = useServerFeatureFlag(
+        FeatureFlags.InDashboardChartEditor,
+    );
+    const isChartEditorEnabled = chartEditorFlag.data?.enabled === true;
 
     const { setDashboardChartInfo } = useDashboardStorage();
 
@@ -100,9 +115,53 @@ const SavedExplorer = () => {
     // Create store once with useState
     const [store] = useState(() => createExplorerStore());
 
+    // Edits handed over from the in-dashboard chart editor are captured once
+    // per chart session. Search writes must not reapply them, while navigating
+    // to another chart must not inherit the previous chart's handover.
+    const location = useLocation();
+    const navigate = useNavigate();
+    const locationRef = useRef(location);
+    locationRef.current = location;
+    const urlChartVersionParamRef = useRef<{
+        projectUuid: string | undefined;
+        savedQueryUuid: string | undefined;
+        value: string | null;
+    } | null>(null);
+    if (
+        urlChartVersionParamRef.current?.projectUuid !== projectUuid ||
+        urlChartVersionParamRef.current?.savedQueryUuid !== savedQueryUuid
+    ) {
+        urlChartVersionParamRef.current = {
+            projectUuid,
+            savedQueryUuid,
+            value: new URLSearchParams(location.search).get(
+                'create_saved_chart_version',
+            ),
+        };
+    }
+    const urlChartVersionParam = urlChartVersionParamRef.current?.value ?? null;
+    const parsedUrlChartVersion = useMemo(
+        () =>
+            isEditMode && urlChartVersionParam !== null
+                ? tryParseCreateSavedChartVersionParam(urlChartVersionParam)
+                : undefined,
+        [isEditMode, urlChartVersionParam],
+    );
+    const isMatchingUrlChartVersion =
+        data !== undefined &&
+        parsedUrlChartVersion !== undefined &&
+        parsedUrlChartVersion.tableName === data.tableName &&
+        parsedUrlChartVersion.metricQuery.exploreName === data.tableName;
+    const urlChartVersion =
+        isChartEditorEnabled && isMatchingUrlChartVersion
+            ? parsedUrlChartVersion
+            : undefined;
+    const isChartEditorFlagBlockingHandover =
+        chartEditorFlag.isLoading && isMatchingUrlChartVersion;
+
     // Reset store state when data/mode changes
     useEffect(() => {
-        if (!data) return;
+        if (!data || isChartEditorFlagBlockingHandover) return;
 
         const currentSavedChart = store.getState().explorer.savedChart;
         const isNewChart = currentSavedChart?.uuid !== data.uuid;
@@ -115,12 +174,38 @@ const SavedExplorer = () => {
                 isEditMode,
                 expandedSections: [ExplorerSection.VISUALIZATION],
                 defaultLimit: health.data?.query.defaultLimit,
+                unsavedChartVersionOverride: urlChartVersion,
             });
             store.dispatch(explorerActions.reset(initialState));
         } else {
             store.dispatch(explorerActions.setSavedChart(data));
         }
-    }, [data, store, isEditMode, health.data?.query.defaultLimit]);
+
+        // Keep cleanup independent from store initialization so a later effect
+        // pass can retry if the first history replacement did not stick.
+        const remainingSearch = new URLSearchParams(locationRef.current.search);
+        if (
+            urlChartVersion &&
+            remainingSearch.has('create_saved_chart_version')
+        ) {
+            remainingSearch.delete('create_saved_chart_version');
+            void navigate(
+                {
+                    pathname: locationRef.current.pathname,
+                    search: remainingSearch.toString(),
+                },
+                { replace: true },
+            );
+        }
+    }, [
+        data,
+        store,
+        isEditMode,
+        health.data?.query.defaultLimit,
+        urlChartVersion,
+        isChartEditorFlagBlockingHandover,
+        navigate,
+    ]);
 
     useEffect(() => {
         store.dispatch(explorerActions.setIsEditMode(isEditMode));
