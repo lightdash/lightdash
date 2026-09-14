@@ -1,13 +1,11 @@
 import * as Sentry from '@sentry/node';
 import { APICallError } from 'ai';
 import type { AiKeyManagement } from '../../../analytics/aiUsage';
-import type { ManagedAgentRuntime } from '../../../config/parseConfig';
 
 export type AutopilotFailureStage = 'run' | 'timeout' | 'session' | 'report';
 
 export type AutopilotFailureContext = {
     stage: AutopilotFailureStage;
-    runtime: ManagedAgentRuntime;
     organizationUuid: string;
     projectUuid: string;
     runUuid: string;
@@ -63,7 +61,6 @@ export const captureAutopilotFailure = (
     Sentry.withScope((scope) => {
         scope.setTags({
             'autopilot.stage': context.stage,
-            'autopilot.runtime': context.runtime,
             'autopilot.runUuid': context.runUuid,
             'ai.provider': tag(provider),
             'ai.model': tag(context.attribution?.model),

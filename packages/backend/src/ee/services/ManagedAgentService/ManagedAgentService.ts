@@ -16,10 +16,8 @@ import {
     ManagedAgentTargetType,
     NotFoundError,
     ParameterError,
-    ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
-    ServiceAccountScope,
     ValidationErrorType,
     ValidationSourceType,
     type ChartConfig,
@@ -51,7 +49,6 @@ import type { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import type { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
-import type { OrganizationModel } from '../../../models/OrganizationModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
 import type { SpaceModel } from '../../../models/SpaceModel';
@@ -62,12 +59,7 @@ import type { AsyncQueryService } from '../../../services/AsyncQueryService/Asyn
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { ValidationService } from '../../../services/ValidationService/ValidationService';
-import {
-    ManagedAgentClient,
-    type ManagedAgentSessionConfig,
-} from '../../clients/ManagedAgentClient';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
-import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
 import {
     filterModelsForOrg,
     getAvailableModels,
@@ -95,7 +87,6 @@ import {
     type AutopilotFailureStage,
 } from './autopilotFailure';
 import {
-    AUTOPILOT_MANAGED_MODEL_ID,
     parseAutopilotToolCall,
     renderAutopilotAgent,
     type AutopilotToolInput,
@@ -194,6 +185,12 @@ const FRIENDLY_TOOL_LABELS: Record<string, string> = {
     write_slack_summary: 'Writing Slack summary',
 };
 
+// In-process discovery tools the model can call for data-model lookups.
+const DISCOVERY_TOOL_NAMES = {
+    fields: 'grepFields',
+    explores: 'grepFields',
+    validate: 'runMetricQuery',
+} as const;
 const NON_ACTIVITY_TOOL_NAMES = new Set(['write_slack_summary']);
 
 const friendlyToolLabel = (toolName: string): string =>
@@ -204,7 +201,6 @@ type ManagedAgentServiceDependencies = {
     analytics: LightdashAnalytics;
     managedAgentModel: ManagedAgentModel;
     analyticsModel: AnalyticsModel;
-    organizationModel: OrganizationModel;
     projectModel: ProjectModel;
     validationModel: ValidationModel;
     savedChartModel: SavedChartModel;
@@ -213,10 +209,8 @@ type ManagedAgentServiceDependencies = {
     spacePermissionService: SpacePermissionService;
     userModel: UserModel;
     featureFlagModel: FeatureFlagModel;
-    serviceAccountModel: ServiceAccountModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
-    managedAgentClient: ManagedAgentClient;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     aiAgentToolsService: AiAgentToolsService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -253,8 +247,6 @@ export class ManagedAgentService extends BaseService {
 
     private readonly analyticsModel: AnalyticsModel;
 
-    private readonly organizationModel: OrganizationModel;
-
     private readonly projectModel: ProjectModel;
 
     private readonly validationModel: ValidationModel;
@@ -271,13 +263,9 @@ export class ManagedAgentService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
-    private readonly serviceAccountModel: ServiceAccountModel;
-
     private readonly schedulerClient: SchedulerClient;
 
     private readonly slackClient: SlackClient;
-
-    private readonly managedAgentClient: ManagedAgentClient;
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
@@ -293,7 +281,6 @@ export class ManagedAgentService extends BaseService {
         this.analytics = deps.analytics;
         this.managedAgentModel = deps.managedAgentModel;
         this.analyticsModel = deps.analyticsModel;
-        this.organizationModel = deps.organizationModel;
         this.projectModel = deps.projectModel;
         this.validationModel = deps.validationModel;
         this.savedChartModel = deps.savedChartModel;
@@ -302,10 +289,8 @@ export class ManagedAgentService extends BaseService {
         this.spacePermissionService = deps.spacePermissionService;
         this.userModel = deps.userModel;
         this.featureFlagModel = deps.featureFlagModel;
-        this.serviceAccountModel = deps.serviceAccountModel;
         this.schedulerClient = deps.schedulerClient;
         this.slackClient = deps.slackClient;
-        this.managedAgentClient = deps.managedAgentClient;
         this.orgAiCopilotConfigResolver = deps.orgAiCopilotConfigResolver;
         this.aiAgentToolsService = deps.aiAgentToolsService;
         this.aiOrganizationSettingsService = deps.aiOrganizationSettingsService;
@@ -415,72 +400,7 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
-    private async getSessionConfig(
-        projectUuid: string,
-        serviceAccountToken: string,
-    ): Promise<ManagedAgentSessionConfig> {
-        await this.ensureProjectScopedServiceAccount(
-            projectUuid,
-            serviceAccountToken,
-        );
-
-        const {
-            agentId,
-            agentConfigHash,
-            agentVersion,
-            environmentId,
-            vaultId,
-            vaultConfigHash,
-        } = await this.managedAgentModel.getAnthropicResourceIds(projectUuid);
-        const project = await this.projectModel.getSummary(projectUuid);
-        const organization = await this.organizationModel.get(
-            project.organizationUuid,
-        );
-        const { toolSettings, policy } =
-            await this.getAutopilotRenderArgs(projectUuid);
-
-        return {
-            projectUuid,
-            serviceAccountPat: serviceAccountToken,
-            resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
-            skillIds: this.lightdashConfig.managedAgent.skillIds,
-            toolSettings,
-            policy,
-            persistedAgentId: agentId,
-            persistedAgentConfigHash: agentConfigHash,
-            persistedAgentVersion: agentVersion,
-            persistedEnvironmentId: environmentId,
-            persistedVaultId: vaultId,
-            persistedVaultConfigHash: vaultConfigHash,
-            onAgentSynced: async (
-                newAgentId,
-                newAgentConfigHash,
-                newAgentVersion,
-            ) => {
-                await this.managedAgentModel.setAnthropicAgentState(
-                    projectUuid,
-                    newAgentId,
-                    newAgentConfigHash,
-                    newAgentVersion,
-                );
-            },
-            onResourcesCreated: async (
-                newEnvId,
-                newVaultId,
-                newVaultConfigHash,
-            ) => {
-                await this.managedAgentModel.setAnthropicResourceIds(
-                    projectUuid,
-                    newEnvId,
-                    newVaultId,
-                    newVaultConfigHash,
-                );
-            },
-        };
-    }
-
-    // Policy and capability settings feed the prompt and tool list on both
-    // runtimes; the audience is resolved from the suggestions space each time.
+    // The audience is resolved from the suggestions space on every run.
     private async getAutopilotRenderArgs(projectUuid: string): Promise<{
         toolSettings: Record<string, boolean>;
         policy: ManagedAgentPolicy;
@@ -497,12 +417,6 @@ export class ManagedAgentService extends BaseService {
                 ),
             },
         };
-    }
-
-    private usesManagedAgentsApi(): boolean {
-        return (
-            this.lightdashConfig.managedAgent.runtime === 'anthropic-managed'
-        );
     }
 
     // Recheck availability because keys and the provider catalog can change between runs.
@@ -548,97 +462,6 @@ export class ManagedAgentService extends BaseService {
                 `Autopilot needs an AI provider before it can run. ${cause}. Add a provider key under Organization settings, AI, or set AI_DEFAULT_PROVIDER and that provider's key on the instance.`,
             );
         }
-    }
-
-    // Discovery tool names the model can call differ per runtime.
-    private getDiscoveryToolNames(): {
-        fields: string;
-        explores: string;
-        validate: string;
-    } {
-        return this.usesManagedAgentsApi()
-            ? {
-                  fields: 'find_fields MCP tool',
-                  explores: 'list_explores MCP tool',
-                  validate: 'run_metric_query',
-              }
-            : {
-                  fields: 'grepFields',
-                  explores: 'grepFields',
-                  validate: 'runMetricQuery',
-              };
-    }
-
-    private async ensureProjectScopedServiceAccount(
-        projectUuid: string,
-        serviceAccountToken: string,
-    ): Promise<void> {
-        const serviceAccount =
-            await this.serviceAccountModel.findByToken(serviceAccountToken);
-        if (serviceAccount === undefined) {
-            throw new NotFoundError('Service account not found for token');
-        }
-        const projectGrants =
-            await this.projectModel.getServiceAccountProjectGrants(
-                serviceAccount.uuid,
-            );
-        const isProjectScoped =
-            serviceAccount.scopes.length === 1 &&
-            serviceAccount.scopes[0] === ServiceAccountScope.SYSTEM_MEMBER &&
-            projectGrants.length === 1 &&
-            projectGrants[0].projectUuid === projectUuid &&
-            projectGrants[0].role === ProjectMemberRole.EDITOR &&
-            projectGrants[0].roleUuid === null;
-
-        if (isProjectScoped) {
-            return;
-        }
-
-        await this.projectModel.setServiceAccountProjectAccess(
-            serviceAccount.uuid,
-            [
-                {
-                    projectUuid,
-                    role: ProjectMemberRole.EDITOR,
-                },
-            ],
-            { makeProjectScoped: true },
-        );
-        this.logger.info(
-            `Restricted managed agent service account to project ${projectUuid}`,
-        );
-    }
-
-    private async createProjectScopedServiceAccount(
-        user: SessionUser,
-        projectUuid: string,
-        organizationUuid: string,
-    ): Promise<string> {
-        const serviceAccount = await this.serviceAccountModel.create({
-            user,
-            data: {
-                organizationUuid,
-                description: `Autopilot (${projectUuid})`,
-                expiresAt: null,
-                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
-            },
-        });
-
-        try {
-            await this.projectModel.createServiceAccountProjectAccess(
-                projectUuid,
-                serviceAccount.uuid,
-                {
-                    role: ProjectMemberRole.EDITOR,
-                    roleUuid: undefined,
-                },
-            );
-        } catch (error) {
-            await this.serviceAccountModel.delete(serviceAccount.uuid);
-            throw error;
-        }
-
-        return serviceAccount.token;
     }
 
     private async getPolicy(projectUuid: string): Promise<ManagedAgentPolicy> {
@@ -836,22 +659,6 @@ export class ManagedAgentService extends BaseService {
                 }`,
             );
         }
-    }
-
-    private async syncProjectAgentConfig(projectUuid: string): Promise<void> {
-        const serviceAccountToken =
-            await this.managedAgentModel.getServiceAccountToken(projectUuid);
-
-        if (!serviceAccountToken) {
-            return;
-        }
-
-        const sessionConfig = await this.getSessionConfig(
-            projectUuid,
-            serviceAccountToken,
-        );
-
-        await this.managedAgentClient.syncAgent(sessionConfig);
     }
 
     private async getAutopilotActor(projectUuid: string): Promise<SessionUser> {
@@ -1384,19 +1191,6 @@ export class ManagedAgentService extends BaseService {
         )
             throw new ForbiddenError();
         const policy = await this.getPolicy(projectUuid);
-        if (this.usesManagedAgentsApi()) {
-            return {
-                runtime: 'anthropic-managed',
-                provider: 'anthropic',
-                model: AUTOPILOT_MANAGED_MODEL_ID,
-                keySource: 'instance',
-                keyManagement: null,
-                requestedCleanupMode: policy.aggression,
-                effectiveCleanupMode: policy.aggression,
-                notice: null,
-                error: null,
-            };
-        }
         try {
             const resolved = await this.resolveAutopilotModel(organizationUuid);
             return this.describeAiSdkRuntime(policy, resolved);
@@ -1469,7 +1263,7 @@ export class ManagedAgentService extends BaseService {
 
         // Fail the enable request, not the first scheduled run, when the org
         // has no usable AI provider.
-        if (update.enabled && !this.usesManagedAgentsApi()) {
+        if (update.enabled) {
             const { organizationUuid } =
                 await this.projectModel.getSummary(projectUuid);
             await this.resolveAutopilotModel(organizationUuid);
@@ -1506,32 +1300,6 @@ export class ManagedAgentService extends BaseService {
             effectiveUpdate,
         );
 
-        // The managed-agents runtime reaches our MCP server with a service
-        // account; the AI SDK runtime runs tools in-process and needs none.
-        if (update.enabled && this.usesManagedAgentsApi()) {
-            const existingToken =
-                await this.managedAgentModel.getServiceAccountToken(
-                    projectUuid,
-                );
-            if (!existingToken) {
-                const { organizationUuid } =
-                    await this.projectModel.getSummary(projectUuid);
-                const serviceAccountToken =
-                    await this.createProjectScopedServiceAccount(
-                        user,
-                        projectUuid,
-                        organizationUuid,
-                    );
-                await this.managedAgentModel.setServiceAccountToken(
-                    projectUuid,
-                    serviceAccountToken,
-                );
-                this.logger.info(
-                    `Created service account for managed agent in project ${projectUuid}`,
-                );
-            }
-        }
-
         if (update.enabled) {
             // Schedule the first heartbeat job
             const schedule =
@@ -1544,15 +1312,6 @@ export class ManagedAgentService extends BaseService {
         } else if (update.enabled === false) {
             // Cancel pending heartbeat for this specific project
             await this.schedulerClient.cancelManagedAgentHeartbeat(projectUuid);
-        }
-
-        if (
-            this.usesManagedAgentsApi() &&
-            (update.enabled ||
-                update.toolSettings !== undefined ||
-                update.policy !== undefined)
-        ) {
-            await this.syncProjectAgentConfig(projectUuid);
         }
 
         await this.trackSettingsChange(
@@ -1898,7 +1657,7 @@ export class ManagedAgentService extends BaseService {
         };
 
         try {
-            const result = await this.runHeartbeatSession(
+            const result = await this.runAiSdkSession(
                 ctx,
                 onToolCall,
                 onSessionCreated,
@@ -2006,78 +1765,11 @@ export class ManagedAgentService extends BaseService {
     ): void {
         captureAutopilotFailure(error, {
             stage,
-            runtime: this.lightdashConfig.managedAgent.runtime,
             organizationUuid: ctx.organizationUuid,
             projectUuid: ctx.projectUuid,
             runUuid: ctx.runUuid,
             attribution: ctx.modelAttribution,
         });
-    }
-
-    private async runHeartbeatSession(
-        ctx: HeartbeatContext,
-        onToolCall: AutopilotToolCallHandler,
-        onSessionCreated: (sessionId: string) => void,
-    ): Promise<HeartbeatSessionResult> {
-        const { runtime } = this.lightdashConfig.managedAgent;
-        switch (runtime) {
-            case 'anthropic-managed':
-                return this.runManagedAgentSession(
-                    ctx,
-                    onToolCall,
-                    onSessionCreated,
-                );
-            case 'ai-sdk':
-                return this.runAiSdkSession(ctx, onToolCall, onSessionCreated);
-            default:
-                return assertUnreachable(
-                    runtime,
-                    `Unknown managed agent runtime: ${runtime}`,
-                );
-        }
-    }
-
-    private async runManagedAgentSession(
-        ctx: HeartbeatContext,
-        onToolCall: AutopilotToolCallHandler,
-        onSessionCreated: (sessionId: string) => void,
-    ): Promise<HeartbeatSessionResult> {
-        const { projectUuid, runUuid } = ctx;
-        const serviceAccountToken =
-            await this.managedAgentModel.getServiceAccountToken(projectUuid);
-        if (!serviceAccountToken) {
-            throw new NotFoundError(
-                `No service account token for project ${projectUuid}`,
-            );
-        }
-        const sessionConfig = await this.getSessionConfig(
-            projectUuid,
-            serviceAccountToken,
-        );
-        await this.managedAgentModel.setRunModel(runUuid, {
-            provider: 'anthropic',
-            name: AUTOPILOT_MANAGED_MODEL_ID,
-        });
-        ctx.modelAttribution = {
-            provider: 'anthropic',
-            model: AUTOPILOT_MANAGED_MODEL_ID,
-            keyManagement: null,
-        };
-        ctx.summaryContext = {
-            attribution: {
-                provider: 'anthropic',
-                model: AUTOPILOT_MANAGED_MODEL_ID,
-                keySource: 'instance',
-            },
-            notice: null,
-        };
-        const result = await this.managedAgentClient.runSession(
-            sessionConfig,
-            projectUuid,
-            onToolCall,
-            onSessionCreated,
-        );
-        return { sessionId: result.sessionId, error: null, reportInputs: null };
     }
 
     // The run uuid doubles as the session id: actions and the activity page
@@ -2123,7 +1815,6 @@ export class ManagedAgentService extends BaseService {
             toolSettings,
             policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
             preAggregatesEnabled: this.lightdashConfig.preAggregates.enabled,
-            runtime: 'ai-sdk',
         });
         const {
             copilotConfig,
@@ -2392,7 +2083,6 @@ export class ManagedAgentService extends BaseService {
                 runUuid: ctx.runUuid,
                 triggeredBy: ctx.triggeredBy,
                 status: outcome.status,
-                runtime: this.lightdashConfig.managedAgent.runtime,
                 provider: ctx.modelAttribution?.provider ?? null,
                 model: ctx.modelAttribution?.model ?? null,
                 keyManagement: ctx.modelAttribution?.keyManagement ?? null,
@@ -3156,8 +2846,9 @@ export class ManagedAgentService extends BaseService {
         );
     }
 
+    // eslint-disable-next-line class-methods-use-this
     private async handleGetChartSchema(): Promise<string> {
-        const tools = this.getDiscoveryToolNames();
+        const tools = DISCOVERY_TOOL_NAMES;
         // Return the chart-as-code YAML structure from the developing-in-lightdash skill
         return `Chart-as-code YAML/JSON reference. Use this when calling create_content_from_code.
 
@@ -3474,7 +3165,7 @@ chartConfig:
         const explore = explores[tableName];
         if (!explore || 'errors' in explore) {
             throw new Error(
-                `Explore "${tableName}" not found or has errors. Use ${this.getDiscoveryToolNames().explores} to find valid explore names.`,
+                `Explore "${tableName}" not found or has errors. Use ${DISCOVERY_TOOL_NAMES.explores} to find valid explore names.`,
             );
         }
 
@@ -3504,7 +3195,7 @@ chartConfig:
                 errors.push(`Invalid metrics: ${invalidMetrics.join(', ')}`);
             }
             throw new Error(
-                `${errors.join('. ')}. Use ${this.getDiscoveryToolNames().fields} to discover valid field IDs for the "${tableName}" explore.`,
+                `${errors.join('. ')}. Use ${DISCOVERY_TOOL_NAMES.fields} to discover valid field IDs for the "${tableName}" explore.`,
             );
         }
 

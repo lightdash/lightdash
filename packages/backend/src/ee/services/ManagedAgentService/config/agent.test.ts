@@ -5,59 +5,19 @@ import {
 import {
     AUTOPILOT_CHART_SKILL_NAME,
     autopilotToolDefinitions,
-    getManagedAgentConfigHash,
-    getManagedAgentMcpUrl,
     renderAutopilotAgent,
-    renderManagedAgentConfig,
     toAutopilotToolJsonSchema,
 } from './agent';
 
-const LIGHTDASH_SITE_URL = 'https://lightdash.example.com';
-const PROJECT_UUID = 'd15384cb-8326-433a-a9e9-6f6bb22718f6';
-
-const baseArgs = {
-    lightdashSiteUrl: LIGHTDASH_SITE_URL,
-    projectUuid: PROJECT_UUID,
-    skillIds: [],
-};
+const baseArgs = {};
 
 const customToolNames = (
-    config: ReturnType<typeof renderManagedAgentConfig>,
-): string[] =>
-    (config.tools ?? [])
-        .filter((tool) => tool.type === 'custom')
-        .map((tool) => (tool.type === 'custom' ? tool.name : ''));
+    config: ReturnType<typeof renderAutopilotAgent>,
+): string[] => config.tools.map((tool) => tool.name);
 
-describe('renderManagedAgentConfig', () => {
-    it('binds the managed agent to its project-specific MCP endpoint', () => {
-        const mcpUrl = getManagedAgentMcpUrl(LIGHTDASH_SITE_URL, PROJECT_UUID);
-        const config = renderManagedAgentConfig(baseArgs);
-
-        expect(mcpUrl).toBe(
-            `${LIGHTDASH_SITE_URL}/api/v1/mcp/projects/${PROJECT_UUID}`,
-        );
-        expect(config.mcp_servers).toEqual([
-            {
-                name: 'lightdash',
-                type: 'url',
-                url: mcpUrl,
-            },
-        ]);
-    });
-
-    it('instructs the managed agent to use its pinned project', () => {
-        const config = renderManagedAgentConfig(baseArgs);
-
-        expect(config.system).toContain(
-            'The MCP connection is already pinned to this project.',
-        );
-        expect(config.system).not.toContain('set_project');
-    });
-});
-
-describe('renderManagedAgentConfig with policy', () => {
+describe('renderAutopilotAgent with policy', () => {
     it('keeps all cleanup tools and default thresholds without a policy', () => {
-        const config = renderManagedAgentConfig(baseArgs);
+        const config = renderAutopilotAgent(baseArgs);
         const tools = customToolNames(config);
         expect(tools).toEqual(
             expect.arrayContaining([
@@ -80,7 +40,7 @@ describe('renderManagedAgentConfig with policy', () => {
             protectRecentDays: 14,
             escalationHours: 72,
         };
-        const config = renderManagedAgentConfig({ ...baseArgs, policy });
+        const config = renderAutopilotAgent({ ...baseArgs, policy });
         expect(config.system).toContain(
             'Stale charts: not viewed in 180+ days',
         );
@@ -89,24 +49,18 @@ describe('renderManagedAgentConfig with policy', () => {
         );
         expect(config.system).toContain('last 14 days');
         expect(config.system).toContain('72 hours');
-        const staleChartsTool = config.tools?.find(
-            (tool) =>
-                tool.type === 'custom' && tool.name === 'get_stale_charts',
+        const staleChartsTool = config.tools.find(
+            (tool) => tool.name === 'get_stale_charts',
         );
-        expect(
-            staleChartsTool?.type === 'custom' && staleChartsTool.description,
-        ).toContain('180+ days');
-        const slowQueriesTool = config.tools?.find(
-            (tool) =>
-                tool.type === 'custom' && tool.name === 'get_slow_queries',
+        expect(staleChartsTool?.description).toContain('180+ days');
+        const slowQueriesTool = config.tools.find(
+            (tool) => tool.name === 'get_slow_queries',
         );
-        expect(
-            slowQueriesTool?.type === 'custom' && slowQueriesTool.description,
-        ).toContain('5000 ms');
+        expect(slowQueriesTool?.description).toContain('5000 ms');
     });
 
     it('strips soft_delete_content in flag mode', () => {
-        const config = renderManagedAgentConfig({
+        const config = renderAutopilotAgent({
             ...baseArgs,
             policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'flag' },
         });
@@ -117,7 +71,7 @@ describe('renderManagedAgentConfig with policy', () => {
     });
 
     it('strips flag and delete tools in observe mode', () => {
-        const config = renderManagedAgentConfig({
+        const config = renderAutopilotAgent({
             ...baseArgs,
             policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'observe' },
         });
@@ -129,7 +83,7 @@ describe('renderManagedAgentConfig with policy', () => {
     });
 
     it('composes aggression stripping with capability gating', () => {
-        const config = renderManagedAgentConfig({
+        const config = renderAutopilotAgent({
             ...baseArgs,
             toolSettings: { modifyExistingContent: false },
             policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'flag' },
@@ -142,9 +96,9 @@ describe('renderManagedAgentConfig with policy', () => {
     });
 
     it('states verified-content protection in the prompt', () => {
-        const protectedConfig = renderManagedAgentConfig(baseArgs);
+        const protectedConfig = renderAutopilotAgent(baseArgs);
         expect(protectedConfig.system).toContain('Verified content: protected');
-        const optedOut = renderManagedAgentConfig({
+        const optedOut = renderAutopilotAgent({
             ...baseArgs,
             policy: {
                 ...DEFAULT_MANAGED_AGENT_POLICY,
@@ -156,7 +110,7 @@ describe('renderManagedAgentConfig with policy', () => {
 
     it('keeps the people and ownership tools in every aggression mode', () => {
         (['observe', 'flag', 'cleanup'] as const).forEach((aggression) => {
-            const config = renderManagedAgentConfig({
+            const config = renderAutopilotAgent({
                 ...baseArgs,
                 policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
             });
@@ -167,7 +121,7 @@ describe('renderManagedAgentConfig with policy', () => {
     });
 
     it('keeps the people and ownership tools when content capabilities are off', () => {
-        const config = renderManagedAgentConfig({
+        const config = renderAutopilotAgent({
             ...baseArgs,
             toolSettings: {
                 createContent: false,
@@ -180,7 +134,7 @@ describe('renderManagedAgentConfig with policy', () => {
     });
 
     it('tells the agent that people and ownership findings are reporting-only', () => {
-        const config = renderManagedAgentConfig(baseArgs);
+        const config = renderAutopilotAgent(baseArgs);
         expect(config.system).toContain('### 5. People & Ownership');
         expect(config.system).toContain(
             'NEVER flag, delete, or otherwise act on a person or their content',
@@ -189,14 +143,14 @@ describe('renderManagedAgentConfig with policy', () => {
 
     it('keeps the unused-agent tool in every aggression mode and with content capabilities off', () => {
         (['observe', 'flag', 'cleanup'] as const).forEach((aggression) => {
-            const config = renderManagedAgentConfig({
+            const config = renderAutopilotAgent({
                 ...baseArgs,
                 policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
             });
             expect(customToolNames(config)).toContain('get_unused_agents');
         });
 
-        const noContentCapabilities = renderManagedAgentConfig({
+        const noContentCapabilities = renderAutopilotAgent({
             ...baseArgs,
             toolSettings: {
                 createContent: false,
@@ -209,7 +163,7 @@ describe('renderManagedAgentConfig with policy', () => {
     });
 
     it('tells the agent that unused-agent findings are reporting-only', () => {
-        const config = renderManagedAgentConfig(baseArgs);
+        const config = renderAutopilotAgent(baseArgs);
         expect(config.system).toContain('### 6. AI Agent Usage');
         expect(config.system).toContain(
             'NEVER delete, disable, or edit an agent',
@@ -219,7 +173,7 @@ describe('renderManagedAgentConfig with policy', () => {
     });
 
     it('omits the pre-aggregate tool and checklist section when pre-aggregates are disabled', () => {
-        const config = renderManagedAgentConfig(baseArgs);
+        const config = renderAutopilotAgent(baseArgs);
         expect(customToolNames(config)).not.toContain('get_preagg_candidates');
         expect(config.system).not.toContain('Pre-Aggregate Candidates');
         expect(config.system).toContain('### 7. Insights');
@@ -227,7 +181,7 @@ describe('renderManagedAgentConfig with policy', () => {
 
     it('includes the pre-aggregate tool and renumbers the checklist when enabled', () => {
         (['observe', 'flag', 'cleanup'] as const).forEach((aggression) => {
-            const config = renderManagedAgentConfig({
+            const config = renderAutopilotAgent({
                 ...baseArgs,
                 preAggregatesEnabled: true,
                 policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
@@ -235,7 +189,7 @@ describe('renderManagedAgentConfig with policy', () => {
             expect(customToolNames(config)).toContain('get_preagg_candidates');
         });
 
-        const config = renderManagedAgentConfig({
+        const config = renderAutopilotAgent({
             ...baseArgs,
             preAggregatesEnabled: true,
         });
@@ -247,38 +201,11 @@ describe('renderManagedAgentConfig with policy', () => {
         expect(config.system).toContain('### 8. Insights');
         expect(config.system).toContain('### 9. Slack Summary');
     });
-
-    it('changes the config hash when pre-aggregate availability changes', () => {
-        const disabled = getManagedAgentConfigHash(
-            renderManagedAgentConfig(baseArgs),
-        );
-        const enabled = getManagedAgentConfigHash(
-            renderManagedAgentConfig({
-                ...baseArgs,
-                preAggregatesEnabled: true,
-            }),
-        );
-        expect(disabled).not.toBe(enabled);
-    });
-
-    it('changes the config hash when policy changes', () => {
-        const a = getManagedAgentConfigHash(renderManagedAgentConfig(baseArgs));
-        const b = getManagedAgentConfigHash(
-            renderManagedAgentConfig({
-                ...baseArgs,
-                policy: {
-                    ...DEFAULT_MANAGED_AGENT_POLICY,
-                    stalenessChartDays: 30,
-                },
-            }),
-        );
-        expect(a).not.toEqual(b);
-    });
 });
 
 describe('renderAutopilotAgent', () => {
-    it('points the AI SDK runtime at in-process tools and loadSkill', () => {
-        const { system, tools } = renderAutopilotAgent({ runtime: 'ai-sdk' });
+    it('points the agent at in-process tools and loadSkill', () => {
+        const { system, tools } = renderAutopilotAgent();
 
         expect(system).not.toContain('MCP');
         expect(system).toContain('grepFields and getMetadata');
@@ -295,29 +222,6 @@ describe('renderAutopilotAgent', () => {
                 ?.description,
         ).not.toContain('MCP');
     });
-
-    it('ships the same action tools to both runtimes', () => {
-        const aiSdk = renderAutopilotAgent({
-            runtime: 'ai-sdk',
-            toolSettings: { createContent: false },
-            policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'flag' },
-        });
-        const managed = renderManagedAgentConfig({
-            ...baseArgs,
-            toolSettings: { createContent: false },
-            policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'flag' },
-        });
-
-        expect(aiSdk.tools.map((tool) => tool.name)).toEqual(
-            customToolNames(managed),
-        );
-        expect(aiSdk.tools.map((tool) => tool.name)).not.toContain(
-            'soft_delete_content',
-        );
-        expect(aiSdk.tools.map((tool) => tool.name)).not.toContain(
-            'create_content_from_code',
-        );
-    });
 });
 
 describe('broken-content action contracts', () => {
@@ -331,39 +235,32 @@ describe('broken-content action contracts', () => {
         expect(inputSchema.required).toEqual(['description']);
     });
 
-    it.each(['ai-sdk', 'anthropic-managed'] as const)(
-        'selects one deleted-model group action from policy and capabilities (%s)',
-        (runtime) => {
-            for (const aggression of ['observe', 'flag', 'cleanup'] as const) {
-                for (const modifyExistingContent of [true, false]) {
-                    const config = renderAutopilotAgent({
-                        runtime,
-                        policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
-                        toolSettings: { modifyExistingContent },
-                    });
-                    const names = config.tools.map((tool) => tool.name);
-                    const canDelete =
-                        aggression === 'cleanup' && modifyExistingContent;
-                    expect(names.includes('bulk_delete_broken_content')).toBe(
-                        canDelete,
-                    );
-                    expect(names.includes('bulk_flag_broken_content')).toBe(
-                        aggression !== 'observe' && !canDelete,
-                    );
-                    expect(names.includes('flag_content')).toBe(
-                        aggression !== 'observe',
-                    );
-                    expect(names.includes('soft_delete_content')).toBe(
-                        canDelete,
-                    );
-                }
+    it('selects one deleted-model group action from policy and capabilities', () => {
+        for (const aggression of ['observe', 'flag', 'cleanup'] as const) {
+            for (const modifyExistingContent of [true, false]) {
+                const config = renderAutopilotAgent({
+                    policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
+                    toolSettings: { modifyExistingContent },
+                });
+                const names = config.tools.map((tool) => tool.name);
+                const canDelete =
+                    aggression === 'cleanup' && modifyExistingContent;
+                expect(names.includes('bulk_delete_broken_content')).toBe(
+                    canDelete,
+                );
+                expect(names.includes('bulk_flag_broken_content')).toBe(
+                    aggression !== 'observe' && !canDelete,
+                );
+                expect(names.includes('flag_content')).toBe(
+                    aggression !== 'observe',
+                );
+                expect(names.includes('soft_delete_content')).toBe(canDelete);
             }
-        },
-    );
+        }
+    });
 
     it('removes group flagging in observe mode', () => {
         const config = renderAutopilotAgent({
-            runtime: 'ai-sdk',
             policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'observe' },
         });
         expect(config.tools.map((tool) => tool.name)).not.toContain(

@@ -307,7 +307,6 @@ describe.skipIf(process.env.AUTOPILOT_CONTENT_EVAL !== 'true')(
                     'buildAutopilotDataTools'
                 ](actor, projectUuid, SEED_ORG_1.organization_uuid);
                 const agent = renderAutopilotAgent({
-                    runtime: 'ai-sdk',
                     policy: {
                         ...DEFAULT_MANAGED_AGENT_POLICY,
                         aggression: 'observe',

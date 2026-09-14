@@ -1,10 +1,10 @@
 # Autopilot AI SDK rollout
 
-The AI SDK runner is the default. Only the exact provider/model pairs in the built-in qualified list below may run cleanup; every other provider or model runs in observe mode until it passes the acceptance matrix. Keep the hosted runtime, credentials and columns available for rollback during this phase.
+Autopilot runs on the AI SDK. The hosted runtime has been removed; rollback now requires restoring an earlier application release. Stored hosted resource identifiers remain temporarily for retirement.
 
 ## Configuration and attribution
 
-`MANAGED_AGENT_RUNTIME` defaults to `ai-sdk`. To roll back to the hosted runtime, set `MANAGED_AGENT_RUNTIME=anthropic-managed` on both the API and scheduler processes. Restart both processes after changing it; they must agree on the runtime.
+`MANAGED_AGENT_RUNTIME` no longer selects a runtime. Restart both API and scheduler processes after changing provider or qualification configuration; they must use the same configuration.
 
 Autopilot resolves the organization's AI configuration before enabling and again for each run. It uses a visible, available organization default model, then an available configured provider default, then an available model. Azure uses its configured deployment directly. Configuration preflight constructs the model; it does not make a paid request or prove that a credential can access the deployment. Disabling a provider or hiding all models can prevent the next run.
 
@@ -104,7 +104,7 @@ Record for every exact provider/model pair:
 
 Write a go/no-go decision per model and mode. Azure and Bedrock need their own configured environments. Other resolvable providers, including Google and OpenRouter, remain unqualified until equivalent evidence exists. Fix schema or prompt failures before adding qualifications.
 
-## Release sequence and rollback
+## Migration sequence and rollback history
 
 1. Ship the opt-in runner and hardening. Exercise targeted instances with known credentials, retained hosted configuration and recorded results.
 2. Switch the default only after the acceptance matrix, deployment configuration and operator docs are ready. Observe real scheduled runs before expanding rollout. During this phase, rollback uses `MANAGED_AGENT_RUNTIME=anthropic-managed` with the retained hosted credentials and resources.
@@ -112,4 +112,4 @@ Write a go/no-go decision per model and mode. Azure and Bedrock need their own c
 4. Retire hosted resources and service-account credentials while their stored attribution still exists. Inventory agent/environment/vault IDs and resolve each stored Autopilot token to its exact service account and project grants. A description/name prefix is candidate discovery, not sufficient proof to revoke an account. Keep a dry-run inventory, verify ownership, revoke only confirmed credentials, and record unresolved resources. Never print tokens or encrypted credential values in reports.
 5. Drop stored hosted columns only after retirement is complete and no application or maintenance code reads them. Check upgrade compatibility across the supported release boundary. A failed release-safety check must be explained and resolved; elapsed time alone is insufficient, and a breaking-change declaration is not a substitute for compatibility evidence.
 
-Cloud deployment changes, external resource revocation, client removal and column deletion are later release operations, not effects of enabling this opt-in code.
+External resource revocation and column deletion remain separately gated release operations. The sequence above documents the migration stages; the configuration-only rollback in stages 1–2 is unavailable after client removal.

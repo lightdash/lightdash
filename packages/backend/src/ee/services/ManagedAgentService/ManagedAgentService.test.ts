@@ -15,7 +15,6 @@ import {
 } from '@lightdash/common';
 import { MockLanguageModelV3 } from 'ai/test';
 import { fromSession } from '../../../auth/account';
-import type { ManagedAgentRuntime } from '../../../config/parseConfig';
 import { getAvailableModels, getModel } from '../ai/models';
 import { ManagedAgentService } from './ManagedAgentService';
 
@@ -89,7 +88,7 @@ const buildService = ({
     serviceAccountScopes = [ServiceAccountScope.SYSTEM_MEMBER],
     serviceAccountTokens = [null, 'service-account-token'],
     suggestionsSpaces = [],
-    runtime = 'anthropic-managed',
+    runtime = 'ai-sdk',
     defaultModelConfig = null,
 }: {
     projectGrants?: Array<{
@@ -103,7 +102,7 @@ const buildService = ({
         uuid: string;
         inheritParentPermissions: boolean;
     }>;
-    runtime?: ManagedAgentRuntime;
+    runtime?: 'ai-sdk';
     defaultModelConfig?: {
         modelProvider: string;
         modelName: string;
@@ -362,167 +361,6 @@ describe('ManagedAgentService.updateSettings', () => {
             schedulerClient.scheduleManagedAgentHeartbeat,
         ).toHaveBeenCalledWith('0 0 * * *', PROJECT_UUID);
     });
-
-    it('creates a project-scoped service account for MCP authentication', async () => {
-        const {
-            managedAgentClient,
-            managedAgentModel,
-            projectModel,
-            service,
-            serviceAccountModel,
-        } = buildService();
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(serviceAccountModel.create).toHaveBeenCalledWith({
-            user,
-            data: {
-                organizationUuid: ORGANIZATION_UUID,
-                description: `Autopilot (${PROJECT_UUID})`,
-                expiresAt: null,
-                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
-            },
-        });
-        expect(
-            projectModel.createServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith(PROJECT_UUID, SERVICE_ACCOUNT_UUID, {
-            role: ProjectMemberRole.EDITOR,
-            roleUuid: undefined,
-        });
-        expect(managedAgentModel.setServiceAccountToken).toHaveBeenCalledWith(
-            PROJECT_UUID,
-            'service-account-token',
-        );
-        expect(managedAgentClient.syncAgent).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: PROJECT_UUID,
-                serviceAccountPat: 'service-account-token',
-            }),
-        );
-    });
-
-    it('restricts an existing organization-scoped account before syncing the agent', async () => {
-        const {
-            managedAgentClient,
-            projectModel,
-            service,
-            serviceAccountModel,
-        } = buildService({
-            projectGrants: [
-                {
-                    projectUuid: 'another-project-uuid',
-                    role: ProjectMemberRole.ADMIN,
-                    roleUuid: null,
-                },
-            ],
-            serviceAccountScopes: [ServiceAccountScope.ORG_ADMIN],
-            serviceAccountTokens: [
-                'existing-service-account-token',
-                'existing-service-account-token',
-            ],
-        });
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(
-            projectModel.setServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith(
-            SERVICE_ACCOUNT_UUID,
-            [
-                {
-                    projectUuid: PROJECT_UUID,
-                    role: ProjectMemberRole.EDITOR,
-                },
-            ],
-            { makeProjectScoped: true },
-        );
-        expect(serviceAccountModel.update).not.toHaveBeenCalled();
-        expect(
-            projectModel.setServiceAccountProjectAccess.mock
-                .invocationCallOrder[0],
-        ).toBeLessThan(
-            managedAgentClient.syncAgent.mock.invocationCallOrder[0],
-        );
-        expect(managedAgentClient.syncAgent).toHaveBeenCalledOnce();
-    });
-
-    it('replaces multiple grants on an existing member-scoped account', async () => {
-        const { projectModel, service } = buildService({
-            projectGrants: [
-                {
-                    projectUuid: PROJECT_UUID,
-                    role: ProjectMemberRole.EDITOR,
-                    roleUuid: null,
-                },
-                {
-                    projectUuid: 'another-project-uuid',
-                    role: ProjectMemberRole.VIEWER,
-                    roleUuid: null,
-                },
-            ],
-            serviceAccountTokens: [
-                'existing-service-account-token',
-                'existing-service-account-token',
-            ],
-        });
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(
-            projectModel.setServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith(
-            SERVICE_ACCOUNT_UUID,
-            [
-                {
-                    projectUuid: PROJECT_UUID,
-                    role: ProjectMemberRole.EDITOR,
-                },
-            ],
-            { makeProjectScoped: true },
-        );
-    });
-
-    it('deletes a new service account when its project grant cannot be created', async () => {
-        const { projectModel, service, serviceAccountModel } = buildService();
-        const grantError = new Error('project grant failed');
-        projectModel.createServiceAccountProjectAccess.mockRejectedValue(
-            grantError,
-        );
-
-        await expect(
-            service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-                enabled: true,
-            }),
-        ).rejects.toBe(grantError);
-
-        expect(serviceAccountModel.delete).toHaveBeenCalledWith(
-            SERVICE_ACCOUNT_UUID,
-        );
-    });
-
-    it('resolves the agent audience from the suggestions space when it exists', async () => {
-        const { managedAgentClient, service } = buildService({
-            suggestionsSpaces: [
-                { uuid: 'space-uuid', inheritParentPermissions: false },
-            ],
-        });
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(managedAgentClient.syncAgent).toHaveBeenCalledWith(
-            expect.objectContaining({
-                policy: expect.objectContaining({ audience: 'admins' }),
-            }),
-        );
-    });
 });
 
 describe('ManagedAgentService provider preflight', () => {
@@ -644,19 +482,6 @@ describe('ManagedAgentService provider preflight', () => {
             }),
         ).rejects.toThrow('No AI model is available');
         expect(managedAgentModel.upsertSettings).not.toHaveBeenCalled();
-    });
-
-    it('does not preflight the provider on the managed-agents runtime', async () => {
-        const { aiOrganizationSettingsService, service } = buildService();
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(getModel).not.toHaveBeenCalled();
-        expect(
-            aiOrganizationSettingsService.getDefaultModelConfig,
-        ).not.toHaveBeenCalled();
     });
 });
 

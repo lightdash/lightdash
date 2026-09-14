@@ -1,6 +1,5 @@
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
-import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { type DbManagedAgentRun } from '../database/entities/managedAgent';
 import { ManagedAgentModel } from './ManagedAgentModel';
 
@@ -9,19 +8,8 @@ const organizationUuid = '22222222-2222-4222-8222-222222222222';
 
 describe('ManagedAgentModel', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
-    const encryptionUtil = new EncryptionUtil({
-        lightdashConfig: {
-            lightdashSecret: 'test-secret',
-            lightdashSecrets: {
-                active: 'test-secret',
-                fallbacks: [],
-                all: ['test-secret'],
-            },
-        },
-    });
     const model = new ManagedAgentModel({
         database: database as unknown as Knex,
-        encryptionUtil,
     });
     let tracker: Tracker;
 
