@@ -261,7 +261,7 @@ export class SpacePermissionService extends BaseService {
      * dashboard grants appended as ordinary `access` rows tagged
      * `grantedVia: 'dashboard'`, so the existing elemMatch ability rules
      * interpret them with no dashboard-specific logic. Behind the direct-access
-     * feature gate; with the flag off the result equals the plain space
+     * license gate; without a valid license the result equals the plain space
      * context.
      *
      * Boundary-crossing operations pass a `space` target so content grants do
