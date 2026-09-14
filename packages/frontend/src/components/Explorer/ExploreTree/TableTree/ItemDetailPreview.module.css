@@ -33,3 +33,7 @@ table.markdownTable td.markdownCell {
 .markdown > :last-child {
     margin-bottom: 0;
 }
+.metricTypeBadge {
+    border: 1px solid var(--mantine-color-indigo-1);
+    box-shadow: var(--mantine-shadow-subtle);
+}

@@ -12,6 +12,7 @@ import {
     isDimension,
     isFilterableField,
     isMetric,
+    type MetricType,
     type AdditionalMetric,
     type CustomDimension,
     type Dimension,
@@ -56,6 +57,8 @@ type Props = {
     onMenuChange: MenuProps['onChange'];
     onViewDescription: () => void;
     onAddFilter?: (field: FilterableField) => void;
+    /** Quick-create a metric from a dimension in place; falls back to the modal */
+    onQuickCreateMetric?: (type: MetricType) => void;
     basicActionsOnly?: boolean;
     /** Registry metrics stay basicActionsOnly but keep the edit entry point */
     allowRegistryEdit?: boolean;
@@ -70,6 +73,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     hasDescription,
     onViewDescription,
     onAddFilter,
+    onQuickCreateMetric,
     basicActionsOnly = false,
     allowRegistryEdit = false,
 }) => {
@@ -471,20 +475,20 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     e: React.MouseEvent<HTMLButtonElement>,
                                 ) => {
                                     e.stopPropagation();
-                                    console.debug(
-                                        'opening custom metric modal: ' +
-                                            metric,
-                                    );
 
-                                    dispatch(
-                                        explorerActions.toggleAdditionalMetricModal(
-                                            {
-                                                type: metric,
-                                                item,
-                                                isEditing: false,
-                                            },
-                                        ),
-                                    );
+                                    if (onQuickCreateMetric) {
+                                        onQuickCreateMetric(metric);
+                                    } else {
+                                        dispatch(
+                                            explorerActions.toggleAdditionalMetricModal(
+                                                {
+                                                    type: metric,
+                                                    item,
+                                                    isEditing: false,
+                                                },
+                                            ),
+                                        );
+                                    }
 
                                     track({
                                         name: EventName.ADD_CUSTOM_METRIC_CLICKED,

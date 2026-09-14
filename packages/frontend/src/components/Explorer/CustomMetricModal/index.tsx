@@ -6,7 +6,6 @@ import {
     getCustomMetricType,
     getFilterableDimensionsFromItemsMap,
     getItemId,
-    getMetrics,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
@@ -35,10 +34,10 @@ import { useForm, type FormValidateInput } from '@mantine/form';
 import { IconSparkles } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { type ValueOf } from 'type-fest';
-import { v4 as uuidv4 } from 'uuid';
 import {
     explorerActions,
     selectAdditionalMetrics,
+    selectMetricQuery,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -62,9 +61,10 @@ import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
 import RegistryImpactPreviewModal from './RegistryImpactPreviewModal';
 import {
     addFieldIdToMetricFilterRule,
-    getCustomMetricName,
+    buildNewAdditionalMetric,
+    getCustomMetricLabelError,
     getFilterRulesFromMetricBaseFilters,
-    getFormatFromBaseMetric,
+    getInheritedCustomMetricFormat,
     prepareCustomMetricData,
 } from './utils';
 
@@ -74,10 +74,12 @@ export const CustomMetricModal = memo(() => {
         isEditing,
         item,
         type: customMetricType,
+        label: initialLabel,
     } = useExplorerSelector((state) => state.explorer.modals.additionalMetric);
 
     const dispatch = useExplorerDispatch();
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
 
     const { data: exploreData } = useExplore(tableName);
@@ -252,42 +254,14 @@ export const CustomMetricModal = memo(() => {
 
     const validate = useMemo<FormValidateInput<FormValues>>(
         () => ({
-            customMetricLabel: (label) => {
-                if (!label) return null;
-
-                if (!item) return null;
-
-                const metricName = getCustomMetricName(
-                    item.table,
+            customMetricLabel: (label) =>
+                getCustomMetricLabelError({
                     label,
-                    isEditing && isAdditionalMetric(item)
-                        ? (item.baseDimensionName ??
-                              item.baseMetricName ??
-                              item.name)
-                        : item.name,
-                );
-
-                const metricIds = exploreData
-                    ? getMetrics(exploreData).map(getItemId)
-                    : [];
-                if (
-                    metricIds.includes(
-                        getItemId({ table: item.table, name: metricName }),
-                    )
-                ) {
-                    return 'Metric with this ID already exists';
-                }
-
-                if (isEditing && metricName === item.name) {
-                    return null;
-                }
-
-                return additionalMetrics?.some(
-                    (metric) => metric.name === metricName,
-                )
-                    ? 'Metric with this label already exists'
-                    : null;
-            },
+                    item,
+                    isEditing: !!isEditing,
+                    exploreData,
+                    additionalMetrics,
+                }),
             percentile: (percentile) => {
                 if (!percentile) return null;
                 if (percentile < 0 || percentile > 100) {
@@ -322,7 +296,9 @@ export const CustomMetricModal = memo(() => {
         if (!item || !customMetricType) return;
 
         const label = isCustomDimension(item) ? item.name : item.label;
-        if (label && customMetricType) {
+        if (initialLabel) {
+            setFieldValue('customMetricLabel', initialLabel);
+        } else if (label && customMetricType) {
             setFieldValue(
                 'customMetricLabel',
                 isEditing
@@ -334,7 +310,7 @@ export const CustomMetricModal = memo(() => {
                         : '',
             );
         }
-    }, [setFieldValue, item, customMetricType, isEditing]);
+    }, [setFieldValue, item, customMetricType, isEditing, initialLabel]);
 
     const initialCustomMetricFiltersWithIds = useMemo(() => {
         if (!isEditing) {
@@ -374,18 +350,35 @@ export const CustomMetricModal = memo(() => {
                     });
                 }
             }
-            if (!isEditing && isMetric(item)) {
-                if (item.percentile)
+            if (!isEditing && item && customMetricType) {
+                if (isMetric(item) && item.percentile)
                     setFieldValue('percentile', item.percentile);
 
-                // Carry the base metric's formatting into the clone
-                const baseFormat = getFormatFromBaseMetric(item);
+                // Carry the base field's formatting into the new metric
+                const baseFormat = getInheritedCustomMetricFormat(
+                    item,
+                    customMetricType,
+                    (isDimension(item)
+                        ? metricQuery.dimensionOverrides
+                        : metricQuery.metricOverrides)?.[getItemId(item)]
+                        ?.formatOptions,
+                );
                 if (baseFormat) {
-                    setFieldValue('format', baseFormat);
+                    setFieldValue('format', {
+                        separator: NumberSeparator.DEFAULT,
+                        ...baseFormat,
+                    });
                 }
             }
         },
-        [isEditing, item, setFieldValue],
+        [
+            isEditing,
+            item,
+            customMetricType,
+            metricQuery.dimensionOverrides,
+            metricQuery.metricOverrides,
+            setFieldValue,
+        ],
     );
 
     const handleClose = useCallback(() => {
@@ -530,35 +523,19 @@ export const CustomMetricModal = memo(() => {
                               }`
                             : 'Custom metric edited successfully',
                 });
-            } else if (isMetric(item)) {
+            } else {
                 dispatch(
-                    explorerActions.addAdditionalMetric({
-                        uuid: uuidv4(),
-                        baseMetricName: item.name,
-                        ...data,
-                    }),
-                );
-                showToastSuccess({
-                    title: 'Custom metric added successfully',
-                });
-            } else if (isDimension(item) && form.values.customMetricLabel) {
-                dispatch(
-                    explorerActions.addAdditionalMetric({
-                        uuid: uuidv4(),
-                        baseDimensionName: item.name,
-                        ...data,
-                    }),
-                );
-                showToastSuccess({
-                    title: 'Custom metric added successfully',
-                });
-            } else if (isCustomDimension(item)) {
-                dispatch(
-                    explorerActions.addAdditionalMetric({
-                        uuid: uuidv4(),
-                        // Do not add baseDimensionName to avoid invalid validation errors in queryBuilder
-                        ...data,
-                    }),
+                    explorerActions.addAdditionalMetric(
+                        buildNewAdditionalMetric({
+                            item,
+                            type: customMetricType,
+                            customMetricLabel,
+                            customMetricFiltersWithIds,
+                            exploreData,
+                            percentile,
+                            formatOptions: format,
+                        }),
+                    ),
                 );
                 showToastSuccess({
                     title: 'Custom metric added successfully',

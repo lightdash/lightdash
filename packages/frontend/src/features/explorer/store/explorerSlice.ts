@@ -488,6 +488,8 @@ const explorerSlice = createSlice({
                           | CustomDimension
                           | Metric;
                       isEditing: boolean;
+                      /** Label typed before handing over from quick create */
+                      label?: string;
                   }
                 | undefined
             >,
