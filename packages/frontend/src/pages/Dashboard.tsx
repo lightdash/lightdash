@@ -30,7 +30,12 @@ import { IconAlertCircle, IconCircleCheckFilled } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
-import { useBlocker, useNavigate, useParams } from 'react-router';
+import {
+    useBlocker,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
@@ -65,6 +70,7 @@ import { useContentAction } from '../hooks/useContent';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
+import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
@@ -78,6 +84,9 @@ import { EventName } from '../types/Events';
 import { buildDashboardConfig } from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
+
+/** Dashboard URL param naming the chart open in the in-dashboard editor. */
+const EDIT_CHART_SEARCH_PARAM = 'editChart';
 
 const Dashboard: FC = () => {
     const navigate = useNavigate();
@@ -847,8 +856,67 @@ const Dashboard: FC = () => {
         isChartEditorEnabled &&
         dashboardCustomMetricsFlag.data?.enabled === true;
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
-    const [chartToEdit, setChartToEdit] = useState<SavedChart | undefined>();
 
+    // The chart being edited is named by the URL, so a reload or a step back
+    // from the chart page lands in the editor. A tile hands over the chart it
+    // already holds; without one (a fresh load) it is fetched by the param.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const editChartParam = searchParams.get(EDIT_CHART_SEARCH_PARAM);
+    const [chartFromTile, setChartFromTile] = useState<
+        SavedChart | undefined
+    >();
+    const setEditChartParam = useCallback(
+        (chartUuid: string | null) => {
+            setSearchParams(
+                (params) => {
+                    if (chartUuid) {
+                        params.set(EDIT_CHART_SEARCH_PARAM, chartUuid);
+                    } else {
+                        params.delete(EDIT_CHART_SEARCH_PARAM);
+                    }
+                    return params;
+                },
+                { replace: true },
+            );
+        },
+        [setSearchParams],
+    );
+    const chartFromUrl = useSavedQuery({
+        uuidOrSlug:
+            isChartEditorEnabled &&
+            editChartParam &&
+            chartFromTile?.uuid !== editChartParam
+                ? editChartParam
+                : undefined,
+        projectUuid,
+        // The same content the tiles show: the dashboard loads its draft
+        includeUnpublishedDraft: true,
+        // A param naming a chart the user cannot load is dropped rather than kept
+        useQueryOptions: { onError: () => setEditChartParam(null) },
+    });
+    const chartToEdit = useMemo(() => {
+        if (!isChartEditorEnabled || !editChartParam) return undefined;
+        if (chartFromTile?.uuid === editChartParam) return chartFromTile;
+        return chartFromUrl.data?.uuid === editChartParam
+            ? chartFromUrl.data
+            : undefined;
+    }, [
+        isChartEditorEnabled,
+        editChartParam,
+        chartFromTile,
+        chartFromUrl.data,
+    ]);
+    const openChartEditor = useCallback(
+        (chart: SavedChart) => {
+            setChartFromTile(chart);
+            setEditChartParam(chart.uuid);
+        },
+        [setEditChartParam],
+    );
+    const closeChartEditor = useCallback(() => {
+        setChartFromTile(undefined);
+        setEditChartParam(null);
+    }, [setEditChartParam]);
     const queryClient = useQueryClient();
     const { track } = useTracking();
     const handleRegistryMetricEdited = useCallback(
@@ -967,11 +1035,12 @@ const Dashboard: FC = () => {
                     },
                 ]);
             }
-            setChartToEdit(undefined);
+            closeChartEditor();
             setIsNewChartOpen(false);
         },
         [
             chartToEdit,
+            closeChartEditor,
             handleAddTiles,
             activeTab?.uuid,
             dashboardCustomMetrics,
@@ -1284,7 +1353,7 @@ const Dashboard: FC = () => {
                             }
                             onClose={() => {
                                 setIsNewChartOpen(false);
-                                setChartToEdit(undefined);
+                                closeChartEditor();
                             }}
                         />
                     ) : null}
@@ -1323,7 +1392,7 @@ const Dashboard: FC = () => {
                     {/* Coordinates filter chip / rules popovers across the dashboard */}
                     <DashboardChartEditContext.Provider
                         value={
-                            isChartEditorEnabled ? setChartToEdit : undefined
+                            isChartEditorEnabled ? openChartEditor : undefined
                         }
                     >
                         <FilterBarPopoversProvider>
