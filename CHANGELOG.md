@@ -1,3 +1,11 @@
+## [2.207.1](https://github.com/lightdash/lightdash/compare/2.207.0...2.207.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **common:** apply Snowflake timestamp wrap once on additional dimension intervals ([#29021](https://github.com/lightdash/lightdash/issues/29021)) ([7f765ac](https://github.com/lightdash/lightdash/commit/7f765acf0f3844f70fa3c1249e3a0c0fcaa4e411))
+* **data-apps:** skip OS notification for user-cancelled builds ([#29156](https://github.com/lightdash/lightdash/issues/29156)) ([a645fbc](https://github.com/lightdash/lightdash/commit/a645fbc624e31fef08bdd008f732d93749487612))
+
 # [2.207.0](https://github.com/lightdash/lightdash/compare/2.206.2...2.207.0) (2026-09-14)
 
 
