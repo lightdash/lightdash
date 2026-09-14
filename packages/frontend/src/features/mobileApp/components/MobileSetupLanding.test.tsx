@@ -1,5 +1,5 @@
 import { MantineProvider } from '@mantine/core';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { navigateTo } from '../utils/navigation';
@@ -39,8 +39,10 @@ const setUserAgent = (userAgent: string) => {
     });
 };
 
+let router: ReturnType<typeof createMemoryRouter>;
+
 const renderAt = (search: string) => {
-    const router = createMemoryRouter(
+    router = createMemoryRouter(
         [{ path: '/mobile-setup', element: <MobileSetupLanding /> }],
         { initialEntries: [`/mobile-setup${search}`] },
     );
@@ -127,6 +129,37 @@ describe('MobileSetupLanding', () => {
             screen.queryByRole('link', { name: /open in lightdash/i }),
         ).not.toBeInTheDocument();
         expect(screen.queryByText(CODE)).not.toBeInTheDocument();
+    });
+
+    it('takes the code out of the URL once it has been read', async () => {
+        setUserAgent(IPHONE_UA);
+        renderAt(validSearch);
+
+        await waitFor(() => expect(router.state.location.search).toBe(''));
+        expect(router.state.location.pathname).toBe('/mobile-setup');
+    });
+
+    it('still builds the app link after the URL is cleaned', async () => {
+        setUserAgent(IPHONE_UA);
+        renderAt(validSearch);
+
+        await waitFor(() => expect(router.state.location.search).toBe(''));
+
+        expect(
+            screen.getByRole('link', { name: /open in lightdash/i }),
+        ).toHaveAttribute(
+            'href',
+            `com.lightdash.mobile://setup?v=1&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`,
+        );
+    });
+
+    it('replaces the history entry rather than pushing a clean one', async () => {
+        setUserAgent(IPHONE_UA);
+        renderAt(validSearch);
+
+        await waitFor(() => expect(router.state.location.search).toBe(''));
+        // A push would leave the dirty URL behind in history.
+        expect(router.state.historyAction).toBe('REPLACE');
     });
 
     it('refuses an unknown link version', () => {

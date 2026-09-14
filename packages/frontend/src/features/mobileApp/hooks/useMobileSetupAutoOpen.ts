@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { navigateTo } from '../utils/navigation';
 
 const STORE_REDIRECT_DELAY_MS = 1500;
@@ -21,10 +21,17 @@ export const useMobileSetupAutoOpen = ({
     storeUrl,
     enabled,
 }: Args) => {
+    // The store URL arrives with health, a tick after mount, and re-runs this
+    // effect. Without the guard the app is asked to open twice.
+    const hasTriedTheApp = useRef(false);
+
     useEffect(() => {
         if (!enabled || !schemeUrl) return;
 
-        navigateTo(schemeUrl);
+        if (!hasTriedTheApp.current) {
+            hasTriedTheApp.current = true;
+            navigateTo(schemeUrl);
+        }
 
         if (!storeUrl) return;
 
