@@ -28,6 +28,9 @@ vi.mock('./pages/PasswordReset', () => ({
     default: () => <div data-testid="password-reset-page" />,
 }));
 
+vi.mock('./pages/MobileSetup', () => ({
+    default: () => <div data-testid="mobile-setup-page" />,
+}));
 vi.mock('./providers/Tracking/TrackingProvider', () => ({
     TrackPage: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
@@ -60,6 +63,15 @@ describe('AuthRoutes', () => {
 
         expect(
             await screen.findByTestId('password-reset-page'),
+        ).toBeInTheDocument();
+    });
+    it('renders the mobile app setup landing page, which only a phone reaches', async () => {
+        renderAuthRouteAt(
+            '/mobile-setup?v=1&i=http%3A%2F%2Flocalhost&c=code',
+        );
+
+        expect(
+            await screen.findByTestId('mobile-setup-page'),
         ).toBeInTheDocument();
     });
 });
