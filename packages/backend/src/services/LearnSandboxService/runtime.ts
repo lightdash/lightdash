@@ -6,10 +6,39 @@ export const LEARN_SANDBOX_COMMAND_TIMEOUT_MS = 120_000;
 const DEFAULT_PATH_PREFIX = ['/usr/local/dbt1.12/bin'];
 const RUNTIME_DETECTION_CACHE_MS = 60_000;
 
+/**
+ * Sandbox commands run on the scheduler worker as dbt child processes, so the
+ * number that may run at once is bounded. graphile-worker runs the jobs of one
+ * queue serially, so commands are spread over this many queues by project:
+ * at most this many dbt processes per worker, and one per project.
+ */
+export const DEFAULT_MAX_CONCURRENT_COMMANDS = 4;
+
 export type LearnSandboxRuntime = {
     pathPrefix: string[];
     apiUrl: string | undefined;
     databasePath: string;
+    maxConcurrentCommands: number;
+};
+
+const parseMaxConcurrent = (raw: string | undefined): number => {
+    const value = Number.parseInt(raw ?? '', 10);
+    return Number.isFinite(value) && value >= 1
+        ? value
+        : DEFAULT_MAX_CONCURRENT_COMMANDS;
+};
+
+/** Deterministic queue name for a project: `learn-sandbox-<0..max-1>`. */
+export const learnSandboxQueueName = (
+    projectUuid: string,
+    maxConcurrent: number,
+): string => {
+    const buckets = Math.max(1, Math.floor(maxConcurrent));
+    let hash = 0;
+    for (const char of projectUuid) {
+        hash = (hash * 31 + char.charCodeAt(0)) % 2147483647;
+    }
+    return `learn-sandbox-${hash % buckets}`;
 };
 
 export const resolveSandboxRuntime = (
@@ -25,6 +54,9 @@ export const resolveSandboxRuntime = (
         pathPrefix,
         apiUrl: env.LEARN_SANDBOX_API_URL,
         databasePath: path.join(dataDir, 'jaffle_shop.duckdb'),
+        maxConcurrentCommands: parseMaxConcurrent(
+            env.LEARN_SANDBOX_MAX_CONCURRENT_COMMANDS,
+        ),
     };
 };
 

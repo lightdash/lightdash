@@ -68,6 +68,10 @@ import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { SchedulerModel } from '../models/SchedulerModel';
+import {
+    learnSandboxQueueName,
+    resolveSandboxRuntime,
+} from '../services/LearnSandboxService/runtime';
 import { continueTrace, getTraceHeaders, traceSpan } from '../tracing/tracing';
 
 type SchedulerClientArguments = {
@@ -1374,6 +1378,12 @@ export class SchedulerClient {
     }): Promise<string> {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
+        // One queue per bucket: graphile runs a queue's jobs serially, so this
+        // caps concurrent dbt processes on the worker and serialises a project.
+        const queueName = learnSandboxQueueName(
+            payload.projectUuid,
+            resolveSandboxRuntime().maxConcurrentCommands,
+        );
         const id = await SchedulerClient.addJob(
             graphileClient,
             SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND,
@@ -1381,6 +1391,8 @@ export class SchedulerClient {
             now,
             JobPriority.HIGH,
             1,
+            undefined,
+            queueName,
         );
 
         await this.schedulerModel.logSchedulerJob({
