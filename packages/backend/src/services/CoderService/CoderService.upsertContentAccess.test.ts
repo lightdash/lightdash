@@ -2,6 +2,7 @@ import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     AnyType,
     ChartAsCode,
+    ContentType,
     CustomDimensionType,
     DashboardAsCode,
     DashboardTileTypes,
@@ -90,6 +91,7 @@ const buildService = () =>
             find: vi.fn(async () => []),
             create: vi.fn(),
             getByIdOrSlug: vi.fn(),
+            renameSlug: vi.fn(),
         } as AnyType,
         spaceModel: {
             find: vi.fn(async () => [
@@ -149,6 +151,86 @@ const buildService = () =>
         organizationMemberProfileModel: {} as AnyType,
         userModel: {} as AnyType,
     });
+
+describe('CoderService dashboard slug rename permissions', () => {
+    const request = {
+        resourceType: ContentType.DASHBOARD,
+        from: 'old-dashboard',
+        to: 'dashboard',
+    };
+
+    it('requires project write access before looking up a dashboard', async () => {
+        const service = buildService();
+        await expect(
+            service.renameContentSlug(makeUser([]), PROJECT_UUID, request),
+        ).rejects.toThrow(ForbiddenError);
+        expect(service.dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+        expect(service.dashboardModel.renameSlug).not.toHaveBeenCalled();
+    });
+
+    it('requires dashboard update access for write-only callers', async () => {
+        const service = buildService();
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            slug: request.from,
+            spaceUuid: SPACE_UUID,
+        } as AnyType);
+        await expect(
+            service.renameContentSlug(
+                makeUser([{ subject: 'ContentAsCode', action: 'create' }]),
+                PROJECT_UUID,
+                request,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(service.dashboardModel.renameSlug).not.toHaveBeenCalled();
+    });
+
+    it('renames an authorized project-scoped dashboard', async () => {
+        const service = buildService();
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            slug: request.from,
+            spaceUuid: SPACE_UUID,
+        } as AnyType);
+        await service.renameContentSlug(
+            makeUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                {
+                    subject: 'Dashboard',
+                    action: 'update',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+            ]),
+            PROJECT_UUID,
+            request,
+        );
+        expect(service.dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
+            request.from,
+            { projectUuid: PROJECT_UUID },
+        );
+        expect(service.dashboardModel.renameSlug).toHaveBeenCalledWith({
+            projectUuid: PROJECT_UUID,
+            dashboardUuid: 'dashboard-uuid',
+            from: request.from,
+            to: request.to,
+        });
+    });
+
+    it.each(['../dashboard', 'UPPERCASE', '', 'a'.repeat(256)])(
+        'rejects malformed target %s before looking up a dashboard',
+        async (to) => {
+            const service = buildService();
+            await expect(
+                service.renameContentSlug(makeUser([]), PROJECT_UUID, {
+                    ...request,
+                    to,
+                }),
+            ).rejects.toThrow('target slug');
+            expect(service.dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+            expect(service.dashboardModel.renameSlug).not.toHaveBeenCalled();
+        },
+    );
+});
 
 describe('CoderService content-as-code space permissions', () => {
     const chartCreateRules: RawRuleOf<Ability<PossibleAbilities>>[] = [

@@ -46,6 +46,9 @@ const projectModel = {
         upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
     })),
     getUpstreamChartUuidFromPreview: vi.fn(async () => null),
+    getUpstreamDashboardUuidFromPreview: vi.fn(
+        async (): Promise<string | null> => null,
+    ),
 };
 
 const chartTransaction = {} as Knex.Transaction;
@@ -67,6 +70,9 @@ const savedChartModel = {
 };
 
 beforeEach(() => {
+    projectModel.getUpstreamDashboardUuidFromPreview
+        .mockReset()
+        .mockResolvedValue(null);
     projectModel.getUpstreamChartUuidFromPreview
         .mockReset()
         .mockResolvedValue(null);
@@ -122,6 +128,9 @@ const dashboardModel = {
     create: vi.fn(async () => existingUpstreamDashboard.dashboard),
     getByIdOrSlug: vi.fn(async () => promotedDashboardWithSqlTile.dashboard),
     find: vi.fn(async () => []),
+    renameSlug: vi.fn(async () => undefined),
+    update: vi.fn(async () => undefined),
+    addVersion: vi.fn(async () => existingUpstreamDashboard.dashboard!),
 };
 const spacePermissionService = {
     resolveAccess: vi.fn(async () => ({
@@ -428,12 +437,75 @@ describe('PromoteService dashboard changes', () => {
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         spaceModel: spaceModel as unknown as SpaceModel,
-        dashboardModel: {} as DashboardModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
     });
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    test('resolves a renamed preview dashboard through its original content mapping', async () => {
+        const renamedDashboard = {
+            ...promotedDashboard.dashboard,
+            slug: 'renamed-dashboard',
+        };
+        projectModel.getUpstreamDashboardUuidFromPreview.mockResolvedValueOnce(
+            existingUpstreamDashboard.dashboard!.uuid,
+        );
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+            ...promotedDashboard.dashboard,
+            ...existingUpstreamDashboard.dashboard!,
+            projectUuid: existingUpstreamDashboard.projectUuid,
+        });
+        spaceModel.find.mockResolvedValueOnce([upstreamSpace]);
+
+        const result = await service.getPromotedDashboard(
+            user,
+            renamedDashboard,
+            existingUpstreamDashboard.projectUuid,
+        );
+
+        expect(result.upstreamDashboard.dashboard?.uuid).toBe(
+            existingUpstreamDashboard.dashboard!.uuid,
+        );
+        expect(dashboardModel.find).not.toHaveBeenCalled();
+        expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
+            existingUpstreamDashboard.dashboard!.uuid,
+            { projectUuid: existingUpstreamDashboard.projectUuid },
+        );
+    });
+
+    test('promoting a dashboard rename preserves the upstream dashboard and its old slug', async () => {
+        spaceModel.find
+            .mockResolvedValueOnce([upstreamSpace])
+            .mockResolvedValueOnce([upstreamSpace]);
+        const [changes] = await service.getPromotionDashboardChanges(
+            user,
+            {
+                ...promotedDashboard,
+                dashboard: {
+                    ...promotedDashboard.dashboard,
+                    slug: 'renamed-dashboard',
+                },
+            },
+            existingUpstreamDashboard,
+        );
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+            ...promotedDashboard.dashboard,
+            ...existingUpstreamDashboard.dashboard!,
+            projectUuid: existingUpstreamDashboard.projectUuid,
+        });
+
+        await service.updateDashboard(user, changes);
+
+        expect(dashboardModel.renameSlug).toHaveBeenCalledWith({
+            projectUuid: existingUpstreamDashboard.projectUuid,
+            dashboardUuid: existingUpstreamDashboard.dashboard!.uuid,
+            from: promotedDashboard.dashboard.slug,
+            to: 'renamed-dashboard',
+        });
+        expect(dashboardModel.create).not.toHaveBeenCalled();
     });
 
     test('getPromotionDashboardChanges create empty dashboard and space', async () => {

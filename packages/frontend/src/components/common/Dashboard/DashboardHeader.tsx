@@ -38,6 +38,7 @@ import {
     IconFolderSymlink,
     IconHistory,
     IconInfoCircle,
+    IconLink,
     IconMaximize,
     IconMessages,
     IconMinimize,
@@ -93,6 +94,7 @@ import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types'
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import ContentSlugRenameModal from '../ContentSlugRenameModal/ContentSlugRenameModal';
 import { FavoriteActionIcon } from '../FavoriteActionIcon';
 import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
@@ -192,6 +194,8 @@ const DashboardHeader = memo(
 
         const { track } = useTracking();
         const [isUpdating, setIsUpdating] = useState(false);
+        const [isSlugRenameModalOpen, slugRenameModalHandlers] =
+            useDisclosure(false);
         const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
         const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
             useToggle(false);
@@ -1188,24 +1192,44 @@ const DashboardHeader = memo(
                                         </Menu.Item>
                                     )}
 
-                                    {userCanViewContentAsCode && (
+                                    {(userCanViewContentAsCode ||
+                                        userCanManageDashboard) && (
                                         <>
                                             <Menu.Divider />
                                             <Menu.Label>
                                                 Content as code
                                             </Menu.Label>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconCode}
-                                                    />
-                                                }
-                                                onClick={
-                                                    dashboardAsCodeModalHandlers.open
-                                                }
-                                            >
-                                                View as code
-                                            </Menu.Item>
+                                            {userCanViewContentAsCode && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconCode}
+                                                        />
+                                                    }
+                                                    onClick={
+                                                        dashboardAsCodeModalHandlers.open
+                                                    }
+                                                >
+                                                    View as code
+                                                </Menu.Item>
+                                            )}
+                                            {userCanManageDashboard && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconLink}
+                                                        />
+                                                    }
+                                                    disabled={
+                                                        hasDashboardChanged
+                                                    }
+                                                    onClick={
+                                                        slugRenameModalHandlers.open
+                                                    }
+                                                >
+                                                    Change URL slug
+                                                </Menu.Item>
+                                            )}
                                         </>
                                     )}
 
@@ -1230,6 +1254,23 @@ const DashboardHeader = memo(
                             </Menu>
                         )}
 
+                        {isSlugRenameModalOpen && projectUuid && (
+                            <ContentSlugRenameModal
+                                opened={isSlugRenameModalOpen}
+                                onClose={slugRenameModalHandlers.close}
+                                resourceType={ContentType.DASHBOARD}
+                                projectUuid={projectUuid}
+                                projectUrlIdentifier={projectUrlIdentifier}
+                                currentSlug={dashboard.slug}
+                                onRenamed={(slug) => {
+                                    slugRenameModalHandlers.close();
+                                    void navigate(
+                                        `/projects/${projectUrlIdentifier}/dashboards/${slug}${isEditMode ? '/edit' : ''}${search}`,
+                                        { replace: true },
+                                    );
+                                }}
+                            />
+                        )}
                         {isCreatingNewSpace && projectUuid && (
                             <SpaceActionModal
                                 projectUuid={projectUuid}

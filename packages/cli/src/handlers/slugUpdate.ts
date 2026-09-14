@@ -22,6 +22,7 @@ type SlugUpdateOptions = {
     project?: string;
     path?: string;
     dryRun: boolean;
+    type: ContentType.CHART | ContentType.DASHBOARD;
     from: string;
     to: string;
 };
@@ -32,7 +33,8 @@ type LocalSlugUpdatePlan = {
     metadata:
         | {
               root: string;
-              charts: Record<string, string>;
+              resourceType: ContentType.CHART | ContentType.DASHBOARD;
+              slugs: Record<string, string>;
           }
         | undefined;
     referencesUpdated: number;
@@ -99,15 +101,18 @@ const assertMovesAreSafe = async (
     }
 };
 
-export const planLocalChartSlugUpdate = async (
+export const planLocalSlugUpdate = async (
     customPath: string | undefined,
     from: string,
     to: string,
+    resourceType: ContentType.CHART | ContentType.DASHBOARD = ContentType.CHART,
 ): Promise<LocalSlugUpdatePlan> => {
     const root = getDownloadFolder(customPath);
     const fileUpdates: LocalSlugUpdatePlan['fileUpdates'] = [];
     const fileMoves: LocalSlugUpdatePlan['fileMoves'] = [];
     let referencesUpdated = 0;
+    const languageMapKey =
+        resourceType === ContentType.CHART ? 'chart' : 'dashboard';
 
     if (!from || from.length > 255) {
         throw new ParameterError(
@@ -156,7 +161,12 @@ export const planLocalChartSlugUpdate = async (
         const isChart =
             parsed.contentType === ContentType.CHART ||
             parsed.metricQuery !== undefined;
-        if (isChart && parsed.slug === from) {
+        const isDashboard =
+            parsed.contentType === ContentType.DASHBOARD ||
+            (parsed.contentType === undefined && Array.isArray(parsed.tiles));
+        const isTargetContent =
+            resourceType === ContentType.CHART ? isChart : isDashboard;
+        if (isTargetContent && parsed.slug === from) {
             document.set('slug', to);
             referencesUpdated += 1;
             changed = true;
@@ -195,23 +205,28 @@ export const planLocalChartSlugUpdate = async (
                             );
                         }
                         const languageMapEntry = languageMapDocument.getIn([
-                            'chart',
+                            languageMapKey,
                             from,
                         ]);
                         if (languageMapEntry !== undefined) {
                             if (
-                                languageMapDocument.getIn(['chart', to]) !==
-                                undefined
+                                languageMapDocument.getIn([
+                                    languageMapKey,
+                                    to,
+                                ]) !== undefined
                             ) {
                                 throw new ParameterError(
-                                    `Cannot update language map because chart slug "${to}" already exists in "${sourceLanguageMap}"`,
+                                    `Cannot update language map because ${resourceType} slug "${to}" already exists in "${sourceLanguageMap}"`,
                                 );
                             }
                             languageMapDocument.setIn(
-                                ['chart', to],
+                                [languageMapKey, to],
                                 languageMapEntry,
                             );
-                            languageMapDocument.deleteIn(['chart', from]);
+                            languageMapDocument.deleteIn([
+                                languageMapKey,
+                                from,
+                            ]);
                             fileUpdates.push({
                                 filePath: sourceLanguageMap,
                                 content: languageMapDocument.toString(),
@@ -237,7 +252,7 @@ export const planLocalChartSlugUpdate = async (
             }
         }
 
-        if (Array.isArray(parsed.tiles)) {
+        if (resourceType === ContentType.CHART && Array.isArray(parsed.tiles)) {
             for (const [index, tile] of parsed.tiles.entries()) {
                 if (
                     tile.type === 'saved_chart' &&
@@ -254,7 +269,7 @@ export const planLocalChartSlugUpdate = async (
         }
 
         if (
-            parsed.resource?.type === ContentType.CHART &&
+            parsed.resource?.type === resourceType &&
             parsed.resource.slug === from
         ) {
             document.setIn(['resource', 'slug'], to);
@@ -269,16 +284,20 @@ export const planLocalChartSlugUpdate = async (
 
     const metadata = await readMetadataFile(root);
     let updatedMetadata: LocalSlugUpdatePlan['metadata'];
-    if (from in metadata.charts) {
-        if (to !== from && to in metadata.charts) {
+    const metadataSlugs =
+        resourceType === ContentType.CHART
+            ? metadata.charts
+            : metadata.dashboards;
+    if (from in metadataSlugs) {
+        if (to !== from && to in metadataSlugs) {
             throw new ParameterError(
-                `Cannot update local metadata because chart slug "${to}" already exists`,
+                `Cannot update local metadata because ${resourceType} slug "${to}" already exists`,
             );
         }
-        const charts = { ...metadata.charts };
-        charts[to] = charts[from];
-        delete charts[from];
-        updatedMetadata = { root, charts };
+        const slugs = { ...metadataSlugs };
+        slugs[to] = slugs[from];
+        delete slugs[from];
+        updatedMetadata = { root, resourceType, slugs };
     }
 
     await assertMovesAreSafe(fileMoves);
@@ -371,7 +390,7 @@ const restoreFiles = async (snapshots: FileSnapshot): Promise<void> => {
     );
 };
 
-export const applyLocalChartSlugUpdate = async (
+export const applyLocalSlugUpdate = async (
     plan: LocalSlugUpdatePlan,
 ): Promise<() => Promise<void>> => {
     const metadataPath = plan.metadata
@@ -408,7 +427,12 @@ export const applyLocalChartSlugUpdate = async (
             await fs.writeFile(
                 metadataPath,
                 JSON.stringify(
-                    { ...existing, charts: plan.metadata.charts },
+                    {
+                        ...existing,
+                        [plan.metadata.resourceType === ContentType.CHART
+                            ? 'charts'
+                            : 'dashboards']: plan.metadata.slugs,
+                    },
                     null,
                     2,
                 ),
@@ -449,24 +473,30 @@ export const requestSlugUpdate = async (
     }
 };
 
-export const executeChartSlugUpdate = async (
+export const executeSlugUpdate = async (
     projectUuid: string,
     customPath: string | undefined,
     from: string,
     to: string,
+    resourceType: ContentType.CHART | ContentType.DASHBOARD = ContentType.CHART,
 ): Promise<LocalSlugUpdatePlan> => {
-    const localPlan = await planLocalChartSlugUpdate(customPath, from, to);
+    const localPlan = await planLocalSlugUpdate(
+        customPath,
+        from,
+        to,
+        resourceType,
+    );
     await requestSlugUpdate(projectUuid, {
-        resourceType: ContentType.CHART,
+        resourceType,
         from,
         to,
     });
 
     try {
-        await applyLocalChartSlugUpdate(localPlan);
+        await applyLocalSlugUpdate(localPlan);
     } catch (error) {
         throw new Error(
-            'The chart slug was renamed in Lightdash, but the local files could not be updated. Fix the local file error and rerun the same command; the rename is idempotent.',
+            `The ${resourceType} slug was renamed in Lightdash, but the local files could not be updated. Fix the local file error and rerun the same command; the rename is idempotent.`,
             { cause: error },
         );
     }
@@ -497,19 +527,20 @@ export const slugUpdateHandler = async (
         selection,
         config,
         options.dryRun
-            ? 'Previewing chart slug update in'
-            : 'Updating chart slug in',
+            ? `Previewing ${options.type} slug update in`
+            : `Updating ${options.type} slug in`,
     );
 
     if (options.dryRun) {
-        const localPlan = await planLocalChartSlugUpdate(
+        const localPlan = await planLocalSlugUpdate(
             options.path,
             options.from,
             options.to,
+            options.type,
         );
         console.info(
             styles.success(
-                `Would update chart slug "${options.from}" -> "${options.to}".`,
+                `Would update ${options.type} slug "${options.from}" -> "${options.to}".`,
             ),
         );
         logLocalSlugUpdateFileChanges(localPlan, options.path, true);
@@ -517,16 +548,17 @@ export const slugUpdateHandler = async (
         return;
     }
 
-    const localPlan = await executeChartSlugUpdate(
+    const localPlan = await executeSlugUpdate(
         selection.projectUuid,
         options.path,
         options.from,
         options.to,
+        options.type,
     );
 
     console.info(
         styles.success(
-            `Updated chart slug "${options.from}" -> "${options.to}".`,
+            `Updated ${options.type} slug "${options.from}" -> "${options.to}".`,
         ),
     );
     logLocalSlugUpdateFileChanges(localPlan, options.path, false);

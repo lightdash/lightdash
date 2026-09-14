@@ -2447,7 +2447,14 @@ export class CoderService extends BaseService {
         );
         const dashboards = await Promise.all(dashboardPromises);
 
-        const missingIds = CoderService.getMissingIds(dashboardIds, dashboards);
+        const aliases = await this.dashboardModel.getSlugAliasesForUuids(
+            dashboards.map((dashboard) => dashboard.uuid),
+        );
+        const missingIds = CoderService.getMissingIds(
+            dashboardIds,
+            dashboards,
+            aliases,
+        );
         if (missingIds.length > 0) {
             this.logger.warn(
                 `Missing filtered dashboards for project ${projectUuid} with ids ${missingIds.join(
@@ -4194,7 +4201,28 @@ export class CoderService extends BaseService {
                 });
                 return;
             }
-            case ContentType.DASHBOARD:
+            case ContentType.DASHBOARD: {
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
+                    from,
+                    {
+                        projectUuid,
+                    },
+                );
+                if (!canUploadAnyContent) {
+                    await this.assertDashboardUpdateAccess({
+                        userUuid: user.userUuid,
+                        auditedAbility,
+                        dashboard,
+                    });
+                }
+                await this.dashboardModel.renameSlug({
+                    projectUuid,
+                    dashboardUuid: dashboard.uuid,
+                    from,
+                    to,
+                });
+                return;
+            }
             case ContentType.SPACE:
             case ContentType.DATA_APP:
                 throw new NotImplementedError(
@@ -5119,6 +5147,7 @@ export class CoderService extends BaseService {
 
         const dashboardWithUuids = {
             ...dashboardWithResolvedTabs,
+            slug: dashboard.slug,
             tiles: tilesWithUuids,
             config: dashboardConfig,
         };

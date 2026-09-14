@@ -15,7 +15,8 @@ import { z } from 'zod';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
-import MantineModal from '../../common/MantineModal';
+import MantineModal from '../MantineModal';
+import classes from './ContentSlugRenameModal.module.css';
 
 type Props = {
     opened: boolean;
@@ -24,17 +25,22 @@ type Props = {
     projectUuid: string;
     projectUrlIdentifier: string;
     currentSlug: string;
+    resourceType: ContentType.CHART | ContentType.DASHBOARD;
 };
 
-const ChartSlugRenameModal: FC<Props> = ({
+const ContentSlugRenameModal: FC<Props> = ({
     opened,
     onClose,
     onRenamed,
     projectUuid,
     projectUrlIdentifier,
     currentSlug,
+    resourceType,
 }) => {
     const queryClient = useQueryClient();
+    const resourceLabel =
+        resourceType === ContentType.CHART ? 'Chart' : 'Dashboard';
+    const formId = `${resourceType}-slug-rename-form`;
     const { showToastSuccess } = useToaster();
     const form = useForm({
         initialValues: { slug: currentSlug },
@@ -72,9 +78,15 @@ const ChartSlugRenameModal: FC<Props> = ({
             onSuccess: async (_, { to }) => {
                 await Promise.all([
                     invalidateContent(queryClient, projectUuid),
-                    queryClient.invalidateQueries(['saved_query']),
+                    queryClient.invalidateQueries([
+                        resourceType === ContentType.CHART
+                            ? 'saved_query'
+                            : 'saved_dashboard_query',
+                    ]),
                 ]);
-                showToastSuccess({ title: 'Chart URL slug changed' });
+                showToastSuccess({
+                    title: `${resourceLabel} URL slug changed`,
+                });
                 onRenamed(to);
             },
             onError: ({ error }) => {
@@ -84,11 +96,15 @@ const ChartSlugRenameModal: FC<Props> = ({
     );
 
     const newSlug = form.values.slug.trim();
-    const newUrl = `${window.location.origin}/projects/${projectUrlIdentifier}/saved/${newSlug}/view`;
+    const contentPath =
+        resourceType === ContentType.CHART
+            ? `saved/${newSlug}/view`
+            : `dashboards/${newSlug}`;
+    const newUrl = `${window.location.origin}/projects/${projectUrlIdentifier}/${contentPath}`;
 
     const handleSubmit = form.onSubmit(({ slug }) => {
         renameMutation.mutate({
-            resourceType: ContentType.CHART,
+            resourceType,
             from: currentSlug,
             to: slug.trim(),
         });
@@ -105,7 +121,7 @@ const ChartSlugRenameModal: FC<Props> = ({
             actions={
                 <Button
                     type="submit"
-                    form="chart-slug-rename-form"
+                    form={formId}
                     loading={renameMutation.isLoading}
                     disabled={!form.isDirty()}
                 >
@@ -113,11 +129,11 @@ const ChartSlugRenameModal: FC<Props> = ({
                 </Button>
             }
         >
-            <form id="chart-slug-rename-form" onSubmit={handleSubmit}>
+            <form id={formId} onSubmit={handleSubmit}>
                 <Stack gap="md">
                     <Text size="sm" c="dimmed">
-                        Change the last part of this chart&apos;s URL. Existing
-                        links will keep working.
+                        Change the last part of this {resourceType}&apos;s URL.
+                        Existing links will keep working.
                     </Text>
                     <TextInput
                         label="New slug"
@@ -128,15 +144,15 @@ const ChartSlugRenameModal: FC<Props> = ({
                         onFocus={(event) => event.currentTarget.select()}
                         {...form.getInputProps('slug')}
                     />
-                    <Stack gap={6}>
+                    <Stack gap="xs">
                         <Text size="sm" fw={500}>
                             URL preview
                         </Text>
-                        <Paper bg="gray.0" p="sm">
+                        <Paper withBorder p="sm">
                             <Text
                                 component="code"
                                 size="xs"
-                                style={{ overflowWrap: 'anywhere' }}
+                                className={classes.urlPreview}
                             >
                                 {newUrl}
                             </Text>
@@ -148,4 +164,4 @@ const ChartSlugRenameModal: FC<Props> = ({
     );
 };
 
-export default ChartSlugRenameModal;
+export default ContentSlugRenameModal;

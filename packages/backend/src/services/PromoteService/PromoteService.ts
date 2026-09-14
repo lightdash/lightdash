@@ -1783,6 +1783,18 @@ export class PromoteService extends BaseService {
         const promotedDashboard = dahsboardChange.data;
 
         if (dahsboardChange.action === PromotionAction.UPDATE) {
+            const currentDashboard = await this.dashboardModel.getByIdOrSlug(
+                promotedDashboard.uuid,
+                { projectUuid: promotedDashboard.projectUuid },
+            );
+            if (currentDashboard.slug !== promotedDashboard.slug) {
+                await this.dashboardModel.renameSlug({
+                    projectUuid: promotedDashboard.projectUuid,
+                    dashboardUuid: promotedDashboard.uuid,
+                    from: currentDashboard.slug,
+                    to: promotedDashboard.slug,
+                });
+            }
             // TODO Check if we need to update the dashboard
             // We also update dashboard name and description if they have changed
             await this.dashboardModel.update(promotedDashboard.uuid, {
@@ -2555,10 +2567,26 @@ export class PromoteService extends BaseService {
                   })
                 : [];
 
-        const existingUpstreamDashboards = await this.dashboardModel.find({
-            projectUuid: upstreamProjectUuid,
-            slug: dashboard.slug,
-        });
+        const mappedUpstreamDashboardUuid =
+            dashboard.projectUuid === upstreamProjectUuid
+                ? null
+                : await this.projectModel.getUpstreamDashboardUuidFromPreview(
+                      dashboard.projectUuid,
+                      dashboard.uuid,
+                  );
+        const existingUpstreamDashboards = mappedUpstreamDashboardUuid
+            ? [
+                  await this.dashboardModel.getByIdOrSlug(
+                      mappedUpstreamDashboardUuid,
+                      {
+                          projectUuid: upstreamProjectUuid,
+                      },
+                  ),
+              ]
+            : await this.dashboardModel.find({
+                  projectUuid: upstreamProjectUuid,
+                  slug: dashboard.slug,
+              });
         if (existingUpstreamDashboards.length > 1) {
             throw new AlreadyExistsError(
                 `There are multiple dashboards with the same identifier ${dashboard.slug}`,

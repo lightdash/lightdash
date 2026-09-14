@@ -96,6 +96,10 @@ import {
     DashboardViewTable,
 } from '../database/entities/dashboards';
 import {
+    DashboardSlugMappingsTableName,
+    DashboardSlugMappingTable,
+} from '../database/entities/dashboardSlugMappings';
+import {
     DownloadAuditTable,
     DownloadAuditTableName,
 } from '../database/entities/downloadAudit';
@@ -655,6 +659,7 @@ declare module 'knex/types/tables' {
         [ProjectDbtSourcesTableName]: ProjectDbtSourcesTable;
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;
+        [DashboardSlugMappingsTableName]: DashboardSlugMappingTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;

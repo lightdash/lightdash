@@ -1634,7 +1634,14 @@ program
 
 program
     .command('slug-update')
-    .description('Rename a chart slug and update its local references')
+    .description(
+        'Rename a chart or dashboard slug and update its local references',
+    )
+    .addOption(
+        new Option('--type <resource-type>', 'content type to rename')
+            .choices(['chart', 'dashboard'])
+            .default('chart'),
+    )
     .option('--verbose', 'show verbose output', false)
     .option(
         '--project <project uuid or slug>',
@@ -1649,7 +1656,7 @@ program
     )
     .option(
         '--dry-run',
-        'preview the chart rename and local file changes without making changes',
+        'preview the rename and local file changes without making changes',
         false,
     )
     .requiredOption('--from <slug>', 'current content slug')

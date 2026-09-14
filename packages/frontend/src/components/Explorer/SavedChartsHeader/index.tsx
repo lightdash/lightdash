@@ -137,6 +137,7 @@ import { useVerifiedChartSavePending } from './useVerifiedChartSavePending';
 const ChangeChartExploreModal = lazy(
     () => import('../../common/modal/ChangeChartExploreModal'),
 );
+import ContentSlugRenameModal from '../../common/ContentSlugRenameModal/ContentSlugRenameModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
@@ -149,7 +150,6 @@ import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsMod
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import SaveChartButton from '../SaveChartButton';
-import ChartSlugRenameModal from './ChartSlugRenameModal';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
 const isChartPath = (
@@ -1497,7 +1497,8 @@ const SavedChartsHeader: FC = () => {
                 />
             )}
             {isChartSlugRenameModalOpen && savedChart && projectUuid && (
-                <ChartSlugRenameModal
+                <ContentSlugRenameModal
+                    resourceType={ContentType.CHART}
                     opened={isChartSlugRenameModalOpen}
                     onClose={chartSlugRenameModalHandlers.close}
                     onRenamed={(slug) => {
