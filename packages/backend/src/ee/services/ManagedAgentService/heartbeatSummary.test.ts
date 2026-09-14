@@ -55,16 +55,23 @@ describe('heartbeat summaries from saved actions', () => {
         expect(report.compactSummary).toContain('Broken flags: 105');
         expect(report.text).not.toContain('Chart 104');
     });
-    it('escapes names and keeps duplicate target names from inflating examples', () => {
+    it('keeps names on one line and duplicate names from inflating examples', () => {
         const report = renderHeartbeatSummary({
             actions: [
-                action(ManagedAgentActionType.FIXED_BROKEN, '<@U123>\n`chart`'),
-                action(ManagedAgentActionType.FIXED_BROKEN, '<@U123>\n`chart`'),
+                action(
+                    ManagedAgentActionType.FIXED_BROKEN,
+                    'Sales & Marketing\n`chart`',
+                ),
+                action(
+                    ManagedAgentActionType.FIXED_BROKEN,
+                    'Sales & Marketing\n`chart`',
+                ),
             ],
             interrupted: false,
         });
-        expect(report.text).toContain('Repairs: 2 — `&lt;@U123&gt;  chart `');
-        expect(report.text).not.toContain('<@U123>');
+        expect(report.text).toContain(
+            'Repairs: 2 — `Sales & Marketing  chart `',
+        );
     });
     it('distinguishes an unavailable ledger from no actions', () => {
         expect(

@@ -16,7 +16,6 @@ export type ManagedAgentPromptOptions = {
 };
 
 export const AUTOPILOT_CHART_SKILL_NAME = 'developing-in-lightdash';
-export const AUTOPILOT_SLACK_SKILL_NAME = 'lightdash-agent-slack-messaging';
 
 // The managed-agents runtime reaches the semantic layer over MCP; the AI SDK
 // runtime has the equivalent tools in-process under different names.

@@ -18,15 +18,10 @@ const actionLabels: [ManagedAgentActionType, string][] = [
 ];
 
 const quoteName = (name: string) =>
-    `\`${name
-        .replace(/[`\r\n]/g, ' ')
-        .slice(0, 120)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')}\``;
+    `\`${name.replace(/[`\r\n]/g, ' ').slice(0, 120)}\``;
 
-// Deliberately accepts no model-authored summary, action descriptions or counts.
-// One persisted snapshot supplies both the saved report and Slack's headline.
+// Built only from saved actions: one snapshot feeds the stored run summary,
+// the activity page and the Slack headline.
 export const renderHeartbeatSummary = ({
     actions,
     interrupted,

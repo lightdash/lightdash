@@ -215,7 +215,6 @@ type AutopilotToolCallHandler = (
 
 type HeartbeatSessionResult = {
     sessionId: string;
-    slackSummary: string | null;
     error: string | null;
 };
 
@@ -1990,11 +1989,7 @@ export class ManagedAgentService extends BaseService {
             onToolCall,
             onSessionCreated,
         );
-        return {
-            sessionId: result.sessionId,
-            slackSummary: result.slackSummary,
-            error: null,
-        };
+        return { sessionId: result.sessionId, error: null };
     }
 
     // The run uuid doubles as the session id: actions and the activity page
@@ -2085,17 +2080,7 @@ export class ManagedAgentService extends BaseService {
             telemetry,
         });
 
-        return {
-            sessionId: runUuid,
-            slackSummary: [
-                `Provider: ${runtimeInfo.provider}; model: ${runtimeInfo.model}; key: ${runtimeInfo.keySource}.`,
-                runtimeInfo.notice,
-                result.slackSummary,
-            ]
-                .filter(Boolean)
-                .join('\n\n'),
-            error: result.error,
-        };
+        return { sessionId: runUuid, error: result.error };
     }
 
     // The semantic-layer and content tools Autopilot needs to create and fix
