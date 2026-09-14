@@ -2,6 +2,7 @@ import { LightdashInstallType, LightdashMode } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
@@ -13,6 +14,10 @@ import { BaseResponse, userMock } from './HealthService.mock';
 vi.mock('../../version', () => ({
     VERSION: '0.1.0',
 }));
+
+const featureFlagModel = {
+    get: vi.fn().mockResolvedValue({ id: 'mobile-app-setup', enabled: false }),
+} as unknown as FeatureFlagModel;
 
 const organizationModel = {
     hasOrgs: vi.fn(async () => true),
@@ -51,6 +56,7 @@ const learnSandboxServiceMock = {
 
 describe('health', () => {
     const healthService = new HealthService({
+        featureFlagModel,
         organizationModel: organizationModel as unknown as OrganizationModel,
         lightdashConfig: lightdashConfigMock,
         licenseService,
@@ -95,6 +101,7 @@ describe('health', () => {
 
     it('can disable the mobile login capability without changing its version', async () => {
         const service = new HealthService({
+            featureFlagModel,
             organizationModel:
                 organizationModel as unknown as OrganizationModel,
             lightdashConfig: {
@@ -121,6 +128,7 @@ describe('health', () => {
 
     it('returns independently configured mobile minimum versions', async () => {
         const service = new HealthService({
+            featureFlagModel,
             organizationModel:
                 organizationModel as unknown as OrganizationModel,
             lightdashConfig: {
@@ -180,6 +188,7 @@ describe('health', () => {
         ).toBe(false);
 
         const licensedService = new HealthService({
+            featureFlagModel,
             organizationModel:
                 organizationModel as unknown as OrganizationModel,
             lightdashConfig: {
@@ -209,6 +218,7 @@ describe('health', () => {
         );
 
         const invalidService = new HealthService({
+            featureFlagModel,
             organizationModel:
                 organizationModel as unknown as OrganizationModel,
             lightdashConfig: lightdashConfigMock,
@@ -227,6 +237,7 @@ describe('health', () => {
         });
 
         const validatedService = new HealthService({
+            featureFlagModel,
             organizationModel:
                 organizationModel as unknown as OrganizationModel,
             lightdashConfig: lightdashConfigMock,
@@ -246,6 +257,7 @@ describe('health', () => {
     });
     it('Should return localDbtEnabled false when in cloud beta mode', async () => {
         const service = new HealthService({
+            featureFlagModel,
             organizationModel:
                 organizationModel as unknown as OrganizationModel,
             lightdashConfig: {
@@ -320,6 +332,7 @@ describe('health', () => {
             }),
         );
         const service = new HealthService({
+            featureFlagModel,
             organizationModel:
                 organizationModel as unknown as OrganizationModel,
             lightdashConfig: lightdashConfigMock,
@@ -352,6 +365,7 @@ describe('health', () => {
 
         it('Should return undefined verificationHash when user has no email', async () => {
             const service = new HealthService({
+                featureFlagModel,
                 organizationModel:
                     organizationModel as unknown as OrganizationModel,
                 lightdashConfig: {
@@ -374,6 +388,7 @@ describe('health', () => {
 
         it('Should return correct HMAC hash when pylon secret and email are present', async () => {
             const service = new HealthService({
+                featureFlagModel,
                 organizationModel:
                     organizationModel as unknown as OrganizationModel,
                 lightdashConfig: {
