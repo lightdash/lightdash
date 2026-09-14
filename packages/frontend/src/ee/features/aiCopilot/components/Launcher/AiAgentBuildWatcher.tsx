@@ -1,8 +1,17 @@
 import { type ApiAppVersionSummary } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, type FC } from 'react';
+import { useCallback, useEffect, useRef, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import { useAppBuildPoller } from '../../../../../features/apps/hooks/useAppBuildPoller';
-import { getThreadUuidFromPathname } from '../../hooks/aiAgentRouting';
+import {
+    getBuildOutcome,
+    useBuildNotification,
+} from '../../../../../features/apps/hooks/useBuildNotification';
+import {
+    getAiAgentThreadPath,
+    getThreadUuidFromPathname,
+    isEmbedAiAgentRoute,
+} from '../../hooks/aiAgentRouting';
 import { getAiAgentThreadQueryKey } from '../../hooks/useProjectAiAgents';
 import { setPreview, type AiPreview } from '../../store/aiArtifactSlice';
 import {
@@ -45,12 +54,35 @@ type BuildWatchProps = { watch: BuildWatchEntry };
 const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
     const queryClient = useQueryClient();
     const dispatch = useAiAgentStoreDispatch();
+    const navigate = useNavigate();
     const { projectUuid, agentUuid, threadUuid, appUuid } = watch;
+    const canNotify = !isEmbedAiAgentRoute();
     const launcherThreadUuid = useAiAgentStoreSelector((state) =>
         state.aiAgentLauncher.mode === 'panel-open'
             ? state.aiAgentLauncher.activeThreadId
             : null,
     );
+    const landedReadyVersionRef = useRef<number | null>(null);
+
+    const openThread = useCallback(() => {
+        if (getThreadUuidFromPathname(window.location.pathname) === threadUuid)
+            return;
+        void navigate(getAiAgentThreadPath(projectUuid, agentUuid, threadUuid));
+        const version = landedReadyVersionRef.current;
+        if (version === null) return;
+        // Deferred so the outgoing thread's cleanup (clearPreview) runs first.
+        setTimeout(() => {
+            dispatch(setPreview(getLandedPreview(watch, version)));
+        }, 0);
+    }, [navigate, dispatch, watch, projectUuid, agentUuid, threadUuid]);
+
+    // Requests permission on mount, i.e. when the watch starts.
+    const notify = useBuildNotification({
+        appUuid,
+        appName: watch.appName ?? 'Data app',
+        shouldRequestPermission: canNotify,
+        onClick: openThread,
+    });
 
     const onDone = useCallback(
         (latest: ApiAppVersionSummary) => {
@@ -66,6 +98,7 @@ const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
             // watch is stale and only gets dropped.
             const isWatchedVersion = latest.version === watch.version;
             if (isWatchedVersion && latest.status === 'ready') {
+                landedReadyVersionRef.current = latest.version;
                 // Never open the preview over a different thread on screen.
                 const onScreenThreadUuid =
                     getThreadUuidFromPathname(window.location.pathname) ??
@@ -80,10 +113,13 @@ const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
                 }
             }
             dispatch(removeBuildWatch({ appUuid, version: watch.version }));
+            if (isWatchedVersion && canNotify) notify(getBuildOutcome(latest));
         },
         [
             queryClient,
             dispatch,
+            notify,
+            canNotify,
             launcherThreadUuid,
             projectUuid,
             agentUuid,
@@ -107,7 +143,7 @@ const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
 
 /**
  * The build watcher: one poller per build watch, app-wide. Runs on embeds
- * too so their threads keep updating.
+ * too so their threads keep updating; only notifications are held there.
  */
 export const AiAgentBuildWatcher: FC = () => {
     const watches = useAiAgentStoreSelector(selectBuildWatches);
