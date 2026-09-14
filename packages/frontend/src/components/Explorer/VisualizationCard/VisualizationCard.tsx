@@ -206,9 +206,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
         [dispatch],
     );
 
-    const portalTarget = useVisualizationConfigPortalTarget(
-        isVisualizationConfigOpen,
-    );
+    const { target: portalTarget, ref: visualizationConfigButtonRef } =
+        useVisualizationConfigPortalTarget(isVisualizationConfigOpen);
 
     const {
         ref: measureRef,
@@ -403,6 +402,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                 />
                                 {isEditMode ? (
                                     <Button
+                                        ref={visualizationConfigButtonRef}
                                         {...COLLAPSABLE_CARD_BUTTON_PROPS}
                                         onClick={
                                             isVisualizationConfigOpen

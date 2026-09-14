@@ -1,4 +1,5 @@
-import { screen } from '@testing-library/react';
+import { Button } from '@mantine/core';
+import { screen, waitFor } from '@testing-library/react';
 import { createPortal } from 'react-dom';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -8,12 +9,98 @@ import useVisualizationConfigPortalTarget from './useVisualizationConfigPortalTa
 import VisualizationConfigPortal from './VisualizationConfigPortal';
 
 const PortalProducer = ({ isOpen }: { isOpen: boolean }) => {
-    const target = useVisualizationConfigPortalTarget(isOpen);
+    const { target, ref } = useVisualizationConfigPortalTarget(isOpen);
 
-    return target ? createPortal(<div>Configure content</div>, target) : null;
+    return (
+        <>
+            <Button ref={ref}>Configure</Button>
+            {target && createPortal(<div>Configure content</div>, target)}
+        </>
+    );
 };
 
 describe('VisualizationConfigPortal', () => {
+    it('renders configure content inside an open shadow root', async () => {
+        const host = document.createElement('div');
+        document.body.appendChild(host);
+        const shadowRoot = host.attachShadow({ mode: 'open' });
+        const container = document.createElement('div');
+        shadowRoot.appendChild(container);
+        const renderPortal = (isOpen: boolean) => (
+            <>
+                <VisualizationConfigPortal />
+                <PortalProducer isOpen={isOpen} />
+            </>
+        );
+        const { unmount, rerender } = renderWithProviders(
+            renderPortal(true),
+            undefined,
+            { container },
+        );
+
+        try {
+            await waitFor(() => {
+                expect(
+                    shadowRoot.getElementById(VisualizationConfigPortalId),
+                ).toHaveTextContent('Configure content');
+            });
+
+            rerender(renderPortal(false));
+            expect(
+                shadowRoot.getElementById(VisualizationConfigPortalId),
+            ).toBeEmptyDOMElement();
+
+            rerender(renderPortal(true));
+            await waitFor(() => {
+                expect(
+                    shadowRoot.getElementById(VisualizationConfigPortalId),
+                ).toHaveTextContent('Configure content');
+            });
+        } finally {
+            unmount();
+            host.remove();
+        }
+    });
+
+    it('tracks late and replaced shadow hosts without using a document host', async () => {
+        const documentTarget = document.createElement('div');
+        documentTarget.id = VisualizationConfigPortalId;
+        document.body.appendChild(documentTarget);
+        const shadowRoot = documentTarget.attachShadow({ mode: 'open' });
+        const container = document.createElement('div');
+        shadowRoot.appendChild(container);
+        const { unmount } = renderWithProviders(
+            <PortalProducer isOpen />,
+            undefined,
+            { container },
+        );
+
+        try {
+            expect(documentTarget).toBeEmptyDOMElement();
+
+            const lateTarget = document.createElement('div');
+            lateTarget.id = VisualizationConfigPortalId;
+            shadowRoot.appendChild(lateTarget);
+            await waitFor(() => {
+                expect(lateTarget).toHaveTextContent('Configure content');
+            });
+
+            const replacementTarget = document.createElement('div');
+            replacementTarget.id = VisualizationConfigPortalId;
+            lateTarget.replaceWith(replacementTarget);
+            await waitFor(() => {
+                expect(replacementTarget).toHaveTextContent(
+                    'Configure content',
+                );
+            });
+            expect(lateTarget).toBeEmptyDOMElement();
+            expect(documentTarget).toBeEmptyDOMElement();
+        } finally {
+            unmount();
+            documentTarget.remove();
+        }
+    });
+
     it('is mounted before the transitioned right sidebar opens', () => {
         renderWithProviders(
             <Page
