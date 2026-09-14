@@ -11,6 +11,7 @@ import {
     type ApiClarifyAppResponse,
     type ApiCreateAppSchedulerResponse,
     type ApiDataAppActivityResponse,
+    type ApiDataAppVizDeleteImpactResponse,
     type ApiDataAppVizPreviewTokenResponse,
     type ApiDataAppVizRenderMetadataResponse,
     type ApiDeleteAppResponse,
@@ -274,6 +275,28 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations/{dataAppVizUuid}/delete-impact')
+    @OperationId('getDataAppVizDeleteImpact')
+    async getDataAppVizDeleteImpact(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() dataAppVizUuid: UUID,
+    ): Promise<ApiDataAppVizDeleteImpactResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().getDataAppVizDeleteImpact(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    dataAppVizUuid,
+                ),
         };
     }
 

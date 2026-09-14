@@ -102,6 +102,7 @@ import {
     type DataAppManifestExternalConnection,
     type DataAppTemplate,
     type DataAppViz,
+    type DataAppVizDeleteImpact,
     type DataAppVizRenderMetadata,
     type DataAppVizSchema,
     type DataAppVizsFilter,
@@ -9016,6 +9017,31 @@ export class AppGenerateService extends BaseService {
             return undefined;
         }
         return this.chartRegistryClient.getAsset(path);
+    }
+
+    async getDataAppVizDeleteImpact(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<DataAppVizDeleteImpact> {
+        await this.assertDataAppsEnabled(user);
+        const dataAppViz = await resolveDataAppVisualizationForRender(
+            this.appModel,
+            projectUuid,
+            dataAppVizUuid,
+        );
+        await this.assertCanManageApp(
+            user,
+            dataAppViz,
+            'Insufficient permissions to delete this chart type',
+        );
+
+        return {
+            chartCount: await this.savedChartModel.countChartsUsingDataAppViz(
+                projectUuid,
+                dataAppViz.app_id,
+            ),
+        };
     }
 
     /**

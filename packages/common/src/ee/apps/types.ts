@@ -1146,6 +1146,13 @@ export type ApiListDataAppVizsResponse = ApiSuccess<
 >;
 export type ApiGetDataAppVizResponse = ApiSuccess<DataAppViz>;
 
+export type DataAppVizDeleteImpact = {
+    chartCount: number;
+};
+
+export type ApiDataAppVizDeleteImpactResponse =
+    ApiSuccess<DataAppVizDeleteImpact>;
+
 export type DataAppVizRenderMetadata =
     | {
           state: 'ready';

@@ -6,6 +6,7 @@ import {
     ChartKind,
     ChartSourceType,
     ChartSummary,
+    ChartType,
     ChartVersionSummary,
     ConflictError,
     ContentReviewContentType,
@@ -708,6 +709,40 @@ export class SavedChartModel {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.contentVerificationModel = args.contentVerificationModel;
+    }
+
+    async countChartsUsingDataAppViz(
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<number> {
+        const [result] = await this.database(SavedChartsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .joinRaw(
+                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+            )
+            .joinRaw(
+                `CROSS JOIN LATERAL (
+                    SELECT chart_type, chart_config FROM ${SavedChartVersionsTableName}
+                    WHERE saved_query_id = ${SavedChartsTableName}.saved_query_id
+                    ORDER BY created_at DESC, saved_queries_version_id DESC
+                    LIMIT 1
+                ) AS latest_version`,
+            )
+            .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .where('latest_version.chart_type', ChartType.DATA_APP_VIZ)
+            .whereRaw("latest_version.chart_config->>'dataAppVizUuid' = ?", [
+                dataAppVizUuid,
+            ])
+            .count<{ count: string }[]>({ count: '*' });
+
+        return Number(result.count);
     }
 
     /**
