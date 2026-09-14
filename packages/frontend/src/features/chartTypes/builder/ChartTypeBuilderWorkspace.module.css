@@ -14,10 +14,6 @@
     flex-direction: column;
 }
 
-.historyPanel {
-    min-width: 240px;
-}
-
 .historyResizeHandle {
     width: 1px;
     flex: 0 0 1px;
@@ -28,8 +24,8 @@
         box-shadow 120ms ease;
 }
 
-.historyResizeHandle[data-resize-handle-state='hover'],
-.historyResizeHandle[data-resize-handle-state='drag'],
+.historyResizeHandle:hover,
+.historyResizeHandle[data-active],
 .historyResizeHandle:focus-visible {
     background-color: light-dark(
         var(--mantine-color-ldGray-4),
@@ -37,4 +33,8 @@
     );
     box-shadow: 0 0 0 1px
         light-dark(var(--mantine-color-ldGray-4), var(--mantine-color-ldDark-3));
+}
+
+.historyPanel {
+    min-width: 240px;
 }

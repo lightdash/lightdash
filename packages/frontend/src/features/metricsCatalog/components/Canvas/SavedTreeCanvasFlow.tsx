@@ -9,10 +9,10 @@ import {
     type EdgeTypes,
     type NodeTypes,
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 import { useMemo, type FC } from 'react';
-import { Panel, PanelGroup } from 'react-resizable-panels';
+import '@xyflow/react/dist/style.css';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import ResizableSplitter from '../../../../components/common/ResizableSplitter';
 import { CanvasTimeFramePicker } from '../visualization/CanvasTimeFramePicker';
 import styles from './Canvas.module.css';
 import { type CanvasMetric } from './canvasLayoutUtils';
@@ -22,6 +22,7 @@ import {
     type YamlDriverInfo,
 } from './CanvasYamlDriversContext';
 import MetricsSidebar from './MetricsSidebar';
+import sidebarStyles from './MetricsSidebar/MetricsSidebar.module.css';
 import DefaultEdge from './TreeComponents/edges/DefaultEdge';
 import ExpandedNode, {
     type ExpandedNodeData,
@@ -108,27 +109,40 @@ const SavedTreeCanvasFlow: FC<Props> = ({
 
     return (
         <CanvasYamlDriversContext.Provider value={yamlDriversContextValue}>
-            <PanelGroup direction="horizontal" style={{ height: '100%' }}>
+            <ResizableSplitter
+                withHandle
+                lineSize={2}
+                classNames={{ handle: sidebarStyles.resizeHandle }}
+                orientation="horizontal"
+                style={{ height: '100%' }}
+            >
                 {!viewOnly && (
-                    <MetricsSidebar
-                        nodes={flow.sidebarNodes}
-                        onAddMetric={(node) =>
-                            flow.addMetricsToCanvas([
-                                {
-                                    catalogSearchUuid: node.id,
-                                    name: node.data.metricName,
-                                    label: node.data.label,
-                                    tableName: node.data.tableName,
-                                },
-                            ])
-                        }
-                        yamlDriversByTarget={yamlDriversByTarget}
-                        hasMore={hasMoreMetrics}
-                        isLoadingMore={isLoadingMoreMetrics}
-                        onLoadMore={onLoadMoreMetrics}
-                    />
+                    <ResizableSplitter.Pane
+                        id="metrics-sidebar"
+                        defaultSize={20}
+                        min={15}
+                        max={40}
+                    >
+                        <MetricsSidebar
+                            nodes={flow.sidebarNodes}
+                            onAddMetric={(node) =>
+                                flow.addMetricsToCanvas([
+                                    {
+                                        catalogSearchUuid: node.id,
+                                        name: node.data.metricName,
+                                        label: node.data.label,
+                                        tableName: node.data.tableName,
+                                    },
+                                ])
+                            }
+                            yamlDriversByTarget={yamlDriversByTarget}
+                            hasMore={hasMoreMetrics}
+                            isLoadingMore={isLoadingMoreMetrics}
+                            onLoadMore={onLoadMoreMetrics}
+                        />
+                    </ResizableSplitter.Pane>
                 )}
-                <Panel id="metrics-canvas" order={2}>
+                <ResizableSplitter.Pane id="metrics-canvas" defaultSize={80}>
                     <Box h="100%">
                         <ReactFlow
                             className={styles.reactFlow}
@@ -190,8 +204,8 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                             {!viewOnly && <Background />}
                         </ReactFlow>
                     </Box>
-                </Panel>
-            </PanelGroup>
+                </ResizableSplitter.Pane>
+            </ResizableSplitter>
         </CanvasYamlDriversContext.Provider>
     );
 };

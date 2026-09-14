@@ -1,0 +1,50 @@
+.root {
+    overflow: hidden;
+}
+
+.pane {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.handle {
+    z-index: 1;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: -4px;
+    }
+
+    &:focus-visible {
+        outline: 2px solid
+            light-dark(
+                var(--mantine-color-ldGray-5),
+                var(--mantine-color-ldDark-2)
+            );
+        outline-offset: -1px;
+    }
+
+    &:focus-visible .thumb {
+        box-shadow: none;
+    }
+
+    &[aria-disabled='true'] {
+        cursor: default;
+        pointer-events: none;
+    }
+
+    @media (pointer: coarse) {
+        &::after {
+            inset: -8px;
+        }
+    }
+}
+
+.thumb {
+    background: transparent;
+    border: 0;
+    width: 12px;
+    height: 12px;
+}

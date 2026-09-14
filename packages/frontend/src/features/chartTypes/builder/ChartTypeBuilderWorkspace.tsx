@@ -1,7 +1,7 @@
 import { type DataAppVizContext } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import BuilderCanvas from './BuilderCanvas';
 import BuilderPromptBar from './BuilderPromptBar';
 import classes from './ChartTypeBuilderWorkspace.module.css';
@@ -60,8 +60,17 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     } = workspace;
 
     return (
-        <PanelGroup direction="horizontal" className={classes.main}>
-            <Panel id="chart-type-builder-canvas" order={1} minSize={50}>
+        <ResizableSplitter
+            handleLabel="Resize version history"
+            classNames={{ handle: classes.historyResizeHandle }}
+            orientation="horizontal"
+            className={classes.main}
+        >
+            <ResizableSplitter.Pane
+                id="chart-type-builder-canvas"
+                defaultSize={80}
+                min={50}
+            >
                 <Box className={classes.content}>
                     <BuilderCanvas
                         projectUuid={projectUuid}
@@ -96,38 +105,31 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                         />
                     )}
                 </Box>
-            </Panel>
+            </ResizableSplitter.Pane>
             {hasHistory && isHistoryOpen && dataAppVizUuid !== null && (
-                <>
-                    <PanelResizeHandle
-                        className={classes.historyResizeHandle}
-                        aria-label="Resize version history"
+                <ResizableSplitter.Pane
+                    id="chart-type-builder-history"
+                    className={classes.historyPanel}
+                    defaultSize={20}
+                    min="240px"
+                    max={50}
+                >
+                    <VersionHistoryPanel
+                        projectUuid={projectUuid}
+                        appUuid={dataAppVizUuid}
+                        versions={history.versions}
+                        latestReadyVersion={history.latestReadyVersion}
+                        viewedVersion={viewedVersion}
+                        onView={onViewVersion}
+                        onClose={closeHistory}
+                        build={build}
+                        hasEarlier={history.hasEarlier}
+                        isFetchingEarlier={history.isFetchingEarlier}
+                        fetchEarlier={history.fetchEarlier}
                     />
-                    <Panel
-                        id="chart-type-builder-history"
-                        className={classes.historyPanel}
-                        order={2}
-                        defaultSize={20}
-                        minSize={15}
-                        maxSize={50}
-                    >
-                        <VersionHistoryPanel
-                            projectUuid={projectUuid}
-                            appUuid={dataAppVizUuid}
-                            versions={history.versions}
-                            latestReadyVersion={history.latestReadyVersion}
-                            viewedVersion={viewedVersion}
-                            onView={onViewVersion}
-                            onClose={closeHistory}
-                            build={build}
-                            hasEarlier={history.hasEarlier}
-                            isFetchingEarlier={history.isFetchingEarlier}
-                            fetchEarlier={history.fetchEarlier}
-                        />
-                    </Panel>
-                </>
+                </ResizableSplitter.Pane>
             )}
-        </PanelGroup>
+        </ResizableSplitter>
     );
 };
 

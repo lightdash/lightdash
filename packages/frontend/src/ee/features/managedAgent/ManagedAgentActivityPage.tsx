@@ -80,7 +80,6 @@ import {
     useState,
     type FC,
 } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { lightdashApi } from '../../../api';
 import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import { CategoryBadge } from '../../../components/common/CategoryBadge';
@@ -90,6 +89,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { NumberInput } from '../../../components/common/NumberInput';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import InfoRow from '../../../components/common/PageHeader/InfoRow';
+import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import TruncatedText from '../../../components/common/TruncatedText';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
@@ -2818,11 +2818,15 @@ const ManagedAgentActivityPage: FC = () => {
 
     return (
         <Stack h={`calc(100vh - ${NAVBAR_HEIGHT}px)`} gap={0} flex={1}>
-            <PanelGroup direction="horizontal">
-                <Panel
+            <ResizableSplitter
+                handleLabel="Resize activity sidebar"
+                classNames={{ handle: classes.resizeHandle }}
+                orientation="horizontal"
+            >
+                <ResizableSplitter.Pane
                     id="activity-table"
                     defaultSize={selected || settingsOpen ? 65 : 100}
-                    minSize={40}
+                    min={40}
                 >
                     <Box className={classes.page}>
                         <Stack gap="lg">
@@ -2966,52 +2970,47 @@ const ManagedAgentActivityPage: FC = () => {
                             )}
                         </Stack>
                     </Box>
-                </Panel>
+                </ResizableSplitter.Pane>
 
                 {(selected || settingsOpen) && (
-                    <>
-                        <PanelResizeHandle className={classes.resizeHandle} />
-                        <Panel
-                            id={
-                                selected ? 'detail-sidebar' : 'settings-sidebar'
-                            }
-                            defaultSize={35}
-                            minSize={25}
-                            maxSize={50}
-                        >
-                            {selected ? (
-                                <DetailSidebar
-                                    key={selected.actionUuid}
-                                    action={selected}
-                                    onClose={() => setSelected(null)}
-                                />
-                            ) : (
-                                <SettingsSidebar
-                                    projectUuid={projectUuid!}
-                                    enabled={settings?.enabled ?? false}
-                                    schedule={
-                                        settings?.schedule ??
-                                        ManagedAgentScheduleOption.DAILY
-                                    }
-                                    slackChannelId={
-                                        settings?.slackChannelId ?? null
-                                    }
-                                    toolSettings={settings?.toolSettings ?? {}}
-                                    policy={
-                                        settings?.policy ??
-                                        DEFAULT_MANAGED_AGENT_POLICY
-                                    }
-                                    scopedSpaceUuids={
-                                        settings?.scopedSpaceUuids ?? []
-                                    }
-                                    isLoading={settingsLoading}
-                                    onClose={() => setSettingsOpen(false)}
-                                />
-                            )}
-                        </Panel>
-                    </>
+                    <ResizableSplitter.Pane
+                        id={selected ? 'detail-sidebar' : 'settings-sidebar'}
+                        defaultSize={35}
+                        min={25}
+                        max={50}
+                    >
+                        {selected ? (
+                            <DetailSidebar
+                                key={selected.actionUuid}
+                                action={selected}
+                                onClose={() => setSelected(null)}
+                            />
+                        ) : (
+                            <SettingsSidebar
+                                projectUuid={projectUuid!}
+                                enabled={settings?.enabled ?? false}
+                                schedule={
+                                    settings?.schedule ??
+                                    ManagedAgentScheduleOption.DAILY
+                                }
+                                slackChannelId={
+                                    settings?.slackChannelId ?? null
+                                }
+                                toolSettings={settings?.toolSettings ?? {}}
+                                policy={
+                                    settings?.policy ??
+                                    DEFAULT_MANAGED_AGENT_POLICY
+                                }
+                                scopedSpaceUuids={
+                                    settings?.scopedSpaceUuids ?? []
+                                }
+                                isLoading={settingsLoading}
+                                onClose={() => setSettingsOpen(false)}
+                            />
+                        )}
+                    </ResizableSplitter.Pane>
                 )}
-            </PanelGroup>
+            </ResizableSplitter>
         </Stack>
     );
 };

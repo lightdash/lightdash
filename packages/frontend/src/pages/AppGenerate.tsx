@@ -54,7 +54,6 @@ import {
     type FC,
 } from 'react';
 import { flushSync } from 'react-dom';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
     Link,
     Navigate,
@@ -71,6 +70,7 @@ import {
     PromptComposer,
     type PromptComposerHandle,
 } from '../components/common/PromptComposer';
+import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
@@ -1715,15 +1715,19 @@ const AppGenerate: FC = () => {
 
     return (
         <Box className={newAppLanding ? classes.composeLayout : classes.layout}>
-            <PanelGroup
+            <ResizableSplitter
+                handleLabel="Resize chat and preview"
+                classNames={{ handle: classes.resizeHandle }}
+                resizable={!isChatPanelCollapsed}
                 key={newAppLanding ? 'compose' : 'split'}
-                direction="horizontal"
+                orientation="horizontal"
             >
                 {/* Chat Panel */}
-                <Panel
+                <ResizableSplitter.Pane
+                    id="app-chat"
                     defaultSize={newAppLanding ? 100 : 30}
-                    minSize={newAppLanding ? 100 : 22}
-                    maxSize={newAppLanding ? 100 : 50}
+                    min={newAppLanding ? 100 : '300px'}
+                    max={newAppLanding ? 100 : 50}
                     data-collapsed={isChatPanelCollapsed || undefined}
                     className={`${classes.chatPanelOuter}${
                         newAppLanding ? ` ${classes.chatPanelOuterCompose}` : ''
@@ -2926,18 +2930,15 @@ const AppGenerate: FC = () => {
                     {newAppLanding && (
                         <RecentAppSuggestions projectUuid={projectUuid} />
                     )}
-                </Panel>
-
-                {!newAppLanding && (
-                    <PanelResizeHandle
-                        className={classes.resizeHandle}
-                        disabled={isChatPanelCollapsed}
-                    />
-                )}
+                </ResizableSplitter.Pane>
 
                 {/* Preview Panel */}
                 {!newAppLanding && (
-                    <Panel minSize={40}>
+                    <ResizableSplitter.Pane
+                        id="app-preview"
+                        defaultSize={70}
+                        min={40}
+                    >
                         <Box className={classes.previewPanel}>
                             {activeAppUuid && (
                                 <AppHeader
@@ -3152,9 +3153,9 @@ const AppGenerate: FC = () => {
                                 )}
                             </Box>
                         </Box>
-                    </Panel>
+                    </ResizableSplitter.Pane>
                 )}
-            </PanelGroup>
+            </ResizableSplitter>
         </Box>
     );
 };

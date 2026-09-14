@@ -270,8 +270,8 @@
     inset: 0 -4px;
 }
 
-.fileResizeHandle[data-resize-handle-state='hover'],
-.fileResizeHandle[data-resize-handle-state='drag'],
+.fileResizeHandle:hover,
+.fileResizeHandle[data-active],
 .fileResizeHandle:focus-visible {
     background: var(--mantine-color-ldGray-5);
 }
