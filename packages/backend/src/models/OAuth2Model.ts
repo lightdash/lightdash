@@ -209,8 +209,9 @@ export class OAuth2Model implements AuthorizationCodeModel {
         token: Token,
         client: Client,
         user: UserWithOrganizationUuid,
+        { trx = this.database }: { trx?: Knex } = {},
     ): Promise<Token> {
-        await this.database('oauth2_access_tokens').insert({
+        await trx('oauth2_access_tokens').insert({
             access_token: token.accessToken,
             expires_at: token.accessTokenExpiresAt,
             scope: Array.isArray(token.scope)
@@ -222,7 +223,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         });
 
         if (token.refreshToken) {
-            await this.database('oauth2_refresh_tokens').insert({
+            await trx('oauth2_refresh_tokens').insert({
                 refresh_token: token.refreshToken,
                 expires_at: token.refreshTokenExpiresAt,
                 scope: Array.isArray(token.scope)
@@ -233,15 +234,15 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 organization_uuid: user.organizationUuid,
             });
 
-            await this.database('oauth2_refresh_tokens')
+            await trx('oauth2_refresh_tokens')
                 .where('user_id', user.userId)
                 .where((query) =>
                     query
-                        .where('expires_at', '<', this.database.fn.now())
+                        .where('expires_at', '<', trx.fn.now())
                         .orWhere(
                             'revoked_at',
                             '<',
-                            this.database.raw("now() - interval '1 day'"),
+                            trx.raw("now() - interval '1 day'"),
                         ),
                 )
                 .del();
