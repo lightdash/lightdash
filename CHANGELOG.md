@@ -1,3 +1,11 @@
+## [2.211.1](https://github.com/lightdash/lightdash/compare/2.211.0...2.211.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* allowed email domains input opens an empty dropdown and wipes rejected entries ([#29173](https://github.com/lightdash/lightdash/issues/29173)) ([558bd88](https://github.com/lightdash/lightdash/commit/558bd88778c04a81b5f68b0eed79b0b5df5d46f9))
+* typeset the default role options in the allowed email domains form ([#29177](https://github.com/lightdash/lightdash/issues/29177)) ([abfaa2d](https://github.com/lightdash/lightdash/commit/abfaa2dd3e3e1c7729ddaeed92dfb3538d0a4006))
+
 # [2.211.0](https://github.com/lightdash/lightdash/compare/2.210.0...2.211.0) (2026-09-14)
 
 
