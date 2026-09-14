@@ -438,6 +438,23 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
+    it('refreshes the render binding when the saved chart is repinned', () => {
+        const view = renderRenderer();
+
+        mocks.dataAppVizVersion.current = 8;
+        view.rerender(rendererElement());
+
+        expect(mocks.renderMetadataHook).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: 'saved-chart-uuid',
+            },
+            8,
+        );
+    });
+
     it('pins an unsaved custom chart type without requiring an SDK capability announcement', () => {
         mocks.dataAppVizVersion.current = undefined;
         mocks.vizContextOverrides.current = {
@@ -476,6 +493,7 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: false,
                 savedChartUuid: 'saved-chart-uuid',
             },
+            undefined,
         );
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
     });
@@ -508,6 +526,7 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: false,
                 savedChartUuid: 'saved-chart-uuid',
             },
+            3,
         );
 
         announceIframeAvailable();
@@ -543,6 +562,7 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: false,
                 savedChartUuid: undefined,
             },
+            undefined,
         );
         expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
     });
@@ -588,6 +608,7 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: true,
                 savedChartUuid: 'saved-chart-uuid',
             },
+            7,
         );
     });
 });

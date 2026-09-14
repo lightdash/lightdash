@@ -160,7 +160,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         [embedToken, renderSavedChartUuid, chartVersionUuid],
     );
     const { data: renderMetadata, error: renderMetadataError } =
-        useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, renderTarget);
+        useDataAppVizRenderMetadata(
+            projectUuid,
+            dataAppVizUuid,
+            renderTarget,
+            renderSavedChartUuid ? config?.dataAppVizVersion : undefined,
+        );
     const readyMetadata =
         renderMetadata?.state === 'ready' ? renderMetadata : undefined;
     useEffect(() => {
