@@ -1,6 +1,8 @@
 import {
     CustomFormatType,
     findCompactConfig,
+    NumberSeparator,
+    timeFrameConfigs,
     type CustomFormat,
 } from '@lightdash/common';
 
@@ -22,11 +24,21 @@ export const getFormatTypeLabel = (type: CustomFormatType): string => {
             return 'Currency';
         case CustomFormatType.NUMBER:
             return 'Number';
+        case CustomFormatType.ID:
+            return 'ID';
         case CustomFormatType.CUSTOM:
             return 'Custom';
         default:
             return type;
     }
+};
+
+const separatorExamples: Partial<Record<NumberSeparator, string>> = {
+    [NumberSeparator.COMMA_PERIOD]: '100,000.00',
+    [NumberSeparator.SPACE_PERIOD]: '100 000.00',
+    [NumberSeparator.PERIOD_COMMA]: '100.000,00',
+    [NumberSeparator.NO_SEPARATOR_PERIOD]: '100000.00',
+    [NumberSeparator.APOSTROPHE_PERIOD]: "100'000.00",
 };
 
 const describeDecimals = (round: number | undefined): string | null => {
@@ -53,7 +65,14 @@ export const describeCustomFormat = (format: CustomFormat): string => {
     if (decimals) parts.push(decimals);
     const compact = format.compact ? findCompactConfig(format.compact) : null;
     if (compact) parts.push(compact.label.toLowerCase());
+    const separator = format.separator
+        ? separatorExamples[format.separator]
+        : undefined;
+    if (separator) parts.push(`separator ${separator}`);
     if (format.prefix) parts.push(`prefix ${format.prefix}`);
     if (format.suffix) parts.push(`suffix ${format.suffix.trim()}`);
+    if (format.timeInterval) {
+        parts.push(timeFrameConfigs[format.timeInterval].getLabel());
+    }
     return parts.join(', ');
 };

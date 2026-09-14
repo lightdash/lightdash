@@ -291,6 +291,18 @@ describe('getInheritedCustomMetricFormat', () => {
             round: undefined,
         });
     });
+
+    it('prefers a chart-level format override to the dimension format', () => {
+        expect(
+            getInheritedCustomMetricFormat(usdDimension, MetricType.SUM, {
+                type: CustomFormatType.PERCENT,
+                round: 1,
+            }),
+        ).toEqual({
+            type: CustomFormatType.PERCENT,
+            round: 1,
+        });
+    });
 });
 
 describe('buildNewAdditionalMetric', () => {
@@ -308,7 +320,7 @@ describe('buildNewAdditionalMetric', () => {
 
         expect(metric.baseDimensionName).toBe('amount');
         expect(metric.name).toBe('amount_sum_of_amount');
-        expect(formatItemValue(metric, 2397)).toMatch(/^US?\$2,397\.00$/);
+        expect(formatItemValue(metric, 2397)).toMatch(/^(?:US)?\$2,397\.00$/);
     });
 
     it('a default format would have hidden the dimension currency', () => {

@@ -2,6 +2,7 @@ import {
     applyCustomFormat,
     CustomFormatType,
     friendlyName,
+    getItemId,
     MetricType,
     type CustomSqlDimension,
     type Dimension,
@@ -12,6 +13,7 @@ import { useMemo, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetrics,
+    selectMetricQuery,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -27,6 +29,7 @@ import {
     getInheritedCustomMetricFormat,
 } from '../../../CustomMetricModal/utils';
 import { describeCustomFormat } from '../../../FormatForm/getFormatSummary';
+import { MetricTypeBadge } from '../ItemDetailPreview';
 
 type Props = {
     item: Dimension | CustomSqlDimension;
@@ -40,6 +43,7 @@ const SAMPLE_RATIO = 0.1234;
 const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
     const dispatch = useExplorerDispatch();
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
     const { data: exploreData } = useExplore(tableName);
     const { showToastSuccess } = useToaster();
@@ -48,8 +52,14 @@ const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
     const sourceLabel = 'label' in item ? item.label : item.name;
 
     const inheritedFormat = useMemo(
-        () => getInheritedCustomMetricFormat(item, type),
-        [item, type],
+        () =>
+            getInheritedCustomMetricFormat(
+                item,
+                type,
+                metricQuery.dimensionOverrides?.[getItemId(item)]
+                    ?.formatOptions,
+            ),
+        [item, metricQuery.dimensionOverrides, type],
     );
 
     const formatSample = useMemo(() => {
@@ -119,6 +129,12 @@ const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
     return (
         <form onSubmit={handleSubmit}>
             <Stack gap="sm">
+                <Group justify="space-between" gap="xs" wrap="nowrap">
+                    <Text fz="sm" fw={600}>
+                        New custom metric
+                    </Text>
+                    <MetricTypeBadge type={type} />
+                </Group>
                 <TextInput
                     label="Label"
                     size="sm"

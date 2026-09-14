@@ -3,6 +3,7 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    type CustomFormat,
     type Dimension,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
@@ -38,8 +39,20 @@ const amount: Dimension = {
     round: 2,
 };
 
-const renderQuickCreate = (type: MetricType, item: Dimension = amount) => {
+const renderQuickCreate = (
+    type: MetricType,
+    item: Dimension = amount,
+    formatOverride?: CustomFormat,
+) => {
     const store = createExplorerStore();
+    if (formatOverride) {
+        store.dispatch(
+            explorerActions.updateDimensionFormat({
+                dimension: item,
+                formatOptions: formatOverride,
+            }),
+        );
+    }
     const onClose = vi.fn();
     renderWithProviders(
         <Provider store={store}>
@@ -57,10 +70,34 @@ describe('CustomMetricQuickCreate', () => {
     it('prefills the label and shows the inherited format with a sample', () => {
         renderQuickCreate(MetricType.SUM);
 
+        expect(screen.getByText('New custom metric')).toBeInTheDocument();
         expect(screen.getByLabelText('Label')).toHaveValue('Sum of Amount');
         expect(screen.getByTestId('quick-create-format')).toHaveTextContent(
-            /^FormatCurrency \(USD\), 2 decimalsUS?\$1,234\.57$/,
+            /^FormatCurrency \(USD\), 2 decimals(?:US)?\$1,234\.57$/,
         );
+        expect(screen.getByText('Sum')).toBeInTheDocument();
+    });
+
+    it('inherits a chart-level dimension format override', async () => {
+        const user = userEvent.setup();
+        const { store } = renderQuickCreate(MetricType.SUM, amount, {
+            type: CustomFormatType.PERCENT,
+            round: 1,
+        });
+
+        expect(screen.getByTestId('quick-create-format')).toHaveTextContent(
+            'Percent, 1 decimal12.3%',
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Create' }));
+
+        expect(
+            store.getState().explorer.unsavedChartVersion.metricQuery
+                .additionalMetrics?.[0].formatOptions,
+        ).toEqual({
+            type: CustomFormatType.PERCENT,
+            round: 1,
+        });
     });
 
     it('hides the format row when nothing is inherited', () => {

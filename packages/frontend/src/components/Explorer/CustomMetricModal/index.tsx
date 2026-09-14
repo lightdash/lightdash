@@ -37,6 +37,7 @@ import { type ValueOf } from 'type-fest';
 import {
     explorerActions,
     selectAdditionalMetrics,
+    selectMetricQuery,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -78,6 +79,7 @@ export const CustomMetricModal = memo(() => {
 
     const dispatch = useExplorerDispatch();
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
 
     const { data: exploreData } = useExplore(tableName);
@@ -356,6 +358,10 @@ export const CustomMetricModal = memo(() => {
                 const baseFormat = getInheritedCustomMetricFormat(
                     item,
                     customMetricType,
+                    (isDimension(item)
+                        ? metricQuery.dimensionOverrides
+                        : metricQuery.metricOverrides)?.[getItemId(item)]
+                        ?.formatOptions,
                 );
                 if (baseFormat) {
                     setFieldValue('format', {
@@ -365,7 +371,14 @@ export const CustomMetricModal = memo(() => {
                 }
             }
         },
-        [isEditing, item, customMetricType, setFieldValue],
+        [
+            isEditing,
+            item,
+            customMetricType,
+            metricQuery.dimensionOverrides,
+            metricQuery.metricOverrides,
+            setFieldValue,
+        ],
     );
 
     const handleClose = useCallback(() => {

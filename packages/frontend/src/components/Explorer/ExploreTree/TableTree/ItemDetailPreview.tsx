@@ -34,6 +34,12 @@ import MantineIcon from '../../../common/MantineIcon';
 import classes from './ItemDetailPreview.module.css';
 import { ITEM_DETAIL_PREVIEW_TRANSITION_PROPS } from './itemDetailPreviewTransition';
 
+export const MetricTypeBadge: FC<{ type: string }> = ({ type }) => (
+    <Badge className={classes.metricTypeBadge} color="indigo" p={2}>
+        {friendlyName(type)}
+    </Badge>
+);
+
 /**
  * Renders markdown for an item's description, with additional constraints
  * to avoid markdown styling from completely throwing its surroundings out
@@ -110,16 +116,7 @@ export const ItemDetailPreview: FC<{
                         <Text fz="sm" fw={500} c="ldDark.7">
                             {metricInfo.name}
                         </Text>
-                        <Badge
-                            color="indigo"
-                            p={2}
-                            style={{
-                                boxShadow: 'var(--mantine-shadow-subtle)',
-                                border: '1px solid var(--mantine-color-indigo-1)',
-                            }}
-                        >
-                            {friendlyName(metricInfo.type)}
-                        </Badge>
+                        <MetricTypeBadge type={metricInfo.type} />
                     </Group>
                     {metricInfo.baseDimension && (
                         <>

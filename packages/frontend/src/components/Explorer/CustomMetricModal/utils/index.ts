@@ -115,14 +115,21 @@ const VALUE_PRESERVING_METRIC_TYPES = [
 export const getInheritedCustomMetricFormat = (
     item: Dimension | AdditionalMetric | CustomDimension | Metric,
     type: MetricType,
+    formatOverride?: CustomFormat,
 ): CustomFormat | undefined => {
-    if (isMetric(item)) return getFormatFromBaseField(item);
+    if (isMetric(item)) {
+        return formatOverride
+            ? { ...formatOverride }
+            : getFormatFromBaseField(item);
+    }
     if (
         isDimension(item) &&
         isNumericItem(item) &&
         VALUE_PRESERVING_METRIC_TYPES.includes(type)
     ) {
-        return getFormatFromBaseField(item);
+        return formatOverride
+            ? { ...formatOverride }
+            : getFormatFromBaseField(item);
     }
     return undefined;
 };
