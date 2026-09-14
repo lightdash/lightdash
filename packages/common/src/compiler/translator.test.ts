@@ -451,6 +451,66 @@ describe('timestamp domain', () => {
             'timestampDomain',
         );
     });
+
+    it('should apply the Snowflake timestamp conversion once on additional dimension interval children', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.user_created_plain.sql).toEqual(
+            "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created_other))",
+        );
+        expect(result.dimensions.user_created_plain_day.sql).toEqual(
+            "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created_other)))",
+        );
+        expect(result.dimensions.user_created_aware_day.sql).toEqual(
+            "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created_utc)))",
+        );
+        // Regular column children are derived from the raw column meta
+        expect(result.dimensions.user_created_day.sql).toEqual(
+            "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+        );
+    });
+
+    it('should not wrap additional dimension interval children when timestamp conversion is disabled', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS,
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            true,
+        );
+
+        expect(result.dimensions.user_created_plain.sql).toEqual(
+            '${TABLE}.user_created_other',
+        );
+        expect(result.dimensions.user_created_plain_day).toMatchObject({
+            sql: "DATE_TRUNC('DAY', ${TABLE}.user_created_other)",
+            timeIntervalBaseDimensionName: 'user_created_plain',
+        });
+    });
+
+    it('should leave additional dimension interval children unchanged on adapters without a timestamp wrap', () => {
+        const postgres = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(postgres.dimensions.user_created_plain_day.sql).toEqual(
+            "DATE_TRUNC('DAY', ${TABLE}.user_created_other)",
+        );
+
+        const bigquery = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(bigquery.dimensions.user_created_plain_day.sql).toEqual(
+            'TIMESTAMP_TRUNC(${TABLE}.user_created_other, DAY)',
+        );
+    });
 });
 
 describe('additional dimensions with hidden base dimension', () => {
