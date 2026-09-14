@@ -283,7 +283,11 @@ import type {
     ApiMetricsExplorerQueryResults,
     ApiMetricsExplorerTotalResults,
 } from './metricsExplorer';
-import { type MobileAppHealth } from './mobileSetup';
+import {
+    type ApiMobileSetupCodeMintResponse,
+    type ApiMobileSetupCodeStatusResponse,
+    type MobileAppHealth,
+} from './mobileSetup';
 import {
     type CreateOAuthClientResponse,
     type OAuthClientSummary,
@@ -1664,6 +1668,8 @@ type ApiResults =
     | ApiResultsCacheProjectSettingsResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']
+    | ApiMobileSetupCodeMintResponse['results']
+    | ApiMobileSetupCodeStatusResponse['results']
     | ApiContentVerificationDeleteResponse['results']
     | ApiVerifiedContentListResponse['results']
     | OAuthClientSummary[]
