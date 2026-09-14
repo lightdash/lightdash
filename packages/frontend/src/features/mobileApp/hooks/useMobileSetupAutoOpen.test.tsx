@@ -93,6 +93,31 @@ describe('useMobileSetupAutoOpen', () => {
         expect(navigated).toHaveBeenCalledWith(SCHEME_URL);
     });
 
+    it('asks for the app once, even when the store URL arrives later', () => {
+        const { rerender } = renderHook(
+            (props: { storeUrl: string | null }) =>
+                useMobileSetupAutoOpen({
+                    schemeUrl: SCHEME_URL,
+                    storeUrl: props.storeUrl,
+                    enabled: true,
+                }),
+            { initialProps: { storeUrl: null as string | null } },
+        );
+
+        expect(navigated).toHaveBeenCalledTimes(1);
+
+        // health resolves, so the store URL appears and the effect re-runs
+        rerender({ storeUrl: STORE_URL });
+
+        expect(navigated).toHaveBeenCalledTimes(1);
+        expect(navigated).toHaveBeenCalledWith(SCHEME_URL);
+
+        vi.advanceTimersByTime(2000);
+
+        expect(navigated).toHaveBeenCalledWith(STORE_URL);
+        expect(navigated).toHaveBeenCalledTimes(2);
+    });
+
     it('drops the pending store redirect when the page unmounts', () => {
         const { unmount } = renderHook(() =>
             useMobileSetupAutoOpen({

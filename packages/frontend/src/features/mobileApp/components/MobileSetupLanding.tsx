@@ -1,6 +1,6 @@
 import { Box, Button, Stack, Text, Title } from '@mantine/core';
 import { IconDeviceMobile } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useHealth from '../../../hooks/health/useHealth';
@@ -17,10 +17,19 @@ const SCAN_AGAIN_HINT =
     'Open Settings → Mobile app in Lightdash on your computer and scan the code again.';
 
 export const MobileSetupLanding: FC = () => {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { data: health } = useHealth();
 
-    const link = parseMobileSetupLinkParams(searchParams);
+    // Read the code once, then take it out of the URL. A code left in
+    // window.location reaches Sentry breadcrumbs, browser history, the Referer
+    // header of every outbound request and any analytics that records a path.
+    const [link] = useState(() => parseMobileSetupLinkParams(searchParams));
+
+    useEffect(() => {
+        if (searchParams.toString() === '') return;
+        setSearchParams(new URLSearchParams(), { replace: true });
+    }, [searchParams, setSearchParams]);
+
     const platform = detectMobilePlatform(
         navigator.userAgent,
         navigator.maxTouchPoints,
