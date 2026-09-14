@@ -1,3 +1,22 @@
+# [2.211.0](https://github.com/lightdash/lightdash/compare/2.210.0...2.211.0) (2026-09-14)
+
+
+### Bug Fixes
+
+* **cli:** stop generate from deleting documented nested column leaves ([#29160](https://github.com/lightdash/lightdash/issues/29160)) ([6d3676f](https://github.com/lightdash/lightdash/commit/6d3676fda43c587970c189ae241cee3edd0c718f))
+* **explorer:** quick-create metrics from selected fields ([#29186](https://github.com/lightdash/lightdash/issues/29186)) ([250685d](https://github.com/lightdash/lightdash/commit/250685dc753da2af9fed7cfd5c204bfb4df6b8b7))
+* **sharing:** show groups for delegated content admins ([#29176](https://github.com/lightdash/lightdash/issues/29176)) ([c8cfeac](https://github.com/lightdash/lightdash/commit/c8cfeac28ab9513ae6a5c68411aac21cff726ff0))
+
+
+### Features
+
+* **ai-agents:** add build watches and the app-wide build watcher ([#29179](https://github.com/lightdash/lightdash/issues/29179)) ([bf047fb](https://github.com/lightdash/lightdash/commit/bf047fb87241db27ae726d30132541ab02c46e42))
+* **ai-agents:** show build outcome notification from the build watcher ([#29161](https://github.com/lightdash/lightdash/issues/29161)) ([9a9dcd2](https://github.com/lightdash/lightdash/commit/9a9dcd27fceb3fd5cd4610cfd55887b8eac1dcd8)), closes [#29178](https://github.com/lightdash/lightdash/issues/29178) [#29179](https://github.com/lightdash/lightdash/issues/29179)
+* **data-apps:** make build outcome notification hook reusable ([#29178](https://github.com/lightdash/lightdash/issues/29178)) ([0591a0a](https://github.com/lightdash/lightdash/commit/0591a0a4ef020c050dfd66fd373cbf695a20f2de))
+* **databricks:** unnest repeated columns and type nested struct leaves ([#29148](https://github.com/lightdash/lightdash/issues/29148)) ([05cd724](https://github.com/lightdash/lightdash/commit/05cd724dbc324b07320705bb554ea22a2aebcfe0))
+* **explores:** let each warehouse emit its own unnest SQL for repeated columns ([#29145](https://github.com/lightdash/lightdash/issues/29145)) ([e5b0242](https://github.com/lightdash/lightdash/commit/e5b0242cb11402eef584f0b388695b4930f6e80a))
+* **spaces:** add connecting lines and animated folder toggles ([#29180](https://github.com/lightdash/lightdash/issues/29180)) ([ef5aeec](https://github.com/lightdash/lightdash/commit/ef5aeec933b521a91aaee657dda887d49051b576))
+
 # [2.210.0](https://github.com/lightdash/lightdash/compare/2.209.2...2.210.0) (2026-09-14)
 
 
