@@ -349,6 +349,15 @@ export class ManagedAgentService extends BaseService {
         if (!Array.isArray(mq.metrics)) {
             throw new Error('metric_query.metrics must be an array');
         }
+        if (
+            !mq.filters ||
+            typeof mq.filters !== 'object' ||
+            Array.isArray(mq.filters)
+        ) {
+            throw new Error(
+                'metric_query.filters must be an object; use {} when no filters apply',
+            );
+        }
         if (tableName !== undefined && typeof tableName !== 'string') {
             throw new Error('tableName must be a string');
         }

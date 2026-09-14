@@ -24,4 +24,5 @@ Use only the tools listed in this run. Project policy may disable creation or fi
 - Every selected dimension must appear in the chart's axes or grouping.
 - Verify filter values with `searchFieldValues` before querying.
 - Prefix new chart slugs with `agent-`.
+- Include `metricQuery.filters` in every saved query: preserve existing filters during repairs, or use `{}` when no filters apply. Never omit it.
 - Use `findContent` and `getDashboardCharts` for discovery. Autopilot creates and fixes charts; this skill does not provide dashboard editing or custom chart-type installation.
