@@ -19,7 +19,8 @@ OpenAI and Anthropic each run observe, flag, and cleanup on two fixtures:
   repeated user demand for revenue by status, protected/verified/recent/excluded
   charts, and a dashboard containing one chart.
 - **Large:** the seeded fixture plus 105 broken charts on a removed model, requiring
-  more than one page of detail and complete backlog handling.
+  more than one page of detail. Flag mode expects all 105 eligible charts flagged;
+  cleanup expects 25 bulk deletions and an 80-chart backlog for a later run.
 
 Seeded cases use 80 steps/300 seconds. Large cases use the production defaults of
 120 steps/600 seconds. Reports record results and expectations separately; a
@@ -58,7 +59,7 @@ intact for inspection and record scorecards when execution reaches scoring.
 
 ## Deterministic guard regression
 
-On a fresh cleanup/seeded clone, add `AUTOPILOT_EVAL_GUARDS_ONLY=true`. This path
+On a fresh cleanup/seeded or cleanup/large clone, add `AUTOPILOT_EVAL_GUARDS_ONLY=true`. This path
 makes no model requests. It directly exercises the real handlers and database:
 
 - A sole remaining dashboard chart cannot be deleted.
@@ -66,6 +67,8 @@ makes no model requests. It directly exercises the real handlers and database:
 - Another active saved or SQL chart makes it eligible; deleted charts do not.
 - Only the current dashboard version counts; deleted dashboards do not.
 - Exactly 25 individual deletions succeed; candidate 26 remains active.
+- With the large fixture, two bulk calls delete only 25 charts in total. Bulk and
+  individual deletions have separate run budgets.
 
 The first guard probe reproduced a gap: the sole-chart rule existed in the prompt
 but not the handler. The shared deletion guard now checks current active dashboard
@@ -86,3 +89,14 @@ deferred; these two providers cannot complete the project's four-provider gate.
 A large observe-mode run also skipped an obvious repair because it interpreted
 observation as forbidding all edits. The prompt now explicitly permits enabled
 chart creation and repair while prohibiting flags and deletion in observe mode.
+
+The repeated bulk probe also reproduced 50 deletions across two calls despite the
+25-per-run response and constant. The handler now counts persisted bulk actions
+before allocating the remaining run budget; the tool description matches it.
+Runner tool serialization prevents concurrent calls from spending the same slot.
+
+Large flag runs left most removed-model charts unflagged. The checklist now asks
+for individual flags and field discovery before declaring a repair ambiguous.
+This improved repair behavior but did not establish reliable backlog completion.
+See the [recorded scorecards](evals/autopilot-heartbeat/2026-09-14/README.md) for
+initial failures, reruns, and remaining rollout gates.

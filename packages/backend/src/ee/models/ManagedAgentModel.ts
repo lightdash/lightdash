@@ -1259,7 +1259,7 @@ export class ManagedAgentModel {
         return result ? Number(result.count) : 0;
     }
 
-    // Bulk deletions (metadata.bulk = true) have their own per-call cap, so
+    // Bulk deletions (metadata.bulk = true) have their own per-run cap, so
     // they are excluded from the individual soft-delete run cap
     async countNonBulkSoftDeletesForRun(runUuid: string): Promise<number> {
         const [row] = await this.database(ManagedAgentActionsTableName)
@@ -1268,6 +1268,17 @@ export class ManagedAgentModel {
                 action_type: ManagedAgentActionType.SOFT_DELETED,
             })
             .whereRaw(`COALESCE(metadata->>'bulk', '') <> 'true'`)
+            .count<{ count: string }[]>('* as count');
+        return Number(row?.count ?? 0);
+    }
+
+    async countBulkSoftDeletesForRun(runUuid: string): Promise<number> {
+        const [row] = await this.database(ManagedAgentActionsTableName)
+            .where({
+                managed_agent_run_uuid: runUuid,
+                action_type: ManagedAgentActionType.SOFT_DELETED,
+            })
+            .whereRaw(`metadata->>'bulk' = 'true'`)
             .count<{ count: string }[]>('* as count');
         return Number(row?.count ?? 0);
     }

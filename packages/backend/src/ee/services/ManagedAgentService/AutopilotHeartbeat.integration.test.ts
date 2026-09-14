@@ -30,6 +30,7 @@ import {
     type AutopilotContextStep,
 } from './contextEval';
 import { ManagedAgentService } from './ManagedAgentService';
+import { MANAGED_AGENT_BULK_DELETE_RUN_LIMIT } from './toolResults';
 
 const provider = process.env.AUTOPILOT_EVAL_PROVIDER;
 const mode = process.env.AUTOPILOT_EVAL_MODE;
@@ -514,6 +515,32 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                     ),
                 ).toBe(25);
                 expect(capResults[25]).toContain('run cap reached');
+                const bulkResults: string[] = [];
+                if (retiredCharts.length) {
+                    const executeBulk = () =>
+                        service['handleToolCall'](
+                            projectUuid,
+                            guardRun.runUuid,
+                            guardRun.runUuid,
+                            'bulk_delete_broken_content',
+                            {
+                                table_name: 'retired_orders',
+                                reason: 'Repeated bulk cap probe',
+                            },
+                        );
+                    bulkResults.push(await executeBulk());
+                    bulkResults.push(await executeBulk());
+                    const deletedRows = await db('saved_queries')
+                        .whereIn(
+                            'saved_query_uuid',
+                            retiredCharts.map((chart) => chart.uuid),
+                        )
+                        .whereNotNull('deleted_at');
+                    expect(deletedRows).toHaveLength(
+                        MANAGED_AGENT_BULK_DELETE_RUN_LIMIT,
+                    );
+                }
+
                 expect(
                     (await chartModel.get(capCharts[25].uuid)).deletedAt,
                 ).toBeFalsy();
@@ -534,6 +561,7 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                             twentySixthDeleteBlocked: true,
                             response,
                             capResults,
+                            bulkResults,
                         },
                         null,
                         2,
@@ -769,8 +797,12 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
             ).size;
             if (retiredCharts.length && mode === 'cleanup')
                 check(
-                    'retired-model backlog deleted',
-                    retiredDeleted === retiredCharts.length,
+                    'retired-model cleanup respects run cap',
+                    retiredDeleted ===
+                        Math.min(
+                            retiredCharts.length,
+                            MANAGED_AGENT_BULK_DELETE_RUN_LIMIT,
+                        ),
                 );
             if (retiredCharts.length && mode === 'flag')
                 check(
