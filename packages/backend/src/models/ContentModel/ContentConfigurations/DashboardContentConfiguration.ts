@@ -157,6 +157,7 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     knex.raw(
                         `${DashboardsTableName}.first_viewed_at::timestamp as first_viewed_at`,
                     ),
+                    knex.raw('null::timestamp as last_viewed_at'),
                     knex.raw(
                         `${DashboardsTableName}.deleted_at::timestamp as deleted_at`,
                     ),
@@ -305,6 +306,7 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
+                lastViewedAt: value.last_viewed_at,
                 owner: value.owner_user_uuid
                     ? {
                           userUuid: value.owner_user_uuid,

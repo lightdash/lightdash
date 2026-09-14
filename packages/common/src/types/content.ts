@@ -48,6 +48,7 @@ export interface Content {
     } | null;
     views: number;
     firstViewedAt: Date | null;
+    lastViewedAt?: Date | null;
     verification: ContentVerificationInfo | null;
 }
 
