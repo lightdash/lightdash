@@ -113,7 +113,7 @@ export const buildManagedAgentSystemPrompt = (
     const aggressionRules = (() => {
         switch (aggression) {
             case 'observe':
-                return '- OBSERVE MODE: this project is configured for observation only. Record findings with log_insight; NEVER flag or soft-delete content';
+                return '- OBSERVE MODE: record maintenance findings with log_insight; NEVER flag or soft-delete content. Chart creation and repairs remain enabled when their tools are available.';
             case 'flag':
                 return '- FLAG-ONLY MODE: this project is configured to flag, not delete. Flag stale or broken content; NEVER soft-delete it';
             case 'cleanup':

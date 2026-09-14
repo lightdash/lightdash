@@ -82,3 +82,7 @@ Summaries are captured without sending Slack messages. Exact model IDs are store
 with each run. The final decision must account for failed checks and retries,
 not just the process exit status or the model's summary. Azure and Bedrock remain
 deferred; these two providers cannot complete the project's four-provider gate.
+
+A large observe-mode run also skipped an obvious repair because it interpreted
+observation as forbidding all edits. The prompt now explicitly permits enabled
+chart creation and repair while prohibiting flags and deletion in observe mode.
