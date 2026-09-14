@@ -1132,6 +1132,46 @@ export class AppModel {
     }
 
     /**
+     * Newest soft-deleted registry install of this slug in the project — the
+     * revive target when the chart type is reinstalled from the library.
+     * Shaped like a `listRegistryInstalledApps` row.
+     */
+    async findNewestDeletedRegistryApp(
+        projectUuid: string,
+        registrySlug: string,
+    ): Promise<
+        | {
+              app_id: string;
+              registry_slug: string;
+              latest_ready_registry_version: string | null;
+              created_by_user_uuid: string | null;
+          }
+        | undefined
+    > {
+        return this.joinLatestReadyVersion(this.database(AppsTableName))
+            .where(`${AppsTableName}.project_uuid`, projectUuid)
+            .andWhere(`${AppsTableName}.registry_slug`, registrySlug)
+            .whereNotNull(`${AppsTableName}.deleted_at`)
+            .orderBy(`${AppsTableName}.deleted_at`, 'desc')
+            .select<
+                Array<{
+                    app_id: string;
+                    registry_slug: string;
+                    latest_ready_registry_version: string | null;
+                    created_by_user_uuid: string | null;
+                }>
+            >(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.registry_slug`,
+                `${AppsTableName}.created_by_user_uuid`,
+                this.database
+                    .ref(`${AppVersionsTableName}.registry_version`)
+                    .as('latest_ready_registry_version'),
+            )
+            .first();
+    }
+
+    /**
      * A single data app viz by its project-scoped slug, with its latest ready
      * schema. Undefined when the slug is not a schema-bearing data app viz.
      */

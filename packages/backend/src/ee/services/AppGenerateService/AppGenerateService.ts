@@ -8820,9 +8820,11 @@ export class AppGenerateService extends BaseService {
 
     /**
      * Install a chart type from the chart registry, or append a new version
-     * when it's already installed at an older registry version. Registry
-     * artifacts are verified (digest-checked) and downloaded before any S3 or
-     * DB write; a DB write failure rolls back the copied S3 keys.
+     * when it's already installed at an older registry version. A soft-deleted
+     * install of the same slug is revived in place first, so charts built on
+     * it heal and the slug is not suffixed by the deleted row that owns it.
+     * Registry artifacts are verified (digest-checked) and downloaded before
+     * any S3 or DB write; a DB write failure rolls back the copied S3 keys.
      */
     async installRegistryChartType(
         user: SessionUser,
@@ -8869,9 +8871,33 @@ export class AppGenerateService extends BaseService {
 
         const installedApps =
             await this.appModel.listRegistryInstalledApps(projectUuid);
-        const existing = installedApps.find(
-            (a) => a.registry_slug === chartSlug,
-        );
+        let existing = installedApps.find((a) => a.registry_slug === chartSlug);
+        // Reinstall after uninstall: revive the soft-deleted install in
+        // place so charts built on it heal, instead of minting a new app
+        // (whose slug the deleted row would force onto a "-1" suffix).
+        let revived = false;
+        if (!existing) {
+            const deleted = await this.appModel.findNewestDeletedRegistryApp(
+                projectUuid,
+                chartSlug,
+            );
+            if (deleted) {
+                try {
+                    await this.appModel.restore(deleted.app_id, projectUuid);
+                } catch (e) {
+                    if (isUniqueConstraintViolation(e)) {
+                        // A concurrent fresh install claimed the slug between
+                        // the lookup and the restore.
+                        throw new ParameterError(
+                            'This chart type was just installed by someone else — refresh',
+                        );
+                    }
+                    throw e;
+                }
+                existing = deleted;
+                revived = true;
+            }
+        }
         if (
             existing &&
             existing.latest_ready_registry_version === entry.version
@@ -8879,11 +8905,31 @@ export class AppGenerateService extends BaseService {
             const latest = await this.appModel.getLatestReadyVersion(
                 existing.app_id,
             );
+            if (revived) {
+                // The registry icon may have moved on while uninstalled.
+                await this.appModel.updateApp(existing.app_id, projectUuid, {
+                    icon: entry.icon,
+                });
+                this.analytics.track({
+                    event: 'data_app.registry_installed',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        appUuid: existing.app_id,
+                        chartSlug: entry.slug,
+                        version: latest!.version,
+                        registryVersion: entry.version,
+                        action: 'installed',
+                        revived: true,
+                    },
+                });
+            }
             return {
                 appUuid: existing.app_id,
                 slug: chartSlug,
                 version: latest!.version,
-                action: 'unchanged',
+                action: revived ? 'installed' : 'unchanged',
             };
         }
 
@@ -8990,7 +9036,9 @@ export class AppGenerateService extends BaseService {
             throw e;
         }
 
-        const action = existing ? 'upgraded' : 'installed';
+        // A revived install reads as an install to the user even though it
+        // appends a version like an upgrade does.
+        const action = existing && !revived ? 'upgraded' : 'installed';
         this.analytics.track({
             event: 'data_app.registry_installed',
             userId: user.userUuid,
@@ -9002,6 +9050,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 registryVersion: entry.version,
                 action,
+                revived,
             },
         });
 
