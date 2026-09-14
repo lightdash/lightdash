@@ -333,6 +333,8 @@ const DATABRICKS_QUERY_TIMEOUT_SECONDS = 300;
 const DATABRICKS_FETCH_CHUNK_MAX_ROWS = 5000;
 
 const DATABRICKS_TABLE_NOT_FOUND = 'TABLE_OR_VIEW_NOT_FOUND';
+// What a runtime without DESCRIBE ... AS JSON answers: the statement does not parse.
+const DATABRICKS_SYNTAX_ERROR = 'PARSE_SYNTAX_ERROR';
 
 type DescribedColumn = {
     path: string;
@@ -341,34 +343,75 @@ type DescribedColumn = {
     shape: WarehouseNestedColumnShape | undefined;
 };
 
-type TableColumns = {
-    columns: DescribedColumn[];
-    /** Set when the JSON description was refused and the flat column list was used instead. */
-    nestedColumnsUnavailable: string | null;
-};
+type TableColumns =
+    | { discovery: 'described'; columns: DescribedColumn[] }
+    /** The runtime cannot describe tables as JSON; the flat column list stands in, with the reason for the compiler to surface. */
+    | { discovery: 'unsupported'; columns: DescribedColumn[]; reason: string };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
+// Elements with no path to their contents. A struct element exposes its
+// fields and a scalar element is the value; these expose nothing, so the
+// column stays an opaque scalar rather than posing as an array of scalars.
+const OPAQUE_ELEMENT_TYPES = new Set(['array', 'map', 'variant']);
+
 // A plain TIMESTAMP column is described as timestamp_ltz.
-const describedTypeName = (
-    repeated: boolean,
-    record: boolean,
-    elementName: string,
-): string => {
-    if (repeated) return DatabricksTypes.ARRAY;
-    if (record) return DatabricksTypes.STRUCT;
-    return elementName === 'timestamp_ltz'
-        ? DatabricksTypes.TIMESTAMP
-        : elementName.toUpperCase();
+const scalarTypeName = (name: string): string =>
+    name === 'timestamp_ltz' ? DatabricksTypes.TIMESTAMP : name.toUpperCase();
+
+type DescribedNode = Pick<DescribedColumn, 'typeName' | 'shape'> & {
+    /** Child fields to walk, when the node is a struct or an array of structs. */
+    fields: unknown;
+};
+
+const describeNode = (type: Record<string, unknown>): DescribedNode => {
+    const name = typeof type.name === 'string' ? type.name : 'string';
+    if (name === 'struct') {
+        return {
+            typeName: DatabricksTypes.STRUCT,
+            shape: { repeated: false, record: true },
+            fields: type.fields,
+        };
+    }
+    if (name === 'array') {
+        const element = isRecord(type.element_type) ? type.element_type : {};
+        const elementName =
+            typeof element.name === 'string' ? element.name : 'string';
+        if (elementName === 'struct') {
+            return {
+                typeName: DatabricksTypes.STRUCT,
+                shape: { repeated: true, record: true },
+                fields: element.fields,
+            };
+        }
+        if (OPAQUE_ELEMENT_TYPES.has(elementName)) {
+            return {
+                typeName: DatabricksTypes.ARRAY,
+                shape: undefined,
+                fields: undefined,
+            };
+        }
+        // The element type types the array's value dimension, as BigQuery's
+        // REPEATED scalar does.
+        return {
+            typeName: scalarTypeName(elementName),
+            shape: { repeated: true, record: false },
+            fields: undefined,
+        };
+    }
+    return {
+        typeName: scalarTypeName(name),
+        shape: undefined,
+        fields: undefined,
+    };
 };
 
 /**
  * Walks the `columns` of a `DESCRIBE TABLE ... AS JSON` result depth-first,
  * emitting every node under its dotted path. A struct is `{name: "struct",
  * fields}`, an array `{name: "array", element_type}`; an array of structs is
- * both, and its children are the element's fields. Maps and variants have no
- * addressable leaves and stay scalar.
+ * both, and its children are the element's fields.
  */
 const flattenDescribedFields = (
     fields: unknown,
@@ -379,27 +422,16 @@ const flattenDescribedFields = (
         if (
             !isRecord(field) ||
             typeof field.name !== 'string' ||
-            !isRecord(field.type) ||
-            typeof field.type.name !== 'string'
+            !isRecord(field.type)
         ) {
             return [];
         }
         const path = prefix ? `${prefix}.${field.name}` : field.name;
-        const repeated = field.type.name === 'array';
-        const element = repeated ? field.type.element_type : field.type;
-        const elementName =
-            isRecord(element) && typeof element.name === 'string'
-                ? element.name
-                : DatabricksTypes.STRING.toLowerCase();
-        const record = elementName === 'struct';
-        const node: DescribedColumn = {
-            path,
-            typeName: describedTypeName(repeated, record, elementName),
-            shape: repeated || record ? { repeated, record } : undefined,
-        };
-        return record && isRecord(element)
-            ? [node, ...flattenDescribedFields(element.fields, path)]
-            : [node];
+        const { typeName, shape, fields: children } = describeNode(field.type);
+        return [
+            { path, typeName, shape },
+            ...flattenDescribedFields(children, path),
+        ];
     });
 };
 
@@ -662,34 +694,33 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
     // DESCRIBE ... AS JSON gives the nested tree; older all-purpose clusters
     // reject the JSON form, so those tables keep the flat column list and
     // carry the reason for the compiler to surface.
+    // DESCRIBE ... AS JSON gives the nested tree. A runtime that does not know
+    // the JSON form rejects the statement itself; only that case falls back
+    // to the flat column list, any other failure fails the fetch as before.
     private static async getTableColumns(
         session: IDBSQLSession,
         request: { database: string; schema: string; table: string },
     ): Promise<TableColumns> {
         const q = '`';
         const tableRef = `${q}${request.database}${q}.${q}${request.schema}${q}.${q}${request.table}${q}`;
+        let rows: Record<string, AnyType>[];
         try {
-            const rows = await DatabricksWarehouseClient.fetchAllRows(
+            rows = await DatabricksWarehouseClient.fetchAllRows(
                 session.executeStatement(
                     `DESCRIBE TABLE EXTENDED ${tableRef} AS JSON`,
                 ),
                 'getCatalog',
             );
-            const json = rows[0] ? Object.values(rows[0])[0] : undefined;
-            const description: unknown =
-                typeof json === 'string' ? JSON.parse(json) : undefined;
-            if (!isRecord(description)) {
-                throw new Error('the table description was empty');
-            }
-            return {
-                columns: flattenDescribedFields(description.columns),
-                nestedColumnsUnavailable: null,
-            };
         } catch (e: unknown) {
-            if (isDatabricksWarehouseStartingError(e)) throw e;
             const message = getDatabricksErrorMessage(e);
             if (message.includes(DATABRICKS_TABLE_NOT_FOUND)) {
-                return { columns: [], nestedColumnsUnavailable: null };
+                return { discovery: 'described', columns: [] };
+            }
+            if (
+                isDatabricksWarehouseStartingError(e) ||
+                !message.includes(DATABRICKS_SYNTAX_ERROR)
+            ) {
+                throw e;
             }
             const flatColumns = (await DatabricksWarehouseClient.fetchAllRows(
                 session.getColumns({
@@ -700,13 +731,30 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 'getCatalog',
             )) as SchemaResult[];
             return {
+                discovery: 'unsupported',
                 columns: flatColumns.map((column) => ({
                     path: column.COLUMN_NAME,
                     typeName: column.TYPE_NAME,
                     shape: undefined,
                 })),
-                nestedColumnsUnavailable: `Databricks did not describe ${request.table} as JSON (${message}); nested columns need a SQL warehouse or Databricks Runtime 16.2 or newer.`,
+                reason: `Databricks did not describe ${request.table} as JSON (${message}); nested columns need a SQL warehouse or Databricks Runtime 16.2 or newer.`,
             };
+        }
+        const json = rows[0] ? Object.values(rows[0])[0] : undefined;
+        try {
+            const description: unknown =
+                typeof json === 'string' ? JSON.parse(json) : undefined;
+            if (!isRecord(description) || !Array.isArray(description.columns)) {
+                throw new Error('no columns in the JSON description');
+            }
+            return {
+                discovery: 'described',
+                columns: flattenDescribedFields(description.columns),
+            };
+        } catch (e: unknown) {
+            throw new WarehouseQueryError(
+                `Could not read the description of ${tableRef}: ${getErrorMessage(e)}`,
+            );
         }
     }
 
@@ -799,13 +847,13 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                         shape,
                     );
                 });
-                if (described?.nestedColumnsUnavailable) {
+                if (described?.discovery === 'unsupported') {
                     setCatalogNestedColumnsUnavailable(
                         acc,
                         catalog,
                         schema,
                         table,
-                        described.nestedColumnsUnavailable,
+                        described.reason,
                     );
                 }
 

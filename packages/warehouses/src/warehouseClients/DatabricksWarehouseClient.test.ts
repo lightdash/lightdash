@@ -253,6 +253,20 @@ describe('DatabricksWarehouseClient', () => {
         const columns = (name: string, type: string) => [
             { COLUMN_NAME: name, TYPE_NAME: type },
         ];
+        const describedTable = (sql: string) =>
+            /`([^`]+)` AS JSON$/.exec(sql)?.[1] ?? '';
+        const jsonDescription = (
+            cols: { COLUMN_NAME: string; TYPE_NAME: string }[],
+        ) => [
+            {
+                json_metadata: JSON.stringify({
+                    columns: cols.map((col) => ({
+                        name: col.COLUMN_NAME,
+                        type: { name: col.TYPE_NAME.toLowerCase() },
+                    })),
+                }),
+            },
+        ];
         const columnsSession = (
             resolve: (
                 table: string,
@@ -260,16 +274,16 @@ describe('DatabricksWarehouseClient', () => {
             lostTables: Set<string>,
         ) =>
             createSession({
-                getColumns: vi.fn(
-                    async ({ tableName }: { tableName: string }) =>
-                        lostTables.has(tableName)
-                            ? Promise.reject(sessionLostError())
-                            : createOperation({
-                                  fetchAll: vi.fn(async () =>
-                                      resolve(tableName),
-                                  ),
-                              }),
-                ),
+                executeStatement: vi.fn(async (sql: string) => {
+                    const table = describedTable(sql);
+                    return lostTables.has(table)
+                        ? Promise.reject(sessionLostError())
+                        : createOperation({
+                              fetchAll: vi.fn(async () =>
+                                  jsonDescription(resolve(table)),
+                              ),
+                          });
+                }),
             });
 
         // Captured from DESCRIBE TABLE EXTENDED ... AS JSON on a serverless warehouse.
@@ -380,6 +394,11 @@ describe('DatabricksWarehouseClient', () => {
                     nullable: true,
                 },
                 {
+                    name: 'scores',
+                    type: { name: 'array', element_type: { name: 'int' } },
+                    nullable: true,
+                },
+                {
                     name: 'matrix',
                     type: {
                         name: 'array',
@@ -451,6 +470,7 @@ describe('DatabricksWarehouseClient', () => {
                 'product.variants.size': DimensionType.STRING,
                 'product.variants.stock': DimensionType.NUMBER,
                 tags: DimensionType.STRING,
+                scores: DimensionType.NUMBER,
                 matrix: DimensionType.STRING,
                 labels: DimensionType.STRING,
             });
@@ -476,7 +496,8 @@ describe('DatabricksWarehouseClient', () => {
                 record: true,
             });
             expect(shape('tags')).toEqual({ repeated: true, record: false });
-            expect(shape('matrix')).toEqual({ repeated: true, record: false });
+            expect(shape('scores')).toEqual({ repeated: true, record: false });
+            expect(shape('matrix')).toBeUndefined();
             expect(shape('labels')).toBeUndefined();
             expect(shape('product.sku')).toBeUndefined();
             const domain = (path: string) =>
@@ -576,6 +597,36 @@ describe('DatabricksWarehouseClient', () => {
             ).toBeUndefined();
         });
 
+        it('fails the fetch on errors that are not the missing JSON form', async () => {
+            const session = describeSession(() =>
+                Promise.reject(
+                    statusError(
+                        '[INSUFFICIENT_PERMISSIONS] User does not have USE SCHEMA on Schema `schema`.',
+                    ),
+                ),
+            );
+            mocks.openSession.mockResolvedValue(session);
+            const warehouse = new DatabricksWarehouseClient(credentials);
+
+            await expect(
+                warehouse.getCatalog([tableRequest('transactions')]),
+            ).rejects.toThrow('INSUFFICIENT_PERMISSIONS');
+            expect(session.getColumns).not.toHaveBeenCalled();
+        });
+
+        it('fails the fetch when the JSON description cannot be read', async () => {
+            const session = describeSession(async () => [
+                { json_metadata: 'not json' },
+            ]);
+            mocks.openSession.mockResolvedValue(session);
+            const warehouse = new DatabricksWarehouseClient(credentials);
+
+            await expect(
+                warehouse.getCatalog([tableRequest('transactions')]),
+            ).rejects.toThrow('Could not read the description of');
+            expect(session.getColumns).not.toHaveBeenCalled();
+        });
+
         it('resumes the remaining tables on a replacement session', async () => {
             const firstSession = columnsSession(
                 () => columns('id', 'BIGINT'),
@@ -603,11 +654,11 @@ describe('DatabricksWarehouseClient', () => {
                 table_two: { name: 'string' },
                 table_three: { name: 'string' },
             });
-            expect(firstSession.getColumns).toHaveBeenCalledTimes(3);
+            expect(firstSession.executeStatement).toHaveBeenCalledTimes(3);
             expect(firstSession.close).toHaveBeenCalledOnce();
             expect(
-                secondSession.getColumns.mock.calls.map(
-                    (call) => (call[0] as { tableName: string }).tableName,
+                secondSession.executeStatement.mock.calls.map((call) =>
+                    describedTable(call[0] as string),
                 ),
             ).toEqual(['table_two', 'table_three']);
         });
@@ -615,25 +666,25 @@ describe('DatabricksWarehouseClient', () => {
         it('lets the in-flight batch settle before closing the lost session', async () => {
             const order: string[] = [];
             const firstSession = createSession({
-                getColumns: vi.fn(
-                    ({ tableName }: { tableName: string }) =>
-                        new Promise((resolve, reject) => {
-                            setTimeout(
-                                () => {
-                                    order.push(`getColumns:${tableName}`);
-                                    reject(sessionLostError());
-                                },
-                                tableName === 'table_one' ? 10 : 100,
-                            );
-                        }),
-                ),
+                executeStatement: vi.fn((sql: string) => {
+                    const tableName = describedTable(sql);
+                    return new Promise((resolve, reject) => {
+                        setTimeout(
+                            () => {
+                                order.push(`describe:${tableName}`);
+                                reject(sessionLostError());
+                            },
+                            tableName === 'table_one' ? 10 : 100,
+                        );
+                    });
+                }),
             });
             firstSession.close.mockImplementation(async () => {
                 order.push('close');
             });
             mocks.openSession
                 .mockResolvedValueOnce(firstSession)
-                .mockResolvedValueOnce(createSession());
+                .mockResolvedValueOnce(columnsSession(() => [], new Set()));
             const warehouse = new DatabricksWarehouseClient(credentials);
 
             await withTimers(() =>
@@ -644,8 +695,8 @@ describe('DatabricksWarehouseClient', () => {
             );
 
             expect(order).toEqual([
-                'getColumns:table_one',
-                'getColumns:table_two',
+                'describe:table_one',
+                'describe:table_two',
                 'close',
             ]);
         });
@@ -666,13 +717,14 @@ describe('DatabricksWarehouseClient', () => {
 
         it('fails fast on errors that are not warehouse startup errors', async () => {
             const session = createSession({
-                getColumns: vi.fn(
-                    async ({ tableName }: { tableName: string }) =>
-                        tableName === 'table_two'
-                            ? Promise.reject(
-                                  statusError('PERMISSION_DENIED on table_two'),
-                              )
-                            : createOperation(),
+                executeStatement: vi.fn(async (sql: string) =>
+                    describedTable(sql) === 'table_two'
+                        ? Promise.reject(
+                              statusError('PERMISSION_DENIED on table_two'),
+                          )
+                        : createOperation({
+                              fetchAll: vi.fn(async () => jsonDescription([])),
+                          }),
                 ),
             });
             mocks.openSession.mockResolvedValueOnce(session);
