@@ -335,16 +335,11 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
             return chart.saved_query_uuid;
         };
 
-        test('ranks exact names first and finds related names in shared spaces only', async () => {
-            const exact = await createChart('Weekly Revenue!', sharedSpaceUuid);
-            const contained = await createChart(
-                'Weekly revenue by region',
-                sharedSpaceUuid,
-            );
-            const wordMatch = await createChart(
-                'Revenue forecast',
-                sharedSpaceUuid,
-            );
+        test('matches full names case-insensitively in shared spaces only', async () => {
+            const exact = await createChart('Weekly Revenue', sharedSpaceUuid);
+            await createChart('Weekly Revenue!', sharedSpaceUuid);
+            await createChart('Weekly revenue by region', sharedSpaceUuid);
+            await createChart('Revenue forecast', sharedSpaceUuid);
             await createChart('Weekly revenue', personalSpaceUuid);
             await createChart('Customer churn', sharedSpaceUuid);
             const self = await createChart('Weekly revenue', sharedSpaceUuid);
@@ -359,14 +354,11 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
             });
 
             const uuids = results.map((r) => r.uuid);
-            expect(uuids[0]).toBe(exact);
-            expect(uuids).toContain(contained);
-            expect(uuids).toContain(wordMatch);
-            expect(uuids).not.toContain(self);
+            expect(uuids).toEqual([exact]);
             expect(results.some((r) => r.spaceUuid === personalSpaceUuid)).toBe(
                 false,
             );
-            expect(results[0].score).toBeGreaterThan(results[1].score);
+            expect(results[0].matchReason).toBe('same_name');
         });
 
         test('returns nothing for an empty name', async () => {
