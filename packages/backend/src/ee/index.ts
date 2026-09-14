@@ -1389,6 +1389,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getAiOrganizationSettingsModel(),
                         aiModelCatalog,
                     }),
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService(),
                     aiAgentToolsService:
                         repository.getAiAgentToolsService<AiAgentToolsService>(),
                 }),

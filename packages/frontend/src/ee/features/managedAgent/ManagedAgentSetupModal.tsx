@@ -1,4 +1,4 @@
-import { ManagedAgentScheduleOption } from '@lightdash/common';
+import { type ApiError, ManagedAgentScheduleOption } from '@lightdash/common';
 import { Box, Group, Select, Stack, Text } from '@mantine/core';
 import {
     IconChartBar,
@@ -11,6 +11,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FC, useState } from 'react';
 import { lightdashApi } from '../../../api';
 import MantineModal from '../../../components/common/MantineModal';
+import useToaster from '../../../hooks/toaster/useToaster';
 import classes from './ManagedAgentSetupModal.module.css';
 
 const updateSettings = async (
@@ -65,9 +66,10 @@ export const ManagedAgentSetupModal: FC<{
     onEnabled: () => void;
 }> = ({ projectUuid, opened, onClose, onEnabled }) => {
     const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
     const [schedule, setSchedule] = useState(ManagedAgentScheduleOption.DAILY);
 
-    const mutation = useMutation({
+    const mutation = useMutation<unknown, ApiError>({
         mutationFn: () =>
             updateSettings(projectUuid, {
                 enabled: true,
@@ -81,6 +83,12 @@ export const ManagedAgentSetupModal: FC<{
                 queryKey: ['managed-agent-actions', projectUuid],
             });
             onEnabled();
+        },
+        onError: (error) => {
+            showToastApiError({
+                title: 'Failed to enable Autopilot',
+                apiError: error.error,
+            });
         },
     });
 

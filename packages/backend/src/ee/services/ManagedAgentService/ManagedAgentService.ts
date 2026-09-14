@@ -43,6 +43,7 @@ import type { ToolSet } from 'ai';
 import type { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import type { SlackClient } from '../../../clients/Slack/SlackClient';
+import { AI_PROVIDER_KEYS } from '../../../config/aiConfigSchema';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
@@ -78,6 +79,7 @@ import {
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
 import type { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
+import type { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import {
     runAutopilotAgent,
     type AutopilotAgentRunResult,
@@ -158,6 +160,10 @@ const FRIENDLY_TOOL_LABELS: Record<string, string> = {
     write_slack_summary: 'Writing Slack summary',
 };
 
+type AiProviderKey = (typeof AI_PROVIDER_KEYS)[number];
+const isAiProviderKey = (value: string): value is AiProviderKey =>
+    AI_PROVIDER_KEYS.some((key) => key === value);
+
 const NON_ACTIVITY_TOOL_NAMES = new Set(['write_slack_summary']);
 
 const friendlyToolLabel = (toolName: string): string =>
@@ -183,6 +189,7 @@ type ManagedAgentServiceDependencies = {
     managedAgentClient: ManagedAgentClient;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     aiAgentToolsService: AiAgentToolsService;
+    aiOrganizationSettingsService: AiOrganizationSettingsService;
 };
 
 type HeartbeatSessionResult = {
@@ -249,6 +256,8 @@ export class ManagedAgentService extends BaseService {
 
     private readonly aiAgentToolsService: AiAgentToolsService;
 
+    private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
+
     constructor(deps: ManagedAgentServiceDependencies) {
         super();
         this.lightdashConfig = deps.lightdashConfig;
@@ -270,6 +279,7 @@ export class ManagedAgentService extends BaseService {
         this.managedAgentClient = deps.managedAgentClient;
         this.orgAiCopilotConfigResolver = deps.orgAiCopilotConfigResolver;
         this.aiAgentToolsService = deps.aiAgentToolsService;
+        this.aiOrganizationSettingsService = deps.aiOrganizationSettingsService;
     }
 
     // --- Validation helpers ---
@@ -434,6 +444,42 @@ export class ManagedAgentService extends BaseService {
         return (
             this.lightdashConfig.managedAgent.runtime === 'anthropic-managed'
         );
+    }
+
+    // Autopilot follows the org default AI model. The org settings service
+    // keeps that default inside the org model visibility, so no second check.
+    private async resolveAutopilotModel(organizationUuid: string) {
+        try {
+            const [copilotConfig, orgDefaultModel] = await Promise.all([
+                this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    organizationUuid,
+                ),
+                this.aiOrganizationSettingsService.getDefaultModelConfig(
+                    organizationUuid,
+                ),
+            ]);
+            const orgDefault =
+                orgDefaultModel &&
+                isAiProviderKey(orgDefaultModel.modelProvider)
+                    ? {
+                          provider: orgDefaultModel.modelProvider,
+                          modelName: orgDefaultModel.modelName,
+                      }
+                    : undefined;
+            return {
+                copilotConfig,
+                ...getModel(copilotConfig, {
+                    enableReasoning: true,
+                    provider: orgDefault?.provider,
+                    modelName: orgDefault?.modelName,
+                }),
+            };
+        } catch (error) {
+            const cause = error instanceof Error ? error.message : 'Unknown';
+            throw new ParameterError(
+                `Autopilot needs an AI provider before it can run. ${cause}. Add a provider key under Organization settings, AI, or set AI_DEFAULT_PROVIDER and that provider's key on the instance.`,
+            );
+        }
     }
 
     // Discovery tool names the model can call differ per runtime.
@@ -1273,6 +1319,14 @@ export class ManagedAgentService extends BaseService {
         await this.assertCanManageProject(user, projectUuid);
         const previous = await this.managedAgentModel.getSettings(projectUuid);
 
+        // Fail the enable request, not the first scheduled run, when the org
+        // has no usable AI provider.
+        if (update.enabled && !this.usesManagedAgentsApi()) {
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectUuid);
+            await this.resolveAutopilotModel(organizationUuid);
+        }
+
         // Space scope updates replace the selection atomically and keep the
         // mode on the policy object. Reject uuids from other projects.
         let effectiveUpdate = update;
@@ -1808,13 +1862,11 @@ export class ManagedAgentService extends BaseService {
         const actor = await this.getAutopilotActor(projectUuid);
         await this.assertActorCanViewProject(actor, projectUuid);
 
-        const [{ toolSettings, policy }, project, copilotConfig] =
+        const [{ toolSettings, policy }, project, resolvedModel] =
             await Promise.all([
                 this.getAutopilotRenderArgs(projectUuid),
                 this.projectModel.getSummary(projectUuid),
-                this.orgAiCopilotConfigResolver.getCopilotConfig(
-                    organizationUuid,
-                ),
+                this.resolveAutopilotModel(organizationUuid),
             ]);
         const agent = renderAutopilotAgent({
             toolSettings,
@@ -1822,10 +1874,13 @@ export class ManagedAgentService extends BaseService {
             preAggregatesEnabled: this.lightdashConfig.preAggregates.enabled,
             runtime: 'ai-sdk',
         });
-        const { model, callOptions, providerOptions, keyManagement } = getModel(
+        const {
             copilotConfig,
-            { enableReasoning: true },
-        );
+            model,
+            callOptions,
+            providerOptions,
+            keyManagement,
+        } = resolvedModel;
         const { tools: dataTools, availableExplores } =
             await this.buildAutopilotDataTools(
                 actor,

@@ -9,7 +9,20 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import type { ManagedAgentRuntime } from '../../../config/parseConfig';
+import { getModel } from '../ai/models';
 import { ManagedAgentService } from './ManagedAgentService';
+
+vi.mock('../ai/models', () => ({
+    getModel: vi.fn(),
+}));
+
+const copilotConfig = { defaultProvider: 'anthropic', telemetryEnabled: false };
+const resolvedModel = {
+    model: {},
+    callOptions: {},
+    providerOptions: {},
+    keyManagement: 'self-managed',
+};
 
 const ORGANIZATION_UUID = 'organization-uuid';
 const PROJECT_UUID = 'project-uuid';
@@ -54,6 +67,7 @@ const buildService = ({
     serviceAccountTokens = [null, 'service-account-token'],
     suggestionsSpaces = [],
     runtime = 'anthropic-managed',
+    defaultModelConfig = null,
 }: {
     projectGrants?: Array<{
         projectUuid: string;
@@ -67,7 +81,20 @@ const buildService = ({
         inheritParentPermissions: boolean;
     }>;
     runtime?: ManagedAgentRuntime;
+    defaultModelConfig?: {
+        modelProvider: string;
+        modelName: string;
+        reasoning?: boolean;
+    } | null;
 } = {}) => {
+    vi.mocked(getModel).mockReset();
+    vi.mocked(getModel).mockReturnValue(resolvedModel as AnyType);
+    const orgAiCopilotConfigResolver = {
+        getCopilotConfig: vi.fn().mockResolvedValue(copilotConfig),
+    };
+    const aiOrganizationSettingsService = {
+        getDefaultModelConfig: vi.fn().mockResolvedValue(defaultModelConfig),
+    };
     const managedAgentModel = {
         getSettings: vi.fn().mockResolvedValue(settings),
         getLatestRun: vi.fn().mockResolvedValue(null),
@@ -146,9 +173,12 @@ const buildService = ({
         schedulerClient,
         slackClient: {},
         managedAgentClient,
+        orgAiCopilotConfigResolver,
+        aiOrganizationSettingsService,
     } as AnyType);
 
     return {
+        aiOrganizationSettingsService,
         managedAgentClient,
         managedAgentModel,
         projectModel,
@@ -386,5 +416,82 @@ describe('ManagedAgentService.updateSettings', () => {
                 policy: expect.objectContaining({ audience: 'admins' }),
             }),
         );
+    });
+});
+
+describe('ManagedAgentService provider preflight', () => {
+    it('rejects enabling on the AI SDK runtime when the org has no usable provider', async () => {
+        const { managedAgentModel, schedulerClient, service } = buildService({
+            runtime: 'ai-sdk',
+        });
+        vi.mocked(getModel).mockImplementation(() => {
+            throw new Error('anthropic provider configuration is required');
+        });
+
+        await expect(
+            service.updateSettings(user, PROJECT_UUID, USER_UUID, {
+                enabled: true,
+            }),
+        ).rejects.toThrow(
+            /Autopilot needs an AI provider before it can run\. anthropic provider configuration is required\./,
+        );
+
+        expect(managedAgentModel.upsertSettings).not.toHaveBeenCalled();
+        expect(
+            schedulerClient.scheduleManagedAgentHeartbeat,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('resolves the org default model when enabling on the AI SDK runtime', async () => {
+        const { service } = buildService({
+            runtime: 'ai-sdk',
+            defaultModelConfig: {
+                modelProvider: 'openai',
+                modelName: 'gpt-5',
+            },
+        });
+
+        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
+            enabled: true,
+        });
+
+        expect(getModel).toHaveBeenCalledWith(copilotConfig, {
+            enableReasoning: true,
+            provider: 'openai',
+            modelName: 'gpt-5',
+        });
+    });
+
+    it('falls back to the provider default when the org default names an unknown provider', async () => {
+        const { service } = buildService({
+            runtime: 'ai-sdk',
+            defaultModelConfig: {
+                modelProvider: 'not-a-provider',
+                modelName: 'whatever',
+            },
+        });
+
+        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
+            enabled: true,
+        });
+
+        expect(getModel).toHaveBeenCalledWith(copilotConfig, {
+            enableReasoning: true,
+            provider: undefined,
+            modelName: undefined,
+        });
+    });
+
+    it('does not preflight the provider on the managed-agents runtime', async () => {
+        const { aiOrganizationSettingsService, service } = buildService();
+
+        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
+            enabled: true,
+        });
+
+        expect(getModel).not.toHaveBeenCalled();
+        expect(
+            aiOrganizationSettingsService.getDefaultModelConfig,
+        ).not.toHaveBeenCalled();
     });
 });
