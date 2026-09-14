@@ -1,6 +1,7 @@
 export * from './base';
 export * from './charts';
 export * from './core';
+export * from './homepages';
 export * from './dashboards';
 export * from './directAccess';
 export * from './draftRebase';

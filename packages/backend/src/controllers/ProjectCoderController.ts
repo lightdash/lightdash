@@ -29,6 +29,8 @@ import {
     type ApiExternalConnectionAsCodeUpsertResponse,
     type ApiGoogleSheetsSyncAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeUpsertResponse,
+    type ApiHomepageAsCodeListResponse,
+    type ApiHomepageAsCodeUpsertResponse,
     type ApiScheduledDeliveryAsCodeListResponse,
     type ApiScheduledDeliveryAsCodeUpsertResponse,
     type ApiSpaceAsCodeListResponse,
@@ -45,6 +47,7 @@ import {
     type DashboardAsCode,
     type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
+    type HomepageAsCode,
     type RegisteredAccount,
     type ScheduledDeliveryAsCode,
     type SpaceAsCode,
@@ -108,9 +111,71 @@ type ExternalConnectionCoder = {
     ): Promise<ApiExternalConnectionAsCodeUpsertResponse['results']>;
 };
 
+type HomepageCoder = {
+    downloadHomepagesAsCode(
+        user: ReturnType<typeof toSessionUser>,
+        projectUuid: string,
+        names?: string[],
+    ): Promise<ApiHomepageAsCodeListResponse['results']>;
+    upsertHomepageAsCode(
+        user: ReturnType<typeof toSessionUser>,
+        projectUuid: string,
+        name: string,
+        document: HomepageAsCode,
+        publish?: boolean,
+    ): Promise<ApiHomepageAsCodeUpsertResponse['results']>;
+};
+
 @Route('/api/v1/projects/{projectUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
 export class ProjectCoderController extends BaseController {
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/homepages')
+    @OperationId('getCodeHomepages')
+    async getHomepagesAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() names?: string[],
+    ): Promise<ApiHomepageAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        return codeSuccess(
+            await this.services
+                .getProjectHomepageService<HomepageCoder>()
+                .downloadHomepagesAsCode(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    names,
+                ),
+        );
+    }
+
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/homepages/{name}')
+    @OperationId('upsertCodeHomepage')
+    async upsertHomepageAsCode(
+        @Path() projectUuid: string,
+        @Path() name: string,
+        @Body() document: HomepageAsCode,
+        @Request() req: express.Request,
+        @Query() publish: boolean = false,
+    ): Promise<ApiHomepageAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        return codeSuccess(
+            await this.services
+                .getProjectHomepageService<HomepageCoder>()
+                .upsertHomepageAsCode(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    name,
+                    document,
+                    publish,
+                ),
+        );
+    }
     /**
      * Rename a project-scoped content slug
      * @summary Rename content slug

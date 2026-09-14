@@ -39,7 +39,7 @@ const collectionItemRefSchema = z.object({
 
 const contentLayoutSchema = z.enum(['card', 'list']);
 
-const collectionBlockSchema = z.object({
+export const collectionBlockSchema = z.object({
     id: z.string(),
     type: z.literal('collection'),
     config: z.object({
@@ -74,7 +74,7 @@ const resourceItemSchema = z.object({
     appUuid: z.string().optional(),
 });
 
-const resourcesBlockSchema = z.object({
+export const resourcesBlockSchema = z.object({
     id: z.string(),
     type: z.literal('resources'),
     config: z.object({
@@ -114,7 +114,7 @@ const quickActionSchema = z
     ])
     .and(z.object({ primary: z.boolean().optional() }));
 
-const quickActionsBlockSchema = z.object({
+export const quickActionsBlockSchema = z.object({
     id: z.string(),
     type: z.literal('quick-actions'),
     config: z.object({ actions: z.array(quickActionSchema) }),
@@ -139,7 +139,7 @@ const ctaTargetSchema = z.discriminatedUnion('type', [
     z.object({ type: z.literal('link'), url: z.string() }),
 ]);
 
-const ctaBlockSchema = z.object({
+export const ctaBlockSchema = z.object({
     id: z.string(),
     type: z.literal('cta'),
     config: z.object({
