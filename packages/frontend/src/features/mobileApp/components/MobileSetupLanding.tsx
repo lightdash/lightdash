@@ -4,6 +4,7 @@ import { type FC } from 'react';
 import { useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useHealth from '../../../hooks/health/useHealth';
+import { useMobileSetupAutoOpen } from '../hooks/useMobileSetupAutoOpen';
 import { detectMobilePlatform } from '../utils/platform';
 import {
     buildMobileSetupSchemeUrl,
@@ -27,6 +28,16 @@ export const MobileSetupLanding: FC = () => {
 
     const playStoreUrl = health?.mobileApp.playStoreUrl;
     const appStoreUrl = health?.mobileApp.appStoreUrl ?? null;
+
+    const schemeUrl =
+        link.status === 'valid' ? buildMobileSetupSchemeUrl(link) : null;
+    const storeUrl = (platform === 'ios' ? appStoreUrl : playStoreUrl) ?? null;
+
+    useMobileSetupAutoOpen({
+        schemeUrl,
+        storeUrl,
+        enabled: platform !== 'desktop' && link.status === 'valid',
+    });
 
     const badges = playStoreUrl ? (
         <AppStoreBadges playStoreUrl={playStoreUrl} appStoreUrl={appStoreUrl} />
@@ -78,11 +89,11 @@ export const MobileSetupLanding: FC = () => {
             <Stack gap="md" className={classes.content}>
                 <Title order={3}>Sign in to the Lightdash app</Title>
                 <Text c="dimmed">
-                    Already installed the app? Open it to finish signing in.
+                    Opening the app. If nothing happens, use the buttons below.
                 </Text>
                 <Button
                     component="a"
-                    href={buildMobileSetupSchemeUrl(link)}
+                    href={schemeUrl ?? undefined}
                     size="md"
                     leftSection={<MantineIcon icon={IconDeviceMobile} />}
                 >

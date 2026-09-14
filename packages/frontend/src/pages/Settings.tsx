@@ -156,6 +156,7 @@ const Settings: FC = () => {
         project,
         isScimTokenManagementEnabled,
         isMobileAppSetupEnabled,
+        isMobileAppSetupFlagLoading,
         dataAppsFlag,
         externalSourcesFlag,
         isDataAppsFlagLoading,
@@ -959,6 +960,9 @@ const Settings: FC = () => {
         Boolean(
             matchPath('/generalSettings/lightdashAnalytics', location.pathname),
         );
+    const isAwaitingMobileAppRoute =
+        isMobileAppSetupFlagLoading &&
+        Boolean(matchPath('/generalSettings/mobileApp', location.pathname));
 
     if (
         isHealthLoading ||
@@ -968,7 +972,8 @@ const Settings: FC = () => {
         isProjectLoading ||
         isAwaitingAiSettingsRoute ||
         isAwaitingDataAppsRoute ||
-        isAwaitingAnalyticsRoute
+        isAwaitingAnalyticsRoute ||
+        isAwaitingMobileAppRoute
     ) {
         return <PageSpinner />;
     }
