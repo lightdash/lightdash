@@ -102,6 +102,8 @@ minimumReleaseAgeExclude:
   - vitest@4.1.11
   # Renovate security update: sharp@0.35.4
   - sharp@0.35.4
+  # Renovate security update: csv-parse@7.0.2
+  - csv-parse@7.0.2
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
