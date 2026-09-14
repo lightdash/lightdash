@@ -190,7 +190,7 @@ const AllowedDomainsPanel: FC = () => {
         if (!isValidEmailDomain(value)) {
             form.setFieldError(
                 'emailDomains',
-                `${value} should not contain @, eg: (lightdash.com)`,
+                `${value} is not a valid email domain, e.g. lightdash.com`,
             );
             return;
         }
@@ -247,6 +247,7 @@ const AllowedDomainsPanel: FC = () => {
                         );
                     }}
                     onCreate={handleAddEmailDomain}
+                    clearSearchOnCreate={false}
                     shouldCreate={(query) =>
                         query.trim().length > 0 &&
                         !form.values.emailDomains.some(

@@ -44,6 +44,8 @@ type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     nothingFoundMessage?: ReactNode;
     createLabel?: ReactNode;
     onCreate?: (value: string) => void;
+    /** When false, the caller owns the search text after a create, e.g. to keep it while showing a validation error. */
+    clearSearchOnCreate?: boolean;
     shouldCreate?: (value: string) => boolean;
     filterOptions?: boolean;
     /** When false, no dropdown is shown — the input is plain entry (type + Enter). */
@@ -95,6 +97,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             nothingFoundMessage,
             createLabel,
             onCreate,
+            clearSearchOnCreate = true,
             shouldCreate = (query) => query.trim().length > 0,
             filterOptions = true,
             withDropdown = true,
@@ -206,13 +209,15 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             shouldCreate(trimmedSearch) &&
             !options.some((option) => option.value === trimmedSearch);
         const hasOptions = visibleOptions.length > 0 || canCreate;
+        const hasDropdownContent =
+            hasOptions || !!nothingFoundMessage || !!topContent || !!footer;
         const clearable =
             !!onClear && value.length > 0 && !disabled && !readOnly;
 
         const submitCreate = () => {
             if (!canCreate) return;
             onCreate(trimmedSearch);
-            onSearchChange('');
+            if (clearSearchOnCreate) onSearchChange('');
             combobox.resetSelectedOption();
         };
 
@@ -371,7 +376,11 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
 
                     <Combobox.Dropdown
                         hidden={
-                            !withDropdown || disabled || readOnly || atMaxValues
+                            !withDropdown ||
+                            disabled ||
+                            readOnly ||
+                            atMaxValues ||
+                            !hasDropdownContent
                         }
                     >
                         <Combobox.Options>

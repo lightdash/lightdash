@@ -58,6 +58,22 @@ describe('MultiSelectCombobox', () => {
         expect(screen.getAllByRole('option', { hidden: true })).toHaveLength(2);
     });
 
+    it('hides the dropdown when there is nothing to show', () => {
+        renderWithProviders(
+            <MultiSelectCombobox
+                {...defaultProps}
+                options={[]}
+                onCreate={vi.fn()}
+            />,
+        );
+
+        fireEvent.focus(screen.getByRole('textbox'));
+
+        expect(
+            screen.getByRole('listbox').closest('[role="presentation"]'),
+        ).toHaveAttribute('data-hidden', 'true');
+    });
+
     it('does not render a clear button while disabled', () => {
         const onClear = vi.fn();
         const { container } = renderWithProviders(
