@@ -1,4 +1,7 @@
-import { ContentReviewContentType } from '@lightdash/common';
+import {
+    ContentReviewContentType,
+    type ChartSimilarityContext,
+} from '@lightdash/common';
 import { Button, Group, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { type FC } from 'react';
@@ -9,7 +12,8 @@ import SimilarContentPanel from './SimilarContentPanel';
 const SaveChartSuggestions: FC<{
     projectUuid: string | null;
     name: string;
-}> = ({ projectUuid, name }) => {
+    chart?: ChartSimilarityContext;
+}> = ({ projectUuid, name, chart }) => {
     const { isAvailable } = useContentReviewAvailability();
     const [debouncedName] = useDebouncedValue(name.trim(), 300);
     const {
@@ -23,6 +27,7 @@ const SaveChartSuggestions: FC<{
             contentType: ContentReviewContentType.CHART,
             name: debouncedName,
             excludeContentUuid: null,
+            chart,
         },
         isAvailable && projectUuid !== null && debouncedName.length >= 3,
     );

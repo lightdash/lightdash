@@ -145,3 +145,104 @@ it('expands suggestions and labels older snapshots conservatively', async () => 
     await userEvent.click(screen.getByRole('button', { name: 'Show fewer' }));
     expect(screen.getAllByRole('link')).toHaveLength(3);
 });
+
+it('sends query context via POST and keeps AI explanations behind the disclosure', async () => {
+    const chart = {
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: ['orders_revenue'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        },
+    };
+    vi.mocked(lightdashApi).mockResolvedValue([
+        {
+            ...match,
+            matchReason: 'related',
+            explanation: 'Same revenue metric, different time grain.',
+        },
+    ]);
+    renderWithProviders(
+        <SaveChartSuggestions
+            projectUuid="project"
+            name="Sales"
+            chart={chart}
+        />,
+    );
+    const disclosure = await screen.findByRole('button', {
+        name: '1 similar chart found',
+    });
+    expect(
+        screen.queryByText('Same revenue metric, different time grain.'),
+    ).not.toBeInTheDocument();
+    await userEvent.click(disclosure);
+    expect(
+        screen.getByText('Related analysis · in Finance'),
+    ).toBeInTheDocument();
+    expect(
+        screen.getByText('Same revenue metric, different time grain.'),
+    ).toBeInTheDocument();
+    expect(lightdashApi).toHaveBeenCalledWith(
+        expect.objectContaining({
+            url: '/projects/project/review-requests/similar',
+            method: 'POST',
+            body: JSON.stringify({
+                contentType: 'chart',
+                name: 'Sales',
+                excludeContentUuid: null,
+                chart,
+            }),
+            signal: expect.any(AbortSignal),
+        }),
+    );
+});
+
+it('refetches for a changed query even when the name is unchanged', async () => {
+    const chart = {
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: ['orders_revenue'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        },
+    };
+    const { rerender } = renderWithProviders(
+        <SaveChartSuggestions
+            projectUuid="project"
+            name="Sales"
+            chart={chart}
+        />,
+    );
+    await screen.findByText('1 similar chart found');
+    let finish: (value: []) => void;
+    vi.mocked(lightdashApi).mockImplementationOnce(
+        () =>
+            new Promise((resolve) => {
+                finish = resolve as typeof finish;
+            }),
+    );
+    rerender(
+        <SaveChartSuggestions
+            projectUuid="project"
+            name="Sales"
+            chart={{
+                metricQuery: {
+                    ...chart.metricQuery,
+                    metrics: ['orders_count'],
+                },
+            }}
+        />,
+    );
+    expect(screen.queryByText('1 similar chart found')).not.toBeInTheDocument();
+    await waitFor(() => expect(lightdashApi).toHaveBeenCalledTimes(2));
+    finish!([]);
+    await waitFor(() =>
+        expect(screen.queryByRole('status')).not.toBeInTheDocument(),
+    );
+});

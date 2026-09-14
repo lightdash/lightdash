@@ -17,6 +17,7 @@ import {
     ParameterError,
     SpaceMemberRole,
     type ApproveContentReviewRequestBody,
+    type ChartSimilarityContext,
     type ContentReviewGrantedPrincipal,
     type ContentReviewMovedItem,
     type ContentReviewRequest,
@@ -26,6 +27,7 @@ import {
     type ContentReviewSimilarContentItem,
     type CreateContentReviewRequestBody,
     type DirectAccessPrincipalRef,
+    type FindSimilarContentBody,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type RejectContentReviewRequestBody,
@@ -34,6 +36,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account';
 import Logger from '../../../logging/logger';
 import {
     type ContentReviewContentLocation,
@@ -46,6 +49,7 @@ import { type DashboardModel } from '../../../models/DashboardModel/DashboardMod
 import { type DirectAccessModel } from '../../../models/DirectAccessModel';
 import { type GroupsModel } from '../../../models/GroupsModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { type SpaceModel } from '../../../models/SpaceModel';
 import { BaseService } from '../../../services/BaseService';
 import { type DashboardService } from '../../../services/DashboardService/DashboardService';
@@ -53,10 +57,13 @@ import { type DirectAccessFeatureGate } from '../../../services/DirectAccess/Dir
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { type AiService } from '../AiService/AiService';
 import { type ContentReviewNotificationService } from '../ContentReviewNotificationService/ContentReviewNotificationService';
 
 type ContentReviewRequestServiceArguments = {
     analytics: LightdashAnalytics;
+    aiService: AiService;
+    savedChartModel: SavedChartModel;
     contentReviewNotificationService: ContentReviewNotificationService;
     contentReviewRequestModel: ContentReviewRequestModel;
     contentReviewSettingsModel: ContentReviewSettingsModel;
@@ -105,6 +112,10 @@ const toDirectAccessResourceType = (
 export class ContentReviewRequestService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
+    private readonly aiService: AiService;
+
+    private readonly savedChartModel: SavedChartModel;
+
     private readonly contentReviewNotificationService: ContentReviewNotificationService;
 
     private readonly contentReviewRequestModel: ContentReviewRequestModel;
@@ -136,6 +147,8 @@ export class ContentReviewRequestService extends BaseService {
     constructor(args: ContentReviewRequestServiceArguments) {
         super({ serviceName: 'ContentReviewRequestService' });
         this.analytics = args.analytics;
+        this.aiService = args.aiService;
+        this.savedChartModel = args.savedChartModel;
         this.contentReviewNotificationService =
             args.contentReviewNotificationService;
         this.contentReviewRequestModel = args.contentReviewRequestModel;
@@ -689,7 +702,7 @@ export class ContentReviewRequestService extends BaseService {
             );
         }
 
-        const similarContent = await this.findSimilarContent(
+        const similarContent = await this.findSimilarContentWithAi(
             user,
             projectUuid,
             {
@@ -697,6 +710,7 @@ export class ContentReviewRequestService extends BaseService {
                 name: content.name,
                 excludeContentUuid: content.uuid,
             },
+            true,
         );
         const settings = await this.contentReviewSettingsModel.get(projectUuid);
         const principals = await this.resolveReviewerPrincipals(
@@ -1147,6 +1161,136 @@ export class ContentReviewRequestService extends BaseService {
             { ...cancelled, grantedPrincipals: [] },
             settings,
         );
+    }
+
+    async findSimilarContentWithAi(
+        user: SessionUser,
+        projectUuid: string,
+        params: FindSimilarContentBody,
+        cachedOnly = false,
+    ): Promise<ContentReviewSimilarContentItem[]> {
+        await this.getProjectContext(user, projectUuid);
+        let { name } = params;
+        const fallback = () =>
+            this.findSimilarContent(user, projectUuid, { ...params, name });
+        if (params.contentType !== ContentReviewContentType.CHART)
+            return fallback();
+
+        // Saved source context comes from the server, with chart-level access.
+        // Never accept a client's replacement query for a saved chart.
+        let chart: ChartSimilarityContext | undefined = params.chart;
+        if (params.excludeContentUuid) {
+            const source = await this.savedChartService.get(
+                params.excludeContentUuid,
+                fromSession(user),
+                { projectUuid },
+            );
+            chart = source;
+            name = source.name;
+        }
+        if (!chart) return fallback();
+
+        try {
+            const spaces =
+                await this.spaceModel.getSpacesByProjectUuid(projectUuid);
+            const accessibleSpaceUuids =
+                await this.spacePermissionService.getAccessibleSpaceUuids(
+                    'view',
+                    user,
+                    spaces.map((space) => space.uuid),
+                );
+            const candidates =
+                await this.contentReviewRequestModel.findChartSimilarityCandidates(
+                    {
+                        projectUuid,
+                        name,
+                        chart,
+                        excludeContentUuid: params.excludeContentUuid,
+                        accessibleSpaceUuids,
+                    },
+                );
+            if (candidates.length === 0) return await fallback();
+            const context = (
+                value: ChartSimilarityContext,
+            ): ChartSimilarityContext => ({
+                metricQuery: value.metricQuery,
+                parameters: value.parameters,
+                merge: value.merge,
+            });
+            const definitions = await Promise.all(
+                candidates.map(async (candidate) => {
+                    const saved = await this.savedChartModel.get(
+                        candidate.uuid,
+                        undefined,
+                        { projectUuid },
+                    );
+                    // Recheck location after retrieval, including moves during the request.
+                    if (
+                        saved.spaceUuid !== candidate.spaceUuid ||
+                        !accessibleSpaceUuids.includes(saved.spaceUuid)
+                    )
+                        return null;
+                    return {
+                        ...context(saved),
+                        uuid: candidate.uuid,
+                        name: saved.name,
+                    };
+                }),
+            );
+            const visible = definitions.filter(
+                (definition) => definition !== null,
+            );
+            if (visible.length === 0) return await fallback();
+            const matches = await this.aiService.compareCharts(
+                user,
+                projectUuid,
+                {
+                    source: { ...context(chart), name },
+                    candidates: visible,
+                },
+                cachedOnly,
+            );
+            if (matches === undefined) return await fallback();
+            const verified =
+                await this.contentVerificationModel.getByContentUuids(
+                    ContentType.CHART,
+                    visible.map((candidate) => candidate.uuid),
+                );
+            return matches.flatMap((match) => {
+                const candidate = candidates.find((c) => c.uuid === match.uuid);
+                if (
+                    !candidate ||
+                    !visible.some((c) => c.uuid === match.uuid) ||
+                    match.relationship === 'unrelated'
+                )
+                    return [];
+                return [
+                    {
+                        contentType: candidate.contentType,
+                        slug: candidate.slug,
+                        spaceUuid: candidate.spaceUuid,
+                        spaceName: candidate.spaceName,
+                        name: visible.find((c) => c.uuid === candidate.uuid)!
+                            .name,
+                        contentUuid: candidate.uuid,
+                        isVerified: verified.has(candidate.uuid),
+                        score:
+                            match.relationship === 'potential_duplicate'
+                                ? 100
+                                : 75,
+                        matchReason: match.relationship,
+                        explanation: match.explanation,
+                    },
+                ];
+            });
+        } catch (error) {
+            // Ambient AI is advisory. Provider failures must not prevent saving
+            // or submitting a review; preserve the existing name-only fallback.
+            this.logger.debug(
+                `Chart similarity AI unavailable: ${getErrorMessage(error)}`,
+            );
+            return fallback();
+        }
     }
 
     // Rank accessible name matches, with a small preference for verified content.

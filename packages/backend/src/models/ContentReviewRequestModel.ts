@@ -1,7 +1,9 @@
 import {
     ContentReviewContentType,
     ContentReviewRequestStatus,
+    DBFieldTypes,
     NotFoundError,
+    type ChartSimilarityContext,
     type ContentReviewGrantedPrincipal,
     type ContentReviewMovedItem,
     type ContentReviewRequest,
@@ -16,7 +18,10 @@ import {
 } from '../database/entities/contentReviewRequests';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { ProjectTableName } from '../database/entities/projects';
-import { SavedChartsTableName } from '../database/entities/savedCharts';
+import {
+    SavedChartsTableName,
+    SavedChartVersionsTableName,
+} from '../database/entities/savedCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
@@ -620,6 +625,122 @@ export class ContentReviewRequestModel {
                     );
                 }
             });
+    }
+
+    // Two bounded searches: exact query fields first, then name tokens.
+    // These retrieve candidates; the AI comparison judges their relevance.
+    async findChartSimilarityCandidates({
+        name,
+        chart,
+        ...scope
+    }: SimilarContentScope & {
+        name: string;
+        chart: ChartSimilarityContext;
+    }): Promise<
+        Omit<ContentReviewSimilarCandidate, 'score' | 'matchReason'>[]
+    > {
+        if (scope.accessibleSpaceUuids.length === 0) return [];
+        const latestVersion = this.database(SavedChartVersionsTableName)
+            .select('saved_queries_version_id')
+            .where(
+                'saved_query_id',
+                this.database.ref('content.saved_query_id'),
+            )
+            .orderBy('created_at', 'desc')
+            .orderBy('saved_queries_version_id', 'desc')
+            .limit(1);
+        const query = this.getSimilarityContentQuery(
+            SIMILAR_SOURCES.chart,
+            scope,
+        )
+            .join(
+                { version: SavedChartVersionsTableName },
+                'version.saved_query_id',
+                'content.saved_query_id',
+            )
+            .where('version.saved_queries_version_id', latestVersion);
+        const fieldMatches = this.database(
+            'saved_queries_version_fields as fields',
+        )
+            .where(
+                'fields.saved_queries_version_id',
+                this.database.ref('version.saved_queries_version_id'),
+            )
+            .andWhere((fields) => {
+                void fields
+                    .where((metrics) => {
+                        void metrics
+                            .where('fields.field_type', DBFieldTypes.METRIC)
+                            .whereIn(
+                                'fields.name',
+                                chart.metricQuery.metrics.slice(0, 100),
+                            );
+                    })
+                    .orWhere((dimensions) => {
+                        void dimensions
+                            .where('fields.field_type', DBFieldTypes.DIMENSION)
+                            .whereIn(
+                                'fields.name',
+                                chart.metricQuery.dimensions.slice(0, 100),
+                            );
+                    });
+            });
+        const words = [
+            ...new Set(
+                name
+                    .normalize('NFKC')
+                    .toLowerCase()
+                    .split(/[^\p{L}\p{N}]+/u)
+                    .filter(Boolean),
+            ),
+        ].slice(0, 20);
+        const [fieldCandidates, nameCandidates] = await Promise.all([
+            query
+                .clone()
+                .select({ fieldHits: fieldMatches.clone().count('*') })
+                .whereExists(fieldMatches.clone().select('fields.name'))
+                .orderBy('fieldHits', 'desc')
+                .orderBy('content.saved_query_uuid')
+                .limit(12),
+            words.length === 0
+                ? []
+                : query
+                      .clone()
+                      .where((names) => {
+                          words.forEach((word) => {
+                              void names.orWhereILike(
+                                  'content.name',
+                                  `%${escapeLikeWildcards(word)}%`,
+                              );
+                          });
+                      })
+                      .orderBy('content.name')
+                      .orderBy('content.saved_query_uuid')
+                      .limit(12),
+        ]);
+        return [
+            ...new Map(
+                [...fieldCandidates, ...nameCandidates].map(
+                    ({
+                        uuid,
+                        name: candidateName,
+                        slug,
+                        spaceUuid,
+                        spaceName,
+                    }) => [
+                        uuid,
+                        {
+                            uuid,
+                            name: candidateName,
+                            slug,
+                            spaceUuid,
+                            spaceName,
+                            contentType: ContentReviewContentType.CHART,
+                        },
+                    ],
+                ),
+            ).values(),
+        ].slice(0, 12);
     }
 
     // Conservative fallback when AI is unavailable: case-insensitive full names.

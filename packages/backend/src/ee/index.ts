@@ -334,6 +334,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             contentReviewRequestService: ({ models, repository, context }) =>
                 new ContentReviewRequestService({
+                    aiService: repository.getAiService<AiService>(),
+                    savedChartModel: models.getSavedChartModel(),
                     analytics: context.lightdashAnalytics,
                     contentReviewNotificationService:
                         repository.getContentReviewNotificationService<ContentReviewNotificationService>(),

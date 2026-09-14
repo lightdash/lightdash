@@ -73,7 +73,8 @@ const SimilarContentPanel: FC<Props> = ({
                                 key={item.contentUuid}
                                 contentType={item.contentType}
                                 name={item.name}
-                                meta={`${item.matchReason === 'same_name' ? 'Same name' : 'Similar name'} · in ${item.spaceName}`}
+                                meta={`${item.matchReason === 'potential_duplicate' ? 'Potential duplicate' : item.matchReason === 'related' ? 'Related analysis' : item.matchReason === 'same_name' ? 'Same name' : 'Similar name'} · in ${item.spaceName}`}
+                                description={item.explanation}
                                 href={getContentHref(
                                     projectUuid,
                                     item.contentType,

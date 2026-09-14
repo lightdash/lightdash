@@ -11,6 +11,7 @@ import {
     type ContentReviewContentType,
     type ContentReviewRequestStatus,
     type CreateContentReviewRequestBody,
+    type FindSimilarContentBody,
     type RejectContentReviewRequestBody,
     type UpdateContentReviewSettings,
     type UUID,
@@ -128,6 +129,27 @@ export class ContentReviewRequestController extends BaseController {
                     name,
                     excludeContentUuid: excludeContentUuid ?? null,
                 },
+            ),
+        };
+    }
+
+    /** @summary Find related charts using names and query definitions */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/similar')
+    @OperationId('compareSimilarContentForReview')
+    async compareSimilar(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: FindSimilarContentBody,
+    ): Promise<ApiContentReviewSimilarContentResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().findSimilarContentWithAi(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
             ),
         };
     }

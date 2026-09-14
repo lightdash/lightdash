@@ -15,6 +15,7 @@ type Props = {
     contentType: ContentReviewContentType;
     name: string;
     meta?: string;
+    description?: string;
     href?: string;
     onClick?: () => void;
     isVerified?: boolean;
@@ -27,6 +28,7 @@ const ContentReviewItemRow: FC<Props> = ({
     contentType,
     name,
     meta,
+    description,
     href,
     onClick,
     isVerified = false,
@@ -76,6 +78,11 @@ const ContentReviewItemRow: FC<Props> = ({
                     <Text fz="xs" c="dimmed" lineClamp={1}>
                         {metaLabel}
                     </Text>
+                    {description && (
+                        <Text fz="xs" c="dimmed">
+                            {description}
+                        </Text>
+                    )}
                 </Stack>
             )}
             {isVerified && (

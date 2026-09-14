@@ -213,6 +213,11 @@ export const SaveToDashboard: FC<Props> = ({
                         {...form.getInputProps('description')}
                     />
                     <SaveChartSuggestions
+                        chart={{
+                            metricQuery: savedData.metricQuery,
+                            parameters: savedData.parameters,
+                            merge: savedData.merge,
+                        }}
                         projectUuid={projectUuid ?? null}
                         name={form.values.name ?? ''}
                     />

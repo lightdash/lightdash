@@ -3,6 +3,7 @@ import {
     type DirectAccessResourceType,
 } from './directAccess';
 import { type KnexPaginatedData } from './knex-paginate';
+import { type SavedChart } from './savedCharts';
 
 // Review-specific so SQL charts can be reviewed without widening the
 // global content type
@@ -36,7 +37,25 @@ export type ContentReviewSimilarContentItem = {
     isVerified: boolean;
     score: number;
     // Optional for review snapshots created before match explanations.
-    matchReason?: 'same_name' | 'similar_name';
+    matchReason?:
+        | 'same_name'
+        | 'similar_name'
+        | 'potential_duplicate'
+        | 'related';
+    explanation?: string;
+};
+
+// Only query context, never warehouse results or credentials.
+export type ChartSimilarityContext = Pick<
+    SavedChart,
+    'metricQuery' | 'parameters' | 'merge'
+>;
+
+export type FindSimilarContentBody = {
+    contentType: ContentReviewContentType;
+    name: string;
+    excludeContentUuid: string | null;
+    chart?: ChartSimilarityContext;
 };
 
 export type ContentReviewMovedItem = {
