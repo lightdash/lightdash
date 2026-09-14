@@ -18,8 +18,8 @@ overrides:
   node-forge: 1.4.0
   'glob@>=10.2.0 <10.5.0': 10.5.0
   jws: 4.0.1
-  qs: 6.15.2
-  hono: 4.12.27
+  qs: 6.16.0
+  hono: 4.13.5
   tar: 7.5.21
   eslint: 8.57.1
   canvas: 3.2.1
@@ -40,22 +40,22 @@ overrides:
 
 minimumReleaseAge: 4320 # 3 days — supply chain protection (matches .npmrc min-release-age)
 minimumReleaseAgeExclude:
-  # Renovate security update: hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27
-  - hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27
+  # Renovate security update: hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27 || 4.13.5
+  - hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27 || 4.13.5
   # Renovate security update: nunjucks@3.2.4
   - nunjucks@3.2.4
   # Renovate security update: next@16.2.6
   - next@16.2.6
-  # Renovate security update: qs@6.14.2 || 6.15.2
-  - qs@6.14.2 || 6.15.2
+  # Renovate security update: qs@6.14.2 || 6.15.2 || 6.16.0
+  - qs@6.14.2 || 6.15.2 || 6.16.0
   # Renovate security update: postcss@8.5.10 || 8.5.18 || 8.5.23
   - postcss@8.5.10 || 8.5.18 || 8.5.23
   # Renovate security update: i18next-http-backend@3.0.5
   - i18next-http-backend@3.0.5
   # Renovate security update: simple-git@3.36.0
   - simple-git@3.36.0
-  # Renovate security update: dompurify@3.4.0
-  - dompurify@3.4.0
+  # Renovate security update: dompurify@3.4.0 || 3.4.13
+  - dompurify@3.4.0 || 3.4.13
   # Renovate security update: yaml@2.8.3
   - yaml@2.8.3
   # Renovate security update: systeminformation@5.31.6
@@ -66,8 +66,8 @@ minimumReleaseAgeExclude:
   - uuid@11.1.1
   # Renovate security update: pm2@7.0.0
   - pm2@7.0.0
-  # Renovate security update: sanitize-html@2.17.4 || 2.17.5
-  - sanitize-html@2.17.4 || 2.17.5
+  # Renovate security update: sanitize-html@2.17.4 || 2.17.5 || 2.17.7
+  - sanitize-html@2.17.4 || 2.17.5 || 2.17.7
   # Renovate security update: nodemailer@8.0.5 || 9.0.1 || 9.1.1
   - nodemailer@8.0.5 || 9.0.1 || 9.1.1
   # Renovate security update: @tiptap/extension-link@2.10.4

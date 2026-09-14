@@ -12,7 +12,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../api', () => ({ lightdashApi: mocks.lightdashApi }));
-vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.useQuery }));
+vi.mock('@tanstack/react-query', () => ({
+    useQuery: mocks.useQuery,
+    useQueryClient: () => ({}),
+}));
 
 type CapturedQuery = {
     queryKey: unknown[];
@@ -64,6 +67,7 @@ describe('useDataAppVizRender', () => {
             'viz-1',
             'registered',
             'chart-1',
+            undefined,
             undefined,
         ]);
         expect(query.enabled).toBe(true);
