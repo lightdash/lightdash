@@ -1,3 +1,18 @@
+# [2.210.0](https://github.com/lightdash/lightdash/compare/2.209.2...2.210.0) (2026-09-14)
+
+
+### Bug Fixes
+
+* hide agent selection and default controls in AI embeds ([#29155](https://github.com/lightdash/lightdash/issues/29155)) ([d253c46](https://github.com/lightdash/lightdash/commit/d253c466703050af1dfea8f946e6fcdc1966147d)), closes [#29079](https://github.com/lightdash/lightdash/issues/29079)
+
+
+### Features
+
+* **ai-agent:** full data app actions menu in thread preview panel ([#29171](https://github.com/lightdash/lightdash/issues/29171)) ([7741411](https://github.com/lightdash/lightdash/commit/7741411b7716dc41623f307be47c8552fd2db78a)), closes [#29170](https://github.com/lightdash/lightdash/issues/29170) [#29162](https://github.com/lightdash/lightdash/issues/29162) [#29170](https://github.com/lightdash/lightdash/issues/29170) [#29162](https://github.com/lightdash/lightdash/issues/29162)
+* **ai-agent:** upgrade app and thumbnails from thread preview panel ([#29162](https://github.com/lightdash/lightdash/issues/29162)) ([3a4fe41](https://github.com/lightdash/lightdash/commit/3a4fe411961c2c480abfde2c6ff700dbd3406777)), closes [#29170](https://github.com/lightdash/lightdash/issues/29170) [#29171](https://github.com/lightdash/lightdash/issues/29171)
+* chart type gallery and picker follow the usage gate (frontend) ([#29095](https://github.com/lightdash/lightdash/issues/29095)) ([8d520d5](https://github.com/lightdash/lightdash/commit/8d520d58076ebba5a92e2408e1956ebfd77ae72c))
+* split chart type usage gating from the data apps flag (backend) ([#29094](https://github.com/lightdash/lightdash/issues/29094)) ([6b34e3d](https://github.com/lightdash/lightdash/commit/6b34e3d5b5214ba8b96ecd2c87c6f310ac9b3e11))
+
 ## [2.209.2](https://github.com/lightdash/lightdash/compare/2.209.1...2.209.2) (2026-09-14)
 
 
