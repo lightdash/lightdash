@@ -1,3 +1,10 @@
+## [2.206.1](https://github.com/lightdash/lightdash/compare/2.206.0...2.206.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **embed:** remove nested data app scrollbars ([#29139](https://github.com/lightdash/lightdash/issues/29139)) ([ddbb89c](https://github.com/lightdash/lightdash/commit/ddbb89ce8cecb16ef304c87df6f6f29e4f410ca4))
+
 # [2.206.0](https://github.com/lightdash/lightdash/compare/2.205.2...2.206.0) (2026-09-14)
 
 
