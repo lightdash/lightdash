@@ -1,4 +1,5 @@
 import { MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type PropsWithChildren } from 'react';
@@ -183,20 +184,20 @@ vi.mock('./Terminal', () => ({
         value,
         onValueChange,
         onRun,
-        running,
+        busy,
         disabled,
         output,
     }: {
         value: string;
         onValueChange: (value: string) => void;
         onRun: () => void;
-        running: boolean;
+        busy: boolean;
         disabled: boolean;
         output: { error: string | null; chunks: { text: string }[] };
     }) => (
         <div
             data-testid="terminal"
-            data-running={String(running)}
+            data-busy={String(busy)}
             data-disabled={String(disabled)}
         >
             <input
@@ -217,14 +218,22 @@ vi.mock('./Terminal', () => ({
 
 import LearnWorkspacePage from './LearnWorkspacePage';
 
-const renderPage = () =>
+const renderPage = () => {
+    const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+    });
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
     render(
         <MemoryRouter initialEntries={['/projects/copy-1/learn/workspace']}>
-            <MantineProvider env="test">
-                <LearnWorkspacePage />
-            </MantineProvider>
+            <QueryClientProvider client={queryClient}>
+                <MantineProvider env="test">
+                    <LearnWorkspacePage />
+                </MantineProvider>
+            </QueryClientProvider>
         </MemoryRouter>,
     );
+    return { invalidateQueries };
+};
 
 const selectOrders = async (user: ReturnType<typeof userEvent.setup>) => {
     state.file.data = {
@@ -573,9 +582,46 @@ describe('LearnWorkspacePage', () => {
             ),
         );
         expect(screen.getByTestId('terminal')).toHaveAttribute(
-            'data-running',
+            'data-busy',
             'true',
         );
+    });
+
+    it('is busy while the save in front of a run is still in flight', () => {
+        state.saveIsLoading = true;
+        renderPage();
+
+        expect(screen.getByTestId('terminal')).toHaveAttribute(
+            'data-busy',
+            'true',
+        );
+    });
+
+    it('drops the cached explores once a lightdash deploy has finished', async () => {
+        const user = userEvent.setup();
+        const { invalidateQueries } = renderPage();
+
+        await user.type(screen.getByLabelText('Command'), 'lightdash deploy');
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(invalidateQueries).toHaveBeenCalledWith(['tables']),
+        );
+    });
+
+    it('leaves the cached explores alone when the finished command was not a deploy', async () => {
+        const user = userEvent.setup();
+        const { invalidateQueries } = renderPage();
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(screen.getByTestId('terminal-chunks')).toHaveTextContent(
+                'command-1 output',
+            ),
+        );
+        expect(invalidateQueries).not.toHaveBeenCalled();
     });
 
     it('empties the pane of the finished command when the next run is refused', async () => {

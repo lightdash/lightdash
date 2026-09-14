@@ -75,7 +75,12 @@ type TerminalProps = {
     value: string;
     onValueChange: (value: string) => void;
     onRun: () => void;
-    running: boolean;
+    /**
+     * A command is on its way, running, or the save in front of it is still
+     * in flight: the terminal is not ready for another run, and a
+     * walkthrough waiting on this step must keep waiting.
+     */
+    busy: boolean;
     disabled: boolean;
     output: TerminalOutput;
 };
@@ -91,7 +96,7 @@ const Terminal: FC<TerminalProps> = ({
     value,
     onValueChange,
     onRun,
-    running,
+    busy,
     disabled,
     output,
 }) => {
@@ -115,7 +120,7 @@ const Terminal: FC<TerminalProps> = ({
     };
 
     const isValueEmpty = value.trim().length === 0;
-    const runDisabled = disabled || running || isValueEmpty;
+    const runDisabled = disabled || busy || isValueEmpty;
 
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
         if (event.key !== 'Enter') return;
@@ -174,7 +179,7 @@ const Terminal: FC<TerminalProps> = ({
                         key={command}
                         variant="default"
                         size="compact-xs"
-                        disabled={disabled || running}
+                        disabled={disabled || busy}
                         onClick={() => onValueChange(command)}
                     >
                         {command}
@@ -184,10 +189,10 @@ const Terminal: FC<TerminalProps> = ({
             <Box
                 className={styles.terminalOutput}
                 data-learn-terminal-output
-                data-tour-busy={running ? 'true' : undefined}
-                data-tour-anchor={running ? 'terminal-running' : undefined}
+                data-tour-busy={busy ? 'true' : undefined}
+                data-tour-anchor={busy ? 'terminal-running' : undefined}
                 data-tour-hint={
-                    running ? 'Wait for the command to finish' : undefined
+                    busy ? 'Wait for the command to finish' : undefined
                 }
             >
                 <ScrollArea

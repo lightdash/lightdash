@@ -1,4 +1,7 @@
-import { type ApiError } from '@lightdash/common';
+import {
+    type ApiError,
+    type LearnSandboxCommandRequest,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -8,7 +11,8 @@ import {
     ScrollArea,
     Text,
 } from '@mantine/core';
-import { useCallback, useRef, useState, type FC } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { Link, Navigate } from 'react-router';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import ResizableSplitter from '../../components/common/ResizableSplitter';
@@ -27,6 +31,12 @@ import Terminal from './Terminal';
 import { useWorkspaceAccess } from './useWorkspaceAccess';
 import WorkspaceEditor from './WorkspaceEditor';
 
+/**
+ * The key both the explore list (`useExplores`) and a single explore
+ * (`useExplore`) are cached under.
+ */
+const EXPLORE_QUERY_KEY = ['tables'];
+
 type WorkspaceProps = {
     projectUuid: string;
     trainingProjectUuid: string;
@@ -44,6 +54,7 @@ const Workspace: FC<WorkspaceProps> = ({
 }) => {
     const { showToastApiError } = useToaster();
     const route = useOptionalProjectRoute();
+    const queryClient = useQueryClient();
 
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -51,6 +62,11 @@ const Workspace: FC<WorkspaceProps> = ({
     const [activeCommandUuid, setActiveCommandUuid] = useState<string | null>(
         null,
     );
+    // What the attached command is, when this page is the one that started
+    // it. Null for a command it merely attached to (the 409 path), which it
+    // cannot name.
+    const [activeCommand, setActiveCommand] =
+        useState<LearnSandboxCommandRequest | null>(null);
     // Errors the page itself raises (a rejected command, a command that never
     // left the browser); the poller's own errors arrive on `output.error`.
     const [terminalError, setTerminalError] = useState<string | null>(null);
@@ -91,8 +107,26 @@ const Workspace: FC<WorkspaceProps> = ({
         activeCommandUuid !== null &&
         output.status === null &&
         output.error === null;
-    const isRunning =
-        output.isActive || runCommand.isLoading || isAwaitingFirstPoll;
+    // Busy for the walkthrough as well as the controls: from the click that
+    // starts a run (the save in front of it counts) until the command it
+    // started has reported back.
+    const isBusy =
+        output.isActive ||
+        runCommand.isLoading ||
+        isAwaitingFirstPoll ||
+        saveFile.isLoading;
+
+    // A deploy rewrites the project's explores, and the learner opens the
+    // new field straight afterwards: a cached explore list would not have it.
+    useEffect(() => {
+        if (output.status !== 'done') return;
+        if (
+            activeCommand?.tool !== 'lightdash' ||
+            activeCommand.subcommand !== 'deploy'
+        )
+            return;
+        void queryClient.invalidateQueries(EXPLORE_QUERY_KEY);
+    }, [output.status, activeCommand, queryClient]);
 
     const handleChange = useCallback(
         (content: string) => {
@@ -163,9 +197,11 @@ const Workspace: FC<WorkspaceProps> = ({
         // pane empties: a rejected run must not read as a footnote under the
         // previous command's output and status.
         setActiveCommandUuid(null);
+        setActiveCommand(null);
         try {
             const { commandUuid } = await runCommand.mutateAsync(parsed);
             setActiveCommandUuid(commandUuid);
+            setActiveCommand(parsed);
         } catch (e) {
             const message =
                 (e as ApiError).error?.message ?? 'Could not run that command';
@@ -302,7 +338,7 @@ const Workspace: FC<WorkspaceProps> = ({
                                 value={commandInput}
                                 onValueChange={setCommandInput}
                                 onRun={() => void handleRun()}
-                                running={isRunning}
+                                busy={isBusy}
                                 disabled={saveFile.isLoading}
                                 output={{
                                     ...output,
