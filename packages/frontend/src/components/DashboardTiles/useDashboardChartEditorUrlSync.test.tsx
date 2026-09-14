@@ -78,7 +78,7 @@ const chartVersionFromUrl = () => {
 };
 
 describe('useDashboardChartEditorUrlSync', () => {
-    it('preserves large chart styling when an edit is carried in the dashboard URL', async () => {
+    it('trims large chart styling like the Explorer URL while preserving query edits', async () => {
         const user = userEvent.setup();
         const series = Array.from({ length: 20 }, (_, index) => ({
             encode: {
@@ -102,7 +102,10 @@ describe('useDashboardChartEditorUrlSync', () => {
 
         await user.click(screen.getByRole('button', { name: 'Edit' }));
 
-        expect(chartVersionFromUrl().chartConfig).toEqual(chart.chartConfig);
+        expect(chartVersionFromUrl().chartConfig).toEqual({
+            type: ChartType.CARTESIAN,
+            config: { layout: {}, eChartsConfig: {} },
+        });
         expect(chartVersionFromUrl().metricQuery.limit).toBe(25);
     });
 
