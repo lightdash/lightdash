@@ -150,7 +150,14 @@ const collectUsage = (code, { namespaceOnlyTableNames }) => {
 const checkAgainstPeers = ({ label, usage, peers, verifyExists }) => {
     for (const pkg of ['react', 'react-dom']) {
         const range = peers[pkg];
-        if (!range) continue;
+        if (!range) {
+            if (usage[pkg].size > 0) {
+                errors.push(
+                    `${label} uses ${pkg} but does not declare it as a peer dependency.`,
+                );
+            }
+            continue;
+        }
         const floor = rangeFloor(range);
         const tooNew = [...usage[pkg]]
             .filter((name) => name in INTRODUCED_IN[pkg])
@@ -239,7 +246,10 @@ if (errors.length > 0) {
     process.exit(1);
 }
 
+const reactFloor = (peers) =>
+    peers.react ? rangeFloor(peers.react) : 'none';
+
 console.log(
     `SDK react peer check passed against react@${installed.react.version}: ` +
-        `@lightdash/sdk floor ${rangeFloor(sdkPeers.react)}, @lightdash/query-sdk floor ${rangeFloor(querySdkPeers.react)}.`,
+        `@lightdash/sdk floor ${reactFloor(sdkPeers)}, @lightdash/query-sdk floor ${reactFloor(querySdkPeers)}.`,
 );
