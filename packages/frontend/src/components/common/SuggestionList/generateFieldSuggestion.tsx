@@ -12,6 +12,7 @@ import { Group, Text } from '@mantine/core';
 import { type MentionOptions } from '@tiptap/extension-mention';
 import FieldIcon from '../Filters/FieldIcon';
 import { PolymorphicGroupButton } from '../PolymorphicGroupButton';
+import { createFieldSuggestionMatch } from './findFieldSuggestionMatch';
 import { generateSuggestion } from './generateSuggestion';
 import suggestionStyles from './SuggestionList.module.css';
 
@@ -47,7 +48,7 @@ const getFieldSuggestionGroup = (
 export const sortFieldSuggestions = (
     fields: FieldSuggestionItem[],
 ): FieldSuggestionItem[] =>
-    [...fields].sort(
+    fields.toSorted(
         (a, b) =>
             GROUP_ORDER.indexOf(getFieldSuggestionGroup(a.item)) -
             GROUP_ORDER.indexOf(getFieldSuggestionGroup(b.item)),
@@ -55,45 +56,53 @@ export const sortFieldSuggestions = (
 
 export const generateFieldSuggestion = (
     fields: FieldSuggestionItem[],
-): MentionOptions['suggestion'] =>
-    generateSuggestion({
-        items: sortFieldSuggestions(fields),
-        command: ({ editor, range, props }) => {
-            const suggestion = props as FieldSuggestionItem;
-            editor
-                .chain()
-                .focus()
-                .insertContentAt(range, [
-                    {
-                        type: 'mention',
-                        attrs: {
-                            id: suggestion.id,
-                            label: suggestion.label,
+): MentionOptions['suggestion'] => {
+    const sortedFields = sortFieldSuggestions(fields);
+    return {
+        ...generateSuggestion({
+            items: sortedFields,
+            command: ({ editor, range, props }) => {
+                const suggestion = props as FieldSuggestionItem;
+                editor
+                    .chain()
+                    .focus()
+                    .insertContentAt(range, [
+                        {
+                            type: 'mention',
+                            attrs: {
+                                id: suggestion.id,
+                                label: suggestion.label,
+                            },
                         },
-                    },
-                    { type: 'text', text: ' ' },
-                ])
-                .run();
-        },
-        getGroupKey: (item) =>
-            getFieldSuggestionGroup((item as FieldSuggestionItem).item),
-        groupLabels: FIELD_SUGGESTION_GROUP_LABELS,
-        renderItem: (item, isSelected, onClick) => (
-            <PolymorphicGroupButton
-                onClick={onClick}
-                className={suggestionStyles.suggestionItem}
-                data-selected={isSelected}
-            >
-                <Group wrap="nowrap" gap="xs">
-                    <FieldIcon
-                        item={(item as FieldSuggestionItem).item}
-                        size="sm"
-                    />
-                    <Text size="xs" truncate maw={500} fw={400}>
-                        {item.label}
-                    </Text>
-                </Group>
-            </PolymorphicGroupButton>
+                        { type: 'text', text: ' ' },
+                    ])
+                    .run();
+            },
+            getGroupKey: (item) =>
+                getFieldSuggestionGroup((item as FieldSuggestionItem).item),
+            groupLabels: FIELD_SUGGESTION_GROUP_LABELS,
+            renderItem: (item, isSelected, onClick) => (
+                <PolymorphicGroupButton
+                    onClick={onClick}
+                    className={suggestionStyles.suggestionItem}
+                    data-selected={isSelected}
+                >
+                    <Group wrap="nowrap" gap="xs">
+                        <FieldIcon
+                            item={(item as FieldSuggestionItem).item}
+                            size="sm"
+                        />
+                        <Text size="xs" truncate maw={500} fw={400}>
+                            {item.label}
+                        </Text>
+                    </Group>
+                </PolymorphicGroupButton>
+            ),
+            emptyMessage: 'No fields found',
+        }),
+        allowSpaces: true,
+        findSuggestionMatch: createFieldSuggestionMatch(
+            sortedFields.map((field) => field.label),
         ),
-        emptyMessage: 'No fields found',
-    });
+    };
+};
