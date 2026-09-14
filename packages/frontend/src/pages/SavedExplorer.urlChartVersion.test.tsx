@@ -35,6 +35,7 @@ vi.mock('../components/Explorer', async () => {
                     {unsavedChartVersion.metricQuery.limit}|
                     {String(hasUnsavedChanges)}|{paletteUuid}
                 </div>
+                <div data-testid="search">{search}</div>
                 <button
                     type="button"
                     onClick={() =>
@@ -206,5 +207,23 @@ describe('SavedExplorer with an unsaved chart version in the url', () => {
         expect(screen.getByTestId('session')).toHaveTextContent(
             '25|true|staged-palette',
         );
+    });
+
+    it('clears the param once applied and keeps the edits', async () => {
+        renderSavedExplorer(searchWithChartVersion(urlChartVersion), 'edit');
+
+        await waitFor(() =>
+            expect(screen.getByTestId('session')).toHaveTextContent('25|true'),
+        );
+
+        await waitFor(() =>
+            expect(screen.getByTestId('search')).not.toHaveTextContent(
+                'create_saved_chart_version',
+            ),
+        );
+        expect(screen.getByTestId('search')).toHaveTextContent(
+            'fromDashboard=dashboard-uuid',
+        );
+        expect(screen.getByTestId('session')).toHaveTextContent('25|true');
     });
 });

@@ -1,8 +1,16 @@
 import { Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { lazy, memo, Suspense, useEffect, useMemo, useState } from 'react';
+import {
+    lazy,
+    memo,
+    Suspense,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { Provider } from 'react-redux';
-import { useLocation, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import ChangeChartExploreModal from '../components/common/modal/ChangeChartExploreModal';
 import Page from '../components/common/Page/Page';
@@ -101,13 +109,15 @@ const SavedExplorer = () => {
     // Create store once with useState
     const [store] = useState(() => createExplorerStore());
 
-    // Edits handed over from the in-dashboard chart editor. Only the reset
-    // that builds a chart's session applies them, so a refetch cannot wipe
-    // them. Keyed on the one param, so other search writes on this page (the
-    // merge provider, deep-link cleanup) do not re-run that reset either.
-    const { search } = useLocation();
-    const urlChartVersionParam = new URLSearchParams(search).get(
-        'create_saved_chart_version',
+    // Edits handed over from the in-dashboard chart editor, read once so other
+    // search writes do not re-run the reset that applies them. Applying them
+    // also strips the param, so a reload does not reapply stale edits.
+    const location = useLocation();
+    const navigate = useNavigate();
+    const locationRef = useRef(location);
+    locationRef.current = location;
+    const [urlChartVersionParam] = useState(() =>
+        new URLSearchParams(location.search).get('create_saved_chart_version'),
     );
     const urlChartVersion = useMemo(
         () =>
@@ -135,6 +145,20 @@ const SavedExplorer = () => {
                 unsavedChartVersionOverride: urlChartVersion,
             });
             store.dispatch(explorerActions.reset(initialState));
+
+            if (urlChartVersion) {
+                const remainingSearch = new URLSearchParams(
+                    locationRef.current.search,
+                );
+                remainingSearch.delete('create_saved_chart_version');
+                void navigate(
+                    {
+                        pathname: locationRef.current.pathname,
+                        search: remainingSearch.toString(),
+                    },
+                    { replace: true },
+                );
+            }
         } else {
             store.dispatch(explorerActions.setSavedChart(data));
         }
@@ -144,6 +168,7 @@ const SavedExplorer = () => {
         isEditMode,
         health.data?.query.defaultLimit,
         urlChartVersion,
+        navigate,
     ]);
 
     useEffect(() => {
