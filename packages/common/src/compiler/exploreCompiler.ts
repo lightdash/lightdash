@@ -1627,11 +1627,14 @@ export class ExploreCompiler {
         currentTable: string,
         fieldContext?: FieldContext,
     ): { sql: string; tablesReferences: Set<string> } {
-        // Reference to current table
+        // Reference to current table; for an unnested table that is the element
+        // reference the warehouse gave it, not necessarily the bare alias.
         if (ref === 'TABLE') {
             const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
             return {
-                sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
+                sql:
+                    tables[currentTable]?.nestedFrom?.elementSql ??
+                    `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
                 tablesReferences: new Set([currentTable]),
             };
         }
@@ -1689,11 +1692,14 @@ export class ExploreCompiler {
         compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
         compiledTimestampFilters?: CompiledMetricTimestampFilter[];
     } {
-        // Reference to current table
+        // Reference to current table; for an unnested table that is the element
+        // reference the warehouse gave it, not necessarily the bare alias.
         if (ref === 'TABLE') {
             const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
             return {
-                sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
+                sql:
+                    tables[currentTable]?.nestedFrom?.elementSql ??
+                    `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
                 tablesReferences: new Set([currentTable]),
             };
         }

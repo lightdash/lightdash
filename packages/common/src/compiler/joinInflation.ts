@@ -8,11 +8,17 @@ import {
     type Explore,
 } from '../types/explore';
 import { MetricType } from '../types/field';
+import { type NestedTableProvenance } from '../types/table';
 import { parseAllReferences } from './exploreCompiler';
 
 export type FindTablesWithMetricInflationArgs = {
     tables: {
-        [tableName: string]: Pick<CompiledTable, 'primaryKey' | 'nestedFrom'>;
+        [tableName: string]: Pick<CompiledTable, 'primaryKey'> & {
+            nestedFrom?: Pick<
+                NestedTableProvenance,
+                'parentTable' | 'columnPath'
+            >;
+        };
     };
     /** Every join the explore defines. */
     possibleJoins: Explore['joinedTables'];

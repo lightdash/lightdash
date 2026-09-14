@@ -3,6 +3,8 @@ import {
     Metric,
     SupportedDbtAdapter,
     TimeIntervalUnit,
+    UnnestSql,
+    UnnestSqlArgs,
     WarehouseSqlBuilder,
     WarehouseTypes,
     WeekDay,
@@ -138,5 +140,10 @@ export default abstract class WarehouseBaseSqlBuilder implements WarehouseSqlBui
             return `ARRAY_AGG(${expression} ORDER BY ${orderBy})`;
         }
         return `ARRAY_AGG(${expression})`;
+    }
+
+    // Repeated columns stay opaque unless the warehouse can unnest them.
+    getUnnestSql(_args: UnnestSqlArgs): UnnestSql | null {
+        return null;
     }
 }
