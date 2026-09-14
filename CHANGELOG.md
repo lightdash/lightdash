@@ -1,3 +1,10 @@
+# [2.205.0](https://github.com/lightdash/lightdash/compare/2.204.0...2.205.0) (2026-09-14)
+
+
+### Features
+
+* rename dashboard URL slugs with historical aliases ([#29124](https://github.com/lightdash/lightdash/issues/29124)) ([4313b8d](https://github.com/lightdash/lightdash/commit/4313b8d9bb1e5df2de7df5cb76859ff6ac9e2fcc)), closes [#29123](https://github.com/lightdash/lightdash/issues/29123) [#14578](https://github.com/lightdash/lightdash/issues/14578) [#29091](https://github.com/lightdash/lightdash/issues/29091)
+
 # [2.204.0](https://github.com/lightdash/lightdash/compare/2.203.0...2.204.0) (2026-09-14)
 
 
