@@ -1,3 +1,17 @@
+## [2.211.2](https://github.com/lightdash/lightdash/compare/2.211.1...2.211.2) (2026-09-14)
+
+
+### Bug Fixes
+
+* **mcp:** compress server instructions ([#29113](https://github.com/lightdash/lightdash/issues/29113)) ([a05689f](https://github.com/lightdash/lightdash/commit/a05689f518b8adaf7230c11bfad2a0a9ba53ee35))
+* **mcp:** extract filter expression skill ([#29107](https://github.com/lightdash/lightdash/issues/29107)) ([7d7c8dc](https://github.com/lightdash/lightdash/commit/7d7c8dc530e267c1e6b9e8feed17946dd3ed5bbd))
+* **mcp:** guard server instruction length ([#29114](https://github.com/lightdash/lightdash/issues/29114)) ([e4547e9](https://github.com/lightdash/lightdash/commit/e4547e93de837cb1908a91b00ee618c37faeb4ce))
+* **mcp:** localize custom-metric guidance ([#29112](https://github.com/lightdash/lightdash/issues/29112)) ([ad90201](https://github.com/lightdash/lightdash/commit/ad90201912cfa0da80c6af4d9346cb83cc1d1440))
+* **mcp:** localize pagination guidance ([#29110](https://github.com/lightdash/lightdash/issues/29110)) ([120ec95](https://github.com/lightdash/lightdash/commit/120ec9580bdf9f9db70db9e06865c7e1c246b2d3))
+* **mcp:** localize time-filter guidance ([#29111](https://github.com/lightdash/lightdash/issues/29111)) ([d2149ae](https://github.com/lightdash/lightdash/commit/d2149ae857aefde718e9ab6f6b67f742b766643e))
+* **mcp:** localize workflow guidance ([#29108](https://github.com/lightdash/lightdash/issues/29108)) ([c14931c](https://github.com/lightdash/lightdash/commit/c14931c9c416f2ce942356d3010d9d16b530c39c))
+* **mcp:** relocate calculation and chart guidance ([#29109](https://github.com/lightdash/lightdash/issues/29109)) ([ee9d950](https://github.com/lightdash/lightdash/commit/ee9d950faa129e2ae4923583d51528315eba639d))
+
 ## [2.211.1](https://github.com/lightdash/lightdash/compare/2.211.0...2.211.1) (2026-09-14)
 
 
