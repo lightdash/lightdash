@@ -14,11 +14,23 @@ export type ParsedMobileSetupLink =
     | { status: 'unsupported-version' }
     | { status: 'invalid' };
 
+// Matches the Android parser exactly. Keep the two in step: a link one platform
+// accepts and the other refuses is worse than either rule on its own.
+const LOOPBACK_HOSTNAMES = ['localhost', '127.0.0.1'];
+
 const parseInstanceOrigin = (value: string): string | null => {
     try {
         const url = new URL(value);
-        if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-        return url.origin;
+        if (url.protocol === 'https:') return url.origin;
+        // Cleartext is for local development only. Without this a link naming
+        // i=http://evil.example would send the app to a plaintext server.
+        if (
+            url.protocol === 'http:' &&
+            LOOPBACK_HOSTNAMES.includes(url.hostname)
+        ) {
+            return url.origin;
+        }
+        return null;
     } catch {
         return null;
     }
