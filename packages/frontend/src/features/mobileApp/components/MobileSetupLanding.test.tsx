@@ -162,6 +162,26 @@ describe('MobileSetupLanding', () => {
         expect(router.state.historyAction).toBe('REPLACE');
     });
 
+    it('names the instance the app will be pointed at', () => {
+        setUserAgent(IPHONE_UA);
+        renderAt(validSearch);
+
+        expect(screen.getByText('Signing in to')).toBeInTheDocument();
+        expect(screen.getByText(ORIGIN)).toBeInTheDocument();
+    });
+
+    it('has the instance on screen before it opens the app', () => {
+        setUserAgent(IPHONE_UA);
+        let originWasVisible = false;
+        vi.mocked(navigateTo).mockImplementationOnce(() => {
+            originWasVisible = screen.queryByText(ORIGIN) !== null;
+        });
+
+        renderAt(validSearch);
+
+        expect(originWasVisible).toBe(true);
+    });
+
     it('refuses an unknown link version', () => {
         setUserAgent(IPHONE_UA);
         renderAt(`?v=2&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`);
