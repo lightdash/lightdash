@@ -111,8 +111,8 @@ export type ChartActionsHost = 'page' | 'modal';
 type Props = {
     /**
      * The chart page navigates for history, deletion and moves. A modal host
-     * stays put: history opens in place and items that reroute the page or
-     * dock under it are hidden.
+     * stays put: history and the AI launcher open in place, while items that
+     * reroute the page are hidden.
      */
     host: ChartActionsHost;
     onOpenVersionHistory: () => void;
@@ -281,14 +281,11 @@ const ChartActionsMenu: FC<Props> = ({
                 disabled={!unsavedChartVersion.tableName}
             >
                 <Menu.Dropdown>
-                    {/* The agent panel docks under the page, beneath a modal */}
-                    {host === 'page' && (
-                        <AskAiAgentMenuItem
-                            projectUuid={projectUuid}
-                            chartUuid={savedChart.uuid}
-                            clickedFrom="saved_chart_header"
-                        />
-                    )}
+                    <AskAiAgentMenuItem
+                        projectUuid={projectUuid}
+                        chartUuid={savedChart.uuid}
+                        clickedFrom="saved_chart_header"
+                    />
                     <Menu.Label>Manage</Menu.Label>
                     {userCanManageChart &&
                         !hasUnsavedChanges &&

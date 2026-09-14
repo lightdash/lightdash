@@ -1,5 +1,6 @@
 .sidebar {
     overflow-y: hidden;
+    padding-bottom: var(--mantine-spacing-md);
 }
 
 .versionList {
