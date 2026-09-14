@@ -1,8 +1,16 @@
 import { Ability } from '@casl/ability';
 import { type PossibleAbilities, type SavedChart } from '@lightdash/common';
-import { screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { flushSync } from 'react-dom';
+import {
+    createBrowserRouter,
     createMemoryRouter,
     MemoryRouter,
     Route,
@@ -11,7 +19,7 @@ import {
     useBlocker,
     useLocation,
 } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import { parseChartFromExplorerSearchParams } from '../../hooks/useExplorerRoute';
 import { AbilityContext } from '../../providers/Ability/context';
@@ -196,7 +204,52 @@ const renderModalWithBlockedNavigation = () => {
     );
     renderWithProviders(
         <AbilityContext.Provider value={manageChartAbility}>
-            <RouterProvider router={router} />
+            <RouterProvider router={router} flushSync={flushRouterUpdate} />
+        </AbilityContext.Provider>,
+        { user: { abilityRules: manageChartAbility.rules } },
+    );
+    return { onClose, onBeforeOpenChartPage };
+};
+
+const browserRouters: Array<ReturnType<typeof createBrowserRouter>> = [];
+const flushRouterUpdate = (callback: () => unknown) => {
+    flushSync(callback);
+    return undefined;
+};
+
+const renderModalWithBrowserRouter = () => {
+    const onClose = vi.fn();
+    const onBeforeOpenChartPage = vi.fn();
+    window.history.replaceState(null, '', '/dashboard');
+    const router = createBrowserRouter([
+        {
+            path: '/dashboard',
+            element: (
+                <DashboardChartEditorModal
+                    opened
+                    dashboard={{
+                        uuid: 'dashboard-uuid',
+                        name: 'Payments',
+                    }}
+                    editChart={editChart}
+                    customMetricsEnabled={false}
+                    onBeforeOpenChartPage={onBeforeOpenChartPage}
+                    onChartSaved={vi.fn()}
+                    onRegistryMetricEdited={vi.fn()}
+                    onRegistryMetricDeleted={vi.fn()}
+                    onClose={onClose}
+                />
+            ),
+        },
+        {
+            path: '/projects/:projectUuid/saved/:slug/edit',
+            element: <ChartPageProbe />,
+        },
+    ]);
+    browserRouters.push(router);
+    renderWithProviders(
+        <AbilityContext.Provider value={manageChartAbility}>
+            <RouterProvider router={router} flushSync={flushRouterUpdate} />
         </AbilityContext.Provider>,
         { user: { abilityRules: manageChartAbility.rules } },
     );
@@ -236,6 +289,10 @@ describe('DashboardChartEditorModal header', () => {
             }
             return new Promise(() => {});
         }) as typeof lightdashApi);
+    });
+
+    afterEach(() => {
+        browserRouters.splice(0).forEach((router) => router.dispose());
     });
 
     it('renames the chart and edits its description without leaving the editor', async () => {
@@ -343,16 +400,20 @@ describe('DashboardChartEditorModal header', () => {
     });
 
     it('opens the chart page in place from the header, carrying the unsaved edits and the dashboard', async () => {
-        const user = userEvent.setup();
         const { onClose, onBeforeOpenChartPage } =
-            renderModal(manageChartAbility);
+            renderModalWithBrowserRouter();
 
-        await user.click(
-            await screen.findByRole('button', { name: 'Edit the query' }),
-        );
-        await user.click(
-            screen.getByRole('button', { name: 'Open chart page' }),
-        );
+        const edit = await screen.findByRole('button', {
+            name: 'Edit the query',
+        });
+        const open = screen.getByRole('button', { name: 'Open chart page' });
+        // Keep React from committing the URL-sync render between the edit and
+        // the handoff, as can happen when the app is busy. The stale sync must
+        // not replace the destination search after the chart route starts.
+        await act(async () => {
+            fireEvent.click(edit);
+            fireEvent.click(open);
+        });
 
         const destination = new URL(
             (await screen.findByTestId('chart-page')).textContent ?? '',

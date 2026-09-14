@@ -70,7 +70,7 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
 // when we want all of the information in the URL, but don't use it for
 // navigation. For example, the explore from here button uses the entire URL to
 // create shareable, shortened links.
-const stringifyCreateSavedChartVersion = (
+export const stringifyCreateSavedChartVersion = (
     createSavedChart: CreateSavedChartVersion,
     preserveLongUrl?: boolean,
 ): string => {

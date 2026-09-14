@@ -17,6 +17,7 @@ import {
     type DashboardFilterRule,
     type UpdateDashboard,
     type DashboardTile,
+    type CreateSavedChartVersion,
     type Dashboard as IDashboard,
     type SavedChart,
 } from '@lightdash/common';
@@ -46,6 +47,7 @@ import DashboardDuplicateModal from '../components/common/modal/DashboardDuplica
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import Page from '../components/common/Page/Page';
 import DashboardChartEditorModal from '../components/DashboardTiles/DashboardChartEditorModal';
+import { CREATE_SAVED_CHART_VERSION_SEARCH_PARAM } from '../components/DashboardTiles/useDashboardChartEditorUrlSync';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
 import DismissedDraftAlert from '../features/contentAsCode/components/DismissedDraftAlert';
@@ -67,6 +69,7 @@ import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
+import { tryParseCreateSavedChartVersionParam } from '../hooks/useExplorerRoute';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
@@ -866,20 +869,45 @@ const Dashboard: FC = () => {
         SavedChart | undefined
     >();
     const setEditChartParam = useCallback(
-        (chartUuid: string | null) => {
+        (chartUuid: string) => {
             setSearchParams(
                 (params) => {
-                    if (chartUuid) {
-                        params.set(EDIT_CHART_SEARCH_PARAM, chartUuid);
-                    } else {
-                        params.delete(EDIT_CHART_SEARCH_PARAM);
-                    }
+                    params.set(EDIT_CHART_SEARCH_PARAM, chartUuid);
+                    params.delete(CREATE_SAVED_CHART_VERSION_SEARCH_PARAM);
                     return params;
                 },
                 { replace: true },
             );
         },
         [setSearchParams],
+    );
+    const clearChartEditorParams = useCallback(() => {
+        setSearchParams(
+            (params) => {
+                params.delete(EDIT_CHART_SEARCH_PARAM);
+                params.delete(CREATE_SAVED_CHART_VERSION_SEARCH_PARAM);
+                return params;
+            },
+            { replace: true },
+        );
+    }, [setSearchParams]);
+    // The editor's own unsaved edits, read once at mount: applying them later
+    // would fight the sync that keeps writing them back to the url.
+    const [editChartParamAtMount] = useState(() =>
+        searchParams.get(EDIT_CHART_SEARCH_PARAM),
+    );
+    const [chartVersionAtMount] = useState<CreateSavedChartVersion | undefined>(
+        () => {
+            const param = searchParams.get(
+                CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
+            );
+            return param
+                ? tryParseCreateSavedChartVersionParam(param)
+                : undefined;
+        },
+    );
+    const chartVersionParam = searchParams.get(
+        CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
     );
     const chartFromUrl = useSavedQuery({
         uuidOrSlug:
@@ -892,7 +920,7 @@ const Dashboard: FC = () => {
         // The same content the tiles show: the dashboard loads its draft
         includeUnpublishedDraft: true,
         // A param naming a chart the user cannot load is dropped rather than kept
-        useQueryOptions: { onError: () => setEditChartParam(null) },
+        useQueryOptions: { onError: () => clearChartEditorParams() },
     });
     const chartToEdit = useMemo(() => {
         if (!isChartEditorEnabled || !editChartParam) return undefined;
@@ -915,8 +943,26 @@ const Dashboard: FC = () => {
     );
     const closeChartEditor = useCallback(() => {
         setChartFromTile(undefined);
-        setEditChartParam(null);
-    }, [setEditChartParam]);
+        clearChartEditorParams();
+    }, [clearChartEditorParams]);
+    // Only for the chart the url named at mount, and only while the url still
+    // carries the edits: a closed session must not resurrect them.
+    const handedOverChartVersion = useMemo(() => {
+        if (!chartVersionAtMount || chartVersionParam === null)
+            return undefined;
+        if (!chartToEdit || chartToEdit.uuid !== editChartParamAtMount)
+            return undefined;
+        return chartVersionAtMount.tableName === chartToEdit.tableName &&
+            chartVersionAtMount.metricQuery.exploreName ===
+                chartToEdit.tableName
+            ? chartVersionAtMount
+            : undefined;
+    }, [
+        chartVersionAtMount,
+        chartVersionParam,
+        chartToEdit,
+        editChartParamAtMount,
+    ]);
     const queryClient = useQueryClient();
     const { track } = useTracking();
     const handleRegistryMetricEdited = useCallback(
@@ -1342,6 +1388,7 @@ const Dashboard: FC = () => {
                                 name: dashboard.name,
                             }}
                             editChart={chartToEdit}
+                            handedOverChartVersion={handedOverChartVersion}
                             customMetricsEnabled={
                                 isDashboardCustomMetricsEnabled
                             }
