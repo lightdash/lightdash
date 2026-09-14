@@ -864,9 +864,11 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
             const toolErrors: Array<{ tool: string; result: unknown }> = [];
             let result: runner.AutopilotAgentRunResult | null = null;
             let effectivePolicy: string | null = null;
+            let offeredTools: string[] = [];
             const actualRunner = runner.runAutopilotAgent;
             vi.spyOn(runner, 'runAutopilotAgent').mockImplementation(
                 async (args) => {
+                    offeredTools = args.agent.tools.map((tool) => tool.name);
                     effectivePolicy =
                         args.agent.system.match(/Cleanup mode: (\w+)/)?.[1] ??
                         null;
@@ -920,6 +922,14 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                     finished.error === null,
             );
             check('requested policy executed', effectivePolicy === mode);
+            check(
+                'group action follows effective policy',
+                offeredTools.includes('bulk_delete_broken_content') ===
+                    (mode === 'cleanup') &&
+                    offeredTools.includes('bulk_flag_broken_content') ===
+                        (mode === 'flag'),
+            );
+
             check(
                 'selected organization provider persisted',
                 finished?.modelProvider === provider,
@@ -1098,7 +1108,7 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
             ).size;
             if (retiredCharts.length && mode === 'cleanup')
                 check(
-                    'retired-model cleanup respects run cap',
+                    'retired-model cleanup completes capped batch',
                     retiredDeleted ===
                         Math.min(
                             retiredCharts.length,
@@ -1148,6 +1158,7 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                     maxSteps: fixture === 'large' ? 120 : 80,
                     timeoutMs: fixture === 'large' ? 600_000 : 300_000,
                 },
+                offeredTools,
                 retiredModelOutcomes: {
                     expected: retiredCharts.length,
                     deleted: retiredDeleted,

@@ -939,6 +939,10 @@ export const renderAutopilotAgent = ({
         ...aggressionDisabledTools[resolvedPolicy.aggression],
         ...(preAggregatesEnabled ? [] : ['get_preagg_candidates']),
     ]);
+    // Group flagging must not substitute for enabled deleted-model cleanup.
+    if (!disabledToolNames.has('bulk_delete_broken_content')) {
+        disabledToolNames.add('bulk_flag_broken_content');
+    }
     const policyToolDescriptions = buildPolicyToolDescriptions(resolvedPolicy);
 
     const baseSystem = buildManagedAgentSystemPrompt(resolvedPolicy, {
