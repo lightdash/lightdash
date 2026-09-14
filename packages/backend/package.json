@@ -184,7 +184,7 @@
         "qs": "6.16.0",
         "re2js": "1.3.3",
         "redoc-express": "1.0.0",
-        "scim-patch": "0.8.3",
+        "scim-patch": "0.9.3",
         "scim2-parse-filter": "0.2.10",
         "sharp": "0.35.4",
         "simple-git": "3.36.0",
