@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import {
     useDirectAccessAssignments,
+    useDirectAccessGroups,
     useResetDirectAccess,
     useRevokeDirectAccessAssignment,
     useUpsertDirectAccessAssignment,
@@ -18,6 +19,7 @@ import DirectAccessModal from './DirectAccessModal';
 
 vi.mock('../hooks/useDirectAccess', () => ({
     useDirectAccessAssignments: vi.fn(),
+    useDirectAccessGroups: vi.fn(),
     useDirectAccessAvailability: vi.fn(() => ({
         isAvailable: true,
         isLoading: false,
@@ -37,18 +39,6 @@ vi.mock('../../../hooks/useOrganizationUsers', () => ({
                 email: 'mallory@example.com',
             },
         ],
-    })),
-}));
-
-vi.mock('../../projectGroupAccess/hooks/useProjectGroupAccess', () => ({
-    useProjectGroupAccessList: vi.fn(() => ({
-        data: [{ groupUuid: 'group-uuid', projectUuid: 'project-uuid' }],
-    })),
-}));
-
-vi.mock('../../../hooks/useOrganizationGroups', () => ({
-    useOrganizationGroups: vi.fn(() => ({
-        data: [{ uuid: 'group-uuid', name: 'Analysts' }],
     })),
 }));
 
@@ -133,6 +123,16 @@ describe('DirectAccessModal', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockAssignmentsQuery();
+        vi.mocked(useDirectAccessGroups).mockReturnValue({
+            data: [
+                {
+                    type: DirectAccessPrincipalType.GROUP,
+                    groupUuid: 'group-uuid',
+                    name: 'Analysts',
+                },
+            ],
+            isError: false,
+        } as unknown as ReturnType<typeof useDirectAccessGroups>);
         mockedUpsert.mockReturnValue({
             mutate: upsertMutate,
             isLoading: false,
@@ -172,6 +172,52 @@ describe('DirectAccessModal', () => {
             );
         },
     );
+
+    it('shares with a named eligible group without organization group access', async () => {
+        mockAssignmentsQuery({ data: [] });
+        const user = userEvent.setup();
+        renderModal();
+        await user.click(
+            screen.getByRole('combobox', {
+                name: 'Select a user or group to share with',
+            }),
+        );
+        await user.click(
+            await screen.findByRole('option', { name: 'Analysts' }),
+        );
+        await user.click(screen.getByRole('button', { name: 'Share' }));
+        expect(upsertMutate).toHaveBeenCalledWith({
+            principalType: DirectAccessPrincipalType.GROUP,
+            principalUuid: 'group-uuid',
+            role: SpaceMemberRole.VIEWER,
+        });
+    });
+
+    it('shows group lookup failures instead of silently omitting groups', () => {
+        vi.mocked(useDirectAccessGroups).mockReturnValue({
+            data: undefined,
+            isError: true,
+        } as unknown as ReturnType<typeof useDirectAccessGroups>);
+        renderModal();
+        expect(
+            screen.getByText(
+                'Unable to load groups. Close and reopen this dialog to retry.',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('excludes groups that already have a direct assignment', async () => {
+        const user = userEvent.setup();
+        renderModal();
+        await user.click(
+            screen.getByRole('combobox', {
+                name: 'Select a user or group to share with',
+            }),
+        );
+        expect(
+            screen.queryByRole('option', { name: 'Analysts' }),
+        ).not.toBeInTheDocument();
+    });
 
     it('replaces a principal role through the upsert mutation', async () => {
         const user = userEvent.setup();

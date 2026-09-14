@@ -7,6 +7,7 @@ import {
     NotFoundError,
     SpaceMemberRole,
     type DirectAccessAssignment,
+    type DirectAccessGroupPrincipal,
     type DirectAccessPrincipalRef,
     type RegisteredAccount,
     type UUID,
@@ -396,6 +397,24 @@ export class DirectAccessService extends BaseService {
         return this.directAccessModel.listAssignmentsForResources({
             resourceType,
             resourceUuids,
+        });
+    }
+
+    async listGroups(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        resourceType: DirectAccessResourceType,
+        resourceUuid: UUID,
+    ): Promise<DirectAccessGroupPrincipal[]> {
+        const { organizationUuid } = await this.authorizeManage(
+            account,
+            projectUuid,
+            resourceType,
+            resourceUuid,
+        );
+        return this.directAccessModel.listGroups({
+            organizationUuid,
+            projectUuid,
         });
     }
 

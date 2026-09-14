@@ -134,6 +134,46 @@ describe('DirectAccessModel generic store PostgreSQL integration', () => {
         }
     });
 
+    it('lists only named groups attached to the project in the requested organization', async () => {
+        await transaction(GroupTableName).insert({
+            organization_id: organizationId,
+            name: 'Unattached group',
+            created_by_user_uuid: userUuid,
+            updated_by_user_uuid: userUuid,
+        });
+        const groups = await store.listGroups({
+            organizationUuid,
+            projectUuid,
+        });
+        expect(groups).toContainEqual({
+            type: DirectAccessPrincipalType.GROUP,
+            groupUuid,
+            name: groupName,
+        });
+        expect(groups.some((group) => group.name === 'Unattached group')).toBe(
+            false,
+        );
+        await expect(
+            store.listGroups({
+                organizationUuid: SEED_ORG_2.organization_uuid,
+                projectUuid,
+            }),
+        ).resolves.toEqual([]);
+        await expect(
+            store.listGroups({ organizationUuid, projectUuid: randomUUID() }),
+        ).resolves.toEqual([]);
+        await transaction(ProjectGroupAccessTableName)
+            .where({ project_uuid: projectUuid, group_uuid: groupUuid })
+            .delete();
+        expect(
+            await store.listGroups({ organizationUuid, projectUuid }),
+        ).not.toContainEqual({
+            type: DirectAccessPrincipalType.GROUP,
+            groupUuid,
+            name: groupName,
+        });
+    });
+
     const createDashboard = async (): Promise<string> => {
         const [dashboard] = await transaction(DashboardsTableName)
             .insert({

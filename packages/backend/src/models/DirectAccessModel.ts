@@ -5,6 +5,7 @@ import {
     NotFoundError,
     ParameterError,
     type DirectAccessAssignment,
+    type DirectAccessGroupPrincipal,
     type DirectAccessPrincipalRef,
     type SpaceMemberRole,
     type UUID,
@@ -24,6 +25,7 @@ import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationTableName } from '../database/entities/organizations';
+import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import { ProjectTableName } from '../database/entities/projects';
 import {
     SavedChartGroupAccessTableName,
@@ -144,6 +146,40 @@ const getPrincipalWrite = (
  */
 export class DirectAccessModel {
     constructor(private readonly database: Knex) {}
+
+    async listGroups({
+        organizationUuid,
+        projectUuid,
+    }: {
+        organizationUuid: UUID;
+        projectUuid: UUID;
+    }): Promise<DirectAccessGroupPrincipal[]> {
+        const groups = await this.database(GroupTableName)
+            .innerJoin(
+                ProjectGroupAccessTableName,
+                `${ProjectGroupAccessTableName}.group_uuid`,
+                `${GroupTableName}.group_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${GroupTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${ProjectGroupAccessTableName}.project_uuid`, projectUuid)
+            .orderBy(`${GroupTableName}.name`)
+            .select<Pick<DirectAccessGroupPrincipal, 'groupUuid' | 'name'>[]>({
+                groupUuid: `${GroupTableName}.group_uuid`,
+                name: `${GroupTableName}.name`,
+            });
+        return groups.map((group) => ({
+            type: DirectAccessPrincipalType.GROUP,
+            ...group,
+        }));
+    }
 
     // ------------------------------------------------------------------
     // Target locators. Mutations discover optimistically, then lock parents

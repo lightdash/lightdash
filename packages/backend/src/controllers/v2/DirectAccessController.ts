@@ -1,6 +1,7 @@
 import {
     assertRegisteredAccount,
     type ApiDirectAccessAssignmentsResponse,
+    type ApiDirectAccessGroupsResponse,
     type ApiErrorPayload,
     type ApiSuccessEmpty,
     type DirectAccessPrincipalType,
@@ -30,6 +31,36 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Direct Access')
 export class DirectAccessController extends BaseController {
+    /**
+     * List project groups eligible for sharing this resource. Requires the
+     * same permission as managing its direct access assignments.
+     * @summary List groups eligible for direct access
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{resourceType}/{resourceUuid}/groups')
+    @OperationId('List direct access groups')
+    async listDirectAccessGroups(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() resourceType: DirectAccessResourceType,
+        @Path() resourceUuid: UUID,
+    ): Promise<ApiDirectAccessGroupsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDirectAccessService()
+                .listGroups(
+                    req.account,
+                    projectUuid,
+                    resourceType,
+                    resourceUuid,
+                ),
+        };
+    }
+
     /**
      * List the direct access assignments stored for one resource. Returns
      * direct assignments and direct roles only; inherited or effective roles
