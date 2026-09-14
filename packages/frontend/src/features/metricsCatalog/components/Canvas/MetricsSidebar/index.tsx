@@ -1,6 +1,5 @@
 import {
     ActionIcon,
-    Box,
     Button,
     Group,
     Paper,
@@ -17,7 +16,6 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import React, { useCallback, type DragEvent, type FC } from 'react';
-import { Panel, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { type YamlDriverInfo } from '../CanvasYamlDriversContext';
@@ -143,100 +141,76 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
         );
 
         return (
-            <>
-                <Panel
-                    id="metrics-sidebar"
-                    order={1}
-                    defaultSize={20}
-                    minSize={15}
-                    maxSize={40}
-                >
-                    <Paper
-                        h="100%"
-                        p="xs"
-                        className={classes.sidebar}
-                        radius={0}
-                        pr={0}
+            <Paper
+                h="100%"
+                p="xs"
+                className={classes.sidebar}
+                radius={0}
+                pr={0}
+            >
+                <Stack gap="sm" h="100%">
+                    <Group
+                        gap="sm"
+                        justify="space-between"
+                        px="xs"
+                        wrap="nowrap"
                     >
-                        <Stack gap="sm" h="100%">
-                            <Group
-                                gap="sm"
-                                justify="space-between"
-                                px="xs"
-                                wrap="nowrap"
-                            >
-                                {nodes.length > 0 && (
-                                    <Text fz="xs" c="dimmed">
-                                        {nodes.length} metric
-                                        {nodes.length !== 1 ? 's' : ''} not on
-                                        canvas
-                                    </Text>
-                                )}
-                                <ActionIcon
-                                    title="Documentation"
-                                    component="a"
-                                    href="https://docs.lightdash.com/guides/metrics-catalog/canvas"
-                                    target="_blank"
-                                    variant="transparent"
-                                    size="xs"
-                                >
-                                    <MantineIcon
-                                        icon={IconBook}
-                                        color="ldGray.5"
-                                    />
-                                </ActionIcon>
-                            </Group>
+                        {nodes.length > 0 && (
+                            <Text fz="xs" c="dimmed">
+                                {nodes.length} metric
+                                {nodes.length !== 1 ? 's' : ''} not on canvas
+                            </Text>
+                        )}
+                        <ActionIcon
+                            title="Documentation"
+                            component="a"
+                            href="https://docs.lightdash.com/guides/metrics-catalog/canvas"
+                            target="_blank"
+                            variant="transparent"
+                            size="xs"
+                        >
+                            <MantineIcon icon={IconBook} color="ldGray.5" />
+                        </ActionIcon>
+                    </Group>
 
-                            <ScrollArea flex={1} offsetScrollbars>
-                                <Stack gap="xs">
-                                    {nodes.length > 0
-                                        ? nodes.map((node) => (
-                                              <DraggableMetricItem
-                                                  key={node.id}
-                                                  node={node}
-                                                  hasYamlDrivers={yamlDriversByTarget.has(
-                                                      node.id,
-                                                  )}
-                                                  onDragStart={handleDragStart}
-                                                  onAddMetric={onAddMetric}
-                                              />
-                                          ))
-                                        : !hasMore && (
-                                              <Text
-                                                  fz="xs"
-                                                  c="dimmed"
-                                                  ta="center"
-                                                  mt="md"
-                                              >
-                                                  All metrics are on the canvas
-                                              </Text>
+                    <ScrollArea flex={1} offsetScrollbars>
+                        <Stack gap="xs">
+                            {nodes.length > 0
+                                ? nodes.map((node) => (
+                                      <DraggableMetricItem
+                                          key={node.id}
+                                          node={node}
+                                          hasYamlDrivers={yamlDriversByTarget.has(
+                                              node.id,
                                           )}
-                                    {hasMore && (
-                                        <Button
-                                            variant="subtle"
-                                            size="xs"
-                                            onClick={onLoadMore}
-                                            loading={isLoadingMore}
-                                        >
-                                            Load more
-                                        </Button>
-                                    )}
-                                </Stack>
-                            </ScrollArea>
+                                          onDragStart={handleDragStart}
+                                          onAddMetric={onAddMetric}
+                                      />
+                                  ))
+                                : !hasMore && (
+                                      <Text
+                                          fz="xs"
+                                          c="dimmed"
+                                          ta="center"
+                                          mt="md"
+                                      >
+                                          All metrics are on the canvas
+                                      </Text>
+                                  )}
+                            {hasMore && (
+                                <Button
+                                    variant="subtle"
+                                    size="xs"
+                                    onClick={onLoadMore}
+                                    loading={isLoadingMore}
+                                >
+                                    Load more
+                                </Button>
+                            )}
                         </Stack>
-                    </Paper>
-                </Panel>
-                <Box
-                    component={PanelResizeHandle}
-                    className={classes.resizeHandle}
-                >
-                    <MantineIcon
-                        icon={IconGripVertical}
-                        size={12}
-                        color="ldGray.5"
-                    />
-                </Box>
-            </>
+                    </ScrollArea>
+                </Stack>
+            </Paper>
         );
     },
 );

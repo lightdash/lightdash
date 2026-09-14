@@ -81,6 +81,6 @@
 }
 
 .resizeHandle:hover::before,
-.resizeHandle[data-resize-handle-state='drag']::before {
+.resizeHandle[data-active]::before {
     background-color: var(--mantine-color-ldGray-3);
 }

@@ -40,8 +40,11 @@
 }
 
 .resizeHandle:hover,
-.resizeHandle[data-resize-handle-state='drag'] {
-    background-color: var(--mantine-color-indigo-4);
+.resizeHandle[data-active] {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-4),
+        var(--mantine-color-ldDark-3)
+    );
 }
 
 .editorContentInner {

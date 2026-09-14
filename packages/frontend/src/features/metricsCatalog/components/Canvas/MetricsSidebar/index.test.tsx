@@ -1,7 +1,6 @@
 import { TimeFrames } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { PanelGroup } from 'react-resizable-panels';
 import { describe, expect, it, vi } from 'vitest';
 import MetricsSidebar from './index';
 
@@ -21,13 +20,11 @@ describe('MetricsSidebar', () => {
         const onAddMetric = vi.fn();
         render(
             <MantineProvider>
-                <PanelGroup direction="horizontal">
-                    <MetricsSidebar
-                        nodes={[node]}
-                        yamlDriversByTarget={new Map()}
-                        onAddMetric={onAddMetric}
-                    />
-                </PanelGroup>
+                <MetricsSidebar
+                    nodes={[node]}
+                    yamlDriversByTarget={new Map()}
+                    onAddMetric={onAddMetric}
+                />
             </MantineProvider>,
         );
         fireEvent.click(

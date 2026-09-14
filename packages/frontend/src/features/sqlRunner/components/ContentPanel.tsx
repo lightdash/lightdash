@@ -22,7 +22,11 @@ import {
     Transition,
     Tooltip,
 } from '@mantine/core';
-import { useElementSize, useHotkeys } from '@mantine/hooks';
+import {
+    useElementSize,
+    useHotkeys,
+    type SplitterPaneSize,
+} from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
     IconAlertCircle,
@@ -30,22 +34,10 @@ import {
     IconCode,
     IconTable,
 } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
-import {
-    Panel,
-    PanelGroup,
-    PanelResizeHandle,
-    type ImperativePanelHandle,
-} from 'react-resizable-panels';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { updateChartSortBy } from '../../../components/DataViz/store/actions/commonChartActions';
 import {
@@ -129,8 +121,7 @@ export const ContentPanel: FC = () => {
     const { showToastError } = useToaster();
 
     // State tracked by this component
-    const [panelSizes, setPanelSizes] = useState<number[]>([60, 40]);
-    const resultsPanelRef = useRef<ImperativePanelHandle>(null);
+    const [panelSizes, setPanelSizes] = useState<SplitterPaneSize[]>([60, 40]);
 
     // state for helping highlight errors in the editor
 
@@ -337,7 +328,6 @@ export const ContentPanel: FC = () => {
 
     useEffect(() => {
         if (queryResults && panelSizes[1] === 0) {
-            resultsPanelRef.current?.resize(50);
             setPanelSizes([50, 50]);
         }
     }, [queryResults, panelSizes]);
@@ -440,14 +430,23 @@ export const ContentPanel: FC = () => {
     return (
         <Stack gap={0} p="lg" className={styles.root}>
             <Tooltip.Group>
-                <PanelGroup
-                    direction="vertical"
-                    onLayout={(sizes) => setPanelSizes(sizes)}
+                <ResizableSplitter
+                    orientation="vertical"
+                    sizes={hideResultsPanel ? [100, 0] : panelSizes}
+                    onSizeChange={setPanelSizes}
+                    resizable={!hideResultsPanel}
+                    lineSize="var(--mantine-spacing-md)"
+                    classNames={{ handle: styles.resizeHandle }}
+                    styles={{
+                        handle: {
+                            display: hideResultsPanel ? 'none' : undefined,
+                        },
+                    }}
                 >
-                    <Panel
+                    <ResizableSplitter.Pane
                         id="sql-runner-panel-sql-or-charts"
-                        order={1}
-                        minSize={30}
+                        defaultSize={60}
+                        min={30}
                         className={styles.panel}
                     >
                         <Paper className={styles.card}>
@@ -792,20 +791,12 @@ export const ContentPanel: FC = () => {
                                 </Box>
                             </Box>
                         </Paper>
-                    </Panel>
+                    </ResizableSplitter.Pane>
 
-                    <Box
-                        hidden={hideResultsPanel}
-                        component={PanelResizeHandle}
-                        className={styles.resizeHandle}
-                    />
-
-                    <Panel
+                    <ResizableSplitter.Pane
                         id="sql-runner-panel-results"
-                        order={2}
-                        defaultSize={panelSizes[1]}
-                        maxSize={500}
-                        ref={resultsPanelRef}
+                        defaultSize={40}
+                        max={100}
                         hidden={hideResultsPanel}
                         className={`${styles.panel} sentry-block ph-no-capture`}
                     >
@@ -935,8 +926,8 @@ export const ContentPanel: FC = () => {
                                 )}
                             </Box>
                         </Paper>
-                    </Panel>
-                </PanelGroup>
+                    </ResizableSplitter.Pane>
+                </ResizableSplitter>
             </Tooltip.Group>
         </Stack>
     );

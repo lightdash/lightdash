@@ -1,11 +1,11 @@
 import { type AiAgentVerifiedArtifact } from '@lightdash/common';
-import { Box, Stack, Text, useMantineTheme } from '@mantine/core';
+import { Box, Stack, Text } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
+import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import {
     clearPreview,
@@ -21,7 +21,6 @@ import styles from './VerifiedArtifactsLayout.module.css';
 import { VerifiedArtifactsTable } from './VerifiedArtifactsTable';
 
 export const VerifiedArtifactsLayout: FC = () => {
-    const theme = useMantineTheme();
     const { agentUuid } = useParams();
     const projectUuid = useProjectUuid();
     const dispatch = useAiAgentStoreDispatch();
@@ -50,14 +49,21 @@ export const VerifiedArtifactsLayout: FC = () => {
     }, [dispatch]);
 
     return (
-        <PanelGroup
-            direction="horizontal"
+        <ResizableSplitter
+            withHandle
+            lineSize={1.5}
+            handleColor="ldGray.2"
+            handleIcon={
+                <MantineIcon color="gray" icon={IconGripVertical} size="sm" />
+            }
+            classNames={{ handle: styles.resizeHandle }}
+            orientation="horizontal"
             style={{ height: `calc(100vh - ${NAVBAR_HEIGHT}px)` }}
         >
-            <Panel
+            <ResizableSplitter.Pane
                 id="verified-artifacts-table"
                 defaultSize={artifact ? 40 : 100}
-                minSize={30}
+                min={30}
             >
                 <Stack gap="sm" mt="lg" pr="md">
                     <Stack gap="md">
@@ -78,42 +84,23 @@ export const VerifiedArtifactsLayout: FC = () => {
                         }
                     />
                 </Stack>
-            </Panel>
+            </ResizableSplitter.Pane>
 
             {artifact && (
-                <>
-                    <PanelResizeHandle
-                        className={styles.resizeHandle}
-                        style={{
-                            width: 1.5,
-                            backgroundColor: theme.colors.ldGray[2],
-                            cursor: 'col-resize',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <MantineIcon
-                            color="gray"
-                            icon={IconGripVertical}
-                            size="sm"
+                <ResizableSplitter.Pane
+                    id="artifact-preview"
+                    defaultSize={60}
+                    min={25}
+                    max={70}
+                >
+                    <Box h="100%" pos="relative" bg="white">
+                        <AiArtifactPanel
+                            artifact={artifact}
+                            showCloseButton={true}
                         />
-                    </PanelResizeHandle>
-                    <Panel
-                        id="artifact-preview"
-                        defaultSize={60}
-                        minSize={25}
-                        maxSize={70}
-                    >
-                        <Box h="100%" pos="relative" bg="white">
-                            <AiArtifactPanel
-                                artifact={artifact}
-                                showCloseButton={true}
-                            />
-                        </Box>
-                    </Panel>
-                </>
+                    </Box>
+                </ResizableSplitter.Pane>
             )}
-        </PanelGroup>
+        </ResizableSplitter>
     );
 };
