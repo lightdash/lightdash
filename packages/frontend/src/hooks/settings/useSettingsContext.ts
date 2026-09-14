@@ -73,6 +73,16 @@ export const useSettingsContext = (): SettingsContext => {
     const dataAppsFlagQuery = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: dataAppsFlag } = dataAppsFlagQuery;
 
+    const mobileAppFlagQuery = useServerFeatureFlag(
+        FeatureFlags.MobileAppSetup,
+    );
+    const { data: mobileAppFlag } = mobileAppFlagQuery;
+    // The instance must expose the mobile setup endpoints AND the org must
+    // have the feature flag.
+    const isMobileAppSetupEnabled =
+        (health?.mobileApp.enabled ?? false) &&
+        (mobileAppFlag?.enabled ?? false);
+
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
     );
@@ -220,6 +230,8 @@ export const useSettingsContext = (): SettingsContext => {
         isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
         externalSourcesFlag,
         isResultsCacheEnabled,
+        isMobileAppSetupEnabled,
+        isMobileAppSetupFlagLoading: mobileAppFlagQuery.isInitialLoading,
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,
