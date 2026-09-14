@@ -1,6 +1,7 @@
 // Registry-installed chart types are read-only: content-mutating paths must
 // reject them, while delete/restore/duplicate (fork) stay open.
 import {
+    ConflictError,
     FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
@@ -8,6 +9,7 @@ import {
     type ImportAppCodeRequestBody,
     type SessionUser,
 } from '@lightdash/common';
+import { DatabaseError } from 'pg';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -92,6 +94,7 @@ function buildService(
         getApp: vi.fn(),
         findApp: vi.fn(),
         findAppByUuid: vi.fn(),
+        listRegistryInstalledApps: vi.fn().mockResolvedValue([]),
         getLatestVersion: vi.fn().mockResolvedValue(null),
         getLatestReadyVersion: vi.fn().mockResolvedValue(null),
         getVersion: vi.fn().mockResolvedValue(null),
@@ -422,6 +425,44 @@ describe('read-only invariant for registry-managed apps', () => {
         await expect(
             service.restoreApp(makeUser(), PROJECT_UUID, APP_UUID),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('restoreApp conflicts cleanly when a fresh copy of the slug is installed', async () => {
+        const restore = vi.fn();
+        const { service } = buildService({
+            appModel: {
+                getAppIncludingDeleted: vi.fn().mockResolvedValue(registryApp),
+                listRegistryInstalledApps: vi.fn().mockResolvedValue([
+                    {
+                        app_id: 'fresh-copy-uuid',
+                        registry_slug: registryApp.registry_slug,
+                        latest_ready_registry_version: '1.3.0',
+                        created_by_user_uuid: null,
+                    },
+                ]),
+                restore,
+            },
+        });
+
+        await expect(
+            service.restoreApp(makeUser(), PROJECT_UUID, APP_UUID),
+        ).rejects.toThrow(ConflictError);
+        expect(restore).not.toHaveBeenCalled();
+    });
+
+    it('restoreApp maps a restore race on the slug to the same conflict', async () => {
+        const raceError = new DatabaseError('database error 23505', 0, 'error');
+        raceError.code = '23505';
+        const { service } = buildService({
+            appModel: {
+                getAppIncludingDeleted: vi.fn().mockResolvedValue(registryApp),
+                restore: vi.fn().mockRejectedValue(raceError),
+            },
+        });
+
+        await expect(
+            service.restoreApp(makeUser(), PROJECT_UUID, APP_UUID),
+        ).rejects.toThrow(ConflictError);
     });
 
     it('restoreVersion is still allowed and copies registry_version onto the new row', async () => {
