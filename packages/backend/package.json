@@ -186,7 +186,7 @@
         "redoc-express": "1.0.0",
         "scim-patch": "0.8.3",
         "scim2-parse-filter": "0.2.10",
-        "sharp": "0.35.2",
+        "sharp": "0.35.4",
         "simple-git": "3.36.0",
         "slackify-markdown": "4.4.0",
         "split2": "4.1.0",
