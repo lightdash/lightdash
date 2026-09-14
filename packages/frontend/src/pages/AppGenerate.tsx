@@ -107,6 +107,7 @@ import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
+import { useCaptureThumbnail } from '../features/apps/hooks/useCaptureThumbnail';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useElementPicker } from '../features/apps/hooks/useElementPicker';
@@ -648,7 +649,7 @@ const AppGenerate: FC = () => {
         number | null
     >(null);
     const { mutateAsync: uploadFile } = useAppFileUpload();
-    const { showToastError, showToastSuccess, showToastWarning } = useToaster();
+    const { showToastError, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
 
     // Raw live-preview capture handed to the move modal (via header actions
@@ -662,6 +663,16 @@ const AppGenerate: FC = () => {
         }
         return capture();
     }, []);
+    // Header-menu "Capture thumbnail": saves the preview as the app thumbnail
+    // without attaching a screenshot to the next prompt.
+    const { captureThumbnail, isCapturing: isCapturingThumbnail } =
+        useCaptureThumbnail({
+            app:
+                projectUuid && activeAppUuid
+                    ? { projectUuid, appUuid: activeAppUuid }
+                    : null,
+            capture: capturePreviewScreenshot,
+        });
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
@@ -1411,33 +1422,6 @@ const AppGenerate: FC = () => {
         Array.from(e.dataTransfer.files).forEach(
             (file) => void handleFileAttach(file),
         );
-    };
-
-    // Header-menu "Capture thumbnail": saves the preview as the app thumbnail
-    // without attaching a screenshot to the next prompt.
-    const handleCaptureThumbnail = async () => {
-        const capture = previewRef.current?.captureScreenshot;
-        if (!capture || !projectUuid || !activeAppUuid) return;
-        setIsCapturingScreenshot(true);
-        try {
-            const file = await capture();
-            await uploadThumbnail({
-                projectUuid,
-                appUuid: activeAppUuid,
-                file,
-            });
-            void queryClient.invalidateQueries({
-                queryKey: ['app-thumbnail', projectUuid, activeAppUuid],
-            });
-            showToastSuccess({ title: 'Thumbnail updated' });
-        } catch (err) {
-            showToastError({
-                title: 'Failed to capture thumbnail',
-                subtitle: err instanceof Error ? err.message : 'Unknown error',
-            });
-        } finally {
-            setIsCapturingScreenshot(false);
-        }
     };
 
     const handleCaptureScreenshot = async () => {
@@ -2784,7 +2768,8 @@ const AppGenerate: FC = () => {
                                                                     MAX_APP_FILES_PER_VERSION
                                                             }
                                                             loading={
-                                                                isCapturingScreenshot
+                                                                isCapturingScreenshot ||
+                                                                isCapturingThumbnail
                                                             }
                                                         />
                                                     )}
@@ -2993,11 +2978,12 @@ const AppGenerate: FC = () => {
                                             refreshDisabled={!previewApp}
                                             captureThumbnail={{
                                                 onCapture: () =>
-                                                    void handleCaptureThumbnail(),
+                                                    void captureThumbnail(),
                                                 disabled:
                                                     !previewApp ||
                                                     !screenshotAvailable ||
-                                                    isCapturingScreenshot,
+                                                    isCapturingScreenshot ||
+                                                    isCapturingThumbnail,
                                             }}
                                             capturePreviewScreenshot={
                                                 screenshotAvailable
