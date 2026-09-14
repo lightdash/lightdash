@@ -18,6 +18,21 @@ import classes from './SimilarContentPanel.module.css';
 
 const VISIBLE_ROWS = 3;
 
+const getMatchLabel = (
+    reason: ContentReviewSimilarContentItem['matchReason'],
+): string => {
+    switch (reason) {
+        case 'potential_duplicate':
+            return 'Potential duplicate';
+        case 'related':
+            return 'Related analysis';
+        case 'same_name':
+            return 'Same name';
+        default:
+            return 'Similar name';
+    }
+};
+
 type Props = {
     projectUuid: string;
     contentType: ContentReviewContentType;
@@ -73,7 +88,7 @@ const SimilarContentPanel: FC<Props> = ({
                                 key={item.contentUuid}
                                 contentType={item.contentType}
                                 name={item.name}
-                                meta={`${item.matchReason === 'potential_duplicate' ? 'Potential duplicate' : item.matchReason === 'related' ? 'Related analysis' : item.matchReason === 'same_name' ? 'Same name' : 'Similar name'} · in ${item.spaceName}`}
+                                meta={`${getMatchLabel(item.matchReason)} · in ${item.spaceName}`}
                                 description={item.explanation}
                                 href={getContentHref(
                                     projectUuid,
