@@ -109,6 +109,21 @@ models:
             count_ntz:
               type: count
               description: Total number of events (NTZ)
+          additional_dimensions:
+            event_timestamp_ntz_tokyo:
+              type: timestamp
+              label: Event timestamp NTZ (Tokyo wall clock)
+              sql: ${TABLE}.event_timestamp_ntz
+              wall_clock_timezone: Asia/Tokyo
+              time_intervals: [RAW, HOUR, DAY]
+              description: >
+                Same naive column as event_timestamp_ntz, but this dimension
+                declares its stored wall clock as Asia/Tokyo via
+                wall_clock_timezone, so it reads as Tokyo regardless of the
+                connection data timezone.
+
+                Interior-rows DAY counts for queryTimezone Asia/Tokyo
+                (Postgres): Jan 15 = 6, Jan 16 = 4.
       - name: category
         description: >
           Event classification. "early_utc" (rows 1-4, 7-8) shifts to previous

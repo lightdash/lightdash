@@ -408,6 +408,82 @@ describe('Data timezone — raw time frame on naive timestamps (Postgres)', () =
     });
 });
 
+/**
+ * Per-column wall clock timezone annotation. The additional
+ * dimension `event_timestamp_ntz_tokyo` reuses the same naive column as
+ * `event_timestamp_ntz`, but its `wall_clock_timezone: Asia/Tokyo` annotation
+ * declares the stored wall clock is Tokyo. It must read as Tokyo whether or
+ * not the connection's dataTimezone is set, unlike the plain column, which
+ * follows dataTimezone (or UTC when unset).
+ */
+const TOKYO_DIMENSION_KEY = 'timezone_test_event_timestamp_ntz_tokyo_day';
+const TOKYO_RAW_KEY = 'timezone_test_event_timestamp_ntz_tokyo_raw';
+
+describe('Data timezone — per-column wall clock (Postgres)', () => {
+    beforeAll(async () => {
+        admin = await login();
+    });
+
+    afterAll(async () => {
+        await updateDataTimezone(admin, undefined);
+    });
+
+    it('dataTz unset, queryTz=Asia/Tokyo: annotated dimension reads the stored wall clock as Tokyo', async () => {
+        await updateDataTimezone(admin, undefined);
+        const rows = await runTimezoneTestQuery(admin, {
+            dimensions: [TOKYO_DIMENSION_KEY],
+            metrics: [NTZ_METRIC_KEY],
+            timezone: 'Asia/Tokyo',
+        });
+        expect(
+            getRawBucketMap(rows, TOKYO_DIMENSION_KEY, NTZ_METRIC_KEY),
+        ).toEqual({ '2024-01-15': 6, '2024-01-16': 4 });
+    });
+
+    it('dataTz unset, queryTz=Asia/Tokyo: plain column is unaffected (control)', async () => {
+        await updateDataTimezone(admin, undefined);
+        const rows = await runNaiveDayQuery(admin, { timezone: 'Asia/Tokyo' });
+        expect(
+            getRawBucketMap(rows, NTZ_DIMENSION_KEY, NTZ_METRIC_KEY),
+        ).toEqual({ '2024-01-15': 5, '2024-01-16': 4, '2024-01-17': 1 });
+    });
+
+    it('dataTz=Pacific/Pago_Pago, queryTz=Asia/Tokyo: annotation overrides the connection data timezone', async () => {
+        await updateDataTimezone(admin, 'Pacific/Pago_Pago');
+        const rows = await runTimezoneTestQuery(admin, {
+            dimensions: [TOKYO_DIMENSION_KEY],
+            metrics: [NTZ_METRIC_KEY],
+            timezone: 'Asia/Tokyo',
+        });
+        expect(
+            getRawBucketMap(rows, TOKYO_DIMENSION_KEY, NTZ_METRIC_KEY),
+        ).toEqual({ '2024-01-15': 6, '2024-01-16': 4 });
+    });
+
+    it('dataTz unset, queryTz=Pacific/Pago_Pago: annotated dimension still reads as Tokyo', async () => {
+        await updateDataTimezone(admin, undefined);
+        const rows = await runTimezoneTestQuery(admin, {
+            dimensions: [TOKYO_DIMENSION_KEY],
+            metrics: [NTZ_METRIC_KEY],
+            timezone: 'Pacific/Pago_Pago',
+        });
+        expect(
+            getRawBucketMap(rows, TOKYO_DIMENSION_KEY, NTZ_METRIC_KEY),
+        ).toEqual({ '2024-01-14': 6, '2024-01-15': 4 });
+    });
+
+    it('raw frame, dataTz unset: event #1 reads the stored wall clock as Tokyo', async () => {
+        await updateDataTimezone(admin, undefined);
+        const [row] = await runTimezoneTestQuery(admin, {
+            dimensions: [TOKYO_RAW_KEY],
+            metrics: [],
+            eventIds: [1],
+            timezone: 'Asia/Tokyo',
+        });
+        expect(toInstant(row, TOKYO_RAW_KEY)).toBe('2024-01-14T17:00:00.000Z');
+    });
+});
+
 describe.skipIf(!hasBigqueryCredentials())(
     'Data timezone — naive timestamps (BigQuery)',
     () => {
