@@ -64,8 +64,7 @@ describe('content-as-code resource files', () => {
             pruneOtherDocuments: true,
         });
         const fileNames = await fs.readdir(path.join(basePath, 'homepages'));
-        expect(fileNames).toHaveLength(1);
-        expect(fileNames[0]).not.toContain('/');
+        expect(fileNames).toEqual(['..%2FHome %2F 100%25.yml']);
         const result = await readCodeResourceFiles({
             definition: HOMEPAGE_CODE_RESOURCE,
             basePath,
