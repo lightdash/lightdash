@@ -48,8 +48,9 @@
 
 .cardConfigureAction {
     position: absolute;
-    inset: 0;
-    margin: auto;
+    top: calc(var(--mantine-spacing-sm) + 1px);
+    inset-inline: 0;
+    margin-inline: auto;
     z-index: 1;
 }
 
@@ -68,7 +69,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: var(--mantine-spacing-xs);
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
     border: 1px solid var(--mantine-color-default-border);
@@ -138,15 +139,13 @@
 
 .cardLabel {
     min-height: 2lh;
-    transition: opacity 100ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
     .card,
     .cardConfigureAction,
     .cardMoreActions,
-    .cardIcon,
-    .cardLabel {
+    .cardIcon {
         transition: none;
     }
 
@@ -164,7 +163,7 @@
         :has(:focus-visible),
         [data-menu-open='true']
     )
-    :is(.cardIcon, .cardLabel) {
+    .cardIcon {
     opacity: 0;
 }
 
@@ -177,27 +176,8 @@
         pointer-events: auto;
     }
 
-    .cardWrapper .card {
-        justify-content: flex-start;
-        padding-top: var(--mantine-spacing-lg);
-    }
-
-    .cardConfigureAction {
-        top: var(--mantine-spacing-lg);
-        bottom: auto;
-    }
-
     .cardWrapper[data-configurable='true'] .cardIcon {
         opacity: 0;
-    }
-
-    .cardWrapper[data-configurable='true']:is(
-            :hover,
-            :has(:focus-visible),
-            [data-menu-open='true']
-        )
-        .cardLabel {
-        opacity: 1;
     }
 }
 

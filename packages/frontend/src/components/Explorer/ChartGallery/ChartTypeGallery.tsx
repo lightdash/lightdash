@@ -110,7 +110,7 @@ export type ChartTypeGallerySection = {
 };
 
 const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
-    // Keep the name available when clamped or hidden by the action overlay.
+    // Keep the full name available when the card label is clamped.
     const labelRef = useRef<HTMLParagraphElement>(null);
     const [isLabelClamped, setIsLabelClamped] = useState(false);
     const [isMenuOpened, setIsMenuOpened] = useState(false);
@@ -125,10 +125,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
         return () => observer.disconnect();
     }, [item.label]);
 
-    const tooltipLabel =
-        isLabelClamped || (item.onConfigure !== null && !item.disabled)
-            ? item.label
-            : null;
+    const tooltipLabel = isLabelClamped ? item.label : null;
 
     return (
         <Box

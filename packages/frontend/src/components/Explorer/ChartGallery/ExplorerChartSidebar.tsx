@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
+    IconArrowLeft,
     IconFilePencil,
     IconLayoutSidebarRightCollapse,
     IconSettings,
@@ -159,6 +160,15 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                         <>
                             <Group justify="space-between" wrap="nowrap">
                                 <Group gap="xs" wrap="nowrap">
+                                    <Tooltip label="Back to configuration">
+                                        <ActionIcon
+                                            size="sm"
+                                            aria-label="Back to configuration"
+                                            onClick={showConfigure}
+                                        >
+                                            <MantineIcon icon={IconArrowLeft} />
+                                        </ActionIcon>
+                                    </Tooltip>
                                     <Text
                                         id={
                                             !isAuthoring

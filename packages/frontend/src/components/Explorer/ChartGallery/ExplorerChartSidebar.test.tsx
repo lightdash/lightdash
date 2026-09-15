@@ -288,6 +288,33 @@ describe('ExplorerChartSidebar', () => {
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
     });
 
+    it('returns to configuration with Back without closing or changing the chart', async () => {
+        const onClose = vi.fn();
+        const store = createExplorerStore();
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={onClose}
+            />,
+            store,
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+        const previousState = store.getState();
+        const back = screen.getByRole('button', {
+            name: 'Back to configuration',
+        });
+        back.focus();
+        await userEvent.keyboard('{Enter}');
+
+        expect(screen.getByText('Configure controls')).toBeInTheDocument();
+        expect(screen.getByText('Table')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Change' })).toHaveFocus();
+        expect(onClose).not.toHaveBeenCalled();
+        expect(store.getState().explorer.unsavedChartVersion).toEqual(
+            previousState.explorer.unsavedChartVersion,
+        );
+    });
+
     it('opens Configure from Choose through a tile action', async () => {
         renderSidebar(
             <ExplorerChartSidebar
