@@ -21,8 +21,12 @@ export type SandboxLesson = {
     intro: DocsCitation;
     /** Workspace file the tour opens: a model yml in the bundle. */
     file: string;
-    /** dbt column of `file` whose metrics the snippet extends; named on the cards. */
-    column: string;
+    /**
+     * dbt column of `file` whose key the snippet extends (a metric under its
+     * `metrics:`); absent when the snippet extends the model itself (a new
+     * entry under `columns:`). Named on the cards.
+     */
+    column?: string;
     /** Citation shown when the file is opened: where metrics live in the YAML. */
     fileDocs: DocsCitation;
     /** Appended by "Use it"; must extend the file's last mapping. */
@@ -82,20 +86,19 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
     {
         id: 'docs:semantic-layer/dimensions',
         docs: 'semantic-layer/dimensions.mdx',
-        intro: [
-            'semantic-layer/dimensions.mdx#intro:1',
+        intro: 'semantic-layer/dimensions.mdx#intro:1',
+        file: 'models/fm_buildings.yml',
+        fileDocs:
             'semantic-layer/dimensions.mdx#adding-dimensions-to-your-project:1',
-        ],
-        file: 'models/orders.yml',
-        column: 'shipping_cost',
-        fileDocs: 'semantic-layer/dimensions.mdx#dimension-configuration:1',
+        // fm_buildings has many table columns its YAML never declares;
+        // declaring one is exactly how a dimension is added.
         snippet: [
-            '            additional_dimensions:',
-            '              shipping_cost_rounded:',
-            '                type: number',
-            '                sql: ROUND(${TABLE}.shipping_cost)',
+            '    columns:',
+            '      - name: number_of_floors',
+            '        description: Storeys above ground',
         ].join('\n'),
-        snippetDocs: 'semantic-layer/dimensions.mdx#additional-dimensions:1',
+        snippetDocs:
+            'semantic-layer/dimensions.mdx#adding-dimensions-to-your-project:p3:1',
         command: 'lightdash deploy',
         commandDocs: 'workflow/cli/deploy.mdx#intro:1',
         outputDocs: [
@@ -103,8 +106,8 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
             'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li3',
         ],
         result: {
-            explore: 'orders',
-            field: 'shipping_cost_rounded',
+            explore: 'fm_buildings',
+            field: 'number_of_floors',
             kind: 'dimension',
         },
         resultDocs: 'explore/explore-view.mdx#the-explore-page:li1',

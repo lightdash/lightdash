@@ -822,6 +822,62 @@ export const Card = () => (
                 'an **average** dimension on the **amount** column',
             ),
         );
+        // A lesson that extends the model declares a column entry under
+        // `columns:`; the key's owner is then the model, not a column.
+        const columnLesson = {
+            ...metricsLesson,
+            column: undefined,
+            snippet:
+                '    columns:\n      - name: extra\n        description: x',
+            result: {
+                explore: 'payments',
+                field: 'extra',
+                kind: 'dimension' as const,
+            },
+        };
+        const [columnTour] = buildLessonTours([columnLesson], files);
+        assert.ok(
+            columnTour.steps[2].body.endsWith(
+                "Let's add **extra** to the **payments** model's **columns**. Type it in, or press Use it to add it.",
+            ),
+            columnTour.steps[2].body,
+        );
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [
+                        {
+                            ...columnLesson,
+                            snippet:
+                                '    columns:\n      - name: other\n        description: x',
+                        },
+                    ],
+                    files,
+                ),
+            /must declare the column entry "- name: extra"/,
+        );
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [{ ...metricsLesson, column: undefined }],
+                    files,
+                ),
+            /must declare the column entry "- name: average_payment_amount"/,
+        );
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [
+                        {
+                            ...columnLesson,
+                            snippet:
+                                '            metrics:\n              - name: extra',
+                        },
+                    ],
+                    files,
+                ),
+            /belongs to amount, not payments/,
+        );
         // The snippet has to land under the declared column's `under:` key.
         assert.throws(
             () =>

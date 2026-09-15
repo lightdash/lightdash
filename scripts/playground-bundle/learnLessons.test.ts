@@ -28,7 +28,6 @@ import { getCatalog } from './compile';
 
 const venvBin = path.join(__dirname, '.venv/bin');
 
-
 const checkLesson = async (
     lesson: (typeof SANDBOX_LESSONS)[number],
     bundle: Awaited<ReturnType<typeof loadLearnBundle>>,
@@ -37,7 +36,10 @@ const checkLesson = async (
     const file = bundle.files.find((f) => f.path === lesson.file);
     assert.ok(file, `${lesson.id}: ${lesson.file} is not in the learn bundle`);
     assert.ok(
-        !file.content.includes(`${lesson.result.field}:`),
+        !new RegExp(
+            `^\\s*(?:- name: ${lesson.result.field}|${lesson.result.field}:)\\s*$`,
+            'm',
+        ).test(file.content),
         `${lesson.id}: ${lesson.result.field} already exists in ${lesson.file}, the lesson would teach nothing`,
     );
 
