@@ -1,13 +1,14 @@
 import { type ParsedDeepResearchReport } from '@lightdash/common';
 import { Box, Group, Stack, Title } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import ReportChartFrame from '../../../../../features/documents/presentation/ReportChartFrame';
+import styles from '../../../../../features/documents/presentation/ReportPresentation.module.css';
 import { DeepResearchExploreLink } from './DeepResearchExploreLink';
 import { DeepResearchInlineMarkdown } from './DeepResearchInlineMarkdown';
 import {
     DeepResearchMarkdownReport,
     QueryBackedChart,
 } from './DeepResearchMarkdownReport';
-import styles from './DeepResearchReport.module.css';
 
 type Props = {
     report: ParsedDeepResearchReport;
@@ -67,9 +68,11 @@ export const DeepResearchReportContent: FC<Props> = ({
                     </Group>
 
                     {finding.evidenceQueryUuid ? (
-                        <Box className={styles.reportEvidence}>
+                        <>
                             {renderEvidence ? (
-                                renderEvidence(finding.evidenceQueryUuid)
+                                <ReportChartFrame>
+                                    {renderEvidence(finding.evidenceQueryUuid)}
+                                </ReportChartFrame>
                             ) : (
                                 <QueryBackedChart
                                     projectUuid={projectUuid}
@@ -78,7 +81,7 @@ export const DeepResearchReportContent: FC<Props> = ({
                                     withExploreLink={false}
                                 />
                             )}
-                        </Box>
+                        </>
                     ) : null}
 
                     <Box className={styles.reportNarrative}>
