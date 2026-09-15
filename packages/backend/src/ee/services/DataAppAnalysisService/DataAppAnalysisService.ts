@@ -64,6 +64,7 @@ export class DataAppAnalysisUnavailableError extends ForbiddenError {
             | 'org_setting_disabled'
             | 'copilot_disabled'
             | 'data_apps_disabled'
+            | 'analysis_disabled'
             | 'unsupported_context',
     ) {
         super(message, { code });
@@ -166,7 +167,8 @@ export class DataAppAnalysisService extends BaseService {
 
     /**
      * Fails closed in order: customer consent (org setting), AI entitlement,
-     * data-apps flag. Each has its own code so the host can explain which.
+     * data-apps flag, analysis rollout flag. Each has its own code so the
+     * host can explain which.
      */
     private async assertRuntimeAiAllowed(user: SessionUser): Promise<void> {
         if (!user.organizationUuid) {
@@ -196,6 +198,16 @@ export class DataAppAnalysisService extends BaseService {
             throw new DataAppAnalysisUnavailableError(
                 'Data apps are not enabled',
                 'data_apps_disabled',
+            );
+        }
+        const analysisFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.EnableDataAppAnalysis,
+        });
+        if (!analysisFlag.enabled) {
+            throw new DataAppAnalysisUnavailableError(
+                'AI analysis in data apps is not enabled for this organization',
+                'analysis_disabled',
             );
         }
     }
