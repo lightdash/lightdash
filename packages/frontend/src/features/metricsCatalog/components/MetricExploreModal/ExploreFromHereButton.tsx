@@ -4,6 +4,7 @@ import { IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useEmbed from '../../../../ee/providers/Embed/useEmbed';
+import { useContentAuthoringEnabled } from '../../../../hooks/useContentAuthoringEnabled';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../../hooks/useExplorerRoute';
 import { useCreateShareMutation } from '../../../../hooks/useShare';
 
@@ -18,6 +19,7 @@ export const ExploreFromHereButton: FC<Props> = ({
     unsavedChartVersion,
     canExplore,
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const { embedToken, onExplore } = useEmbed();
     const openInExploreUrl = useMemo(() => {
         if (!unsavedChartVersion) return undefined;
@@ -60,7 +62,7 @@ export const ExploreFromHereButton: FC<Props> = ({
             disabled={!isEnabled}
         >
             <Button
-                visibleFrom="sm"
+                display={authoringEnabled ? undefined : 'none'}
                 variant="default"
                 size="xs"
                 leftSection={<MantineIcon icon={IconExternalLink} />}

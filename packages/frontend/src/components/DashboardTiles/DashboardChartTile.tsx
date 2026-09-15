@@ -74,6 +74,7 @@ import React, {
 } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
+import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import {
     getAppliedTileDateZoom,
@@ -618,6 +619,7 @@ interface DashboardChartTileMainProps extends Pick<
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
     (props) => {
+        const authoringEnabled = useContentAuthoringEnabled();
         const { showToastSuccess } = useToaster();
         const clipboard = useClipboard({ timeout: 200 });
         const getUiString = useUiStrings();
@@ -1648,7 +1650,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                     }
                                                 >
                                                     <Menu.Item
-                                                        visibleFrom="sm"
+                                                        display={
+                                                            authoringEnabled
+                                                                ? undefined
+                                                                : 'none'
+                                                        }
                                                         leftSection={
                                                             <MantineIcon
                                                                 icon={
@@ -1972,6 +1978,7 @@ type DashboardChartTileMinimalProps = DashboardChartTileMainProps & {
 const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
     props,
 ) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const getUiString = useUiStrings();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
@@ -2174,7 +2181,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                             )}
                             {isEmbeddedExploreEnabled && (
                                 <Menu.Item
-                                    visibleFrom="sm"
+                                    display={
+                                        authoringEnabled ? undefined : 'none'
+                                    }
                                     leftSection={
                                         <MantineIcon icon={IconTelescope} />
                                     }

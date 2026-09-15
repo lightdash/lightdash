@@ -1,12 +1,9 @@
 .drawerContent {
-    display: flex;
-    flex-direction: column;
-    height: 100dvh;
+    composes: content from '../../../../components/common/SidebarDrawer.module.css';
 }
 
 .drawerBody {
-    flex: 1;
-    min-height: 0;
+    composes: body from '../../../../components/common/SidebarDrawer.module.css';
     padding: 0;
 }
 

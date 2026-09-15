@@ -31,6 +31,7 @@ import {
     useDashboardQuery,
     useDashboardVersionRollbackMutation,
 } from '../hooks/dashboard/useDashboard';
+import { useContentAuthoringEnabled } from '../hooks/useContentAuthoringEnabled';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { Can } from '../providers/Ability';
@@ -38,6 +39,7 @@ import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 import DashboardVersionComparison from './DashboardVersionComparison';
 
 const DashboardHistory = () => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
@@ -145,7 +147,13 @@ const DashboardHistory = () => {
                                                         closeOnClickOutside
                                                     >
                                                         <Menu.Target>
-                                                            <ActionIcon visibleFrom="sm">
+                                                            <ActionIcon
+                                                                display={
+                                                                    authoringEnabled
+                                                                        ? undefined
+                                                                        : 'none'
+                                                                }
+                                                            >
                                                                 <IconDots
                                                                     size={16}
                                                                 />

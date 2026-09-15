@@ -2,7 +2,7 @@ import { ProjectType, type AnyType } from '@lightdash/common';
 import { Box, Button, Drawer, useMatches } from '@mantine/core';
 import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
@@ -13,6 +13,7 @@ import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
 import { DocumentTitle } from '../DocumentTitle';
 import sidebarDrawerClasses from '../SidebarDrawer.module.css';
+import { StableContent } from '../StableContent';
 import classes from './Page.module.css';
 import Sidebar from './Sidebar';
 import { SidebarPosition, type SidebarWidthProps } from './types';
@@ -108,6 +109,11 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     );
     const [sidebarOpened, { open: openSidebar, close: closeSidebar }] =
         useDisclosure(false);
+    const [sidebarTarget, setSidebarTarget] = useState<HTMLDivElement | null>(
+        null,
+    );
+    const [rightSidebarTarget, setRightSidebarTarget] =
+        useState<HTMLDivElement | null>(null);
     useEffect(closeSidebar, [compact, closeSidebar]);
     const { ref: mainRef, width: mainWidth } = useElementSize();
     const { ref: headerRef, height: headerHeight } = useElementSize();
@@ -169,6 +175,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                         </Button>
                         <Drawer
                             classNames={sidebarDrawerClasses}
+                            keepMounted
                             opened={sidebarOpened}
                             onClose={closeSidebar}
                             title={sidebarTitle}
@@ -185,8 +192,10 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                                     closeSidebar();
                             }}
                         >
-                            <ErrorBoundary>{sidebar}</ErrorBoundary>
-                            {withSidebarFooter ? <AboutFooter minimal /> : null}
+                            <Box
+                                ref={setSidebarTarget}
+                                className={classes.sidebarSlot}
+                            />
                         </Drawer>
                     </Box>
                 ) : sidebar && !compact ? (
@@ -200,10 +209,10 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}
                     >
-                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                            {sidebar}
-                        </ErrorBoundary>
-                        {withSidebarFooter ? <AboutFooter minimal /> : null}
+                        <Box
+                            ref={setSidebarTarget}
+                            className={classes.sidebarSlot}
+                        />
                     </Sidebar>
                 ) : null}
 
@@ -257,7 +266,10 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                                 : undefined
                         }
                     >
-                        <ErrorBoundary>{rightSidebar}</ErrorBoundary>
+                        <Box
+                            ref={setRightSidebarTarget}
+                            className={classes.sidebarSlot}
+                        />
                     </Drawer>
                 ) : rightSidebar ? (
                     <Sidebar
@@ -272,11 +284,33 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}
                     >
-                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                            {rightSidebar}
-                        </ErrorBoundary>
+                        <Box
+                            ref={setRightSidebarTarget}
+                            className={classes.sidebarSlot}
+                        />
                     </Sidebar>
                 ) : null}
+
+                {sidebar && (
+                    <StableContent target={sidebarTarget}>
+                        <TrackSection name={SectionName.SIDEBAR}>
+                            <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                                {sidebar}
+                            </ErrorBoundary>
+                            {withSidebarFooter ? <AboutFooter minimal /> : null}
+                        </TrackSection>
+                    </StableContent>
+                )}
+                {rightSidebar &&
+                    (isRightSidebarOpen || keepRightSidebarMounted) && (
+                        <StableContent target={rightSidebarTarget}>
+                            <TrackSection name={SectionName.SIDEBAR}>
+                                <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                                    {rightSidebar}
+                                </ErrorBoundary>
+                            </TrackSection>
+                        </StableContent>
+                    )}
 
                 {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
             </Box>

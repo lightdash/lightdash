@@ -51,6 +51,7 @@ import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useChartPermissions } from '../../../hooks/useChartPermissions';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
@@ -151,6 +152,7 @@ const verifiedTourProps = {
 };
 
 const SavedChartsHeader: FC = () => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const compact = useCompactContentHeader();
     const { search } = useLocation();
@@ -169,6 +171,10 @@ const SavedChartsHeader: FC = () => {
     );
 
     const savedChart = useExplorerSelector(selectSavedChart);
+    const editChart = () =>
+        void navigate({
+            pathname: `/projects/${projectUrlIdentifier}/saved/${savedChart?.slug}/edit`,
+        });
     const { mutate: reopenDraft, isLoading: isReopeningDraft } =
         useReopenDraftMutation(projectUuid);
     const { mutate: rebaseDraft, isLoading: isRebasingDraft } =
@@ -569,9 +575,9 @@ const SavedChartsHeader: FC = () => {
                 <Group gap="xs" data-header-actions>
                     {showChartActions && (
                         <>
-                            {userCanManageExplore && !isEditMode && (
-                                <ExploreFromHereButton />
-                            )}
+                            {userCanManageExplore &&
+                                !isEditMode &&
+                                !compact && <ExploreFromHereButton />}
                             {userCanManageChart && (
                                 <>
                                     {!isEditMode ? (
@@ -579,17 +585,17 @@ const SavedChartsHeader: FC = () => {
                                             <Button
                                                 variant="default"
                                                 size="xs"
-                                                visibleFrom="sm"
+                                                display={
+                                                    authoringEnabled && !compact
+                                                        ? undefined
+                                                        : 'none'
+                                                }
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={IconPencil}
                                                     />
                                                 }
-                                                onClick={() =>
-                                                    navigate({
-                                                        pathname: `/projects/${projectUrlIdentifier}/saved/${savedChart?.slug}/edit`,
-                                                    })
-                                                }
+                                                onClick={editChart}
                                                 // Anchor for scope walkthroughs (data-tour-via)
                                                 data-tour-anchor="edit-chart"
                                                 data-tour-hint="Edit the chart"
@@ -743,6 +749,28 @@ const SavedChartsHeader: FC = () => {
                                 );
                             }}
                         >
+                            {compact &&
+                                showChartActions &&
+                                !isEditMode &&
+                                authoringEnabled && (
+                                    <>
+                                        {userCanManageChart && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPencil}
+                                                    />
+                                                }
+                                                onClick={editChart}
+                                            >
+                                                Edit chart
+                                            </Menu.Item>
+                                        )}
+                                        {userCanManageExplore && (
+                                            <ExploreFromHereButton asMenuItem />
+                                        )}
+                                    </>
+                                )}
                             {compact && (
                                 <Menu.Item
                                     leftSection={

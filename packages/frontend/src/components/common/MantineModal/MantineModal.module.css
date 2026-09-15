@@ -37,7 +37,7 @@
 .body {
     flex: 1;
     min-height: 0;
-    overflow: hidden;
+    overflow: auto;
 }
 
 .actions {
@@ -74,12 +74,6 @@
     margin-top: calc(var(--navbar-height) + var(--banner-height));
 }
 
-.fullScreenBody {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-}
-
 .mobileContent.mobileContent {
     display: flex;
     flex-direction: column;
@@ -88,8 +82,7 @@
 }
 
 @media (width < $mantine-breakpoint-sm), (pointer: coarse) {
-    .body :global(.mantine-Input-input),
-    .fullScreenBody :global(.mantine-Input-input) {
+    .body :global(.mantine-Input-input) {
         min-height: 44px;
         font-size: 16px;
     }

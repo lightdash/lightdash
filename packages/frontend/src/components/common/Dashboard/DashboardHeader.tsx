@@ -85,6 +85,7 @@ import useDashboardPerformanceWarning from '../../../hooks/dashboard/useDashboar
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import {
     useUnverifyDashboardMutation,
     useVerifyDashboardMutation,
@@ -184,6 +185,7 @@ const DashboardHeader = memo(
         onEditClicked,
         className,
     }: DashboardHeaderProps) => {
+        const authoringEnabled = useContentAuthoringEnabled();
         const compact = useCompactContentHeader();
         const performanceWarning = useDashboardPerformanceWarning(
             dashboardTiles,
@@ -762,6 +764,7 @@ const DashboardHeader = memo(
                 ) : (
                     <Group gap="sm" data-header-actions>
                         {!!userCanManageDashboard &&
+                            authoringEnabled &&
                             !isFullscreen &&
                             !compact && (
                                 <Tooltip
@@ -993,6 +996,22 @@ const DashboardHeader = memo(
                                 >
                                     {compact && (
                                         <>
+                                            {authoringEnabled &&
+                                                userCanManageDashboard &&
+                                                !isFullscreen && (
+                                                    <Menu.Item
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconPencil
+                                                                }
+                                                            />
+                                                        }
+                                                        onClick={onEditClicked}
+                                                    >
+                                                        Edit dashboard
+                                                    </Menu.Item>
+                                                )}
                                             <Menu.Item
                                                 leftSection={
                                                     <MantineIcon
@@ -1127,7 +1146,11 @@ const DashboardHeader = memo(
                                                     </>
                                                 )}
                                             <Menu.Item
-                                                visibleFrom="sm"
+                                                display={
+                                                    authoringEnabled
+                                                        ? undefined
+                                                        : 'none'
+                                                }
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={IconPencil}
@@ -1139,7 +1162,11 @@ const DashboardHeader = memo(
                                             </Menu.Item>
 
                                             <Menu.Item
-                                                visibleFrom="sm"
+                                                display={
+                                                    authoringEnabled
+                                                        ? undefined
+                                                        : 'none'
+                                                }
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={IconCopy}
@@ -1245,7 +1272,11 @@ const DashboardHeader = memo(
                                             >
                                                 <div>
                                                     <Menu.Item
-                                                        visibleFrom="sm"
+                                                        display={
+                                                            authoringEnabled
+                                                                ? undefined
+                                                                : 'none'
+                                                        }
                                                         disabled={
                                                             project?.upstreamProjectUuid ===
                                                             undefined
@@ -1361,7 +1392,11 @@ const DashboardHeader = memo(
                                             )}
                                             {userCanManageDashboard && (
                                                 <Menu.Item
-                                                    visibleFrom="sm"
+                                                    display={
+                                                        authoringEnabled
+                                                            ? undefined
+                                                            : 'none'
+                                                    }
                                                     leftSection={
                                                         <MantineIcon
                                                             icon={IconLink}

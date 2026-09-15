@@ -75,7 +75,6 @@
     }
 }
 
-.compactActions :global([role='search']),
 .compactAiButton :global(.mantine-Button-root),
 .menuButton {
     width: 44px;
@@ -90,7 +89,6 @@
 
 @media (hover: hover) and (pointer: fine) {
     .compactProjectSwitcher :global(.mantine-Button-root:hover),
-    .compactActions :global([role='search']:hover),
     .compactAiButton :global(.mantine-Button-root:hover),
     .menuButton:hover {
         background: var(--mantine-color-dark-5);
@@ -112,23 +110,17 @@
 }
 
 .drawerContent {
-    display: flex;
-    flex-direction: column;
-    height: 100dvh;
-    overflow: hidden;
+    composes: content from '../common/SidebarDrawer.module.css';
 }
 
 .drawerHeader {
-    flex-shrink: 0;
+    composes: header from '../common/SidebarDrawer.module.css';
     padding: 8px 12px 8px 20px;
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .drawerBody {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
+    composes: body from '../common/SidebarDrawer.module.css';
     padding: 16px 12px max(16px, env(safe-area-inset-bottom));
 }
 
@@ -147,31 +139,7 @@
 
 /* Keep the desktop navigation shape on tablets. Labels condense only where
    the full row would otherwise run out of room. */
-@media (min-width: 32em) {
-    .leftGroup :global([role='search']) {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-    }
-}
-
-@media (32em <= width < 37.5em) {
-    .leftGroup :global([role='search']) {
-        width: rem(34px);
-        height: rem(32px);
-        padding-inline: rem(8px);
-        justify-content: center;
-        border-color: transparent;
-        background: transparent;
-    }
-
-    .leftGroup :global([role='search']:hover) {
-        border-color: transparent;
-        background: var(--mantine-color-default-hover);
-    }
-}
-
-@media (32em <= width < 68em) {
+@media ($navigation-compact <= width < $navigation-action-labels) {
     .leftGroup {
         gap: var(--mantine-spacing-xs);
     }

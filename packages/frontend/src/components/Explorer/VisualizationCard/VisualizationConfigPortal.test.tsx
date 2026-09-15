@@ -157,12 +157,17 @@ describe('VisualizationConfigPortal', () => {
 
         originalTarget?.replaceWith(replacementTarget);
 
-        expect(
-            await screen.findByText('Configure content'),
-        ).toBeInTheDocument();
-        expect(replacementTarget).toContainElement(
-            screen.getByText('Configure content'),
-        );
+        try {
+            expect(
+                await screen.findByText('Configure content'),
+            ).toBeInTheDocument();
+            expect(replacementTarget).toContainElement(
+                screen.getByText('Configure content'),
+            );
+        } finally {
+            // Restore the React-owned host before React unmounts the tree.
+            if (originalTarget) replacementTarget.replaceWith(originalTarget);
+        }
     });
 
     it('finds a host that mounts after the config opens', async () => {

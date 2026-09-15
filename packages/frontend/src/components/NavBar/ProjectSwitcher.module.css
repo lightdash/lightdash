@@ -33,7 +33,7 @@
     min-width: 0;
 }
 
-@media (32em <= width < 56em) {
+@media ($navigation-compact <= width < $navigation-project-label) {
     .targetButton {
         width: rem(34px);
         padding-inline: rem(8px);

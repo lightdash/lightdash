@@ -83,7 +83,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
                     ) : (
                         canSaveDashboard && (
                             <Menu.Item
-                                visibleFrom="sm"
+                                display={authoringEnabled ? undefined : 'none'}
                                 onClick={handleSaveDashboard}
                                 leftSection={
                                     <MantineIcon icon={IconDeviceFloppy} />

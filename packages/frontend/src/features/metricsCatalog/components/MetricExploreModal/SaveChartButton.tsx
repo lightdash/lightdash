@@ -9,6 +9,7 @@ import {
     useGenerateChartMetadata,
 } from '../../../../ee/features/ambientAi';
 import useEmbed from '../../../../ee/providers/Embed/useEmbed';
+import { useContentAuthoringEnabled } from '../../../../hooks/useContentAuthoringEnabled';
 import { DEFAULT_EMPTY_EXPLORE_CONFIG } from '../../../../hooks/useExplorerRoute';
 
 type Props = {
@@ -26,6 +27,7 @@ export const SaveChartButton: FC<Props> = ({
     hasData,
     canSave,
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const isAmbientAiEnabled = useAmbientAiEnabled();
     const { embedToken, writeActions } = useEmbed();
     const [isSaveChartModalOpen, setIsSaveChartModalOpen] = useState(false);
@@ -72,7 +74,7 @@ export const SaveChartButton: FC<Props> = ({
                 disabled={!canSaveChart}
             >
                 <Button
-                    visibleFrom="sm"
+                    display={authoringEnabled ? undefined : 'none'}
                     variant="default"
                     size="xs"
                     leftSection={<MantineIcon icon={IconDeviceFloppy} />}

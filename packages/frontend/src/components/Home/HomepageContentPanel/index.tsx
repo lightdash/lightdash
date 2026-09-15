@@ -10,6 +10,7 @@ import { Button } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useVerifiedContentForHomepage } from '../../../hooks/useVerifiedContentList';
 import useApp from '../../../providers/App/useApp';
@@ -28,6 +29,7 @@ export const HomepageContentPanel: FC<Props> = ({
     projectUuid,
     projectUrlIdentifier,
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const navigate = useNavigate();
     const { health } = useApp();
@@ -144,7 +146,7 @@ export const HomepageContentPanel: FC<Props> = ({
                 action:
                     !isDemo && userCanCreateCharts ? (
                         <Button
-                            visibleFrom="sm"
+                            display={authoringEnabled ? undefined : 'none'}
                             leftSection={
                                 <MantineIcon icon={IconPlus} size={18} />
                             }

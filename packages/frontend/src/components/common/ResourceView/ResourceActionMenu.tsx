@@ -53,6 +53,7 @@ import {
     usePromoteDashboardDiffMutation,
     usePromoteDashboardMutation,
 } from '../../../features/promotion/hooks/usePromoteDashboard';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import {
     useUnverifyChartMutation,
     useUnverifyDashboardMutation,
@@ -98,6 +99,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     onAction,
 }) => {
     const { user } = useApp();
+    const authoringEnabled = useContentAuthoringEnabled();
     const location = useLocation();
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
@@ -381,7 +383,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     // open a modal that lets the user pick a name/space first.
     const duplicateDataAppMenuItem = (
         <Menu.Item
-            visibleFrom="sm"
             component="button"
             role="menuitem"
             leftSection={<MantineIcon icon={IconCopy} size={18} />}
@@ -523,8 +524,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             )}
 
                             <Menu.Item
-                                visibleFrom={
-                                    isChartOrDashboard ? 'sm' : undefined
+                                display={
+                                    isChartOrDashboard && !authoringEnabled
+                                        ? 'none'
+                                        : undefined
                                 }
                                 component="button"
                                 role="menuitem"
@@ -548,7 +551,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             {item.type === ResourceViewItemType.CHART ||
                             item.type === ResourceViewItemType.DASHBOARD ? (
                                 <Menu.Item
-                                    visibleFrom="sm"
+                                    display={
+                                        authoringEnabled ? undefined : 'none'
+                                    }
                                     component="button"
                                     role="menuitem"
                                     leftSection={
