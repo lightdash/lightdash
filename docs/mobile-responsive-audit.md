@@ -11,7 +11,7 @@ Test sizes: phone 390×844 (also 360px boundary), tablet 768×1024, desktop 1440
 
 ## September 15 follow-up: phone scope and controls
 
-This supersedes earlier phone authoring/drill/restore checks below: chart and dashboard creation/editing, including Explore from here, are now intentionally unavailable below 768px. Tablets retain authoring and full page layouts. The main navigation collapses below 896px; its measured content needs about 830px, so wider tablet and desktop windows retain the full navigation without overflow.
+This supersedes earlier phone authoring/drill/restore checks below: chart and dashboard creation/editing, including Explore from here, are now intentionally unavailable below 768px. Tablets retain authoring, full page layouts and the desktop navigation shape. The nav's labels condense between 768px and 896px to fit; the Menu drawer begins strictly below 768px.
 
 - Replaced boxed navigation tiles with grouped list rows and a labeled Menu trigger. Dashboard and saved-chart headers now share explicit title/actions/metadata grid slots with 16px horizontal padding. Long titles wrap; favorites move into the menu. Actions have plain icons and invisible 44px touch areas. Dashboard refresh uses one menu on phones; manual and timed refresh pass behavioral tests.
 - Fixed the settings drawer's overflowing flex body. At 390×844 the option list scrolled from 0 to 1657px; Data ops and Review requests became reachable while search/close stayed visible. Reused the bounded body for both shared Page drawers and AI settings.

@@ -139,6 +139,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
         >
             <Menu.Target>
                 <Button
+                    aria-label="Browse"
                     variant="default"
                     size="xs"
                     fz="sm"

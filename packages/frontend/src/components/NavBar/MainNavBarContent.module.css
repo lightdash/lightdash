@@ -72,6 +72,26 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
+/* Keep the desktop navigation shape on tablets. Labels condense only where
+   the full row would otherwise run out of room. */
+@media ($mantine-breakpoint-sm <= width < 56em) {
+    .leftGroup {
+        gap: var(--mantine-spacing-xs);
+    }
+
+    .leftGroup .buttonGroup :global(.mantine-Button-root) {
+        padding-inline: 8px;
+    }
+
+    .leftGroup .buttonGroup :global(.mantine-Button-label) {
+        display: none;
+    }
+
+    .leftGroup .buttonGroup :global(.mantine-Button-section) {
+        margin-inline: 0;
+    }
+}
+
 .mobileNavigation .spacer {
     display: none;
 }

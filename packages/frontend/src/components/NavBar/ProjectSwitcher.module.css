@@ -33,6 +33,18 @@
     min-width: 0;
 }
 
+@media ($mantine-breakpoint-sm <= width < 56em) {
+    .targetButton {
+        width: rem(34px);
+        padding-inline: rem(8px);
+    }
+
+    .targetButton .previewName,
+    .targetButton .upstreamName {
+        display: none;
+    }
+}
+
 .breadcrumbSeparator {
     flex-shrink: 0;
 }

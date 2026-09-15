@@ -2,13 +2,13 @@
 
 Current implementation map, September 15. This describes component replacements and layout changes separately. Verification and remaining feature coverage live in [the audit](mobile-responsive-audit.md).
 
-Phone-specific layouts and chart/dashboard authoring restrictions start strictly below **768px (`sm`)**. Tablets keep full content controls. Navigation collapses below **896px (`56em`)**, close to its measured minimum width, and remains expanded on wider tablet and desktop windows. Container-based wrapping and dashboard grid projection remain independent of this viewport policy.
+Phone-specific layouts, navigation collapse and chart/dashboard authoring restrictions start strictly below **768px (`sm`)**. Tablets keep full content controls and the desktop navigation shape; its labels condense between 768px and 896px to fit. Container-based wrapping and dashboard grid projection remain independent of this viewport policy.
 
 ## Component replacements
 
 | Desktop presentation | Compact presentation | Trigger | Implementation |
 | --- | --- | --- | --- |
-| Full navigation bar | Menu button → right Drawer | Below 896px / `56em` | [MainNavBarContent](../packages/frontend/src/components/NavBar/MainNavBarContent.tsx) |
+| Full navigation bar | Condensed icon row, then Menu button → right Drawer | Labels condense below 896px; Drawer below `sm` / 768px | [MainNavBarContent](../packages/frontend/src/components/NavBar/MainNavBarContent.tsx) |
 | Persistent page navigation sidebar | Labeled button → left Drawer, up to 24rem wide | Below `sm` / 768px | [Page](../packages/frontend/src/components/common/Page/Page.tsx) |
 | AI agent settings sidebar | Agent settings button → left Drawer, up to 360px wide | Below `sm`; form remains mounted and drafts survive resizing | [ProjectAiAgentEditPage](../packages/frontend/src/ee/pages/AiAgents/ProjectAiAgentEditPage.tsx) |
 | Page details sidebar | Full-width right Drawer | Below `sm`, when the caller provides a close handler | [Page](../packages/frontend/src/components/common/Page/Page.tsx) |
