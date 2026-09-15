@@ -38,6 +38,9 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     CommercialFeatureFlags.PatScopeAuthoritative,
     FeatureFlags.ResultsCacheEnabled,
     FeatureFlags.EnableTimezoneSupport,
+    // Changes cache pricing on the operator's Anthropic bill: opt-in only,
+    // rolled out per org from Console.
+    FeatureFlags.DataAppPromptCache1h,
 ]);
 
 export const ALL_FEATURE_FLAG_IDS: readonly string[] = [

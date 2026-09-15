@@ -66,6 +66,8 @@ const REGISTRY_HOSTS = ['registry.npmjs.org'];
 // Sentinel copilot config the mocked resolver returns and createSandbox is
 // asserted to receive — verifies the org-resolved config is threaded through.
 const COPILOT_CONFIG = { sentinel: 'copilot' } as never;
+// The mocked feature flag is enabled, so the resolved config carries the 1h TTL.
+const CODING_AGENT_CONFIG = { sentinel: 'copilot', promptCacheTtl: '1h' };
 
 const CUSTOM_DEPS: AppVersionDependencies = {
     custom: [{ name: 'react-query', version: '^5.0.0' }],
@@ -348,7 +350,7 @@ describe('AppGenerateService.runBuildFromSourcePipeline', () => {
                 'app-uuid-1',
                 'org-uuid-1',
                 'proj-uuid-1',
-                COPILOT_CONFIG,
+                CODING_AGENT_CONFIG,
                 [],
             );
             // No dep restore or install should have happened
@@ -369,7 +371,7 @@ describe('AppGenerateService.runBuildFromSourcePipeline', () => {
                 'app-uuid-1',
                 'org-uuid-1',
                 'proj-uuid-1',
-                COPILOT_CONFIG,
+                CODING_AGENT_CONFIG,
                 REGISTRY_HOSTS,
             );
 

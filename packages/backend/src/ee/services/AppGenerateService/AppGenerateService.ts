@@ -255,6 +255,7 @@ import {
     CLAUDE_CODE_SECRET_ENV_KEYS,
     claudeCodeAllowedHosts,
     describeClaudeCodeEnv,
+    type ClaudeCodeSessionConfig,
 } from './claudeCodeEnv';
 import {
     buildClaudeCodeOtelEnv,
@@ -485,6 +486,9 @@ type ModelFile = {
     filename: string;
     contents: string;
 };
+
+/** Org-resolved provider config plus the per-build CLI session options. */
+type CodingAgentConfig = ResolvedCopilotConfig & ClaudeCodeSessionConfig;
 
 type DataAppVersionFailureTelemetry = {
     wasResumed?: boolean;
@@ -978,7 +982,7 @@ export class AppGenerateService extends BaseService {
      * one), so a BYO org runs on its own key rather than the instance key.
      */
     private static getClaudeCodeEnv(
-        copilot: CopilotConfig,
+        copilot: CodingAgentConfig,
     ): Record<string, string> {
         return buildClaudeCodeEnv(copilot, () =>
             AppGenerateService.getAnthropicApiKey(copilot),
@@ -989,17 +993,33 @@ export class AppGenerateService extends BaseService {
         return this.lightdashConfig.appRuntime?.dataAppCodingAgent ?? 'claude';
     }
 
-    private getCodingAgentConfig(
+    // Resolved once per build; every env-builder call site inherits the
+    // prompt cache TTL from here. Codex never consults the flag.
+    private async getCodingAgentConfig(
         organizationUuid: string | null | undefined,
-    ): Promise<ResolvedCopilotConfig> {
-        return this.dataAppCodingAgent === 'codex'
-            ? this.orgAiCopilotConfigResolver.getCodexConfig(organizationUuid)
-            : this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
-                  organizationUuid,
-              );
+    ): Promise<CodingAgentConfig> {
+        if (this.dataAppCodingAgent === 'codex') {
+            const codex =
+                await this.orgAiCopilotConfigResolver.getCodexConfig(
+                    organizationUuid,
+                );
+            return { ...codex, promptCacheTtl: null };
+        }
+        const claude =
+            await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
+                organizationUuid,
+            );
+        if (!organizationUuid) return { ...claude, promptCacheTtl: null };
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.DataAppPromptCache1h,
+        });
+        return { ...claude, promptCacheTtl: enabled ? '1h' : null };
     }
 
-    private getCodingAgentEnv(copilot: CopilotConfig): Record<string, string> {
+    private getCodingAgentEnv(
+        copilot: CodingAgentConfig,
+    ): Record<string, string> {
         return this.dataAppCodingAgent === 'codex'
             ? buildCodexCodeEnv(copilot)
             : AppGenerateService.getClaudeCodeEnv(copilot);
@@ -4738,7 +4758,7 @@ export class AppGenerateService extends BaseService {
         }
 
         let codingAgentEnv: Record<string, string>;
-        let copilot: ResolvedCopilotConfig;
+        let copilot: CodingAgentConfig;
         let s3Client: S3Client;
         let bucket: string;
         try {
@@ -5041,7 +5061,7 @@ export class AppGenerateService extends BaseService {
         currentStatus: AppVersionStatus,
         wasResumed: boolean,
         codingAgentEnv: Record<string, string>,
-        copilot: ResolvedCopilotConfig,
+        copilot: CodingAgentConfig,
         fileIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
         versionDeps: AppVersionDependencies | null,
@@ -7396,7 +7416,7 @@ export class AppGenerateService extends BaseService {
         sandbox: SandboxHandle,
         appUuid: string,
         sourceVersion: number,
-        copilot: CopilotConfig,
+        copilot: CodingAgentConfig,
     ): Promise<void> {
         let claudeCodeEnv: Record<string, string>;
         try {
