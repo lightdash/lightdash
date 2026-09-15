@@ -16,6 +16,11 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
+/* Avoid press-time stacking changes inside the forced-dark navbar. */
+.header :global(.mantine-active):active {
+    transform: none;
+}
+
 .headerEditingDashboardChart {
     justify-content: center;
     border-bottom: none;
