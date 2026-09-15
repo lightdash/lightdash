@@ -248,6 +248,7 @@ import type {
     JiraSite,
 } from './jira';
 import { type KnexPaginatedData } from './knex-paginate';
+import { type LearnProgress } from './learnProgress';
 import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
     type ApiCompiledMergeQueryResults,
@@ -1403,6 +1404,7 @@ type ApiResults =
     | ApiDeleteComment
     | ApiUserAvatarResponse['results']
     | UserOnboarding
+    | LearnProgress
     | ApiSuccessEmpty
     | ApiCreateProjectResults
     | ApiDeployExploresResults

@@ -6,6 +6,7 @@ import {
     ApiGetAuthenticatedUserResponse,
     ApiGetLoginOptionsResponse,
     ApiGetUserOnboardingResponse,
+    ApiLearnProgressResponse,
     ApiLoginEmailOtpRequest,
     ApiLoginEmailOtpResponse,
     ApiRegisterUserResponse,
@@ -22,6 +23,7 @@ import {
     isMobileLoginIntent,
     isMobilePlatform,
     LightdashRequestMethodHeader,
+    MergeLearnProgressRequest,
     NotFoundError,
     ParameterError,
     PersonalAccessToken,
@@ -248,6 +250,101 @@ export class UserController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Learn walkthrough progress for the authenticated user: what the
+     * library shows as complete, started, and up next, from any browser.
+     * @summary Get Learn progress
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/learn-progress')
+    @OperationId('GetUserLearnProgress')
+    async getUserLearnProgress(
+        @Request() req: express.Request,
+    ): Promise<ApiLearnProgressResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getUserService()
+                .getLearnProgress(req.account),
+        };
+    }
+
+    /**
+     * Record that the authenticated user started a Learn walkthrough.
+     * The scope must be one the instance's scope registry knows.
+     * @summary Mark Learn walkthrough started
+     * @param req express request
+     * @param scope the walkthrough's scope, e.g. `view:Dashboard`
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/learn-progress/{scope}/started')
+    @OperationId('MarkUserLearnScopeStarted')
+    async markUserLearnScopeStarted(
+        @Request() req: express.Request,
+        @Path() scope: string,
+    ): Promise<ApiLearnProgressResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getUserService()
+                .markLearnScopeStarted(req.account, scope),
+        };
+    }
+
+    /**
+     * Record that the authenticated user completed a Learn walkthrough.
+     * Idempotent: the first completion time is kept.
+     * @summary Mark Learn walkthrough completed
+     * @param req express request
+     * @param scope the walkthrough's scope, e.g. `view:Dashboard`
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/learn-progress/{scope}/completed')
+    @OperationId('MarkUserLearnScopeCompleted')
+    async markUserLearnScopeCompleted(
+        @Request() req: express.Request,
+        @Path() scope: string,
+    ): Promise<ApiLearnProgressResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getUserService()
+                .markLearnScopeCompleted(req.account, scope),
+        };
+    }
+
+    /**
+     * Take in progress a browser recorded before the instance kept it.
+     * Unioned with what the instance holds; server timestamps win, and
+     * unknown scopes are dropped.
+     * @summary Merge browser Learn progress
+     * @param req express request
+     * @param body the browser's completed, started and last-started scopes
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/learn-progress/merge')
+    @OperationId('MergeUserLearnProgress')
+    async mergeUserLearnProgress(
+        @Request() req: express.Request,
+        @Body() body: MergeLearnProgressRequest,
+    ): Promise<ApiLearnProgressResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getUserService()
+                .mergeLearnProgress(req.account, body),
         };
     }
 
