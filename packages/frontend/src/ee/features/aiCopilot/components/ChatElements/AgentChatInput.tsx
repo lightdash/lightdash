@@ -78,6 +78,7 @@ import {
     type ThreadElementReference,
 } from '../../store/aiAgentThreadElementRefsSlice';
 import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
+import { setElementPickerEnabled } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -324,6 +325,13 @@ export const AgentChatInput = ({
     const elementReferences = useAiAgentStoreSelector(
         selectThreadElementReferences(threadUuid),
     );
+    const disableElementPicker = useCallback(() => {
+        if (threadUuid) {
+            storeDispatch(
+                setElementPickerEnabled({ threadUuid, enabled: false }),
+            );
+        }
+    }, [storeDispatch, threadUuid]);
     const clearElementReferences = useCallback(() => {
         if (threadUuid) {
             storeDispatch(clearThreadElementReferences({ threadUuid }));
@@ -640,6 +648,7 @@ export const AgentChatInput = ({
                     theme: selectedTheme,
                 }),
             });
+            disableElementPicker();
             if (clearOnSubmitRef.current) {
                 editor?.commands.clearContent();
                 setValueState('');
@@ -662,6 +671,7 @@ export const AgentChatInput = ({
             externalSourceAttachments,
             elementReferences,
             clearElementReferences,
+            disableElementPicker,
             isPreparingCsv,
             retainCsvSources,
             selectedTheme,
@@ -764,6 +774,7 @@ export const AgentChatInput = ({
             setValueState('');
         }
         if (started) {
+            disableElementPicker();
             setComposerMode('ask');
         }
     };
@@ -802,6 +813,7 @@ export const AgentChatInput = ({
                 theme: selectedTheme,
             }),
         });
+        disableElementPicker();
         if (clearOnSubmitRef.current) {
             ed.commands.clearContent();
             setValueState('');
@@ -823,6 +835,7 @@ export const AgentChatInput = ({
             messageUuid: activeMessageUuid,
             message,
         });
+        disableElementPicker();
         editorRef.current?.commands.clearContent();
         setValueState('');
     };

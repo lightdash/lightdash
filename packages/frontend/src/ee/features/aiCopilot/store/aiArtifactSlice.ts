@@ -41,10 +41,12 @@ export type AiPreview =
 
 export interface AiArtifactState {
     preview: AiPreview | null;
+    elementPickerThreadUuid: string | null;
 }
 
 const initialState: AiArtifactState = {
     preview: null,
+    elementPickerThreadUuid: null,
 };
 
 export const aiArtifactSlice = createSlice({
@@ -53,9 +55,22 @@ export const aiArtifactSlice = createSlice({
     reducers: {
         setPreview: (state, action: PayloadAction<AiPreview>) => {
             state.preview = action.payload;
+            state.elementPickerThreadUuid = null;
         },
         clearPreview: (state) => {
             state.preview = null;
+            state.elementPickerThreadUuid = null;
+        },
+        setElementPickerEnabled: (
+            state,
+            action: PayloadAction<{ threadUuid: string; enabled: boolean }>,
+        ) => {
+            const { threadUuid, enabled } = action.payload;
+            if (enabled) {
+                state.elementPickerThreadUuid = threadUuid;
+            } else if (state.elementPickerThreadUuid === threadUuid) {
+                state.elementPickerThreadUuid = null;
+            }
         },
         setDataAppPreviewVersion: (
             state,
@@ -69,8 +84,12 @@ export const aiArtifactSlice = createSlice({
     },
 });
 
-export const { setPreview, clearPreview, setDataAppPreviewVersion } =
-    aiArtifactSlice.actions;
+export const {
+    setPreview,
+    clearPreview,
+    setDataAppPreviewVersion,
+    setElementPickerEnabled,
+} = aiArtifactSlice.actions;
 
 type StateWithAiArtifact = { aiArtifact: AiArtifactState };
 
@@ -91,3 +110,7 @@ export const selectDataAppPreview = (state: StateWithAiArtifact) =>
     state.aiArtifact.preview?.type === 'dataApp'
         ? state.aiArtifact.preview
         : null;
+
+export const selectElementPickerEnabled =
+    (threadUuid: string) => (state: StateWithAiArtifact) =>
+        state.aiArtifact.elementPickerThreadUuid === threadUuid;

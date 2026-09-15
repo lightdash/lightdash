@@ -53,6 +53,7 @@ vi.mock('../../../../../features/apps/previewOrigin', () => ({
 }));
 
 vi.mock('../../store/hooks', () => ({
+    useAiAgentStoreSelector: () => false,
     useAiAgentStoreDispatch: () => vi.fn(),
 }));
 
