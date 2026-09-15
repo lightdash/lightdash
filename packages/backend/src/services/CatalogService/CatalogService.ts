@@ -65,6 +65,13 @@ import type {
     DbMetricsTreeNodeIn,
 } from '../../database/entities/catalog';
 import {
+    newExploreCacheReadContext,
+    safeGetCachedExploreStorageBytes,
+    summarizeExploreCacheRead,
+    type ExploreCacheReadContext,
+} from '../../logging/exploreCacheReadMetrics';
+import { measureTime } from '../../logging/measureTime';
+import {
     CatalogModel,
     type CatalogSearchContext,
 } from '../../models/CatalogModel/CatalogModel';
@@ -355,62 +362,129 @@ export class CatalogService<
         organizationUuid: string,
         projectUuid: string,
     ) {
-        const cachedExplores = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
+        // /dataCatalog browse+search - the user-facing page PROD-10912
+        // deliberately does not touch. Same field contract as the other
+        // cached-explore read sites (SPK-2121), plus a DB-read/Node-filter
+        // phase split since this path also filters by user attribute.
+        const browseReadContext: ExploreCacheReadContext & {
+            trigger: 'page';
+        } = {
+            ...newExploreCacheReadContext('catalog-browse', undefined),
+            trigger: 'page',
+        };
+        const { result: filteredExplores } = await measureTime(
+            async () => {
+                const dbReadStart = performance.now();
+                const [cachedExplores, storedExploreBytes] = await Promise.all([
+                    this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                    ),
+                    safeGetCachedExploreStorageBytes(() =>
+                        this.projectModel.getCachedExploreStorageBytes(
+                            projectUuid,
+                        ),
+                    ),
+                ]);
+                browseReadContext.dbReadMs = performance.now() - dbReadStart;
+                Object.assign(browseReadContext, {
+                    ...summarizeExploreCacheRead(cachedExplores),
+                    storedExploreBytes,
+                });
 
-        if (!cachedExplores) return [];
+                if (!cachedExplores) return [];
 
-        const explores = Object.values(cachedExplores);
+                const explores = Object.values(cachedExplores);
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
+                    );
 
-        // We keep errors in the list of explores
-        const filteredExplores = explores.reduce<(Explore | ExploreError)[]>(
-            (acc, explore) => {
-                if (isExploreError(explore)) {
-                    // If no dimensions found, we don't show the explore error
-                    if (
-                        explore.errors.every(
-                            (error) =>
-                                error.type ===
-                                InlineErrorType.NO_DIMENSIONS_FOUND,
-                        )
-                    )
-                        return acc;
+                const attributeFilterStart = performance.now();
+                // We keep errors in the list of explores
+                const filtered = explores.reduce<(Explore | ExploreError)[]>(
+                    (acc, explore) => {
+                        if (isExploreError(explore)) {
+                            // If no dimensions found, we don't show the explore error
+                            if (
+                                explore.errors.every(
+                                    (error) =>
+                                        error.type ===
+                                        InlineErrorType.NO_DIMENSIONS_FOUND,
+                                )
+                            )
+                                return acc;
 
-                    return [...acc, explore];
-                }
-                if (
-                    !doesExploreMatchRequiredAttributes(
-                        explore.tables[explore.baseTable].requiredAttributes,
-                        explore.tables[explore.baseTable].anyAttributes,
-                        userAttributes,
-                    )
-                ) {
-                    return acc;
-                }
-                const filteredExplore = getFilteredExplore(
-                    explore,
-                    userAttributes,
+                            return [...acc, explore];
+                        }
+                        if (
+                            !doesExploreMatchRequiredAttributes(
+                                explore.tables[explore.baseTable]
+                                    .requiredAttributes,
+                                explore.tables[explore.baseTable].anyAttributes,
+                                userAttributes,
+                            )
+                        ) {
+                            return acc;
+                        }
+                        const filteredExplore = getFilteredExplore(
+                            explore,
+                            userAttributes,
+                        );
+                        return [...acc, filteredExplore];
+                    },
+                    [],
                 );
-                return [...acc, filteredExplore];
+                browseReadContext.attributeFilterMs =
+                    performance.now() - attributeFilterStart;
+
+                return filtered;
             },
-            [],
+            'CatalogService.getFilteredExplores.cachedExploreRead',
+            this.logger,
+            browseReadContext,
         );
 
         return filteredExplores;
     }
 
     async indexCatalog(projectUuid: string, userUuid: string | undefined) {
-        const cachedExploresMap = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'uuid',
+        // Background index job over the same cache the /dataCatalog browse
+        // read uses (SPK-2121) - shares codePath 'catalog-browse' with
+        // getFilteredExplores, distinguished by trigger so a scheduled job
+        // and a user-facing page request don't land in the same bucket.
+        const indexReadContext: ExploreCacheReadContext & {
+            trigger: 'index';
+        } = {
+            ...newExploreCacheReadContext('catalog-browse', undefined),
+            trigger: 'index',
+        };
+        const { result: cachedExploresMap } = await measureTime(
+            async () => {
+                const [explores, storedExploreBytes] = await Promise.all([
+                    this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'uuid',
+                    ),
+                    safeGetCachedExploreStorageBytes(() =>
+                        this.projectModel.getCachedExploreStorageBytes(
+                            projectUuid,
+                        ),
+                    ),
+                ]);
+                Object.assign(indexReadContext, {
+                    ...summarizeExploreCacheRead(explores),
+                    storedExploreBytes,
+                });
+                return explores;
+            },
+            'CatalogService.indexCatalog.cachedExploreRead',
+            this.logger,
+            indexReadContext,
         );
 
         const { organizationUuid } =

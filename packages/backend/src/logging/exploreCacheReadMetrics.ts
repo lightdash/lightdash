@@ -11,6 +11,7 @@ import {
  */
 export type ExploreCacheReadCodePath =
     | 'catalog'
+    | 'catalog-browse'
     | 'dbt-exposures'
     | 'split-lookup'
     | 'review-writeback';
@@ -35,6 +36,20 @@ export type ExploreCacheReadContext = {
      * the request for this.
      */
     storedExploreBytes: number | undefined;
+    /**
+     * DB read + driver parse time for the cache read, in ms. Only populated
+     * on codePath 'catalog-browse' (trigger 'page') - the one path that also
+     * does Node-side attribute filtering worth separating out. Best-effort:
+     * measured with performance.now() around the existing read, no extra
+     * queries.
+     */
+    dbReadMs: number | undefined;
+    /**
+     * Node-side user-attribute filtering time, in ms
+     * (`doesExploreMatchRequiredAttributes` + `getFilteredExplore` over every
+     * explore). Only populated on codePath 'catalog-browse' (trigger 'page').
+     */
+    attributeFilterMs: number | undefined;
 };
 
 export const newExploreCacheReadContext = (
@@ -47,6 +62,8 @@ export const newExploreCacheReadContext = (
     tableFanOut: 0,
     requestedExploreCount,
     storedExploreBytes: undefined,
+    dbReadMs: undefined,
+    attributeFilterMs: undefined,
 });
 
 /**
