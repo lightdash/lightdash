@@ -4,7 +4,10 @@ import {
     Droppable,
     type DropResult,
 } from '@hello-pangea/dnd';
-import { getGranularityMapFromItems } from '@lightdash/common';
+import {
+    getGranularityMapFromItems,
+    getReadableTextColor,
+} from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
@@ -43,6 +46,8 @@ export const Series: FC = () => {
         groupFieldIds,
         valueLabel,
         valueLabelChange,
+        valueLabelColor,
+        valueLabelColorChange,
         showValue,
         toggleShowValue,
         showPercentage,
@@ -60,6 +65,16 @@ export const Series: FC = () => {
         groupValueOptionChange,
     } = visualizationConfig.chartConfig;
 
+    const firstGroupLabel = sortedGroupLabels[0];
+    const firstGroupColor = firstGroupLabel
+        ? (groupColorOverrides[firstGroupLabel] ??
+          getGroupColor(groupFieldIds.join('_'), firstGroupLabel))
+        : colorPalette[0];
+    const automaticValueLabelColor =
+        valueLabel === 'inside' && firstGroupColor
+            ? getReadableTextColor(firstGroupColor)
+            : firstGroupColor;
+
     return (
         <Stack>
             <ColorPaletteSection />
@@ -74,6 +89,10 @@ export const Series: FC = () => {
                         isShowPercentageOverriden={isShowPercentageOverriden}
                         valueLabel={valueLabel}
                         onValueLabelChange={valueLabelChange}
+                        valueLabelColor={valueLabelColor}
+                        defaultValueLabelColor={automaticValueLabelColor}
+                        swatches={colorPalette}
+                        onValueLabelColorChange={valueLabelColorChange}
                         showValue={showValue}
                         onToggleShowValue={toggleShowValue}
                         showPercentage={showPercentage}
@@ -187,6 +206,15 @@ export const Series: FC = () => {
                                                                 ]
                                                                     ?.showPercentage ??
                                                                 showPercentage
+                                                            }
+                                                            valueLabelColor={
+                                                                groupValueOptionOverrides[
+                                                                    groupLabel
+                                                                ]
+                                                                    ?.valueLabelColor
+                                                            }
+                                                            defaultValueLabelColor={
+                                                                valueLabelColor
                                                             }
                                                             onLabelChange={
                                                                 groupLabelChange

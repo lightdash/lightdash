@@ -864,9 +864,11 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
             const toolErrors: Array<{ tool: string; result: unknown }> = [];
             let result: runner.AutopilotAgentRunResult | null = null;
             let effectivePolicy: string | null = null;
+            let offeredTools: string[] = [];
             const actualRunner = runner.runAutopilotAgent;
             vi.spyOn(runner, 'runAutopilotAgent').mockImplementation(
                 async (args) => {
+                    offeredTools = args.agent.tools.map((tool) => tool.name);
                     effectivePolicy =
                         args.agent.system.match(/Cleanup mode: (\w+)/)?.[1] ??
                         null;
@@ -921,10 +923,48 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
             );
             check('requested policy executed', effectivePolicy === mode);
             check(
+                'group action follows effective policy',
+                offeredTools.includes('bulk_delete_broken_content') ===
+                    (mode === 'cleanup') &&
+                    offeredTools.includes('bulk_flag_broken_content') ===
+                        (mode === 'flag'),
+            );
+
+            check(
                 'selected organization provider persisted',
                 finished?.modelProvider === provider,
             );
             check('summary persisted', Boolean(finished?.summary));
+            const summaryLabels: [ManagedAgentActionType, string][] = [
+                [ManagedAgentActionType.FLAGGED_STALE, 'Stale flags'],
+                [ManagedAgentActionType.FLAGGED_BROKEN, 'Broken flags'],
+                [ManagedAgentActionType.FLAGGED_SLOW, 'Slow-query flags'],
+                [ManagedAgentActionType.FIXED_BROKEN, 'Repairs'],
+                [ManagedAgentActionType.CREATED_CONTENT, 'Created content'],
+                [ManagedAgentActionType.SOFT_DELETED, 'Soft-deletions'],
+                [ManagedAgentActionType.INSIGHT, 'Insights for review'],
+                [ManagedAgentActionType.BLOCKED, 'Refused attempts'],
+            ];
+            for (const [actionType, label] of summaryLabels) {
+                const count = actions.filter(
+                    (action) =>
+                        action.actionType === actionType && !action.reversedAt,
+                ).length;
+                const reportedCount = finished?.summary?.match(
+                    new RegExp(`• ${label}: (\\d+)(?: —|$)`, 'm'),
+                )?.[1];
+                check(
+                    `summary ${label} matches saved actions`,
+                    reportedCount === String(count),
+                );
+            }
+            check(
+                'summary is factual report',
+                finished?.summary?.includes(
+                    'Actions in effect at report time',
+                ) === true,
+            );
+
             check(
                 'action count persisted',
                 finished?.actionCount === actions.length,
@@ -1068,7 +1108,7 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
             ).size;
             if (retiredCharts.length && mode === 'cleanup')
                 check(
-                    'retired-model cleanup respects run cap',
+                    'retired-model cleanup completes capped batch',
                     retiredDeleted ===
                         Math.min(
                             retiredCharts.length,
@@ -1118,6 +1158,7 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                     maxSteps: fixture === 'large' ? 120 : 80,
                     timeoutMs: fixture === 'large' ? 600_000 : 300_000,
                 },
+                offeredTools,
                 retiredModelOutcomes: {
                     expected: retiredCharts.length,
                     deleted: retiredDeleted,

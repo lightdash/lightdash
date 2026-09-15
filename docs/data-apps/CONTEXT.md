@@ -139,9 +139,11 @@ An organization-level bundle of CSS, fonts, images, a skill.md, and extra
 instructions that the coding agent applies when building an app. One theme
 can be the organization default, which applies whenever no theme is chosen.
 The builder picks one per app; the AI agent passes one by slug on the builds
-it starts, from the theme pinned to the prompt or named in it. Switching an
-existing app's theme is an iteration, on its own or together with a content
-change. Named "design" in code.
+it starts, from the theme pinned to the prompt or named in it. A theme named
+in prose is matched by listing the organization's themes (`listDataAppThemes`:
+slug, name, default flag, description); when none matches, the agent asks.
+Switching an existing app's theme is an iteration, on its own or together
+with a content change. Named "design" in code.
 _Avoid_: design, style, skin, brand kit
 
 **External connection**:

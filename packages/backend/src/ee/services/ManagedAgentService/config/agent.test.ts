@@ -4,7 +4,6 @@ import {
 } from '@lightdash/common';
 import {
     AUTOPILOT_CHART_SKILL_NAME,
-    AUTOPILOT_SLACK_SKILL_NAME,
     autopilotToolDefinitions,
     getManagedAgentConfigHash,
     getManagedAgentMcpUrl,
@@ -287,7 +286,7 @@ describe('renderAutopilotAgent', () => {
             `Call loadSkill with name "${AUTOPILOT_CHART_SKILL_NAME}"`,
         );
         expect(system).toContain(
-            `Call loadSkill with name "${AUTOPILOT_SLACK_SKILL_NAME}"`,
+            'The application generates the factual report from saved actions',
         );
         expect(tools.map((tool) => tool.name)).toContain('write_slack_summary');
         expect(
@@ -330,16 +329,33 @@ describe('broken-content action contracts', () => {
         expect(tool?.inputSchema.required).toEqual(['description']);
     });
 
-    it.each(['flag', 'cleanup'] as const)(
-        'offers group flagging in %s mode',
-        (aggression) => {
-            const config = renderAutopilotAgent({
-                runtime: 'ai-sdk',
-                policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
-            });
-            expect(config.tools.map((tool) => tool.name)).toContain(
-                'bulk_flag_broken_content',
-            );
+    it.each(['ai-sdk', 'anthropic-managed'] as const)(
+        'selects one deleted-model group action from policy and capabilities (%s)',
+        (runtime) => {
+            for (const aggression of ['observe', 'flag', 'cleanup'] as const) {
+                for (const modifyExistingContent of [true, false]) {
+                    const config = renderAutopilotAgent({
+                        runtime,
+                        policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
+                        toolSettings: { modifyExistingContent },
+                    });
+                    const names = config.tools.map((tool) => tool.name);
+                    const canDelete =
+                        aggression === 'cleanup' && modifyExistingContent;
+                    expect(names.includes('bulk_delete_broken_content')).toBe(
+                        canDelete,
+                    );
+                    expect(names.includes('bulk_flag_broken_content')).toBe(
+                        aggression !== 'observe' && !canDelete,
+                    );
+                    expect(names.includes('flag_content')).toBe(
+                        aggression !== 'observe',
+                    );
+                    expect(names.includes('soft_delete_content')).toBe(
+                        canDelete,
+                    );
+                }
+            }
         },
     );
 

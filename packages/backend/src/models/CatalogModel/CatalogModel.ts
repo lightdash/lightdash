@@ -42,6 +42,7 @@ import {
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { chunk } from 'lodash';
 import { validate as isValidUuid } from 'uuid';
 import type { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -1019,25 +1020,39 @@ export class CatalogModel {
     }
 
     async setChartUsages(projectUuid: string, chartUsages: ChartUsageIn[]) {
-        await this.database.transaction(async (trx) => {
-            const updatePromises = chartUsages.map(
-                ({ fieldName, chartUsage, cachedExploreUuid }) =>
-                    trx(CatalogTableName)
-                        .where(`${CatalogTableName}.name`, fieldName)
-                        .andWhere(
-                            `${CatalogTableName}.cached_explore_uuid`,
-                            cachedExploreUuid,
-                        )
-                        .andWhere(
-                            `${CatalogTableName}.project_uuid`,
-                            projectUuid,
-                        )
-                        .update({
-                            chart_usage: chartUsage,
-                        }),
+        if (chartUsages.length === 0) return;
+        // PostgreSQL UPDATE ... FROM must have only one source row per target key.
+        const uniqueUsages = new Map<string, ChartUsageIn>();
+        chartUsages.forEach((usage) => {
+            uniqueUsages.set(
+                JSON.stringify([usage.cachedExploreUuid, usage.fieldName]),
+                usage,
             );
-
-            await Promise.all(updatePromises);
+        });
+        await this.database.transaction(async (trx) => {
+            for (const batch of chunk([...uniqueUsages.values()], 500)) {
+                const values = batch
+                    .map(() => '(?::uuid, ?::text, ?::integer)')
+                    .join(', ');
+                const bindings = batch.flatMap(
+                    ({ cachedExploreUuid, fieldName, chartUsage }) => [
+                        cachedExploreUuid,
+                        fieldName,
+                        chartUsage,
+                    ],
+                );
+                // Keep the whole refresh atomic while bounding query size and round trips.
+                // eslint-disable-next-line no-await-in-loop
+                await trx.raw(
+                    `UPDATE ?? AS catalog
+                     SET chart_usage = usage.chart_usage
+                     FROM (VALUES ${values}) AS usage(cached_explore_uuid, name, chart_usage)
+                     WHERE catalog.project_uuid = ?::uuid
+                       AND catalog.cached_explore_uuid = usage.cached_explore_uuid
+                       AND catalog.name = usage.name`,
+                    [CatalogTableName, ...bindings, projectUuid],
+                );
+            }
         });
     }
 

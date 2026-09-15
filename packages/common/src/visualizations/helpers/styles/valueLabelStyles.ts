@@ -18,18 +18,20 @@ export type EChartsLabelPosition =
  * @param position - Label position relative to data point
  * @param type - Series type
  * @param backgroundColor - Optional series color
+ * @param color - Optional custom label color
  */
 export const getValueLabelStyle = (
     position: EChartsLabelPosition | undefined,
     type: Series['type'],
     backgroundColor?: string,
+    color?: string,
 ) => {
     const isInside = position?.startsWith('inside') ?? false;
 
     const base = {
         fontSize: 11,
         fontWeight: isInside ? '400' : '500',
-        color: FOREGROUND,
+        color: color ?? backgroundColor ?? FOREGROUND,
     } as const;
 
     // For bar charts with inside labels, use contrasting color based on bar color
@@ -37,7 +39,7 @@ export const getValueLabelStyle = (
         return {
             ...base,
             fontSize: 10,
-            color: getReadableTextColor(backgroundColor),
+            color: color ?? getReadableTextColor(backgroundColor),
             backgroundColor,
             borderRadius: 4,
             padding: [1, 2],

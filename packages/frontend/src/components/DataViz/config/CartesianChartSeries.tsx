@@ -43,7 +43,13 @@ type ConfigurableSeries = {
     reference: PivotChartLayout['y'][number]['reference'];
 } & Pick<
     NonNullable<CartesianChartDisplay['series']>[number],
-    'format' | 'label' | 'color' | 'type' | 'valueLabelPosition' | 'whichYAxis'
+    | 'format'
+    | 'label'
+    | 'color'
+    | 'type'
+    | 'valueLabelPosition'
+    | 'valueLabelColor'
+    | 'whichYAxis'
 >;
 
 export const CartesianChartSeries = ({
@@ -89,6 +95,7 @@ export const CartesianChartSeries = ({
             const seriesColor = foundSeries?.color;
             const seriesType = foundSeries?.type;
             const seriesValueLabelPosition = foundSeries?.valueLabelPosition;
+            const seriesValueLabelColor = foundSeries?.valueLabelColor;
             const seriesWhichYAxis = foundSeries?.whichYAxis;
 
             const config = {
@@ -103,6 +110,7 @@ export const CartesianChartSeries = ({
                     ),
                 type: seriesType,
                 valueLabelPosition: seriesValueLabelPosition,
+                valueLabelColor: seriesValueLabelColor,
                 whichYAxis: seriesWhichYAxis,
             };
 
@@ -234,6 +242,18 @@ export const CartesianChartSeries = ({
         [dispatch, actions],
     );
 
+    const handleValueLabelColorChange = useCallback(
+        (reference: string, color: string | undefined) => {
+            dispatch(
+                actions.setSeriesValueLabelColor({
+                    color,
+                    reference,
+                }),
+            );
+        },
+        [dispatch, actions],
+    );
+
     const renderSeries = useCallback(
         (
             series: ConfigurableSeries,
@@ -246,6 +266,7 @@ export const CartesianChartSeries = ({
                 color={series.color}
                 type={series.type}
                 valueLabelPosition={series.valueLabelPosition}
+                valueLabelColor={series.valueLabelColor}
                 colors={colors}
                 selectedChartType={selectedChartType}
                 onColorChange={onColorChange}
@@ -253,6 +274,7 @@ export const CartesianChartSeries = ({
                 onTypeChange={handleTypeChange}
                 onAxisChange={handleAxisChange}
                 onValueLabelPositionChange={handleValueLabelPositionChange}
+                onValueLabelColorChange={handleValueLabelColorChange}
                 dragHandleProps={dragHandleProps}
                 drawOrder={drawOrder}
             />
@@ -265,6 +287,7 @@ export const CartesianChartSeries = ({
             handleTypeChange,
             handleAxisChange,
             handleValueLabelPositionChange,
+            handleValueLabelColorChange,
         ],
     );
 

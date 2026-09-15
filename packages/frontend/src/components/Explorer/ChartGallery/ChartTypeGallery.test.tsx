@@ -2,6 +2,7 @@ import { ChartType, type DataAppViz, type ItemsMap } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
@@ -12,7 +13,7 @@ import ExplorerChartTypeGallery, {
     type ChartTypeGallerySection,
 } from './ChartTypeGallery';
 
-const { mocks } = vi.hoisted(() => ({
+const { mocks, visualizationConfig } = vi.hoisted(() => ({
     mocks: {
         setChartType: vi.fn(),
         setCartesianType: vi.fn(),
@@ -24,6 +25,12 @@ const { mocks } = vi.hoisted(() => ({
         dispatch: vi.fn(),
         canCreateDataApp: vi.fn(() => true),
         canEditChartType: vi.fn(() => true),
+    },
+    visualizationConfig: {
+        current: {
+            chartType: 'table',
+            chartConfig: {},
+        },
     },
 }));
 
@@ -54,10 +61,7 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
 }));
 vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
     useVisualizationContext: () => ({
-        visualizationConfig: {
-            chartType: ChartType.TABLE,
-            chartConfig: {},
-        },
+        visualizationConfig: visualizationConfig.current,
         setChartType: mocks.setChartType,
         setCartesianType: mocks.setCartesianType,
         setStacking: mocks.setStacking,
@@ -107,6 +111,7 @@ const galleryItem = (
     selected: false,
     disabled: false,
     select: vi.fn(),
+    onConfigure: null,
     onEdit: null,
 });
 
@@ -126,8 +131,31 @@ const gallerySection = (
     ...overrides,
 });
 
+const KeyboardSelectionHarness = () => {
+    const [selectedLabel, setSelectedLabel] = useState('Bar chart');
+    const item = (label: string) => ({
+        ...galleryItem(label),
+        selected: selectedLabel === label,
+        select: () => setSelectedLabel(label),
+    });
+
+    return (
+        <ChartTypeGallery
+            search=""
+            onSearchChange={vi.fn()}
+            disabledReason={null}
+            sections={[
+                gallerySection({
+                    items: [item('Bar chart'), item('Line chart')],
+                }),
+            ]}
+        />
+    );
+};
+
 describe('ChartTypeGallery', () => {
-    it('renders every section as cards, with Edit only where it is offered', () => {
+    it('renders a separate Configure action only where it is offered', () => {
+        const onConfigure = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
                 search=""
@@ -145,7 +173,7 @@ describe('ChartTypeGallery', () => {
                                     'Event pulse',
                                     'Reusable ranked bars',
                                 ),
-                                onEdit: vi.fn(),
+                                onConfigure,
                             },
                         ],
                     }),
@@ -164,13 +192,14 @@ describe('ChartTypeGallery', () => {
         expect(
             screen.queryByText('Reusable ranked bars'),
         ).not.toBeInTheDocument();
-        // Edit names its card so repeated pencils stay distinguishable.
+        // Configure names its card so repeated cogs stay distinguishable.
         expect(
-            screen.getByRole('button', { name: 'Edit Event pulse' }),
+            screen.getByRole('button', { name: 'Configure Event pulse' }),
         ).toBeInTheDocument();
     });
 
-    it('marks the selected grid card and disables cards that cannot be picked', () => {
+    it('marks the selected grid card and disables cards that cannot be picked', async () => {
+        const onConfigure = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
                 search=""
@@ -180,7 +209,11 @@ describe('ChartTypeGallery', () => {
                     gallerySection({
                         items: [
                             { ...galleryItem('Bar chart'), selected: true },
-                            { ...galleryItem('Line chart'), disabled: true },
+                            {
+                                ...galleryItem('Line chart'),
+                                disabled: true,
+                                onConfigure,
+                            },
                         ],
                     }),
                 ]}
@@ -193,6 +226,27 @@ describe('ChartTypeGallery', () => {
         const lineChart = screen.getByRole('button', { name: 'Line chart' });
         expect(lineChart).toHaveAttribute('data-selected', 'false');
         expect(lineChart).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'Configure Line chart' }),
+        ).toBeDisabled();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Configure Line chart' }),
+        );
+        expect(onConfigure).not.toHaveBeenCalled();
+    });
+
+    it('keeps keyboard focus on a card when selection rerenders it', async () => {
+        renderWithProviders(<KeyboardSelectionHarness />);
+        const lineChart = screen.getByRole('button', { name: 'Line chart' });
+
+        lineChart.focus();
+        await userEvent.keyboard('{Enter}');
+
+        expect(lineChart).toHaveFocus();
+        expect(lineChart).toHaveAttribute('aria-pressed', 'true');
+        expect(
+            screen.getByRole('button', { name: 'Bar chart' }),
+        ).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('offers the create tile even when the section is empty', () => {
@@ -406,16 +460,19 @@ const setProjectQuery = (error: Error | null = null) => {
     } as unknown as ReturnType<typeof useDataAppVisualizations>);
 };
 
-const renderGallery = () => {
-    const onSelected = vi.fn();
-    renderWithProviders(<ExplorerChartTypeGallery onSelected={onSelected} />);
-    return onSelected;
+const renderGallery = (onConfigure = vi.fn()) => {
+    renderWithProviders(<ExplorerChartTypeGallery onConfigure={onConfigure} />);
+    return onConfigure;
 };
 
 describe('ExplorerChartTypeGallery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         dataAppsEnabled.current = true;
+        visualizationConfig.current = {
+            chartType: ChartType.TABLE,
+            chartConfig: {},
+        };
         mocks.canCreateDataApp.mockReturnValue(true);
         // False by default (mirrors the real ability hook with no grants),
         // so existing selection/search tests keep a single "Event pulse"
@@ -424,17 +481,55 @@ describe('ExplorerChartTypeGallery', () => {
         setProjectQuery();
     });
 
-    it('uses the shared built-in selection command and opens Configure', async () => {
-        const onSelected = renderGallery();
+    it('surfaces Table first without changing its selection command', async () => {
+        renderGallery();
+
+        const builtIn = screen.getByRole('group', { name: 'Built in' });
+        expect(
+            within(builtIn)
+                .getAllByRole('button')
+                .filter((button) => button.hasAttribute('aria-pressed'))
+                .map((button) => button.textContent),
+        ).toEqual([
+            'Table',
+            'Bar chart',
+            'Horizontal bar chart',
+            'Line chart',
+            'Area chart',
+            'Scatter chart',
+            'Pie chart',
+            'Funnel chart',
+            'Treemap',
+            'Gauge',
+            'Sankey',
+            'Map',
+            'Big value',
+            'Vega (JSON editor)',
+        ]);
 
         await userEvent.click(
-            screen.getByRole('button', { name: /Pie chart/ }),
+            within(builtIn).getByRole('button', {
+                name: 'Table',
+                pressed: true,
+            }),
+        );
+
+        expect(mocks.setStacking).toHaveBeenCalledWith(undefined);
+        expect(mocks.setCartesianType).toHaveBeenCalledWith(undefined);
+        expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.TABLE);
+    });
+
+    it('uses the shared built-in selection command without closing the chooser', async () => {
+        const onConfigure = renderGallery();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Pie chart' }),
         );
 
         expect(mocks.setStacking).toHaveBeenCalledWith(undefined);
         expect(mocks.setCartesianType).toHaveBeenCalledWith(undefined);
         expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.PIE);
-        expect(onSelected).toHaveBeenCalledTimes(1);
+        expect(onConfigure).not.toHaveBeenCalled();
     });
 
     it('filters built-in choices using the gallery search', async () => {
@@ -447,11 +542,11 @@ describe('ExplorerChartTypeGallery', () => {
 
         await waitFor(() =>
             expect(
-                screen.queryByRole('button', { name: /Bar chart/ }),
+                screen.queryByRole('button', { name: 'Bar chart' }),
             ).not.toBeInTheDocument(),
         );
         expect(
-            screen.getByRole('button', { name: /Pie chart/ }),
+            screen.getByRole('button', { name: 'Pie chart' }),
         ).toBeInTheDocument();
     });
 
@@ -469,75 +564,122 @@ describe('ExplorerChartTypeGallery', () => {
             ),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: /Bar chart/ }),
+            screen.queryByRole('button', { name: 'Bar chart' }),
         ).not.toBeInTheDocument();
     });
 
     it('selects the existing Vega configuration path', async () => {
-        const onSelected = renderGallery();
+        renderGallery();
 
         await userEvent.click(
-            screen.getByRole('button', { name: /Vega \(JSON editor\)/ }),
+            screen.getByRole('button', { name: 'Vega (JSON editor)' }),
         );
 
         expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.CUSTOM);
-        expect(onSelected).toHaveBeenCalledTimes(1);
     });
 
     it('uses the existing project chart-type selection handler', async () => {
-        const onSelected = renderGallery();
+        const onConfigure = renderGallery();
 
         await userEvent.click(
-            screen.getByRole('button', { name: /Event pulse/ }),
+            screen.getByRole('button', { name: 'Event pulse' }),
         );
 
         expect(mocks.selectProjectChartType).toHaveBeenCalledWith(
             projectChartType,
             itemsMap,
         );
-        expect(onSelected).toHaveBeenCalledTimes(1);
+        expect(onConfigure).not.toHaveBeenCalled();
     });
 
-    it('hides the edit affordance for an official (registry-installed) chart type', () => {
+    it('configures a built-in type only after its tile action selects it', async () => {
+        const onConfigure = renderGallery();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Configure Pie chart' }),
+        );
+
+        expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.PIE);
+        expect(onConfigure).toHaveBeenCalledOnce();
+    });
+
+    it('keeps the selected built-in chart configuration intact', async () => {
+        const onConfigure = renderGallery();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Configure Table' }),
+        );
+
+        expect(mocks.setChartType).not.toHaveBeenCalled();
+        expect(mocks.setCartesianType).not.toHaveBeenCalled();
+        expect(mocks.setStacking).not.toHaveBeenCalled();
+        expect(onConfigure).toHaveBeenCalledOnce();
+    });
+
+    it('keeps the selected custom type bindings when configuring it', async () => {
+        visualizationConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: projectChartType.dataAppVizUuid },
+        };
+        const onConfigure = renderGallery();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Configure Event pulse' }),
+        );
+
+        expect(mocks.selectProjectChartType).not.toHaveBeenCalled();
+        expect(onConfigure).toHaveBeenCalledOnce();
+    });
+
+    it('hides the builder action without edit permission', () => {
+        renderGallery();
+
+        expect(
+            screen.queryByRole('button', { name: /Edit Event pulse/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('opens the custom chart builder directly without configuring or selecting', async () => {
+        mocks.canEditChartType.mockReturnValue(true);
+        const onConfigure = renderGallery();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Edit Event pulse' }),
+        );
+
+        expect(mocks.dispatch).toHaveBeenCalledWith({
+            type: 'startChartTypeAuthoring',
+            payload: { dataAppVizUuid: projectChartType.dataAppVizUuid },
+        });
+        expect(mocks.selectProjectChartType).not.toHaveBeenCalled();
+        expect(onConfigure).not.toHaveBeenCalled();
+    });
+
+    it('keeps official chart types read-only even with edit permission', () => {
         mocks.canEditChartType.mockReturnValue(true);
         mockedUseDataAppVisualizations.mockReturnValue({
             data: {
                 pages: [
                     {
                         data: [
-                            projectChartType,
                             {
                                 ...projectChartType,
-                                dataAppVizUuid: 'official-chart-type',
-                                name: 'Radial gauge',
-                                registrySlug: 'radial-gauge',
+                                registrySlug: 'official-pulse',
                             },
                         ],
-                        pagination: {
-                            page: 1,
-                            pageSize: 25,
-                            totalPageCount: 1,
-                            totalResults: 2,
-                        },
                     },
                 ],
-                pageParams: [1],
             },
             isInitialLoading: false,
-            error: null,
-            refetch: mocks.refetch,
-            hasNextPage: false,
-            fetchNextPage: mocks.fetchNextPage,
-            isFetchingNextPage: false,
         } as unknown as ReturnType<typeof useDataAppVisualizations>);
         renderGallery();
 
         expect(
-            screen.getByRole('button', { name: 'Edit Event pulse' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Edit Radial gauge' }),
+            screen.queryByRole('button', { name: 'Edit Event pulse' }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Configure Event pulse' }),
+        ).toBeInTheDocument();
     });
 
     it('starts authoring a new chart type in place from the project section', async () => {
@@ -562,7 +704,7 @@ describe('ExplorerChartTypeGallery', () => {
             screen.queryByRole('button', { name: /Create new chart type/ }),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: /Event pulse/ }),
+            screen.getByRole('button', { name: 'Event pulse' }),
         ).toBeInTheDocument();
     });
 
@@ -703,7 +845,7 @@ describe('ExplorerChartTypeGallery', () => {
             screen.getByText('Failed to load custom chart types'),
         ).toBeInTheDocument();
         await userEvent.click(
-            screen.getByRole('button', { name: /Vega \(JSON editor\)/ }),
+            screen.getByRole('button', { name: 'Vega (JSON editor)' }),
         );
 
         expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.CUSTOM);

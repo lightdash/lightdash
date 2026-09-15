@@ -1,3 +1,26 @@
+# [2.216.0](https://github.com/lightdash/lightdash/compare/2.215.3...2.216.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** complete broken-model flagging and bind project insights ([#29169](https://github.com/lightdash/lightdash/issues/29169)) ([25e67a7](https://github.com/lightdash/lightdash/commit/25e67a75402dd384ebe6f8b7ff3284302c5568f0))
+* **autopilot:** generate factual reports from saved actions ([#29175](https://github.com/lightdash/lightdash/issues/29175)) ([7f09981](https://github.com/lightdash/lightdash/commit/7f09981d5febed3ad8377463ed6f0212436efee4))
+* **autopilot:** select the bulk action from cleanup policy ([#29181](https://github.com/lightdash/lightdash/issues/29181)) ([4f6b8b1](https://github.com/lightdash/lightdash/commit/4f6b8b195019d3c5dca78098d120efb12eab11ad))
+* batch catalog chart usage updates (PROD-11294) ([#29221](https://github.com/lightdash/lightdash/issues/29221)) ([af9300a](https://github.com/lightdash/lightdash/commit/af9300a11374bcdf371731ecdd8067c639a8d10a))
+* bound dashboard deletion Explore lookups (PROD-11292) ([#29218](https://github.com/lightdash/lightdash/issues/29218)) ([b78712b](https://github.com/lightdash/lightdash/commit/b78712bdbdab88d583599c931afbdd3363ccf92e))
+* **frontend:** keep chart picker open after selection ([#29217](https://github.com/lightdash/lightdash/issues/29217)) ([2ae7a37](https://github.com/lightdash/lightdash/commit/2ae7a37a97cc90e85d2326b6716c5200760c080e))
+* **frontend:** put Table first in the chart picker ([#29223](https://github.com/lightdash/lightdash/issues/29223)) ([588bc6e](https://github.com/lightdash/lightdash/commit/588bc6edbaf1d29ff76ae5321df78d7db9f3e196))
+* **frontend:** use sidebar collapse icon ([#29229](https://github.com/lightdash/lightdash/issues/29229)) ([dbeefbe](https://github.com/lightdash/lightdash/commit/dbeefbe50c6ffbae7aab8105954c00c9bb7d94b5))
+* optimize similarity candidate selection (PROD-11293) ([#29219](https://github.com/lightdash/lightdash/issues/29219)) ([9a4f690](https://github.com/lightdash/lightdash/commit/9a4f6902e2a94e2a11c35e04dd41bf7d919ff8dc))
+* vertically align invite button label ([#29235](https://github.com/lightdash/lightdash/issues/29235)) ([c1a071b](https://github.com/lightdash/lightdash/commit/c1a071bb369b2d608bdd862b192f6aa10730d828))
+
+
+### Features
+
+* **ai-agent:** listDataAppThemes tool and theme-from-prose rule ([#29205](https://github.com/lightdash/lightdash/issues/29205)) ([8abd7f0](https://github.com/lightdash/lightdash/commit/8abd7f05100f9e160fed7c2020cde2997379c70d)), closes [#29234](https://github.com/lightdash/lightdash/issues/29234)
+* **ai-agent:** pick a data app theme from the composer or tool args ([#29234](https://github.com/lightdash/lightdash/issues/29234)) ([c91de20](https://github.com/lightdash/lightdash/commit/c91de2026b8fa025cd77a0e9a88514623a237bb5)), closes [#29205](https://github.com/lightdash/lightdash/issues/29205)
+* customize chart value label colors ([#29203](https://github.com/lightdash/lightdash/issues/29203)) ([c3fe6c5](https://github.com/lightdash/lightdash/commit/c3fe6c5e61382c5139dcdf8d1eac910a73c09a7e)), closes [#19836](https://github.com/lightdash/lightdash/issues/19836)
+
 ## [2.215.3](https://github.com/lightdash/lightdash/compare/2.215.2...2.215.3) (2026-09-15)
 
 

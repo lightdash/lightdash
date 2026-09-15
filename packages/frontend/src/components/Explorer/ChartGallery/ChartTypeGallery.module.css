@@ -28,19 +28,15 @@
     min-width: 0;
 }
 
-/* Edit fades in on hover/focus so resting cards stay clean; the configure
-   step's persistent "Edit chart type" action covers discovery and touch. */
-.cardEdit {
-    position: absolute;
-    top: 4px;
-    right: 4px;
+/* Keep secondary actions quiet until hover or keyboard focus reveals them. */
+.cardActions {
     opacity: 0;
     pointer-events: none;
     transition: opacity 100ms ease-out;
 }
 
-.cardWrapper:hover .cardEdit,
-.cardWrapper:focus-within .cardEdit {
+.cardWrapper:hover .cardActions,
+.cardWrapper:has(:focus-visible) .cardActions {
     opacity: 1;
     pointer-events: auto;
 }
@@ -120,7 +116,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     .card,
-    .cardEdit {
+    .cardActions {
         transition: none;
     }
 

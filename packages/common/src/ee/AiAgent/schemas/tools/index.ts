@@ -16,6 +16,7 @@ export * from './toolMcpQueryResultDescription';
 export * from './toolEditDbtProjectArgs';
 export * from './toolGenerateDataAppArgs';
 export * from './toolIterateDataAppArgs';
+export * from './toolListDataAppThemesArgs';
 export * from './toolEditProjectContextArgs';
 export * from './toolEditRepoArgs';
 export * from './toolSyncDbtProjectArgs';

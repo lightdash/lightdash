@@ -12,6 +12,7 @@ import {
 import capitalize from 'lodash/capitalize';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import classes from './SelectConfig.module.css';
 
 const ValueLabelIcon: FC<{
@@ -48,7 +49,11 @@ const ValueLabelIcon: FC<{
 
 type Props = {
     valueLabelPosition: ValueLabelPositionOptions | undefined;
+    valueLabelColor?: string;
+    defaultColor: string;
+    colors: string[];
     onChangeValueLabelPosition: (value: ValueLabelPositionOptions) => void;
+    onChangeValueLabelColor: (value: string | undefined) => void;
 };
 
 const ValueLabelItem = forwardRef<
@@ -68,28 +73,54 @@ const ValueLabelItem = forwardRef<
 
 export const CartesianChartValueLabelConfig: FC<Props> = ({
     onChangeValueLabelPosition,
+    onChangeValueLabelColor,
     valueLabelPosition,
+    valueLabelColor,
+    defaultColor,
+    colors,
 }) => {
     return (
-        <Select
-            allowDeselect={false}
-            data={Object.values(ValueLabelPositionOptions).map((option) => ({
-                value: option,
-                label: capitalize(option),
-            }))}
-            renderOption={({ option, checked }) => (
-                <ValueLabelItem
-                    value={option.value as ValueLabelPositionOptions}
-                    selected={checked ?? false}
+        <Group gap="xs" wrap="nowrap">
+            <Select
+                allowDeselect={false}
+                data={Object.values(ValueLabelPositionOptions).map(
+                    (option) => ({
+                        value: option,
+                        label: capitalize(option),
+                    }),
+                )}
+                renderOption={({ option, checked }) => (
+                    <ValueLabelItem
+                        value={option.value as ValueLabelPositionOptions}
+                        selected={checked ?? false}
+                    />
+                )}
+                leftSection={<ValueLabelIcon position={valueLabelPosition} />}
+                value={valueLabelPosition}
+                onChange={(value) =>
+                    value &&
+                    onChangeValueLabelPosition(
+                        value as ValueLabelPositionOptions,
+                    )
+                }
+                classNames={classes}
+            />
+            {valueLabelPosition !== ValueLabelPositionOptions.HIDDEN && (
+                <ColorSelector
+                    color={valueLabelColor}
+                    defaultColor={defaultColor}
+                    swatches={colors}
+                    withAlpha
+                    ariaLabel="Select value label color"
+                    onColorChange={onChangeValueLabelColor}
+                    onColorReset={
+                        valueLabelColor
+                            ? () => onChangeValueLabelColor(undefined)
+                            : undefined
+                    }
+                    resetLabel="Use automatic color"
                 />
             )}
-            leftSection={<ValueLabelIcon position={valueLabelPosition} />}
-            value={valueLabelPosition}
-            onChange={(value) =>
-                value &&
-                onChangeValueLabelPosition(value as ValueLabelPositionOptions)
-            }
-            classNames={classes}
-        />
+        </Group>
     );
 };

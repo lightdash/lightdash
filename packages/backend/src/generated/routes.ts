@@ -3075,6 +3075,7 @@ const models: TsoaRoute.Models = {
                                 { dataType: 'enum', enums: ['inside'] },
                             ],
                         },
+                        color: { dataType: 'string' },
                         show: { dataType: 'boolean' },
                     },
                 },
@@ -3438,6 +3439,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                valueLabelColor: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -3480,6 +3488,7 @@ const models: TsoaRoute.Models = {
                 },
                 groupColorOverrides: { ref: 'Record_string.string_' },
                 groupLabelOverrides: { ref: 'Record_string.string_' },
+                valueLabelColor: { dataType: 'string' },
                 showPercentage: { dataType: 'boolean' },
                 showValue: { dataType: 'boolean' },
                 valueLabel: { ref: 'PieChartValueLabel' },
@@ -5617,6 +5626,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
                             whichYAxis: { ref: 'AxisSide' },
+                            valueLabelColor: { dataType: 'string' },
                             valueLabelPosition: {
                                 ref: 'ValueLabelPositionOptions',
                             },
@@ -24372,6 +24382,33 @@ const models: TsoaRoute.Models = {
                         },
                     },
                 },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        displayName: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        designSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        designUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['design'],
+                            required: true,
+                        },
+                    },
+                },
             ],
             validators: {},
         },
@@ -24600,6 +24637,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['grepFields'] },
                 { dataType: 'enum', enums: ['iterateDataApp'] },
                 { dataType: 'enum', enums: ['listContent'] },
+                { dataType: 'enum', enums: ['listDataAppThemes'] },
                 { dataType: 'enum', enums: ['listKnowledgeDocuments'] },
                 { dataType: 'enum', enums: ['listProjects'] },
                 { dataType: 'enum', enums: ['listWarehouseTables'] },
@@ -25816,6 +25854,25 @@ const models: TsoaRoute.Models = {
                                                 status: {
                                                     dataType: 'enum',
                                                     enums: ['success'],
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                status: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['error'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['success'],
+                                                        },
+                                                    ],
                                                     required: true,
                                                 },
                                             },
@@ -27428,6 +27485,17 @@ const models: TsoaRoute.Models = {
                         type: {
                             dataType: 'enum',
                             enums: ['data_app'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        designUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['design'],
                             required: true,
                         },
                     },

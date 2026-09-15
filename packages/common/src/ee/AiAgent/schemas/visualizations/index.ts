@@ -33,6 +33,7 @@ export const ToolNameSchema = z.enum([
     'loadMcpTools',
     'generateDataApp',
     'iterateDataApp',
+    'listDataAppThemes',
     'editDbtProject',
     'editProjectContext',
     'editRepo',

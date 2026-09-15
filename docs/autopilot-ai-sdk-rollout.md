@@ -24,6 +24,7 @@ A downgrade is a notice, not a run error. It appears in setup, the run summary o
 - Step cap, timeout, truncation, content filtering and provider failures produce an error outcome. A summary captured before failure is retained.
 - Content discovery receives the allowed space UUIDs. Empty scope is denied before shared tools, where an empty UUID array otherwise means unrestricted.
 - The chart skill uses Autopilot's actual discovery/create/fix tools and reuses compatible built-in chart references.
+- The stored run summary and the Slack report are rendered from saved actions. The model's `write_slack_summary` note only ends its turn and is never published.
 
 ## Live evaluation suites
 

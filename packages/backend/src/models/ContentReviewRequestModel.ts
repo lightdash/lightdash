@@ -596,6 +596,19 @@ export class ContentReviewRequestModel {
                         ).onNull('owner.deleted_at');
                     })
                     .join({ spaces: SpaceTableName }, (join) => {
+                        if (
+                            source.contentType ===
+                            ContentReviewContentType.CHART
+                        ) {
+                            join.on(
+                                'spaces.space_id',
+                                this.database.raw('coalesce(??, ??)', [
+                                    'content.space_id',
+                                    'owner.space_id',
+                                ]),
+                            );
+                            return;
+                        }
                         join.on(
                             `spaces.${spaceKey}`,
                             `content.${spaceKey}`,
@@ -652,13 +665,7 @@ export class ContentReviewRequestModel {
         const query = this.getSimilarityContentQuery(
             SIMILAR_SOURCES.chart,
             scope,
-        )
-            .join(
-                { version: SavedChartVersionsTableName },
-                'version.saved_query_id',
-                'content.saved_query_id',
-            )
-            .where('version.saved_queries_version_id', latestVersion);
+        ).joinRaw('JOIN LATERAL (?) AS version ON true', [latestVersion]);
         const fieldMatches = this.database(
             'saved_queries_version_fields as fields',
         )
@@ -697,7 +704,11 @@ export class ContentReviewRequestModel {
         const [fieldCandidates, nameCandidates] = await Promise.all([
             query
                 .clone()
-                .select({ fieldHits: fieldMatches.clone().count('*') })
+                .modify((candidates) => {
+                    void candidates.select({
+                        fieldHits: fieldMatches.clone().count('*'),
+                    });
+                })
                 .whereExists(fieldMatches.clone().select('fields.name'))
                 .orderBy('fieldHits', 'desc')
                 .orderBy('content.saved_query_uuid')

@@ -446,9 +446,6 @@ For this focused chart-workflow evaluation, replace the general maintenance chec
                 expect(JSON.stringify(loadedSkills)).toContain(
                     'developing-in-lightdash',
                 );
-                expect(JSON.stringify(loadedSkills)).toContain(
-                    'lightdash-agent-slack-messaging',
-                );
                 expect(
                     actions.filter(
                         (action) =>

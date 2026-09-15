@@ -3243,6 +3243,10 @@
                                 ],
                                 "description": "Position of data labels"
                             },
+                            "color": {
+                                "type": "string",
+                                "description": "Custom data label color (hex code)"
+                            },
                             "show": {
                                 "type": "boolean",
                                 "description": "Show data labels on points"
@@ -3589,6 +3593,9 @@
                     },
                     "showPercentage": {
                         "type": "boolean"
+                    },
+                    "valueLabelColor": {
+                        "type": "string"
                     }
                 },
                 "type": "object",
@@ -3644,6 +3651,10 @@
                     "groupLabelOverrides": {
                         "$ref": "#/components/schemas/Record_string.string_",
                         "description": "Custom labels for each group/slice"
+                    },
+                    "valueLabelColor": {
+                        "type": "string",
+                        "description": "Custom color for value labels"
                     },
                     "showPercentage": {
                         "type": "boolean",
@@ -5903,6 +5914,9 @@
                             "properties": {
                                 "whichYAxis": {
                                     "$ref": "#/components/schemas/AxisSide"
+                                },
+                                "valueLabelColor": {
+                                    "type": "string"
                                 },
                                 "valueLabelPosition": {
                                     "$ref": "#/components/schemas/ValueLabelPositionOptions"
@@ -25966,6 +25980,33 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "designSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "designUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["design"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "designSlug",
+                            "designUuid",
+                            "type"
+                        ],
+                        "type": "object"
                     }
                 ]
             },
@@ -26230,6 +26271,7 @@
                     "grepFields",
                     "iterateDataApp",
                     "listContent",
+                    "listDataAppThemes",
                     "listKnowledgeDocuments",
                     "listProjects",
                     "listWarehouseTables",
@@ -27978,6 +28020,20 @@
                             }
                         },
                         "required": ["appUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "designUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["design"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["designUuid", "type"],
                         "type": "object"
                     }
                 ]
@@ -61299,7 +61355,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.215.3",
+        "version": "2.216.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -3531,3 +3531,60 @@ describe('AiAgentToolsService iterateDataApp', () => {
         });
     });
 });
+
+describe('AiAgentToolsService listDataAppThemes', () => {
+    const organizationDesignModel = {
+        listByOrganization: vi.fn().mockResolvedValue([
+            {
+                designUuid: 'brand-uuid',
+                organizationUuid,
+                slug: 'brand',
+                name: 'Brand',
+                isDefault: true,
+                description: 'Company colours',
+                files: [],
+            },
+            {
+                designUuid: 'dark-uuid',
+                organizationUuid,
+                slug: 'dark',
+                name: 'Dark',
+                isDefault: false,
+                description: null,
+                files: [],
+            },
+        ]),
+    };
+
+    it('returns slug, name, isDefault and description for the organization themes', async () => {
+        const service = makeService({ organizationDesignModel });
+
+        const themes = await service
+            .createRuntime(makeRuntimeContext())
+            .listDataAppThemes();
+
+        expect(organizationDesignModel.listByOrganization).toHaveBeenCalledWith(
+            organizationUuid,
+        );
+        expect(themes).toEqual([
+            {
+                slug: 'brand',
+                name: 'Brand',
+                isDefault: true,
+                description: 'Company colours',
+            },
+            { slug: 'dark', name: 'Dark', isDefault: false, description: null },
+        ]);
+    });
+
+    it('is omitted from the MCP runtime like the other data app tools', () => {
+        const service = makeService({ organizationDesignModel });
+
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ source: 'mcp' }),
+        );
+
+        expect(runtime).not.toHaveProperty('listDataAppThemes');
+        expect(runtime).not.toHaveProperty('generateDataApp');
+    });
+});

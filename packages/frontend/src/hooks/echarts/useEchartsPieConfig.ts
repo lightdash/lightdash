@@ -68,6 +68,7 @@ const useEchartsPieConfig = (
                 valueLabel: valueLabelDefault,
                 showValue: showValueDefault,
                 showPercentage: showPercentageDefault,
+                valueLabelColor: valueLabelColorDefault,
                 groupLabelOverrides,
                 groupValueOptionOverrides,
                 groupColorOverrides,
@@ -97,6 +98,9 @@ const useEchartsPieConfig = (
                 const showPercentage =
                     groupValueOptionOverrides?.[name]?.showPercentage ??
                     showPercentageDefault;
+                const valueLabelColor =
+                    groupValueOptionOverrides?.[name]?.valueLabelColor ??
+                    valueLabelColorDefault;
 
                 // Use all group field IDs as the group prefix for color assignment:
                 const groupPrefix = groupFieldIds.join('_');
@@ -129,8 +133,13 @@ const useEchartsPieConfig = (
                         position:
                             valueLabel === 'outside' ? 'outside' : 'inside',
                         ...(valueLabel === 'outside'
-                            ? getPieExternalLabelStyle()
-                            : getPieInternalLabelStyle()),
+                            ? getPieExternalLabelStyle(
+                                  valueLabelColor ?? itemColor,
+                              )
+                            : getPieInternalLabelStyle(
+                                  itemColor,
+                                  valueLabelColor,
+                              )),
                         formatter: (params) => {
                             const isOutside = valueLabel === 'outside';
 
