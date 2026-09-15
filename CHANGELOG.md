@@ -1,3 +1,10 @@
+## [2.212.1](https://github.com/lightdash/lightdash/compare/2.212.0...2.212.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** keep the heartbeat schedule alive and run one heartbeat per project ([#29190](https://github.com/lightdash/lightdash/issues/29190)) ([8285c86](https://github.com/lightdash/lightdash/commit/8285c86adc966b3ebe533d1fdaf0dc5b2b0d3e5a))
+
 # [2.212.0](https://github.com/lightdash/lightdash/compare/2.211.4...2.212.0) (2026-09-15)
 
 

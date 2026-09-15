@@ -1,39 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.212.0",
-  "previousVersion": "2.211.4",
-  "releaseDate": "2026-09-15T06:27:04.812Z",
+  "version": "2.212.1",
+  "previousVersion": "2.212.0",
+  "releaseDate": "2026-09-15T08:57:34.052Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 2,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260914120000_index_analytics_chart_views_content_timestamp.ts",
-        "edition": "core",
-        "tables": [
-          "analytics_chart_views"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20260914120100_index_analytics_dashboard_views_content_timestamp.ts",
-        "edition": "core",
-        "tables": [
-          "analytics_dashboard_views"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
