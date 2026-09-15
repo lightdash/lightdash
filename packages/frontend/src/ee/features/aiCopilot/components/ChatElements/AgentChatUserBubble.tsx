@@ -12,10 +12,7 @@ import { Link, useParams } from 'react-router';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
-import {
-    useAiAgentThreadConsumedSteerUuids,
-    useAiAgentThreadMessageActive,
-} from '../../streaming/useAiAgentThreadStreamQuery';
+import { useAiAgentThreadConsumedSteerUuids } from '../../streaming/useAiAgentThreadStreamQuery';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntityCard';
 import { isReviewEntityItem } from '../PinnedContextCard/reviewEntityItem';
@@ -39,20 +36,11 @@ type Props = {
     agentUuid?: string;
 };
 
-type SteerState = 'pending' | 'applying' | 'applied' | 'dropped';
-
 // A steer sent after the agent's last step is never consumed.
-const getSteerState = (
+const isSteerConsumed = (
     steer: AiPromptSteer,
-    isRunActive: boolean,
     liveConsumedSteerUuids: string[],
-): SteerState => {
-    const isConsumed =
-        steer.consumedAt !== null ||
-        liveConsumedSteerUuids.includes(steer.uuid);
-    if (isRunActive) return isConsumed ? 'applying' : 'pending';
-    return isConsumed ? 'applied' : 'dropped';
-};
+) => steer.consumedAt !== null || liveConsumedSteerUuids.includes(steer.uuid);
 
 const getVisibleUserName = (name: string) => {
     const trimmedName = name.trim();
@@ -74,10 +62,6 @@ export const UserBubble: FC<Props> = ({
     const projectUuid = projectUuidProp ?? paramsProjectUuid;
     const agentUuid = agentUuidProp ?? paramsAgentUuid;
     const openChartEditor = useAiThreadChartEdit();
-    const isRunActive = useAiAgentThreadMessageActive(
-        message.threadUuid,
-        message.uuid,
-    );
     const liveConsumedSteerUuids = useAiAgentThreadConsumedSteerUuids(
         message.threadUuid,
     );
@@ -252,9 +236,8 @@ export const UserBubble: FC<Props> = ({
                             py={4}
                             px="xs"
                             className={styles.steerCard}
-                            data-state={getSteerState(
+                            data-consumed={isSteerConsumed(
                                 steer,
-                                isRunActive,
                                 liveConsumedSteerUuids,
                             )}
                         >

@@ -1,6 +1,5 @@
 import { shallowEqual } from 'react-redux';
 import {
-    isAiAgentThreadStreamActive,
     isAiAgentThreadStreamRecoveryActive,
     type StreamPart,
 } from '../store/aiAgentThreadStreamSlice';
@@ -43,19 +42,6 @@ export const useActiveAiAgentThreadStreamParts = (): StreamPart[] =>
     );
 
 const EMPTY_STEER_UUIDS: string[] = [];
-
-export const useAiAgentThreadMessageActive = (
-    threadUuid: string,
-    messageUuid: string,
-) =>
-    useAiAgentStoreSelector((state) => {
-        const threadStream = state.aiAgentThreadStream[threadUuid];
-        return (
-            threadStream !== undefined &&
-            threadStream.messageUuid === messageUuid &&
-            isAiAgentThreadStreamActive(threadStream.connection)
-        );
-    });
 
 export const useAiAgentThreadConsumedSteerUuids = (threadUuid: string) =>
     useAiAgentStoreSelector(

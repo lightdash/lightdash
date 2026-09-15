@@ -828,7 +828,7 @@ export const buildPrepareStep = ({
                     'Additional guidance from the user while you were working:',
                     ...steers.map((steer) => `- ${steer.message}`),
                     '',
-                    'Apply this guidance to the rest of your work. In your final answer, say briefly whether you followed each item. If you could not (for example the field does not exist), say so and offer the closest alternative instead of silently dropping it.',
+                    'Apply this guidance to the rest of your work. In your final answer, say briefly whether you followed every piece of guidance received during this run, including any sent earlier. If you could not (for example the field does not exist), say so and offer the closest alternative instead of silently dropping it.',
                 ].join('\n'),
             });
         }
