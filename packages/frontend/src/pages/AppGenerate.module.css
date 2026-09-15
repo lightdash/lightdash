@@ -375,7 +375,7 @@
     }
 }
 
-@mixin smaller-than $mantine-breakpoint-md {
+@mixin smaller-than $mantine-breakpoint-sm {
     .chatPanelOuter,
     .chatPanelOuter[data-collapsed='true'],
     .previewPanelOuter {

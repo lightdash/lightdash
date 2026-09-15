@@ -9,7 +9,7 @@
     min-height: 0;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .header {
         padding: var(--mantine-spacing-xs);
         gap: var(--mantine-spacing-xs);

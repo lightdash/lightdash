@@ -72,7 +72,7 @@ const TreeListSidebar: FC<{ opened: boolean; onClose: () => void }> = ({
                         px="xs"
                         wrap="nowrap"
                     >
-                        <Text visibleFrom="md" fz="sm" fw={600} c="ldGray.7">
+                        <Text visibleFrom="sm" fz="sm" fw={600} c="ldGray.7">
                             Saved Trees
                         </Text>
                         {canManageMetricsTree && (

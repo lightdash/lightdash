@@ -13,7 +13,7 @@
     cursor: pointer;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .radioLabel {
         min-height: 44px;
         display: flex;

@@ -20,7 +20,7 @@ const DraftCanvas = () => {
 
 const CanvasWithSidebar = () => {
     const [opened, setOpened] = useState(false);
-    const compact = useMediaQuery('(width < 62em)', undefined, {
+    const compact = useMediaQuery('(width < 48em)', undefined, {
         getInitialValueInEffect: false,
     });
     return (

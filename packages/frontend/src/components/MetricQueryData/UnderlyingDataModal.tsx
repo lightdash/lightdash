@@ -339,6 +339,7 @@ const UnderlyingDataModalContent: FC = () => {
             >
                 <Divider orientation="vertical" />
                 <Button
+                    visibleFrom="sm"
                     leftSection={<MantineIcon icon={IconTelescope} />}
                     onClick={handleExploreFromHere}
                     disabled={!exploreFromHereUrl}

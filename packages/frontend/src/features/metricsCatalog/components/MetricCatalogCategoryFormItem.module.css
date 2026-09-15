@@ -40,7 +40,7 @@
     z-index: 1;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .categoryButton,
     .editButton,
     .editDropdown :global(.mantine-Button-root),

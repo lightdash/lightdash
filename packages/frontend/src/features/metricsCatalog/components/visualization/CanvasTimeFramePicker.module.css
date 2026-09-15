@@ -82,7 +82,7 @@
     flex-shrink: 0;
 }
 
-@media (width < $mantine-breakpoint-md) {
+@media (width < $mantine-breakpoint-sm) {
     .root {
         min-width: 0;
         gap: 4px;
@@ -107,7 +107,7 @@
     }
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .input,
     .option {
         min-height: 44px;

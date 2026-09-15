@@ -2,7 +2,7 @@
 .editor :global(.monaco-editor .suggest-widget) {
     min-width: rem(640px);
 
-    @mixin smaller-than $mantine-breakpoint-md {
+    @mixin smaller-than $mantine-breakpoint-sm {
         min-width: 0;
         max-width: calc(100vw - 48px);
     }

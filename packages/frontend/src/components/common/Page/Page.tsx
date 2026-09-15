@@ -12,6 +12,7 @@ import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
 import { DocumentTitle } from '../DocumentTitle';
+import sidebarDrawerClasses from '../SidebarDrawer.module.css';
 import classes from './Page.module.css';
 import Sidebar from './Sidebar';
 import { SidebarPosition, type SidebarWidthProps } from './types';
@@ -102,7 +103,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 }) => {
     const getUiString = useUiStrings();
     const compact = useMatches(
-        { base: true, md: false },
+        { base: true, sm: false },
         { getInitialValueInEffect: false },
     );
     const [sidebarOpened, { open: openSidebar, close: closeSidebar }] =
@@ -167,10 +168,12 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                             {sidebarTitle}
                         </Button>
                         <Drawer
+                            classNames={sidebarDrawerClasses}
                             opened={sidebarOpened}
                             onClose={closeSidebar}
                             title={sidebarTitle}
                             closeButtonProps={{
+                                size: 44,
                                 'aria-label': getUiString('page.closeSidebar'),
                             }}
                             size="min(100%, 24rem)"
@@ -236,11 +239,13 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
                 {rightSidebar && compact && onRightSidebarClose ? (
                     <Drawer
+                        classNames={sidebarDrawerClasses}
                         opened={isRightSidebarOpen}
                         onClose={onRightSidebarClose}
                         title={rightSidebarTitle}
                         closeButtonProps={{
                             'aria-label': getUiString('page.closeDetails'),
+                            size: 44,
                         }}
                         position="right"
                         size="100%"

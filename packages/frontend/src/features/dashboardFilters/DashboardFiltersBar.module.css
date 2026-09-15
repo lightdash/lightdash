@@ -1,0 +1,84 @@
+.content {
+    container-type: inline-size;
+    min-width: 0;
+    width: 100%;
+}
+
+.drawerContent {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.drawerBody {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+@container (width < 600px) {
+    .bar {
+        flex-direction: column;
+        align-items: stretch;
+        padding-inline: 0;
+        gap: 16px;
+    }
+
+    .bar > *,
+    .filters > * {
+        min-width: 0;
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .bar :global(.mantine-Center-root),
+    .bar :global(.mantine-Divider-root) {
+        display: none;
+    }
+
+    .filters :global(.mantine-Button-root) {
+        width: 100%;
+        max-width: 100%;
+        min-height: 44px;
+        height: auto;
+        padding-block: 10px;
+    }
+
+    .filters [data-filter-actions] {
+        flex-wrap: nowrap;
+    }
+
+    .filters [data-filter-actions] :global(.mantine-Button-root) {
+        flex: 1;
+        width: auto;
+    }
+
+    .filters [data-filter-actions] :global(.mantine-Button-root[aria-label]) {
+        flex: 0 0 44px;
+        width: 44px;
+    }
+
+    .filters :global(.mantine-Button-inner) {
+        justify-content: flex-start;
+    }
+
+    .filters :global(.mantine-Button-label) {
+        min-width: 0;
+        max-width: 100%;
+        white-space: normal;
+        text-align: start;
+    }
+
+    .filters :global(.mantine-Button-label .mantine-Text-root) {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}

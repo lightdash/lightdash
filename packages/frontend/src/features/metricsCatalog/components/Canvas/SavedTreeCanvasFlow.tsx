@@ -72,7 +72,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
     const theme = useMantineTheme();
     const getUiString = useUiStrings();
     const compact = useMatches(
-        { base: true, md: false },
+        { base: true, sm: false },
         { getInitialValueInEffect: false },
     );
     const { deleteElements } = useReactFlow();
@@ -141,7 +141,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                     {!viewOnly && (
                         <Group gap="xs">
                             <Button
-                                hiddenFrom="md"
+                                hiddenFrom="sm"
                                 variant="default"
                                 h={44}
                                 onClick={openMetrics}

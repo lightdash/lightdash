@@ -16,7 +16,7 @@ import TreeListSidebar from './TreeListSidebar';
 const SavedTreesContainer: FC = () => {
     const getUiString = useUiStrings();
     const compact = useMatches(
-        { base: true, md: false },
+        { base: true, sm: false },
         { getInitialValueInEffect: false },
     );
     const [treesOpened, { open: openTrees, close: closeTrees }] =
@@ -50,7 +50,7 @@ const SavedTreesContainer: FC = () => {
         <CanvasViewport
             navigation={
                 <Button
-                    hiddenFrom="md"
+                    hiddenFrom="sm"
                     variant="default"
                     h={44}
                     onClick={openTrees}

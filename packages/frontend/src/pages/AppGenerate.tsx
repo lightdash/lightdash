@@ -1733,7 +1733,7 @@ const AppGenerate: FC = () => {
         >
             {!newAppLanding && (
                 <SegmentedControl
-                    hiddenFrom="md"
+                    hiddenFrom="sm"
                     fullWidth
                     size="md"
                     m="xs"
@@ -1773,7 +1773,7 @@ const AppGenerate: FC = () => {
                         {!newAppLanding && (
                             <Box
                                 className={classes.sidebarHeader}
-                                visibleFrom="md"
+                                visibleFrom="sm"
                             >
                                 <AppBuilderSidebarToggle
                                     collapsed={isChatPanelCollapsed}

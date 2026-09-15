@@ -43,6 +43,7 @@ import {
     BANNER_HEIGHT,
     NAVBAR_HEIGHT,
 } from '../../../components/common/Page/constants';
+import sidebarDrawerClasses from '../../../components/common/SidebarDrawer.module.css';
 import { useProjects } from '../../../hooks/useProjects';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
@@ -130,7 +131,7 @@ type Props = {
 
 const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     const compact = useMatches(
-        { base: true, md: false },
+        { base: true, sm: false },
         { getInitialValueInEffect: false },
     );
     const [sidebarOpened, setSidebarOpened] = useState(false);
@@ -501,13 +502,14 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             }}
             navbar={{
                 width: 300,
-                breakpoint: 'md',
+                breakpoint: 'sm',
                 collapsed: { mobile: true },
             }}
             bg="ldGray.0"
         >
             {compact ? (
                 <Drawer
+                    classNames={sidebarDrawerClasses}
                     opened={sidebarOpened}
                     onClose={() => setSidebarOpened(false)}
                     title="Agent settings"

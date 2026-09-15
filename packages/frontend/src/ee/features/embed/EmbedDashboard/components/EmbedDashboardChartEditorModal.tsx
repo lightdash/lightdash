@@ -2,6 +2,7 @@ import { type SavedChart } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineModal from '../../../../../components/common/MantineModal';
+import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import EmbedProviderContext from '../../../../providers/Embed/context';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import EmbedExplore from '../../EmbedExplore/components/EmbedExplore';
@@ -28,6 +29,7 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
     onChartSaved,
     editChart,
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const embedContext = useEmbed();
     const [pickedExploreId, setPickedExploreId] = useState<string>();
     const exploreId = editChart ? editChart.tableName : pickedExploreId;
@@ -58,6 +60,8 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
         }),
         [editChart?.uuid, embedContext, handleChartSaved],
     );
+
+    if (!authoringEnabled) return null;
 
     return (
         <MantineModal

@@ -103,7 +103,7 @@
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
-@media (width < $mantine-breakpoint-md) {
+@media (width < $mantine-breakpoint-sm) {
     .dropdown :global(.mantine-Menu-item) {
         min-height: 44px;
     }

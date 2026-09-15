@@ -45,6 +45,7 @@ const SavedQueries: FC = () => {
                         />
                         {!isDemo && userCanCreateCharts ? (
                             <Button
+                                visibleFrom="sm"
                                 leftSection={<IconPlus size={18} />}
                                 onClick={handleCreateChart}
                             >

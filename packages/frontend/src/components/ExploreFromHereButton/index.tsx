@@ -52,6 +52,7 @@ const ExploreFromHereButton = () => {
 
     return (
         <Button
+            visibleFrom="sm"
             size="xs"
             leftSection={<MantineIcon icon={IconTelescope} />}
             onClick={() => handleCreateShareUrl()}

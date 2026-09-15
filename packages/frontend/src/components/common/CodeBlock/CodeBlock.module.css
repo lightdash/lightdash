@@ -26,7 +26,7 @@
     user-select: none;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .wrapper :global(.mantine-CodeHighlight-controls) {
         position: static;
         display: flex;

@@ -23,7 +23,7 @@
     background: var(--mantine-color-body);
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .dropdown :global(.mantine-Button-root),
     .dropdown :global(.mantine-Input-input) {
         min-height: 44px;

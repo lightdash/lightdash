@@ -1,0 +1,24 @@
+.content {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+.header {
+    flex-shrink: 0;
+}
+
+.body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding-bottom: max(var(--mantine-spacing-md), env(safe-area-inset-bottom));
+}
+
+.body :global(.mantine-NavLink-root) {
+    min-height: 44px;
+}

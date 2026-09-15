@@ -145,7 +145,7 @@ const DashboardHistory = () => {
                                                         closeOnClickOutside
                                                     >
                                                         <Menu.Target>
-                                                            <ActionIcon>
+                                                            <ActionIcon visibleFrom="sm">
                                                                 <IconDots
                                                                     size={16}
                                                                 />

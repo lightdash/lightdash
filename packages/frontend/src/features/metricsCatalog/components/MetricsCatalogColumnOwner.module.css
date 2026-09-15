@@ -17,7 +17,7 @@
     user-select: text;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .trigger {
         min-height: 44px;
     }

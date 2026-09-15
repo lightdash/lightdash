@@ -97,7 +97,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     onBack,
 }) => {
     const compact = useMatches(
-        { base: true, lg: false },
+        { base: true, sm: false },
         { getInitialValueInEffect: false },
     );
     const isAiVisible = useAiAgentButtonVisibility();

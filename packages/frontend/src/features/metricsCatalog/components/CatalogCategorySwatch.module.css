@@ -12,7 +12,7 @@
     transition: background-color 200ms ease-in-out;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .swatch {
         min-width: 44px;
         min-height: 44px;

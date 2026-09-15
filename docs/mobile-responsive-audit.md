@@ -8,6 +8,17 @@ Evidence directory: `/Users/joaoviana/.codex/visualizations/2026/09/14/01a0a012-
 
 Test sizes: phone 390×844 (also 360px boundary), tablet 768×1024, desktop 1440×1000. Test resize/rotation without reloading, keyboard focus, nested overlays, local table scrolling, and preserved URL state.
 
+
+## September 15 follow-up: phone scope and controls
+
+This supersedes earlier phone authoring/drill/restore checks below: chart and dashboard creation/editing, including Explore from here, are now intentionally unavailable below 768px. Tablets retain authoring and full page layouts. The main navigation collapses below 992px; the 1024px check retained all navigation items with no page overflow.
+
+- Replaced boxed navigation tiles with grouped list rows and a labeled Menu trigger. Dashboard and saved-chart headers now share explicit title/actions/metadata grid slots with 16px horizontal padding. Long titles wrap; favorites move into the menu. Actions have plain icons and invisible 44px touch areas. Dashboard refresh uses one menu on phones; manual and timed refresh pass behavioral tests.
+- Fixed the settings drawer's overflowing flex body. At 390×844 the option list scrolled from 0 to 1657px; Data ops and Review requests became reachable while search/close stayed visible. Reused the bounded body for both shared Page drawers and AI settings.
+- Dashboard filters use container-based wrapping. A temporary numeric filter was added, retained across 768/1024/390px resizes, then reset. Add/Reset remain one row; long filter labels can wrap. Saved-chart filter forms now stack field/operator/value inputs on phones; parameter labels wrap and keep one-column phone fields.
+- Browser screenshots: `lightdash-header-plain-after.png`, `lightdash-nav-drawer-after.png`, `lightdash-settings-sidebar-after.png`, `lightdash-settings-sidebar-bottom.png`, `lightdash-filter-form-after.png`, `lightdash-filter-chip-after.png`, `lightdash-tablet-768-after.png`, `lightdash-tablet-1024-after.png`, `lightdash-saved-chart-after.png` in the evidence directory. The subsequent alignment pass supersedes the first header captures: `lightdash-dashboard-header-grid.png`, `lightdash-saved-chart-header-grid.png`, `lightdash-chart-header-aligned.png` and `lightdash-chart-tablet-aligned.png`. The saved-chart check used a chart without parameters; populated parameter controls were covered in the earlier audit, not re-verified in this follow-up.
+- Validation: 46 focused tests across route boundaries, refresh, chart editor/history, filter rules, parameters and canvas state preservation. Frontend typecheck and changed-file lint pass. 767px editor blocking and 768px availability are regression-tested.
+
 ## Coverage ledger
 
 | View family | Before | After | Behavior verified |

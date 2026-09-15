@@ -260,6 +260,7 @@ export const HeaderView: FC = () => {
                     <Group gap="xs">
                         {canManageSqlRunner && canManageChart && (
                             <Button
+                                visibleFrom="sm"
                                 size="xs"
                                 variant="default"
                                 onClick={() =>

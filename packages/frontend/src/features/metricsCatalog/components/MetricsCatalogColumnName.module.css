@@ -25,7 +25,7 @@
     background: var(--mantine-color-body);
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .iconDropdown :global(.EmojiPickerReact) {
         --epr-emoji-size: 28px !important;
         --epr-emoji-padding: 8px;

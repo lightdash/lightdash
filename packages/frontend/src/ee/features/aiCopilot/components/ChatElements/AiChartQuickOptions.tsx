@@ -38,6 +38,7 @@ import {
     serializeMergeState,
 } from '../../../../../features/mergeQuery/context/mergeUrlState';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import { readDataAppVizUuid } from '../../../../../hooks/useDataAppVizVisualizationConfig';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
@@ -104,6 +105,7 @@ export const AiChartQuickOptions = ({
     artifactData,
     merge,
 }: Props) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const { track } = useTracking();
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -597,6 +599,7 @@ export const AiChartQuickOptions = ({
                             <>
                                 {quickSaveDashboard && (
                                     <Menu.Item
+                                        visibleFrom="sm"
                                         onClick={() =>
                                             void handleSaveToCurrentDashboard()
                                         }
@@ -616,6 +619,7 @@ export const AiChartQuickOptions = ({
                                 )}
                                 {canSaveChart && (
                                     <Menu.Item
+                                        visibleFrom="sm"
                                         onClick={() => open()}
                                         disabled={isDisabled || !savedData}
                                         leftSection={
@@ -634,6 +638,7 @@ export const AiChartQuickOptions = ({
 
                         {hasExploreAction && (
                             <Menu.Item
+                                visibleFrom="sm"
                                 leftSection={
                                     <MantineIcon icon={IconExternalLink} />
                                 }
@@ -671,7 +676,7 @@ export const AiChartQuickOptions = ({
                 </Menu>
             )}
             <MantineModal
-                opened={opened}
+                opened={opened && authoringEnabled}
                 onClose={close}
                 title="Save chart"
                 icon={IconChartBar}

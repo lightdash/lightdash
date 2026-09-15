@@ -24,7 +24,7 @@ export const SchedulerDeliveryNav: FC<Props> = ({
     onSelect,
 }) => {
     const compact = useMatches(
-        { base: true, lg: false },
+        { base: true, sm: false },
         { getInitialValueInEffect: false },
     );
     if (compact) {

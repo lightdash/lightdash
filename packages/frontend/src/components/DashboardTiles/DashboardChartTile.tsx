@@ -1648,6 +1648,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                     }
                                                 >
                                                     <Menu.Item
+                                                        visibleFrom="sm"
                                                         leftSection={
                                                             <MantineIcon
                                                                 icon={
@@ -2173,6 +2174,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                             )}
                             {isEmbeddedExploreEnabled && (
                                 <Menu.Item
+                                    visibleFrom="sm"
                                     leftSection={
                                         <MantineIcon icon={IconTelescope} />
                                     }

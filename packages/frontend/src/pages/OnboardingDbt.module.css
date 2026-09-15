@@ -65,7 +65,7 @@
     font-weight: 600;
 }
 
-@media (width < $mantine-breakpoint-md) {
+@media (width < $mantine-breakpoint-sm) {
     .column {
         padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
     }

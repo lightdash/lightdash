@@ -12,6 +12,7 @@ import {
 import { Fragment, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { AiDashboardSaveModal } from './AiDashboardSaveModal';
 
@@ -28,6 +29,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
     agentUuid,
     dashboardConfig,
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const [isModalOpen, setIsModalOpen] = useState(false);
     // The save modal only lists spaces the user can write to, so without one
     // the option opens an empty space picker.
@@ -50,7 +52,10 @@ export const AiDashboardQuickOptions: FC<Props> = ({
     };
 
     // Nothing to view and nothing to save leaves an empty dropdown.
-    if (!artifactData.savedDashboardUuid && !canSaveDashboard) {
+    if (
+        !artifactData.savedDashboardUuid &&
+        (!canSaveDashboard || !authoringEnabled)
+    ) {
         return null;
     }
 
@@ -78,6 +83,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
                     ) : (
                         canSaveDashboard && (
                             <Menu.Item
+                                visibleFrom="sm"
                                 onClick={handleSaveDashboard}
                                 leftSection={
                                     <MantineIcon icon={IconDeviceFloppy} />
@@ -91,7 +97,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
             </Menu>
 
             <AiDashboardSaveModal
-                opened={isModalOpen}
+                opened={isModalOpen && authoringEnabled}
                 onClose={handleCloseModal}
                 artifactData={artifactData}
                 projectUuid={projectUuid}
