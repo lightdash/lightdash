@@ -1,3 +1,10 @@
+# [2.219.0](https://github.com/lightdash/lightdash/compare/2.218.0...2.219.0) (2026-09-15)
+
+
+### Features
+
+* **s3:** authenticate to GCS with workload identity instead of HMAC keys ([#29239](https://github.com/lightdash/lightdash/issues/29239)) ([9a2eddb](https://github.com/lightdash/lightdash/commit/9a2eddb017845e0fc7397585fbd3f59f9c98cc3e))
+
 # [2.218.0](https://github.com/lightdash/lightdash/compare/2.217.4...2.218.0) (2026-09-15)
 
 
