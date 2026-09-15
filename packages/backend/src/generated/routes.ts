@@ -35610,6 +35610,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
+                dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 visibleDataAppModels: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'DataAppClaudeModel' },
@@ -40854,6 +40855,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
+                dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean', required: true },
                 mcpContentWritesEnabled: {
                     dataType: 'boolean',
@@ -41057,6 +41059,7 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
+                dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: { dataType: 'boolean' },

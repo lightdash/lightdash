@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.222.1",
-  "previousVersion": "2.222.0",
-  "releaseDate": "2026-09-15T15:18:37.331Z",
+  "version": "2.223.0",
+  "previousVersion": "2.222.1",
+  "releaseDate": "2026-09-15T15:37:02.235Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20260915110411_add_data_app_runtime_ai_enabled_to_ai_org_settings.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_organization_settings"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

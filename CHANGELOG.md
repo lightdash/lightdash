@@ -1,3 +1,10 @@
+# [2.223.0](https://github.com/lightdash/lightdash/compare/2.222.1...2.223.0) (2026-09-15)
+
+
+### Features
+
+* **ai:** org setting to allow data apps to invoke AI at runtime ([#29237](https://github.com/lightdash/lightdash/issues/29237)) ([b18d803](https://github.com/lightdash/lightdash/commit/b18d803b64dfa921b27ce9b303db2660f7c4f502))
+
 ## [2.222.1](https://github.com/lightdash/lightdash/compare/2.222.0...2.222.1) (2026-09-15)
 
 
