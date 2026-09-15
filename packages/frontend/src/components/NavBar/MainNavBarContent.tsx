@@ -1,12 +1,4 @@
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Drawer,
-    Group,
-    Text,
-    useMatches,
-} from '@mantine/core';
+import { ActionIcon, Box, Button, Drawer, Group, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconHome, IconMenu2 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, type FC } from 'react';
@@ -28,6 +20,7 @@ import { NavBarPortalContext } from './NavBarPortalContext';
 import { NotificationsMenu } from './NotificationsMenu';
 import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
+import { useCompactNavigation } from './useCompactNavigation';
 import UserCredentialsSwitcher from './UserCredentialsSwitcher';
 import UserMenu from './UserMenu';
 
@@ -50,10 +43,7 @@ export const MainNavBarContent: FC<Props> = ({
     isLoadingActiveProject,
     projectName,
 }) => {
-    const compact = useMatches(
-        { base: true, md: false },
-        { getInitialValueInEffect: false },
-    );
+    const compact = useCompactNavigation();
     const [opened, { toggle, close }] = useDisclosure(false);
     const location = useLocation();
     useEffect(close, [location.key, compact, close]);
