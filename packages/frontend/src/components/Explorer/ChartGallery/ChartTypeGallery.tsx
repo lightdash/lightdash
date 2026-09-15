@@ -189,6 +189,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                 >
                     <ActionIcon
                         className={classes.cardConfigureAction}
+                        variant="default"
                         size={32}
                         aria-label={`Configure ${item.label}`}
                         disabled={item.disabled}
