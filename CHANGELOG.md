@@ -1,3 +1,10 @@
+# [2.220.0](https://github.com/lightdash/lightdash/compare/2.219.0...2.220.0) (2026-09-15)
+
+
+### Features
+
+* configure organization invite link expiration ([#29202](https://github.com/lightdash/lightdash/issues/29202)) ([7fd53e3](https://github.com/lightdash/lightdash/commit/7fd53e3eac4f2e7e287a6a3be02e547faf2d9901)), closes [#29069](https://github.com/lightdash/lightdash/issues/29069)
+
 # [2.219.0](https://github.com/lightdash/lightdash/compare/2.218.0...2.219.0) (2026-09-15)
 
 

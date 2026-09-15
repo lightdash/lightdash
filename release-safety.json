@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.219.0",
-  "previousVersion": "2.218.0",
-  "releaseDate": "2026-09-15T13:18:16.256Z",
+  "version": "2.220.0",
+  "previousVersion": "2.219.0",
+  "releaseDate": "2026-09-15T13:36:54.924Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260915090000_add_invite_link_expiration_to_organization_settings.ts",
+        "edition": "core",
+        "tables": [
+          "organization_settings"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

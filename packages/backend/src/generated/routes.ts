@@ -51291,6 +51291,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                inviteLinkExpirationDays: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 semanticLayerPgwireEnabled: {
                     dataType: 'union',
                     subSchemas: [
@@ -51373,6 +51381,14 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'boolean' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                inviteLinkExpirationDays: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
                         { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],

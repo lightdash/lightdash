@@ -51167,6 +51167,12 @@
                         "nullable": true,
                         "description": "Base lifetime (seconds) of this org's scheduled-delivery download links —\nthe default every channel inherits. Overrides the instance-wide\n`PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This\nfield is always resolved to an effective number in API responses (it\nfalls back to the env default), so the frontend can display it directly.\nA value over {@link S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS} transparently\nswitches that delivery to the persistent-download-URL system (the only\nway a link can outlive AWS's 7-day presigned ceiling)."
                     },
+                    "inviteLinkExpirationDays": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Number of whole days newly created organization invite links remain\nvalid. `null` in storage resolves to the existing three-day default."
+                    },
                     "semanticLayerPgwireEnabled": {
                         "type": "boolean",
                         "nullable": true,
@@ -51197,6 +51203,7 @@
                     "scheduledDeliveryExpirationSecondsSlack",
                     "scheduledDeliveryExpirationSecondsEmail",
                     "scheduledDeliveryExpirationSeconds",
+                    "inviteLinkExpirationDays",
                     "semanticLayerPgwireEnabled",
                     "supportImpersonationEnabled",
                     "oidcToEmailLinkingEnabled",
@@ -51240,6 +51247,12 @@
                         "type": "boolean",
                         "nullable": true,
                         "description": "Per-org enablement of the semantic-layer Postgres wire integration\n(surfaced on the project settings page). Like impersonation this has no\ninstance/env default — it's opt-in only, so `null` (or no stored row)\nresolves to `false`."
+                    },
+                    "inviteLinkExpirationDays": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Number of whole days newly created organization invite links remain\nvalid. `null` in storage resolves to the existing three-day default."
                     },
                     "scheduledDeliveryExpirationSeconds": {
                         "type": "number",
@@ -62035,7 +62048,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.219.0",
+        "version": "2.220.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
