@@ -663,6 +663,16 @@ export type GenerateDataAppFn = (args: {
     toolCallId: string;
 }) => Promise<{ appUuid: string; version: number }>;
 
+export type DataAppThemeSummary = {
+    slug: string;
+    name: string;
+    isDefault: boolean;
+    description: string | null;
+};
+
+// Themes of the agent's organization, for matching a theme named in prose.
+export type ListDataAppThemesFn = () => Promise<DataAppThemeSummary[]>;
+
 // Starts a build that appends a version to an existing data app; the worker
 // patches the tool result (keyed by toolCallId) when the build ends.
 export type IterateDataAppFn = (args: {

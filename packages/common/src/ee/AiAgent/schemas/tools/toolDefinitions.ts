@@ -209,6 +209,11 @@ import {
     toolListContentOutputSchema,
 } from './toolListContentArgs';
 import {
+    TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
+    toolListDataAppThemesArgsSchema,
+    toolListDataAppThemesOutputSchema,
+} from './toolListDataAppThemesArgs';
+import {
     TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION,
     toolListKnowledgeDocumentsArgsSchema,
     toolListKnowledgeDocumentsOutputSchema,
@@ -1109,6 +1114,20 @@ export const iterateDataAppToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolIterateDataAppOutputSchema },
 });
 
+export const listDataAppThemesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listDataAppThemes',
+    typeof toolListDataAppThemesArgsSchema,
+    typeof toolListDataAppThemesArgsSchema,
+    typeof toolListDataAppThemesOutputSchema
+> = defineTool({
+    name: 'listDataAppThemes',
+    title: 'List data app themes',
+    description: TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolListDataAppThemesArgsSchema,
+    agent: { outputSchema: toolListDataAppThemesOutputSchema },
+});
+
 export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'editDbtProject',
     typeof toolEditDbtProjectArgsSchema,
@@ -1730,6 +1749,7 @@ type AgentToolDefinitionsByName = {
     loadMcpTools: typeof loadMcpToolsToolDefinition;
     generateDataApp: typeof generateDataAppToolDefinition;
     iterateDataApp: typeof iterateDataAppToolDefinition;
+    listDataAppThemes: typeof listDataAppThemesToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
     editRepo: typeof editRepoToolDefinition;
@@ -1787,6 +1807,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     loadMcpTools: loadMcpToolsToolDefinition,
     generateDataApp: generateDataAppToolDefinition,
     iterateDataApp: iterateDataAppToolDefinition,
+    listDataAppThemes: listDataAppThemesToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
     editRepo: editRepoToolDefinition,
@@ -1851,6 +1872,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     loadMcpToolsToolDefinition,
     generateDataAppToolDefinition,
     iterateDataAppToolDefinition,
+    listDataAppThemesToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
     editRepoToolDefinition,

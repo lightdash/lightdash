@@ -75,6 +75,7 @@ import {
 } from '../tools/grepFieldsIndex';
 import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
+import { getListDataAppThemes } from '../tools/listDataAppThemes';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
@@ -1041,6 +1042,12 @@ export const getAgentTools = (
           })
         : null;
 
+    const listDataAppThemes = args.enableGenerateDataApp
+        ? getListDataAppThemes({
+              listDataAppThemes: dependencies.listDataAppThemes,
+          })
+        : null;
+
     const editDbtProject = args.enableAiWriteback
         ? getEditDbtProject({
               editDbtProject: dependencies.editDbtProject,
@@ -1238,6 +1245,7 @@ export const getAgentTools = (
         generateUuids,
         ...(generateDataApp ? { generateDataApp } : {}),
         ...(iterateDataApp ? { iterateDataApp } : {}),
+        ...(listDataAppThemes ? { listDataAppThemes } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
         ...(editRepo ? { editRepo } : {}),

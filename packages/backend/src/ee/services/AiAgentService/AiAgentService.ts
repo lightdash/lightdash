@@ -10875,6 +10875,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             readContent: toolsRuntime.readContent,
             generateDataApp: toolsRuntime.generateDataApp,
             iterateDataApp: toolsRuntime.iterateDataApp,
+            listDataAppThemes: toolsRuntime.listDataAppThemes,
             resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
             createContent: toolsRuntime.createContent,
@@ -11088,6 +11089,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             readContent,
             generateDataApp,
             iterateDataApp,
+            listDataAppThemes,
             resolveUrl,
             editContent,
             createContent,
@@ -11685,6 +11687,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             readContent,
             generateDataApp,
             iterateDataApp,
+            listDataAppThemes,
             resolveUrl,
             editContent,
             createContent,
@@ -13126,6 +13129,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 case 'generateDataApp':
                 case 'iterateDataApp':
                     return 'Starting the data app build...';
+                case 'listDataAppThemes':
+                    return 'Checking the available themes...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';
                 case 'exploreRepo':

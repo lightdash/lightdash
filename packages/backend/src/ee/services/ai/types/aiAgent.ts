@@ -64,6 +64,7 @@ import {
     IterateDataAppFn,
     ListContentFn,
     ListCustomChartTypesFn,
+    ListDataAppThemesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
@@ -353,6 +354,7 @@ export type AiAgentDependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     generateDataApp: GenerateDataAppFn;
     iterateDataApp: IterateDataAppFn;
+    listDataAppThemes: ListDataAppThemesFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
     editRepo: EditRepoFn;

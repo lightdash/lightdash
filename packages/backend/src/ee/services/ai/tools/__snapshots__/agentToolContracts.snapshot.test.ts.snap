@@ -45,9 +45,10 @@ Briefs are for the coding agent, which explores the semantic layer itself — an
 - Carry analysis as queries, not numbers: a value pasted into the brief gets hardcoded into the app, while a metric query line stays live.
 - Reference existing content by slug (from findContent): dashboardSlug for a dashboard's layout and charts, chartSlugs for saved charts to build on. The source content stays unchanged. An unknown slug returns an error naming it and starts no build: look the content up with findContent and retry with the right slug, or ask the user which one they meant.
 
-Themes are organization-wide looks the coding agent applies from theme files it receives directly, so a theme is chosen with themeSlug, never described in the brief:
-- The attached context lists "Theme: <name> (slug: <slug>)" → pass that slug as themeSlug. It wins over any theme named in the message.
-- No theme in the context or the message → omit themeSlug; the organization default applies.
+Themes are organization-wide looks the coding agent applies from theme files it receives directly, so a theme is chosen with themeSlug, never described in the brief. Pick the slug in this order:
+- The attached context lists "Theme: <name> (slug: <slug>)" → pass that slug as themeSlug. It wins over any theme, brand, or look named in the message.
+- The message names a theme, brand, or look ("use the dark theme", "match our brand", "our company look") and the context lists none → call listDataAppThemes, match the request to one theme by name or description, and pass its slug. When no theme matches, ask the user which theme they mean.
+- Neither → omit themeSlug; the organization default applies.
 - iterateDataApp: themeSlug switches the app's theme. Pass it only when the user asked to switch the theme in this request; an ordinary change keeps the app's current theme.
 - An unknown slug returns an error naming the valid slugs and starts no build: retry with the matching one, or ask the user which they meant.
 
@@ -5257,6 +5258,46 @@ Parameters:
               "type": "object",
             },
           ],
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "description": "List the organization's data app themes: slug, name, whether it is the organization default, and its description. Call it when the user names a theme, brand, or look for a data app and no theme slug is in the attached context; match the request to a theme and pass its slug as themeSlug to generateDataApp or iterateDataApp. Skip it when the context already carries a theme slug, or when the user says nothing about the look — the organization default applies.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "name": "listDataAppThemes",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
         },
         "result": {
           "type": "string",
@@ -10542,6 +10583,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "loadMcpTools",
   "generateDataApp",
   "iterateDataApp",
+  "listDataAppThemes",
   "editDbtProject",
   "editProjectContext",
   "editRepo",

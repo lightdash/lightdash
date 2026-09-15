@@ -114,6 +114,7 @@ import {
     IterateDataAppFn,
     ListContentFn,
     ListCustomChartTypesFn,
+    ListDataAppThemesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
@@ -259,6 +260,7 @@ export type AiAgentToolsRuntime = {
     updateUserName: UpdateUserNameFn;
     generateDataApp: GenerateDataAppFn;
     iterateDataApp: IterateDataAppFn;
+    listDataAppThemes: ListDataAppThemesFn;
     validateContent: ValidateContentFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: (args: {
@@ -281,6 +283,7 @@ export type McpAiAgentToolsRuntime = Omit<
     | 'updateUserName'
     | 'generateDataApp'
     | 'iterateDataApp'
+    | 'listDataAppThemes'
 > & {
     getExplore: (
         args: Parameters<GetExploreFn>[0],
@@ -623,7 +626,10 @@ export class AiAgentToolsService extends BaseService {
     ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
         const runtime: Omit<
             AiAgentToolsRuntime,
-            'updateUserName' | 'generateDataApp' | 'iterateDataApp'
+            | 'updateUserName'
+            | 'generateDataApp'
+            | 'iterateDataApp'
+            | 'listDataAppThemes'
         > = {
             listExplores: () => this.listExplores(context),
             getProjectParameterDefinitions: () =>
@@ -696,13 +702,17 @@ export class AiAgentToolsService extends BaseService {
                   generateDataApp: (args) =>
                       this.generateDataApp(context, args),
                   iterateDataApp: (args) => this.iterateDataApp(context, args),
+                  listDataAppThemes: () => this.listDataAppThemes(context),
               };
     }
 
     private withMcpRuntimeResults(
         runtime: Omit<
             AiAgentToolsRuntime,
-            'updateUserName' | 'generateDataApp' | 'iterateDataApp'
+            | 'updateUserName'
+            | 'generateDataApp'
+            | 'iterateDataApp'
+            | 'listDataAppThemes'
         >,
     ): McpAiAgentToolsRuntime {
         return {
@@ -1649,6 +1659,20 @@ export class AiAgentToolsService extends BaseService {
             context.user,
             context.projectUuid,
         );
+    }
+
+    private async listDataAppThemes(
+        context: AiAgentToolsRuntimeContext,
+    ): ReturnType<ListDataAppThemesFn> {
+        const designs = await this.organizationDesignModel.listByOrganization(
+            context.organizationUuid,
+        );
+        return designs.map(({ slug, name, isDefault, description }) => ({
+            slug,
+            name,
+            isDefault,
+            description,
+        }));
     }
 
     /** Resolves a theme slug within the agent's organization; an unknown slug names the valid ones. */

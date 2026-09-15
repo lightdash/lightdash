@@ -30,6 +30,7 @@ import { getGetProjectInfo } from './getProjectInfo';
 import { getGetPullRequestDiff } from './getPullRequestDiff';
 import { getIterateDataApp } from './iterateDataApp';
 import { getListContent } from './listContent';
+import { getListDataAppThemes } from './listDataAppThemes';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
@@ -143,6 +144,7 @@ const makeAgentTools = (
         loadMcpTools: getLoadMcpTools(['mcp_linear__get_issue']),
         generateDataApp: getGenerateDataApp({ generateDataApp: noop }),
         iterateDataApp: getIterateDataApp({ iterateDataApp: noop }),
+        listDataAppThemes: getListDataAppThemes({ listDataAppThemes: noop }),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
         }),
