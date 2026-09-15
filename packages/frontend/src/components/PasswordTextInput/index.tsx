@@ -52,7 +52,7 @@ const PasswordTextInput: FC<React.PropsWithChildren<Props>> = ({
     passwordValue,
     children,
 }) => {
-    const isCompact = useMatches({ base: true, md: false });
+    const isCompact = useMatches({ base: true, sm: false });
     const [isPopoverOpen, { open: openPopover, close: closePopover }] =
         useDisclosure();
 

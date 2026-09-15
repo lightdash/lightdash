@@ -1,0 +1,26 @@
+.rule {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.rule > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+@media (width < $mantine-breakpoint-sm) {
+    .field {
+        flex-basis: 100%;
+    }
+
+    .rule :global(.mantine-InputWrapper-root),
+    .rule :global(.mantine-Select-root) {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+
+    .rule :global(.mantine-Input-input) {
+        min-height: 44px;
+        font-size: 16px;
+    }
+}

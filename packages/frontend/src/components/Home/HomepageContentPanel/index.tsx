@@ -144,6 +144,7 @@ export const HomepageContentPanel: FC<Props> = ({
                 action:
                     !isDemo && userCanCreateCharts ? (
                         <Button
+                            visibleFrom="sm"
                             leftSection={
                                 <MantineIcon icon={IconPlus} size={18} />
                             }

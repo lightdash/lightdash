@@ -72,6 +72,7 @@ export const SaveChartButton: FC<Props> = ({
                 disabled={!canSaveChart}
             >
                 <Button
+                    visibleFrom="sm"
                     variant="default"
                     size="xs"
                     leftSection={<MantineIcon icon={IconDeviceFloppy} />}

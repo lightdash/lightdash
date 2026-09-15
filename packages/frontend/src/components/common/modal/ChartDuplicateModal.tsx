@@ -9,6 +9,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import {
     useDuplicateChartMutation,
@@ -28,6 +29,7 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const projectUuid = useProjectUuid();
     const { mutateAsync: duplicateChart, isLoading: isUpdating } =
         useDuplicateChartMutation({
@@ -70,6 +72,8 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
 
         onConfirm?.(updatedChart);
     });
+
+    if (!authoringEnabled) return null;
 
     return (
         <MantineModal

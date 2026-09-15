@@ -140,6 +140,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                             </Menu.Target>
                             <Menu.Dropdown>
                                 <Menu.Item
+                                    visibleFrom="sm"
                                     component="a"
                                     href={chartUrl}
                                     target="_blank"

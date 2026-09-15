@@ -95,6 +95,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
 
                     <Menu.Dropdown>
                         <LargeMenuItem
+                            visibleFrom="sm"
                             component={Link}
                             title="Chart"
                             description="Build queries and save them as charts."
@@ -112,6 +113,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             })}
                         >
                             <LargeMenuItem
+                                visibleFrom="sm"
                                 component={Link}
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
@@ -138,6 +140,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                         </Can>
                         {userCanCreateDashboards && (
                             <LargeMenuItem
+                                visibleFrom="sm"
                                 title="Dashboard"
                                 description="Arrange multiple charts into a single view."
                                 onClick={() => setIsCreateDashboardOpen(true)}

@@ -427,6 +427,7 @@ const ExistingResourceViewActionMenu: FC<
     // open a modal that lets the user pick a name/space first.
     const duplicateDataAppMenuItem = (
         <Menu.Item
+            visibleFrom="sm"
             component="button"
             role="menuitem"
             leftSection={<MantineIcon icon={IconCopy} size={18} />}

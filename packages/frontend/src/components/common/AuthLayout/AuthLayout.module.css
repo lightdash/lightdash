@@ -130,7 +130,7 @@
     }
 }
 
-@media (width < $mantine-breakpoint-md) {
+@media (width < $mantine-breakpoint-sm) {
     .formPanel,
     .legacyRoot {
         padding-top: max(var(--mantine-spacing-lg), env(safe-area-inset-top));

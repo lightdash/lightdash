@@ -41,7 +41,7 @@
     opacity: 0.8;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .target {
         min-height: 44px;
         min-width: 44px;

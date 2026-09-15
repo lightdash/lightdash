@@ -29,7 +29,7 @@
     flex-shrink: 0;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .base:has(.removeButton) {
         min-height: 44px;
         padding-block: 0;

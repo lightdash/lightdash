@@ -22,7 +22,7 @@
         'table-not-logged-in table-not-logged-in table-most-viewed table-most-viewed'
         'table-dashboard-views table-dashboard-views table-chart-views table-chart-views';
 
-    @mixin smaller-than $mantine-breakpoint-md {
+    @mixin smaller-than $mantine-breakpoint-sm {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         grid-template-rows: none;
         grid-auto-rows: 200px;

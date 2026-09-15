@@ -193,6 +193,7 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                 )}
 
                 <Menu.Item
+                    visibleFrom={isChartOrDashboard ? 'sm' : undefined}
                     component="button"
                     role="menuitem"
                     leftSection={<IconEdit size={18} />}
@@ -213,6 +214,7 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                 {item.type === ResourceViewItemType.CHART ||
                 item.type === ResourceViewItemType.DASHBOARD ? (
                     <Menu.Item
+                        visibleFrom="sm"
                         component="button"
                         role="menuitem"
                         leftSection={<MantineIcon icon={IconCopy} size={18} />}

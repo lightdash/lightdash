@@ -261,7 +261,10 @@ const ChartHistoryPanel: FC<Props> = ({
                                                 closeOnClickOutside
                                             >
                                                 <Menu.Target>
-                                                    <ActionIcon aria-label="Version actions">
+                                                    <ActionIcon
+                                                        visibleFrom="sm"
+                                                        aria-label="Version actions"
+                                                    >
                                                         <MantineIcon
                                                             icon={IconDots}
                                                         />

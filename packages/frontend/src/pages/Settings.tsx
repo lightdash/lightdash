@@ -1007,6 +1007,7 @@ const Settings: FC = () => {
                         justify="space-between"
                         align="center"
                         className={classes.sidebarHeader}
+                        visibleFrom="sm"
                     >
                         <PageBreadcrumbs
                             items={[{ title: 'Settings', active: true }]}

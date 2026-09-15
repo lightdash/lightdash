@@ -17,7 +17,7 @@
     border: 0;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .sidebar :global(.mantine-ActionIcon-root) {
         min-width: 44px;
         min-height: 44px;
@@ -28,7 +28,7 @@
     }
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .sidebar :global(.mantine-Input-input) {
         font-size: 16px;
     }

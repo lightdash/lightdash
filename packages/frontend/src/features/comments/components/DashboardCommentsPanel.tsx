@@ -235,7 +235,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
     dashboardTabs,
     onSwitchTab,
 }) => {
-    const isCompact = useMatches({ base: true, md: false });
+    const isCompact = useMatches({ base: true, sm: false });
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);

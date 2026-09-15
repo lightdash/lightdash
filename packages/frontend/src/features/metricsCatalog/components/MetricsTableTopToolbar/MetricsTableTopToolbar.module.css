@@ -14,7 +14,7 @@
     overflow-y: auto;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .columnRow {
         min-height: 44px;
     }

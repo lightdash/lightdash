@@ -5,6 +5,7 @@ import {
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
+import { useContentAuthoringEnabled } from '../../../../hooks/useContentAuthoringEnabled';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useModalHostedDashboard } from '../../../../providers/Explorer/useIsModalHosted';
 import MantineModal, { type MantineModalProps } from '../../MantineModal';
@@ -58,6 +59,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     forcedSpaceUuid,
     colorPaletteUuid,
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     // Store it in the state to avoid losing the param when the user switches between tables
     const [spaceUuid] = useState(defaultSpaceUuid);
 
@@ -118,6 +120,8 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                   dashboardName: editingDashboardInfo.name,
               }
             : null;
+
+    if (!authoringEnabled) return null;
 
     return (
         <MantineModal

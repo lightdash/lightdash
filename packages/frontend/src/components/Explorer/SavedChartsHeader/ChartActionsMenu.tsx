@@ -291,6 +291,7 @@ const ChartActionsMenu: FC<Props> = ({
                         !hasUnsavedChanges &&
                         !chartBelongsToDashboard && (
                             <Menu.Item
+                                visibleFrom="sm"
                                 leftSection={<MantineIcon icon={IconCopy} />}
                                 onClick={chartDuplicateModalHandlers.open}
                             >
@@ -299,6 +300,7 @@ const ChartActionsMenu: FC<Props> = ({
                         )}
                     {userCanManageChart && !chartBelongsToDashboard && (
                         <Menu.Item
+                            visibleFrom="sm"
                             leftSection={
                                 <MantineIcon icon={IconLayoutGridAdd} />
                             }
@@ -311,6 +313,7 @@ const ChartActionsMenu: FC<Props> = ({
                         userCanManageChartViaSpace &&
                         savedChart.dashboardUuid && (
                             <Menu.Item
+                                visibleFrom="sm"
                                 leftSection={<MantineIcon icon={IconFolders} />}
                                 onClick={() => setIsMovingChart(true)}
                             >
@@ -353,6 +356,7 @@ const ChartActionsMenu: FC<Props> = ({
                         )}
                     {userCanManageChart && !chartBelongsToDashboard && (
                         <Menu.Item
+                            visibleFrom="sm"
                             leftSection={
                                 <MantineIcon icon={IconFolderSymlink} />
                             }
@@ -374,6 +378,7 @@ const ChartActionsMenu: FC<Props> = ({
                         changeChartExploreEnabled &&
                         userCanManageChart && (
                             <Menu.Item
+                                visibleFrom="sm"
                                 leftSection={
                                     <MantineIcon icon={IconArrowsExchange} />
                                 }
@@ -389,6 +394,7 @@ const ChartActionsMenu: FC<Props> = ({
                         >
                             <div>
                                 <Menu.Item
+                                    visibleFrom="sm"
                                     disabled={promoteDisabled}
                                     leftSection={
                                         <MantineIcon
@@ -445,6 +451,7 @@ const ChartActionsMenu: FC<Props> = ({
                             )}
                             {userCanManageChart && (
                                 <Menu.Item
+                                    visibleFrom="sm"
                                     leftSection={
                                         <MantineIcon icon={IconLink} />
                                     }

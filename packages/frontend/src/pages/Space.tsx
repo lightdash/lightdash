@@ -318,6 +318,7 @@ const Space: FC = () => {
 
                                             {userCanCreateDashboards ? (
                                                 <Menu.Item
+                                                    visibleFrom="sm"
                                                     leftSection={
                                                         <MantineIcon
                                                             icon={IconPlus}
@@ -335,6 +336,7 @@ const Space: FC = () => {
 
                                             {userCanCreateCharts ? (
                                                 <Menu.Item
+                                                    visibleFrom="sm"
                                                     leftSection={
                                                         <MantineIcon
                                                             icon={IconPlus}

@@ -91,6 +91,35 @@ describe('DashboardRefreshButton auto-refresh', () => {
         vi.clearAllMocks();
     });
 
+    test('the phone refresh menu keeps manual and scheduled refresh working', async () => {
+        const user = userEvent.setup({
+            advanceTimers: vi.advanceTimersByTime,
+            delay: null,
+        });
+        const onIntervalChange = vi.fn();
+        renderWithProviders(
+            <DashboardRefreshButton
+                compact
+                onIntervalChange={onIntervalChange}
+            />,
+        );
+        expect(
+            within(screen.getByRole('group')).getAllByRole('button'),
+        ).toHaveLength(1);
+        await user.click(
+            screen.getByRole('button', { name: 'Refresh options' }),
+        );
+        await user.click(screen.getByRole('menuitem', { name: 'Refresh now' }));
+        expect(clearCacheAndFetch).toHaveBeenCalledTimes(1);
+        await user.click(
+            screen.getByRole('button', { name: 'Refresh options' }),
+        );
+        await user.click(screen.getByRole('menuitem', { name: '5m' }));
+        expect(onIntervalChange).toHaveBeenCalledWith(5);
+        advance(FIVE_MINUTES + SLACK);
+        expect(clearCacheAndFetch).toHaveBeenCalledTimes(2);
+    });
+
     test('refreshes once per chosen interval, not continuously', async () => {
         const user = userEvent.setup({
             advanceTimers: vi.advanceTimersByTime,

@@ -65,7 +65,7 @@
     padding: var(--mantine-spacing-xl) var(--mantine-spacing-sm);
 }
 
-@media (width < $mantine-breakpoint-md) {
+@media (width < $mantine-breakpoint-sm) {
     .column {
         padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
     }
@@ -78,7 +78,7 @@
     text-align: left;
 }
 
-@media (width < $mantine-breakpoint-md) {
+@media (width < $mantine-breakpoint-sm) {
     .connectColumn :global(.mantine-Input-input) {
         min-height: 44px;
         font-size: 16px;

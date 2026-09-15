@@ -26,7 +26,7 @@ export const CanvasSidebar: FC<Props> = ({
     const theme = useMantineTheme();
     const getUiString = useUiStrings();
     const isCompact = useMediaQuery(
-        `(width < ${theme.breakpoints.md})`,
+        `(width < ${theme.breakpoints.sm})`,
         undefined,
         {
             getInitialValueInEffect: false,

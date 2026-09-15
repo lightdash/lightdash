@@ -21,7 +21,7 @@
     margin-bottom: var(--mantine-spacing-xs);
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .expandButton {
         min-width: 44px;
         min-height: 44px;

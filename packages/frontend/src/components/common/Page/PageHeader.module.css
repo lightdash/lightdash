@@ -6,7 +6,7 @@
     align-items: center;
 }
 
-@mixin smaller-than $mantine-breakpoint-md {
+@mixin smaller-than $mantine-breakpoint-sm {
     .root {
         flex-direction: column;
         align-items: stretch;
@@ -23,9 +23,108 @@
     .root :global(.mantine-ActionIcon-root) {
         min-width: 44px;
         min-height: 44px;
+        border-radius: var(--mantine-radius-md);
+    }
+
+    .root :global(.mantine-ActionIcon-root[data-variant='default']) {
+        border-color: transparent;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    @media (hover: hover) {
+        .root :global(.mantine-ActionIcon-root[data-variant='default']:hover) {
+            background: light-dark(
+                var(--mantine-color-ldGray-0),
+                var(--mantine-color-dark-6)
+            );
+        }
+    }
+
+    .root :global(.mantine-ActionIcon-root svg) {
+        width: 20px !important;
+        height: 20px !important;
+        stroke-width: 1.75;
     }
 
     .root :global(.mantine-Button-root) {
         min-height: 44px;
+    }
+
+    .root :global(.mantine-Button-root svg) {
+        width: 18px !important;
+        height: 18px !important;
+    }
+}
+
+@mixin smaller-than $mantine-breakpoint-sm {
+    .root[data-mobile-layout='content'] {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: 'title actions' 'metadata metadata';
+        align-items: center;
+        gap: 4px 8px;
+        padding: 12px 16px;
+    }
+
+    .root[data-mobile-layout='content']:has([data-header-breadcrumbs]) {
+        grid-template-areas: 'breadcrumbs breadcrumbs' 'title actions' 'metadata metadata';
+    }
+
+    .root [data-header-main] {
+        display: contents;
+    }
+
+    .root [data-header-breadcrumbs] {
+        grid-area: breadcrumbs;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+        padding-bottom: 4px;
+        font-size: 12px;
+    }
+
+    .root [data-header-breadcrumbs] :global(.mantine-Anchor-root),
+    .root [data-header-breadcrumbs] :global(.mantine-Text-root) {
+        font-size: 12px;
+    }
+
+    .root [data-header-breadcrumbs] > span:last-child {
+        display: none;
+    }
+
+    .root [data-header-title] {
+        grid-area: title;
+        min-width: 0;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .root [data-header-title] :global(.mantine-Title-root) {
+        min-width: 0;
+        font-size: 16px;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+    .root [data-header-actions] {
+        grid-area: actions;
+        justify-self: end;
+        align-self: start;
+        flex-wrap: nowrap;
+        gap: 0;
+    }
+
+    .root [data-header-metadata] {
+        grid-area: metadata;
+        min-width: 0;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        gap: 8px;
+    }
+
+    .root [data-header-metadata] > :first-child {
+        min-width: 0;
     }
 }

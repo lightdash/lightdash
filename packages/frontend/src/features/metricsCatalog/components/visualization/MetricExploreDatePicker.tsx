@@ -56,7 +56,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
     isFetching,
     disabled = false,
 }) => {
-    const compact = useMatches({ base: true, md: false });
+    const compact = useMatches({ base: true, sm: false });
     const getUiString = useUiStrings();
     const { track } = useTracking();
     const userUuid = useAppSelector(

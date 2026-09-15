@@ -1,7 +1,6 @@
 import {
     ActionIcon,
     Box,
-    Burger,
     Button,
     Drawer,
     Group,
@@ -9,6 +8,7 @@ import {
     useMatches,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { IconHome, IconMenu2 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
 import { LearnLink } from '../../features/learn/LearnLink';
@@ -51,7 +51,7 @@ export const MainNavBarContent: FC<Props> = ({
     projectName,
 }) => {
     const compact = useMatches(
-        { base: true, lg: false },
+        { base: true, md: false },
         { getInitialValueInEffect: false },
     );
     const [opened, { toggle, close }] = useDisclosure(false);
@@ -73,6 +73,9 @@ export const MainNavBarContent: FC<Props> = ({
     const content = (
         <>
             <Group align="center" className={classes.leftGroup}>
+                {compact && (
+                    <Text className={classes.sectionLabel}>Workspace</Text>
+                )}
                 {!compact && (
                     <ActionIcon
                         component={Link}
@@ -103,6 +106,16 @@ export const MainNavBarContent: FC<Props> = ({
                 {!isLoadingActiveProject && activeProjectUuid && (
                     <>
                         <NavGroup className={classes.buttonGroup}>
+                            {compact && (
+                                <Button
+                                    component={Link}
+                                    to={homeUrl}
+                                    leftSection={<IconHome size={20} />}
+                                    variant="subtle"
+                                >
+                                    Home
+                                </Button>
+                            )}
                             <ExploreMenu
                                 projectUuid={activeProjectUuid}
                                 projectUrlIdentifier={projectUrlIdentifier}
@@ -131,12 +144,16 @@ export const MainNavBarContent: FC<Props> = ({
             <Box className={classes.spacer} />
 
             <Group className={classes.rightGroup}>
+                {compact && <Text className={classes.sectionLabel}>More</Text>}
                 <NavGroup className={classes.buttonGroup}>
                     <SettingsMenu withLabel={compact} />
 
                     {!isLoadingActiveProject && activeProjectUuid && (
                         <>
-                            <LearnLink projectUuid={activeProjectUuid} />
+                            <LearnLink
+                                projectUuid={activeProjectUuid}
+                                withLabel={compact}
+                            />
                             <NotificationsMenu
                                 projectUuid={activeProjectUuid}
                                 withLabel={compact}
@@ -155,13 +172,9 @@ export const MainNavBarContent: FC<Props> = ({
                             />
                         )}
 
-                    <ProjectSwitcher
-                        portalTarget={
-                            compact
-                                ? '#navbar-navigation-content'
-                                : '#navbar-header'
-                        }
-                    />
+                    {!compact && (
+                        <ProjectSwitcher portalTarget="#navbar-header" />
+                    )}
 
                     <UserCredentialsSwitcher />
                 </NavGroup>
@@ -191,27 +204,37 @@ export const MainNavBarContent: FC<Props> = ({
                 {activeProjectUuid && (
                     <Omnibar projectUuid={activeProjectUuid} />
                 )}
-                <Burger
-                    styles={{ root: { minWidth: 44, minHeight: 44 } }}
-                    opened={opened}
+                <Button
+                    className={classes.menuButton}
+                    variant="default"
+                    leftSection={<IconMenu2 size={20} />}
                     onClick={toggle}
-                    size="sm"
                     aria-label={opened ? 'Close navigation' : 'Open navigation'}
                     aria-expanded={opened}
                     aria-controls="navbar-navigation-content"
-                />
+                >
+                    Menu
+                </Button>
             </Group>
             <Drawer
                 opened={opened}
                 onClose={close}
                 title={
                     <Text c="white" fw={600}>
-                        Navigation
+                        Menu
                     </Text>
                 }
                 position="right"
-                closeButtonProps={{ 'aria-label': 'Close navigation' }}
-                size="min(100%, 24rem)"
+                closeButtonProps={{
+                    'aria-label': 'Close navigation',
+                    size: 44,
+                }}
+                size="min(calc(100vw - 24px), 360px)"
+                classNames={{
+                    content: classes.drawerContent,
+                    body: classes.drawerBody,
+                    header: classes.drawerHeader,
+                }}
                 portalProps={{ target: '#navbar-header' }}
             >
                 <NavBarPortalContext.Provider value="#navbar-navigation-content">
@@ -219,6 +242,12 @@ export const MainNavBarContent: FC<Props> = ({
                         id="navbar-navigation-content"
                         className={classes.mobileNavigation}
                     >
+                        <Box className={classes.projectSelection}>
+                            <Text className={classes.sectionLabel}>
+                                Project
+                            </Text>
+                            <ProjectSwitcher portalTarget="#navbar-navigation-content" />
+                        </Box>
                         {content}
                     </Box>
                 </NavBarPortalContext.Provider>

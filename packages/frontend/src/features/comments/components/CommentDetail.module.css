@@ -9,7 +9,7 @@
     opacity: 1 !important;
 }
 
-@media (hover: none), (width < $mantine-breakpoint-md) {
+@media (hover: none), (width < $mantine-breakpoint-sm) {
     .actions {
         opacity: 1 !important;
     }

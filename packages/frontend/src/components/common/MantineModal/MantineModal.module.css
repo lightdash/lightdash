@@ -96,7 +96,7 @@
     width: 100%;
 }
 
-@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
     .body :global(.mantine-Input-input),
     .fullScreenBody :global(.mantine-Input-input) {
         min-height: 44px;

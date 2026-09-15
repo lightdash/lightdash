@@ -154,7 +154,7 @@ const AddFilterButton: FC<Props> = ({
     }
 
     return (
-        <Group gap={0}>
+        <Group gap={0} wrap="nowrap" data-filter-actions>
             <Popover
                 position="bottom-start"
                 trapFocus

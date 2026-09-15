@@ -2,7 +2,7 @@
     align-self: flex-end;
 }
 
-@media (hover: none), (width < $mantine-breakpoint-md) {
+@media (hover: none), (width < $mantine-breakpoint-sm) {
     .form :global(.mantine-Button-root) {
         min-height: 44px;
     }

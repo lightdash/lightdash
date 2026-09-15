@@ -60,6 +60,7 @@ export const ExploreFromHereButton: FC<Props> = ({
             disabled={!isEnabled}
         >
             <Button
+                visibleFrom="sm"
                 variant="default"
                 size="xs"
                 leftSection={<MantineIcon icon={IconExternalLink} />}

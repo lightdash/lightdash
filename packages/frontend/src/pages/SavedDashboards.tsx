@@ -67,6 +67,7 @@ const SavedDashboards = () => {
                             userCanCreateDashboards &&
                             !isDemo && (
                                 <Button
+                                    visibleFrom="sm"
                                     leftSection={<IconPlus size={18} />}
                                     onClick={handleCreateDashboard}
                                 >

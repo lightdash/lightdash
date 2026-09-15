@@ -85,7 +85,7 @@ const SchedulersModal: FC<
     searchQuery,
     onSearchQueryChange,
 }) => {
-    const compact = useMatches({ base: true, lg: false });
+    const compact = useMatches({ base: true, sm: false });
     const [modalState, setModalState] = useState<States>(
         // eslint-disable-next-line no-nested-ternary
         initialSchedulerUuid

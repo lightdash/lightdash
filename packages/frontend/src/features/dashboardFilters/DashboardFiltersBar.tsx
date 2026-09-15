@@ -30,6 +30,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
+import classes from './DashboardFiltersBar.module.css';
 import FilterGroupSeparator from './FilterGroupSeparator';
 import FilterRequirementsButton from './FilterRequirements/FilterRequirementsButton';
 import DashboardFilters from './index';
@@ -74,7 +75,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     onCollapse,
 }) => {
     const compact = useMatches(
-        { base: true, md: false },
+        { base: true, sm: false },
         { getInitialValueInEffect: false },
     );
     const [opened, { open, close }] = useDisclosure(false);
@@ -112,8 +113,9 @@ export const DashboardFiltersBar: FC<Props> = ({
     const renderFilters = !isAddFilterDisabled || isEditMode || hasFilters;
 
     const content = (
-        <div>
+        <div className={classes.content}>
             <Group
+                className={classes.bar}
                 justify="space-between"
                 align="flex-start"
                 wrap={compact ? 'wrap' : 'nowrap'}
@@ -135,7 +137,12 @@ export const DashboardFiltersBar: FC<Props> = ({
                     grow
                 >
                     {hasTilesThatSupportFilters && (
-                        <Group align="flex-start" gap="xs" wrap="wrap">
+                        <Group
+                            className={classes.filters}
+                            align="flex-start"
+                            gap="xs"
+                            wrap="wrap"
+                        >
                             {renderFilters && (
                                 <FilterGroupSeparator
                                     icon={IconFilter}
@@ -182,7 +189,11 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         onParameterPin={onParameterPin}
                                         parameterOrder={parameterOrder}
                                         onParameterReorder={onParameterReorder}
-                                        separator={parametersSeparator}
+                                        separator={
+                                            compact
+                                                ? undefined
+                                                : parametersSeparator
+                                        }
                                     />
                                     <PinnedParameters isEditMode={isEditMode} />
                                 </>
@@ -285,13 +296,13 @@ export const DashboardFiltersBar: FC<Props> = ({
                 title={getUiString('filters.panel.title')}
                 closeButtonProps={{
                     'aria-label': getUiString('filters.panel.close'),
+                    size: 44,
                 }}
                 position="bottom"
                 size="85dvh"
-                styles={{
-                    body: {
-                        paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
-                    },
+                classNames={{
+                    content: classes.drawerContent,
+                    body: classes.drawerBody,
                 }}
             >
                 {content}

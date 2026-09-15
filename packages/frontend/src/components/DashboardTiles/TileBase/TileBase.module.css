@@ -127,7 +127,7 @@
     pointer-events: auto;
 }
 
-@media (hover: none), (width < $mantine-breakpoint-md) {
+@media (hover: none), (width < $mantine-breakpoint-sm) {
     .headerContainer {
         flex-wrap: wrap;
     }
@@ -162,6 +162,11 @@
     .tileTooltip :global(.mantine-ActionIcon-root) {
         min-width: 44px;
         min-height: 44px;
+    }
+
+    .tileTooltip :global(.mantine-ActionIcon-root svg) {
+        width: 20px !important;
+        height: 20px !important;
     }
 }
 

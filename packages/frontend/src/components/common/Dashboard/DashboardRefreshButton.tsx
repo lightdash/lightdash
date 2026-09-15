@@ -40,10 +40,11 @@ const REFRESH_INTERVAL_OPTIONS = [
 
 type DashboardRefreshButtonProps = {
     onIntervalChange: (intervalMin?: number) => void;
+    compact?: boolean;
 };
 
 export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
-    ({ onIntervalChange }) => {
+    ({ onIntervalChange, compact = false }) => {
         const { showToastSuccess } = useToaster();
         const [isOpen, setIsOpen] = useState(false);
         const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(
@@ -115,7 +116,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
 
         return (
             <ActionIcon.Group>
-                {refreshInterval !== undefined ? (
+                {!compact && refreshInterval !== undefined ? (
                     <ActionIcon.GroupSection
                         variant="default"
                         size="md"
@@ -131,44 +132,67 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                         </Text>
                     </ActionIcon.GroupSection>
                 ) : null}
-                <Tooltip
-                    position="bottom"
-                    disabled={isOpen}
-                    label={`Last refreshed at: ${
-                        lastRefreshTime
-                            ? lastRefreshTime.toLocaleTimeString()
-                            : 'Never'
-                    }`}
-                >
-                    <ActionIcon
-                        aria-label="Refresh dashboard"
-                        size="md"
-                        variant="default"
-                        loading={isOneAtLeastFetching}
-                        onClick={() => invalidateAndSetRefreshTime()}
+                {!compact && (
+                    <Tooltip
+                        position="bottom"
+                        disabled={isOpen}
+                        label={`Last refreshed at: ${
+                            lastRefreshTime
+                                ? lastRefreshTime.toLocaleTimeString()
+                                : 'Never'
+                        }`}
                     >
-                        <MantineIcon icon={IconRefresh} />
-                    </ActionIcon>
-                </Tooltip>
+                        <ActionIcon
+                            aria-label="Refresh dashboard"
+                            size="md"
+                            variant="default"
+                            loading={isOneAtLeastFetching}
+                            onClick={() => invalidateAndSetRefreshTime()}
+                        >
+                            <MantineIcon icon={IconRefresh} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
                 <Menu
                     withArrow
                     closeOnItemClick
                     closeOnClickOutside
                     opened={isOpen}
-                    onClose={() => setIsOpen((prev) => !prev)}
+                    onClose={() => setIsOpen(false)}
                 >
                     <Menu.Target>
                         <ActionIcon
-                            aria-label="Auto-refresh options"
+                            aria-label={
+                                compact
+                                    ? 'Refresh options'
+                                    : 'Auto-refresh options'
+                            }
                             size="md"
                             variant="default"
                             disabled={isOneAtLeastFetching}
                             onClick={() => setIsOpen((prev) => !prev)}
                         >
-                            <MantineIcon icon={IconChevronDown} />
+                            <MantineIcon
+                                icon={compact ? IconRefresh : IconChevronDown}
+                            />
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
+                        {compact && (
+                            <>
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon icon={IconRefresh} />
+                                    }
+                                    onClick={() =>
+                                        void invalidateAndSetRefreshTime()
+                                    }
+                                >
+                                    Refresh now
+                                </Menu.Item>
+                                <Menu.Divider />
+                            </>
+                        )}
                         <Menu.Label>Auto-refresh while viewing</Menu.Label>
                         <Menu.Item
                             fz="xs"
