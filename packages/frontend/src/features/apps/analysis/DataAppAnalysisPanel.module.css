@@ -1,0 +1,40 @@
+/* Sit below the fixed navbar instead of behind it. */
+.inner {
+    top: var(--navbar-height);
+}
+
+.content {
+    height: calc(100dvh - var(--navbar-height));
+}
+
+.body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+    background: var(--ld-color-page);
+}
+
+.scroll {
+    flex: 1;
+    min-height: 0;
+}
+
+.anomaly {
+    cursor: default;
+}
+
+.anomalyHighlightable {
+    cursor: pointer;
+}
+
+.anomalyHighlightable:hover {
+    border-color: var(--mantine-color-indigo-outline);
+}
+
+.markdown {
+    font-size: var(--mantine-font-size-sm);
+    line-height: var(--mantine-line-height-sm);
+    background: transparent;
+    color: var(--mantine-color-text);
+}
