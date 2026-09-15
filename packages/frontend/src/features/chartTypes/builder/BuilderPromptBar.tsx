@@ -657,31 +657,35 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     onSubmit={handleSubmit}
                     onPaste={handlePaste}
                     toolbarLeft={
-                        <ChartTypeComposerActions
-                            panel={composerPanel}
-                            onPanelChange={setComposerPanel}
-                            disabled={isComposerLocked}
-                            themeDisabled={themePickerDisabled}
-                            themeName={themeName}
-                            selectedThemeUuid={selectedThemeUuid}
-                            themes={themes}
-                            isNewChart={isNewChart}
-                            onThemeChange={handleThemeChange}
-                            onAttach={() => fileInputRef.current?.click()}
-                            selectedConnections={selectedConnections}
-                            onSelectConnection={(connection) =>
-                                setSelectedConnections((current) => [
-                                    ...current,
-                                    connection,
-                                ])
-                            }
-                            onDeselectConnection={deselectConnection}
-                            linkedAppUuid={hasVersions ? composerAppUuid : null}
-                        />
-                    }
-                    attachments={
-                        <Stack gap="xs" pb="xs">
-                            <Group gap="xs" aria-label="Selected chart context">
+                        <Group gap="xs" wrap="nowrap" miw={0}>
+                            <ChartTypeComposerActions
+                                panel={composerPanel}
+                                onPanelChange={setComposerPanel}
+                                disabled={isComposerLocked}
+                                themeDisabled={themePickerDisabled}
+                                themeName={themeName}
+                                selectedThemeUuid={selectedThemeUuid}
+                                themes={themes}
+                                isNewChart={isNewChart}
+                                onThemeChange={handleThemeChange}
+                                onAttach={() => fileInputRef.current?.click()}
+                                selectedConnections={selectedConnections}
+                                onSelectConnection={(connection) =>
+                                    setSelectedConnections((current) => [
+                                        ...current,
+                                        connection,
+                                    ])
+                                }
+                                onDeselectConnection={deselectConnection}
+                                linkedAppUuid={
+                                    hasVersions ? composerAppUuid : null
+                                }
+                            />
+                            <Box
+                                className={classes.contextTray}
+                                role="group"
+                                aria-label="Selected chart context"
+                            >
                                 <ChartTypeThemePicker
                                     themeName={themeName}
                                     pickerOpened={composerPanel !== null}
@@ -767,28 +771,36 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                         </Group>
                                     </Pill>
                                 ))}
-                            </Group>
-                            <SelectedAttachmentSection
-                                attachments={attachments.attachments.map(
-                                    (attachment) => ({
-                                        id: attachment.key,
-                                        previewUrl: attachment.previewUrl,
-                                        filename: attachment.filename,
-                                    }),
-                                )}
-                                onRemove={attachments.remove}
-                                disabled={isComposerLocked}
-                            />
-                            {questions !== null ? (
-                                <Text size="xs" c="dimmed">
-                                    Answer or skip first
-                                </Text>
-                            ) : isBuilding && !isEmpty ? (
-                                <Text size="xs" c="dimmed">
-                                    Enter to queue
-                                </Text>
-                            ) : null}
-                        </Stack>
+                            </Box>
+                        </Group>
+                    }
+                    attachments={
+                        attachments.attachments.length > 0 ||
+                        questions !== null ||
+                        (isBuilding && !isEmpty) ? (
+                            <Stack gap="xs" pb="xs">
+                                <SelectedAttachmentSection
+                                    attachments={attachments.attachments.map(
+                                        (attachment) => ({
+                                            id: attachment.key,
+                                            previewUrl: attachment.previewUrl,
+                                            filename: attachment.filename,
+                                        }),
+                                    )}
+                                    onRemove={attachments.remove}
+                                    disabled={isComposerLocked}
+                                />
+                                {questions !== null ? (
+                                    <Text size="xs" c="dimmed">
+                                        Answer or skip first
+                                    </Text>
+                                ) : isBuilding && !isEmpty ? (
+                                    <Text size="xs" c="dimmed">
+                                        Enter to queue
+                                    </Text>
+                                ) : null}
+                            </Stack>
+                        ) : undefined
                     }
                     toolbarRight={
                         <Group

@@ -130,12 +130,14 @@ const ChartTypeComposerActions: FC<Props> = ({
                 ) : (
                     <>
                         <Group gap="xs" mb="xs">
-                            <ActionIcon
-                                aria-label="Back to composer options"
-                                onClick={() => onPanelChange('options')}
-                            >
-                                <MantineIcon icon={IconArrowLeft} />
-                            </ActionIcon>
+                            {panel === 'connections' && (
+                                <ActionIcon
+                                    aria-label="Back to composer options"
+                                    onClick={() => onPanelChange('options')}
+                                >
+                                    <MantineIcon icon={IconArrowLeft} />
+                                </ActionIcon>
+                            )}
                             <Text size="sm" fw={500}>
                                 {panel === 'theme'
                                     ? isNewChart

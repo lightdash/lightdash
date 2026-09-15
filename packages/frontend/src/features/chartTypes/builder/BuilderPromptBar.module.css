@@ -188,3 +188,16 @@
 .composer :global(.ProseMirror) {
     padding: 0;
 }
+
+.contextTray {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.contextTray > * {
+    flex-shrink: 0;
+}

@@ -268,6 +268,9 @@ describe('BuilderPromptBar', () => {
         await userEvent.click(
             screen.getByRole('button', { name: /Choose theme/ }),
         );
+        expect(
+            screen.queryByRole('button', { name: 'Back to composer options' }),
+        ).not.toBeInTheDocument();
         await userEvent.click(
             screen.getByRole('button', { name: 'Fake NVIDIA' }),
         );
@@ -308,6 +311,22 @@ describe('BuilderPromptBar', () => {
             screen.getByRole('button', { name: 'Attach an image or file' }),
         );
         expect(click).toHaveBeenCalledOnce();
+    });
+
+    it('keeps back navigation available in the connections panel', async () => {
+        renderWithProviders(promptBar());
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Composer options' }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Add external connections' }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to composer options' }),
+        );
+        expect(
+            screen.getByRole('button', { name: 'Attach an image or file' }),
+        ).toBeInTheDocument();
     });
 
     it('adds connection chips, removes them, and sends only the selected connections', async () => {
