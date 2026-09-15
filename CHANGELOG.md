@@ -1,3 +1,10 @@
+## [2.225.1](https://github.com/lightdash/lightdash/compare/2.225.0...2.225.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **filters:** align period-to-date dropdown labels ([#29257](https://github.com/lightdash/lightdash/issues/29257)) ([55420bf](https://github.com/lightdash/lightdash/commit/55420bfa8049513e22226de991478b7e5792b69d))
+
 # [2.225.0](https://github.com/lightdash/lightdash/compare/2.224.1...2.225.0) (2026-09-15)
 
 
