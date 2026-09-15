@@ -54,12 +54,9 @@
     right: rem(6px);
 }
 
-.searchWithFilter {
-    --input-right-section-width: rem(94px);
-}
-
-.searchWithFilterAndClear {
-    --input-right-section-width: rem(118px);
+.searchInput {
+    min-width: 0;
+    flex: 1;
 }
 
 .searchSection[data-position='right'] {
@@ -69,9 +66,10 @@
 }
 
 /* Mantine 9 uses --sc-padding for labels and a separate root inset.
-   Keep this compact enough to sit inside the 32px search field. */
+   Keep this compact enough to sit beside the 32px search field. */
 .typeFilter {
     --sc-padding: 0 rem(6px);
+    flex-shrink: 0;
     height: rem(26px);
     padding: rem(2px);
 }

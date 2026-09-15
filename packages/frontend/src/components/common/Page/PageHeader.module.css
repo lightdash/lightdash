@@ -139,8 +139,8 @@
         grid-auto-columns: minmax(0, 1fr);
         gap: 4px;
         width: 100%;
-        margin-top: 10px;
-        padding-top: 4px;
+        margin-top: 6px;
+        padding-top: 2px;
         border-top: 1px solid var(--mantine-color-default-border);
     }
 
@@ -151,8 +151,8 @@
     }
 
     .root [data-header-actions] :global(.mantine-Button-root) {
-        height: 48px;
-        min-height: 48px;
+        height: 44px;
+        min-height: 44px;
         padding-inline: 6px;
         border: 0;
         font-size: 13px;
