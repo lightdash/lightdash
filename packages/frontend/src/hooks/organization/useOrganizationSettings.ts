@@ -23,10 +23,13 @@ const updateOrganizationSettings = async (data: UpdateOrganizationSettings) =>
         body: JSON.stringify(data),
     });
 
-export const useOrganizationSettings = () =>
+export const useOrganizationSettings = ({
+    enabled = true,
+}: { enabled?: boolean } = {}) =>
     useQuery<OrganizationSettings, ApiError>({
         queryKey: QUERY_KEY,
         queryFn: getOrganizationSettings,
+        enabled,
     });
 
 export const useUpdateOrganizationSettings = () => {

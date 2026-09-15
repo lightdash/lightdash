@@ -48,6 +48,7 @@ export class OrganizationSettingsModel {
                 row?.support_impersonation_enabled ?? null,
             semanticLayerPgwireEnabled:
                 row?.semantic_layer_pgwire_enabled ?? null,
+            inviteLinkExpirationDays: row?.invite_link_expiration_days ?? null,
             scheduledDeliveryExpirationSeconds:
                 row?.scheduled_delivery_expiration_seconds ?? null,
             scheduledDeliveryExpirationSecondsEmail:
@@ -86,6 +87,7 @@ export class OrganizationSettingsModel {
             oidc_to_email_linking_enabled: patch.oidcToEmailLinkingEnabled,
             support_impersonation_enabled: patch.supportImpersonationEnabled,
             semantic_layer_pgwire_enabled: patch.semanticLayerPgwireEnabled,
+            invite_link_expiration_days: patch.inviteLinkExpirationDays,
             scheduled_delivery_expiration_seconds:
                 patch.scheduledDeliveryExpirationSeconds,
             scheduled_delivery_expiration_seconds_email:

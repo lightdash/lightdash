@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     ForbiddenError,
+    MAX_INVITE_LINK_EXPIRATION_DAYS,
     OrganizationSettings,
     ParameterError,
     POSTGRES_INTEGER_MAX,
@@ -100,6 +101,18 @@ export class OrganizationSettingsService extends BaseService {
      * clears an override (back to inheriting the env default).
      */
     private assertValidPatch(data: UpdateOrganizationSettings): void {
+        if (
+            data.inviteLinkExpirationDays !== undefined &&
+            data.inviteLinkExpirationDays !== null &&
+            (typeof data.inviteLinkExpirationDays !== 'number' ||
+                !Number.isInteger(data.inviteLinkExpirationDays) ||
+                data.inviteLinkExpirationDays < 1 ||
+                data.inviteLinkExpirationDays > MAX_INVITE_LINK_EXPIRATION_DAYS)
+        ) {
+            throw new ParameterError(
+                `Invite link expiration must be a whole number between 1 and ${MAX_INVITE_LINK_EXPIRATION_DAYS} days.`,
+            );
+        }
         const positiveIntegerFields: Array<keyof UpdateOrganizationSettings> = [
             'scheduledDeliveryExpirationSeconds',
             'scheduledDeliveryExpirationSecondsEmail',

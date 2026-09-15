@@ -10,7 +10,7 @@ import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
 const createInviteQuery = async (
-    data: CreateInviteLink,
+    data: Omit<CreateInviteLink, 'expiresAt'>,
 ): Promise<InviteLink> => {
     const response = await lightdashApi<InviteLink>({
         url: `/invite-links`,
@@ -21,17 +21,6 @@ const createInviteQuery = async (
         ...response,
         expiresAt: new Date(response.expiresAt),
     };
-};
-
-const createInviteWith3DayExpiryQuery = async (
-    createInvite: Omit<CreateInviteLink, 'expiresAt'>,
-): Promise<InviteLink> => {
-    const dateIn3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-    const response = await createInviteQuery({
-        ...createInvite,
-        expiresAt: dateIn3Days,
-    });
-    return response;
 };
 
 const inviteLinkQuery = async (inviteCode: string) =>
@@ -86,7 +75,7 @@ export const useCreateInviteLinkMutation = ({
         InviteLink,
         ApiError,
         Omit<CreateInviteLink, 'expiresAt'>
-    >(createInviteWith3DayExpiryQuery, {
+    >(createInviteQuery, {
         mutationKey: ['invite_link'],
         onError: ({ error }) => {
             showToastApiError({

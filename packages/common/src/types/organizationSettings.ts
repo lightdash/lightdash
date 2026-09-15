@@ -36,6 +36,11 @@ export type OrganizationSettings = {
      */
     semanticLayerPgwireEnabled: boolean | null;
     /**
+     * Number of whole days newly created organization invite links remain
+     * valid. `null` in storage resolves to the existing three-day default.
+     */
+    inviteLinkExpirationDays: number | null;
+    /**
      * Base lifetime (seconds) of this org's scheduled-delivery download links —
      * the default every channel inherits. Overrides the instance-wide
      * `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This
@@ -90,6 +95,9 @@ export type OrganizationSettings = {
      */
     corsAllowedDomains: string[] | null;
 };
+
+export const DEFAULT_INVITE_LINK_EXPIRATION_DAYS = 3;
+export const MAX_INVITE_LINK_EXPIRATION_DAYS = 7;
 
 /**
  * AWS's hard maximum lifetime of an S3 SigV4 presigned URL — seven days. A
@@ -282,6 +290,8 @@ export const resolveEffectiveOrganizationSettings = (
     supportImpersonationEnabled: raw.supportImpersonationEnabled ?? false,
     // Opt-in only — no instance default, so an unset value resolves to false.
     semanticLayerPgwireEnabled: raw.semanticLayerPgwireEnabled ?? false,
+    inviteLinkExpirationDays:
+        raw.inviteLinkExpirationDays ?? DEFAULT_INVITE_LINK_EXPIRATION_DAYS,
     // Base is resolved to an effective number (falls back to the env default).
     scheduledDeliveryExpirationSeconds:
         raw.scheduledDeliveryExpirationSeconds ??

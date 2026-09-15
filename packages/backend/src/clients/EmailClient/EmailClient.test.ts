@@ -376,6 +376,9 @@ describe('EmailClient', () => {
             const client = new EmailClient({
                 lightdashConfig: lightdashConfigWithBasicSMTP,
             });
+            const dateNowSpy = vi
+                .spyOn(Date, 'now')
+                .mockReturnValue(new Date('2026-07-14T00:00:00Z').getTime());
 
             await client.sendInviteEmail(
                 {
@@ -408,9 +411,14 @@ describe('EmailClient', () => {
                         orgName: 'Acme',
                         inviteUrl:
                             'https://example.com/invite/invite-code?from=email',
+                        expirationLabel: '7 days',
                     }),
+                    text: expect.stringContaining(
+                        'This link is valid for the next 7 days.',
+                    ),
                 }),
             );
+            dateNowSpy.mockRestore();
         });
 
         test('should retry email sending on ECONNRESET error', async () => {

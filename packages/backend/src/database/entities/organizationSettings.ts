@@ -19,6 +19,9 @@ export type DbOrganizationSettings = {
     // Per-org enablement of the semantic-layer Postgres wire integration.
     // Opt-in only, no env default: NULL/absent is treated as false.
     semantic_layer_pgwire_enabled: boolean | null;
+    // Number of whole days newly created organization invite links remain
+    // valid. NULL/absent resolves to the existing three-day default.
+    invite_link_expiration_days: number | null;
     // Per-org base override (seconds) for scheduled-delivery download link
     // expiry. NULL/absent inherits PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS.
     scheduled_delivery_expiration_seconds: number | null;
