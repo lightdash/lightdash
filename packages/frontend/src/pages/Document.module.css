@@ -1,0 +1,22 @@
+.page {
+    --page-header-height: var(--dashboard-header-height);
+    --page-content-width: 0px;
+    --report-container-width: 80rem;
+    --report-inline-padding: clamp(1.25rem, 4vw, 3rem);
+    --report-controls-padding-right: var(--report-inline-padding);
+    --report-controls-padding: calc(
+        var(--mantine-spacing-lg) + var(--mantine-spacing-xs)
+    );
+}
+
+@media (max-width: 48em) {
+    .page {
+        --report-controls-padding: var(--report-inline-padding);
+    }
+}
+
+@media (max-width: 36em) {
+    .page {
+        --report-inline-padding: 1rem;
+    }
+}

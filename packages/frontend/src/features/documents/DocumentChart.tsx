@@ -3,13 +3,14 @@ import {
     ECHARTS_DEFAULT_COLORS,
     type DocumentCellV1,
 } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine/core';
+import { Box, Text } from '@mantine/core';
 import LightdashVisualization from '../../components/LightdashVisualization';
 import VisualizationProvider from '../../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../../components/MetricQueryData/MetricQueryDataProvider';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { useInfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
+import ReportChartFrame from './presentation/ReportChartFrame';
 import { useDocumentCellQuery } from './useDocument';
 
 type Props = {
@@ -53,13 +54,7 @@ const DocumentChart = ({
         );
     }
     return (
-        <Stack gap="sm">
-            <Text fw={600}>{chart.name}</Text>
-            {chart.description && (
-                <Text c="dimmed" size="sm">
-                    {chart.description}
-                </Text>
-            )}
+        <ReportChartFrame title={chart.name} description={chart.description}>
             <MetricQueryDataProvider
                 tableName={chart.tableName}
                 explore={undefined}
@@ -98,7 +93,7 @@ const DocumentChart = ({
                     </Box>
                 </VisualizationProvider>
             </MetricQueryDataProvider>
-        </Stack>
+        </ReportChartFrame>
     );
 };
 

@@ -202,6 +202,23 @@ describe('Document page', () => {
         expect(await screen.findByText('Document list')).toBeInTheDocument();
     });
 
+    test('shows report contents linked to the document sections', async () => {
+        renderPage();
+        const heading = await screen.findByRole('heading', {
+            name: 'Findings',
+        });
+        expect(
+            screen.getByRole('navigation', { name: 'Report contents' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Findings' }),
+        ).toBeInTheDocument();
+        expect(heading).toHaveAttribute('id', 'document-intro-0');
+        expect(
+            screen.getByRole('heading', { name: 'Recommendations' }),
+        ).toHaveAttribute('id', 'document-end-0');
+    });
+
     test('renders an empty document explicitly', async () => {
         mocks.api.mockResolvedValue({
             ...document,
