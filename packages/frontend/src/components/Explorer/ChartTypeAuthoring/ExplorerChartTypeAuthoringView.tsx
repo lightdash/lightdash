@@ -53,42 +53,44 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
             aria-labelledby={titleId}
             data-testid="chart-type-authoring"
         >
-            <Box className={classes.builderColumn}>
-                <ExplorerChartTypeAuthoringHeader
-                    projectUuid={projectUuid}
-                    titleId={titleId}
-                    app={app}
-                    status={deriveAuthoringStatus(workspace)}
-                    upgrade={upgrade}
-                    hasHistory={workspace.hasHistory}
-                    isHistoryOpen={workspace.isHistoryOpen}
-                    warning={warning}
-                    onToggleHistory={workspace.toggleHistory}
-                    onUpgradeStarted={workspace.openHistory}
-                    onDetailsSaved={onDetailsSaved}
-                    onDone={onDone}
-                />
-                <ChartTypeBuilderWorkspace
-                    projectUuid={projectUuid}
-                    workspace={workspace}
-                    previewContext={previewContext}
-                    syncPreviewUrlState={false}
-                    configurePanel={null}
-                />
-            </Box>
-            {hasGeneratedConfig && (
-                /* The chart's real configuration (field mapping + generated
-                    options); the gallery context hides the type picker inside. */
-                <Box
-                    component="aside"
-                    className={classes.configColumn}
-                    aria-label="Chart type configuration"
-                >
-                    <ChartGalleryContext.Provider value={true}>
-                        <DataAppVizConfigTabs />
-                    </ChartGalleryContext.Provider>
+            <ExplorerChartTypeAuthoringHeader
+                projectUuid={projectUuid}
+                titleId={titleId}
+                app={app}
+                status={deriveAuthoringStatus(workspace)}
+                upgrade={upgrade}
+                hasHistory={workspace.hasHistory}
+                isHistoryOpen={workspace.isHistoryOpen}
+                warning={warning}
+                onToggleHistory={workspace.toggleHistory}
+                onUpgradeStarted={workspace.openHistory}
+                onDetailsSaved={onDetailsSaved}
+                onDone={onDone}
+            />
+            <Box className={classes.workspace}>
+                <Box className={classes.builderColumn}>
+                    <ChartTypeBuilderWorkspace
+                        projectUuid={projectUuid}
+                        workspace={workspace}
+                        previewContext={previewContext}
+                        syncPreviewUrlState={false}
+                        configurePanel={null}
+                    />
                 </Box>
-            )}
+                {hasGeneratedConfig && (
+                    /* The chart's real configuration (field mapping + generated
+                    options); the gallery context hides the type picker inside. */
+                    <Box
+                        component="aside"
+                        className={classes.configColumn}
+                        aria-label="Chart type configuration"
+                    >
+                        <ChartGalleryContext.Provider value={true}>
+                            <DataAppVizConfigTabs />
+                        </ChartGalleryContext.Provider>
+                    </Box>
+                )}
+            </Box>
         </Box>
     );
 };
