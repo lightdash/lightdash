@@ -442,7 +442,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         : 'explore-metric'
                     : undefined
             }
-            data-tour-value={isField(item) ? item.label : undefined}
+            data-tour-value={isField(item) ? label : undefined}
             className={styles.root}
             style={
                 {

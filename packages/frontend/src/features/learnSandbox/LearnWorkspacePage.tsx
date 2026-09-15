@@ -67,6 +67,10 @@ const Workspace: FC<WorkspaceProps> = ({
     // cannot name.
     const [activeCommand, setActiveCommand] =
         useState<LearnSandboxCommandRequest | null>(null);
+    // A run is on its way: from the click, through the save it does first,
+    // until the command is attached or the attempt has failed. A save the
+    // learner never asked to run (the editor's blur autosave) is not this.
+    const [isRunPending, setIsRunPending] = useState(false);
     // Errors the page itself raises (a rejected command, a command that never
     // left the browser); the poller's own errors arrive on `output.error`.
     const [terminalError, setTerminalError] = useState<string | null>(null);
@@ -108,13 +112,15 @@ const Workspace: FC<WorkspaceProps> = ({
         output.status === null &&
         output.error === null;
     // Busy for the walkthrough as well as the controls: from the click that
-    // starts a run (the save in front of it counts) until the command it
-    // started has reported back.
+    // starts a run, across the save that click does first, until the command
+    // it started has reported back. The editor's own blur autosave is not
+    // part of it: nothing is running, and a step waiting on the terminal
+    // would otherwise wait on an edit.
     const isBusy =
         output.isActive ||
         runCommand.isLoading ||
         isAwaitingFirstPoll ||
-        saveFile.isLoading;
+        isRunPending;
 
     // A deploy rewrites the project's explores, and the learner opens the
     // new field straight afterwards: a cached explore list would not have it.
@@ -181,39 +187,46 @@ const Workspace: FC<WorkspaceProps> = ({
 
     const handleRun = useCallback(async () => {
         setTerminalError(null);
-        // A command that runs against a file the save did not reach would
-        // report on the old contents, which reads as the edit having had no
-        // effect; say so instead of running.
-        if (!(await saveIfDirty())) {
-            setTerminalError('The file could not be saved, so nothing ran');
-            return;
-        }
-        const parsed = parseCommand(commandInput);
-        if ('error' in parsed) {
-            setTerminalError(parsed.error);
-            return;
-        }
-        // Drop the finished command before asking for the next one so the
-        // pane empties: a rejected run must not read as a footnote under the
-        // previous command's output and status.
-        setActiveCommandUuid(null);
-        setActiveCommand(null);
+        setIsRunPending(true);
         try {
-            const { commandUuid } = await runCommand.mutateAsync(parsed);
-            setActiveCommandUuid(commandUuid);
-            setActiveCommand(parsed);
-        } catch (e) {
-            const message =
-                (e as ApiError).error?.message ?? 'Could not run that command';
-            // The workspace runs one command at a time: when the server says
-            // another is already in flight it names it, and the pane attaches
-            // to that command's output instead of reporting a failure.
-            const running = activeCommandFromError(message);
-            if (running !== null) {
-                setActiveCommandUuid(running);
+            // A command that runs against a file the save did not reach would
+            // report on the old contents, which reads as the edit having had
+            // no effect; say so instead of running.
+            if (!(await saveIfDirty())) {
+                setTerminalError('The file could not be saved, so nothing ran');
                 return;
             }
-            setTerminalError(message);
+            const parsed = parseCommand(commandInput);
+            if ('error' in parsed) {
+                setTerminalError(parsed.error);
+                return;
+            }
+            // Drop the finished command before asking for the next one so the
+            // pane empties: a rejected run must not read as a footnote under
+            // the previous command's output and status.
+            setActiveCommandUuid(null);
+            setActiveCommand(null);
+            try {
+                const { commandUuid } = await runCommand.mutateAsync(parsed);
+                setActiveCommandUuid(commandUuid);
+                setActiveCommand(parsed);
+            } catch (e) {
+                const message =
+                    (e as ApiError).error?.message ??
+                    'Could not run that command';
+                // The workspace runs one command at a time: when the server
+                // says another is already in flight it names it, and the pane
+                // attaches to that command's output instead of reporting a
+                // failure.
+                const running = activeCommandFromError(message);
+                if (running !== null) {
+                    setActiveCommandUuid(running);
+                    return;
+                }
+                setTerminalError(message);
+            }
+        } finally {
+            setIsRunPending(false);
         }
     }, [commandInput, runCommand, saveIfDirty]);
 
