@@ -106,8 +106,10 @@ const pipelinePrompt = (schedulerClient: {
     appGeneratePipeline: ReturnType<typeof vi.fn>;
 }): string => schedulerClient.appGeneratePipeline.mock.calls[0][0].prompt;
 
-const THEME_FILES_LINE =
-    'If a theme is active, read and use the files under /app/src/design/ and follow the organization theme instructions. Do not edit files under /app/src/design/.';
+const THEME_RESTYLE_RULES = [
+    'Only change visual styling needed for the theme: colors, typography, spacing, borders, shadows, chart palette, and appropriate theme asset usage.',
+    'If a theme is active, read and use the files under /app/src/design/ and follow the organization theme instructions. Do not edit files under /app/src/design/.',
+];
 
 describe('AppGenerateService.iterateApp with a theme', () => {
     it('appends the theme change to the prompt when both are given', async () => {
@@ -129,13 +131,15 @@ describe('AppGenerateService.iterateApp with a theme', () => {
             },
         );
 
-        const prompt = pipelinePrompt(schedulerClient);
-        expect(prompt.startsWith('Add a region filter\n\n')).toBe(true);
-        expect(prompt).toContain(
-            'In the same build, restyle the app to follow the active organization theme "Brand".',
+        expect(pipelinePrompt(schedulerClient)).toBe(
+            [
+                'Add a region filter',
+                '',
+                'In the same build, restyle the app to follow the active organization theme "Brand".',
+                'Apart from the change requested above, preserve the app content exactly: do not change other text, metrics, queries, filters, chart semantics, layout intent, or interactions.',
+                ...THEME_RESTYLE_RULES,
+            ].join('\n'),
         );
-        expect(prompt).toContain(THEME_FILES_LINE);
-        expect(prompt).not.toContain('Preserve the app content exactly');
         expect(appModel.updateDesignUuid).toHaveBeenCalledWith(
             'app-1',
             'project-1',
@@ -192,8 +196,7 @@ describe('AppGenerateService.iterateApp with a theme', () => {
             [
                 'Restyle the current app to follow the active organization theme "Brand".',
                 'Preserve the app content exactly: do not change text, metrics, queries, filters, chart semantics, layout intent, or interactions.',
-                'Only change visual styling needed for the theme: colors, typography, spacing, borders, shadows, chart palette, and appropriate theme asset usage.',
-                THEME_FILES_LINE,
+                ...THEME_RESTYLE_RULES,
             ].join('\n'),
         );
     });

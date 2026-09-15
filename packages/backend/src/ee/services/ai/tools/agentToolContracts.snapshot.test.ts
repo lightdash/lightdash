@@ -286,19 +286,28 @@ describe('AI agent tool contracts', () => {
         {
             name: 'structured-filter',
             enableFilterExpressions: false,
+            enableGenerateDataApp: false,
         },
         {
             name: 'filter-expression',
             enableFilterExpressions: true,
+            enableGenerateDataApp: false,
+        },
+        {
+            name: 'data-app',
+            enableFilterExpressions: true,
+            enableGenerateDataApp: true,
         },
     ])(
         'matches the $name Agent system prompt snapshot',
-        ({ enableFilterExpressions }) => {
+        ({ enableFilterExpressions, enableGenerateDataApp }) => {
             expect(
                 getSystemPromptV2({
                     availableExplores: [],
                     date: '2026-08-27',
                     enableFilterExpressions,
+                    enableContentTools: enableGenerateDataApp,
+                    enableGenerateDataApp,
                 }).content,
             ).toMatchSnapshot();
         },

@@ -329,7 +329,7 @@ type AiAgentToolsServiceDependencies = {
     appGenerateService: AppGenerateService;
     organizationDesignModel: Pick<
         OrganizationDesignModel,
-        'listByOrganization'
+        'listByOrganization' | 'findByIdOrSlug'
     >;
     aiAgentContentValidation: AiAgentContentValidation;
     projectContextModel: ProjectContextModel;
@@ -393,7 +393,7 @@ export class AiAgentToolsService extends BaseService {
 
     private readonly organizationDesignModel: Pick<
         OrganizationDesignModel,
-        'listByOrganization'
+        'listByOrganization' | 'findByIdOrSlug'
     >;
 
     private readonly aiAgentContentValidation: AiAgentContentValidation;
@@ -1642,14 +1642,18 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         themeSlug: string,
     ): Promise<string> {
-        const designs = await this.organizationDesignModel.listByOrganization(
+        const design = await this.organizationDesignModel.findByIdOrSlug(
             context.organizationUuid,
+            themeSlug,
         );
-        const design = designs.find((d) => d.slug === themeSlug);
         if (design) {
             return design.designUuid;
         }
-        const validSlugs = designs.map((d) => d.slug);
+        const validSlugs = (
+            await this.organizationDesignModel.listByOrganization(
+                context.organizationUuid,
+            )
+        ).map((d) => d.slug);
         throw new NotFoundError(
             validSlugs.length === 0
                 ? `Theme "${themeSlug}" was not found: the organization has no themes`
