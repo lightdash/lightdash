@@ -81,6 +81,12 @@ describe('Chart picker actions', () => {
                 ),
                 'horizontal offset from the tile center',
             ).to.be.lessThan(1);
+            expect(
+                Math.abs(
+                    bounds.top + bounds.height / 2 - tile.top - tile.height / 2,
+                ),
+                'vertical offset including the 1px press animation',
+            ).to.be.at.most(1.1);
         });
     });
 });

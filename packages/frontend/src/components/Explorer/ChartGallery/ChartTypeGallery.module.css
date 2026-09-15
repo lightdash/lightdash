@@ -40,6 +40,7 @@
 .cardWrapper:hover .cardMoreActions:not(:disabled),
 .cardWrapper:has(:focus-visible) .cardConfigureAction,
 .cardWrapper:has(:focus-visible) .cardMoreActions,
+.cardWrapper[data-menu-open='true'] .cardConfigureAction,
 .cardWrapper[data-menu-open='true'] .cardMoreActions {
     opacity: 1;
     pointer-events: auto;
@@ -47,9 +48,8 @@
 
 .cardConfigureAction {
     position: absolute;
-    top: var(--mantine-spacing-lg);
-    inset-inline: 0;
-    margin-inline: auto;
+    inset: 0;
+    margin: auto;
     z-index: 1;
 }
 
@@ -85,12 +85,8 @@
         box-shadow 120ms ease;
 }
 
-.cardWrapper .card {
-    justify-content: flex-start;
-    padding-top: var(--mantine-spacing-lg);
-}
-
-.card:hover:not(:disabled):not([data-selected='true']) {
+.card:hover:not(:disabled):not([data-selected='true']),
+.cardWrapper:hover .card:not(:disabled):not([data-selected='true']) {
     border-color: light-dark(
         var(--mantine-color-ldGray-4),
         var(--mantine-color-ldDark-6)
@@ -146,11 +142,16 @@
     transition: opacity 100ms ease-out;
 }
 
+.cardLabel {
+    transition: opacity 100ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .card,
     .cardConfigureAction,
     .cardMoreActions,
-    .cardIcon {
+    .cardIcon,
+    .cardLabel {
         transition: none;
     }
 
@@ -163,8 +164,12 @@
     opacity: 0.5;
 }
 
-.cardWrapper[data-configurable='true']:hover .cardIcon,
-.cardWrapper[data-configurable='true']:has(:focus-visible) .cardIcon {
+.cardWrapper[data-configurable='true']:is(
+        :hover,
+        :has(:focus-visible),
+        [data-menu-open='true']
+    )
+    :is(.cardIcon, .cardLabel) {
     opacity: 0;
 }
 
@@ -177,8 +182,27 @@
         pointer-events: auto;
     }
 
+    .cardWrapper .card {
+        justify-content: flex-start;
+        padding-top: var(--mantine-spacing-lg);
+    }
+
+    .cardConfigureAction {
+        top: var(--mantine-spacing-lg);
+        bottom: auto;
+    }
+
     .cardWrapper[data-configurable='true'] .cardIcon {
         opacity: 0;
+    }
+
+    .cardWrapper[data-configurable='true']:is(
+            :hover,
+            :has(:focus-visible),
+            [data-menu-open='true']
+        )
+        .cardLabel {
+        opacity: 1;
     }
 }
 

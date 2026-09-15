@@ -110,8 +110,7 @@ export type ChartTypeGallerySection = {
 };
 
 const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
-    // A clamped name has nowhere else to go: the card face is the only place
-    // it appears, so the tooltip carries it whenever the card cannot.
+    // Keep the name available when clamped or hidden by the action overlay.
     const labelRef = useRef<HTMLParagraphElement>(null);
     const [isLabelClamped, setIsLabelClamped] = useState(false);
     const [isMenuOpened, setIsMenuOpened] = useState(false);
@@ -126,7 +125,10 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
         return () => observer.disconnect();
     }, [item.label]);
 
-    const clampedLabel = isLabelClamped ? item.label : null;
+    const tooltipLabel =
+        isLabelClamped || (item.onConfigure !== null && !item.disabled)
+            ? item.label
+            : null;
 
     return (
         <Box
@@ -137,9 +139,9 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
             <Tooltip
                 label={
                     <>
-                        {clampedLabel !== null ? (
+                        {tooltipLabel !== null ? (
                             <Text fz="xs" fw={600}>
-                                {clampedLabel}
+                                {tooltipLabel}
                             </Text>
                         ) : null}
                         {item.description !== null ? (
@@ -151,7 +153,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                 openDelay={500}
                 color="dark"
                 events={{ hover: true, focus: true, touch: false }}
-                disabled={clampedLabel === null && item.description === null}
+                disabled={tooltipLabel === null && item.description === null}
                 maw={300}
             >
                 <UnstyledButton
@@ -169,6 +171,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     </Box>
                     <Text
                         ref={labelRef}
+                        className={classes.cardLabel}
                         fz="xs"
                         fw={500}
                         lh={1.2}
