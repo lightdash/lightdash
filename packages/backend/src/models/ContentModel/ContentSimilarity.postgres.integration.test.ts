@@ -261,6 +261,58 @@ describe('content similarity (PostgreSQL)', () => {
                 .update({ deleted_at: new Date() });
             expect(await shortlist()).toEqual([]);
         });
+        it('uses the chart space before its owner space', async () => {
+            const owner = await add('Owner', {
+                type: ContentReviewContentType.DASHBOARD,
+            });
+            const uuid = await add('Revenue', { space: privateSpace });
+            await addVersion(uuid);
+            await tx('saved_queries')
+                .where('saved_query_uuid', uuid)
+                .update({ dashboard_uuid: owner });
+            expect(await shortlist()).toEqual([]);
+
+            await tx('saved_queries')
+                .where('saved_query_uuid', uuid)
+                .update({ space_id: 1 });
+            await tx('dashboards')
+                .where('dashboard_uuid', owner)
+                .update({ space_id: 2 });
+            expect(
+                (await shortlist()).map((candidate) => candidate.uuid),
+            ).toEqual([uuid]);
+        });
+
+        it('orders field matches by hit count then UUID and excludes charts without versions', async () => {
+            const fewer = await add('Overview');
+            const more = await add('Overview');
+            const tied = await add('Overview');
+            await addVersion(fewer);
+            await addVersion(more, ['orders_revenue'], ['orders_month']);
+            await addVersion(tied, ['orders_revenue'], ['orders_month']);
+            await add('Revenue without version');
+            expect(
+                (await shortlist()).map((candidate) => candidate.uuid),
+            ).toEqual([...[more, tied].sort(), fewer]);
+        });
+
+        it('selects by creation time before version ID', async () => {
+            const uuid = await add('Overview');
+            await addVersion(uuid);
+            await tx<{ created_at: Date }>('saved_queries_versions').update({
+                created_at: new Date('2025-01-02'),
+            });
+            await addVersion(uuid, ['other_metric']);
+            await tx<{ created_at: Date; saved_queries_version_id: number }>(
+                'saved_queries_versions',
+            )
+                .where('saved_queries_version_id', 2)
+                .update({ created_at: new Date('2025-01-01') });
+            expect(
+                (await shortlist()).map((candidate) => candidate.uuid),
+            ).toEqual([uuid]);
+        });
+
         it('keeps time-grain words available to the AI shortlist', async () => {
             const uuid = await add('Monthly report');
             await addVersion(uuid, ['customers_count']);
