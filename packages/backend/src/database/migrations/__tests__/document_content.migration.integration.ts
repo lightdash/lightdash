@@ -49,7 +49,7 @@ describe('Document content PostgreSQL integration', () => {
                     {
                         id: 'intro',
                         type: 'markdown',
-                        content: 'Body must not be projected',
+                        content: { markdown: 'Body must not be projected' },
                     },
                 ],
             },
