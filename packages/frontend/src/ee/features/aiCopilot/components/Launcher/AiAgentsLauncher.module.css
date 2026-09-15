@@ -131,15 +131,28 @@
     opacity: 1;
 }
 
-.panel {
+/* --ai-launcher-panel-width/height are set on .root once the user resizes;
+   the rem() defaults resolve here so they keep the panel's own scale. */
+.floatingPanel {
     --mantine-scale: 0.9;
-    --ai-chat-input-bg: var(--mantine-color-background-0);
+    --panel-width: min(
+        var(--ai-launcher-panel-width, rem(440px)),
+        calc(100vw - var(--mantine-spacing-md) * 2)
+    );
+    --panel-height: min(
+        var(--ai-launcher-panel-height, rem(640px)),
+        calc(100vh - rem(80px))
+    );
     position: absolute;
     bottom: calc(100% + var(--mantine-spacing-xs));
+    height: var(--panel-height);
+}
+
+.panel {
+    composes: floatingPanel;
+    --ai-chat-input-bg: var(--mantine-color-background-0);
     right: 0;
-    width: min(rem(440px), calc(100vw - var(--mantine-spacing-md) * 2));
-    height: rem(640px);
-    max-height: min(rem(640px), calc(100vh - rem(80px)));
+    width: var(--panel-width);
     border-radius: var(--mantine-radius-lg);
     background: var(--mantine-color-body);
     color: var(--mantine-color-text);
@@ -151,19 +164,54 @@
 }
 
 .previewPanel {
-    --mantine-scale: 0.9;
-    position: absolute;
-    bottom: calc(100% + var(--mantine-spacing-xs));
-    right: calc(
-        min(rem(440px), calc(100vw - var(--mantine-spacing-md) * 2)) +
-            var(--mantine-spacing-xs)
-    );
+    composes: floatingPanel;
+    right: calc(var(--panel-width) + var(--mantine-spacing-xs));
     width: min(
         rem(620px),
-        calc(100vw - rem(440px) - var(--mantine-spacing-md) * 3)
+        calc(100vw - var(--panel-width) - var(--mantine-spacing-md) * 3)
     );
-    height: rem(640px);
-    max-height: min(rem(640px), calc(100vh - rem(80px)));
+}
+
+.resizeHandle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    width: rem(16px);
+    height: rem(16px);
+    cursor: nwse-resize;
+    touch-action: none;
+}
+
+.resizeHandle:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: -2px;
+}
+
+/* Corner mark only shows while the panel is in use, like the dock close button. */
+.resizeHandle::after {
+    content: '';
+    position: absolute;
+    top: rem(5px);
+    left: rem(5px);
+    width: rem(6px);
+    height: rem(6px);
+    border-top: 2px solid var(--mantine-color-dimmed);
+    border-left: 2px solid var(--mantine-color-dimmed);
+    border-top-left-radius: rem(2px);
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.panel:hover .resizeHandle::after,
+.resizeHandle:focus-visible::after {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .resizeHandle::after {
+        opacity: 1;
+    }
 }
 
 .panelHeader {

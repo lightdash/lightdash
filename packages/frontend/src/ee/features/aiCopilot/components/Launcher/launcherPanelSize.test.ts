@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest';
+import {
+    clampLauncherPanelSize,
+    LAUNCHER_PANEL_MIN_SIZE,
+    parseLauncherPanelSize,
+} from './launcherPanelSize';
+
+const viewport = { width: 1440, height: 900 };
+
+describe('clampLauncherPanelSize', () => {
+    it('keeps a size that fits the viewport', () => {
+        expect(
+            clampLauncherPanelSize({ width: 520, height: 700 }, viewport),
+        ).toEqual({ width: 520, height: 700 });
+    });
+
+    it('never shrinks below the minimum usable size', () => {
+        expect(
+            clampLauncherPanelSize({ width: 10, height: 10 }, viewport),
+        ).toEqual(LAUNCHER_PANEL_MIN_SIZE);
+    });
+
+    it('keeps a page margin and top headroom inside the viewport', () => {
+        expect(
+            clampLauncherPanelSize({ width: 5000, height: 5000 }, viewport),
+        ).toEqual({ width: 1408, height: 820 });
+    });
+
+    it('prefers the minimum size when the viewport is smaller than it', () => {
+        expect(
+            clampLauncherPanelSize(
+                { width: 800, height: 800 },
+                { width: 300, height: 300 },
+            ),
+        ).toEqual(LAUNCHER_PANEL_MIN_SIZE);
+    });
+});
+
+describe('parseLauncherPanelSize', () => {
+    it('reads a stored size', () => {
+        expect(parseLauncherPanelSize('{"width":500,"height":700}')).toEqual({
+            width: 500,
+            height: 700,
+        });
+    });
+
+    it.each([
+        ['nothing stored', undefined],
+        ['corrupt json', '{width:'],
+        ['wrong shape', '{"w":1}'],
+        ['non-positive values', '{"width":0,"height":-5}'],
+        ['non-numeric values', '{"width":"500","height":"700"}'],
+    ])('falls back to the default size on %s', (_, raw) => {
+        expect(parseLauncherPanelSize(raw)).toBeNull();
+    });
+});
