@@ -1,3 +1,10 @@
+# [2.218.0](https://github.com/lightdash/lightdash/compare/2.217.4...2.218.0) (2026-09-15)
+
+
+### Features
+
+* **backend:** log cached-explore read shape ahead of PROD-10912 (SPK-2121) ([#29210](https://github.com/lightdash/lightdash/issues/29210)) ([5adab05](https://github.com/lightdash/lightdash/commit/5adab055f6cb736381f57c404adc4111ce50d52c))
+
 ## [2.217.4](https://github.com/lightdash/lightdash/compare/2.217.3...2.217.4) (2026-09-15)
 
 
