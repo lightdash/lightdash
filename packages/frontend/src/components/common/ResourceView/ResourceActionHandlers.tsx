@@ -34,6 +34,7 @@ import ChartUpdateModal from '../modal/ChartUpdateModal';
 import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../modal/DashboardDuplicateModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
+import DocumentDeleteModal from '../modal/DocumentDeleteModal';
 import ShareSpaceModal from '../ShareSpaceModal';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
@@ -264,7 +265,16 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         case ResourceViewItemAction.DELETE:
             switch (action.item.type) {
                 case ResourceViewItemType.DOCUMENT:
-                    return null;
+                    return (
+                        <DocumentDeleteModal
+                            opened
+                            projectUuid={action.item.data.projectUuid}
+                            uuid={action.item.data.uuid}
+                            name={action.item.data.name}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
                 case ResourceViewItemType.CHART:
                     if (action.item.data.source === ChartSourceType.SQL) {
                         return (

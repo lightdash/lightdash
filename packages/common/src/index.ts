@@ -48,6 +48,7 @@ export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
 export { canMutateVerifiedContent } from './authorization/canMutateVerifiedContent';
 export { getDashboardDeleteAccess } from './authorization/getDashboardDeleteAccess';
+export { getDocumentDeleteAccess } from './authorization/getDocumentDeleteAccess';
 export {
     defineUserAbility,
     getUserAbilityBuilder,

@@ -23,6 +23,7 @@ import {
 import type { Knex } from 'knex';
 import { isEqual } from 'lodash';
 import pLimit from 'p-limit';
+import type { LightdashConfig } from '../../config/parseConfig';
 import type { DocumentModel } from '../../models/DocumentModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -33,6 +34,7 @@ import type { ProjectService } from '../ProjectService/ProjectService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type DocumentServiceArguments = {
+    lightdashConfig: LightdashConfig;
     documentModel: DocumentModel;
     directAccessService: DirectAccessService;
     featureFlagModel: FeatureFlagModel;
@@ -47,6 +49,159 @@ const MAX_CONCURRENT_PROJECT_ACCESS_CHECKS = 4;
 export class DocumentService extends BaseService {
     constructor(private readonly dependencies: DocumentServiceArguments) {
         super();
+    }
+
+    private async authorizeDelete(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuid: string,
+    ) {
+        await this.assertProjectAccess(account, projectUuid);
+        const document =
+            await this.dependencies.documentModel.getLifecycleState(
+                projectUuid,
+                documentUuid,
+            );
+        if (document.deletedAt || document.spaceDeletedAt) {
+            throw new NotFoundError('Document not found');
+        }
+        const context =
+            await this.dependencies.spacePermissionService.getDocumentDeleteAccessContext(
+                account.user.userUuid,
+                {
+                    type: 'document',
+                    documentUuid,
+                    spaceUuid: document.spaceUuid,
+                },
+            );
+        if (
+            this.createAuditedAbility(account).cannot(
+                'delete',
+                subject('Document', {
+                    ...context,
+                    organizationUuid: document.organizationUuid,
+                    projectUuid: document.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to delete this Document',
+            );
+        }
+        return document;
+    }
+
+    async delete(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuid: string,
+    ): Promise<void> {
+        const document = await this.authorizeDelete(
+            account,
+            projectUuid,
+            documentUuid,
+        );
+        if (this.dependencies.lightdashConfig.softDelete.enabled) {
+            await this.dependencies.documentModel.softDelete(
+                projectUuid,
+                documentUuid,
+                account.user.userUuid,
+                document.spaceUuid,
+            );
+        } else {
+            await this.dependencies.documentModel.permanentDelete(
+                projectUuid,
+                documentUuid,
+                {
+                    expectedSpaceUuid: document.spaceUuid,
+                    requireDeleted: false,
+                },
+            );
+        }
+    }
+
+    async softDelete(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuid: string,
+    ): Promise<void> {
+        const document = await this.authorizeDelete(
+            account,
+            projectUuid,
+            documentUuid,
+        );
+        await this.dependencies.documentModel.softDelete(
+            projectUuid,
+            documentUuid,
+            account.user.userUuid,
+            document.spaceUuid,
+        );
+    }
+
+    async restore(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuid: string,
+    ): Promise<void> {
+        await this.assertProjectAccess(account, projectUuid);
+        const document =
+            await this.dependencies.documentModel.getLifecycleState(
+                projectUuid,
+                documentUuid,
+            );
+        if (!document.deletedAt) {
+            throw new NotFoundError('Deleted Document not found');
+        }
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('DeletedContent', {
+                    organizationUuid: document.organizationUuid,
+                    projectUuid: document.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to restore Documents',
+            );
+        }
+        await this.dependencies.documentModel.restore(
+            projectUuid,
+            documentUuid,
+        );
+    }
+
+    async permanentDelete(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuid: string,
+    ): Promise<void> {
+        await this.assertProjectAccess(account, projectUuid);
+        const document =
+            await this.dependencies.documentModel.getLifecycleState(
+                projectUuid,
+                documentUuid,
+            );
+        if (!document.deletedAt) {
+            throw new NotFoundError('Deleted Document not found');
+        }
+        const ability = this.createAuditedAbility(account);
+        const context = {
+            organizationUuid: document.organizationUuid,
+            projectUuid: document.projectUuid,
+        };
+        if (
+            ability.cannot('manage', subject('DeletedContent', context)) ||
+            ability.cannot('manage', subject('Document', { ...context }))
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to permanently delete Documents',
+            );
+        }
+        await this.dependencies.documentModel.permanentDelete(
+            projectUuid,
+            documentUuid,
+        );
     }
 
     async create(
@@ -194,8 +349,9 @@ export class DocumentService extends BaseService {
             tx,
         }: { tx?: Knex; checkForAccess?: boolean; trackEvent?: boolean } = {},
     ): Promise<void> {
-        if (!targetSpaceUuid)
+        if (!targetSpaceUuid) {
             throw new ParameterError('Documents must belong to a Space');
+        }
         const document = await this.get(account, projectUuid, documentUuid);
         const contexts =
             await this.dependencies.spacePermissionService.resolveAccessBatch(
@@ -212,17 +368,19 @@ export class DocumentService extends BaseService {
                 !context ||
                 context.projectUuid !== projectUuid ||
                 context.organizationUuid !== document.organizationUuid
-            )
+            ) {
                 throw new NotFoundError('Space not found');
+            }
             if (
                 ability.cannot(
                     index === 0 ? 'update' : 'create',
                     subject('Document', context),
                 )
-            )
+            ) {
                 throw new ForbiddenError(
                     'You must have edit access to the source Space and create access to the destination Space to move a Document',
                 );
+            }
         }
         await this.dependencies.documentModel.moveToSpace(
             {

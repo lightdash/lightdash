@@ -3091,6 +3091,11 @@ describe('Document access boundaries', () => {
             ]);
             expect(results[1].context?.access).toEqual([]);
             expect(results[2].context?.access).toEqual([]);
+            const deleteContext = await service.getDocumentDeleteAccessContext(
+                'reader',
+                { type: 'document', documentUuid: 'doc', spaceUuid: 'space' },
+            );
+            expect(deleteContext.access).toEqual([]);
             if (licensed && documents) {
                 expect(results[0].context?.access).toEqual([
                     expect.objectContaining({

@@ -26,6 +26,20 @@ const mocks = vi.hoisted(() => ({
 }));
 const ability = new Ability<PossibleAbilities>([
     {
+        action: 'delete',
+        subject: 'Document',
+        conditions: {
+            organizationUuid: 'org',
+            projectUuid: 'project',
+            access: {
+                $elemMatch: {
+                    userUuid: 'user',
+                    role: { $in: ['editor', 'admin'] },
+                },
+            },
+        },
+    },
+    {
         action: 'update',
         subject: 'Document',
         conditions: {
@@ -116,7 +130,7 @@ describe('Document resource actions', () => {
         mocks.spaceRole = 'editor';
         mocks.modal.mockReset();
     });
-    const renderMenu = (roles: SpaceMemberRole[] = []) => {
+    const renderMenu = (roles: SpaceMemberRole[] = [], allowDelete = true) => {
         const onAction = vi.fn();
         render(
             <MantineProvider>
@@ -127,6 +141,7 @@ describe('Document resource actions', () => {
                     }}
                     onAction={onAction}
                     isOpen
+                    allowDelete={allowDelete}
                 />
             </MantineProvider>,
         );
@@ -141,7 +156,6 @@ describe('Document resource actions', () => {
         });
         for (const name of [
             'Share',
-            'Delete',
             'Edit',
             'Duplicate',
             'Add to favorites',
@@ -152,6 +166,28 @@ describe('Document resource actions', () => {
                 screen.queryByRole('menuitem', { name }),
             ).not.toBeInTheDocument();
         }
+    });
+    it('offers delete with inherited editor access', () => {
+        const onAction = renderMenu();
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+        expect(onAction).toHaveBeenCalledWith({
+            type: ResourceViewItemAction.DELETE,
+            item,
+        });
+    });
+    it('allows a full direct grant to delete without Space access', () => {
+        mocks.spaceRole = undefined;
+        const onAction = renderMenu([SpaceMemberRole.ADMIN]);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+        expect(onAction).toHaveBeenCalledWith(
+            expect.objectContaining({ type: ResourceViewItemAction.DELETE }),
+        );
+    });
+    it('honors the caller delete restriction', () => {
+        renderMenu([SpaceMemberRole.ADMIN], false);
+        expect(
+            screen.queryByRole('menuitem', { name: 'Delete' }),
+        ).not.toBeInTheDocument();
     });
     it('full direct access shares the Document but cannot move it', () => {
         mocks.spaceRole = undefined;
