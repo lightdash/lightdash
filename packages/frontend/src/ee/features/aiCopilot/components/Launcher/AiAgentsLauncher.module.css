@@ -139,14 +139,20 @@
         var(--ai-launcher-panel-width, rem(440px)),
         calc(100vw - var(--mantine-spacing-md) * 2)
     );
-    /* Cap leaves room for the navbar above and the dock row below the panel. */
+    /* Cap leaves room for the navbar (and any banner) above and the dock row
+       below the panel. */
+    --panel-top-inset: var(--navbar-height, 0px);
     --panel-height: min(
         var(--ai-launcher-panel-height, rem(640px)),
-        calc(100vh - var(--navbar-height, 0px) - var(--mantine-spacing-md) * 4)
+        calc(100vh - var(--panel-top-inset) - var(--mantine-spacing-md) * 4)
     );
     position: absolute;
     bottom: calc(100% + var(--mantine-spacing-xs));
     height: var(--panel-height);
+}
+
+:global(body:has(#navbar-header[data-has-banner='true'])) .floatingPanel {
+    --panel-top-inset: calc(var(--navbar-height) + var(--banner-height));
 }
 
 .panel {

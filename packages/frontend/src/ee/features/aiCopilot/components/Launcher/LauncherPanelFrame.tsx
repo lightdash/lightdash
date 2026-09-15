@@ -33,12 +33,11 @@ const NAVBAR_GAP = 8;
 
 const HINT_TIMEOUT_MS = 3000;
 
-const readNavbarHeight = () =>
-    parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue(
-            '--navbar-height',
-        ),
-    ) || 0;
+// The navbar's bottom edge already sits below any banner shown above it.
+const readTopInset = () => {
+    const navbar = document.querySelector('#navbar-header header');
+    return navbar ? Math.max(0, navbar.getBoundingClientRect().bottom) : 0;
+};
 
 const measure = (frame: HTMLElement) => {
     const rect = frame.getBoundingClientRect();
@@ -47,7 +46,7 @@ const measure = (frame: HTMLElement) => {
     // is what's left between that edge and the navbar.
     const available: LauncherPanelSize = {
         width: window.innerWidth - PAGE_MARGIN,
-        height: rect.bottom - readNavbarHeight() - NAVBAR_GAP,
+        height: rect.bottom - readTopInset() - NAVBAR_GAP,
     };
     return { size, available };
 };
