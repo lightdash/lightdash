@@ -20,10 +20,10 @@ export const ContentAuthoringRoute = ({ children }: PropsWithChildren) => {
         return (
             <Box p="lg">
                 <Stack align="flex-start">
-                    <Text fw={600}>Open this editor on desktop</Text>
+                    <Text fw={600}>Editing isn’t available on phones</Text>
                     <Text c="dimmed">
-                        Use a larger screen to create or edit charts and
-                        dashboards.
+                        Open Lightdash on a desktop or tablet to create or edit
+                        charts and dashboards.
                     </Text>
                     <Button component={Link} to="/" variant="default">
                         Back to home

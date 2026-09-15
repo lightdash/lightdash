@@ -1,5 +1,4 @@
-import { useMatches } from '@mantine/core';
+import { useIsPhoneDevice } from './useIsPhoneDevice';
 
-/** Phone layouts support viewing and filtering, not chart/dashboard authoring. */
-export const useContentAuthoringEnabled = () =>
-    useMatches({ base: false, sm: true }, { getInitialValueInEffect: false });
+/** Phones support viewing and filtering, but not chart/dashboard authoring. */
+export const useContentAuthoringEnabled = () => !useIsPhoneDevice();

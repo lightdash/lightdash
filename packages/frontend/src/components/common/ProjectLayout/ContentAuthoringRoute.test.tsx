@@ -4,7 +4,14 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ContentAuthoringRoute } from './ContentAuthoringRoute';
 
-const renderRoute = (path: string, width: number) => {
+const { device } = vi.hoisted(() => ({ device: { isPhone: false } }));
+
+vi.mock('../../../hooks/useIsPhoneDevice', () => ({
+    useIsPhoneDevice: () => device.isPhone,
+}));
+
+const renderRoute = (path: string, width: number, isPhone = false) => {
+    device.isPhone = isPhone;
     vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
         const minWidth = query.match(/min-width:\s*([\d.]+)(em|px)/);
         return {
@@ -31,7 +38,10 @@ const renderRoute = (path: string, width: number) => {
     );
 };
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+    device.isPhone = false;
+    vi.restoreAllMocks();
+});
 
 const editorPaths = [
     'tables',
@@ -43,19 +53,21 @@ const editorPaths = [
     'sql-runner/revenue/edit',
 ];
 
-describe('content authoring viewport policy', () => {
-    it.each(editorPaths)('blocks %s below 768px', (path) => {
-        renderRoute(path, 767);
-        expect(screen.getByText('Open this editor on desktop')).toBeVisible();
-        expect(screen.queryByText('Route content')).not.toBeInTheDocument();
-    });
+describe('content authoring device policy', () => {
+    it.each(editorPaths)(
+        'keeps %s available in a narrow desktop window',
+        (path) => {
+            renderRoute(path, 767);
+            expect(screen.getByText('Route content')).toBeVisible();
+        },
+    );
 
-    it.each(editorPaths)('allows %s at 768px', (path) => {
-        renderRoute(path, 768);
-        expect(screen.getByText('Route content')).toBeVisible();
+    it.each(editorPaths)('blocks %s on phones at any width', (path) => {
+        renderRoute(path, 1024, true);
         expect(
-            screen.queryByText('Open this editor on desktop'),
-        ).not.toBeInTheDocument();
+            screen.getByText('Editing isn’t available on phones'),
+        ).toBeVisible();
+        expect(screen.queryByText('Route content')).not.toBeInTheDocument();
     });
 
     it.each([
@@ -63,8 +75,8 @@ describe('content authoring viewport policy', () => {
         'saved/revenue/view',
         'dashboards/revenue/view',
         'sql-runner/revenue',
-    ])('keeps the %s viewer available on a phone', (path) => {
-        renderRoute(path, 390);
+    ])('keeps the %s viewer available on phones', (path) => {
+        renderRoute(path, 390, true);
         expect(screen.getByText('Route content')).toBeVisible();
     });
 });
