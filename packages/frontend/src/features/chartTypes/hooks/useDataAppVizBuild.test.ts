@@ -155,6 +155,33 @@ describe('useDataAppVizBuild', () => {
         });
     });
 
+    it('sends an explicit theme selection for new builds and retries it', () => {
+        const { result } = setup();
+
+        act(() =>
+            result.current.send({
+                description: 'Apply theme: Brand',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [],
+                externalConnections: [],
+                designUuid: 'design-1',
+            }),
+        );
+
+        expect(generate.mock.lastCall?.[0]).toMatchObject({
+            designUuid: 'design-1',
+        });
+
+        const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
+        act(() => handlers.onError(new Error('Network error')));
+        act(() => result.current.retry?.());
+
+        expect(generate.mock.lastCall?.[0]).toMatchObject({
+            designUuid: 'design-1',
+        });
+    });
+
     it('links attached connections on generate and iterate', () => {
         const { result } = setup();
         const connections = [
@@ -395,6 +422,87 @@ describe('useDataAppVizBuild', () => {
 
         expect(onCreated).not.toHaveBeenCalled();
         expect(result.current.isBuilding).toBe(false);
+    });
+
+    it('sends an explicit theme selection for revisions and retries it', () => {
+        const { result } = setup('viz-1');
+
+        act(() =>
+            result.current.send({
+                description: 'Apply theme: Brand',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [],
+                externalConnections: [],
+                designUuid: 'design-1',
+            }),
+        );
+
+        expect(iterate.mock.lastCall?.[0]).toMatchObject({
+            designUuid: 'design-1',
+        });
+
+        const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
+        act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 2 }));
+        finishBuild(
+            finishedVersion({ version: 2, status: 'error', error: 'Nope' }),
+        );
+        act(() => result.current.retry?.());
+
+        expect(iterate.mock.lastCall?.[0]).toMatchObject({
+            designUuid: 'design-1',
+        });
+    });
+
+    it('sends null to remove a theme and omits an unchanged theme selection', () => {
+        const { result, rerender } = setup();
+
+        act(() =>
+            result.current.send({
+                description: 'Remove theme',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [],
+                externalConnections: [],
+                designUuid: null,
+            }),
+        );
+
+        expect(generate.mock.lastCall?.[0]).toHaveProperty('designUuid', null);
+
+        rerender({ dataAppVizUuid: 'viz-1' });
+        const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
+        act(() => handlers.onSuccess({ appUuid: 'new-viz', version: 1 }));
+        finishBuild(finishedVersion());
+
+        act(() =>
+            result.current.send({
+                description: 'Remove theme',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [],
+                externalConnections: [],
+                designUuid: null,
+            }),
+        );
+
+        expect(iterate.mock.lastCall?.[0]).toHaveProperty('designUuid', null);
+
+        const iterateHandlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
+        act(() => iterateHandlers.onSuccess({ appUuid: 'viz-1', version: 2 }));
+        finishBuild(finishedVersion({ version: 2 }));
+
+        act(() =>
+            result.current.send({
+                description: 'make the bars teal',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [],
+                externalConnections: [],
+            }),
+        );
+
+        expect(iterate.mock.lastCall?.[0]).not.toHaveProperty('designUuid');
     });
 
     it('does not offer a revision as a draft', () => {

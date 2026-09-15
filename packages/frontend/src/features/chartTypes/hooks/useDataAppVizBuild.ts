@@ -43,6 +43,11 @@ export type VizBuildRequest = {
     clarifications: AppClarification[];
     /** Connections to link before this generate/iterate. Empty when none. */
     externalConnections: AppVersionExternalConnectionResource[];
+    /**
+     * The selected theme for this build. Undefined preserves the server's
+     * default selection, while null explicitly removes the theme.
+     */
+    designUuid?: string | null;
 } & (
     | { claudeModel: DataAppClaudeModel; codexModel?: never }
     | { codexModel: DataAppCodexModel; claudeModel?: never }
@@ -198,6 +203,9 @@ export const useDataAppVizBuild = ({
                         appUuid: draftAppUuid,
                         fileIds: files,
                         externalConnections,
+                        ...(request.designUuid !== undefined
+                            ? { designUuid: request.designUuid }
+                            : {}),
                         ...(request.codexModel
                             ? { codexModel: request.codexModel }
                             : { claudeModel: request.claudeModel }),
@@ -229,6 +237,9 @@ export const useDataAppVizBuild = ({
                     creationExperience,
                     fileIds: files,
                     externalConnections,
+                    ...(request.designUuid !== undefined
+                        ? { designUuid: request.designUuid }
+                        : {}),
                     ...(request.codexModel
                         ? { codexModel: request.codexModel }
                         : { claudeModel: request.claudeModel }),

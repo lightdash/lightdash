@@ -8,8 +8,9 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { useUncontrolled } from '@mantine/hooks';
 import { IconBrush, IconCheck, IconChevronDown } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationDesigns } from '../hooks/useOrganizationDesigns';
 import { ManageThemesMenuItem } from './ManageThemesMenuItem';
@@ -35,6 +36,11 @@ type Props = {
      */
     lockedAfterCreation?: boolean;
     compact?: boolean;
+    opened?: boolean;
+    onOpenedChange?: (opened: boolean) => void;
+    /** Name from a saved snapshot, or a loading/error label. */
+    fallbackLabel?: string;
+    selectionHint?: string;
 };
 
 export const ThemePicker: FC<Props> = ({
@@ -43,19 +49,30 @@ export const ThemePicker: FC<Props> = ({
     disabled,
     lockedAfterCreation,
     compact,
+    opened: openedProp,
+    onOpenedChange,
+    fallbackLabel,
+    selectionHint,
 }) => {
-    const [opened, setOpened] = useState(false);
+    const [opened, setOpened] = useUncontrolled({
+        value: openedProp,
+        defaultValue: false,
+        onChange: onOpenedChange,
+    });
     const { data: themes = [] } = useOrganizationDesigns();
 
     const selected = value ? themes.find((t) => t.designUuid === value) : null;
-    const label = selected?.name ?? LIGHTDASH_DEFAULT_LABEL;
+    const label = selected?.name ?? fallbackLabel ?? LIGHTDASH_DEFAULT_LABEL;
+    const hasSelection = value !== null;
     const description = selected
         ? selected.description || null
         : LIGHTDASH_DEFAULT_DESCRIPTION;
 
     // Compact trigger reads as a call to action until a theme is picked, then
     // switches to showing the selected theme's name.
-    const compactLabel = selected ? label : COMPACT_EMPTY_LABEL;
+    const compactLabel = hasSelection
+        ? label
+        : (fallbackLabel ?? COMPACT_EMPTY_LABEL);
     const button = compact ? (
         <Button
             variant="subtle"
@@ -65,15 +82,19 @@ export const ThemePicker: FC<Props> = ({
             h="auto"
             py={6}
             className={classes.compactTrigger}
-            data-selected={!!selected}
-            onClick={() => setOpened((o) => !o)}
+            data-selected={hasSelection}
+            onClick={() => setOpened(!opened)}
             disabled={disabled || lockedAfterCreation}
             leftSection={<MantineIcon icon={IconBrush} size={14} />}
             rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
-            aria-label={selected ? `Theme: ${label}` : COMPACT_EMPTY_LABEL}
+            aria-label={
+                hasSelection || fallbackLabel
+                    ? `Theme: ${label}`
+                    : COMPACT_EMPTY_LABEL
+            }
         >
             <Group gap={5} wrap="nowrap">
-                {selected && (
+                {hasSelection && (
                     <Text
                         span
                         size="xs"
@@ -98,7 +119,7 @@ export const ThemePicker: FC<Props> = ({
             h="auto"
             py="xs"
             justify="space-between"
-            onClick={() => setOpened((o) => !o)}
+            onClick={() => setOpened(!opened)}
             disabled={disabled || lockedAfterCreation}
             rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
             aria-label={`Theme: ${label}`}
@@ -127,6 +148,7 @@ export const ThemePicker: FC<Props> = ({
     ) => (
         <Menu.Item
             key={key}
+            disabled={disabled || lockedAfterCreation}
             onClick={onSelect}
             aria-current={isActive}
             className={classes.option}
@@ -179,6 +201,7 @@ export const ThemePicker: FC<Props> = ({
                 )}
             </Menu.Target>
             <Menu.Dropdown className={classes.dropdown}>
+                {selectionHint && <Menu.Label>{selectionHint}</Menu.Label>}
                 <ScrollArea.Autosize mah={280} type="scroll">
                     {themeOption(
                         'none',
