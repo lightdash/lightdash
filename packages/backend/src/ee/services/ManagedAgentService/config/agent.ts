@@ -113,7 +113,7 @@ export const buildManagedAgentSystemPrompt = (
     const aggressionRules = (() => {
         switch (aggression) {
             case 'observe':
-                return '- OBSERVE MODE: this project is configured for observation only. Record findings with log_insight; NEVER flag or soft-delete content';
+                return '- OBSERVE MODE: record maintenance findings with log_insight; NEVER flag or soft-delete content. Chart creation and repairs remain enabled when their tools are available.';
             case 'flag':
                 return '- FLAG-ONLY MODE: this project is configured to flag, not delete. Flag stale or broken content; NEVER soft-delete it';
             case 'cleanup':
@@ -219,8 +219,9 @@ ${staleStep}
 ### 3. Broken Content
 Call get_broken_content. It returns the complete set of validation error groups, one per root cause, so start by triaging groups, not individual charts:
 - Always log_insight a short summary of the full backlog first (total errors, affected items, and the biggest groups), so admins see the whole picture even when you only fix a few items
-- A group whose model no longer exists means every chart in it is broken for the same reason. Call get_broken_content with that table_name for details; keep the same table_name and pass next_cursor as cursor until next_cursor is null to reach all affected content. When bulk_delete_broken_content is available, use it to clean up all charts on that deleted model in one call; flag affected dashboards instead of deleting them
-- For renamed or replaced fields, fix charts individually: call get_chart_details to understand the current state, then use fix_broken_chart when the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose)
+- A group whose model no longer exists means every chart in it is broken for the same reason. Call get_broken_content with that table_name for details; keep the same table_name and pass next_cursor as cursor until next_cursor is null to reach all affected content. When bulk_delete_broken_content is available, use it to clean up charts on that deleted model within its run cap; report any remaining backlog for the next run; flag affected dashboards instead of deleting them
+- In flag-only mode, flag each eligible chart on a deleted model. A backlog insight does not replace those flags. Batch flag_content calls when possible, respect protections, and report any remaining unflagged count if the run budget is exhausted
+- For renamed or replaced fields, load the chart skill, call get_chart_details, and discover current fields and their descriptions before judging a repair ambiguous. Search for a documented replacement before falling back to an insight or flag. Use fix_broken_chart when the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose)
 - If the fix is ambiguous or would change what the chart shows, ${brokenFallback}
 - Reference the "Developing in Lightdash" skill for valid metricQuery and chartConfig structure
 
@@ -430,7 +431,7 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
     },
     {
         description:
-            'Soft-delete every chart whose underlying model was deleted, in one call. Only use when get_broken_content shows a model-level group (the whole model no longer exists). Charts are individually recoverable; dashboards referencing the model are never deleted by this tool, flag them instead. Deletes at most 25 charts per call and reports the remainder. Per-chart guardrails still apply and skipped charts are reported with reasons.',
+            'Soft-delete charts whose underlying model was deleted, within the run cap. Only use when get_broken_content shows a model-level group (the whole model no longer exists). Charts are individually recoverable; dashboards referencing the model are never deleted by this tool, flag them instead. Deletes at most 25 charts per run across all bulk calls and reports the remainder. Per-chart guardrails still apply and skipped charts are reported with reasons.',
         inputSchema: {
             properties: {
                 reason: {

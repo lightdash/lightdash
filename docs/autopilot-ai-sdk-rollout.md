@@ -70,6 +70,22 @@ AUTOPILOT_CONTENT_EVAL=true AUTOPILOT_CONTENT_SEED=true AUTOPILOT_EVAL_PROVIDER=
 
 `AUTOPILOT_CONTENT_SEED=true` seeds the empty database with the standard development organisation, project and cached explores; omit it on later runs. The test executes the persisted charts and asserts their results (total revenue 150; `new=25`, `paid=125`), checks version history and the restricted suggestions space, and probes that protected and out-of-scope charts are refused. Passing it does not qualify cleanup mode or any provider.
 
+### Full heartbeat
+
+`AUTOPILOT_HEARTBEAT_EVAL=true` runs the unmodified heartbeat checklist through the real services with real organisation model settings, observing step usage and tool outcomes without replacing prompts or responses. Scheduler dispatch and Slack delivery stay outside the suite. Each case needs a fresh database cloned from a clean, seeded `autopilot_eval_heartbeat_base` template prepared with the chart workflow setup above (no saved charts or Autopilot runs; close template connections before cloning).
+
+```sh
+export PGDATABASE=autopilot_eval_heartbeat_openai_observe_seeded_1
+createdb --template=autopilot_eval_heartbeat_base "$PGDATABASE"
+export PGCONNECTIONURI="postgresql://$USER@127.0.0.1:5432/$PGDATABASE"
+AUTOPILOT_HEARTBEAT_EVAL=true AUTOPILOT_EVAL_PROVIDER=openai AUTOPILOT_EVAL_MODEL=gpt-5.4 \
+AUTOPILOT_EVAL_MODE=observe AUTOPILOT_EVAL_FIXTURE=seeded pnpm -F backend test:autopilot
+```
+
+`AUTOPILOT_EVAL_MODE` is `observe`, `flag` or `cleanup`. `AUTOPILOT_EVAL_FIXTURE=seeded` has stale and previously flagged charts, one repairable renamed metric, repeated user demand for revenue by status, protected, verified, recent and excluded charts, and a dashboard with one chart; `large` adds 105 broken charts on a removed model so detail runs past one page (flag mode expects all 105 flagged, cleanup expects 25 bulk deletions and an 80-chart backlog). Seeded cases use 80 steps and 300 seconds; large cases use the production defaults. The test supplies its own exact model qualification entry so flag and cleanup can be evaluated; that is never an operational qualification.
+
+`AUTOPILOT_EVAL_GUARDS_ONLY=true` on a cleanup clone makes no model calls and exercises the real deletion handlers directly: the sole chart on a dashboard is protected (duplicate tiles do not make it eligible, another active saved or SQL chart does, only the current dashboard version counts), exactly 25 individual deletions succeed, and repeated bulk calls delete 25 charts in total.
+
 ## Acceptance before switching the default
 
 Run each promised provider in all three modes on both a seeded project and a representative large/broken project. Use isolated, disposable content. Do not reset a shared developer or customer database to obtain fixtures.

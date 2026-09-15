@@ -3682,6 +3682,17 @@ chartConfig:
                 blocked: true,
             });
         }
+        if (
+            await this.managedAgentModel.isOnlyChartOnDashboard(
+                projectUuid,
+                chartUuid,
+            )
+        ) {
+            return JSON.stringify({
+                error: `Chart "${chartName}" is the only remaining chart on a dashboard. Cannot soft-delete it.`,
+                blocked: true,
+            });
+        }
         const chartEscalationBlock = await this.checkEscalationGuard(
             projectUuid,
             ManagedAgentTargetType.CHART,
@@ -3899,7 +3910,13 @@ chartConfig:
         }
 
         const entries = [...candidates.entries()];
-        const toProcess = entries.slice(0, MANAGED_AGENT_BULK_DELETE_RUN_LIMIT);
+        const alreadyDeleted =
+            await this.managedAgentModel.countBulkSoftDeletesForRun(runUuid);
+        const budget = Math.max(
+            0,
+            MANAGED_AGENT_BULK_DELETE_RUN_LIMIT - alreadyDeleted,
+        );
+        const toProcess = entries.slice(0, budget);
         const remaining = entries.length - toProcess.length;
 
         const deleted: { uuid: string; name: string; action_uuid: string }[] =
