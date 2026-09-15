@@ -35,6 +35,16 @@ a theme named in the prompt's text. Leaving it unset keeps the organization
 default.
 _Avoid_: theme setting, thread theme, design pick
 
+**Theme listing**:
+The agent tool (`listDataAppThemes`) that returns the organization's data app
+themes — slug, name, default flag, description — so a theme named in prose
+("our brand", "the dark theme") resolves to a slug. Offered only where the
+agent can start data app builds, and only in threads, never over MCP. A theme
+pick on the prompt makes the listing unnecessary; when nothing matches, the
+agent asks rather than guessing. Slack-started threads have no composer, so
+this is their only path to a theme.
+_Avoid_: theme picker (for the tool), design list
+
 **Mention**:
 Attaching content to a prompt by typing `@` and picking it from search, the
 current page, or the tiles of a pinned dashboard. A mention is one way to
