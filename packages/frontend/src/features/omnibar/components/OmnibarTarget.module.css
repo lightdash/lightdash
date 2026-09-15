@@ -1,5 +1,6 @@
 .container {
     flex-shrink: 0;
+    width: rem(44px);
     height: rem(28px);
     border-radius: var(--mantine-radius-md);
     border: 1px solid var(--mantine-color-default-border);
@@ -27,12 +28,54 @@
 }
 
 .text {
+    display: none;
     flex-grow: 1;
     color: var(--mantine-color-placeholder);
     user-select: none;
 }
 
-@media (width < 48em) {
+.shortcut {
+    display: none;
+}
+
+@media (37.5em <= width < 48em) {
+    .container {
+        width: rem(120px);
+        height: rem(28px);
+    }
+
+    .text {
+        display: block;
+    }
+}
+
+@media (min-width: 48em) {
+    .container {
+        width: rem(180px);
+    }
+
+    .text {
+        display: block;
+    }
+
+    .shortcut {
+        display: inline-flex;
+    }
+}
+
+@media (min-width: 75em) {
+    .container {
+        width: rem(220px);
+    }
+}
+
+@media (min-width: $mantine-breakpoint-xl) {
+    .container {
+        width: rem(260px);
+    }
+}
+
+@media (width < 37.5em) {
     .container {
         width: 44px;
         height: 44px;

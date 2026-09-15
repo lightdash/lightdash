@@ -2,13 +2,13 @@
 
 Current implementation map, September 15. This describes component replacements and layout changes separately. Verification and remaining feature coverage live in [the audit](mobile-responsive-audit.md).
 
-Responsive presentation and product capability use separate signals. Most phone layouts start strictly below **768px (`sm`)**, while navigation progressively narrows search, removes secondary labels below 1088px, reduces search to an icon below 768px, and collapses below 512px. Chart/dashboard authoring restrictions use phone device detection (`react-device-detect`'s `isMobileOnly`), so narrowing a desktop window never removes authoring. Tablets retain authoring. Container-based wrapping and dashboard grid projection remain independent.
+Responsive presentation and product capability use separate signals. Most phone layouts start strictly below **768px (`sm`)**, while navigation progressively narrows search, removes secondary labels below 1088px, reduces search to an icon below 600px, and collapses below 512px. Chart/dashboard authoring restrictions use phone device detection (`react-device-detect`'s `isMobileOnly`), so narrowing a desktop window never removes authoring. Tablets retain authoring. Container-based wrapping and dashboard grid projection remain independent.
 
 ## Component replacements
 
 | Desktop presentation | Compact presentation | Trigger | Implementation |
 | --- | --- | --- | --- |
-| Full navigation bar | Desktop-like compact row (logo, project switcher, search, Ask AI, account, overflow) → right Drawer | Search narrows to 180px below 1200px; secondary labels condense below 1088px; search becomes an icon below 768px; Drawer below 512px | [MainNavBarContent](../packages/frontend/src/components/NavBar/MainNavBarContent.tsx) |
+| Full navigation bar | Desktop-like compact row (logo, project switcher, search, Ask AI, account, overflow) → right Drawer | Search narrows to 180px below 1200px and 120px below 768px; secondary labels condense below 1088px; search becomes an icon below 600px; Drawer below 512px | [MainNavBarContent](../packages/frontend/src/components/NavBar/MainNavBarContent.tsx) |
 | Persistent page navigation sidebar | Labeled button → left Drawer, up to 24rem wide | Below `sm` / 768px | [Page](../packages/frontend/src/components/common/Page/Page.tsx) |
 | AI agent settings sidebar | Agent settings button → left Drawer, up to 360px wide | Below `sm`; form remains mounted and drafts survive resizing | [ProjectAiAgentEditPage](../packages/frontend/src/ee/pages/AiAgents/ProjectAiAgentEditPage.tsx) |
 | Page details sidebar | Full-width right Drawer | Below `sm`, when the caller provides a close handler | [Page](../packages/frontend/src/components/common/Page/Page.tsx) |
