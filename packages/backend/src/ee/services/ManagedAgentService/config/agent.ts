@@ -113,7 +113,7 @@ export const buildManagedAgentSystemPrompt = (
     const aggressionRules = (() => {
         switch (aggression) {
             case 'observe':
-                return '- OBSERVE MODE: record maintenance findings with log_insight; NEVER flag or soft-delete content. Chart creation and repairs remain enabled when their tools are available.';
+                return '- OBSERVE MODE: record maintenance findings with log_project_insight, or log_insight for a specific chart/dashboard; NEVER flag or soft-delete content. Chart creation and repairs remain enabled when their tools are available.';
             case 'flag':
                 return '- FLAG-ONLY MODE: this project is configured to flag, not delete. Flag stale or broken content; NEVER soft-delete it';
             case 'cleanup':
@@ -205,7 +205,7 @@ ${aggressionRules}
 ## Checklist (follow in order)
 
 ### 0. Context & Recovery
-Call get_recent_actions to understand what you've already done.
+Call get_recent_actions to understand what you've already done. For project-wide findings or summaries that are not about a specific chart/dashboard, use log_project_insight: it is already pinned to the current project and needs no target UUID. Use log_insight only for a real chart or dashboard returned by tools.
 Don't re-flag content you've already flagged.${escalationChecklistLine}
 
 **Recovery check:** Review your recent soft_deleted and flagged_stale actions. If you see any that were WRONG (for example, content you created with a slug starting with "agent-" that you then flagged/deleted, or content created or edited less than ${protectRecentDays} days ago), use reverse_own_action to fix your mistakes before proceeding.
@@ -218,9 +218,9 @@ ${staleStep}
 
 ### 3. Broken Content
 Call get_broken_content. It returns the complete set of validation error groups, one per root cause, so start by triaging groups, not individual charts:
-- Always log_insight a short summary of the full backlog first (total errors, affected items, and the biggest groups), so admins see the whole picture even when you only fix a few items
+- Use log_project_insight for a short summary of the full backlog first (total errors, affected items, and the biggest groups), so admins see the whole picture even when you only fix a few items
 - A group whose model no longer exists means every chart in it is broken for the same reason. Call get_broken_content with that table_name for details; keep the same table_name and pass next_cursor as cursor until next_cursor is null to reach all affected content. When bulk_delete_broken_content is available, use it to clean up charts on that deleted model within its run cap; report any remaining backlog for the next run; flag affected dashboards instead of deleting them
-- In flag-only mode, flag each eligible chart on a deleted model. A backlog insight does not replace those flags. Batch flag_content calls when possible, respect protections, and report any remaining unflagged count if the run budget is exhausted
+- In flag-only mode, call bulk_flag_broken_content once per deleted model using its table_name. The handler flags every eligible chart in that group, applies protections, and skips existing flags. Flag affected dashboards individually. Use its counts in the summary; do not substitute a small sample of individual flags or a backlog insight for group flagging
 - For renamed or replaced fields, load the chart skill, call get_chart_details, and discover current fields and their descriptions before judging a repair ambiguous. Search for a documented replacement before falling back to an insight or flag. Use fix_broken_chart when the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose)
 - If the fix is ambiguous or would change what the chart shows, ${brokenFallback}
 - Reference the "Developing in Lightdash" skill for valid metricQuery and chartConfig structure
@@ -248,7 +248,7 @@ CRITICAL: chartConfig.type must be "cartesian" (for line/bar/area), "table", "bi
 Max 3 charts per run. Skip if nothing warrants creation.
 
 ### 5. People & Ownership
-Call get_inactive_users and get_orphaned_content. Both are reporting-only: record what you find with log_insight and NEVER flag, delete, or otherwise act on a person or their content.
+Call get_inactive_users and get_orphaned_content. Both are reporting-only: record what you find with log_project_insight and NEVER flag, delete, or otherwise act on a person or their content.
 - Inactive users: group by how long they've been quiet and say which signal you used. Frame it as a seat and ownership review for admins, never as a judgement about the person
 - Orphaned content: group by former owner so admins can reassign in one pass. Leaving the company does not make content stale, so do not recommend deletion on those grounds alone
 - If either returns nothing, say so briefly or skip
@@ -391,6 +391,25 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
         name: 'flag_content',
     },
     {
+        name: 'bulk_flag_broken_content',
+        description:
+            'Flag all visible, in-scope charts whose underlying model was deleted. Flag affected dashboards individually. Use the table_name from a model-level get_broken_content group. One call processes the whole group, including items beyond detail pages; do not enumerate individual UUIDs. Existing active flags are preserved without resetting escalation. Protected or verified content is skipped. Reports created, already-flagged and blocked counts. Does not modify or delete content. Safe to retry after interruption.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                table_name: {
+                    type: 'string',
+                    description: 'Deleted model name from get_broken_content',
+                },
+                reason: {
+                    type: 'string',
+                    description: 'Why this model-level group needs review',
+                },
+            },
+            required: ['table_name', 'reason'],
+        },
+    },
+    {
         description:
             'Soft-delete a chart or dashboard. The content can be restored by an admin. Only usable on content that was flagged more than the escalation window ago and not dismissed; unflagged content is blocked, so flag_content it first. Do NOT use for content created in the last 30 days. Do NOT use for agent-created content (slug starts with agent-). Do NOT use if the chart is the only chart on a dashboard. At most 25 individual soft-deletes are allowed per run; further calls are blocked, so flag the remainder instead.',
         inputSchema: {
@@ -452,7 +471,7 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
     },
     {
         description:
-            'Log an actionable observation about popular content. For example: a chart is very popular but not pinned, or popular content is in a private space with limited access.',
+            'Log an actionable observation about a specific chart or dashboard returned by tools. Use log_project_insight for a whole-project or model-level finding; never invent a content UUID.',
         inputSchema: {
             properties: {
                 description: {
@@ -488,6 +507,26 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
             type: 'object',
         },
         name: 'log_insight',
+    },
+    {
+        name: 'log_project_insight',
+        description:
+            'Record a project-wide observation, model-level finding, or maintenance backlog summary. Automatically targets the current project; no UUID is needed. Reporting only, available in every cleanup mode.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                description: {
+                    type: 'string',
+                    description: 'The finding and recommended admin follow-up',
+                },
+                metadata: {
+                    type: 'object',
+                    description:
+                        'Supporting counts, model names, or other evidence',
+                },
+            },
+            required: ['description'],
+        },
     },
     {
         description:
@@ -841,6 +880,7 @@ const aggressionDisabledTools: Record<
 > = {
     observe: [
         'flag_content',
+        'bulk_flag_broken_content',
         'soft_delete_content',
         'bulk_delete_broken_content',
     ],

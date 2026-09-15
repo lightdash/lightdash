@@ -5,6 +5,7 @@ import {
 import {
     AUTOPILOT_CHART_SKILL_NAME,
     AUTOPILOT_SLACK_SKILL_NAME,
+    autopilotToolDefinitions,
     getManagedAgentConfigHash,
     getManagedAgentMcpUrl,
     renderAutopilotAgent,
@@ -315,6 +316,40 @@ describe('renderAutopilotAgent', () => {
         );
         expect(aiSdk.tools.map((tool) => tool.name)).not.toContain(
             'create_content_from_code',
+        );
+    });
+});
+
+describe('broken-content action contracts', () => {
+    it('records project-wide insights without accepting a model-supplied target', () => {
+        const tool = autopilotToolDefinitions.find(
+            (item) => item.name === 'log_project_insight',
+        );
+        expect(tool).toBeDefined();
+        expect(tool?.inputSchema.properties).not.toHaveProperty('target_uuid');
+        expect(tool?.inputSchema.required).toEqual(['description']);
+    });
+
+    it.each(['flag', 'cleanup'] as const)(
+        'offers group flagging in %s mode',
+        (aggression) => {
+            const config = renderAutopilotAgent({
+                runtime: 'ai-sdk',
+                policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
+            });
+            expect(config.tools.map((tool) => tool.name)).toContain(
+                'bulk_flag_broken_content',
+            );
+        },
+    );
+
+    it('removes group flagging in observe mode', () => {
+        const config = renderAutopilotAgent({
+            runtime: 'ai-sdk',
+            policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'observe' },
+        });
+        expect(config.tools.map((tool) => tool.name)).not.toContain(
+            'bulk_flag_broken_content',
         );
     });
 });
