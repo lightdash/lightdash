@@ -1,3 +1,10 @@
+## [2.221.1](https://github.com/lightdash/lightdash/compare/2.221.0...2.221.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** report provider failures to Sentry with the provider and model ([#29263](https://github.com/lightdash/lightdash/issues/29263)) ([64c96f3](https://github.com/lightdash/lightdash/commit/64c96f3d7ffbcd35b7d5c4cd9980418c58ab6771))
+
 # [2.221.0](https://github.com/lightdash/lightdash/compare/2.220.0...2.221.0) (2026-09-15)
 
 
