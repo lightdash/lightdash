@@ -1,3 +1,10 @@
+## [2.217.3](https://github.com/lightdash/lightdash/compare/2.217.2...2.217.3) (2026-09-15)
+
+
+### Bug Fixes
+
+* polish custom chart setup and builder controls ([#29240](https://github.com/lightdash/lightdash/issues/29240)) ([f150d88](https://github.com/lightdash/lightdash/commit/f150d887ba7e2a9348ae4499ef37c3f36a65c97d))
+
 ## [2.217.2](https://github.com/lightdash/lightdash/compare/2.217.1...2.217.2) (2026-09-15)
 
 
