@@ -1,21 +1,60 @@
 import type {
     DocumentCellOperation,
-    DocumentCellV1,
-    DocumentContentV1,
+    DocumentCellV2,
+    DocumentContentV2,
 } from '../types/document';
 import { applyDocumentCellOperations } from './documentOperations';
 
-const markdown = (id: string, content = id): DocumentCellV1 => ({
+const markdown = (id: string, content = id): DocumentCellV2 => ({
     id,
     type: 'markdown',
-    content,
+    content: { markdown: content },
 });
 
-const original: DocumentContentV1 = {
+const original: DocumentContentV2 = {
     cells: [markdown('a'), markdown('b'), markdown('c'), markdown('d')],
 };
 
 describe('applyDocumentCellOperations', () => {
+    test('replaces an explicit title without changing markdown or input', () => {
+        const cell: DocumentCellV2 = {
+            id: 'a',
+            type: 'markdown',
+            content: { title: 'Original', markdown: '# Kept' },
+        };
+        const content = { cells: [cell] };
+        const result = applyDocumentCellOperations(content, [
+            {
+                type: 'replace',
+                cellId: 'a',
+                cell: {
+                    ...cell,
+                    content: { ...cell.content, title: 'Renamed' },
+                },
+            },
+        ]);
+        expect(result.cells).toEqual([
+            { ...cell, content: { title: 'Renamed', markdown: '# Kept' } },
+        ]);
+        expect(content.cells[0].content.title).toBe('Original');
+    });
+
+    test('rejects blank titles without partially changing content', () => {
+        const before = structuredClone(original);
+        expect(() =>
+            applyDocumentCellOperations(original, [
+                {
+                    type: 'append',
+                    cell: {
+                        id: 'new',
+                        type: 'markdown',
+                        content: { title: ' ', markdown: 'Text' },
+                    },
+                },
+            ]),
+        ).toThrow('Invalid Document content');
+        expect(original).toEqual(before);
+    });
     test.each<{
         operation: DocumentCellOperation;
         expectedIds: string[];

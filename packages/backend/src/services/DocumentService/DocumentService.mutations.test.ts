@@ -12,7 +12,7 @@ import {
     type CreateDocumentRequest,
     type Document,
     type DocumentCellOperation,
-    type DocumentCellV1,
+    type DocumentCellV2,
     type RegisteredAccount,
     type SemanticChartAsCode,
 } from '@lightdash/common';
@@ -25,10 +25,10 @@ const spaceUuid = 'document-space';
 const documentUuid = 'document-uuid';
 const baseVersionUuid = 'document-version';
 
-const markdown: DocumentCellV1 = {
+const markdown: DocumentCellV2 = {
     id: 'intro',
     type: 'markdown',
-    content: '# Findings',
+    content: { markdown: '# Findings' },
 };
 const chart: SemanticChartAsCode = {
     name: 'Orders',
@@ -44,12 +44,12 @@ const chart: SemanticChartAsCode = {
     },
     chartConfig: { type: ChartType.TABLE },
 };
-const semantic: DocumentCellV1 = {
+const semantic: DocumentCellV2 = {
     id: 'orders',
     type: 'chart',
     content: { source: 'semantic', chart },
 };
-const merge: DocumentCellV1 = {
+const merge: DocumentCellV2 = {
     id: 'merge',
     type: 'chart',
     content: {
@@ -96,7 +96,7 @@ const document: Document = {
     version: {
         versionUuid: baseVersionUuid,
         versionNumber: 1,
-        schemaVersion: 1,
+        schemaVersion: 2,
         createdByUserUuid: userUuid,
         createdAt: new Date('2026-09-15'),
         content: { cells: [markdown] },
@@ -106,7 +106,7 @@ const createInput: CreateDocumentRequest = {
     name: document.name,
     description: document.description,
     spaceUuid,
-    schemaVersion: 1,
+    schemaVersion: 2,
     content: document.version.content,
 };
 
@@ -203,7 +203,7 @@ const mutate = (
                         cell: {
                             id: 'ending',
                             type: 'markdown',
-                            content: 'Done',
+                            content: { markdown: 'Done' },
                         },
                     },
                 ],
@@ -387,7 +387,11 @@ describe('DocumentService mutations', () => {
         [
             {
                 type: 'append',
-                cell: { id: 'end', type: 'markdown', content: 'Conclusion' },
+                cell: {
+                    id: 'end',
+                    type: 'markdown',
+                    content: { markdown: 'Conclusion' },
+                },
             },
         ],
         [{ type: 'move_before', cellId: 'orders', targetCellId: 'intro' }],
@@ -438,6 +442,50 @@ describe('DocumentService mutations', () => {
         expect(projectService.compileQuery).not.toHaveBeenCalled();
         expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
     });
+
+    test.each([semantic, merge])(
+        'does not recompile a chart when only its section title changes',
+        async (cell) => {
+            const { service, documentModel, projectService } = setup();
+            documentModel.get.mockResolvedValue({
+                ...document,
+                version: { ...document.version, content: { cells: [cell] } },
+            });
+            const request: {
+                baseVersionUuid: string;
+                operations: DocumentCellOperation[];
+            } = {
+                baseVersionUuid,
+                operations: [
+                    {
+                        type: 'replace',
+                        cellId: cell.id,
+                        cell: {
+                            ...cell,
+                            content: {
+                                ...cell.content,
+                                title: 'Updated section',
+                            },
+                        },
+                    },
+                ],
+            };
+            await service.updateContent(
+                makeAccount(),
+                projectUuid,
+                documentUuid,
+                request,
+            );
+            expect(projectService.compileQuery).not.toHaveBeenCalled();
+            expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
+            expect(documentModel.updateContent).toHaveBeenCalledWith(
+                projectUuid,
+                documentUuid,
+                request,
+                userUuid,
+            );
+        },
+    );
 
     test('compiles semantic chart definitions through the canonical project compiler before persistence', async () => {
         const { service, projectService, documentModel } = setup();
@@ -654,7 +702,8 @@ describe('DocumentService mutations', () => {
     });
 
     test.each([
-        { ...createInput, schemaVersion: 2 },
+        { ...createInput, schemaVersion: 3 },
+        { ...createInput, schemaVersion: 1 },
         {
             ...createInput,
             content: {
@@ -681,7 +730,7 @@ describe('DocumentService mutations', () => {
 
     test('rejects chart tableName and exploreName mismatch before compiling', async () => {
         const { service, projectService, documentModel } = setup();
-        const cell: DocumentCellV1 = {
+        const cell: DocumentCellV2 = {
             ...semantic,
             type: 'chart',
             content: {

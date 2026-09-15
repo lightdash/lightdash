@@ -11,7 +11,7 @@ import {
     parseDocumentContent,
     type CreateDocumentRequest,
     type Document,
-    type DocumentContentV1,
+    type DocumentContentV2,
     type DocumentList,
     type MetricQuery,
     type ParametersValuesMap,
@@ -72,6 +72,11 @@ export class DocumentService extends BaseService {
             );
         }
         DocumentService.validateMetadata(input);
+        if (input.schemaVersion !== DOCUMENT_SCHEMA_VERSION) {
+            throw new ParameterError(
+                `Document writes require schema version ${DOCUMENT_SCHEMA_VERSION}`,
+            );
+        }
         const content = parseDocumentContent(
             input.schemaVersion,
             input.content,
@@ -183,8 +188,8 @@ export class DocumentService extends BaseService {
     private async validateCharts(
         account: RegisteredAccount,
         projectUuid: string,
-        content: DocumentContentV1,
-        previous?: DocumentContentV1,
+        content: DocumentContentV2,
+        previous?: DocumentContentV2,
     ): Promise<void> {
         parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content);
         const previousById = new Map(
@@ -195,9 +200,14 @@ export class DocumentService extends BaseService {
         await Promise.all(
             content.cells.map((cell) =>
                 limit(async () => {
+                    if (cell.type !== 'chart') {
+                        return;
+                    }
+                    const previousCell = previousById.get(cell.id);
                     if (
-                        cell.type !== 'chart' ||
-                        isEqual(previousById.get(cell.id), cell)
+                        previousCell?.type === 'chart' &&
+                        previousCell.content.source === cell.content.source &&
+                        isEqual(previousCell.content.chart, cell.content.chart)
                     ) {
                         return;
                     }

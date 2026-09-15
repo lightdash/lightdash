@@ -90,8 +90,8 @@ export type CreateDocumentRequest = {
     slug?: string;
     description: string;
     spaceUuid: string;
-    schemaVersion: 1;
-    content: DocumentContentV1;
+    schemaVersion: 2;
+    content: DocumentContentV2;
 };
 
 export type UpdateDocumentMetadataRequest = {
@@ -101,13 +101,13 @@ export type UpdateDocumentMetadataRequest = {
 };
 
 export type DocumentCellOperation =
-    | { type: 'append'; cell: DocumentCellV1 }
+    | { type: 'append'; cell: DocumentCellV2 }
     | {
           type: 'insert_before' | 'insert_after';
           targetCellId: string;
-          cell: DocumentCellV1;
+          cell: DocumentCellV2;
       }
-    | { type: 'replace'; cellId: string; cell: DocumentCellV1 }
+    | { type: 'replace'; cellId: string; cell: DocumentCellV2 }
     | { type: 'remove'; cellId: string }
     | {
           type: 'move_before' | 'move_after';
