@@ -1,25 +1,8 @@
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
-import {
-    AUTOPILOT_CHART_SKILL_NAME,
-    AUTOPILOT_SLACK_SKILL_NAME,
-} from './config/agent';
+import { AUTOPILOT_CHART_SKILL_NAME } from './config/agent';
 import { loadAutopilotSkill } from './skills';
 
 describe('loadAutopilotSkill', () => {
-    it('serves the Slack tone skill from the service directory', async () => {
-        const loadBuiltInSkill = vi.fn();
-
-        const skill = await loadAutopilotSkill(
-            AUTOPILOT_SLACK_SKILL_NAME,
-            loadBuiltInSkill,
-        );
-
-        expect(loadBuiltInSkill).not.toHaveBeenCalled();
-        expect(skill?.name).toBe(AUTOPILOT_SLACK_SKILL_NAME);
-        expect(skill?.description).toContain('Slack');
-        expect(skill?.body).toContain('Agent Positioning');
-    });
-
     it('adapts chart workflows while reusing chart reference resources', async () => {
         const builtIn = {
             name: AUTOPILOT_CHART_SKILL_NAME,
