@@ -6,14 +6,14 @@ import {
 } from './useCompactNavigation';
 
 describe('useCompactNavigation', () => {
-    it('keeps desktop navigation at 768px and collapses below it', () => {
-        let width = 768;
+    it('keeps desktop navigation at 512px and collapses below it', () => {
+        let width = 512;
         const listeners = new Set<(event: MediaQueryListEvent) => void>();
         const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation(
             (query) =>
                 ({
                     matches:
-                        query === NAVBAR_COMPACT_MEDIA_QUERY && width < 48 * 16,
+                        query === NAVBAR_COMPACT_MEDIA_QUERY && width < 32 * 16,
                     media: query,
                     onchange: null,
                     addListener: vi.fn(),
@@ -39,7 +39,7 @@ describe('useCompactNavigation', () => {
             expect(result.current).toBe(false);
 
             act(() => {
-                width = 767;
+                width = 511;
                 listeners.forEach((listener) =>
                     listener({ matches: true } as MediaQueryListEvent),
                 );

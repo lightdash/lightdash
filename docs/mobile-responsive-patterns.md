@@ -2,13 +2,13 @@
 
 Current implementation map, September 15. This describes component replacements and layout changes separately. Verification and remaining feature coverage live in [the audit](mobile-responsive-audit.md).
 
-Responsive presentation and product capability use separate signals. Phone layouts and navigation collapse start strictly below **768px (`sm`)**; labels condense between 768px and 896px. Chart/dashboard authoring restrictions use phone device detection (`react-device-detect`'s `isMobileOnly`), so narrowing a desktop window never removes authoring. Tablets retain authoring. Container-based wrapping and dashboard grid projection remain independent.
+Responsive presentation and product capability use separate signals. Most phone layouts start strictly below **768px (`sm`)**, while navigation keeps its label-free desktop row down to **512px** and collapses below it. Chart/dashboard authoring restrictions use phone device detection (`react-device-detect`'s `isMobileOnly`), so narrowing a desktop window never removes authoring. Tablets retain authoring. Container-based wrapping and dashboard grid projection remain independent.
 
 ## Component replacements
 
 | Desktop presentation | Compact presentation | Trigger | Implementation |
 | --- | --- | --- | --- |
-| Full navigation bar | Desktop-like compact row (logo, project switcher, search, Ask AI, account, overflow) → right Drawer | Labels condense below 896px; Drawer below `sm` / 768px | [MainNavBarContent](../packages/frontend/src/components/NavBar/MainNavBarContent.tsx) |
+| Full navigation bar | Desktop-like compact row (logo, project switcher, search, Ask AI, account, overflow) → right Drawer | Labels condense from 512px to 896px; Drawer below 512px | [MainNavBarContent](../packages/frontend/src/components/NavBar/MainNavBarContent.tsx) |
 | Persistent page navigation sidebar | Labeled button → left Drawer, up to 24rem wide | Below `sm` / 768px | [Page](../packages/frontend/src/components/common/Page/Page.tsx) |
 | AI agent settings sidebar | Agent settings button → left Drawer, up to 360px wide | Below `sm`; form remains mounted and drafts survive resizing | [ProjectAiAgentEditPage](../packages/frontend/src/ee/pages/AiAgents/ProjectAiAgentEditPage.tsx) |
 | Page details sidebar | Full-width right Drawer | Below `sm`, when the caller provides a close handler | [Page](../packages/frontend/src/components/common/Page/Page.tsx) |

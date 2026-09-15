@@ -195,9 +195,16 @@
 
 /* Keep the desktop navigation shape on tablets. Labels condense only where
    the full row would otherwise run out of room. */
-@media ($mantine-breakpoint-sm <= width < 56em) {
+@media (32em <= width < 56em) {
     .leftGroup {
         gap: var(--mantine-spacing-xs);
+    }
+
+    .leftGroup > :global([role='search']) {
+        width: rem(34px);
+        height: rem(32px);
+        padding-inline: rem(8px);
+        justify-content: center;
     }
 
     .leftGroup .buttonGroup :global(.mantine-Button-root) {

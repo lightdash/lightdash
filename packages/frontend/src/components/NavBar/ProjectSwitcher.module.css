@@ -33,7 +33,7 @@
     min-width: 0;
 }
 
-@media ($mantine-breakpoint-sm <= width < 56em) {
+@media (32em <= width < 56em) {
     .targetButton {
         width: rem(34px);
         padding-inline: rem(8px);
