@@ -294,7 +294,7 @@ export const HeaderCreate: FC = () => {
 
     return (
         <>
-            <PageHeader cardProps={{ py: 'xs' }}>
+            <PageHeader variant="query">
                 <Group justify="space-between" flex={1} miw={0}>
                     <Group gap="two" miw={0} maw="100%">
                         {hasAnyAction && (

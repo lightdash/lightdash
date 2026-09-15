@@ -173,6 +173,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                             max={40}
                         >
                             <MetricsSidebar
+                                compact={compact}
                                 opened={metricsOpened}
                                 onClose={closeMetrics}
                                 nodes={flow.sidebarNodes}

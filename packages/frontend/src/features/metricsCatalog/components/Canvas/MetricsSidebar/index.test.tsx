@@ -21,6 +21,7 @@ describe('MetricsSidebar', () => {
         render(
             <MantineProvider>
                 <MetricsSidebar
+                    compact={false}
                     opened={false}
                     onClose={vi.fn()}
                     nodes={[node]}
@@ -59,6 +60,7 @@ describe('MetricsSidebar', () => {
         render(
             <MantineProvider>
                 <MetricsSidebar
+                    compact={false}
                     opened={false}
                     onClose={onClose}
                     nodes={[node, otherNode]}

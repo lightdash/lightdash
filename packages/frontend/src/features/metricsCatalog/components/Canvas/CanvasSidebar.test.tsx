@@ -1,8 +1,8 @@
-import { useMediaQuery } from '@mantine/hooks';
-import { act, fireEvent, screen } from '@testing-library/react';
+import { useMatches } from '@mantine/core';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import ResizableSplitter from '../../../../components/common/ResizableSplitter';
 import { mockViewport } from '../../../../testing/mockViewport';
 import { renderWithProviders } from '../../../../testing/testUtils';
@@ -21,9 +21,10 @@ const DraftCanvas = () => {
 
 const CanvasWithSidebar = () => {
     const [opened, setOpened] = useState(false);
-    const compact = useMediaQuery('(width < 48em)', undefined, {
-        getInitialValueInEffect: false,
-    });
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
     return (
         <>
             <button onClick={() => setOpened(true)}>Open trees</button>
@@ -39,6 +40,7 @@ const CanvasWithSidebar = () => {
                     max={40}
                 >
                     <CanvasSidebar
+                        compact={compact}
                         title="Saved trees"
                         opened={opened}
                         onClose={() => setOpened(false)}
@@ -57,10 +59,37 @@ const CanvasWithSidebar = () => {
 };
 
 describe('responsive canvas sidebar', () => {
+    it('uses the layout owner decision even when the viewport is wide', () => {
+        const viewport = mockViewport(1280);
+        const { unmount } = renderWithProviders(
+            <CanvasSidebar
+                compact
+                title="Saved trees"
+                opened
+                onClose={() => {}}
+            >
+                Tree content
+            </CanvasSidebar>,
+        );
+        try {
+            expect(
+                screen.getByRole('dialog', { name: 'Saved trees' }),
+            ).toBeVisible();
+        } finally {
+            unmount();
+            viewport.restore();
+        }
+    });
+
     it('preserves state inside the sidebar across resize', () => {
         const viewport = mockViewport(1024);
-        const { unmount } = renderWithProviders(
-            <CanvasSidebar title="Saved trees" opened onClose={() => {}}>
+        const { unmount, rerender } = renderWithProviders(
+            <CanvasSidebar
+                compact={false}
+                title="Saved trees"
+                opened
+                onClose={() => {}}
+            >
                 <DraftCanvas />
             </CanvasSidebar>,
         );
@@ -68,11 +97,31 @@ describe('responsive canvas sidebar', () => {
             const input = screen.getByRole('textbox', { name: 'Canvas draft' });
             fireEvent.change(input, { target: { value: 'Unsaved selection' } });
             viewport.resize(744);
+            rerender(
+                <CanvasSidebar
+                    compact
+                    title="Saved trees"
+                    opened
+                    onClose={() => {}}
+                >
+                    <DraftCanvas />
+                </CanvasSidebar>,
+            );
             expect(screen.getByRole('textbox', { name: 'Canvas draft' })).toBe(
                 input,
             );
             expect(input).toHaveValue('Unsaved selection');
             viewport.resize(1024);
+            rerender(
+                <CanvasSidebar
+                    compact={false}
+                    title="Saved trees"
+                    opened
+                    onClose={() => {}}
+                >
+                    <DraftCanvas />
+                </CanvasSidebar>,
+            );
             expect(screen.getByRole('textbox', { name: 'Canvas draft' })).toBe(
                 input,
             );
@@ -84,39 +133,7 @@ describe('responsive canvas sidebar', () => {
     });
 
     it('opens and closes a compact drawer without remounting the sibling canvas', async () => {
-        let compact = false;
-        const listeners = new Set<(event: MediaQueryListEvent) => void>();
-        const defaultMediaQuery = {
-            matches: false,
-            media: '',
-            onchange: null,
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            dispatchEvent: vi.fn(),
-        };
-        const mock = vi
-            .spyOn(window, 'matchMedia')
-            .mockImplementation((query) => {
-                if (!query.startsWith('(width <'))
-                    return { ...defaultMediaQuery, media: query };
-                return {
-                    ...defaultMediaQuery,
-                    media: query,
-                    get matches() {
-                        return compact;
-                    },
-                    addEventListener: (
-                        _name: string,
-                        callback: (event: MediaQueryListEvent) => void,
-                    ) => listeners.add(callback),
-                    removeEventListener: (
-                        _name: string,
-                        callback: (event: MediaQueryListEvent) => void,
-                    ) => listeners.delete(callback),
-                } as MediaQueryList;
-            });
+        const viewport = mockViewport(1024);
         try {
             const user = userEvent.setup();
             renderWithProviders(<CanvasWithSidebar />);
@@ -129,12 +146,7 @@ describe('responsive canvas sidebar', () => {
                 screen.getByRole('button', { name: 'Revenue tree' }),
             ).toBeVisible();
 
-            act(() => {
-                compact = true;
-                listeners.forEach((listener) =>
-                    listener({ matches: true } as MediaQueryListEvent),
-                );
-            });
+            viewport.resize(744);
             expect(
                 screen.queryByRole('button', { name: 'Revenue tree' }),
             ).not.toBeInTheDocument();
@@ -153,12 +165,7 @@ describe('responsive canvas sidebar', () => {
             );
             expect(draft).toHaveValue('Unsaved revenue tree');
 
-            act(() => {
-                compact = false;
-                listeners.forEach((listener) =>
-                    listener({ matches: false } as MediaQueryListEvent),
-                );
-            });
+            viewport.resize(1024);
             expect(
                 screen.getByRole('button', { name: 'Revenue tree' }),
             ).toBeVisible();
@@ -167,7 +174,7 @@ describe('responsive canvas sidebar', () => {
             );
             expect(draft).toHaveValue('Unsaved revenue tree');
         } finally {
-            mock.mockRestore();
+            viewport.restore();
         }
     });
 });

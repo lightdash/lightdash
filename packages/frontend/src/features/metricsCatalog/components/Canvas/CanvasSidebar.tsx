@@ -1,6 +1,5 @@
 import { interpolateUiString } from '@lightdash/common';
-import { Box, Drawer, useMantineTheme } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
+import { Box, Drawer } from '@mantine/core';
 import { useState, type FC, type PropsWithChildren } from 'react';
 import { StableContent } from '../../../../components/common/StableContent';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
@@ -8,6 +7,7 @@ import classes from './CanvasSidebar.module.css';
 
 type Props = PropsWithChildren<{
     title: string;
+    compact: boolean;
     opened: boolean;
     onClose: () => void;
 }>;
@@ -15,24 +15,17 @@ type Props = PropsWithChildren<{
 /** Only the sidebar changes containers; the sibling canvas stays mounted. */
 export const CanvasSidebar: FC<Props> = ({
     title,
+    compact,
     opened,
     onClose,
     children,
 }) => {
-    const theme = useMantineTheme();
     const [target, setTarget] = useState<HTMLDivElement | null>(null);
     const getUiString = useUiStrings();
-    const isCompact = useMediaQuery(
-        `(width < ${theme.breakpoints.sm})`,
-        undefined,
-        {
-            getInitialValueInEffect: false,
-        },
-    );
 
     return (
         <>
-            {isCompact ? (
+            {compact ? (
                 <Drawer
                     keepMounted
                     opened={opened}

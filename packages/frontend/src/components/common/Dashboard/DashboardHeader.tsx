@@ -115,10 +115,7 @@ import ShareShortLinkButton from '../ShareShortLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
-import {
-    DASHBOARD_HEADER_HEIGHT,
-    DASHBOARD_HEADER_ZINDEX,
-} from './dashboard.constants';
+import { DASHBOARD_HEADER_ZINDEX } from './dashboard.constants';
 import headerClasses from './DashboardHeader.module.css';
 import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
@@ -465,10 +462,8 @@ const DashboardHeader = memo(
         return (
             <PageHeader
                 mobileLayout={!isEditMode ? 'content' : undefined}
+                variant="dashboard"
                 cardProps={{
-                    px: 'xl',
-                    py: 0,
-                    h: DASHBOARD_HEADER_HEIGHT,
                     style: { zIndex: DASHBOARD_HEADER_ZINDEX },
                     className,
                 }}
@@ -952,27 +947,25 @@ const DashboardHeader = memo(
                                     )
                                 }
                             >
-                                <Menu.Target>
-                                    <Box
-                                        className={
-                                            headerClasses.menuTargetWrapper
-                                        }
-                                    >
-                                        {preAggregatesEnabled && !compact && (
-                                            <Box
-                                                className={
-                                                    headerClasses.zapIndicator
-                                                }
-                                                data-settled={
-                                                    allTilesLoaded || undefined
-                                                }
-                                            >
-                                                <MantineIcon
-                                                    icon={IconBolt}
-                                                    size={9}
-                                                />
-                                            </Box>
-                                        )}
+                                <Box
+                                    className={headerClasses.menuTargetWrapper}
+                                >
+                                    {preAggregatesEnabled && !compact && (
+                                        <Box
+                                            className={
+                                                headerClasses.zapIndicator
+                                            }
+                                            data-settled={
+                                                allTilesLoaded || undefined
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={IconBolt}
+                                                size={9}
+                                            />
+                                        </Box>
+                                    )}
+                                    <Menu.Target>
                                         {compact ? (
                                             <Button
                                                 variant="subtle"
@@ -994,8 +987,8 @@ const DashboardHeader = memo(
                                                 <MantineIcon icon={IconDots} />
                                             </ActionIcon>
                                         )}
-                                    </Box>
-                                </Menu.Target>
+                                    </Menu.Target>
+                                </Box>
 
                                 <Menu.Dropdown
                                     mah="calc(100dvh - 24px)"
