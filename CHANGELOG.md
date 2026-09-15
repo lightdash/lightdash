@@ -1,3 +1,10 @@
+# [2.212.0](https://github.com/lightdash/lightdash/compare/2.211.4...2.212.0) (2026-09-15)
+
+
+### Features
+
+* expose lastViewedAt in the content API ([#29141](https://github.com/lightdash/lightdash/issues/29141)) ([4b2c532](https://github.com/lightdash/lightdash/commit/4b2c532adf09da354d68ff22ab3c9f719e5c67c9)), closes [#22687](https://github.com/lightdash/lightdash/issues/22687)
+
 ## [2.211.4](https://github.com/lightdash/lightdash/compare/2.211.3...2.211.4) (2026-09-14)
 
 

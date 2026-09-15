@@ -56734,6 +56734,13 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            lastViewedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
             verification: {
                 dataType: 'union',
                 subSchemas: [
@@ -56866,6 +56873,13 @@ const models: TsoaRoute.Models = {
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,
+            },
+            lastViewedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                ],
             },
             verification: {
                 dataType: 'union',
@@ -59905,6 +59919,13 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            lastViewedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
             verification: {
                 dataType: 'union',
                 subSchemas: [
@@ -60042,6 +60063,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                lastViewedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -60133,6 +60162,14 @@ const models: TsoaRoute.Models = {
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,
+            },
+            lastViewedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                    { dataType: 'undefined' },
+                ],
             },
             directAccessRoles: {
                 dataType: 'array',
