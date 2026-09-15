@@ -2784,6 +2784,11 @@ const parseMobilePushCredential = (
 };
 
 export const parseConfig = (): LightdashConfig => {
+    if (process.env.MANAGED_AGENT_RUNTIME) {
+        console.warn(
+            'WARNING: MANAGED_AGENT_RUNTIME is set but no longer selects a runtime. Autopilot always runs on the AI SDK; remove the variable.',
+        );
+    }
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
     if (!lightdashSecret) {
         throw new ParseError(

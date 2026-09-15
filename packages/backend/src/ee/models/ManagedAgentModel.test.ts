@@ -127,7 +127,6 @@ describe('ManagedAgentModel latest run', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
     const model = new ManagedAgentModel({
         database: database as unknown as Knex,
-        encryptionUtil: {} as EncryptionUtil,
     });
     let tracker: Tracker;
 

@@ -63,7 +63,7 @@ export DBT_DEMO_DIR="$PWD/packages/backend/src/ee/services/ManagedAgentService/c
 export DBT_PROJECT_DIR="$DBT_DEMO_DIR/dbt" DBT_PROFILES_DIR="$DBT_DEMO_DIR/profiles"
 export DBT_PROFILE=autopilot_eval DBT_TARGET=dev
 export NATS_ENABLED=false SCHEDULER_ENABLED=false USAGE_EVENTS_ENABLED=false RUDDERSTACK_ANALYTICS_DISABLED=true
-export MANAGED_AGENT_RUNTIME=ai-sdk LIGHTDASH_ENABLE_FEATURE_FLAGS=ai-autopilot
+export LIGHTDASH_ENABLE_FEATURE_FLAGS=ai-autopilot
 createdb && pnpm -F backend migrate
 dbt run --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" --profile autopilot_eval
 AUTOPILOT_CONTENT_EVAL=true AUTOPILOT_CONTENT_SEED=true AUTOPILOT_EVAL_PROVIDER=openai pnpm -F backend test:autopilot

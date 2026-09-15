@@ -40,6 +40,42 @@ beforeEach(() => {
     };
 });
 
+describe('managed agent runtime variable', () => {
+    afterEach(() => {
+        delete process.env.MANAGED_AGENT_RUNTIME;
+    });
+
+    it.each(['anthropic-managed', 'ai-sdk'])(
+        'warns that MANAGED_AGENT_RUNTIME=%s is ignored',
+        (value) => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            process.env.MANAGED_AGENT_RUNTIME = value;
+            try {
+                parseConfig();
+                expect(warn).toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        'MANAGED_AGENT_RUNTIME is set but no longer selects a runtime',
+                    ),
+                );
+            } finally {
+                warn.mockRestore();
+            }
+        },
+    );
+
+    it('stays quiet when the variable is unset', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            parseConfig();
+            expect(warn).not.toHaveBeenCalledWith(
+                expect.stringContaining('MANAGED_AGENT_RUNTIME'),
+            );
+        } finally {
+            warn.mockRestore();
+        }
+    });
+});
+
 describe('query history retention', () => {
     it('warns when cleanup can expire charts before their Deep Research reports', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
