@@ -7,7 +7,13 @@ describe('Chart picker actions', () => {
         cy.findByTestId('page-spinner').should('not.exist');
         cy.scrollTreeToItem('Unique order count');
         cy.findByText('Unique order count').click();
+        cy.scrollTreeToItem('Order Customer');
+        cy.findByText('Order Customer').click();
+        cy.scrollTreeToItem('First name');
+        cy.findByText('First name').click();
         cy.get('table').should('contain.text', 'Unique order count');
+        cy.get('button').contains('Run query').click();
+        cy.findByTestId('Chart-card-expand').click();
         cy.findByRole('button', { name: 'Configure', exact: true }).click();
         cy.findByRole('button', { name: 'Change', exact: true }).click();
 
@@ -43,7 +49,10 @@ describe('Chart picker actions', () => {
         cy.findByText('Pie chart', { exact: true }).should('be.visible');
 
         cy.findByRole('button', { name: 'Change', exact: true }).click();
-        cy.findByRole('button', { name: 'Line chart', exact: true }).dblclick(
+        cy.findByRole('button', { name: 'Line chart', pressed: false }).click(
+            'top',
+        );
+        cy.findByRole('button', { name: 'Line chart', pressed: true }).click(
             'top',
         );
         cy.findByRole('button', { name: 'Change', exact: true }).should(
