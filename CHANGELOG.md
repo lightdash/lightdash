@@ -1,3 +1,15 @@
+# [2.225.0](https://github.com/lightdash/lightdash/compare/2.224.1...2.225.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* correct chart reference in dashboard comments seed ([#29289](https://github.com/lightdash/lightdash/issues/29289)) ([cc9c4f5](https://github.com/lightdash/lightdash/commit/cc9c4f58d4d1cfb04841d9c6dde21dc38c1b22b0))
+
+
+### Features
+
+* add themes and context controls to the chart composer ([#29288](https://github.com/lightdash/lightdash/issues/29288)) ([d37a6f3](https://github.com/lightdash/lightdash/commit/d37a6f3374ca7b267a4e5fe67093fbf0a9b6289c))
+
 ## [2.224.1](https://github.com/lightdash/lightdash/compare/2.224.0...2.224.1) (2026-09-15)
 
 
