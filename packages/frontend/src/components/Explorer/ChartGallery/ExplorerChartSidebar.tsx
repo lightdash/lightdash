@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
+    IconArrowLeft,
     IconFilePencil,
     IconLayoutSidebarRightCollapse,
     IconSettings,
@@ -51,19 +52,6 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         dispatch(explorerActions.setChartSidebarStep('choose'));
     const showConfigure = () =>
         dispatch(explorerActions.setChartSidebarStep('configure'));
-    const configureFromGallery = () => {
-        showConfigure();
-        // Selecting a different built-in type can remount this sidebar before
-        // the step effect sees the transition. Restore focus after that
-        // render, on the same control used by the normal step transition.
-        window.requestAnimationFrame(() => {
-            document
-                .querySelector<HTMLButtonElement>(
-                    '[data-chart-type-gallery-change]',
-                )
-                ?.focus();
-        });
-    };
 
     // The step swaps the panel's whole body, so whatever was clicked unmounts.
     // Follow it: into the gallery's search, back onto the control that opened
@@ -159,6 +147,18 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                         <>
                             <Group justify="space-between" wrap="nowrap">
                                 <Group gap="xs" wrap="nowrap">
+                                    <Tooltip label="Back to configuration">
+                                        <ActionIcon
+                                            size="sm"
+                                            aria-label="Back to configuration"
+                                            onClick={showConfigure}
+                                        >
+                                            <MantineIcon
+                                                icon={IconArrowLeft}
+                                                size={14}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
                                     <Text
                                         id={
                                             !isAuthoring
@@ -175,7 +175,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                 {closeButton}
                             </Group>
                             <ExplorerChartTypeGallery
-                                onConfigure={configureFromGallery}
+                                onConfigure={showConfigure}
                             />
                         </>
                     ) : (

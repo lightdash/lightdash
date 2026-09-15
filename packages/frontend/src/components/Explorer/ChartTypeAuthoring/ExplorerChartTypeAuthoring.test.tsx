@@ -618,23 +618,39 @@ describe('ExplorerChartTypeAuthoring', () => {
         expect(store.getState().explorer.chartTypeAuthoring).toBeNull();
     });
 
-    it('finishes on Configure with the chart on the authored type', async () => {
-        const store = renderAuthoring({ step: 'choose' });
+    it.each(['choose', 'configure'] as const)(
+        'returns an edited type to %s',
+        async (step) => {
+            const store = renderAuthoring({ step });
 
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Back to chart' }),
+            );
+
+            const { explorer } = store.getState();
+            expect(explorer.chartTypeAuthoring).toBeNull();
+            expect(explorer.isVisualizationConfigOpen).toBe(true);
+            expect(explorer.chartSidebarStep).toBe(step);
+            expect(explorer.unsavedChartVersion.chartConfig).toEqual(
+                expect.objectContaining({ type: ChartType.DATA_APP_VIZ }),
+            );
+            expect(showToastSuccess).toHaveBeenCalledWith({
+                title: 'Chart now uses Grouped bars v1',
+            });
+        },
+    );
+
+    it('finishes a newly created type on Configure when opened from Choose', async () => {
+        const store = renderAuthoring({
+            dataAppVizUuid: null,
+            claimedUuid: 'viz-1',
+            step: 'choose',
+        });
         await userEvent.click(
             screen.getByRole('button', { name: 'Back to chart' }),
         );
-
-        const { explorer } = store.getState();
-        expect(explorer.chartTypeAuthoring).toBeNull();
-        expect(explorer.isVisualizationConfigOpen).toBe(true);
-        expect(explorer.chartSidebarStep).toBe('configure');
-        expect(explorer.unsavedChartVersion.chartConfig).toEqual(
-            expect.objectContaining({ type: ChartType.DATA_APP_VIZ }),
-        );
-        expect(showToastSuccess).toHaveBeenCalledWith({
-            title: 'Chart now uses Grouped bars v1',
-        });
+        expect(store.getState().explorer.chartTypeAuthoring).toBeNull();
+        expect(store.getState().explorer.chartSidebarStep).toBe('configure');
     });
 
     it('leaves a new type without a viz until it has a version', () => {

@@ -9,6 +9,7 @@ import {
     Button,
     Group,
     Loader,
+    Menu,
     ScrollArea,
     Stack,
     Text,
@@ -18,11 +19,11 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconArrowRight,
     IconDots,
     IconFilePencil,
     IconPlus,
     IconSearch,
-    IconSettings,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useId, useMemo, useRef, useState, type FC } from 'react';
@@ -37,7 +38,6 @@ import {
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryContext';
-import { FloatingActionsPill } from '../../common/FloatingActionsPill';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -60,7 +60,6 @@ export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     disabled: boolean;
     /** Shown as the card's tooltip; null shows none. */
     description: string | null;
-    /** Selects this type, then opens its configuration; null hides the action. */
     onConfigure: (() => void) | null;
     /** Opens the builder directly; null hides the action. */
     onEdit: (() => void) | null;
@@ -80,7 +79,7 @@ const ChartTypeIcon: FC<ChartTypeIconProps> = ({
         data-rotated={rotatedIcon}
         icon={icon}
         size={small ? 'md' : 'xl'}
-        stroke={1.25}
+        stroke={1.5}
     />
 );
 
@@ -110,10 +109,10 @@ export type ChartTypeGallerySection = {
 };
 
 const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
-    // A clamped name has nowhere else to go: the card face is the only place
-    // it appears, so the tooltip carries it whenever the card cannot.
+    // Keep the full name available when the card label is clamped.
     const labelRef = useRef<HTMLParagraphElement>(null);
     const [isLabelClamped, setIsLabelClamped] = useState(false);
+    const [isMenuOpened, setIsMenuOpened] = useState(false);
     useEffect(() => {
         const label = labelRef.current;
         if (!label) return;
@@ -125,16 +124,22 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
         return () => observer.disconnect();
     }, [item.label]);
 
-    const clampedLabel = isLabelClamped ? item.label : null;
+    const tooltipLabel = isLabelClamped ? item.label : null;
 
     return (
-        <Box className={classes.cardWrapper}>
+        <Box
+            className={classes.cardWrapper}
+            data-menu-open={isMenuOpened}
+            data-configurable={
+                item.selected && item.onConfigure !== null && !item.disabled
+            }
+        >
             <Tooltip
                 label={
                     <>
-                        {clampedLabel !== null ? (
+                        {tooltipLabel !== null ? (
                             <Text fz="xs" fw={600}>
-                                {clampedLabel}
+                                {tooltipLabel}
                             </Text>
                         ) : null}
                         {item.description !== null ? (
@@ -146,7 +151,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                 openDelay={500}
                 color="dark"
                 events={{ hover: true, focus: true, touch: false }}
-                disabled={clampedLabel === null && item.description === null}
+                disabled={tooltipLabel === null && item.description === null}
                 maw={300}
             >
                 <UnstyledButton
@@ -154,14 +159,21 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     data-selected={item.selected}
                     aria-pressed={item.selected}
                     disabled={item.disabled}
-                    onClick={item.select}
+                    onClick={
+                        item.selected && item.onConfigure !== null
+                            ? item.onConfigure
+                            : item.select
+                    }
                 >
-                    <ChartTypeIcon
-                        icon={item.icon}
-                        rotatedIcon={item.rotatedIcon}
-                    />
+                    <Box className={classes.cardIcon}>
+                        <ChartTypeIcon
+                            icon={item.icon}
+                            rotatedIcon={item.rotatedIcon}
+                        />
+                    </Box>
                     <Text
                         ref={labelRef}
+                        className={classes.cardLabel}
                         fz="xs"
                         fw={500}
                         lh={1.2}
@@ -171,41 +183,61 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     </Text>
                 </UnstyledButton>
             </Tooltip>
-            {item.onEdit !== null || item.onConfigure !== null ? (
-                <FloatingActionsPill className={classes.cardActions} compact>
-                    {item.onEdit !== null ? (
+            {item.selected && item.onConfigure !== null ? (
+                <Button
+                    className={classes.cardConfigureAction}
+                    variant="subtle"
+                    color="blue"
+                    size="compact-xs"
+                    h={28}
+                    px={4}
+                    rightSection={
+                        <MantineIcon icon={IconArrowRight} size={12} />
+                    }
+                    aria-label={`Configure ${item.label}`}
+                    disabled={item.disabled}
+                    onClick={item.onConfigure}
+                >
+                    Configure
+                </Button>
+            ) : null}
+            {item.onEdit !== null ? (
+                <Menu
+                    opened={isMenuOpened}
+                    onChange={setIsMenuOpened}
+                    position="bottom-start"
+                    withArrow
+                    arrowPosition="center"
+                    offset={-4}
+                    closeOnItemClick
+                >
+                    <Menu.Target>
                         <Tooltip
-                            label={'Edit ' + item.label}
+                            label={`More actions for ${item.label}`}
                             position="top"
                             openDelay={500}
                         >
                             <ActionIcon
-                                size="sm"
-                                aria-label={'Edit ' + item.label}
+                                className={classes.cardMoreActions}
+                                size={24}
+                                aria-label={`More actions for ${item.label}`}
                                 disabled={item.disabled}
-                                onClick={item.onEdit}
                             >
-                                <MantineIcon icon={IconFilePencil} size={14} />
+                                <MantineIcon icon={IconDots} size={16} />
                             </ActionIcon>
                         </Tooltip>
-                    ) : null}
-                    {item.onConfigure !== null ? (
-                        <Tooltip
-                            label={`Configure ${item.label}`}
-                            position="top"
-                            openDelay={500}
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconFilePencil} size={16} />
+                            }
+                            onClick={item.onEdit}
                         >
-                            <ActionIcon
-                                size="sm"
-                                aria-label={`Configure ${item.label}`}
-                                disabled={item.disabled}
-                                onClick={item.onConfigure}
-                            >
-                                <MantineIcon icon={IconSettings} size={14} />
-                            </ActionIcon>
-                        </Tooltip>
-                    ) : null}
-                </FloatingActionsPill>
+                            Edit chart type
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
             ) : null}
         </Box>
     );
@@ -291,18 +323,25 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                             section.onLoadMore?.();
                         }}
                     >
-                        {section.loadingMore ? (
-                            <Loader size="sm" color="ldGray.6" />
-                        ) : (
-                            <MantineIcon
-                                className={classes.icon}
-                                icon={IconDots}
-                                size="xl"
-                                stroke={1.5}
-                                color="dimmed"
-                            />
-                        )}
-                        <Text fz="xs" fw={500} lh={1.2}>
+                        <Box className={classes.cardIcon}>
+                            {section.loadingMore ? (
+                                <Loader size="sm" color="ldGray.6" />
+                            ) : (
+                                <MantineIcon
+                                    className={classes.icon}
+                                    icon={IconDots}
+                                    size="xl"
+                                    stroke={1.5}
+                                    color="dimmed"
+                                />
+                            )}
+                        </Box>
+                        <Text
+                            className={classes.cardLabel}
+                            fz="xs"
+                            fw={500}
+                            lh={1.2}
+                        >
                             +{section.moreCount} more
                         </Text>
                     </UnstyledButton>
@@ -315,14 +354,21 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                         aria-label="Create new chart type"
                         onClick={section.onCreateNew}
                     >
-                        <MantineIcon
-                            className={classes.icon}
-                            icon={IconPlus}
-                            size="xl"
-                            stroke={1.5}
-                            color="dimmed"
-                        />
-                        <Text fz="xs" fw={500} lh={1.2}>
+                        <Box className={classes.cardIcon}>
+                            <MantineIcon
+                                className={classes.icon}
+                                icon={IconPlus}
+                                size="xl"
+                                stroke={1.5}
+                                color="dimmed"
+                            />
+                        </Box>
+                        <Text
+                            className={classes.cardLabel}
+                            fz="xs"
+                            fw={500}
+                            lh={1.2}
+                        >
                             New chart type
                         </Text>
                     </UnstyledButton>
@@ -454,12 +500,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             description: null,
             onEdit: null,
             select: option.select,
-            onConfigure: () => {
-                // Configuring the active chart must keep its existing axes,
-                // stacking, and other local options intact.
-                if (!option.selected) option.select();
-                onConfigure();
-            },
+            onConfigure: option.selected ? onConfigure : null,
         }));
     const projectItems = projectTypes.map(
         (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
@@ -483,6 +524,10 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                 selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,
                 disabled,
                 select,
+                onConfigure:
+                    selectedProjectUuid === dataAppViz.dataAppVizUuid
+                        ? onConfigure
+                        : null,
                 onEdit:
                     dataAppsEnabled &&
                     canEditChartType(dataAppViz) &&
@@ -494,10 +539,6 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                                   }),
                               )
                         : null,
-                onConfigure: () => {
-                    select();
-                    onConfigure();
-                },
             };
         },
     );

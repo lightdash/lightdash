@@ -29,31 +29,39 @@
 }
 
 /* Keep secondary actions quiet until hover or keyboard focus reveals them. */
-.cardActions {
+.cardMoreActions {
     opacity: 0;
     pointer-events: none;
     transition: opacity 100ms ease-out;
 }
 
-.cardWrapper:hover .cardActions,
-.cardWrapper:has(:focus-visible) .cardActions {
+.cardWrapper:hover .cardMoreActions:not(:disabled),
+.cardWrapper:has(:focus-visible) .cardMoreActions,
+.cardWrapper[data-menu-open='true'] .cardMoreActions {
     opacity: 1;
     pointer-events: auto;
+}
+
+.cardWrapper .cardMoreActions {
+    color: var(--mantine-color-text);
+}
+
+.cardMoreActions {
+    position: absolute;
+    top: calc(var(--mantine-spacing-xs) / 2);
+    right: calc(var(--mantine-spacing-xs) / 2);
+    z-index: 2;
 }
 
 .card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: var(--mantine-spacing-xs);
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldDark-5));
-    background: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldDark-3)
-    );
+    border: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-body);
     text-align: center;
     border-radius: var(--mantine-radius-md);
     /* User-defined names can be one long unbroken word; break rather than
@@ -66,15 +74,10 @@
         box-shadow 120ms ease;
 }
 
-.card:hover:not(:disabled):not([data-selected='true']) {
-    border-color: light-dark(
-        var(--mantine-color-ldGray-4),
-        var(--mantine-color-ldDark-6)
-    );
-    background: light-dark(
-        var(--mantine-color-ldGray-1),
-        var(--mantine-color-ldDark-4)
-    );
+.card:hover:not(:disabled):not([data-selected='true']),
+.cardWrapper:hover .card:not(:disabled):not([data-selected='true']) {
+    border-color: var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-default-hover);
 }
 
 /* Selection owns the blue at full strength: accent border over a tint of the
@@ -83,15 +86,15 @@
    where the scroll viewport cannot clip it. */
 .card[data-selected='true'] {
     border-color: light-dark(
-        var(--mantine-color-blue-5),
-        var(--mantine-color-blue-7)
+        var(--mantine-color-blue-6),
+        var(--mantine-color-blue-5)
     );
     background: light-dark(
         var(--mantine-color-blue-0),
         color-mix(
             in srgb,
             var(--mantine-color-blue-9) 30%,
-            var(--mantine-color-ldDark-3)
+            var(--mantine-color-body)
         )
     );
     box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
@@ -114,9 +117,54 @@
     transform: scale(0.98);
 }
 
+.cardIcon {
+    display: grid;
+    place-items: center;
+    height: 32px;
+    flex: 0 0 32px;
+    transition: opacity 100ms ease-out;
+}
+
+.cardLabel {
+    min-height: 2lh;
+    transition: opacity 100ms ease-out;
+}
+
+.cardConfigureAction {
+    color: light-dark(var(--mantine-color-blue-9), var(--mantine-color-blue-3));
+    position: absolute;
+    inset-inline: var(--mantine-spacing-xs);
+    bottom: var(--mantine-spacing-sm);
+    z-index: 1;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 100ms ease-out;
+}
+
+.cardConfigureAction:hover:not(:disabled) {
+    background-color: light-dark(
+        var(--mantine-color-blue-1),
+        var(--button-hover)
+    );
+}
+
+.cardWrapper[data-configurable='true']:is(:hover, :has(:focus-visible))
+    .cardConfigureAction {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.cardWrapper[data-configurable='true']:is(:hover, :has(:focus-visible))
+    .cardLabel {
+    opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .card,
-    .cardActions {
+    .cardConfigureAction,
+    .cardLabel,
+    .cardMoreActions,
+    .cardIcon {
         transition: none;
     }
 
@@ -127,6 +175,19 @@
 
 .card:disabled {
     opacity: 0.5;
+}
+
+/* Keep editing available on devices without hover. */
+@media (hover: none) {
+    .cardWrapper[data-configurable='true'] .cardConfigureAction,
+    .cardMoreActions:not(:disabled) {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .cardWrapper[data-configurable='true'] .cardLabel {
+        opacity: 0;
+    }
 }
 
 /* Resting glyphs stay gray; only selection earns the blue fill. */
