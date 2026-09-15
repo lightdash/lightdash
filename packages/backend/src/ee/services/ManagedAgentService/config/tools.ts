@@ -1,4 +1,5 @@
-import { jsonSchema, tool, type ToolSet } from 'ai';
+import { createAgentInputSchema } from '@lightdash/common';
+import { tool, type ToolSet } from 'ai';
 import type { AutopilotToolDefinition } from './agent';
 
 export const AUTOPILOT_SLACK_SUMMARY_TOOL_NAME = 'write_slack_summary';
@@ -26,9 +27,7 @@ export const buildAutopilotTools = ({
             definition.name,
             tool({
                 description: definition.description,
-                inputSchema: jsonSchema<Record<string, unknown>>(
-                    definition.inputSchema,
-                ),
+                inputSchema: createAgentInputSchema(definition.inputSchema),
                 execute: async (input, { abortSignal }) => {
                     // Count/check/write guards require sequential action execution.
                     const result = pending.then(async () => {

@@ -9,6 +9,7 @@ import {
     getManagedAgentMcpUrl,
     renderAutopilotAgent,
     renderManagedAgentConfig,
+    toAutopilotToolJsonSchema,
 } from './agent';
 
 const LIGHTDASH_SITE_URL = 'https://lightdash.example.com';
@@ -324,9 +325,10 @@ describe('broken-content action contracts', () => {
         const tool = autopilotToolDefinitions.find(
             (item) => item.name === 'log_project_insight',
         );
-        expect(tool).toBeDefined();
-        expect(tool?.inputSchema.properties).not.toHaveProperty('target_uuid');
-        expect(tool?.inputSchema.required).toEqual(['description']);
+        if (!tool) throw new Error('log_project_insight is not defined');
+        const inputSchema = toAutopilotToolJsonSchema(tool);
+        expect(inputSchema.properties).not.toHaveProperty('target_uuid');
+        expect(inputSchema.required).toEqual(['description']);
     });
 
     it.each(['ai-sdk', 'anthropic-managed'] as const)(
