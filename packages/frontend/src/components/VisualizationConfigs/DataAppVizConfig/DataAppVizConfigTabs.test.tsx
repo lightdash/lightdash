@@ -804,15 +804,61 @@ describe('DataAppVizConfigTabs', () => {
         expect(setPivotDimensions).toHaveBeenCalled();
     });
 
-    it('names the required slots the query cannot fill', () => {
+    it('explains missing fields without presenting a warning', () => {
         mockContext({}, 'data-app-viz-uuid', {}, {});
         mockSchema([]);
 
         renderWithProviders(<ConfigTabs />);
 
         expect(
-            screen.getByText('Map Source, Value to render this chart type.'),
+            screen.getByText(
+                'Select fields for “Source” and “Value” to display your chart.',
+            ),
         ).toBeInTheDocument();
+    });
+
+    it('clearly distinguishes a field named To from the instruction', () => {
+        mockContext({}, 'data-app-viz-uuid', {}, {});
+        mockSchema([], null, {
+            schema: {
+                fields: [
+                    {
+                        name: 'target',
+                        label: 'To',
+                        type: 'dimension',
+                        required: true,
+                    },
+                ],
+                configOptions: [],
+                colorPalette: null,
+            },
+        });
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            screen.getByText('Select a field for “To” to display your chart.'),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('hides the guidance once all required fields are selected', () => {
+        mockContext(
+            queryColumns,
+            'data-app-viz-uuid',
+            {},
+            {
+                source: 'orders_visible',
+                value: 'orders_visible_metric',
+            },
+        );
+        mockSchema([]);
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            screen.queryByText(/to display your chart\./),
+        ).not.toBeInTheDocument();
     });
 
     it('stays quiet when the pin is already the latest version', () => {

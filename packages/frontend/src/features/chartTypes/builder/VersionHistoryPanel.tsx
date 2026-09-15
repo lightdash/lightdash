@@ -14,10 +14,14 @@ import {
     Box,
     Button,
     Text,
+    Title,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconChevronRight, IconX } from '@tabler/icons-react';
+import {
+    IconChevronRight,
+    IconLayoutSidebarRightCollapse,
+} from '@tabler/icons-react';
 import { format } from 'date-fns';
 import { useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
@@ -344,16 +348,16 @@ const VersionHistoryPanel: FC<Props> = ({
             aria-label="Version history"
         >
             <Box className={classes.header}>
-                <Text className={classes.title} span>
+                <Title order={3} fz="sm" fw={600}>
                     Version history
-                </Text>
-                <Tooltip label="Close history">
+                </Title>
+                <Tooltip label="Collapse version history">
                     <ActionIcon
                         size="sm"
-                        aria-label="Close history"
+                        aria-label="Collapse version history"
                         onClick={onClose}
                     >
-                        <MantineIcon icon={IconX} />
+                        <MantineIcon icon={IconLayoutSidebarRightCollapse} />
                     </ActionIcon>
                 </Tooltip>
             </Box>

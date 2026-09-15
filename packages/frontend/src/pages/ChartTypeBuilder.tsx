@@ -5,7 +5,7 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import {
     Link,
     Navigate,
@@ -24,6 +24,7 @@ import ChartTypeBuilderWorkspace from '../features/chartTypes/builder/ChartTypeB
 import ConfigurePanel from '../features/chartTypes/builder/ConfigurePanel';
 import { useChartTypeBuilderWorkspace } from '../features/chartTypes/builder/useChartTypeBuilderWorkspace';
 import { useConfigurePanelState } from '../features/chartTypes/builder/useConfigurePanelState';
+import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
@@ -48,6 +49,7 @@ const ChartTypeBuilder: FC = () => {
     const projectUuid = useProjectUuid();
     const location = useLocation();
     const navigate = useNavigate();
+    const [isPreviewTableOpen, setIsPreviewTableOpen] = useState(false);
     const explorerChart = useMemo(() => {
         try {
             const chart = parseChartFromExplorerSearchParams(location.search);
@@ -127,14 +129,6 @@ const ChartTypeBuilder: FC = () => {
             false,
         );
     }, [activeVizUuid, explorerChart, projectUuid]);
-    const previewInExplorerLink = useMemo(() => {
-        if (!activeVizUuid) return null;
-
-        return (
-            explorerDestination ??
-            `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`
-        );
-    }, [activeVizUuid, explorerDestination, projectUuid]);
 
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: appMeta?.spaceUuid ?? null,
@@ -238,7 +232,10 @@ const ChartTypeBuilder: FC = () => {
                 }
                 onUpgradeStarted={workspace.openHistory}
                 onToggleHistory={workspace.toggleHistory}
-                previewInExplorerLink={previewInExplorerLink}
+                previewInExplorerLink={explorerDestination}
+                onPreviewInExplorer={
+                    activeVizUuid ? () => setIsPreviewTableOpen(true) : null
+                }
             />
             <ChartTypeBuilderWorkspace
                 projectUuid={projectUuid}
@@ -247,6 +244,14 @@ const ChartTypeBuilder: FC = () => {
                 syncPreviewUrlState
                 configurePanel={configurePanel}
             />
+            {isPreviewTableOpen && activeVizUuid && (
+                <ChartTypePreviewTableModal
+                    projectUuid={projectUuid}
+                    dataAppVizUuid={activeVizUuid}
+                    registrySlug={appMeta?.registrySlug ?? null}
+                    onClose={() => setIsPreviewTableOpen(false)}
+                />
+            )}
         </Box>
     );
 };

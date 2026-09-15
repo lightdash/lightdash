@@ -396,12 +396,56 @@ describe('BuilderPromptBar', () => {
             screen.getByPlaceholderText('Ask for another change…'),
             'make the markers red',
         );
-        await userEvent.keyboard('{Enter}');
+
+        expect(
+            screen.getByRole('button', { name: 'Stop generation' }),
+        ).toBeEnabled();
+        expect(
+            screen.getByRole('button', { name: 'Queue message' }),
+        ).toBeEnabled();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Queue message' }),
+        );
 
         await userEvent.click(screen.getByText('Cancel'));
 
         expect(discard).toHaveBeenCalledOnce();
         expect(interrupt).not.toHaveBeenCalled();
+    });
+
+    it('stops an active build without draining queued prompts', async () => {
+        const send = vi.fn();
+        const cancel = vi.fn();
+        const view = renderWithProviders(
+            promptBar({
+                build: buildState({ isBuilding: true, send }),
+                isBuilding: true,
+                latestReadyVersion: 1,
+                onCancelBuild: cancel,
+            }),
+        );
+
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for another change…'),
+            'make the markers red',
+        );
+        await userEvent.keyboard('{Enter}');
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Stop generation' }),
+        );
+        expect(cancel).toHaveBeenCalledOnce();
+
+        view.rerender(
+            promptBar({
+                build: buildState({ send }),
+                latestReadyVersion: 2,
+            }),
+        );
+
+        expect(send).not.toHaveBeenCalled();
+        expect(screen.getByText('make the markers red')).toBeInTheDocument();
     });
 
     it('does not drain queued prompts after cancellation', async () => {

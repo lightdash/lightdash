@@ -91,3 +91,13 @@
     transition: opacity var(--mantine-other-transitionDuration)
         var(--mantine-other-transitionTimingFunction);
 }
+
+.configurePanel {
+    display: contents;
+}
+
+@container chart-type-workspace (max-width: 80rem) {
+    [data-history-open='true'] .configurePanel {
+        display: none;
+    }
+}

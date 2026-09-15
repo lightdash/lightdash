@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -85,11 +86,13 @@ vi.mock(
     () => ({
         default: ({
             previewContext,
+            configurationSidebar,
         }: {
+            configurationSidebar?: ReactNode;
             previewContext: DataAppVizContext | null;
         }) => {
             previewContexts.push(previewContext);
-            return <div data-testid="workspace" />;
+            return <div data-testid="workspace">{configurationSidebar}</div>;
         },
     }),
 );
@@ -309,10 +312,19 @@ describe('ExplorerChartTypeAuthoring', () => {
         } as unknown as ReturnType<typeof useExplorerResultsData>);
     });
 
-    it('opens the builder in a modal with the chart configuration beside it', () => {
+    it('keeps the builder modal named while its workflow header owns the workspace', () => {
         renderAuthoring();
 
-        expect(screen.getByText('Chart type builder')).toBeInTheDocument();
+        expect(
+            screen.getByRole('dialog', {
+                name: 'Chart type builder',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', {
+                name: 'Editing chart type · Grouped bars',
+            }),
+        ).toBeInTheDocument();
         expect(screen.getByTestId('workspace')).toBeInTheDocument();
         expect(screen.getByTestId('config-tabs')).toBeInTheDocument();
     });
