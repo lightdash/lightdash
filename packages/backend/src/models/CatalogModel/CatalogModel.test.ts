@@ -1,4 +1,12 @@
-import { AlreadyExistsError } from '@lightdash/common';
+import {
+    AlreadyExistsError,
+    CatalogType,
+    FieldType,
+    MetricType,
+    SupportedDbtAdapter,
+    TableSelectionType,
+    type Explore,
+} from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -7,14 +15,92 @@ import {
     MetricsTreeLocksTableName,
     MetricsTreeNodesTableName,
     MetricsTreesTableName,
+    type DbCatalog,
 } from '../../database/entities/catalog';
-import { CatalogModel } from './CatalogModel';
+import Logger from '../../logging/logger';
+import { CatalogModel, CatalogSearchContext } from './CatalogModel';
+
+vi.mock('../../logging/logger', () => ({
+    default: {
+        error: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+    },
+}));
 
 const MOCK_PROJECT_UUID = 'project-uuid-1';
 const MOCK_USER_UUID = 'user-uuid-1';
 const MOCK_OTHER_USER_UUID = 'user-uuid-2';
 const MOCK_TREE_UUID = 'tree-uuid-1';
 const MOCK_TIMESTAMP = new Date('2026-01-01T00:00:00Z');
+
+const buildExplore = (name: string): Explore => ({
+    name,
+    label: 'Orders',
+    tags: ['finance'],
+    tables: {
+        orders: {
+            name: 'orders',
+            label: 'Orders',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'orders',
+            lineageGraph: {},
+            dimensions: {},
+            metrics: {
+                revenue: {
+                    name: 'revenue',
+                    label: 'Revenue',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    sql: 'SUM(${TABLE}.revenue)',
+                    compiledSql: 'SUM("orders".revenue)',
+                    hidden: false,
+                    tablesReferences: ['orders'],
+                },
+            },
+        },
+    },
+    baseTable: 'orders',
+    joinedTables: [],
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+});
+
+type CatalogSearchRow = DbCatalog & {
+    explore: Explore;
+    search_rank: number;
+};
+
+const buildCatalogSearchRow = (
+    explore: Explore,
+    overrides: Partial<CatalogSearchRow> = {},
+): CatalogSearchRow => ({
+    catalog_search_uuid: 'catalog-revenue',
+    cached_explore_uuid: 'cached-orders',
+    project_uuid: MOCK_PROJECT_UUID,
+    name: 'revenue',
+    label: 'Revenue',
+    description: 'Total revenue',
+    type: CatalogType.Field,
+    search_vector: '',
+    field_type: FieldType.METRIC,
+    required_attributes: null,
+    any_attributes: null,
+    chart_usage: 4,
+    icon: null,
+    table_name: 'orders',
+    spotlight_show: true,
+    yaml_tags: [],
+    ai_hints: null,
+    joined_tables: null,
+    owner_user_uuid: null,
+    has_time_dimension: false,
+    explore,
+    search_rank: 1,
+    ...overrides,
+});
 
 const MOCK_CREATED_TREE_ROW = {
     metrics_tree_uuid: MOCK_TREE_UUID,
@@ -43,6 +129,161 @@ describe('CatalogModel', () => {
 
     afterEach(() => {
         tracker.reset();
+        vi.restoreAllMocks();
+        vi.clearAllMocks();
+    });
+
+    describe('search instrumentation', () => {
+        test('logs distinct driver-read and Node spans without changing queries or response', async () => {
+            const orders = buildExplore('orders');
+            const rows = [
+                buildCatalogSearchRow(orders),
+                buildCatalogSearchRow(orders, {
+                    catalog_search_uuid: 'catalog-stale',
+                    name: 'removed_metric',
+                }),
+            ];
+            const ordersJsonBytes = Buffer.byteLength(
+                JSON.stringify(orders),
+                'utf8',
+            );
+            const stringify = vi.spyOn(JSON, 'stringify');
+
+            tracker.on
+                .any(({ sql }) => sql.includes('WITH count_cte AS'))
+                .response({ rows: [{ count: '2' }] });
+            tracker.on
+                .select(
+                    ({ sql }) =>
+                        sql.includes('from "catalog_search"') &&
+                        !sql.includes('catalog_search_tags'),
+                )
+                .response(rows);
+            tracker.on
+                .select(({ sql }) => sql.includes('catalog_search_tags'))
+                .response([]);
+
+            const result = await model.search({
+                projectUuid: MOCK_PROJECT_UUID,
+                catalogSearch: {},
+                tablesConfiguration: {
+                    tableSelection: {
+                        type: TableSelectionType.ALL,
+                        value: null,
+                    },
+                },
+                userAttributes: {},
+                paginateArgs: { page: 2, pageSize: 2 },
+                context: CatalogSearchContext.METRICS_EXPLORER,
+            });
+
+            expect(result).toEqual({
+                pagination: {
+                    page: 2,
+                    pageSize: 2,
+                    totalPageCount: 1,
+                    totalResults: 2,
+                },
+                data: [
+                    {
+                        name: 'revenue',
+                        label: 'Revenue',
+                        description: 'Total revenue',
+                        tableLabel: 'Orders',
+                        tableName: 'orders',
+                        tableGroupLabel: undefined,
+                        fieldType: FieldType.METRIC,
+                        basicType: 'number',
+                        fieldValueType: MetricType.SUM,
+                        type: CatalogType.Field,
+                        aiHints: null,
+                        requiredAttributes: undefined,
+                        anyAttributes: undefined,
+                        tags: ['finance'],
+                        categories: [],
+                        chartUsage: 4,
+                        catalogSearchUuid: 'catalog-revenue',
+                        icon: null,
+                        searchRank: 1,
+                        owner: null,
+                    },
+                ],
+            });
+
+            expect(tracker.history.all).toHaveLength(3);
+
+            type StructuredLogMetadata = {
+                name: string;
+                duration: number;
+                context: Record<string, unknown>;
+            };
+            const loggerInfoCalls = vi.mocked(Logger.info).mock
+                .calls as unknown as Array<[string, StructuredLogMetadata]>;
+            const logEntries = loggerInfoCalls.map(([, metadata]) => metadata);
+            expect(logEntries.map(({ name }) => name)).toEqual(
+                expect.arrayContaining([
+                    'CatalogModel.search.count.driverRead',
+                    'CatalogModel.search.page.driverRead',
+                    'CatalogModel.search.tags',
+                    'CatalogModel.search.itemBuild',
+                ]),
+            );
+            expect(logEntries).toHaveLength(4);
+
+            const pageContext = logEntries.find(
+                ({ name }) => name === 'CatalogModel.search.page.driverRead',
+            )?.context;
+            const pageLog = logEntries.find(
+                ({ name }) => name === 'CatalogModel.search.page.driverRead',
+            );
+            expect(pageContext).toEqual(
+                expect.objectContaining({
+                    codePath: 'catalog-search',
+                    readStrategy: 'full-explore-read',
+                    page: 2,
+                    pageSize: 2,
+                    returnedSqlRowCount: 2,
+                    distinctExploreCount: 1,
+                    exploreCount: 1,
+                    selectedExploreJsonBytes: ordersJsonBytes * 2,
+                    returnedCatalogRowCount: undefined,
+                }),
+            );
+            expect(pageContext?.dbReadMs).toEqual(expect.any(Number));
+            expect(pageLog?.duration).toBe(pageContext?.dbReadMs);
+            expect(
+                stringify.mock.calls.filter(
+                    ([value]) =>
+                        typeof value === 'object' &&
+                        value !== null &&
+                        'name' in value &&
+                        value.name === orders.name &&
+                        'tables' in value,
+                ),
+            ).toHaveLength(1);
+
+            const countContext = logEntries.find(
+                ({ name }) => name === 'CatalogModel.search.count.driverRead',
+            )?.context;
+            expect(countContext).toEqual(
+                expect.objectContaining({
+                    page: 2,
+                    pageSize: 2,
+                    totalResultCount: 2,
+                }),
+            );
+
+            const itemBuildContext = logEntries.find(
+                ({ name }) => name === 'CatalogModel.search.itemBuild',
+            )?.context;
+            expect(itemBuildContext).toEqual(
+                expect.objectContaining({
+                    returnedSqlRowCount: 2,
+                    returnedCatalogRowCount: 1,
+                    distinctExploreCount: 1,
+                }),
+            );
+        });
     });
 
     describe('createMetricsTree', () => {

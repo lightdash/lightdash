@@ -5,6 +5,17 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
+export type KnexPaginateQueryType = 'count' | 'page';
+
+export type KnexPaginateQueryMeasurer = <T>(
+    query: () => PromiseLike<T>,
+    queryType: KnexPaginateQueryType,
+) => Promise<T>;
+
+type KnexPaginateCountResult = {
+    rows?: Array<{ count?: unknown }>;
+};
+
 export default class KnexPaginate {
     /**
      * `countQuery`, when provided, is used for the total count instead of the
@@ -16,7 +27,14 @@ export default class KnexPaginate {
         query: Knex.QueryBuilder<TRecord, TResult>,
         paginateArgs?: KnexPaginateArgs,
         countQuery?: Knex.QueryBuilder,
+        measureQuery?: KnexPaginateQueryMeasurer,
     ): Promise<KnexPaginatedData<TResult>> {
+        const runQuery = <T>(
+            execute: () => PromiseLike<T>,
+            queryType: KnexPaginateQueryType,
+        ): PromiseLike<T> =>
+            measureQuery ? measureQuery(execute, queryType) : execute();
+
         if (paginateArgs) {
             const { page, pageSize } = paginateArgs;
             if (page < 1) {
@@ -28,14 +46,26 @@ export default class KnexPaginate {
             }
 
             const offset = (page - 1) * pageSize;
-            const totalRecordsCountPromise = query.client.raw(
-                `
-                WITH count_cte AS (?)
-                SELECT count(*) as count FROM count_cte
-            `,
-                [(countQuery ?? query).clone().clear('limit').clear('offset')],
+            const totalRecordsCountPromise = runQuery<KnexPaginateCountResult>(
+                () =>
+                    query.client.raw(
+                        `
+                        WITH count_cte AS (?)
+                        SELECT count(*) as count FROM count_cte
+                    `,
+                        [
+                            (countQuery ?? query)
+                                .clone()
+                                .clear('limit')
+                                .clear('offset'),
+                        ],
+                    ) as unknown as PromiseLike<KnexPaginateCountResult>,
+                'count',
             );
-            const dataPromise = query.clone().offset(offset).limit(pageSize);
+            const dataPromise = runQuery(
+                () => query.clone().offset(offset).limit(pageSize),
+                'page',
+            );
             const [countData, data] = await Promise.all([
                 totalRecordsCountPromise,
                 dataPromise,
@@ -55,7 +85,7 @@ export default class KnexPaginate {
         }
 
         return {
-            data: (await query) as TResult,
+            data: (await runQuery(() => query, 'page')) as TResult,
         };
     }
 }
