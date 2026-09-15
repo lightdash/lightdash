@@ -54,12 +54,9 @@
     right: rem(6px);
 }
 
-.searchWithFilter {
-    --input-right-section-width: rem(94px);
-}
-
-.searchWithFilterAndClear {
-    --input-right-section-width: rem(118px);
+.searchInput {
+    min-width: 0;
+    flex: 1;
 }
 
 .searchSection[data-position='right'] {
@@ -68,6 +65,7 @@
 }
 
 .typeFilter {
+    flex-shrink: 0;
     height: rem(24px);
 }
 
