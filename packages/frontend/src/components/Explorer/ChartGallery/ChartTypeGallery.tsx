@@ -203,8 +203,10 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                 <Menu
                     opened={isMenuOpened}
                     onChange={setIsMenuOpened}
-                    position="bottom-end"
+                    position="bottom-start"
                     withArrow
+                    arrowPosition="center"
+                    offset={-4}
                     closeOnItemClick
                 >
                     <Menu.Target>
