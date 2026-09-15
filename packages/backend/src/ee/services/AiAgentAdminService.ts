@@ -2429,10 +2429,10 @@ export class AiAgentAdminService extends BaseService {
         // Build-fix thread with the writeback prompt so the workspace can show
         // it the moment Create PR is clicked; project_context stays a
         // deterministic, threadless writeback.
-        const explores = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
+        const explores =
+            await this.projectModel.findExploreTableSummariesFromCache(
+                projectUuid,
+            );
         const plan = planReviewWriteback(
             reviewItem,
             buildYmlPathByModel(Object.values(explores)),
@@ -2737,10 +2737,10 @@ export class AiAgentAdminService extends BaseService {
             const user = await this.userModel.findSessionUserByUUID(userUuid);
             await setProgress('Starting writeback…');
 
-            const explores = await this.projectModel.findExploresFromCache(
-                projectUuid,
-                'name',
-            );
+            const explores =
+                await this.projectModel.findExploreTableSummariesFromCache(
+                    projectUuid,
+                );
             const plan = planReviewWriteback(
                 reviewItem,
                 buildYmlPathByModel(Object.values(explores)),

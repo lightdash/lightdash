@@ -1,13 +1,11 @@
 import {
     assertUnreachable,
     getReviewItemProjectContextEntry,
-    isExploreError,
     type AiAgentJudgeProjectContextEntry,
     type AiAgentReviewItemSummary,
     type AiAgentSemanticTargetRef,
     type AiAgentTargetRef,
-    type Explore,
-    type ExploreError,
+    type CompiledTable,
 } from '@lightdash/common';
 
 /**
@@ -31,16 +29,33 @@ export type ReviewWritebackPlan =
           entry: AiAgentJudgeProjectContextEntry;
       };
 
+type YmlPathTable = Pick<CompiledTable, 'name' | 'ymlPath' | 'dbtSourceUuid'>;
+
+type ValidYmlPathExplore = {
+    name: string;
+    baseTable: string;
+    tables: Record<string, YmlPathTable>;
+};
+
+type FailedYmlPathExplore = {
+    name: string;
+    errors: unknown;
+    baseTable?: string;
+    tables?: Record<string, YmlPathTable>;
+};
+
+type YmlPathExplore = ValidYmlPathExplore | FailedYmlPathExplore;
+
 // Resolves each model's dbt YAML path from compiled explores so the writeback agent edits the right file (the judge only gives names).
 export const buildYmlPathByModel = (
-    explores: (Explore | ExploreError)[],
+    explores: YmlPathExplore[],
 ): Map<string, { ymlPath: string; dbtSourceUuid: string | null }> => {
     const map = new Map<
         string,
         { ymlPath: string; dbtSourceUuid: string | null }
     >();
     explores.forEach((explore) => {
-        if (isExploreError(explore)) {
+        if ('errors' in explore) {
             return;
         }
         Object.entries(explore.tables).forEach(([tableName, table]) => {
