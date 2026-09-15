@@ -16,9 +16,10 @@ import { type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown/AiMarkdown';
 import Callout from '../../../../../components/common/Callout';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
+import ReportChartFrame from '../../../../../features/documents/presentation/ReportChartFrame';
+import styles from '../../../../../features/documents/presentation/ReportPresentation.module.css';
 import { useDeepResearchChartQuery } from '../../hooks/useDeepResearch';
 import { DeepResearchChartTile } from './DeepResearchChartTile';
-import styles from './DeepResearchReport.module.css';
 
 const DeepResearchReportContext = createContext<{
     projectUuid: string;
@@ -39,13 +40,19 @@ export const QueryBackedChart: FC<{
         queryUuid,
     });
     if (chartQuery.isLoading) {
-        return <EmptyStateLoader title="Loading report chart" />;
+        return (
+            <ReportChartFrame>
+                <EmptyStateLoader title="Loading report chart" />
+            </ReportChartFrame>
+        );
     }
     if (!chartQuery.data) {
         return (
-            <Callout variant="warning" title="Chart unavailable">
-                This chart could not be displayed.
-            </Callout>
+            <ReportChartFrame>
+                <Callout variant="warning" title="Chart unavailable">
+                    This chart could not be displayed.
+                </Callout>
+            </ReportChartFrame>
         );
     }
     return (

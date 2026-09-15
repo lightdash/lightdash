@@ -1,6 +1,7 @@
 import { type ParametersValuesMap, type PivotConfiguration } from '../..';
 import type { QueryExecutionContext } from '../analytics';
 import type { ConditionalFormattingConfig } from '../conditionalFormatting';
+import type { DocumentQueryReference } from '../document';
 import type { DownloadFileType } from '../downloadFile';
 import type { AndFilterGroup, DashboardFilters, Filters } from '../filter';
 import { type MergeQuery, type MetricSourcedMergeQuery } from '../mergeQuery';
@@ -203,7 +204,7 @@ export type ExecuteAsyncFieldValueSearchRequestParams =
         forceRefresh?: boolean;
     };
 
-export type ExecuteAsyncQueryRequestParams =
+export type ExecuteAsyncQueryRequestParams = (
     | ExecuteAsyncMetricQueryRequestParams
     | ExecuteAsyncMergeQueryRequestParams
     | ExecuteAsyncComposeMergeQueryRequestParams
@@ -213,7 +214,8 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams
     | ExecuteAsyncDashboardSqlChartRequestParams
-    | ExecuteAsyncFieldValueSearchRequestParams;
+    | ExecuteAsyncFieldValueSearchRequestParams
+) & { documentSource?: DocumentQueryReference };
 
 // Recovers dateZoom from a persisted request-parameters union without duck-typing at call sites.
 export const getDateZoomFromRequestParameters = (
