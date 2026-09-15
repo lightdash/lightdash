@@ -937,8 +937,9 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                 { runUuid: 'run-uuid' },
             );
             expect(summary).toContain(
-                'Provider: openai; model: unscored-model; key: instance.',
+                '- Ran on: openai / unscored-model with the instance key',
             );
+            expect(summary).not.toMatch(/^Provider:/);
             expect(summary).toContain('Cleanup mode is observe');
             expect(managedAgentModel.setRunSessionId).toHaveBeenCalledWith(
                 'run-uuid',

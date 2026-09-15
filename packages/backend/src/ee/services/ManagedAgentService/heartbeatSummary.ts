@@ -64,6 +64,15 @@ const describeTargets = (group: SummaryAction[]) => {
     return parts.join(' and ');
 };
 
+export type HeartbeatSummaryContext = {
+    attribution: {
+        provider: string | null;
+        model: string | null;
+        keySource: 'organization' | 'instance' | null;
+    } | null;
+    notice: string | null;
+};
+
 type Segment = { count: number; story: string; segment: string | null };
 
 const buildSegments = (active: SummaryAction[]): Segment[] => {
@@ -157,11 +166,13 @@ export const renderHeartbeatSummary = ({
     interrupted,
     projectName,
     seed,
+    context = { attribution: null, notice: null },
 }: {
     actions: SummaryAction[] | null;
     interrupted: boolean;
     projectName: string | null;
     seed: string;
+    context?: HeartbeatSummaryContext;
 }): { text: string; compactSummary: string } => {
     const title = `**${projectName ?? 'Your project'}: Autopilot update**`;
     if (actions === null) {
@@ -189,6 +200,7 @@ export const renderHeartbeatSummary = ({
             'This run was cut short, so this is what got saved before it stopped.',
         );
     }
+    if (context.notice) paragraphs.push(context.notice);
     if (changes === 0 && !interrupted) {
         paragraphs.push(
             insights
@@ -233,6 +245,16 @@ export const renderHeartbeatSummary = ({
         `- Refused attempts: ${blocked}`,
     );
     if (reversed) ledger.push(`- Reversed or dismissed actions: ${reversed}`);
+    if (context.attribution?.model) {
+        const { provider, model, keySource } = context.attribution;
+        const key =
+            keySource === 'organization'
+                ? "your organisation's key"
+                : 'the instance key';
+        ledger.push(
+            `- Ran on: ${provider ? `${provider} / ` : ''}${model} with ${key}`,
+        );
+    }
     paragraphs.push(ledger.join('\n'));
     paragraphs.push(pick(signOffs, seed));
     if (insights) headline.push(`Insights: ${insights}`);

@@ -93,7 +93,10 @@ import {
     AUTOPILOT_MANAGED_MODEL_ID,
     renderAutopilotAgent,
 } from './config/agent';
-import { renderHeartbeatSummary } from './heartbeatSummary';
+import {
+    renderHeartbeatSummary,
+    type HeartbeatSummaryContext,
+} from './heartbeatSummary';
 import { pickAutopilotModel } from './modelSelection';
 import { buildPreAggCandidateSuggestion } from './preAggCandidates';
 import { loadAutopilotSkill } from './skills';
@@ -121,7 +124,7 @@ type HeartbeatContext = {
     triggeredBy: ManagedAgentRunTriggeredBy;
     startedAtMs: number;
     analyticsUserId: string | null;
-    summaryContext: string[];
+    summaryContext: HeartbeatSummaryContext;
     // Snapshot from the actual run resolver, never re-resolved on completion.
     modelAttribution: Pick<
         ManagedAgentRuntimeInfo,
@@ -1925,10 +1928,9 @@ export class ManagedAgentService extends BaseService {
                 interrupted: runError !== null,
                 projectName: ctx.projectName,
                 seed: runUuid,
+                context: ctx.summaryContext,
             });
-            const slackSummary = [...ctx.summaryContext, report.text].join(
-                '\n\n',
-            );
+            const slackSummary = report.text;
             const actionCount = Object.values(actionCountsByType).reduce(
                 (sum, n) => sum + n,
                 0,
@@ -2018,9 +2020,14 @@ export class ManagedAgentService extends BaseService {
             model: AUTOPILOT_MANAGED_MODEL_ID,
             keyManagement: null,
         };
-        ctx.summaryContext = [
-            `Provider: anthropic; model: ${AUTOPILOT_MANAGED_MODEL_ID}.`,
-        ];
+        ctx.summaryContext = {
+            attribution: {
+                provider: 'anthropic',
+                model: AUTOPILOT_MANAGED_MODEL_ID,
+                keySource: 'instance',
+            },
+            notice: null,
+        };
         const result = await this.managedAgentClient.runSession(
             sessionConfig,
             projectUuid,
@@ -2061,10 +2068,14 @@ export class ManagedAgentService extends BaseService {
             model: runtimeInfo.model,
             keyManagement: runtimeInfo.keyManagement,
         };
-        ctx.summaryContext = [
-            `Provider: ${runtimeInfo.provider}; model: ${runtimeInfo.model}; key: ${runtimeInfo.keySource}.`,
-            runtimeInfo.notice,
-        ].filter((value): value is string => Boolean(value));
+        ctx.summaryContext = {
+            attribution: {
+                provider: runtimeInfo.provider,
+                model: runtimeInfo.model,
+                keySource: runtimeInfo.keySource,
+            },
+            notice: runtimeInfo.notice,
+        };
         const agent = renderAutopilotAgent({
             toolSettings,
             policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
@@ -2230,7 +2241,7 @@ export class ManagedAgentService extends BaseService {
             triggeredBy: run.triggeredBy,
             startedAtMs: run.startedAt.getTime(),
             analyticsUserId: settings?.enabledByUserUuid ?? null,
-            summaryContext: [],
+            summaryContext: { attribution: null, notice: null },
             modelAttribution: null,
         };
     }
