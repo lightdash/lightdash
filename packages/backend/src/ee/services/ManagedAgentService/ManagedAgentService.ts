@@ -524,8 +524,10 @@ export class ManagedAgentService extends BaseService {
                 );
             return {
                 copilotConfig,
+                // Unattended and destructive: think as hard as the model allows.
                 ...getModel(copilotConfig, {
                     enableReasoning: true,
+                    reasoningEffort: 'xhigh',
                     provider: selected.provider,
                     modelName: selected.modelName,
                 }),

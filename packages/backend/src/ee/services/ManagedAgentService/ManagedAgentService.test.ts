@@ -555,6 +555,7 @@ describe('ManagedAgentService provider preflight', () => {
 
         expect(getModel).toHaveBeenCalledWith(copilotConfig, {
             enableReasoning: true,
+            reasoningEffort: 'xhigh',
             provider: 'openai',
             modelName: 'gpt-5',
         });
@@ -575,6 +576,7 @@ describe('ManagedAgentService provider preflight', () => {
 
         expect(getModel).toHaveBeenCalledWith(copilotConfig, {
             enableReasoning: true,
+            reasoningEffort: 'xhigh',
             provider: 'anthropic',
             modelName: 'claude-sonnet-4-6',
         });
@@ -593,6 +595,7 @@ describe('ManagedAgentService provider preflight', () => {
         });
         expect(getModel).toHaveBeenCalledWith(copilotConfig, {
             enableReasoning: true,
+            reasoningEffort: 'xhigh',
             provider: 'anthropic',
             modelName: 'claude-sonnet-4-6',
         });
@@ -611,6 +614,7 @@ describe('ManagedAgentService provider preflight', () => {
         });
         expect(getModel).toHaveBeenCalledWith(copilotConfig, {
             enableReasoning: true,
+            reasoningEffort: 'xhigh',
             provider: 'openai',
             modelName: 'gpt-5',
         });

@@ -5,7 +5,12 @@ import {
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import type { EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
-import { ModelPreset } from './presets';
+import {
+    ModelPreset,
+    ReasoningEffort,
+    XHIGH_MAX_OUTPUT_TOKENS,
+    XHIGH_THINKING_BUDGET_TOKENS,
+} from './presets';
 import { AiModel } from './types';
 
 const PROVIDER = 'bedrock';
@@ -64,7 +69,7 @@ export const getBedrockModel = (
         LightdashConfig['ai']['copilot']['providers']['bedrock']
     >,
     preset: ModelPreset<'bedrock'>,
-    options?: { enableReasoning?: boolean },
+    options?: { enableReasoning?: boolean; reasoningEffort?: ReasoningEffort },
 ): AiModel<typeof PROVIDER> => {
     const bedrock = getBedrockProvider(config);
     /** @ref https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock#api-model-ids */
@@ -78,12 +83,17 @@ export const getBedrockModel = (
         options?.enableReasoning && preset.supportsReasoning;
 
     const reasoningStyle = preset.reasoningStyle ?? 'budget';
+    const effort = options?.reasoningEffort ?? 'medium';
 
     return {
         model,
         callOptions: {
             ...preset.callOptions,
             ...(reasoningEnabled && { temperature: undefined }),
+            ...(reasoningEnabled &&
+                effort === 'xhigh' && {
+                    maxOutputTokens: XHIGH_MAX_OUTPUT_TOKENS,
+                }),
         },
         providerOptions: {
             [PROVIDER]: {
@@ -98,13 +108,16 @@ export const getBedrockModel = (
                               // for Anthropic models from 4.0.148+.
                               reasoningConfig: {
                                   type: 'adaptive' as const,
-                                  maxReasoningEffort: 'medium' as const,
+                                  maxReasoningEffort: effort,
                               },
                           }
                         : {
                               reasoningConfig: {
                                   type: 'enabled' as const,
-                                  budgetTokens: 2048,
+                                  budgetTokens:
+                                      effort === 'xhigh'
+                                          ? XHIGH_THINKING_BUDGET_TOKENS
+                                          : 2048,
                               },
                           })),
             },

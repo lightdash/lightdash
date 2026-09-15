@@ -5,6 +5,11 @@ export type ModelPresetProvider = 'openai' | 'anthropic' | 'google' | 'bedrock';
 export type SelectableModelProvider = ModelPresetProvider | 'openrouter';
 
 export type ReasoningStyle = 'budget' | 'adaptive';
+// How hard a reasoning model should think. 'xhigh' is the top level the
+// provider SDKs expose; budget-style models map it to a large thinking budget.
+export type ReasoningEffort = 'medium' | 'xhigh';
+export const XHIGH_THINKING_BUDGET_TOKENS = 16_000;
+export const XHIGH_MAX_OUTPUT_TOKENS = 24_000;
 
 export type ModelPreset<P extends SelectableModelProvider> = {
     name: string;
