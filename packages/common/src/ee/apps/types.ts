@@ -1200,6 +1200,22 @@ export const APP_SDK_COLOR_SCHEME_MESSAGE = 'lightdash:sdk:theme';
 export const APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE =
     'lightdash:sdk:theme-request';
 
+// AI analysis pushed into a running app (mirrors packages/query-sdk/src/insights.ts).
+// Host → iframe with the current analysis, in reply to a request and on change.
+export const APP_SDK_INSIGHTS_MESSAGE = 'lightdash:sdk:insights';
+// Iframe → host once the SDK's listener is live (and on sdk:ready).
+export const APP_SDK_INSIGHTS_REQUEST_MESSAGE =
+    'lightdash:sdk:insights-request';
+// Iframe → host: the viewer clicked an action rendered by the app.
+export const APP_SDK_INSIGHT_ACTION_MESSAGE = 'lightdash:sdk:insight-action';
+// Iframe → host: which query uuids are rendered on screen right now.
+export const APP_SDK_MOUNTED_QUERIES_MESSAGE = 'lightdash:sdk:mounted-queries';
+
+export type DataAppInsightAction =
+    | { action: 'analyse' }
+    | { action: 'investigate'; anomalyId: string }
+    | { action: 'continue'; anomalyId: string };
+
 // Bridge-only virtual route: the viz posts semantic click intent here and the
 // host rewrites it into the real underlying-data POST. Never forwarded to the
 // API — `useAppSdkBridge` resolves it before allowlist matching.

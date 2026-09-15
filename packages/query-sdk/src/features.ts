@@ -162,6 +162,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'In the viz, keep the untransformed source row on each interactive datum, show a data-point action menu only when useVizContext().underlyingData.enabled and the mark maps to exactly one source row, render underlyingData.get({ row, metric }) in a themed dialog, and wire its Download button to underlyingData.download.',
     },
     {
+        key: 'ai-insights',
+        appliesTo: ['data_app'],
+        label: 'AI analysis',
+        description:
+            "Render the host's AI analysis of the current view inside the app: an executive summary with notable changes, markers on the flagged data points, and Investigate / Continue in Ask AI actions.",
+        wiring: 'Call useInsights() for the view-level headline, summary, limitations and anomalies (render a summary block; call analyse() from a Regenerate control), and useInsights(result) per chart to mark rows where matches(row) is non-empty and to offer investigate(id). Render nothing when status is "unavailable".',
+    },
+    {
         key: 'viz-drill-down',
         appliesTo: ['chart_type'],
         label: 'Drill into data points',

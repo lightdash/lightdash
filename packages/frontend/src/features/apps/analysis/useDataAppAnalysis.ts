@@ -39,12 +39,20 @@ export const useDataAppAnalysis = ({
     projectUuid,
     appUuid,
     queries,
+    mountedQueryUuids,
 }: {
     projectUuid: string;
     appUuid: string;
     queries: QueryEvent[];
+    /** Exact on-screen queries from an SDK that reports them; null otherwise. */
+    mountedQueryUuids: string[] | null;
 }) => {
-    const sources = useMemo(() => selectCurrentViewSources(queries), [queries]);
+    const sources = useMemo(() => {
+        const all = selectCurrentViewSources(queries);
+        if (mountedQueryUuids === null) return all;
+        const mounted = new Set(mountedQueryUuids);
+        return all.filter((s) => mounted.has(s.queryUuid));
+    }, [queries, mountedQueryUuids]);
     const signature = useMemo(() => sourcesSignature(sources), [sources]);
     const inFlight = useMemo(() => hasInFlightQueries(queries), [queries]);
 

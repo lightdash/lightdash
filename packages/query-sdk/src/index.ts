@@ -131,3 +131,15 @@ export { isDeliveryRender, useDeliveryRender } from './deliveryRender';
 // Shareable URL state (seeded from and written back to the host page URL)
 export { useUrlState } from './urlState';
 export type { SdkUrlStateChangeMessage, UrlStateMap } from './urlState';
+
+// AI analysis pushed by the host (data apps)
+export { useInsights } from './insights';
+export type {
+    Insight,
+    InsightInvestigation,
+    InsightSeverity,
+    InsightsPayload,
+    InsightsStatus,
+    QueryInsights,
+    ViewInsights,
+} from './insights';
