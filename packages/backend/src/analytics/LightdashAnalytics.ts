@@ -2093,6 +2093,8 @@ export type DataAppRegistryInstalledEvent = BaseTrack & {
         version: number;
         registryVersion: string;
         action: 'installed' | 'upgraded';
+        /** The install revived a soft-deleted copy instead of creating one. */
+        revived: boolean;
     };
 };
 

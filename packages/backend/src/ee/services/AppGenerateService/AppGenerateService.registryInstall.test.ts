@@ -211,6 +211,7 @@ function buildService(overrides: {
 
     const fullAppModel = {
         listRegistryInstalledApps: vi.fn().mockResolvedValue([]),
+        findNewestDeletedRegistryApp: vi.fn().mockResolvedValue(undefined),
         ...appModel,
     };
 
@@ -748,6 +749,126 @@ describe('AppGenerateService.installRegistryChartType', () => {
         await expect(
             svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey'),
         ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('reinstall revives a soft-deleted install', () => {
+    it('revives at the current registry version without downloading', async () => {
+        const restore = vi.fn().mockResolvedValue(undefined);
+        const updateApp = vi.fn().mockResolvedValue(undefined);
+        const downloadArtifact = vi.fn();
+        const svc = buildService({
+            appModel: {
+                listRegistryInstalledApps: vi.fn().mockResolvedValue([]),
+                findNewestDeletedRegistryApp: vi.fn().mockResolvedValue({
+                    app_id: 'revived-app-uuid',
+                    registry_slug: 'sankey',
+                    latest_ready_registry_version: SANKEY_ENTRY.version,
+                    created_by_user_uuid: 'someone-else',
+                }),
+                restore,
+                updateApp,
+                getLatestReadyVersion: vi.fn().mockResolvedValue({
+                    version: 3,
+                }),
+            },
+            chartRegistryClient: { downloadArtifact },
+        });
+
+        const result = await svc.installRegistryChartType(
+            fakeUser,
+            PROJECT_UUID,
+            'sankey',
+        );
+
+        expect(restore).toHaveBeenCalledWith('revived-app-uuid', PROJECT_UUID);
+        expect(result).toEqual({
+            appUuid: 'revived-app-uuid',
+            slug: 'sankey',
+            version: 3,
+            action: 'installed',
+        });
+        expect(downloadArtifact).not.toHaveBeenCalled();
+        expect(updateApp).toHaveBeenCalledWith(
+            'revived-app-uuid',
+            PROJECT_UUID,
+            { icon: SANKEY_ENTRY.icon },
+        );
+    });
+
+    it('revives an older install and appends the registry version', async () => {
+        const sourceTar = await buildTar([
+            { name: 'src/App.tsx', content: 'x' },
+        ]);
+        const distTar = await buildTar([
+            { name: 'dist/index.html', content: '<html/>' },
+        ]);
+        const restore = vi.fn().mockResolvedValue(undefined);
+        const createVersion = vi.fn().mockResolvedValue(undefined);
+        const createWithVersion = vi.fn();
+        const svc = buildService({
+            appModel: {
+                listRegistryInstalledApps: vi.fn().mockResolvedValue([]),
+                findNewestDeletedRegistryApp: vi.fn().mockResolvedValue({
+                    app_id: 'revived-app-uuid',
+                    registry_slug: 'sankey',
+                    latest_ready_registry_version: '1.0.0',
+                    created_by_user_uuid: null,
+                }),
+                restore,
+                createVersion,
+                createWithVersion,
+                updateApp: vi.fn().mockResolvedValue(undefined),
+                getLatestVersion: vi.fn().mockResolvedValue({ version: 4 }),
+            },
+            chartRegistryClient: {
+                downloadArtifact: vi
+                    .fn()
+                    .mockImplementation(
+                        (_entry: unknown, kind: 'source' | 'dist') =>
+                            Promise.resolve(
+                                kind === 'source' ? sourceTar : distTar,
+                            ),
+                    ),
+            },
+            s3ClientOverride: makeFakeS3(),
+        });
+
+        const result = await svc.installRegistryChartType(
+            fakeUser,
+            PROJECT_UUID,
+            'sankey',
+        );
+
+        expect(restore).toHaveBeenCalledWith('revived-app-uuid', PROJECT_UUID);
+        expect(createWithVersion).not.toHaveBeenCalled();
+        expect(createVersion).toHaveBeenCalled();
+        expect(result).toMatchObject({
+            appUuid: 'revived-app-uuid',
+            version: 5,
+            action: 'installed',
+        });
+    });
+
+    it('maps a restore race on the slug to a retryable error', async () => {
+        const svc = buildService({
+            appModel: {
+                listRegistryInstalledApps: vi.fn().mockResolvedValue([]),
+                findNewestDeletedRegistryApp: vi.fn().mockResolvedValue({
+                    app_id: 'revived-app-uuid',
+                    registry_slug: 'sankey',
+                    latest_ready_registry_version: SANKEY_ENTRY.version,
+                    created_by_user_uuid: null,
+                }),
+                restore: vi.fn().mockRejectedValue(databaseError('23505')),
+            },
+        });
+
+        await expect(
+            svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey'),
+        ).rejects.toThrow(
+            'This chart type was just installed by someone else — refresh',
+        );
     });
 });
 
