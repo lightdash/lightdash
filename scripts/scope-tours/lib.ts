@@ -673,8 +673,9 @@ export const buildLessonTours = (
         const fieldLabel = friendlyName(lesson.result.field);
         const table = `[data-tour-anchor="explore-table"][data-tour-value="${exploreLabel}"]`;
         const search = '[data-tour-anchor="explore-search"]';
+        const fieldSearch = '[data-tour-anchor="explore-field-search"]';
         const fieldRow = `[data-tour-anchor="explore-metric"][data-tour-value="${fieldLabel}"]`;
-        for (const selector of [editor, command, search]) {
+        for (const selector of [editor, command, search, fieldSearch]) {
             if (!isInputAnchor(selector, files)) {
                 throw new Error(
                     `${LESSON_SOURCE}: ${selector} must be a typed anchor (data-tour-input)`,
@@ -720,21 +721,37 @@ export const buildLessonTours = (
             click(newChart, WORKSPACE_ROUTE, hintFor(newChart, files), [
                 newMenu,
             ]),
+            // The table list is virtualised, so the lesson's table is not on
+            // the page until it is searched for.
+            typed(
+                search,
+                EXPLORE_ROUTE,
+                `Search for ${exploreLabel}`,
+                '',
+                exploreLabel,
+                [newMenu, newChart],
+            ),
             click(table, EXPLORE_ROUTE, hintFor(table, files), [
                 newMenu,
                 newChart,
+                search,
             ]),
-            typed(search, EXPLORE_ROUTE, `Find ${fieldLabel}`, '', fieldLabel, [
-                newMenu,
-                newChart,
-                table,
-            ]),
+            // The field tree has its own search, and the table list's has
+            // gone by now: the explore replaces it.
+            typed(
+                fieldSearch,
+                EXPLORE_ROUTE,
+                `Find ${fieldLabel}`,
+                '',
+                fieldLabel,
+                [newMenu, newChart, search, table],
+            ),
             look(
                 fieldRow,
                 EXPLORE_ROUTE,
                 docsHeading(lesson.resultDocs),
                 docsParagraph(lesson.resultDocs),
-                [newMenu, newChart, table],
+                [newMenu, newChart, search, table, fieldSearch],
             ),
         ];
         return { scope: lesson.id, title, sources: [LESSON_SOURCE], steps };
