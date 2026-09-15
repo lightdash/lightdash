@@ -123,9 +123,15 @@ describe('Explore', () => {
         cy.findByText('Configure').click();
         cy.findByRole('button', { name: 'Change' }).click();
 
+        // The picker stays open after a selection; each card reports its
+        // selected state via aria-pressed instead of closing the gallery.
         const selectChartType = (chartType: string) => {
             cy.findByRole('button', { name: chartType }).click();
-            cy.findByRole('button', { name: 'Change' }).click();
+            cy.findByRole('button', { name: chartType }).should(
+                'have.attr',
+                'aria-pressed',
+                'true',
+            );
         };
 
         selectChartType('Bar chart');
@@ -135,8 +141,7 @@ describe('Explore', () => {
         selectChartType('Scatter chart');
         selectChartType('Pie chart');
         selectChartType('Table');
-        cy.findByRole('button', { name: 'Big value' }).click();
-        cy.findByText('Big value').should('be.visible');
+        selectChartType('Big value');
     });
 
     // todo: move to unit test
