@@ -7213,6 +7213,40 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    async updateEmbedHumanScoreForMessage(
+        account: AnonymousAccount,
+        projectUuid: string,
+        {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            humanScore,
+            humanFeedback,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+            humanScore: number;
+            humanFeedback?: string | null;
+        },
+    ): Promise<void> {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
+        return this.updateHumanScoreForMessage(
+            user,
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            humanScore,
+            humanFeedback,
+        );
+    }
+
     async streamEmbedAgentThreadResponse(
         account: AnonymousAccount,
         projectUuid: string,
