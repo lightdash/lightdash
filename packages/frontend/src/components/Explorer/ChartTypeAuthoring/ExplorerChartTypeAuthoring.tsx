@@ -36,6 +36,7 @@ import { useDirtyPivotConfiguration } from '../VisualizationCard/useDirtyPivotCo
 import { useExplorerChartColorPalette } from '../VisualizationCard/useExplorerChartColorPalette';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
 import VisualizationWarning from '../VisualizationCard/VisualizationWarning';
+import classes from './ExplorerChartTypeAuthoring.module.css';
 import ExplorerChartTypeAuthoringView from './ExplorerChartTypeAuthoringView';
 
 // Stable identities, so the workspace does not rebind before results land.
@@ -282,8 +283,12 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                 onClose={handleDone}
                 title="Chart type builder"
                 fullScreen
+                withCloseButton={false}
                 cancelLabel={false}
                 modalRootProps={{ closeOnClickOutside: false }}
+                modalHeaderProps={{
+                    className: classes.visuallyHiddenModalHeader,
+                }}
                 modalBodyProps={{ px: 0, py: 0 }}
             >
                 <ExplorerChartTypeAuthoringView

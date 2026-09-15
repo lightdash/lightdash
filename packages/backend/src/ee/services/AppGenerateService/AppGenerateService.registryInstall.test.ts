@@ -334,6 +334,26 @@ describe('AppGenerateService.listRegistryChartTypes', () => {
         expect(radar?.installedCreatedByUserUuid).toBeNull();
     });
 
+    it('shows no update badge when the index entry is older than the install (registry downgrade)', async () => {
+        const appModel = {
+            listRegistryInstalledApps: vi.fn().mockResolvedValue([
+                {
+                    app_id: 'app-uuid-sankey',
+                    registry_slug: 'sankey',
+                    latest_ready_registry_version: '2.0.0',
+                    created_by_user_uuid: 'installer-user-uuid',
+                },
+            ]),
+        };
+        const svc = buildService({ appModel });
+
+        const result = await svc.listRegistryChartTypes(fakeUser, PROJECT_UUID);
+
+        const sankey = result.charts.find((c) => c.slug === 'sankey');
+        expect(sankey?.state).toBe('installed');
+        expect(sankey?.installedRegistryVersion).toBe('2.0.0');
+    });
+
     it('marks entries above the instance version incompatible', async () => {
         const futureEntry = makeEntry({
             slug: 'future-chart',
@@ -569,6 +589,69 @@ describe('AppGenerateService.installRegistryChartType', () => {
             'existing-app-uuid',
             PROJECT_UUID,
             { icon: 'chart-radar' },
+        );
+    });
+
+    it('appends the older registry version when the index was downgraded (rollback)', async () => {
+        const sourceTar = await buildTar([
+            { name: 'src/App.tsx', content: 'x' },
+        ]);
+        const distTar = await buildTar([
+            { name: 'dist/index.html', content: '<html/>' },
+        ]);
+        const createVersion = vi.fn().mockResolvedValue({ version: 4 });
+        const appModel = {
+            listRegistryInstalledApps: vi.fn().mockResolvedValue([
+                {
+                    app_id: 'existing-app-uuid',
+                    registry_slug: 'sankey',
+                    latest_ready_registry_version: '2.0.0',
+                },
+            ]),
+            getLatestVersion: vi.fn().mockResolvedValue({ version: 3 }),
+            createVersion,
+            updateApp: vi.fn().mockResolvedValue(undefined),
+        };
+        const chartRegistryClient = {
+            getEntry: vi.fn().mockResolvedValue(makeEntry()),
+            downloadArtifact: vi
+                .fn()
+                .mockImplementation(
+                    (_entry: unknown, kind: 'source' | 'dist') =>
+                        Promise.resolve(
+                            kind === 'source' ? sourceTar : distTar,
+                        ),
+                ),
+        };
+        const svc = buildService({
+            appModel,
+            chartRegistryClient,
+            s3ClientOverride: makeFakeS3(),
+        });
+
+        const result = await svc.installRegistryChartType(
+            fakeUser,
+            PROJECT_UUID,
+            'sankey',
+        );
+
+        // Appending the pointed (older) version IS the customer-facing
+        // rollback: unpinned charts follow it, pinned charts are unaffected.
+        expect(result).toEqual({
+            appUuid: 'existing-app-uuid',
+            slug: 'sankey',
+            version: 4,
+            action: 'upgraded',
+        });
+        expect(createVersion).toHaveBeenCalledWith(
+            'existing-app-uuid',
+            { version: 4, prompt: expect.any(String) },
+            'ready',
+            fakeUser.userUuid,
+            undefined,
+            undefined,
+            PARSED_VIZ_SCHEMA,
+            { registryVersion: '1.3.0' },
         );
     });
 

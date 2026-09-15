@@ -13,3 +13,10 @@ export const useManagedAgentRuntime = (projectUuid: string, enabled: boolean) =>
             }),
         enabled: enabled && !!projectUuid,
     });
+
+// True when the runtime has a configuration error or a cleanup downgrade
+// notice worth showing outside the setup modal.
+export const hasManagedAgentRuntimeAlert = (
+    runtime: ReturnType<typeof useManagedAgentRuntime>,
+): boolean =>
+    runtime.isError || !!runtime.data?.error || !!runtime.data?.notice;

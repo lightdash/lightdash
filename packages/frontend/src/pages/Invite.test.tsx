@@ -131,6 +131,14 @@ describe('Invite', () => {
     test('requires the configured SSO provider when the invite disallows local authentication', async () => {
         renderInvite();
 
+        const expiration = await screen.findByText(
+            /This invite link expires on/,
+        );
+        expect(expiration.querySelector('time')).toHaveAttribute(
+            'datetime',
+            mocks.inviteLink.expiresAt.toISOString(),
+        );
+
         const microsoftSignUp = await screen.findByRole('link', {
             name: /Sign up with Microsoft/,
         });

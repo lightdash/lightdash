@@ -255,7 +255,7 @@ describe('VersionHistoryPanel', () => {
         expect(fetchEarlier).toHaveBeenCalledTimes(1);
     });
 
-    it('closes from its own header', () => {
+    it('collapses from its named panel header', () => {
         const onClose = vi.fn();
         renderWithProviders(
             <VersionHistoryPanel
@@ -265,7 +265,12 @@ describe('VersionHistoryPanel', () => {
             />,
         );
 
-        fireEvent.click(screen.getByLabelText('Close history'));
+        expect(
+            screen.getByRole('heading', { name: 'Version history' }),
+        ).toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Collapse version history' }),
+        );
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 });

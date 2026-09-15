@@ -4,6 +4,7 @@ import {
     DimensionType,
     FieldType,
     getItemMap,
+    getSeriesId,
     StackType,
     TimeFrames,
     type Dimension,
@@ -23,6 +24,9 @@ import useCartesianChartConfig, {
     applyReferenceLines,
 } from './useCartesianChartConfig';
 import {
+    buildInfiniteQueryResults,
+    buildPivotDetails,
+    changedPivotFieldSeriesMapArgs,
     existingMixedSeries,
     expectedMixedSeriesMap,
     expectedMultiPivotedSeriesMap,
@@ -31,6 +35,8 @@ import {
     explore,
     groupedMixedSeries,
     mergedMixedSeries,
+    mixedBarLineFlatSeries,
+    mixedBarLinePivotedSeries,
     multiPivotSeriesMapArgs,
     pivotSeriesMapArgs,
     simpleSeriesMapArgs,
@@ -1557,5 +1563,351 @@ describe('useCartesianChartConfig', () => {
         });
 
         expect(result.current.validConfig.conditionalFormattings).toEqual([]);
+    });
+});
+
+describe('PROD-11290 mixed bar/line chart types survive pivot changes', () => {
+    const typesByMetric = (series: Series[]) =>
+        series.map((serie) => ({
+            field: serie.encode.yRef.field,
+            type: serie.type,
+            yAxisIndex: serie.yAxisIndex,
+        }));
+
+    const secondMetricSeries = (series: Series[]) =>
+        series.filter(
+            (serie) => serie.encode.yRef.field === 'my_second_metric',
+        );
+
+    test('keeps each metric chart type when the pivot values change', () => {
+        const result = getExpectedSeriesMap({
+            ...pivotSeriesMapArgs,
+            defaultCartesianType: CartesianSeriesType.BAR,
+            existingSeries: mixedBarLinePivotedSeries,
+        });
+
+        expect(typesByMetric(Object.values(result))).toStrictEqual([
+            {
+                field: 'my_metric',
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+            },
+            {
+                field: 'my_second_metric',
+                type: CartesianSeriesType.LINE,
+                yAxisIndex: 1,
+            },
+            {
+                field: 'my_metric',
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+            },
+            {
+                field: 'my_second_metric',
+                type: CartesianSeriesType.LINE,
+                yAxisIndex: 1,
+            },
+        ]);
+    });
+
+    test('keeps each metric chart type when the pivot field changes', () => {
+        const result = getExpectedSeriesMap({
+            ...changedPivotFieldSeriesMapArgs,
+            defaultCartesianType: CartesianSeriesType.BAR,
+            existingSeries: mixedBarLinePivotedSeries,
+        });
+
+        expect(typesByMetric(Object.values(result))).toStrictEqual([
+            {
+                field: 'my_metric',
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+            },
+            {
+                field: 'my_second_metric',
+                type: CartesianSeriesType.LINE,
+                yAxisIndex: 1,
+            },
+        ]);
+    });
+
+    test('keeps each metric chart type when a breakdown is added', () => {
+        const result = getExpectedSeriesMap({
+            ...pivotSeriesMapArgs,
+            defaultCartesianType: CartesianSeriesType.BAR,
+            existingSeries: mixedBarLineFlatSeries,
+        });
+
+        secondMetricSeries(Object.values(result)).forEach((serie) => {
+            expect(serie.type).toBe(CartesianSeriesType.LINE);
+            expect(serie.yAxisIndex).toBe(1);
+            expect(serie.smooth).toBe(true);
+            expect(serie.showSymbol).toBe(false);
+        });
+    });
+
+    test('keeps each metric chart type when a breakdown is removed', () => {
+        const result = getExpectedSeriesMap({
+            ...simpleSeriesMapArgs,
+            defaultCartesianType: CartesianSeriesType.BAR,
+            existingSeries: mixedBarLinePivotedSeries,
+        });
+
+        expect(typesByMetric(Object.values(result))).toStrictEqual([
+            {
+                field: 'my_metric',
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+            },
+            {
+                field: 'my_second_metric',
+                type: CartesianSeriesType.LINE,
+                yAxisIndex: 1,
+            },
+        ]);
+    });
+
+    test('keeps each metric chart type when the x field changes', () => {
+        const result = getExpectedSeriesMap({
+            ...simpleSeriesMapArgs,
+            xField: 'my_dimension_week',
+            defaultCartesianType: CartesianSeriesType.BAR,
+            existingSeries: mixedBarLineFlatSeries,
+        });
+
+        expect(typesByMetric(Object.values(result))).toStrictEqual([
+            {
+                field: 'my_metric',
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+            },
+            {
+                field: 'my_second_metric',
+                type: CartesianSeriesType.LINE,
+                yAxisIndex: 1,
+            },
+        ]);
+    });
+
+    test('keeps an area metric area-styled and stacked', () => {
+        const areaSeries: Series[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+                encode: {
+                    xRef: { field: 'my_dimension' },
+                    yRef: { field: 'my_metric' },
+                },
+            },
+            {
+                type: CartesianSeriesType.LINE,
+                areaStyle: {},
+                yAxisIndex: 1,
+                encode: {
+                    xRef: { field: 'my_dimension' },
+                    yRef: { field: 'my_second_metric' },
+                },
+            },
+        ];
+
+        const result = getExpectedSeriesMap({
+            ...pivotSeriesMapArgs,
+            defaultCartesianType: CartesianSeriesType.BAR,
+            existingSeries: areaSeries,
+        });
+
+        secondMetricSeries(Object.values(result)).forEach((serie) => {
+            expect(serie.type).toBe(CartesianSeriesType.LINE);
+            expect(serie.areaStyle).toStrictEqual({});
+            expect(serie.stack).toBe('my_second_metric');
+        });
+        Object.values(result)
+            .filter((serie) => serie.encode.yRef.field === 'my_metric')
+            .forEach((serie) => {
+                expect(serie.type).toBe(CartesianSeriesType.BAR);
+                expect(serie.areaStyle).toBeUndefined();
+                expect(serie.stack).toBeUndefined();
+            });
+    });
+
+    test('falls back to the global defaults for a metric with no existing series', () => {
+        const result = getExpectedSeriesMap({
+            ...simpleSeriesMapArgs,
+            defaultCartesianType: CartesianSeriesType.LINE,
+            existingSeries: [mixedBarLineFlatSeries[0]],
+        });
+
+        expect(typesByMetric(Object.values(result))).toStrictEqual([
+            {
+                field: 'my_metric',
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+            },
+            {
+                field: 'my_second_metric',
+                type: CartesianSeriesType.LINE,
+                yAxisIndex: 0,
+            },
+        ]);
+    });
+
+    test('is unchanged for a uniform chart with no existing series', () => {
+        expect(
+            getExpectedSeriesMap({
+                ...simpleSeriesMapArgs,
+                existingSeries: [],
+            }),
+        ).toStrictEqual(expectedSimpleSeriesMap);
+        expect(
+            getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                existingSeries: undefined,
+            }),
+        ).toStrictEqual(expectedPivotedSeriesMap);
+    });
+
+    test('preserves exact-match series overrides through the merge', () => {
+        const expectedSeriesMap = getExpectedSeriesMap({
+            ...pivotSeriesMapArgs,
+            defaultCartesianType: CartesianSeriesType.BAR,
+            existingSeries: mixedBarLinePivotedSeries,
+        });
+
+        const merged = mergeExistingAndExpectedSeries({
+            expectedSeriesMap,
+            existingSeries: mixedBarLinePivotedSeries,
+            sortedByPivot: false,
+        });
+
+        expect(
+            merged.find(
+                (serie) =>
+                    getSeriesId(serie) ===
+                    getSeriesId(mixedBarLinePivotedSeries[1]),
+            ),
+        ).toStrictEqual({
+            ...mixedBarLinePivotedSeries[1],
+            isFilteredOut: false,
+        });
+
+        const newSecondMetricSeries = merged.filter(
+            (serie) =>
+                serie.encode.yRef.field === 'my_second_metric' &&
+                getSeriesId(serie) !==
+                    getSeriesId(mixedBarLinePivotedSeries[1]),
+        );
+        expect(newSecondMetricSeries.length).toBeGreaterThan(0);
+        newSecondMetricSeries.forEach((serie) => {
+            expect(serie.type).toBe(CartesianSeriesType.LINE);
+            expect(serie.yAxisIndex).toBe(1);
+            expect(serie.name).toBeUndefined();
+            expect(serie.color).toBeUndefined();
+        });
+    });
+});
+
+describe('PROD-11290 series regeneration through useCartesianChartConfig', () => {
+    const getParams = (
+        pivotField: string,
+        pivotValues: string[],
+    ): Parameters<typeof useCartesianChartConfig>[0] => ({
+        itemsMap: undefined,
+        stacking: undefined,
+        cartesianType: undefined,
+        colorPalette: [],
+        pivotKeys: [pivotField],
+        initialChartConfig: {
+            layout: {
+                xField: 'my_dimension',
+                yField: ['my_metric', 'my_second_metric'],
+            },
+            eChartsConfig: {
+                series: mixedBarLinePivotedSeries,
+            },
+        },
+        resultsData: {
+            ...buildInfiniteQueryResults({
+                rows: [
+                    {
+                        my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                        my_metric: { value: { raw: 1, formatted: '1' } },
+                        my_second_metric: { value: { raw: 2, formatted: '2' } },
+                    },
+                ],
+                pivotDetails: buildPivotDetails(pivotField, pivotValues),
+            }),
+            metricQuery: {
+                exploreName: 'my_explore',
+                dimensions: ['my_dimension', pivotField],
+                metrics: ['my_metric', 'my_second_metric'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+            },
+        },
+        columnOrder: [
+            'my_dimension',
+            pivotField,
+            'my_metric',
+            'my_second_metric',
+        ],
+    });
+
+    const activeSeriesFor = (series: Series[], field: string) =>
+        series.filter(
+            (serie) =>
+                serie.encode.yRef.field === field && !serie.isFilteredOut,
+        );
+
+    test('a dashboard parameter changing the breakdown values keeps the bar/line mix and both axes', () => {
+        const { result, rerender } = renderHook(
+            (props: Parameters<typeof useCartesianChartConfig>[0]) =>
+                useCartesianChartConfig(props),
+            { initialProps: getParams('dimension_x', ['a']) },
+        );
+
+        act(() => {
+            rerender(getParams('dimension_x', ['b', 'c']));
+        });
+
+        const series = result.current.validConfig!.eChartsConfig.series!;
+        const lineSeries = activeSeriesFor(series, 'my_second_metric');
+
+        expect(lineSeries.length).toBe(2);
+        lineSeries.forEach((serie) => {
+            expect(serie.type).toBe(CartesianSeriesType.LINE);
+            expect(serie.yAxisIndex).toBe(1);
+        });
+        activeSeriesFor(series, 'my_metric').forEach((serie) => {
+            expect(serie.type).toBe(CartesianSeriesType.BAR);
+            expect(serie.yAxisIndex).toBe(0);
+        });
+    });
+
+    test('a dashboard parameter changing the breakdown dimension keeps the bar/line mix and both axes', () => {
+        const { result, rerender } = renderHook(
+            (props: Parameters<typeof useCartesianChartConfig>[0]) =>
+                useCartesianChartConfig(props),
+            { initialProps: getParams('dimension_x', ['a']) },
+        );
+
+        act(() => {
+            rerender(getParams('dimension_y', ['x', 'y']));
+        });
+
+        const series = result.current.validConfig!.eChartsConfig.series!;
+        const lineSeries = activeSeriesFor(series, 'my_second_metric');
+
+        expect(lineSeries.length).toBe(2);
+        lineSeries.forEach((serie) => {
+            expect(serie.type).toBe(CartesianSeriesType.LINE);
+            expect(serie.yAxisIndex).toBe(1);
+        });
+        activeSeriesFor(series, 'my_metric').forEach((serie) => {
+            expect(serie.type).toBe(CartesianSeriesType.BAR);
+            expect(serie.yAxisIndex).toBe(0);
+        });
     });
 });

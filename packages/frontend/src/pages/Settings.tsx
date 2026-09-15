@@ -46,6 +46,7 @@ import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel'
 import GithubUserSettingsPanel from '../components/UserSettings/GithubUserSettingsPanel';
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
+import InviteLinkExpirationPanel from '../components/UserSettings/InviteLinkExpirationPanel';
 import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
 import LightdashAnalyticsPanel from '../components/UserSettings/LightdashAnalyticsPanel';
 import LimitsPanel from '../components/UserSettings/LimitsPanel';
@@ -310,6 +311,19 @@ const Settings: FC = () => {
                             </div>
                             <DefaultProjectPanel />
                         </SettingsGridCard>
+
+                        {user.ability.can('manage', 'Organization') && (
+                            <SettingsGridCard>
+                                <div>
+                                    <Title order={5}>Invitations</Title>
+                                    <Text c="dimmed" fz="xs">
+                                        Control how long new user invitations
+                                        remain valid for your organization.
+                                    </Text>
+                                </div>
+                                <InviteLinkExpirationPanel />
+                            </SettingsGridCard>
+                        )}
 
                         {showImpersonationPanel && (
                             <SettingsGridCard>

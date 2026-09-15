@@ -1,9 +1,10 @@
 import {
     getFormattedValue,
-    isLineSeriesOption,
+    CartesianSeriesType,
     type PivotReference,
 } from '@lightdash/common';
 import { IconChartBarOff } from '@tabler/icons-react';
+import { format as echartsFormat } from 'echarts';
 import {
     type EChartsInstance,
     type EChartsReactProps,
@@ -29,6 +30,11 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { isCartesianVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { SERIES_FOCUS_ACTION } from './chartSeriesFocus';
+import {
+    CHART_POINTER_OPTIONS,
+    createChartTooltipController,
+} from './chartTooltipController';
 
 type EchartsBaseClickEvent = {
     // The component name clicked,
@@ -351,10 +357,13 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         );
 
         const opts = useMemo<Opts>(() => {
-            // `useCoarsePointer` is left at its default: its 44px hit-test halo
-            // makes white space near a bar register as a hover on that segment
             const baseOpts: Opts = {
                 renderer: 'svg',
+                ...CHART_POINTER_OPTIONS,
+                // Retain the larger native touch target on coarse pointers.
+                ...(window.matchMedia('(pointer: coarse)').matches
+                    ? { pointerSize: 44 }
+                    : {}),
             };
 
             if (!eChartsOptions) {
@@ -379,261 +388,104 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             return resolveCssVariablesInOptions(eChartsOptions);
         }, [eChartsOptions, opts.renderer]);
 
-        // Track whether we're currently in item-tooltip mode to avoid
-        // redundant setOption calls that cause flickering in mixed charts.
-        const isItemTooltipActive = useRef(false);
-        const mouseOverTimer = useRef<
-            ReturnType<typeof setTimeout> | undefined
-        >(undefined);
-        const highlightTimer = useRef<
-            ReturnType<typeof setTimeout> | undefined
-        >(undefined);
-        const hasDispatchedHighlight = useRef(false);
-
-        const handleOnMouseOver = useCallback(
-            (params: any) => {
-                const eCharts = chartRef.current?.getEchartsInstance();
-
-                if (eCharts) {
-                    let setTooltipItemTrigger = true;
-                    // Tooltip trigger 'item' does not work when symbol is not shown; reference: https://github.com/apache/echarts/issues/14563
-                    const series = eCharts.getOption().series;
-
-                    // With a single series there is nothing to narrow down, so
-                    // leave the axis tooltip in place
-                    if (Array.isArray(series) && series.length < 2) return null;
-
-                    if (
-                        Array.isArray(series) &&
-                        isLineSeriesOption(series[params.seriesIndex])
-                    ) {
-                        setTooltipItemTrigger =
-                            !!series[params.seriesIndex].showSymbol;
-                    }
-
-                    if (
-                        setTooltipItemTrigger &&
-                        eChartsOptions?.tooltip.formatter
-                    ) {
-                        // Clear any pending mouseOut reset to prevent race conditions
-                        // when moving between series elements quickly
-                        if (mouseOverTimer.current) {
-                            clearTimeout(mouseOverTimer.current);
-                            mouseOverTimer.current = undefined;
-                        }
-
-                        if (!isItemTooltipActive.current) {
-                            isItemTooltipActive.current = true;
-                            eCharts.setOption(
-                                {
-                                    tooltip: {
-                                        trigger: 'item',
-                                        formatter: (param: any) => {
-                                            // item param are slightly different to axis params, and they don't contain the axisValueLabel
-                                            // so we need to generate it here (and wrap it in an array) and then reuse the formatter used
-                                            // on `useEchartsCartesianConfig` to generate the tooltip
-                                            if (
-                                                eChartsOptions.tooltip.formatter
-                                            ) {
-                                                // When using tuple mode (array values) for stacked bars
-                                                // param.value is an array like ["Dr. Wilson", 3]
-                                                // param.name contains the category header
-                                                if (
-                                                    Array.isArray(param.value)
-                                                ) {
-                                                    return (
-                                                        eChartsOptions.tooltip
-                                                            .formatter as any
-                                                    )([
-                                                        {
-                                                            ...param,
-                                                            axisValueLabel:
-                                                                param.name,
-                                                        },
-                                                    ]);
-                                                }
-
-                                                // When using primitive values (non-object)
-                                                if (
-                                                    typeof param.value !==
-                                                        'object' ||
-                                                    param.value === null
-                                                ) {
-                                                    return (
-                                                        eChartsOptions.tooltip
-                                                            .formatter as any
-                                                    )([
-                                                        {
-                                                            ...param,
-                                                            axisValueLabel:
-                                                                param.name,
-                                                        },
-                                                    ]);
-                                                }
-
-                                                // When using dataset mode with object values (100% stacked)
-                                                // param.value is an object with dimension keys
-                                                const dim =
-                                                    param.encode?.x?.[0] !==
-                                                    undefined
-                                                        ? param.dimensionNames[
-                                                              param.encode?.x[0]
-                                                          ]
-                                                        : '';
-
-                                                const axisValue =
-                                                    param.value[dim];
-                                                const formattedValue = itemsMap
-                                                    ? getFormattedValue(
-                                                          axisValue,
-                                                          dim,
-                                                          itemsMap,
-                                                          true,
-                                                          undefined,
-                                                          undefined,
-                                                          resolvedTimezone,
-                                                      )
-                                                    : axisValue;
-
-                                                return (
-                                                    eChartsOptions.tooltip
-                                                        .formatter as any
-                                                )([
-                                                    {
-                                                        ...param,
-                                                        axisValueLabel:
-                                                            formattedValue,
-                                                    },
-                                                ]);
-                                            }
-                                        },
-                                    },
-                                },
-                                false,
-                                true, // lazy update
-                            );
-                        }
-                    }
-                    // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
-                    if (highlightTimer.current) {
-                        clearTimeout(highlightTimer.current);
-                    }
-                    highlightTimer.current = setTimeout(() => {
-                        eCharts.dispatchAction({
-                            type: 'highlight',
-                            seriesIndex: params.seriesIndex,
-                        });
-                        hasDispatchedHighlight.current = true;
-                        highlightTimer.current = undefined;
-                    }, 100);
-                }
-            },
-            [chartRef, eChartsOptions?.tooltip, itemsMap, resolvedTimezone],
-        );
-
-        const handleOnMouseOut = useCallback(() => {
-            // Cancel any pending highlight that hasn't fired yet so we don't
-            // re-highlight after the cursor has already left the chart area.
-            if (highlightTimer.current) {
-                clearTimeout(highlightTimer.current);
-                highlightTimer.current = undefined;
-            }
-            // Explicitly clear emphasis state, but only if we previously
-            // dispatched a manual `highlight`. That manual dispatch bypasses
-            // ECharts' automatic mouseout downplay, so without this mirror
-            // the focused series stays blurred-focused when the cursor leaves.
-            // When no manual highlight was dispatched (e.g. fast hovers under
-            // the 100ms threshold), ECharts' built-in mouseout handles cleanup
-            // and dispatching downplay here interferes with internal state on
-            // mixed charts during rapid bar↔line transitions.
-            if (hasDispatchedHighlight.current) {
-                const eCharts = chartRef.current?.getEchartsInstance();
-                if (eCharts) {
-                    eCharts.dispatchAction({ type: 'downplay' });
-                }
-                hasDispatchedHighlight.current = false;
-            }
-            // Debounce the reset to prevent rapid axis<->item tooltip flicker
-            // when moving between adjacent series elements in mixed charts
-            if (mouseOverTimer.current) {
-                clearTimeout(mouseOverTimer.current);
-            }
-            mouseOverTimer.current = setTimeout(() => {
-                const echartsInstance = chartRef.current?.getEchartsInstance();
-                if (echartsInstance) {
-                    isItemTooltipActive.current = false;
-                    const tooltipOptions =
-                        resolvedEChartsOptions?.tooltip ??
-                        eChartsOptions?.tooltip;
-                    echartsInstance.setOption(
-                        {
-                            tooltip: tooltipOptions,
-                        },
-                        false,
-                        true, // lazy update
-                    );
-                }
-            }, 50);
-        }, [
-            chartRef,
-            eChartsOptions?.tooltip,
-            resolvedEChartsOptions?.tooltip,
-        ]);
-
-        // ECharts only triggers the axis tooltip inside the plot area, so
-        // hovering the axis labels shows that category's whole column
+        // Keep native axis/legend tooltips and local emphasis. Narrow segment tips
+        // before paint. A short grace period bridges gaps without rebuilding options.
         useEffect(() => {
             const eCharts = chartRef.current?.getEchartsInstance();
-            if (!eCharts) return;
+            if (!eCharts || !resolvedEChartsOptions) return;
 
             const zRender = eCharts.getZr();
-            let isAxisTooltipShown = false;
-
-            const showTooltipOnAxisHover = ({
+            let focusedSeries: number | null = null;
+            const controller = createChartTooltipController<any>({
+                dispatchAction: (action) => eCharts.dispatchAction(action),
+                focusItem: (item) => {
+                    const nextSeries = item?.seriesIndex ?? null;
+                    if (nextSeries === focusedSeries || eCharts.isDisposed())
+                        return;
+                    focusedSeries = nextSeries;
+                    eCharts.dispatchAction({
+                        type: SERIES_FOCUS_ACTION,
+                        seriesIndex: nextSeries,
+                    });
+                },
+                containsPoint: ({ x, y }) =>
+                    eCharts.containPixel({ gridIndex: 0 }, [x, y]),
+                projectAxisPoint: ({ x, y }) =>
+                    getPlotPointForAxisHover(eCharts, x, y),
+                formatItem: (param) => {
+                    // Item events lack the axis header. Preserve the same
+                    // formatting used by the full-category tooltip.
+                    let axisValueLabel = param.name;
+                    if (
+                        param.value !== null &&
+                        typeof param.value === 'object' &&
+                        !Array.isArray(param.value)
+                    ) {
+                        const dimensionIndex = param.encode?.x?.[0];
+                        const dim =
+                            dimensionIndex !== undefined
+                                ? param.dimensionNames[dimensionIndex]
+                                : '';
+                        const axisValue = param.value[dim];
+                        axisValueLabel = itemsMap
+                            ? getFormattedValue(
+                                  axisValue,
+                                  dim,
+                                  itemsMap,
+                                  true,
+                                  undefined,
+                                  undefined,
+                                  resolvedTimezone,
+                              )
+                            : axisValue;
+                    }
+                    return (resolvedEChartsOptions.tooltip.formatter as any)([
+                        {
+                            ...param,
+                            axisValueLabel,
+                            marker: echartsFormat.getTooltipMarker(param.color),
+                        },
+                    ]);
+                },
+            });
+            const onMouseOver = (params: any) => {
+                const series = resolvedEChartsOptions.series ?? [];
+                const hoveredSeries = series[params.seriesIndex];
+                // Single-series charts and lines without symbols keep the
+                // category tooltip. Reference lines also keep their native tip.
+                if (
+                    params.componentType === 'series' &&
+                    series.length > 1 &&
+                    hoveredSeries &&
+                    (hoveredSeries.type !== CartesianSeriesType.LINE ||
+                        hoveredSeries.showSymbol)
+                ) {
+                    controller.setItem(params);
+                }
+            };
+            const onMouseOut = () => controller.setItem(null);
+            const onMouseMove = ({
                 offsetX,
                 offsetY,
             }: {
                 offsetX: number;
                 offsetY: number;
-            }) => {
-                // The hovered series owns the tooltip while in item mode
-                if (isItemTooltipActive.current) return;
+            }) => controller.move({ x: offsetX, y: offsetY });
 
-                const plotPoint = getPlotPointForAxisHover(
-                    eCharts,
-                    offsetX,
-                    offsetY,
-                );
-
-                if (plotPoint) {
-                    isAxisTooltipShown = true;
-                    // Trigger the tooltip as if hovering the plot area at the
-                    // same category, so ECharts builds it from the axis
-                    eCharts.dispatchAction({
-                        type: 'showTip',
-                        x: plotPoint.x,
-                        y: plotPoint.y,
-                    });
-                } else if (isAxisTooltipShown) {
-                    isAxisTooltipShown = false;
-                    // Inside the plot area ECharts drives the tooltip itself
-                    const isOverPlotArea = eCharts.containPixel(
-                        { gridIndex: 0 },
-                        [offsetX, offsetY],
-                    );
-                    if (!isOverPlotArea) {
-                        eCharts.dispatchAction({ type: 'hideTip' });
-                    }
-                }
-            };
-
-            zRender.on('mousemove', showTooltipOnAxisHover);
+            eCharts.on('mouseover', onMouseOver);
+            eCharts.on('mouseout', onMouseOut);
+            zRender.on('mousemove', onMouseMove);
+            zRender.on('globalout', controller.leave);
             return () => {
+                controller.dispose();
                 if (!eCharts.isDisposed()) {
-                    zRender.off('mousemove', showTooltipOnAxisHover);
+                    eCharts.off('mouseover', onMouseOver);
+                    eCharts.off('mouseout', onMouseOut);
+                    zRender.off('mousemove', onMouseMove);
+                    zRender.off('globalout', controller.leave);
                 }
             };
-        }, [chartRef, eChartsOptions]);
+        }, [chartRef, resolvedEChartsOptions, itemsMap, resolvedTimezone]);
 
         // Memoize onEvents to prevent echarts-for-react from disposing and
         // re-creating the entire ECharts instance on every render. The library
@@ -643,16 +495,9 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             () => ({
                 contextmenu: onChartContextMenu,
                 click: onChartContextMenu,
-                mouseover: handleOnMouseOver,
-                mouseout: handleOnMouseOut,
                 legendselectchanged: onLegendChange,
             }),
-            [
-                onChartContextMenu,
-                handleOnMouseOver,
-                handleOnMouseOut,
-                onLegendChange,
-            ],
+            [onChartContextMenu, onLegendChange],
         );
 
         if (resultsData?.error) return <EmptyChart />;

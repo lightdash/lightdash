@@ -175,12 +175,29 @@
     margin-left: auto;
 }
 
-.queueHint {
-    white-space: nowrap;
+.connectionName {
+    max-width: 140px;
 }
 
 @media (prefers-reduced-motion: reduce) {
     .stackRow {
         transition: none;
     }
+}
+
+.composer :global(.ProseMirror) {
+    padding: 0;
+}
+
+.contextTray {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.contextTray > * {
+    flex-shrink: 0;
 }

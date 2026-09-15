@@ -66,6 +66,9 @@ export const AiGeneralSettingsPage = () => {
         useUpdateAiOrganizationSettings();
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppAnalysisFlag = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppAnalysis,
+    );
     const threadRetentionFlag = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
     );
@@ -142,6 +145,13 @@ export const AiGeneralSettingsPage = () => {
                     <AiSurfacesCard
                         aiAgentsVisible={settings.aiAgentsVisible}
                         mcpAgentsEnabled={settings.mcpAgentsEnabled}
+                        showDataAppRuntimeAi={
+                            dataAppsFlag.data?.enabled === true &&
+                            dataAppAnalysisFlag.data?.enabled === true
+                        }
+                        dataAppRuntimeAiEnabled={
+                            settings.dataAppRuntimeAiEnabled ?? false
+                        }
                         slackInstallation={slackInstallation}
                         slackAgentsEnabled={slackAgentsEnabled}
                         isTrial={settings.isTrial}
@@ -152,6 +162,11 @@ export const AiGeneralSettingsPage = () => {
                         }
                         onUpdateMcpAgentsEnabled={(checked) =>
                             updateSettings({ mcpAgentsEnabled: checked })
+                        }
+                        onUpdateDataAppRuntimeAiEnabled={(checked) =>
+                            updateSettings({
+                                dataAppRuntimeAiEnabled: checked,
+                            })
                         }
                         onUpdateSlackAgentsEnabled={handleSlackAgentsToggle}
                     />

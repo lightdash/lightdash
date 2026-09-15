@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "2.217.2",
+    "version": "2.226.0",
     "private": true,
     "license": "MIT",
     "main": "dist/index",
@@ -71,6 +71,7 @@
         "@cubejs-client/core": "0.35.23",
         "@duckdb/node-api": "1.5.2-r.2",
         "@godaddy/terminus": "4.12.0",
+        "@google-cloud/storage": "8.1.0",
         "@langchain/core": "0.3.80",
         "@langchain/openai": "0.4.2",
         "@lightdash/common": "workspace:*",
@@ -105,6 +106,7 @@
         "@slack/bolt": "3.22.0",
         "@slack/oauth": "3.0.4",
         "@slack/web-api": "6.13.0",
+        "@smithy/protocol-http": "5.3.10",
         "@tsoa/runtime": "6.6.0",
         "@types/async": "3.2.16",
         "@types/sshpk": "1.17.1",

@@ -401,7 +401,9 @@ const MantineModal: React.FC<MantineModalProps> = ({
                         modalContentProps?.className,
                         mobileFullScreen
                             ? classes.mobileContent
-                            : fullScreen && classes.fullScreenContent,
+                            : fullScreen
+                              ? classes.fullScreenContent
+                              : classes.content,
                     )}
                 >
                     <Modal.Header

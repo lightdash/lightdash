@@ -15,7 +15,12 @@ import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryC
 import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
+import { EventName } from '../types/Events';
 import ChartTypeGallery from './ChartTypeGallery';
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../providers/Tracking/useTracking', () => ({
+    default: () => ({ track }),
+}));
 
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
@@ -289,7 +294,7 @@ describe('ChartTypeGallery', () => {
             name: 'Installed charts (1)',
         });
         const libraryTab = screen.getByRole('tab', {
-            name: 'Chart library',
+            name: 'Chart library Beta',
         });
 
         expect(chartTypesTab).toHaveAttribute('aria-selected', 'true');
@@ -316,7 +321,7 @@ describe('ChartTypeGallery', () => {
         renderPage('/projects/project-1/gallery?tab=chart-library');
 
         expect(
-            screen.getByRole('tab', { name: 'Chart library' }),
+            screen.getByRole('tab', { name: 'Chart library Beta' }),
         ).toHaveAttribute('aria-selected', 'true');
         expect(
             screen.queryByRole('button', { name: 'Radial gauge' }),
@@ -329,7 +334,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(
-            screen.queryByRole('tab', { name: 'Chart library' }),
+            screen.queryByRole('tab', { name: /Chart library/ }),
         ).not.toBeInTheDocument();
     });
 
@@ -534,7 +539,7 @@ describe('ChartTypeGallery', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('dismisses the preview before the chart details with Escape', async () => {
+    it('replaces details with the table picker and dismisses all dialogs on Escape', async () => {
         const user = userEvent.setup();
         setData([makeDataAppViz({})]);
         renderPage();
@@ -551,7 +556,10 @@ describe('ChartTypeGallery', () => {
         expect(screen.getByRole('listbox')).toBeVisible();
         await user.keyboard('{Escape}');
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-        expect(screen.getAllByRole('dialog')).toHaveLength(2);
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(
+            screen.queryByRole('dialog', { name: 'Radial gauge' }),
+        ).not.toBeInTheDocument();
 
         await user.tab();
         expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
@@ -560,16 +568,32 @@ describe('ChartTypeGallery', () => {
         expect(
             screen.queryByRole('dialog', { name: 'Preview in explorer' }),
         ).not.toBeInTheDocument();
-        const details = screen.getByRole('dialog', { name: 'Radial gauge' });
-        await waitFor(() =>
-            expect(
-                within(details).getByRole('button', { name: 'Close' }),
-            ).toHaveFocus(),
-        );
-        await user.keyboard('{Escape}');
-
+        expect(
+            track.mock.calls.filter(
+                ([event]) => event.name === EventName.CHART_TYPE_DETAIL_VIEWED,
+            ),
+        ).toHaveLength(1);
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
+
+    it.each(['Cancel', 'Close'])(
+        'dismisses the table picker with %s without reopening details',
+        async (action) => {
+            const user = userEvent.setup();
+            setData([makeDataAppViz({})]);
+            renderPage();
+            await user.click(screen.getByText('Radial gauge'));
+            await user.click(
+                screen.getByRole('button', { name: 'Preview in explorer' }),
+            );
+            await user.click(
+                within(
+                    screen.getByRole('dialog', { name: 'Preview in explorer' }),
+                ).getByRole('button', { name: action }),
+            );
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        },
+    );
 
     it('previews in the explorer with the chosen table and config open', () => {
         setData([makeDataAppViz({})]);

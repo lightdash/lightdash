@@ -15,6 +15,7 @@ import Logger from '../../../logging/logger';
 import type { AiModel, AiProvider } from '../ai/models/types';
 import { AgentContext } from '../ai/utils/AgentContext';
 import type { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
+import { AutopilotRunError } from './autopilotFailure';
 import type { RenderedAutopilotAgent } from './config/agent';
 import { buildAutopilotTools, type ExecuteAutopilotTool } from './config/tools';
 
@@ -22,11 +23,21 @@ export type AutopilotStopReason = 'end_turn' | 'step_cap' | 'timeout' | 'error';
 
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
 
+// A checklist tool result the report writer can cite.
+export type AutopilotToolEvidence = {
+    toolName: string;
+    input: unknown;
+    output: unknown;
+};
+
 export type AutopilotAgentRunResult = {
     slackSummary: string | null;
+    evidence: AutopilotToolEvidence[];
     stepCount: number;
     stopReason: AutopilotStopReason;
     error: string | null;
+    // What stopped the run, for failure reporting; null when it finished.
+    cause: Error | null;
 };
 
 export type RunAutopilotAgentArgs = {
@@ -66,6 +77,7 @@ export const runAutopilotAgent = async ({
     onStepFinish,
 }: RunAutopilotAgentArgs): Promise<AutopilotAgentRunResult> => {
     let slackSummary: string | null = null;
+    const evidence: AutopilotToolEvidence[] = [];
     let stepCount = 0;
     const controller = new AbortController();
     const timer = setTimeout(
@@ -73,12 +85,17 @@ export const runAutopilotAgent = async ({
         timeoutMs,
     );
     const { signal: abortSignal } = controller;
-    const timeoutResult = (): AutopilotAgentRunResult => ({
-        slackSummary,
-        stepCount,
-        stopReason: 'timeout',
-        error: `Autopilot timed out after ${Math.round(timeoutMs / 1000)} seconds at step ${stepCount}`,
-    });
+    const timeoutResult = (): AutopilotAgentRunResult => {
+        const error = `Autopilot timed out after ${Math.round(timeoutMs / 1000)} seconds at step ${stepCount}`;
+        return {
+            slackSummary,
+            evidence,
+            stepCount,
+            stopReason: 'timeout',
+            error,
+            cause: new AutopilotRunError('AutopilotTimeoutError', error),
+        };
+    };
     const tools: ToolSet = {
         ...dataTools,
         ...buildAutopilotTools({
@@ -116,6 +133,15 @@ export const runAutopilotAgent = async ({
                 step.toolCalls.forEach((toolCall) => {
                     Logger.info(`[Autopilot] Tool call: ${toolCall.toolName}`);
                 });
+                step.toolResults.forEach((toolResult) => {
+                    if (toolResult.toolName.startsWith('get_')) {
+                        evidence.push({
+                            toolName: toolResult.toolName,
+                            input: toolResult.input,
+                            output: toolResult.output,
+                        });
+                    }
+                });
             },
         });
 
@@ -124,16 +150,23 @@ export const runAutopilotAgent = async ({
             case 'stop':
                 return {
                     slackSummary,
+                    evidence,
                     stepCount,
                     stopReason: 'end_turn',
                     error: null,
+                    cause: null,
                 };
             case 'tool-calls':
                 return {
                     slackSummary,
+                    evidence,
                     stepCount,
                     stopReason: 'step_cap',
                     error: `Autopilot stopped after ${stepCount} steps before finishing its checklist`,
+                    cause: new AutopilotRunError(
+                        'AutopilotStepCapError',
+                        `Autopilot stopped after ${stepCount} steps before finishing its checklist`,
+                    ),
                 };
             case 'length':
             case 'content-filter':
@@ -141,9 +174,14 @@ export const runAutopilotAgent = async ({
             case 'other':
                 return {
                     slackSummary,
+                    evidence,
                     stepCount,
                     stopReason: 'error',
                     error: `Autopilot did not finish its checklist (provider finish reason: ${result.finishReason})`,
+                    cause: new AutopilotRunError(
+                        'AutopilotFinishReasonError',
+                        `Autopilot did not finish its checklist (provider finish reason: ${result.finishReason})`,
+                    ),
                 };
             default:
                 return assertUnreachable(
@@ -155,12 +193,17 @@ export const runAutopilotAgent = async ({
         if (abortSignal.aborted) return timeoutResult();
         return {
             slackSummary,
+            evidence,
             stepCount,
             stopReason: 'error',
             error:
                 error instanceof Error
                     ? error.message
                     : 'Unknown provider error',
+            cause:
+                error instanceof Error
+                    ? error
+                    : new Error('Unknown provider error'),
         };
     } finally {
         clearTimeout(timer);

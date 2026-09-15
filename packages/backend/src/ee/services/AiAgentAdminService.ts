@@ -93,6 +93,13 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import { createAuditLogEvent } from '../../logging/auditLog';
 import { createActorFromUser } from '../../logging/caslAuditWrapper';
+import {
+    newExploreCacheReadContext,
+    safeGetCachedExploreStorageBytes,
+    summarizeExploreCacheRead,
+    type ExploreCacheReadContext,
+} from '../../logging/exploreCacheReadMetrics';
+import { measureTime } from '../../logging/measureTime';
 import { logAuditEvent } from '../../logging/winston';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { type GitlabAppInstallationsModel } from '../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
@@ -2429,9 +2436,34 @@ export class AiAgentAdminService extends BaseService {
         // Build-fix thread with the writeback prompt so the workspace can show
         // it the moment Create PR is clicked; project_context stays a
         // deterministic, threadless writeback.
-        const explores = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
+        const planWritebackReadContext: ExploreCacheReadContext & {
+            trigger: 'plan';
+        } = {
+            ...newExploreCacheReadContext('review-writeback', undefined),
+            trigger: 'plan',
+        };
+        const { result: explores } = await measureTime(
+            async () => {
+                const [cachedExplores, storedExploreBytes] = await Promise.all([
+                    this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                    ),
+                    safeGetCachedExploreStorageBytes(() =>
+                        this.projectModel.getCachedExploreStorageBytes(
+                            projectUuid,
+                        ),
+                    ),
+                ]);
+                Object.assign(planWritebackReadContext, {
+                    ...summarizeExploreCacheRead(cachedExplores),
+                    storedExploreBytes,
+                });
+                return cachedExplores;
+            },
+            'AiAgentAdminService.reviewWriteback.cachedExploreRead',
+            this.logger,
+            planWritebackReadContext,
         );
         const plan = planReviewWriteback(
             reviewItem,
@@ -2737,9 +2769,35 @@ export class AiAgentAdminService extends BaseService {
             const user = await this.userModel.findSessionUserByUUID(userUuid);
             await setProgress('Starting writeback…');
 
-            const explores = await this.projectModel.findExploresFromCache(
-                projectUuid,
-                'name',
+            const runWritebackReadContext: ExploreCacheReadContext & {
+                trigger: 'run';
+            } = {
+                ...newExploreCacheReadContext('review-writeback', undefined),
+                trigger: 'run',
+            };
+            const { result: explores } = await measureTime(
+                async () => {
+                    const [cachedExplores, storedExploreBytes] =
+                        await Promise.all([
+                            this.projectModel.findExploresFromCache(
+                                projectUuid,
+                                'name',
+                            ),
+                            safeGetCachedExploreStorageBytes(() =>
+                                this.projectModel.getCachedExploreStorageBytes(
+                                    projectUuid,
+                                ),
+                            ),
+                        ]);
+                    Object.assign(runWritebackReadContext, {
+                        ...summarizeExploreCacheRead(cachedExplores),
+                        storedExploreBytes,
+                    });
+                    return cachedExplores;
+                },
+                'AiAgentAdminService.reviewWriteback.cachedExploreRead',
+                this.logger,
+                runWritebackReadContext,
             );
             const plan = planReviewWriteback(
                 reviewItem,

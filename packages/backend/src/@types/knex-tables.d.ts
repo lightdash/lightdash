@@ -554,6 +554,10 @@ import {
     AiRouterTableName,
 } from '../ee/database/entities/aiRouter';
 import {
+    DataAppAnalysesTable,
+    DataAppAnalysesTableName,
+} from '../ee/database/entities/dataAppAnalyses';
+import {
     AppExternalConnectionsTable,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTable,
@@ -809,6 +813,7 @@ declare module 'knex/types/tables' {
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;
         [ScimRequestLogsTableName]: ScimRequestLogTable;
+        [DataAppAnalysesTableName]: DataAppAnalysesTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [MetricsTreeLocksTableName]: MetricsTreeLocksTable;
         [MetricsTreesTableName]: MetricsTreesTable;

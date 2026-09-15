@@ -325,6 +325,11 @@ const getResultsPage = async (
     });
 };
 
+// Headless renders poll many tiles at once, so poll them less often
+const isHeadlessBrowser = () => navigator.userAgent.includes('HeadlessChrome');
+const getInitialBackoffMs = () => (isHeadlessBrowser() ? 1000 : 250);
+const getMaxBackoffMs = () => (isHeadlessBrowser() ? 5000 : 1000);
+
 export type InfiniteQueryResults = Partial<
     Pick<
         ReadyQueryResultsPage,
@@ -429,8 +434,7 @@ export const useInfiniteQueryResults = (
 
     const queryClient = useQueryClient();
 
-    // Initial backoff time in ms
-    const backoffRef = useRef(250);
+    const backoffRef = useRef(getInitialBackoffMs());
 
     const nextPage = useQuery<
         ApiGetAsyncQueryResults & { clientFetchTimeMs: number },
@@ -454,11 +458,11 @@ export const useInfiniteQueryResults = (
             switch (status) {
                 case QueryHistoryStatus.ERROR:
                 case QueryHistoryStatus.EXPIRED: {
-                    backoffRef.current = 250;
+                    backoffRef.current = getInitialBackoffMs();
                     throw getAsyncQueryError(results.error);
                 }
                 case QueryHistoryStatus.CANCELLED: {
-                    backoffRef.current = 250;
+                    backoffRef.current = getInitialBackoffMs();
                     throw <ApiError>{
                         status: 'error',
                         error: {
@@ -479,11 +483,12 @@ export const useInfiniteQueryResults = (
                             fetchArgs,
                         ]),
                     );
-                    // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
-                    if (backoffRef.current < 1000) {
+                    // Double the backoff until it reaches the cap
+                    const maxBackoffMs = getMaxBackoffMs();
+                    if (backoffRef.current < maxBackoffMs) {
                         backoffRef.current = Math.min(
                             backoffRef.current * 2,
-                            1000,
+                            maxBackoffMs,
                         );
                     }
                     return {
@@ -492,7 +497,7 @@ export const useInfiniteQueryResults = (
                     };
                 }
                 case QueryHistoryStatus.READY: {
-                    backoffRef.current = 250;
+                    backoffRef.current = getInitialBackoffMs();
                     return {
                         ...results,
                         clientFetchTimeMs,
@@ -540,6 +545,7 @@ export const useInfiniteQueryResults = (
         if (hasQueryUuidChanged || hasProjectUuidChanged) {
             // Reset fetched pages before updating the fetch args
             setFetchedPages([]);
+            backoffRef.current = getInitialBackoffMs();
             // Reset fetchAll before updating the fetch args
             setFetchAll(false);
             setFetchArgs({

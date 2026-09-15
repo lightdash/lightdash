@@ -1,6 +1,11 @@
 import type { S3ClientConfig } from '@aws-sdk/client-s3';
 import Logger from '../../logging/logger';
-import { S3BaseClient, S3BaseConfiguration } from './S3BaseClient';
+import { GcsUrlSigner, S3PresignerUrlSigner } from './ObjectUrlSigner';
+import {
+    buildS3ClientConfig,
+    S3BaseClient,
+    S3BaseConfiguration,
+} from './S3BaseClient';
 
 // Mocks
 vi.mock('../../logging/logger', () => ({
@@ -21,7 +26,12 @@ const s3Mocks = vi.hoisted(() => {
         capturedProviders: undefined,
     };
     const mockS3Constructor = vi.fn();
+    const mockMiddlewareAdd = vi.fn();
     class FakeS3 {
+        // applyGcpOAuth adds the bearer token as a middleware, so this fake
+        // client needs a middleware stack to receive it
+        middlewareStack = { add: mockMiddlewareAdd };
+
         constructor(config: S3ClientConfig) {
             mockS3Constructor(config);
         }
@@ -40,6 +50,7 @@ const s3Mocks = vi.hoisted(() => {
             __type: 'instance_metadata',
         })),
         mockS3Constructor,
+        mockMiddlewareAdd,
         FakeS3,
     };
 });
@@ -59,6 +70,8 @@ vi.mock('@aws-sdk/credential-providers', () => ({
 
 vi.mock('@aws-sdk/client-s3', () => ({
     S3: s3Mocks.FakeS3,
+    S3Client: s3Mocks.FakeS3,
+    GetObjectCommand: class {},
 }));
 
 // Helper to access protected s3 instance
@@ -73,6 +86,12 @@ class TestableS3Client extends S3BaseClient {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         return this.s3;
+    }
+
+    public getUrlSigner() {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        return this.urlSigner;
     }
 }
 
@@ -212,6 +231,93 @@ describe('S3BaseClient', () => {
         expect(passedConfig.credentials).toBeUndefined();
         // No providers should have been captured since none were valid
         expect(s3Mocks.state.capturedProviders).toBeUndefined();
+    });
+
+    describe('gcp_oauth auth mode', () => {
+        const gcpConfig = {
+            ...baseConfig,
+            endpoint: 'https://storage.googleapis.com',
+            region: 'auto',
+            authMode: 'gcp_oauth',
+        } as const;
+
+        it('replaces SigV4 signing with placeholder credentials and a no-op signer', async () => {
+            const clientConfig = buildS3ClientConfig(gcpConfig);
+
+            // The SDK resolves an identity even though it never signs, and
+            // throws while searching for AWS credentials if none is set
+            expect(clientConfig.credentials).toEqual({
+                accessKeyId: 'gcp-oauth',
+                secretAccessKey: 'gcp-oauth',
+            });
+            // A signer that returns the request unchanged stops SigV4
+            expect(clientConfig.signer).toBeDefined();
+            const request = { headers: {} };
+            await expect(
+                (
+                    clientConfig.signer as {
+                        sign: (r: unknown) => Promise<unknown>;
+                    }
+                ).sign(request),
+            ).resolves.toBe(request);
+            // GCS accepts the SDK's checksum headers and then ignores them
+            expect(clientConfig.requestChecksumCalculation).toEqual(
+                'WHEN_REQUIRED',
+            );
+            expect(clientConfig.responseChecksumValidation).toEqual(
+                'WHEN_REQUIRED',
+            );
+        });
+
+        it('adds the bearer token middleware to the client it builds', () => {
+            const client = new TestableS3Client(gcpConfig);
+
+            expect(client.getS3()).toBeInstanceOf(s3Mocks.FakeS3);
+            expect(s3Mocks.mockMiddlewareAdd).toHaveBeenCalledTimes(1);
+            expect(s3Mocks.mockMiddlewareAdd.mock.calls[0][1]).toEqual({
+                step: 'finalizeRequest',
+                name: 'gcpOAuthBearer',
+                priority: 'low',
+            });
+        });
+
+        it('does not add the bearer token middleware in default mode', () => {
+            const client = new TestableS3Client(baseConfig);
+
+            expect(client.getS3()).toBeInstanceOf(s3Mocks.FakeS3);
+            expect(s3Mocks.mockMiddlewareAdd).not.toHaveBeenCalled();
+        });
+
+        it('warns but keeps the mode when access key credentials are also set', () => {
+            const clientConfig = buildS3ClientConfig({
+                ...gcpConfig,
+                accessKey: 'AKIA',
+                secretKey: 'SECRET',
+            });
+
+            expect(clientConfig.credentials).toEqual({
+                accessKeyId: 'gcp-oauth',
+                secretAccessKey: 'gcp-oauth',
+            });
+            expect(Logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('S3_AUTH_MODE is gcp_oauth'),
+            );
+        });
+
+        it('selects the url signer that matches the auth mode', () => {
+            expect(
+                new TestableS3Client(gcpConfig).getUrlSigner(),
+            ).toBeInstanceOf(GcsUrlSigner);
+            expect(
+                new TestableS3Client(baseConfig).getUrlSigner(),
+            ).toBeInstanceOf(S3PresignerUrlSigner);
+            expect(
+                new TestableS3Client({
+                    ...baseConfig,
+                    authMode: 'default',
+                }).getUrlSigner(),
+            ).toBeInstanceOf(S3PresignerUrlSigner);
+        });
     });
 
     it('does not set credentials when useCredentialsFrom is undefined or empty', () => {

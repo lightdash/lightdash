@@ -1,5 +1,8 @@
 import { GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { DuckDBInstance } from '@duckdb/node-api';
+import { ParameterError } from '@lightdash/common';
+import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { createS3AnalyticsSourceResolver } from './S3AnalyticsSource';
 
@@ -7,6 +10,10 @@ vi.mock('../../../clients/Aws/S3BaseClient', () => ({
     createS3ClientFromConfig: vi.fn(),
 }));
 vi.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl: vi.fn() }));
+vi.mock('@duckdb/node-api', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@duckdb/node-api')>()),
+    DuckDBInstance: { create: vi.fn() },
+}));
 
 describe('signed analytics file manifests', () => {
     const org = '00000000-0000-0000-0000-000000000001';
@@ -25,6 +32,16 @@ describe('signed analytics file manifests', () => {
         `${prefix}stream=${stream}/dt=${date}/part-1.parquet`;
     const send = vi.fn();
     const destroy = vi.fn();
+    const noDataMessage =
+        'No analytics data is available yet. Newly captured events become available after daily processing. Try again after the next daily update.';
+    const connection = { run: vi.fn(), closeSync: vi.fn() };
+    const closeInstance = vi.fn();
+
+    const testConnection = () =>
+        new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: createS3AnalyticsSourceResolver(config),
+        }).test();
 
     beforeEach(() => {
         vi.resetAllMocks();
@@ -34,6 +51,10 @@ describe('signed analytics file manifests', () => {
         } as unknown as ReturnType<typeof createS3ClientFromConfig>);
         send.mockResolvedValue({ Contents: [{ Key: key() }] });
         vi.mocked(getSignedUrl).mockResolvedValue('signed-url');
+        vi.mocked(DuckDBInstance.create).mockResolvedValue({
+            connect: async () => connection,
+            closeSync: closeInstance,
+        } as unknown as Awaited<ReturnType<typeof DuckDBInstance.create>>);
     });
 
     it('uses writer config only for prefix listing and signing exact GETs', async () => {
@@ -134,10 +155,8 @@ describe('signed analytics file manifests', () => {
 
     it.each([
         { Contents: [{ Key: 'events/compacted/org_id=other/file.parquet' }] },
-        { Contents: [] },
-        { Contents: [{ Key: `${prefix}../other/part.parquet` }] },
         { Contents: [], IsTruncated: true },
-    ])('fails closed on invalid or empty manifests', async (response) => {
+    ])('fails closed on invalid or incomplete manifests', async (response) => {
         send.mockResolvedValue(response);
         await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
             'Analytics storage access failed',
@@ -145,6 +164,60 @@ describe('signed analytics file manifests', () => {
         expect(getSignedUrl).not.toHaveBeenCalled();
         expect(destroy).toHaveBeenCalledOnce();
     });
+
+    it.each([
+        { Contents: [], IsTruncated: false },
+        { IsTruncated: false },
+        { Contents: [{ Key: key('other') }] },
+        { Contents: [{ Key: `${prefix}../other/part.parquet` }] },
+    ])(
+        'explains missing data through the project connection test',
+        async (response) => {
+            send.mockResolvedValue(response);
+            await expect(testConnection()).rejects.toEqual(
+                new ParameterError(noDataMessage),
+            );
+            expect(getSignedUrl).not.toHaveBeenCalled();
+            expect(destroy).toHaveBeenCalledOnce();
+            expect(connection.closeSync).toHaveBeenCalledOnce();
+            expect(closeInstance).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('waits for all listing pages before reporting no data', async () => {
+        send.mockResolvedValueOnce({
+            Contents: [],
+            IsTruncated: true,
+            NextContinuationToken: 'next',
+        }).mockResolvedValueOnce({ Contents: [], IsTruncated: false });
+        await expect(testConnection()).rejects.toEqual(
+            new ParameterError(noDataMessage),
+        );
+        expect(send).toHaveBeenCalledTimes(2);
+        expect(send.mock.calls[1][0].input.ContinuationToken).toBe('next');
+    });
+
+    it.each(['storage failure', 'incomplete pagination', 'later page failure'])(
+        'keeps %s sanitized through the project connection test',
+        async (failure) => {
+            if (failure === 'storage failure') {
+                send.mockRejectedValue(new ParameterError('writer-secret'));
+            } else if (failure === 'incomplete pagination') {
+                send.mockResolvedValue({ Contents: [], IsTruncated: true });
+            } else {
+                send.mockResolvedValueOnce({
+                    Contents: [],
+                    IsTruncated: true,
+                    NextContinuationToken: 'next',
+                }).mockRejectedValueOnce(new Error('writer-secret'));
+            }
+            await expect(testConnection()).rejects.toThrow(
+                /^Internal analytics query failed\. Check storage access and query permissions\.$/,
+            );
+            expect(getSignedUrl).not.toHaveBeenCalled();
+            expect(destroy).toHaveBeenCalledOnce();
+        },
+    );
 
     it('sanitizes SDK errors without falling back to bucket credentials', async () => {
         send.mockRejectedValue(

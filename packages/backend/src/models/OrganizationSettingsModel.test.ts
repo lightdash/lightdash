@@ -45,6 +45,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
                 semanticLayerPgwireEnabled: null,
+                inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
@@ -70,6 +71,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
                 semanticLayerPgwireEnabled: null,
+                inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
@@ -92,6 +94,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: true,
                 semanticLayerPgwireEnabled: null,
+                inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
@@ -116,6 +119,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
                 semanticLayerPgwireEnabled: null,
+                inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: 604800,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: 1209600,
@@ -139,6 +143,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
                 semanticLayerPgwireEnabled: null,
+                inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
@@ -218,6 +223,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: false,
                 supportImpersonationEnabled: null,
                 semanticLayerPgwireEnabled: null,
+                inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
@@ -270,6 +276,24 @@ describe('OrganizationSettingsModel', () => {
             expect(captured.merge).toHaveProperty(
                 'support_impersonation_enabled',
                 true,
+            );
+            expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');
+        });
+
+        test('writes the invite link expiration column when provided', async () => {
+            const { model, captured } = createModel({
+                invite_link_expiration_days: 7,
+            });
+
+            await model.update(ORG, { inviteLinkExpirationDays: 7 });
+
+            expect(captured.insert).toEqual({
+                organization_uuid: ORG,
+                invite_link_expiration_days: 7,
+            });
+            expect(captured.merge).toHaveProperty(
+                'invite_link_expiration_days',
+                7,
             );
             expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');
         });
@@ -336,6 +360,9 @@ describe('OrganizationSettingsModel', () => {
             );
             expect(captured.merge).not.toHaveProperty(
                 'support_impersonation_enabled',
+            );
+            expect(captured.merge).not.toHaveProperty(
+                'invite_link_expiration_days',
             );
             expect(captured.merge).not.toHaveProperty(
                 'scheduled_delivery_expiration_seconds',

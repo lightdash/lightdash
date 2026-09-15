@@ -132,9 +132,7 @@ function decodeEscaped(value: string): string {
                 return String.fromCodePoint(Number.parseInt(codePoint, 16));
             }
             if (unicode !== undefined || hex !== undefined) {
-                return String.fromCharCode(
-                    Number.parseInt(unicode ?? hex, 16),
-                );
+                return String.fromCharCode(Number.parseInt(unicode ?? hex, 16));
             }
             return escaped === undefined
                 ? ''
@@ -367,12 +365,20 @@ function literalDefault(
 ): DefaultValue | null {
     const token = tokens[operatorIndex + 1];
     if (token === undefined) return null;
+    // A null fallback is the same as having no default.
     if (
-        ['string', 'template', 'number'].includes(token.kind) ||
-        (token.kind === 'identifier' &&
-            ['true', 'false', 'null'].includes(token.value))
+        ['string', 'template'].includes(token.kind) ||
+        (token.kind === 'identifier' && ['true', 'false'].includes(token.value))
     ) {
         return { start: token.start, end: token.end, value: token.value };
+    }
+    // Numeric separators are formatting: 600_000 and 600000 are one default.
+    if (token.kind === 'number') {
+        return {
+            start: token.start,
+            end: token.end,
+            value: token.value.replace(/_/g, ''),
+        };
     }
     const operand = tokens[operatorIndex + 2];
     if (
@@ -383,7 +389,7 @@ function literalDefault(
         return {
             start: token.start,
             end: operand.end,
-            value: `${token.value}${operand.value}`,
+            value: `${token.value}${operand.value.replace(/_/g, '')}`,
         };
     }
     return null;
@@ -400,10 +406,7 @@ function findDefault(
         index += 1
     ) {
         const token = tokens[index];
-        if (
-            token.kind === 'operator' &&
-            ['??', '||'].includes(token.value)
-        ) {
+        if (token.kind === 'operator' && ['??', '||'].includes(token.value)) {
             return literalDefault(tokens, index);
         }
         if (
@@ -417,6 +420,25 @@ function findDefault(
         }
     }
     return null;
+}
+
+// Helpers such as getPositiveIntegerFromEnvironmentVariable(name, 600_000)
+// take the default as the argument after the name.
+function helperArgumentDefault(
+    tokens: Token[],
+    nameIndex: number,
+): DefaultValue | null {
+    if (!isToken(tokens[nameIndex + 1], 'punctuation', ',')) return null;
+    const value = literalDefault(tokens, nameIndex + 1);
+    if (value === null) return null;
+    const next = tokens.find(
+        (token, index) => index > nameIndex + 1 && token.start >= value.end,
+    );
+    return next !== undefined &&
+        next.kind === 'punctuation' &&
+        [',', ')'].includes(next.value)
+        ? value
+        : null;
 }
 
 function findOwnerRange(tokens: Token[], referenceIndex: number): SourceRange {
@@ -463,7 +485,11 @@ function findOwnerRange(tokens: Token[], referenceIndex: number): SourceRange {
     }
     if (propertyColonIndex > boundaryIndex && declarationIndex < 0) {
         let endIndex = tokens.length;
-        for (let index = referenceIndex + 1; index < tokens.length; index += 1) {
+        for (
+            let index = referenceIndex + 1;
+            index < tokens.length;
+            index += 1
+        ) {
             const token = tokens[index];
             if (
                 token.kind === 'punctuation' &&
@@ -509,6 +535,7 @@ function collectUsages(source: string): Usage[] {
         nameIndex: number;
         startIndex: number;
         endIndex: number;
+        argumentDefault: DefaultValue | null;
     }> = [];
 
     for (let index = 0; index < tokens.length; index += 1) {
@@ -530,6 +557,7 @@ function collectUsages(source: string): Usage[] {
                     nameIndex: index + 4,
                     startIndex: index,
                     endIndex: index + 4,
+                    argumentDefault: null,
                 });
             } else if (
                 isToken(separator, 'punctuation', '[') &&
@@ -541,6 +569,7 @@ function collectUsages(source: string): Usage[] {
                     nameIndex: index + 4,
                     startIndex: index,
                     endIndex: index + 5,
+                    argumentDefault: null,
                 });
             }
         }
@@ -557,6 +586,7 @@ function collectUsages(source: string): Usage[] {
                     nameIndex: index + 2,
                     startIndex: index,
                     endIndex: index + 2,
+                    argumentDefault: helperArgumentDefault(tokens, index + 2),
                 });
             }
         }
@@ -568,7 +598,9 @@ function collectUsages(source: string): Usage[] {
             name: reference.name,
             nameRange: { start: nameToken.start, end: nameToken.end },
             ownerRange: findOwnerRange(tokens, reference.startIndex),
-            defaultValue: findDefault(tokens, reference.endIndex),
+            defaultValue:
+                reference.argumentDefault ??
+                findDefault(tokens, reference.endIndex),
         };
     });
 }
@@ -614,9 +646,7 @@ function combinedDefault(usages: Usage[]): string | null {
     const values = [
         ...new Set(
             usages.flatMap((usage) =>
-                usage.defaultValue === null
-                    ? []
-                    : [usage.defaultValue.value],
+                usage.defaultValue === null ? [] : [usage.defaultValue.value],
             ),
         ),
     ].sort();
@@ -640,7 +670,10 @@ export function extractConfigSurface(
     files: Record<string, string>,
 ): ExtractedConfigSurface {
     const parsedFiles = extractParsedFiles(files);
-    const byName = new Map<string, { defaults: Usage[]; signatures: string[] }>();
+    const byName = new Map<
+        string,
+        { defaults: Usage[]; signatures: string[] }
+    >();
 
     for (const parsedFile of parsedFiles) {
         for (const usage of parsedFile.usages) {
@@ -743,7 +776,9 @@ export function diffConfigSurfaces(
         const nameOrder = changeSortName(left).localeCompare(
             changeSortName(right),
         );
-        return nameOrder === 0 ? left.type.localeCompare(right.type) : nameOrder;
+        return nameOrder === 0
+            ? left.type.localeCompare(right.type)
+            : nameOrder;
     });
     return { checked: true, breaking: changes.length > 0, changes };
 }

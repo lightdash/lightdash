@@ -10,6 +10,7 @@ import {
     Title,
 } from '@mantine/core';
 import {
+    IconApps,
     IconBrandSlack,
     IconLayoutDashboard,
     IconPlugConnected,
@@ -48,6 +49,9 @@ const SurfaceRow: FC<{
 type AiSurfacesCardProps = {
     aiAgentsVisible: boolean;
     mcpAgentsEnabled: boolean;
+    // Rolled out per org by feature flag; hidden until then.
+    showDataAppRuntimeAi: boolean;
+    dataAppRuntimeAiEnabled: boolean;
     slackInstallation: SlackSettings | undefined;
     slackAgentsEnabled: boolean;
     isTrial: boolean;
@@ -55,12 +59,15 @@ type AiSurfacesCardProps = {
     isUpdatingSlack: boolean;
     onUpdateAiAgentsVisible: (checked: boolean) => void;
     onUpdateMcpAgentsEnabled: (checked: boolean) => void;
+    onUpdateDataAppRuntimeAiEnabled: (checked: boolean) => void;
     onUpdateSlackAgentsEnabled: (checked: boolean) => void;
 };
 
 export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     aiAgentsVisible,
     mcpAgentsEnabled,
+    showDataAppRuntimeAi,
+    dataAppRuntimeAiEnabled,
     slackInstallation,
     slackAgentsEnabled,
     isTrial,
@@ -68,6 +75,7 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     isUpdatingSlack,
     onUpdateAiAgentsVisible,
     onUpdateMcpAgentsEnabled,
+    onUpdateDataAppRuntimeAiEnabled,
     onUpdateSlackAgentsEnabled,
 }) => {
     const hasSlack = !!slackInstallation?.organizationUuid;
@@ -114,6 +122,19 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                     disabled={disabled}
                     onChange={onUpdateMcpAgentsEnabled}
                 />
+                {showDataAppRuntimeAi && (
+                    <>
+                        <Divider />
+                        <SurfaceRow
+                            icon={IconApps}
+                            name="Data apps"
+                            description="Runtime analysis inside data apps. Sends query results a viewer already has access to, to your configured AI provider."
+                            checked={dataAppRuntimeAiEnabled}
+                            disabled={disabled}
+                            onChange={onUpdateDataAppRuntimeAiEnabled}
+                        />
+                    </>
+                )}
                 <Divider />
                 <SurfaceRow
                     icon={IconBrandSlack}

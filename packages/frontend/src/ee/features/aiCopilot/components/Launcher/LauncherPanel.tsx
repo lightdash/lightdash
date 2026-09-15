@@ -69,6 +69,7 @@ import {
     isLauncherAutoAgent,
     type LauncherSelectedAgent,
 } from './launcherAgentSelection';
+import { LauncherPanelFrame } from './LauncherPanelFrame';
 import { PanelHeader } from './PanelHeader';
 import {
     useAiAgentLauncherRouter,
@@ -93,7 +94,7 @@ export const LauncherPanel: FC<Props> = ({
 }) => {
     if (!agent) {
         return (
-            <div className={styles.panel} style={style}>
+            <LauncherPanelFrame style={style}>
                 <PanelHeader
                     projectUuid={projectUuid}
                     agent={null}
@@ -104,7 +105,7 @@ export const LauncherPanel: FC<Props> = ({
                 <Center className={styles.panelBody}>
                     <Loader size="sm" color="gray" />
                 </Center>
-            </div>
+            </LauncherPanelFrame>
         );
     }
 
@@ -321,7 +322,7 @@ const NewThreadPanel: FC<{
         : agent.description;
 
     return (
-        <div className={styles.panel} style={style}>
+        <LauncherPanelFrame style={style}>
             <PanelHeader
                 projectUuid={projectUuid}
                 agent={agent}
@@ -415,7 +416,7 @@ const NewThreadPanel: FC<{
                     contentMentionPriorityItems={contentMentionItems}
                 />
             </div>
-        </div>
+        </LauncherPanelFrame>
     );
 };
 
@@ -640,7 +641,7 @@ const ExistingThreadPanel: FC<{
 
     if (isLoadingThread || !thread) {
         return (
-            <div className={styles.panel} style={style}>
+            <LauncherPanelFrame style={style}>
                 <PanelHeader
                     projectUuid={projectUuid}
                     agent={agent}
@@ -651,12 +652,12 @@ const ExistingThreadPanel: FC<{
                 <Center className={styles.panelBody}>
                     <Loader size="sm" color="gray" />
                 </Center>
-            </div>
+            </LauncherPanelFrame>
         );
     }
 
     return (
-        <div className={styles.panel} style={style}>
+        <LauncherPanelFrame style={style}>
             <PanelHeader
                 projectUuid={projectUuid}
                 agent={agent}
@@ -719,6 +720,6 @@ const ExistingThreadPanel: FC<{
                     />
                 </AgentChatDisplay>
             </div>
-        </div>
+        </LauncherPanelFrame>
     );
 };

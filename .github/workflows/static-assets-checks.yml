@@ -1,0 +1,22 @@
+name: Static asset uploader checks
+
+on:
+  pull_request:
+    paths:
+      - '.github/scripts/upload-static-assets.mts'
+      - '.github/scripts/upload-static-assets.test.mts'
+      - '.github/workflows/static-assets-checks.yml'
+      - '.github/workflows/post-release.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - run: node --test .github/scripts/upload-static-assets.test.mts

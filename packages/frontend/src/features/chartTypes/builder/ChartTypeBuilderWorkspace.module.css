@@ -1,3 +1,28 @@
+.root {
+    container: chart-type-workspace / inline-size;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+}
+
+.versionSurface {
+    height: 100%;
+    min-width: 0;
+    display: flex;
+}
+
+.configurationSidebar {
+    flex-shrink: 0;
+    min-height: 0;
+}
+
+@container chart-type-workspace (max-width: 80rem) {
+    .root[data-history-open='true'] .configurationSidebar {
+        display: none;
+    }
+}
+
 .main {
     flex: 1;
     min-height: 0;
@@ -36,5 +61,30 @@
 }
 
 .historyPanel {
+    transition: flex-basis var(--history-transition-duration) ease;
+}
+
+.historyContent {
+    height: 100%;
     min-width: 240px;
+}
+
+.root:not([data-history-open]) .historyPanel {
+    /* Preserve the splitter's last open size while animating it out of flow. */
+    flex-basis: 0 !important;
+    flex-grow: 0 !important;
+}
+
+.root:not([data-history-open]) .historyResizeHandle {
+    display: none;
+}
+
+.root[data-history-resizing] .historyPanel {
+    transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .historyPanel {
+        transition: none;
+    }
 }

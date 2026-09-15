@@ -18,7 +18,7 @@ function test(name: string, run: () => void): void {
         passed += 1;
     } catch (error: unknown) {
         failures.push(
-            `${name}: ${error instanceof Error ? error.stack ?? error.message : String(error)}`,
+            `${name}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
         );
     }
 }
@@ -180,6 +180,74 @@ test('identical git refs are checked through the complete IO path', () => {
         diffConfigBetweenRefs({ fromRef: 'HEAD', toRef: 'HEAD' }),
         { checked: true, breaking: false, changes: [] },
     );
+});
+
+test('captures a literal default passed as an environment helper argument', () => {
+    const surface = extractConfigSurface({
+        'config.ts': `
+            const timeout = getPositiveIntegerFromEnvironmentVariable('TIMEOUT_MS', 600_000, MAX_TIMER_MS);
+            const steps = getPositiveIntegerFromEnvironmentVariable('MAX_STEPS', 120);
+            const computed = getPositiveIntegerFromEnvironmentVariable('COMPUTED_STEPS', DEFAULT_STEPS);
+            const expression = getPositiveIntegerFromEnvironmentVariable('EXPRESSION_MS', 10 * 60_000);
+        `,
+    });
+
+    assert.strictEqual(surface.TIMEOUT_MS.defaultValue, '600000');
+    assert.strictEqual(surface.MAX_STEPS.defaultValue, '120');
+    assert.strictEqual(surface.COMPUTED_STEPS.defaultValue, null);
+    assert.strictEqual(surface.EXPRESSION_MS.defaultValue, null);
+});
+
+test('moving an inline default into a helper argument is not a change', () => {
+    const before = extractConfigSurface({
+        'config.ts': `const timeout = parseInt(process.env.TIMEOUT_MS || '600000', 10);`,
+    });
+    const after = extractConfigSurface({
+        'config.ts': `const timeout = getPositiveIntegerFromEnvironmentVariable('TIMEOUT_MS', 600_000, MAX_TIMER_MS);`,
+    });
+
+    assert.deepStrictEqual(diffConfigSurfaces(before, after), {
+        checked: true,
+        breaking: false,
+        changes: [],
+    });
+});
+
+test('a null fallback is the same as no default', () => {
+    const before = extractConfigSurface({
+        'config.ts': `
+            const key = process.env.OVERRIDE_KEY || (!process.env.BASE_URL ? process.env.API_KEY : undefined) || null;
+        `,
+    });
+    const after = extractConfigSurface({
+        'config.ts': `
+            const override = process.env.OVERRIDE_KEY;
+            const base = process.env.BASE_URL;
+            const key = process.env.API_KEY;
+        `,
+    });
+
+    assert.strictEqual(before.API_KEY.defaultValue, null);
+    assert.deepStrictEqual(diffConfigSurfaces(before, after), {
+        checked: true,
+        breaking: false,
+        changes: [],
+    });
+});
+
+test('numeric separators do not change a default', () => {
+    const before = extractConfigSurface({
+        'config.ts': `const limit = process.env.LIMIT ?? 120000;`,
+    });
+    const after = extractConfigSurface({
+        'config.ts': `const limit = process.env.LIMIT ?? 120_000;`,
+    });
+
+    assert.deepStrictEqual(diffConfigSurfaces(before, after), {
+        checked: true,
+        breaking: false,
+        changes: [],
+    });
 });
 
 test('loads and runs without repository dependency resolution', () => {

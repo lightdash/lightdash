@@ -237,11 +237,48 @@ describe('ChartRegistryClient', () => {
         );
     });
 
-    it('rejects an invalid index loudly', async () => {
+    it('rejects an invalid index envelope loudly', async () => {
         const fetchImpl = vi
             .fn()
             .mockResolvedValue(jsonResponse({ schemaVersion: 99 }));
         await expect(makeClient(fetchImpl).getIndex()).rejects.toThrow();
+    });
+
+    it('keeps a channel: beta entry in the stable index', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(
+            jsonResponse({
+                ...index,
+                charts: [{ ...entry, channel: 'beta' }],
+            }),
+        );
+        const result = await makeClient(fetchImpl).getIndex();
+        expect(result.charts).toHaveLength(1);
+        expect(result.charts[0].channel).toBe('beta');
+    });
+
+    it('drops an entry with an unrecognized channel and keeps the rest', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(
+            jsonResponse({
+                ...index,
+                charts: [
+                    { ...entry, slug: 'from-the-future', channel: 'alpha' },
+                    entry,
+                ],
+            }),
+        );
+        const result = await makeClient(fetchImpl).getIndex();
+        expect(result.charts.map((c) => c.slug)).toEqual(['sankey']);
+    });
+
+    it('drops a malformed entry and keeps the rest', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(
+            jsonResponse({
+                ...index,
+                charts: [{ slug: 'broken' }, entry],
+            }),
+        );
+        const result = await makeClient(fetchImpl).getIndex();
+        expect(result.charts.map((c) => c.slug)).toEqual(['sankey']);
     });
 
     it('rejects a non-JSON index loudly', async () => {

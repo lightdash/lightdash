@@ -15,6 +15,7 @@ import {
     IconInfoCircle,
     IconPencil,
     IconSparkles,
+    IconX,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
@@ -159,6 +160,15 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                         History
                     </Button>
                 )}
+                <Tooltip label="Close chart type builder" position="bottom">
+                    <ActionIcon
+                        size="sm"
+                        aria-label="Close chart type builder"
+                        onClick={onDone}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
             </Group>
             {app && isEditingDetails && (
                 <AppUpdateModal

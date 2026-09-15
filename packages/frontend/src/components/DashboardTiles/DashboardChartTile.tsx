@@ -264,6 +264,7 @@ const computeDashboardChartSeries = (
             defaultStackLabel: firstSerie?.stackLabel,
             itemsMap,
             columnLimit: chart.chartConfig.config.columnLimit,
+            existingSeries: chart.chartConfig.config.eChartsConfig.series,
         });
         const sortedByPivot = isPivotSeriesOrderDeterminedByQuery(
             validPivotDimensions,

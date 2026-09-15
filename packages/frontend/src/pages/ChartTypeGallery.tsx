@@ -18,6 +18,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
+import { BetaBadge } from '../components/common/BetaBadge';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import InlineErrorState from '../components/common/InlineErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -168,7 +169,10 @@ const ChartTypeGallery = () => {
                             </Group>
                         </Tabs.Tab>
                         {isLibraryEnabled && (
-                            <Tabs.Tab value={GalleryTab.CHART_LIBRARY}>
+                            <Tabs.Tab
+                                value={GalleryTab.CHART_LIBRARY}
+                                rightSection={<BetaBadge />}
+                            >
                                 Chart library
                             </Tabs.Tab>
                         )}
@@ -303,6 +307,7 @@ const ChartTypeGallery = () => {
 
             {selected && (
                 <ChartTypeDetailModal
+                    opened={previewUuid === null}
                     projectUuid={projectUuid}
                     dataAppViz={selected}
                     isActive={previewUuid === null && deleteUuid === null}
@@ -317,7 +322,10 @@ const ChartTypeGallery = () => {
                     projectUuid={projectUuid}
                     dataAppVizUuid={previewUuid}
                     registrySlug={toPreview?.registrySlug ?? null}
-                    onClose={() => setPreviewUuid(null)}
+                    onClose={() => {
+                        setPreviewUuid(null);
+                        setSelectedUuid(null);
+                    }}
                 />
             )}
             {toDelete && (

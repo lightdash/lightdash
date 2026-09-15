@@ -1,6 +1,8 @@
 import { type DataAppVizContext } from '@lightdash/common';
-import { Box } from '@mantine/core';
-import { type FC, type ReactNode } from 'react';
+import { Box, Transition } from '@mantine/core';
+import { useReducedMotion } from '@mantine/hooks';
+import { useState, type FC, type ReactNode } from 'react';
+import { SIDEBAR_ANIMATION_DURATION } from '../../../components/common/Page/constants';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import BuilderCanvas from './BuilderCanvas';
 import BuilderPromptBar from './BuilderPromptBar';
@@ -18,6 +20,8 @@ type Props = {
     /** The previewed version's options beside it; null when the host
      *  configures the type elsewhere. */
     configurePanel: ReactNode;
+    /** Host-owned configuration kept beside the preview, before history. */
+    configurationSidebar?: ReactNode;
 };
 
 /**
@@ -31,6 +35,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     previewContext,
     syncPreviewUrlState,
     configurePanel,
+    configurationSidebar,
 }) => {
     const {
         dataAppVizUuid,
@@ -59,77 +64,129 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
         onPickExample,
     } = workspace;
 
+    const reducedMotion = useReducedMotion();
+    const [isResizingHistory, setIsResizingHistory] = useState(false);
+    const showHistory = hasHistory && isHistoryOpen && dataAppVizUuid !== null;
+
     return (
-        <ResizableSplitter
-            handleLabel="Resize version history"
-            classNames={{ handle: classes.historyResizeHandle }}
-            orientation="horizontal"
-            className={classes.main}
+        <Box
+            className={classes.root}
+            data-history-open={showHistory || undefined}
+            data-history-resizing={isResizingHistory || undefined}
+            style={{
+                '--history-transition-duration': `${SIDEBAR_ANIMATION_DURATION}ms`,
+            }}
         >
-            <ResizableSplitter.Pane
-                id="chart-type-builder-canvas"
-                defaultSize={80}
-                min={50}
+            <ResizableSplitter
+                handleLabel="Resize version history"
+                resizable={showHistory}
+                attributes={{
+                    handle: { 'aria-hidden': !showHistory || undefined },
+                }}
+                onResizeStart={() => setIsResizingHistory(true)}
+                onResizeEnd={() => setIsResizingHistory(false)}
+                classNames={{ handle: classes.historyResizeHandle }}
+                orientation="horizontal"
+                className={classes.main}
             >
-                <Box className={classes.content}>
-                    <BuilderCanvas
-                        projectUuid={projectUuid}
-                        appUuid={dataAppVizUuid}
-                        previewVersion={previewVersion}
-                        isBuilding={isBuilding}
-                        failureMessage={failureMessage}
-                        isClarifyRoundOpen={isClarifyRoundOpen}
-                        clarifierUnavailable={clarification.fellThrough}
-                        previewContext={previewContext}
-                        configurePanel={configurePanel}
-                        onPickExample={onPickExample}
-                        onSdkManifest={onSdkManifest}
-                        syncPreviewUrlState={syncPreviewUrlState}
-                    />
-                    {isPromptBarMounted && (
-                        <BuilderPromptBar
-                            ref={promptBarRef}
-                            sessionKey={promptSessionKey}
-                            projectUuid={projectUuid}
-                            composerAppUuid={composerAppUuid}
-                            hasVersions={history.versions.length > 0}
-                            isBuilding={isBuilding}
-                            buildingPrompt={buildingPrompt}
-                            elapsed={elapsed}
-                            latestReadyVersion={history.latestReadyVersion}
-                            build={build}
-                            onCancelBuild={onCancelBuild}
-                            narration={narration}
-                            modelSelection={modelSelection}
-                            clarification={clarification}
-                        />
-                    )}
-                </Box>
-            </ResizableSplitter.Pane>
-            {hasHistory && isHistoryOpen && dataAppVizUuid !== null && (
                 <ResizableSplitter.Pane
-                    id="chart-type-builder-history"
-                    className={classes.historyPanel}
-                    defaultSize={20}
-                    min="240px"
-                    max={50}
+                    id="chart-type-builder-canvas"
+                    defaultSize={80}
+                    min={50}
                 >
-                    <VersionHistoryPanel
-                        projectUuid={projectUuid}
-                        appUuid={dataAppVizUuid}
-                        versions={history.versions}
-                        latestReadyVersion={history.latestReadyVersion}
-                        viewedVersion={viewedVersion}
-                        onView={onViewVersion}
-                        onClose={closeHistory}
-                        build={build}
-                        hasEarlier={history.hasEarlier}
-                        isFetchingEarlier={history.isFetchingEarlier}
-                        fetchEarlier={history.fetchEarlier}
-                    />
+                    <Box className={classes.versionSurface}>
+                        <Box className={classes.content}>
+                            <BuilderCanvas
+                                projectUuid={projectUuid}
+                                appUuid={dataAppVizUuid}
+                                previewVersion={previewVersion}
+                                isBuilding={isBuilding}
+                                failureMessage={failureMessage}
+                                isClarifyRoundOpen={isClarifyRoundOpen}
+                                clarifierUnavailable={clarification.fellThrough}
+                                previewContext={previewContext}
+                                configurePanel={configurePanel}
+                                onPickExample={onPickExample}
+                                onSdkManifest={onSdkManifest}
+                                syncPreviewUrlState={syncPreviewUrlState}
+                            />
+                            {isPromptBarMounted && (
+                                <BuilderPromptBar
+                                    ref={promptBarRef}
+                                    sessionKey={promptSessionKey}
+                                    projectUuid={projectUuid}
+                                    composerAppUuid={composerAppUuid}
+                                    hasVersions={history.versions.length > 0}
+                                    latestVersion={history.latest}
+                                    isNewChart={
+                                        dataAppVizUuid === null &&
+                                        build.appUuid === null
+                                    }
+                                    isBuilding={isBuilding}
+                                    buildingPrompt={buildingPrompt}
+                                    elapsed={elapsed}
+                                    latestReadyVersion={
+                                        history.latestReadyVersion
+                                    }
+                                    build={build}
+                                    onCancelBuild={onCancelBuild}
+                                    narration={narration}
+                                    modelSelection={modelSelection}
+                                    clarification={clarification}
+                                />
+                            )}
+                        </Box>
+                        {configurationSidebar && (
+                            <Box className={classes.configurationSidebar}>
+                                {configurationSidebar}
+                            </Box>
+                        )}
+                    </Box>
                 </ResizableSplitter.Pane>
-            )}
-        </ResizableSplitter>
+                {hasHistory && dataAppVizUuid !== null && (
+                    <ResizableSplitter.Pane
+                        id="chart-type-builder-history"
+                        className={classes.historyPanel}
+                        defaultSize="320px"
+                        min="240px"
+                        max="360px"
+                        inert={!showHistory}
+                        aria-hidden={!showHistory || undefined}
+                    >
+                        <Transition
+                            mounted={showHistory}
+                            transition={reducedMotion ? 'fade' : 'slide-left'}
+                            duration={SIDEBAR_ANIMATION_DURATION}
+                        >
+                            {(style) => (
+                                <Box
+                                    className={classes.historyContent}
+                                    style={style}
+                                >
+                                    <VersionHistoryPanel
+                                        projectUuid={projectUuid}
+                                        appUuid={dataAppVizUuid}
+                                        versions={history.versions}
+                                        latestReadyVersion={
+                                            history.latestReadyVersion
+                                        }
+                                        viewedVersion={viewedVersion}
+                                        onView={onViewVersion}
+                                        onClose={closeHistory}
+                                        build={build}
+                                        hasEarlier={history.hasEarlier}
+                                        isFetchingEarlier={
+                                            history.isFetchingEarlier
+                                        }
+                                        fetchEarlier={history.fetchEarlier}
+                                    />
+                                </Box>
+                            )}
+                        </Transition>
+                    </ResizableSplitter.Pane>
+                )}
+            </ResizableSplitter>
+        </Box>
     );
 };
 

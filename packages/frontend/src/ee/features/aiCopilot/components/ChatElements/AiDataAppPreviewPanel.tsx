@@ -38,10 +38,15 @@ import { useRestoreAiAgentThreadDataAppVersionMutation } from '../../hooks/usePr
 import { addThreadElementReference } from '../../store/aiAgentThreadElementRefsSlice';
 import {
     clearPreview,
+    selectElementPickerEnabled,
+    setElementPickerEnabled,
     setDataAppPreviewVersion,
     type DataAppPreviewData,
 } from '../../store/aiArtifactSlice';
-import { useAiAgentStoreDispatch } from '../../store/hooks';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../store/hooks';
 import artifactStyles from './AiArtifactPanel.module.css';
 import { getEffectiveDataAppVersion } from './DataAppBuildCard/dataAppPreviewVersion';
 import { DataAppVersionPill } from './DataAppVersionPill';
@@ -150,9 +155,20 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         },
         [dispatch, threadUuid, appUuid, appSlug, appName, latestReadyVersion],
     );
+    const pickerEnabled = useAiAgentStoreSelector(
+        selectElementPickerEnabled(threadUuid),
+    );
+    const handlePickerEnabledChange = useCallback(
+        (enabled: boolean) => {
+            dispatch(setElementPickerEnabled({ threadUuid, enabled }));
+        },
+        [dispatch, threadUuid],
+    );
     // Picker and lineage both claim clicks in the preview: one at a time.
     const picker = useElementPicker({
         identityKey,
+        enabled: pickerEnabled,
+        onEnabledChange: handlePickerEnabledChange,
         onEnabled: onLineageCancelled,
         onPick: handlePick,
     });

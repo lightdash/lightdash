@@ -30,6 +30,7 @@ export type CodeResourceDefinition<Document> = {
             | 'scheduledResource';
         fallbackPrefix: string;
         extension: string;
+        preserveSpaces?: boolean;
     };
     dependencies: readonly ContentAsCodeResourceKind[];
     recursive?: boolean;
@@ -191,8 +192,12 @@ export const writeCodeResourceDocuments = async <Document>({
         switch (definition.fileName.strategy) {
             case 'identity':
                 return `${definition.identity(document)}${definition.fileName.extension}`;
-            case 'uriEncodedIdentity':
-                return `${encodeURIComponent(definition.identity(document))}${definition.fileName.extension}`;
+            case 'uriEncodedIdentity': {
+                const encodedIdentity = encodeURIComponent(
+                    definition.identity(document),
+                );
+                return `${definition.fileName.preserveSpaces ? encodedIdentity.replaceAll('%20', ' ') : encodedIdentity}${definition.fileName.extension}`;
+            }
             default:
                 return undefined;
         }

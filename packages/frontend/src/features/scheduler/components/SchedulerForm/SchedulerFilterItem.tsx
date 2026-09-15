@@ -1,4 +1,5 @@
 import {
+    type FilterOperator,
     FilterType,
     getFilterTypeFromItem,
     isFilterableItem,
@@ -30,8 +31,10 @@ import {
     getConditionalRuleLabelFromItem,
     getFilterOperatorOptions,
 } from '../../../../components/common/Filters/FilterInputs/utils';
+import FilterOperatorOption from '../../../../components/common/Filters/FilterOperatorOption';
 import useFiltersContext from '../../../../components/common/Filters/useFiltersContext';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import {
     isValidFilterOperator,
     type SchedulerOverridableRule,
@@ -90,6 +93,7 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
     readOnly = false,
 }: SchedulerFilterItemProps<R>) => {
     const { getField } = useFiltersContext();
+    const getUiString = useUiStrings();
     const item = getField(savedFilter);
     const field = item && isFilterableItem(item) ? item : undefined;
     const [isEditing, setIsEditing] = useState(false);
@@ -104,8 +108,8 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
     );
 
     const filterOperatorOptions = useMemo(() => {
-        return getFilterOperatorOptions(filterType, field);
-    }, [filterType, field]);
+        return getFilterOperatorOptions(filterType, field, getUiString);
+    }, [filterType, field, getUiString]);
 
     if (!field) {
         return (
@@ -241,6 +245,12 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                             schedulerFilter?.operator ?? savedFilter.operator
                         }
                         data={filterOperatorOptions}
+                        renderOption={({ option }) => (
+                            <FilterOperatorOption
+                                operator={option.value as FilterOperator}
+                                label={option.label}
+                            />
+                        )}
                         onChange={(operator: string | null) => {
                             if (!isValidFilterOperator(operator)) return;
 

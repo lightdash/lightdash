@@ -11,6 +11,7 @@ export * from './mcp/tasks';
 export * from './externalConnections/coder';
 export * from './externalConnections/types';
 export * from './AiRouter';
+export * from './apps/analysis';
 export * from './apps/customChartTypeSerializer';
 export * from './apps/deliveryCapture';
 export * from './apps/elementReference';

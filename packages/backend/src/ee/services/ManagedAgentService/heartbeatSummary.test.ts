@@ -20,6 +20,7 @@ const render = (
         interrupted,
         projectName: 'Jaffle Shop',
         seed: 'run-uuid',
+        narrative: null,
     });
 
 describe('heartbeat summaries from saved actions', () => {
@@ -150,5 +151,23 @@ describe('heartbeat summaries from saved actions', () => {
             'Saved action report unavailable',
         );
         expect(render([]).compactSummary).toBe('No saved actions');
+    });
+
+    it('puts the written story above the ledger without a templated story or sign-off', () => {
+        const report = renderHeartbeatSummary({
+            actions: [action(ManagedAgentActionType.INSIGHT)],
+            interrupted: false,
+            projectName: 'Jaffle Shop',
+            seed: 'run-uuid',
+            narrative: '**Jaffle Shop: agent update**\n\nA grounded story.',
+        });
+        expect(report.text.startsWith('**Jaffle Shop: agent update**')).toBe(
+            true,
+        );
+        expect(report.text).toContain('- Insights for review: 1');
+        expect(report.text).not.toContain('standing ovation');
+        expect(report.compactSummary).toBe(
+            render([action(ManagedAgentActionType.INSIGHT)]).compactSummary,
+        );
     });
 });

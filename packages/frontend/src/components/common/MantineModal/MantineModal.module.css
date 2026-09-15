@@ -1,3 +1,10 @@
+.content[data-modal-content] {
+    /* Modal.Content also applies its class to the viewport wrapper. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
 .header {
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
     flex-shrink: 0;
@@ -35,6 +42,8 @@
 }
 
 .body {
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-height: 0;
     overflow: auto;

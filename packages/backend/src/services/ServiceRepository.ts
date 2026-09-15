@@ -204,6 +204,7 @@ interface ServiceManifest {
     aiRouterService: unknown;
     aiOrganizationSettingsService: unknown;
     schedulerAiAugmentationService: unknown;
+    dataAppAnalysisService: unknown;
     projectContextService: unknown;
     roadmapService: unknown;
     scimService: unknown;
@@ -1816,6 +1817,12 @@ export class ServiceRepository
         SchedulerAiAugmentationServiceImplT,
     >(): SchedulerAiAugmentationServiceImplT {
         return this.getService('schedulerAiAugmentationService');
+    }
+
+    public getDataAppAnalysisService<
+        DataAppAnalysisServiceImplT,
+    >(): DataAppAnalysisServiceImplT {
+        return this.getService('dataAppAnalysisService');
     }
 
     public getAiAgentDocumentService<
