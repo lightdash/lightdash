@@ -22,7 +22,6 @@ type Props = {
     projectUuid: string;
     contentType: ContentReviewContentType;
     contentUuid: string | null;
-    variant?: 'review' | 'save';
     items: ContentReviewSimilarContentItem[];
 };
 
@@ -31,7 +30,6 @@ const SimilarContentPanel: FC<Props> = ({
     contentType,
     contentUuid,
     items,
-    variant = 'review',
 }) => {
     const [expanded, setExpanded] = useState(false);
     const [showAll, setShowAll] = useState(false);
@@ -83,7 +81,6 @@ const SimilarContentPanel: FC<Props> = ({
                                 isVerified={item.isVerified}
                                 onClick={() =>
                                     contentUuid &&
-                                    variant === 'review' &&
                                     track({
                                         name: EventName.CONTENT_REVIEW_SIMILAR_CONTENT_CLICKED,
                                         properties: {
