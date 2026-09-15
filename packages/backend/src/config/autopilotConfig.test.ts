@@ -46,6 +46,22 @@ describe('Autopilot model qualification', () => {
         expect(
             getAutopilotCleanupMode(
                 'cleanup',
+                'anthropic',
+                'claude-opus-4-7',
+                defaults,
+            ),
+        ).toBe('cleanup');
+        expect(
+            getAutopilotCleanupMode(
+                'cleanup',
+                'anthropic',
+                'claude-opus-4-6',
+                defaults,
+            ),
+        ).toBe('observe');
+        expect(
+            getAutopilotCleanupMode(
+                'cleanup',
                 'openai',
                 'gpt-5.4-2026-03-05',
                 defaults,
