@@ -131,15 +131,35 @@
     opacity: 1;
 }
 
-.panel {
+/* --ai-launcher-panel-width/height are set on .root once the user resizes;
+   the rem() defaults resolve here so they keep the panel's own scale. */
+.floatingPanel {
     --mantine-scale: 0.9;
-    --ai-chat-input-bg: var(--mantine-color-background-0);
+    --panel-width: min(
+        var(--ai-launcher-panel-width, rem(440px)),
+        calc(100vw - var(--mantine-spacing-md) * 2)
+    );
+    /* Cap leaves room for the navbar (and any banner) above and the dock row
+       below the panel. */
+    --panel-top-inset: var(--navbar-height, 0px);
+    --panel-height: min(
+        var(--ai-launcher-panel-height, rem(640px)),
+        calc(100vh - var(--panel-top-inset) - var(--mantine-spacing-md) * 4)
+    );
     position: absolute;
     bottom: calc(100% + var(--mantine-spacing-xs));
+    height: var(--panel-height);
+}
+
+:global(body:has(#navbar-header[data-has-banner='true'])) .floatingPanel {
+    --panel-top-inset: calc(var(--navbar-height) + var(--banner-height));
+}
+
+.panel {
+    composes: floatingPanel;
+    --ai-chat-input-bg: var(--mantine-color-background-0);
     right: 0;
-    width: min(rem(440px), calc(100vw - var(--mantine-spacing-md) * 2));
-    height: rem(640px);
-    max-height: min(rem(640px), calc(100vh - rem(80px)));
+    width: var(--panel-width);
     border-radius: var(--mantine-radius-lg);
     background: var(--mantine-color-body);
     color: var(--mantine-color-text);
@@ -151,19 +171,52 @@
 }
 
 .previewPanel {
-    --mantine-scale: 0.9;
-    position: absolute;
-    bottom: calc(100% + var(--mantine-spacing-xs));
-    right: calc(
-        min(rem(440px), calc(100vw - var(--mantine-spacing-md) * 2)) +
-            var(--mantine-spacing-xs)
-    );
+    composes: floatingPanel;
+    right: calc(var(--panel-width) + var(--mantine-spacing-xs));
     width: min(
         rem(620px),
-        calc(100vw - rem(440px) - var(--mantine-spacing-md) * 3)
+        calc(100vw - var(--panel-width) - var(--mantine-spacing-md) * 3)
     );
-    height: rem(640px);
-    max-height: min(rem(640px), calc(100vh - rem(80px)));
+}
+
+.resizeHandle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    width: rem(20px);
+    height: rem(20px);
+    cursor: nwse-resize;
+    touch-action: none;
+    border-top-left-radius: var(--mantine-radius-lg);
+}
+
+.resizeHandle:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: -2px;
+}
+
+/* Three diagonal grip lines in the corner, only while the handle is hovered. */
+.resizeHandle::before {
+    content: '';
+    position: absolute;
+    top: rem(4px);
+    left: rem(4px);
+    width: rem(12px);
+    height: rem(12px);
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent 0 rem(2px),
+        var(--mantine-color-dimmed) rem(2px) rem(3px)
+    );
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.resizeHandle:hover::before,
+.resizeHandle:focus-visible::before {
+    opacity: 1;
 }
 
 .panelHeader {

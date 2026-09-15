@@ -27,12 +27,14 @@ import {
 } from './launcherAgentSelection';
 import { LauncherDock } from './LauncherDock';
 import { LauncherPanel } from './LauncherPanel';
+import { LauncherPanelSizeContext } from './LauncherPanelSizeContext';
 import {
     shouldRenderAiAgentsLauncher,
     shouldRenderAiAgentsLauncherContent,
 } from './launcherVisibility';
 import { useDefaultAiAgent } from './useDefaultAiAgent';
 import { useLauncherDock } from './useLauncherDock';
+import { useLauncherPanelSize } from './useLauncherPanelSize';
 
 // Routes opt out of the launcher by setting `handle: { hideAILauncher: true }`
 // on their RouteObject; the flag is inherited by all child routes.
@@ -91,6 +93,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
         (state) => state.aiAgentLauncher.currentDataApp,
     );
     const { dock } = useLauncherDock(activeProjectUuid);
+    const panelSize = useLauncherPanelSize();
 
     const prevProjectUuidRef = useRef(activeProjectUuid);
     useEffect(() => {
@@ -207,7 +210,11 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
     const panelAgent = getLauncherPanelAgent(safeActiveAgentUuid, agents);
 
     return (
-        <div className={styles.root}>
+        <Box
+            ref={panelSize.rootRef}
+            className={styles.root}
+            __vars={panelSize.rootVars}
+        >
             <LauncherDock
                 projectUuid={activeProjectUuid}
                 agents={agents}
@@ -262,15 +269,19 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                 timingFunction="ease"
             >
                 {(transitionStyle) => (
-                    <LauncherPanel
-                        projectUuid={activeProjectUuid}
-                        agent={panelAgent}
-                        agents={agents}
-                        activeThreadId={safeActiveThreadId}
-                        style={transitionStyle}
-                    />
+                    <LauncherPanelSizeContext.Provider
+                        value={panelSize.context}
+                    >
+                        <LauncherPanel
+                            projectUuid={activeProjectUuid}
+                            agent={panelAgent}
+                            agents={agents}
+                            activeThreadId={safeActiveThreadId}
+                            style={transitionStyle}
+                        />
+                    </LauncherPanelSizeContext.Provider>
                 )}
             </Transition>
-        </div>
+        </Box>
     );
 };
