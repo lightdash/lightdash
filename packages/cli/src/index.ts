@@ -883,6 +883,16 @@ const downloadCommand = program
         [],
     )
     .option(
+        '--homepages <names...>',
+        'specify exact homepage names to download',
+        [],
+    )
+    .option(
+        '--include-homepages',
+        'include all published homepages (enterprise)',
+        false,
+    )
+    .option(
         '--external-connections <slugs...>',
         'specify external connection slugs to download (enterprise)',
         parseRefsArgument,
@@ -1050,6 +1060,17 @@ const uploadCommand = program
         'specify scheduled delivery slugs to upload',
         parseRefsArgument,
         [],
+    )
+    .option(
+        '--homepages <names...>',
+        'specify exact homepage names to upload',
+        [],
+    )
+    .option('--skip-homepages', 'skip uploading homepages', false)
+    .option(
+        '--publish',
+        'publish uploaded homepages and apply their audience assignments',
+        false,
     )
     .option(
         '--external-connections <slugs...>',

@@ -1,14 +1,35 @@
 import {
     ContentAsCodeType,
+    parseHomepageAsCode,
     parseVersionedContentAsCodeDocument,
     type AgentAsCode,
     type AlertAsCode,
     type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
+    type HomepageAsCode,
     type ScheduledDeliveryAsCode,
     type VirtualViewAsCode,
 } from '@lightdash/common';
 import type { CodeResourceDefinition } from './resource';
+
+export const HOMEPAGE_CODE_RESOURCE: CodeResourceDefinition<HomepageAsCode> = {
+    kind: ContentAsCodeType.HOMEPAGE,
+    displayLabel: 'homepage',
+    identityLabel: 'name',
+    scope: 'project',
+    folderName: 'homepages',
+    acceptedExtensions: ['.yml', '.yaml'],
+    fileName: {
+        strategy: 'uriEncodedIdentity',
+        fallbackPrefix: 'homepage',
+        extension: '.yml',
+    },
+    dependencies: ['space', 'chart', 'dashboard'],
+    identity: ({ name }) => name,
+    displayName: ({ name }) => name,
+    parse: parseHomepageAsCode,
+    sort: (a, b) => a.name.localeCompare(b.name),
+};
 
 export const VIRTUAL_VIEW_CODE_RESOURCE: CodeResourceDefinition<VirtualViewAsCode> =
     {

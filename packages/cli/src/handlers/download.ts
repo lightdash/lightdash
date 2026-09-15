@@ -134,6 +134,7 @@ import {
     lightdashApi,
     setGzipEnabled,
 } from './dbt/apiClient';
+import { downloadHomepages, uploadHomepages } from './homepagesAsCode';
 import {
     LightdashMetadata,
     METADATA_FILENAME,
@@ -174,6 +175,10 @@ export type DownloadHandlerOptions = {
     googleSheets: string[];
     scheduledDeliveries: string[];
     virtualViews: string[];
+    homepages?: string[];
+    includeHomepages?: boolean;
+    skipHomepages?: boolean;
+    publish?: boolean;
     externalConnections: string[]; // external connection slugs (enterprise)
     apps?: string[]; // specific app UUIDs or URLs (enterprise); absent = no explicit selection
     chartTypes?: string[]; // specific custom chart type UUIDs or URLs (enterprise); absent = no explicit selection
@@ -245,6 +250,7 @@ const hasContentFilters = ({
     scheduledDeliveries,
     virtualViews,
     externalConnections,
+    homepages,
     apps,
     chartTypes,
 }: Pick<
@@ -258,6 +264,7 @@ const hasContentFilters = ({
     | 'scheduledDeliveries'
     | 'virtualViews'
     | 'externalConnections'
+    | 'homepages'
     | 'apps'
     | 'chartTypes'
 >): boolean =>
@@ -271,6 +278,7 @@ const hasContentFilters = ({
         scheduledDeliveries,
         virtualViews,
         externalConnections,
+        homepages ?? [],
         apps ?? [],
         chartTypes ?? [],
     ].some((filters) => filters.length > 0);
@@ -2032,6 +2040,29 @@ export const downloadHandler = async (
                 getDataAppReference,
             ),
         );
+
+        if (
+            !options.appsOnly &&
+            !options.chartTypesOnly &&
+            !options.spacesOnly &&
+            (options.includeHomepages ||
+                options.homepages?.length ||
+                includeAllOptionalContent)
+        ) {
+            await output.runItem({
+                label: 'Homepages',
+                action: () =>
+                    downloadHomepages(
+                        projectId,
+                        options.homepages ?? [],
+                        options.path,
+                        includeAllOptionalContent &&
+                            !options.includeHomepages &&
+                            !options.homepages?.length,
+                    ),
+                detail: (count) => `${count} downloaded`,
+            });
+        }
 
         if (shouldDownloadSpaces) {
             output.startItem('Spaces');
@@ -4714,6 +4745,32 @@ export const uploadHandler = async (
                     },
                 });
             }
+        }
+
+        if (
+            !options.skipHomepages &&
+            !options.appsOnly &&
+            !options.chartTypesOnly &&
+            (!hasFilters || options.homepages?.length)
+        ) {
+            changes = await runUploadChangesPhase({
+                output,
+                label: 'Homepages',
+                changes,
+                action: () => {
+                    if (hasUploadFailures(changes))
+                        throw new ParameterError(
+                            'Homepage upload blocked because prerequisite content uploads failed',
+                        );
+                    return uploadHomepages(
+                        projectId,
+                        options.homepages ?? [],
+                        changes,
+                        options.publish === true,
+                        contentPathOption,
+                    );
+                },
+            });
         }
 
         const end = Date.now();

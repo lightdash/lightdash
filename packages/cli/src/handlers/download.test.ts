@@ -222,6 +222,13 @@ const makeContentFilterOptions = (
 });
 
 describe('hasContentFilters', () => {
+    it('treats explicit homepage names as a filtered download and upload', () => {
+        expect(
+            hasContentFilters(
+                makeContentFilterOptions({ homepages: ['Team homepage'] }),
+            ),
+        ).toBe(true);
+    });
     it('treats explicit apps as a filtered download and upload', () => {
         expect(
             hasContentFilters(
@@ -1544,7 +1551,10 @@ describe('downloadHandler failures', () => {
                     missingSlugs: [],
                 } as never;
             }
-            if (url.includes('/code/aiAgents')) {
+            if (
+                url.includes('/code/aiAgents') ||
+                url.includes('/code/homepages')
+            ) {
                 throw unavailableError;
             }
             if (url.includes('/code/alerts')) {

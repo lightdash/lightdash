@@ -4,6 +4,7 @@ import {
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
+    APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_PATH,
     extractAppSdkRouteProjectUuid,
     isAllowedAppSdkRoute,
@@ -277,6 +278,11 @@ export type UseAppSdkBridgeParams = {
         body: unknown;
     };
     /**
+     * Handles the host-owned underlying-data dialog route. Never forwarded to
+     * the API; the handler resolves the click intent and opens Lightdash UI.
+     */
+    onVizUnderlyingDataIntent?: (intentBody: unknown) => void;
+    /**
      * Handles the viz drill-down virtual route
      * (`APP_SDK_VIZ_DRILL_DOWN_PATH`): resolves the click intent and opens the
      * host drill dialog. Never forwarded to the API. Absent = the capability
@@ -326,6 +332,7 @@ export function useAppSdkBridge({
     onExternalRequestEvent,
     dataAppVizContext,
     rewriteVizUnderlyingDataRequest,
+    onVizUnderlyingDataIntent,
     onVizDrillDownIntent,
     onUrlStateChange,
     onSdkManifest,
@@ -732,6 +739,27 @@ export function useAppSdkBridge({
                 }
             }
 
+            if (path === APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH) {
+                if (!onVizUnderlyingDataIntent) {
+                    respond({
+                        error: 'Underlying data is not available for this visualization.',
+                    });
+                    return;
+                }
+                try {
+                    onVizUnderlyingDataIntent(body);
+                    respond({ result: {} });
+                } catch (err) {
+                    respond({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Invalid underlying-data request.',
+                    });
+                }
+                return;
+            }
+
             // Bridge-only virtual route: the viz posts a drill click intent;
             // the host resolves it and opens its drill dialog. Answered here —
             // nothing is forwarded to the API.
@@ -1104,6 +1132,7 @@ export function useAppSdkBridge({
             onExternalRequestEvent,
             pushDataAppVizContext,
             rewriteVizUnderlyingDataRequest,
+            onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             pushColorScheme,
             onUrlStateChange,

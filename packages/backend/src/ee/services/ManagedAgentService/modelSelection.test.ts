@@ -3,6 +3,12 @@ import { pickAutopilotModel } from './modelSelection';
 
 const [sonnet] = MODEL_PRESETS.anthropic;
 const [gpt] = MODEL_PRESETS.openai;
+const opus47 = MODEL_PRESETS.anthropic.find(
+    (model) => model.name === 'claude-opus-4-7',
+)!;
+const bedrockOpus47 = MODEL_PRESETS.bedrock.find(
+    (model) => model.name === 'claude-opus-4-7',
+)!;
 
 describe('pickAutopilotModel', () => {
     it('prefers the org default when the org may still use it', () => {
@@ -41,6 +47,55 @@ describe('pickAutopilotModel', () => {
                 orgDefault: null,
                 instanceDefault: { provider: 'openai', name: 'retired-model' },
                 availableModels: [sonnet, gpt],
+            }),
+        ).toEqual({ provider: 'openai', modelName: gpt.name });
+    });
+
+    it('prefers Opus 4.7 over the chat default on Anthropic when the org may use it', () => {
+        expect(
+            pickAutopilotModel({
+                orgDefault: {
+                    modelProvider: 'anthropic',
+                    modelName: sonnet.name,
+                },
+                instanceDefault: { provider: 'anthropic', name: sonnet.name },
+                availableModels: [sonnet, opus47, gpt],
+            }),
+        ).toEqual({ provider: 'anthropic', modelName: 'claude-opus-4-7' });
+    });
+
+    it('prefers Opus 4.7 on Bedrock too', () => {
+        expect(
+            pickAutopilotModel({
+                orgDefault: null,
+                instanceDefault: {
+                    provider: 'bedrock',
+                    name: 'claude-sonnet-5',
+                },
+                availableModels: [MODEL_PRESETS.bedrock[1], bedrockOpus47],
+            }),
+        ).toEqual({ provider: 'bedrock', modelName: 'claude-opus-4-7' });
+    });
+
+    it('keeps the chat default when Opus 4.7 is hidden for the org', () => {
+        expect(
+            pickAutopilotModel({
+                orgDefault: {
+                    modelProvider: 'anthropic',
+                    modelName: sonnet.name,
+                },
+                instanceDefault: { provider: 'anthropic', name: sonnet.name },
+                availableModels: [sonnet, gpt],
+            }),
+        ).toEqual({ provider: 'anthropic', modelName: sonnet.name });
+    });
+
+    it('does not move an OpenAI organisation to Anthropic', () => {
+        expect(
+            pickAutopilotModel({
+                orgDefault: { modelProvider: 'openai', modelName: gpt.name },
+                instanceDefault: { provider: 'anthropic', name: sonnet.name },
+                availableModels: [sonnet, opus47, gpt],
             }),
         ).toEqual({ provider: 'openai', modelName: gpt.name });
     });

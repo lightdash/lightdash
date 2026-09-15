@@ -813,6 +813,11 @@
 }
 
 .runSummary {
-    white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+.runSummaryMarkdown {
+    --ai-markdown-font-size: 12px;
+    --ai-markdown-padding-left: 0;
+    min-width: 0;
 }

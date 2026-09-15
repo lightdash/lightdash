@@ -137,6 +137,10 @@ const buildService = ({
         getActions: vi.fn().mockResolvedValue([]),
         getAction: vi.fn(),
         reverseAction: vi.fn(),
+        createAction: vi.fn().mockResolvedValue({
+            actionUuid: 'action-uuid',
+            actionType: 'fixed_broken',
+        }),
         setCurrentActivity: vi.fn().mockResolvedValue(undefined),
         upsertSettings: vi.fn().mockResolvedValue(settings),
         getServiceAccountToken: vi
@@ -157,6 +161,7 @@ const buildService = ({
         getSummary: vi.fn().mockResolvedValue({
             organizationUuid: ORGANIZATION_UUID,
         }),
+        findExploresFromCache: vi.fn().mockResolvedValue({}),
         createServiceAccountProjectAccess: vi.fn().mockResolvedValue(undefined),
         getServiceAccountProjectGrants: vi
             .fn()
@@ -197,8 +202,23 @@ const buildService = ({
     };
     const slackClient = { postMessage: vi.fn().mockResolvedValue({ ts: '1' }) };
     const analytics = { track: vi.fn() };
-    const validationModel = { get: vi.fn().mockResolvedValue([]) };
-    const savedChartModel = { get: vi.fn() };
+    const validationModel = {
+        get: vi.fn().mockResolvedValue([]),
+        deleteChartValidations: vi.fn().mockResolvedValue(undefined),
+    };
+    const savedChartModel = {
+        get: vi.fn(),
+        getLatestVersionSummary: vi.fn().mockResolvedValue({
+            versionUuid: 'version-uuid',
+        }),
+        createVersion: vi.fn().mockResolvedValue(undefined),
+        create: vi.fn().mockResolvedValue({ uuid: 'new-chart-uuid' }),
+    };
+    const asyncQueryService = {
+        executeMetricQueryAndGetResults: vi.fn().mockResolvedValue({
+            rows: [],
+        }),
+    };
     const spacePermissionService = { resolveAccess: vi.fn() };
     const service = new ManagedAgentService({
         lightdashConfig: {
@@ -243,6 +263,7 @@ const buildService = ({
         orgAiCopilotConfigResolver,
         aiOrganizationSettingsService,
         aiAgentToolsService,
+        asyncQueryService,
     } as AnyType);
 
     return {
@@ -252,6 +273,7 @@ const buildService = ({
         spacePermissionService,
         analytics,
         aiAgentToolsService,
+        asyncQueryService,
         dataRuntime,
         aiOrganizationSettingsService,
         orgAiCopilotConfigResolver,
@@ -533,6 +555,7 @@ describe('ManagedAgentService provider preflight', () => {
 
         expect(getModel).toHaveBeenCalledWith(copilotConfig, {
             enableReasoning: true,
+            reasoningEffort: 'xhigh',
             provider: 'openai',
             modelName: 'gpt-5',
         });
@@ -553,6 +576,7 @@ describe('ManagedAgentService provider preflight', () => {
 
         expect(getModel).toHaveBeenCalledWith(copilotConfig, {
             enableReasoning: true,
+            reasoningEffort: 'xhigh',
             provider: 'anthropic',
             modelName: 'claude-sonnet-4-6',
         });
@@ -571,6 +595,7 @@ describe('ManagedAgentService provider preflight', () => {
         });
         expect(getModel).toHaveBeenCalledWith(copilotConfig, {
             enableReasoning: true,
+            reasoningEffort: 'xhigh',
             provider: 'anthropic',
             modelName: 'claude-sonnet-4-6',
         });
@@ -589,6 +614,7 @@ describe('ManagedAgentService provider preflight', () => {
         });
         expect(getModel).toHaveBeenCalledWith(copilotConfig, {
             enableReasoning: true,
+            reasoningEffort: 'xhigh',
             provider: 'openai',
             modelName: 'gpt-5',
         });
@@ -897,10 +923,10 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             );
             const { summary } = managedAgentModel.finishRun.mock.calls[0][1];
             expect(summary).not.toContain('I flagged');
-            expect(summary).toContain('Created content: 1 — `Saved chart`');
-            expect(summary).toContain(
-                fail ? 'Run interrupted' : 'Run completed',
-            );
+            expect(summary).toContain('Created content: 1 (`Saved chart`)');
+            if (fail) expect(summary).toContain('cut short');
+            else expect(summary).not.toContain('cut short');
+            expect(summary).toContain('Agent Suggestions');
             expect(managedAgentModel.getActions).toHaveBeenCalledTimes(1);
             expect(slackClient.postMessage).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -915,8 +941,9 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                 { runUuid: 'run-uuid' },
             );
             expect(summary).toContain(
-                'Provider: openai; model: unscored-model; key: instance.',
+                '- Ran on: openai / unscored-model with the instance key',
             );
+            expect(summary).not.toMatch(/^Provider:/);
             expect(summary).toContain('Cleanup mode is observe');
             expect(managedAgentModel.setRunSessionId).toHaveBeenCalledWith(
                 'run-uuid',
@@ -1003,6 +1030,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
         managedAgentModel.getAction.mockResolvedValue({
             actionUuid: 'created-action',
             projectUuid: PROJECT_UUID,
+            managedAgentRunUuid: 'run',
             actionType: 'created_content',
             targetType: 'chart',
             targetUuid: 'chart-uuid',
@@ -1020,6 +1048,207 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             error: expect.stringContaining('cannot delete content'),
         });
         expect(managedAgentModel.reverseAction).not.toHaveBeenCalled();
+    });
+});
+
+describe('ManagedAgentService reversal scope', () => {
+    it('refuses to reverse an action recorded by an earlier run', async () => {
+        const { service, managedAgentModel } = buildService({
+            runtime: 'ai-sdk',
+        });
+        managedAgentModel.getAction.mockResolvedValue({
+            actionUuid: 'old-flag',
+            projectUuid: PROJECT_UUID,
+            managedAgentRunUuid: 'earlier-run',
+            actionType: 'flagged_stale',
+            targetType: 'chart',
+            targetUuid: 'chart-uuid',
+        });
+        const result = await (service as AnyType).handleToolCall(
+            PROJECT_UUID,
+            'session',
+            'run',
+            'reverse_own_action',
+            { action_uuid: 'old-flag', reason: 'Chart is protected' },
+        );
+        expect(JSON.parse(result)).toMatchObject({
+            error: expect.stringContaining('earlier run'),
+        });
+        expect(managedAgentModel.reverseAction).not.toHaveBeenCalled();
+    });
+
+    it('reverses a flag recorded by the current run', async () => {
+        const { service, managedAgentModel } = buildService({
+            runtime: 'ai-sdk',
+        });
+        managedAgentModel.getAction.mockResolvedValue({
+            actionUuid: 'own-flag',
+            projectUuid: PROJECT_UUID,
+            managedAgentRunUuid: 'run',
+            actionType: 'flagged_stale',
+            targetType: 'chart',
+            targetUuid: 'chart-uuid',
+        });
+        managedAgentModel.reverseAction.mockResolvedValue({
+            actionUuid: 'own-flag',
+            actionType: 'flagged_stale',
+            targetName: 'Chart',
+        });
+        const result = await (service as AnyType).handleToolCall(
+            PROJECT_UUID,
+            'session',
+            'run',
+            'reverse_own_action',
+            { action_uuid: 'own-flag', reason: 'Recently edited' },
+        );
+        expect(JSON.parse(result)).toMatchObject({ reversed: true });
+        expect(managedAgentModel.reverseAction).toHaveBeenCalledWith(
+            'own-flag',
+            USER_UUID,
+        );
+    });
+});
+
+describe('ManagedAgentService query check before saving', () => {
+    const metricQuery = {
+        dimensions: ['orders_status'],
+        metrics: ['orders_total_revenue'],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+    };
+    const chartConfig = { type: 'table', config: {} };
+    const existingChart = {
+        uuid: 'chart-uuid',
+        name: 'Revenue by status',
+        organizationUuid: ORGANIZATION_UUID,
+        projectUuid: PROJECT_UUID,
+        spaceUuid: 'space-uuid',
+        tableName: 'orders',
+        tableConfig: { columnOrder: [] },
+        pivotConfig: undefined,
+        parameters: undefined,
+    };
+    const stubGuards = (service: ManagedAgentService) => {
+        vi.spyOn(
+            service as AnyType,
+            'checkTargetProtectionGuard',
+        ).mockResolvedValue(null);
+        vi.spyOn(
+            service as AnyType,
+            'assertActorCanUpdateChart',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(
+            service as AnyType,
+            'assertActorCanCreateChart',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(service as AnyType, 'getOrCreateAgentSpace').mockResolvedValue(
+            'suggestions-space',
+        );
+    };
+
+    it('does not save a repaired version when the query fails', async () => {
+        const { service, savedChartModel, asyncQueryService } = buildService({
+            runtime: 'ai-sdk',
+        });
+        stubGuards(service);
+        savedChartModel.get.mockResolvedValue(existingChart);
+        asyncQueryService.executeMetricQueryAndGetResults.mockRejectedValue(
+            new Error('column "orders.status" does not exist'),
+        );
+        await expect(
+            (service as AnyType).handleToolCall(
+                PROJECT_UUID,
+                'session',
+                'run',
+                'fix_broken_chart',
+                {
+                    chart_uuid: 'chart-uuid',
+                    chart_name: 'Revenue by status',
+                    description: 'Renamed the status field',
+                    metric_query: metricQuery,
+                    chart_config: chartConfig,
+                },
+            ),
+        ).rejects.toThrow(
+            /The chart query failed, so nothing was saved[\s\S]*column "orders.status" does not exist/,
+        );
+        expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+    });
+
+    it('runs the repaired query at limit 1 before saving the version', async () => {
+        const { service, savedChartModel, asyncQueryService } = buildService({
+            runtime: 'ai-sdk',
+        });
+        stubGuards(service);
+        savedChartModel.get.mockResolvedValue(existingChart);
+        const result = await (service as AnyType).handleToolCall(
+            PROJECT_UUID,
+            'session',
+            'run',
+            'fix_broken_chart',
+            {
+                chart_uuid: 'chart-uuid',
+                chart_name: 'Revenue by status',
+                description: 'Renamed the status field',
+                metric_query: metricQuery,
+                chart_config: chartConfig,
+            },
+        );
+        expect(JSON.parse(result)).toMatchObject({ fixed: true });
+        expect(
+            asyncQueryService.executeMetricQueryAndGetResults,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: PROJECT_UUID,
+                metricQuery: expect.objectContaining({
+                    exploreName: 'orders',
+                    limit: 1,
+                }),
+            }),
+            expect.anything(),
+        );
+        expect(savedChartModel.createVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not create a chart when its query fails', async () => {
+        const { service, savedChartModel, asyncQueryService, projectModel } =
+            buildService({ runtime: 'ai-sdk' });
+        stubGuards(service);
+        projectModel.findExploresFromCache.mockResolvedValue({
+            orders: {
+                tables: {
+                    orders: {
+                        dimensions: { status: {} },
+                        metrics: { total_revenue: {} },
+                    },
+                },
+            },
+        });
+        asyncQueryService.executeMetricQueryAndGetResults.mockRejectedValue(
+            new Error('relation "orders" does not exist'),
+        );
+        await expect(
+            (service as AnyType).handleToolCall(
+                PROJECT_UUID,
+                'session',
+                'run',
+                'create_content_from_code',
+                {
+                    description: 'Users keep asking for revenue by status',
+                    chart_as_code: {
+                        name: 'Revenue by status',
+                        tableName: 'orders',
+                        metricQuery,
+                        chartConfig,
+                    },
+                },
+            ),
+        ).rejects.toThrow(
+            /nothing was saved[\s\S]*relation "orders" does not exist/,
+        );
+        expect(savedChartModel.create).not.toHaveBeenCalled();
     });
 });
 

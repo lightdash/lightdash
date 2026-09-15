@@ -28,6 +28,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | runs inside a dashboard tile | `viz-context` | required — see below |
 | reusable chart/table with pivoted results | `viz-pivoted-results` | required — see below |
 | "view underlying data", raw rows behind a point (viz only) | `viz-underlying-data` | app code opt-in |
+| Lightdash-owned "View underlying data" dialog (viz only) | `viz-host-underlying-data` | app code opt-in |
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
 
 ## Automatic (zero wiring — active on any current-SDK bundle)
@@ -119,11 +120,11 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   every tab's queries execute during capture while only the active tab stays
   visible — never mount all tabs unconditionally (interactive loads must stay
   lazy).
-- `viz-underlying-data` (vizs only): keep the untransformed `sourceRow` on each
-  interactive datum, gate a data-point action menu on
-  `useVizContext().underlyingData.enabled`, render
-  `underlyingData.get({ row, metric })` in a themed dialog, and wire its
-  Download button to `underlyingData.download`. Full contract in the
+- `viz-underlying-data` and `viz-host-underlying-data` (vizs only): keep the
+  untransformed `sourceRow` on each interactive datum, gate a data-point action menu on
+  `useVizContext().underlyingData.enabled`, and call
+  `underlyingData.open({ row, metric })`. Lightdash renders the dialog and
+  owns its table, loading, error, and download controls. Full contract in the
   `reusable-visualization` skill.
 
 ## After a template upgrade
@@ -132,3 +133,7 @@ An upgrade rebuilds the app on the current SDK, which turns on the automatic
 capabilities but does NOT add wiring — that is a deliberate rail. When you
 offer newly available features, offer wiring-required ones too (their registry
 entries carry a `wiring` note); implement only when the user asks.
+
+Existing published visualization bundles are not rewritten by this registry.
+Bundles built before `viz-host-underlying-data` keep their iframe-owned
+`get`/`download` dialog until the user explicitly upgrades that feature.

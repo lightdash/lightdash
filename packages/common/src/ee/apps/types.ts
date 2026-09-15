@@ -1146,6 +1146,13 @@ export type ApiListDataAppVizsResponse = ApiSuccess<
 >;
 export type ApiGetDataAppVizResponse = ApiSuccess<DataAppViz>;
 
+export type DataAppVizDeleteImpact = {
+    chartCount: number;
+};
+
+export type ApiDataAppVizDeleteImpactResponse =
+    ApiSuccess<DataAppVizDeleteImpact>;
+
 export type DataAppVizRenderMetadata =
     | {
           state: 'ready';
@@ -1205,6 +1212,12 @@ export const APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE =
 // API — `useAppSdkBridge` resolves it before allowlist matching.
 export const APP_SDK_VIZ_UNDERLYING_DATA_PATH = '/__sdk/viz/underlying-data';
 
+// Bridge-only virtual route for the current host-owned underlying-data dialog.
+// The fetch path above remains available for deployed bundles that still draw
+// their own dialog.
+export const APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH =
+    '/__sdk/viz/underlying-data/open';
+
 // Click intent a viz sends to the virtual route: the untransformed source row
 // (as pushed in the viz context) and the declared field NAME bound to the
 // clicked metric slot. The host resolves everything else at request time.
@@ -1244,6 +1257,6 @@ export type DataAppVizContext = {
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
-    underlyingData: { enabled: boolean };
+    underlyingData: { enabled: boolean; openEnabled?: boolean };
     drillDown: { enabled: boolean };
 };

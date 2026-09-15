@@ -45,6 +45,935 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
+            "ContentAsCodeType.HOMEPAGE": {
+                "enum": ["homepage"],
+                "type": "string"
+            },
+            "HomepageMarkdownBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "content": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["content"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["markdown"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageHeroDensity": {
+                "type": "string",
+                "enum": ["full", "compact"],
+                "description": "How much of the opening view the hero claims. `full` centres it in the\nviewport; `compact` gives it only the height of its own content. Absent in\nstored configs means \"let the layout decide\" — see resolveHeroDensity."
+            },
+            "HomepageAskAiHeroBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "density": {
+                                "$ref": "#/components/schemas/HomepageHeroDensity"
+                            },
+                            "showRecommendedActions": {
+                                "type": "boolean",
+                                "description": "Replaces the prompt suggestions with the setup checklist.\nOptional for configs persisted before this field existed."
+                            },
+                            "showGreeting": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["showGreeting"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["ask-ai-hero"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageGreetingBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "density": {
+                                "$ref": "#/components/schemas/HomepageHeroDensity"
+                            },
+                            "subtitle": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["subtitle"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["greeting"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object",
+                "description": "Day-part greeting (\"Good afternoon, Ada\") with an optional line under it.\nThe AI hero has its own built-in greeting; this is the standalone one for\npages that don't lead with a composer."
+            },
+            "HomepageAnnouncementsBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "collapseAfterFirst": {
+                                "type": "boolean"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
+                        "type": "object",
+                        "description": "Feed reference — items live in `project_announcements`."
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["announcements"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageMetricRef": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "metricName": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["label", "metricName", "tableName"],
+                "type": "object"
+            },
+            "HomepageMetricsBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "items": {
+                                "items": {
+                                    "$ref": "#/components/schemas/HomepageMetricRef"
+                                },
+                                "type": "array"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["items", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["metrics"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageFavoritesBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["favorites"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageRecentBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["recent"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "Exclude_HomepageBlock.HomepageCollectionBlock-or-HomepageResourcesBlock-or-HomepageQuickActionsBlock-or-HomepageCtaBlock_": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/HomepageMarkdownBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageAskAiHeroBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageGreetingBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageAnnouncementsBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageMetricsBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageFavoritesBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageRecentBlock"
+                    }
+                ],
+                "description": "Exclude from T those types that are assignable to U"
+            },
+            "HomepageCollectionSource": {
+                "type": "string",
+                "enum": [
+                    "manual",
+                    "most-viewed",
+                    "recently-updated",
+                    "pinned",
+                    "favorites",
+                    "recently-viewed",
+                    "verified"
+                ],
+                "description": "Where a collection block's items come from.\n\n`manual` reads the block's own `items`. Every other source is a live rule\nresolved per viewer at render time — which is the point: a snapshot of\n\"most viewed\" is stale the week after it's taken, and a frozen copy of the\npin list stops tracking pins the moment it's published.\n\n`favorites` and `recently-viewed` are per-viewer; the rest are project-wide."
+            },
+            "HomepageContentLayout": {
+                "type": "string",
+                "enum": ["card", "list"],
+                "description": "Shared display vocabulary for content-listing blocks: media-rich cards, or\na compact mode whose geometry (tile columns vs single-column rows) resolves\nfrom the block's width rather than being a third admin choice."
+            },
+            "Pick_HomepageCollectionBlock-at-config.Exclude_keyofHomepageCollectionBlock-at-config.items__": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/HomepageCollectionSource"
+                    },
+                    "verifiedOnly": {
+                        "type": "boolean",
+                        "description": "Applies to every source, including manual."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "How many items to show. Absent means DEFAULT_COLLECTION_LIMIT."
+                    },
+                    "layout": {
+                        "$ref": "#/components/schemas/HomepageContentLayout"
+                    },
+                    "contentTypes": {
+                        "items": {
+                            "type": "string",
+                            "enum": ["chart", "dashboard", "space", "data_app"]
+                        },
+                        "type": "array",
+                        "description": "Narrows live sources to these content types. Ignored for `manual`\n(hand-picking is already the filter) and when absent or empty."
+                    }
+                },
+                "required": ["title"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_HomepageCollectionBlock-at-config.items_": {
+                "$ref": "#/components/schemas/Pick_HomepageCollectionBlock-at-config.Exclude_keyofHomepageCollectionBlock-at-config.items__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Pick_HomepageResourcesBlock-at-config.Exclude_keyofHomepageResourcesBlock-at-config.items__": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "layout": {
+                        "$ref": "#/components/schemas/HomepageContentLayout"
+                    },
+                    "showDescriptions": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["title"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_HomepageResourcesBlock-at-config.items_": {
+                "$ref": "#/components/schemas/Pick_HomepageResourcesBlock-at-config.Exclude_keyofHomepageResourcesBlock-at-config.items__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "HomepageResourceKind": {
+                "type": "string",
+                "enum": [
+                    "video",
+                    "doc",
+                    "link",
+                    "claude",
+                    "youtube",
+                    "data-app"
+                ]
+            },
+            "Pick_HomepageResourcesBlock-at-config_91_items_93_-at-number.Exclude_keyofHomepageResourcesBlock-at-config_91_items_93_-at-number.appUuid__": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/HomepageResourceKind"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "imageUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["title", "url", "kind"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_HomepageResourcesBlock-at-config_91_items_93_-at-number.appUuid_": {
+                "$ref": "#/components/schemas/Pick_HomepageResourcesBlock-at-config_91_items_93_-at-number.Exclude_keyofHomepageResourcesBlock-at-config_91_items_93_-at-number.appUuid__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Exclude_HomepageQuickAction._type-dashboard-or-space__": {
+                "anyOf": [
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["ask-ai"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["type"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "primary": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["run-query"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["type"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "primary": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["browse-dashboards"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["type"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "primary": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["browse-spaces"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["type"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "primary": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["my-space"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["type"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "primary": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ],
+                "description": "Exclude from T those types that are assignable to U"
+            },
+            "HomepageActionAsCode": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/Exclude_HomepageQuickAction._type-dashboard-or-space__"
+                    },
+                    {
+                        "properties": {
+                            "primary": {
+                                "type": "boolean"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "dashboardSlug": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dashboard"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["label", "dashboardSlug", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "primary": {
+                                "type": "boolean"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "spaceSlug": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["space"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["label", "spaceSlug", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "HomepageCtaTheme": {
+                "type": "string",
+                "enum": ["brand", "accent", "dark", "neutral", "custom"],
+                "description": "Semantic theme tokens, resolved at render from the org's brand colors —\na rebrand restyles every CTA without touching stored configs. `custom`\nreads the block's own `customColor`."
+            },
+            "HomepageCtaBackground": {
+                "type": "string",
+                "enum": ["none", "card", "theme"],
+                "description": "The block's container: invisible (just the button on the page), a neutral\ncard, or a surface painted with the theme (the button then inverts it)."
+            },
+            "HomepageCtaAlign": {
+                "type": "string",
+                "enum": ["left", "center", "right"],
+                "description": "Where a bare (title-less) CTA button sits in its row."
+            },
+            "Pick_HomepageCtaBlock-at-config.Exclude_keyofHomepageCtaBlock-at-config.target__": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Optional: without it the CTA is just its button."
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "buttonLabel": {
+                        "type": "string"
+                    },
+                    "theme": {
+                        "$ref": "#/components/schemas/HomepageCtaTheme"
+                    },
+                    "customColor": {
+                        "type": "string",
+                        "description": "Hex color used when `theme` is `custom`."
+                    },
+                    "background": {
+                        "$ref": "#/components/schemas/HomepageCtaBackground"
+                    },
+                    "align": {
+                        "$ref": "#/components/schemas/HomepageCtaAlign"
+                    }
+                },
+                "required": ["buttonLabel"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_HomepageCtaBlock-at-config.target_": {
+                "$ref": "#/components/schemas/Pick_HomepageCtaBlock-at-config.Exclude_keyofHomepageCtaBlock-at-config.target__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "HomepageBlockAsCode": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/Exclude_HomepageBlock.HomepageCollectionBlock-or-HomepageResourcesBlock-or-HomepageQuickActionsBlock-or-HomepageCtaBlock_"
+                    },
+                    {
+                        "properties": {
+                            "config": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Omit_HomepageCollectionBlock-at-config.items_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "items": {
+                                                "items": {
+                                                    "properties": {
+                                                        "slug": {
+                                                            "type": "string"
+                                                        },
+                                                        "contentType": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "chart",
+                                                                "dashboard",
+                                                                "space",
+                                                                "data_app"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "slug",
+                                                        "contentType"
+                                                    ],
+                                                    "type": "object"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": ["items"],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["collection"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["config", "type", "id"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "config": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Omit_HomepageResourcesBlock-at-config.items_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "items": {
+                                                "items": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/Omit_HomepageResourcesBlock-at-config_91_items_93_-at-number.appUuid_"
+                                                        },
+                                                        {
+                                                            "properties": {
+                                                                "appSlug": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    ]
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": ["items"],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["resources"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["config", "type", "id"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "config": {
+                                "properties": {
+                                    "actions": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/HomepageActionAsCode"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "required": ["actions"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["quick-actions"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["config", "type", "id"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "config": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Omit_HomepageCtaBlock-at-config.target_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "target": {
+                                                "anyOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/HomepageActionAsCode"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "link"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "type"
+                                                        ],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "required": ["target"],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["cta"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["config", "type", "id"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ProjectMemberRole": {
+                "enum": [
+                    "viewer",
+                    "interactive_viewer",
+                    "editor",
+                    "developer",
+                    "admin"
+                ],
+                "type": "string"
+            },
+            "HomepageAsCode": {
+                "properties": {
+                    "publication": {
+                        "properties": {
+                            "roles": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ProjectMemberRole"
+                                },
+                                "type": "array"
+                            },
+                            "groups": {
+                                "items": {
+                                    "properties": {
+                                        "priority": {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["priority", "name"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            "isDefault": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["roles", "groups", "isDefault"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "config": {
+                        "properties": {
+                            "rows": {
+                                "items": {
+                                    "properties": {
+                                        "blocks": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/HomepageBlockAsCode"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "id": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["blocks", "id"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            "version": {
+                                "type": "number",
+                                "enum": [1],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["rows", "version"],
+                        "type": "object"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Exact project-scoped name. Duplicate names cannot be exported/upserted."
+                    },
+                    "version": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.HOMEPAGE"
+                    }
+                },
+                "required": [
+                    "publication",
+                    "config",
+                    "name",
+                    "version",
+                    "contentType"
+                ],
+                "type": "object"
+            },
+            "ApiContentAsCodeListResponse__homepages-HomepageAsCode-Array--missingNames-string-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "missingNames": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "homepages": {
+                                "items": {
+                                    "$ref": "#/components/schemas/HomepageAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["missingNames", "homepages"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiHomepageAsCodeListResponse": {
+                "$ref": "#/components/schemas/ApiContentAsCodeListResponse__homepages-HomepageAsCode-Array--missingNames-string-Array__"
+            },
+            "PromotionAction.CREATE": {
+                "enum": ["create"],
+                "type": "string"
+            },
+            "PromotionAction.UPDATE": {
+                "enum": ["update"],
+                "type": "string"
+            },
+            "PromotionAction.NO_CHANGES": {
+                "enum": ["no changes"],
+                "type": "string"
+            },
+            "ContentAsCodeUpsertAction": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                    }
+                ]
+            },
+            "Record_never.never_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiContentAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "action": {
+                                        "$ref": "#/components/schemas/ContentAsCodeUpsertAction"
+                                    }
+                                },
+                                "required": ["action"],
+                                "type": "object"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_never.never_"
+                            }
+                        ]
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiHomepageAsCodeUpsertResponse": {
+                "$ref": "#/components/schemas/ApiContentAsCodeUpsertResponse"
+            },
             "ApiSuccessEmpty": {
                 "properties": {
                     "results": {},
@@ -2124,13 +3053,13 @@
             },
             "Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.metricQuery-or-chartConfig__": {
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Display name of the chart"
-                    },
                     "description": {
                         "type": "string",
                         "description": "Optional description of what this chart displays"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "tableName": {
                         "type": "string",
@@ -2188,6 +3117,18 @@
             },
             "Pick_MetricQuery.Exclude_keyofMetricQuery.filters__": {
                 "properties": {
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "List of metric field IDs to include"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Maximum number of rows to return"
+                    },
                     "exploreName": {
                         "type": "string",
                         "description": "The name of the explore to query"
@@ -2199,24 +3140,12 @@
                         "type": "array",
                         "description": "List of dimension field IDs to include"
                     },
-                    "metrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "List of metric field IDs to include"
-                    },
                     "sorts": {
                         "items": {
                             "$ref": "#/components/schemas/SortField"
                         },
                         "type": "array",
                         "description": "Sort configuration for query results"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Maximum number of rows to return"
                     },
                     "tableCalculations": {
                         "items": {
@@ -2269,11 +3198,11 @@
                     }
                 },
                 "required": [
+                    "metrics",
+                    "limit",
                     "exploreName",
                     "dimensions",
-                    "metrics",
                     "sorts",
-                    "limit",
                     "tableCalculations"
                 ],
                 "type": "object",
@@ -4809,29 +5738,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "DashboardParameterValue": {
-                "properties": {
-                    "value": {
-                        "$ref": "#/components/schemas/ParameterValue"
-                    },
-                    "parameterName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["value", "parameterName"],
-                "type": "object"
-            },
-            "Record_string.DashboardParameterValue_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/DashboardParameterValue"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DashboardParameters": {
-                "$ref": "#/components/schemas/Record_string.DashboardParameterValue_"
-            },
             "DateGranularity": {
                 "enum": [
                     "Second",
@@ -4971,16 +5877,39 @@
                 "required": ["isDateZoomDisabled"],
                 "type": "object"
             },
+            "DashboardParameterValue": {
+                "properties": {
+                    "value": {
+                        "$ref": "#/components/schemas/ParameterValue"
+                    },
+                    "parameterName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "parameterName"],
+                "type": "object"
+            },
+            "Record_string.DashboardParameterValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardParameterValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DashboardParameters": {
+                "$ref": "#/components/schemas/Record_string.DashboardParameterValue_"
+            },
             "Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__": {
                 "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    },
                     "description": {
                         "type": "string"
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
-                    },
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
                     }
                 },
                 "type": "object",
@@ -5407,12 +6336,12 @@
             },
             "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
                 "properties": {
-                    "label": {
-                        "type": "string"
-                    },
                     "target": {
                         "$ref": "#/components/schemas/DashboardFieldTarget",
                         "description": "Target field for the filter"
+                    },
+                    "label": {
+                        "type": "string"
                     },
                     "settings": {
                         "description": "Additional settings for date/time filters"
@@ -6305,22 +7234,22 @@
             },
             "Pick_SqlChart.name-or-description-or-slug-or-sql-or-limit-or-config-or-chartKind_": {
                 "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "slug": {
-                        "type": "string"
+                    "config": {
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "limit": {
                         "type": "number",
                         "format": "double"
                     },
-                    "config": {
-                        "$ref": "#/components/schemas/AllVizChartConfig"
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
                     },
                     "sql": {
                         "type": "string"
@@ -6330,11 +7259,11 @@
                     }
                 },
                 "required": [
-                    "name",
-                    "description",
-                    "slug",
-                    "limit",
                     "config",
+                    "limit",
+                    "description",
+                    "name",
+                    "slug",
                     "sql",
                     "chartKind"
                 ],
@@ -7855,18 +8784,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "PromotionAction.CREATE": {
-                "enum": ["create"],
-                "type": "string"
-            },
-            "PromotionAction.UPDATE": {
-                "enum": ["update"],
-                "type": "string"
-            },
-            "PromotionAction.NO_CHANGES": {
-                "enum": ["no changes"],
-                "type": "string"
-            },
             "ApiVirtualViewAsCodeUpsertResponse": {
                 "properties": {
                     "results": {
@@ -8504,10 +9421,13 @@
             },
             "Pick_Dashboard.Exclude_keyofDashboard.inheritsFromOrgOrProject-or-access__": {
                 "properties": {
-                    "name": {
-                        "type": "string"
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
                     },
                     "description": {
+                        "type": "string"
+                    },
+                    "name": {
                         "type": "string"
                     },
                     "slug": {
@@ -8536,9 +9456,6 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
-                    },
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
                     },
                     "uuid": {
                         "type": "string"
@@ -8925,13 +9842,13 @@
             },
             "Pick_SavedChart.Exclude_keyofSavedChart.inheritsFromOrgOrProject-or-access__": {
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Display name of the chart"
-                    },
                     "description": {
                         "type": "string",
                         "description": "Optional description of what this chart displays"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "tableName": {
                         "type": "string",
@@ -9318,6 +10235,14 @@
             },
             "Pick_ChartAsCode.Exclude_keyofChartAsCode.chartConfig-or-description__": {
                 "properties": {
+                    "verified": {
+                        "type": "boolean",
+                        "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified."
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.CHART",
+                        "description": "Content type discriminator"
+                    },
                     "name": {
                         "type": "string",
                         "description": "Display name of the chart"
@@ -9405,10 +10330,6 @@
                         "format": "double",
                         "description": "Schema version for this chart configuration"
                     },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentAsCodeType.CHART",
-                        "description": "Content type discriminator"
-                    },
                     "spaceSlug": {
                         "type": "string",
                         "description": "Slug of the space containing this chart"
@@ -9417,10 +10338,6 @@
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when this chart was downloaded from Lightdash"
-                    },
-                    "verified": {
-                        "type": "boolean",
-                        "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified."
                     },
                     "verification": {
                         "allOf": [
@@ -9467,15 +10384,18 @@
             },
             "Pick_SqlChartAsCode.Exclude_keyofSqlChartAsCode.config-or-description__": {
                 "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.SQL_CHART"
+                    },
                     "name": {
                         "type": "string"
                     },
                     "slug": {
                         "type": "string"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
                     },
                     "updatedAt": {
                         "type": "string",
@@ -9484,9 +10404,6 @@
                     "version": {
                         "type": "number",
                         "format": "double"
-                    },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentAsCodeType.SQL_CHART"
                     },
                     "spaceSlug": {
                         "type": "string"
@@ -9507,9 +10424,9 @@
                     }
                 },
                 "required": [
+                    "limit",
                     "name",
                     "slug",
-                    "limit",
                     "version",
                     "spaceSlug",
                     "sql",
@@ -9557,6 +10474,16 @@
             },
             "Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.tiles-or-description__": {
                 "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    },
+                    "verified": {
+                        "type": "boolean",
+                        "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.DASHBOARD"
+                    },
                     "name": {
                         "type": "string",
                         "minLength": 1
@@ -9600,19 +10527,12 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentAsCodeType.DASHBOARD"
-                    },
                     "spaceSlug": {
                         "type": "string"
                     },
                     "downloadedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "verified": {
-                        "type": "boolean",
-                        "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
                     },
                     "verification": {
                         "allOf": [
@@ -9632,9 +10552,6 @@
                             "$ref": "#/components/schemas/DashboardTabAsCode"
                         },
                         "type": "array"
-                    },
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
                     },
                     "ownerEmail": {
                         "type": "string",
@@ -9887,16 +10804,6 @@
                     }
                 ],
                 "description": "SA + the count of `project_memberships` rows keyed on its dedicated user.\n\nReturned by the org SA list endpoint so the UI can render the `Access`\ncolumn (\"N project(s)\") for project-scoped SAs without a follow-up\nper-SA fan-out. Zero for Organization-scoped SAs, which is the natural\nshape (they have no project grants)."
-            },
-            "ProjectMemberRole": {
-                "enum": [
-                    "viewer",
-                    "interactive_viewer",
-                    "editor",
-                    "developer",
-                    "admin"
-                ],
-                "type": "string"
             },
             "ServiceAccountProjectGrant": {
                 "properties": {
@@ -11317,91 +12224,6 @@
                 "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
                 "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
             },
-            "HomepageMarkdownBlock": {
-                "properties": {
-                    "config": {
-                        "properties": {
-                            "content": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["content"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["markdown"],
-                        "nullable": false
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["config", "type", "id"],
-                "type": "object"
-            },
-            "HomepageHeroDensity": {
-                "type": "string",
-                "enum": ["full", "compact"],
-                "description": "How much of the opening view the hero claims. `full` centres it in the\nviewport; `compact` gives it only the height of its own content. Absent in\nstored configs means \"let the layout decide\" — see resolveHeroDensity."
-            },
-            "HomepageAskAiHeroBlock": {
-                "properties": {
-                    "config": {
-                        "properties": {
-                            "density": {
-                                "$ref": "#/components/schemas/HomepageHeroDensity"
-                            },
-                            "showRecommendedActions": {
-                                "type": "boolean",
-                                "description": "Replaces the prompt suggestions with the setup checklist.\nOptional for configs persisted before this field existed."
-                            },
-                            "showGreeting": {
-                                "type": "boolean"
-                            }
-                        },
-                        "required": ["showGreeting"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["ask-ai-hero"],
-                        "nullable": false
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["config", "type", "id"],
-                "type": "object"
-            },
-            "HomepageGreetingBlock": {
-                "properties": {
-                    "config": {
-                        "properties": {
-                            "density": {
-                                "$ref": "#/components/schemas/HomepageHeroDensity"
-                            },
-                            "subtitle": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["subtitle"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["greeting"],
-                        "nullable": false
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["config", "type", "id"],
-                "type": "object",
-                "description": "Day-part greeting (\"Good afternoon, Ada\") with an optional line under it.\nThe AI hero has its own built-in greeting; this is the standalone one for\npages that don't lead with a composer."
-            },
             "HomepageCollectionItemRef": {
                 "properties": {
                     "uuid": {
@@ -11414,24 +12236,6 @@
                 },
                 "required": ["uuid", "contentType"],
                 "type": "object"
-            },
-            "HomepageCollectionSource": {
-                "type": "string",
-                "enum": [
-                    "manual",
-                    "most-viewed",
-                    "recently-updated",
-                    "pinned",
-                    "favorites",
-                    "recently-viewed",
-                    "verified"
-                ],
-                "description": "Where a collection block's items come from.\n\n`manual` reads the block's own `items`. Every other source is a live rule\nresolved per viewer at render time — which is the point: a snapshot of\n\"most viewed\" is stale the week after it's taken, and a frozen copy of the\npin list stops tracking pins the moment it's published.\n\n`favorites` and `recently-viewed` are per-viewer; the rest are project-wide."
-            },
-            "HomepageContentLayout": {
-                "type": "string",
-                "enum": ["card", "list"],
-                "description": "Shared display vocabulary for content-listing blocks: media-rich cards, or\na compact mode whose geometry (tile columns vs single-column rows) resolves\nfrom the block's width rather than being a third admin choice."
             },
             "HomepageCollectionBlock": {
                 "properties": {
@@ -11491,17 +12295,6 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
-            "HomepageResourceKind": {
-                "type": "string",
-                "enum": [
-                    "video",
-                    "doc",
-                    "link",
-                    "claude",
-                    "youtube",
-                    "data-app"
-                ]
-            },
             "HomepageResourceItem": {
                 "properties": {
                     "appUuid": {
@@ -11555,77 +12348,6 @@
                     "type": {
                         "type": "string",
                         "enum": ["resources"],
-                        "nullable": false
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["config", "type", "id"],
-                "type": "object"
-            },
-            "HomepageAnnouncementsBlock": {
-                "properties": {
-                    "config": {
-                        "properties": {
-                            "collapseAfterFirst": {
-                                "type": "boolean"
-                            },
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["title"],
-                        "type": "object",
-                        "description": "Feed reference — items live in `project_announcements`."
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["announcements"],
-                        "nullable": false
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["config", "type", "id"],
-                "type": "object"
-            },
-            "HomepageMetricRef": {
-                "properties": {
-                    "label": {
-                        "type": "string"
-                    },
-                    "metricName": {
-                        "type": "string"
-                    },
-                    "tableName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["label", "metricName", "tableName"],
-                "type": "object"
-            },
-            "HomepageMetricsBlock": {
-                "properties": {
-                    "config": {
-                        "properties": {
-                            "items": {
-                                "items": {
-                                    "$ref": "#/components/schemas/HomepageMetricRef"
-                                },
-                                "type": "array"
-                            },
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["items", "title"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["metrics"],
                         "nullable": false
                     },
                     "id": {
@@ -11792,21 +12514,6 @@
                 ],
                 "description": "Where the CTA button leads: the quick-action vocabulary plus a free URL."
             },
-            "HomepageCtaTheme": {
-                "type": "string",
-                "enum": ["brand", "accent", "dark", "neutral", "custom"],
-                "description": "Semantic theme tokens, resolved at render from the org's brand colors —\na rebrand restyles every CTA without touching stored configs. `custom`\nreads the block's own `customColor`."
-            },
-            "HomepageCtaBackground": {
-                "type": "string",
-                "enum": ["none", "card", "theme"],
-                "description": "The block's container: invisible (just the button on the page), a neutral\ncard, or a surface painted with the theme (the button then inverts it)."
-            },
-            "HomepageCtaAlign": {
-                "type": "string",
-                "enum": ["left", "center", "right"],
-                "description": "Where a bare (title-less) CTA button sits in its row."
-            },
             "HomepageCtaBlock": {
                 "properties": {
                     "config": {
@@ -11844,52 +12551,6 @@
                     "type": {
                         "type": "string",
                         "enum": ["cta"],
-                        "nullable": false
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["config", "type", "id"],
-                "type": "object"
-            },
-            "HomepageFavoritesBlock": {
-                "properties": {
-                    "config": {
-                        "properties": {
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["title"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["favorites"],
-                        "nullable": false
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["config", "type", "id"],
-                "type": "object"
-            },
-            "HomepageRecentBlock": {
-                "properties": {
-                    "config": {
-                        "properties": {
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["title"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["recent"],
                         "nullable": false
                     },
                     "id": {
@@ -13296,6 +13957,10 @@
                     "actionType": {
                         "$ref": "#/components/schemas/ManagedAgentActionType"
                     },
+                    "managedAgentRunUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "sessionId": {
                         "type": "string"
                     },
@@ -13317,6 +13982,7 @@
                     "targetUuid",
                     "targetType",
                     "actionType",
+                    "managedAgentRunUuid",
                     "sessionId",
                     "projectUuid",
                     "actionUuid"
@@ -18303,13 +18969,13 @@
             },
             "Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-limit_": {
                 "properties": {
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
                     "limit": {
                         "type": "number",
                         "format": "double",
                         "nullable": true
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
                     },
                     "dashboardFilters": {
                         "$ref": "#/components/schemas/DashboardFilters"
@@ -18527,12 +19193,12 @@
             },
             "Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-limit_": {
                 "properties": {
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
                     "limit": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
                     },
                     "dashboardFilters": {
                         "$ref": "#/components/schemas/DashboardFilters"
@@ -19139,8 +19805,8 @@
             "DataAppTemplate": {
                 "type": "string",
                 "enum": [
-                    "custom",
                     "dashboard",
+                    "custom",
                     "slideshow",
                     "pdf",
                     "data_app_viz"
@@ -19337,10 +20003,10 @@
                 "type": "string",
                 "enum": [
                     "number",
-                    "table",
-                    "target",
-                    "stack",
                     "list",
+                    "target",
+                    "table",
+                    "stack",
                     "chart-bar",
                     "chart-histogram",
                     "chart-line",
@@ -19731,6 +20397,33 @@
             },
             "ApiGetDataAppVizResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppViz_"
+            },
+            "DataAppVizDeleteImpact": {
+                "properties": {
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["chartCount"],
+                "type": "object"
+            },
+            "ApiSuccess_DataAppVizDeleteImpact_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppVizDeleteImpact"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppVizDeleteImpactResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppVizDeleteImpact_"
             },
             "ApiSuccess__questions-string-Array__": {
                 "properties": {
@@ -22254,10 +22947,10 @@
             },
             "Pick_Field.name-or-label-or-description-or-type_": {
                 "properties": {
-                    "name": {
+                    "description": {
                         "type": "string"
                     },
-                    "description": {
+                    "name": {
                         "type": "string"
                     },
                     "label": {
@@ -22347,10 +23040,10 @@
             },
             "Pick_Field.name-or-label-or-description-or-type-or-table_": {
                 "properties": {
-                    "name": {
+                    "description": {
                         "type": "string"
                     },
-                    "description": {
+                    "name": {
                         "type": "string"
                     },
                     "label": {
@@ -23006,12 +23699,16 @@
             },
             "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_": {
                 "properties": {
-                    "name": {
-                        "type": "string"
-                    },
                     "description": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
                     },
                     "updatedAt": {
                         "type": "string",
@@ -23040,13 +23737,9 @@
                         },
                         "type": "array"
                     },
-                    "imageUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["upload", "url", null],
+                        "enum": ["url", "upload", null],
                         "nullable": true
                     },
                     "tags": {
@@ -23122,8 +23815,9 @@
                     }
                 },
                 "required": [
-                    "name",
                     "description",
+                    "imageUrl",
+                    "name",
                     "updatedAt",
                     "version",
                     "uuid",
@@ -23131,7 +23825,6 @@
                     "projectUuid",
                     "createdAt",
                     "userAccess",
-                    "imageUrl",
                     "imageUrlSource",
                     "tags",
                     "integrations",
@@ -23746,12 +24439,16 @@
             },
             "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_": {
                 "properties": {
-                    "name": {
-                        "type": "string"
-                    },
                     "description": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
                     },
                     "updatedAt": {
                         "type": "string",
@@ -23780,13 +24477,9 @@
                         },
                         "type": "array"
                     },
-                    "imageUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["upload", "url", null],
+                        "enum": ["url", "upload", null],
                         "nullable": true
                     },
                     "tags": {
@@ -23862,8 +24555,9 @@
                     }
                 },
                 "required": [
-                    "name",
                     "description",
+                    "imageUrl",
+                    "name",
                     "updatedAt",
                     "version",
                     "uuid",
@@ -23871,7 +24565,6 @@
                     "projectUuid",
                     "createdAt",
                     "userAccess",
-                    "imageUrl",
                     "imageUrlSource",
                     "tags",
                     "integrations",
@@ -24606,12 +25299,16 @@
             },
             "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
                 "properties": {
-                    "name": {
-                        "type": "string"
-                    },
                     "description": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
                     },
                     "version": {
                         "type": "number",
@@ -24625,10 +25322,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "imageUrl": {
-                        "type": "string",
-                        "nullable": true
                     },
                     "tags": {
                         "items": {
@@ -24678,12 +25371,12 @@
                     }
                 },
                 "required": [
-                    "name",
                     "description",
+                    "imageUrl",
+                    "name",
                     "version",
                     "projectUuid",
                     "userAccess",
-                    "imageUrl",
                     "tags",
                     "integrations",
                     "instruction",
@@ -24740,12 +25433,16 @@
             },
             "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version__": {
                 "properties": {
-                    "name": {
-                        "type": "string"
-                    },
                     "description": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
                     },
                     "version": {
                         "type": "number",
@@ -24759,10 +25456,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "imageUrl": {
-                        "type": "string",
-                        "nullable": true
                     },
                     "tags": {
                         "items": {
@@ -24988,12 +25681,12 @@
             },
             "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId__": {
                 "properties": {
-                    "label": {
-                        "type": "string"
-                    },
                     "target": {
                         "$ref": "#/components/schemas/DashboardFieldTarget",
                         "description": "Target field for the filter"
+                    },
+                    "label": {
+                        "type": "string"
                     },
                     "settings": {
                         "description": "Additional settings for date/time filters"
@@ -27345,11 +28038,11 @@
             },
             "Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_": {
                 "properties": {
-                    "description": {
+                    "title": {
                         "type": "string",
                         "nullable": true
                     },
-                    "title": {
+                    "description": {
                         "type": "string",
                         "nullable": true
                     },
@@ -27369,8 +28062,8 @@
                     }
                 },
                 "required": [
-                    "description",
                     "title",
+                    "description",
                     "versionUuid",
                     "artifactUuid",
                     "versionNumber",
@@ -28364,11 +29057,11 @@
             },
             "Pick_AiArtifact.Exclude_keyofAiArtifact.chartConfig-or-dashboardConfig__": {
                 "properties": {
-                    "description": {
+                    "title": {
                         "type": "string",
                         "nullable": true
                     },
-                    "title": {
+                    "description": {
                         "type": "string",
                         "nullable": true
                     },
@@ -28424,8 +29117,8 @@
                     }
                 },
                 "required": [
-                    "description",
                     "title",
+                    "description",
                     "versionUuid",
                     "createdAt",
                     "artifactUuid",
@@ -28955,6 +29648,9 @@
             },
             "Pick_AiAgentEvaluation.evalUuid-or-agentUuid-or-title-or-description-or-createdAt-or-updatedAt_": {
                 "properties": {
+                    "title": {
+                        "type": "string"
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -28962,9 +29658,6 @@
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "title": {
-                        "type": "string"
                     },
                     "createdAt": {
                         "type": "string",
@@ -28978,9 +29671,9 @@
                     }
                 },
                 "required": [
+                    "title",
                     "description",
                     "updatedAt",
-                    "title",
                     "createdAt",
                     "evalUuid",
                     "agentUuid"
@@ -30538,6 +31231,9 @@
             },
             "Pick_CreateTrinoCredentials.Exclude_keyofCreateTrinoCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
+                    "source": {
+                        "type": "string"
+                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.TRINO"
                     },
@@ -30569,9 +31265,6 @@
                         "type": "string"
                     },
                     "http_scheme": {
-                        "type": "string"
-                    },
-                    "source": {
                         "type": "string"
                     }
                 },
@@ -30910,11 +31603,11 @@
             },
             "Pick_CreateDucklakeDataPathS3.Exclude_keyofCreateDucklakeDataPathS3.accessKeyId-or-secretAccessKey__": {
                 "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DucklakeDataPathType.S3"
-                    },
                     "url": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeDataPathType.S3"
                     },
                     "region": {
                         "type": "string"
@@ -30929,7 +31622,7 @@
                         "type": "boolean"
                     }
                 },
-                "required": ["type", "url"],
+                "required": ["url", "type"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -30946,14 +31639,14 @@
             },
             "Pick_CreateDucklakeDataPathGcs.Exclude_keyofCreateDucklakeDataPathGcs.hmacKeyId-or-hmacSecret__": {
                 "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DucklakeDataPathType.GCS"
-                    },
                     "url": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeDataPathType.GCS"
                     }
                 },
-                "required": ["type", "url"],
+                "required": ["url", "type"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -30970,17 +31663,17 @@
             },
             "Pick_CreateDucklakeDataPathAzure.Exclude_keyofCreateDucklakeDataPathAzure.connectionString-or-accountKey__": {
                 "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DucklakeDataPathType.AZURE"
-                    },
                     "url": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeDataPathType.AZURE"
                     },
                     "accountName": {
                         "type": "string"
                     }
                 },
-                "required": ["type", "url"],
+                "required": ["url", "type"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -31228,12 +31921,12 @@
             },
             "Pick_OrganizationWarehouseCredentials.organizationWarehouseCredentialsUuid-or-name-or-description-or-warehouseType_": {
                 "properties": {
-                    "name": {
-                        "type": "string"
-                    },
                     "description": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
                     },
                     "organizationWarehouseCredentialsUuid": {
                         "type": "string"
@@ -31243,8 +31936,8 @@
                     }
                 },
                 "required": [
-                    "name",
                     "description",
+                    "name",
                     "organizationWarehouseCredentialsUuid",
                     "warehouseType"
                 ],
@@ -36479,12 +37172,12 @@
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
-                    "uuid": {
-                        "type": "string"
-                    },
                     "title": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "uuid": {
+                        "type": "string"
                     },
                     "createdAt": {
                         "type": "string"
@@ -36516,8 +37209,8 @@
                     }
                 },
                 "required": [
-                    "uuid",
                     "title",
+                    "uuid",
                     "createdAt",
                     "user",
                     "createdFrom"
@@ -36530,18 +37223,18 @@
             },
             "Pick_AiAgentSummary.uuid-or-name-or-imageUrl_": {
                 "properties": {
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "name": {
                         "type": "string"
                     },
                     "uuid": {
                         "type": "string"
-                    },
-                    "imageUrl": {
-                        "type": "string",
-                        "nullable": true
                     }
                 },
-                "required": ["name", "uuid", "imageUrl"],
+                "required": ["imageUrl", "name", "uuid"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -40806,6 +41499,9 @@
             },
             "Pick_ValidationResponseBase.Exclude_keyofValidationResponseBase.name__": {
                 "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
                     "error": {
                         "type": "string"
                     },
@@ -40818,9 +41514,6 @@
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/ValidationSourceType"
                     },
                     "validationUuid": {
                         "type": "string"
@@ -40947,6 +41640,9 @@
             },
             "Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_": {
                 "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
                     "error": {
                         "type": "string"
                     },
@@ -40961,9 +41657,6 @@
                     },
                     "projectUuid": {
                         "type": "string"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/ValidationSourceType"
                     },
                     "errorType": {
                         "$ref": "#/components/schemas/ValidationErrorType"
@@ -41010,6 +41703,9 @@
             },
             "Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_": {
                 "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
                     "error": {
                         "type": "string"
                     },
@@ -41027,9 +41723,6 @@
                     },
                     "dashboardUuid": {
                         "type": "string"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/ValidationSourceType"
                     },
                     "errorType": {
                         "$ref": "#/components/schemas/ValidationErrorType"
@@ -43640,6 +44333,10 @@
             },
             "Pick_CreateSchedulerAndTargets.Exclude_keyofCreateSchedulerAndTargets.savedChartUuid-or-dashboardUuid-or-savedSqlUuid-or-createdBy__": {
                 "properties": {
+                    "appUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -43658,10 +44355,6 @@
                     },
                     "enabled": {
                         "type": "boolean"
-                    },
-                    "appUuid": {
-                        "type": "string",
-                        "nullable": true
                     },
                     "message": {
                         "type": "string"
@@ -43717,10 +44410,10 @@
                     }
                 },
                 "required": [
+                    "appUuid",
                     "name",
                     "cron",
                     "enabled",
-                    "appUuid",
                     "format",
                     "appName",
                     "options",
@@ -43858,13 +44551,13 @@
             },
             "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-dashboardSlug-or-slug_": {
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Display name of the chart"
-                    },
                     "description": {
                         "type": "string",
                         "description": "Optional description of what this chart displays"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "slug": {
                         "type": "string",
@@ -44066,10 +44759,10 @@
             },
             "Pick_Dashboard.uuid-or-slug-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_": {
                 "properties": {
-                    "name": {
+                    "description": {
                         "type": "string"
                     },
-                    "description": {
+                    "name": {
                         "type": "string"
                     },
                     "slug": {
@@ -48719,13 +49412,13 @@
             },
             "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters-or-merge_": {
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Display name of the chart"
-                    },
                     "description": {
                         "type": "string",
                         "description": "Optional description of what this chart displays"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "tableName": {
                         "type": "string",
@@ -48897,10 +49590,10 @@
             },
             "Pick_Dashboard.uuid-or-name-or-description-or-spaceUuid_": {
                 "properties": {
-                    "name": {
+                    "description": {
                         "type": "string"
                     },
-                    "description": {
+                    "name": {
                         "type": "string"
                     },
                     "uuid": {
@@ -49907,10 +50600,10 @@
             },
             "Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-owner_": {
                 "properties": {
-                    "name": {
+                    "description": {
                         "type": "string"
                     },
-                    "description": {
+                    "name": {
                         "type": "string"
                     },
                     "slug": {
@@ -50024,13 +50717,13 @@
             },
             "Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-slug_": {
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Display name of the chart"
-                    },
                     "description": {
                         "type": "string",
                         "description": "Optional description of what this chart displays"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "slug": {
                         "type": "string",
@@ -50750,19 +51443,6 @@
                 },
                 "required": ["name"],
                 "type": "object"
-            },
-            "ContentAsCodeUpsertAction": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/PromotionAction.CREATE"
-                    },
-                    {
-                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
-                    },
-                    {
-                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
-                    }
-                ]
             },
             "OrganizationDesignPackageImportResult": {
                 "properties": {
@@ -55088,10 +55768,10 @@
             },
             "Pick_Field.name-or-label-or-fieldType-or-tableLabel-or-description_": {
                 "properties": {
-                    "name": {
+                    "description": {
                         "type": "string"
                     },
-                    "description": {
+                    "name": {
                         "type": "string"
                     },
                     "label": {
@@ -55315,10 +55995,10 @@
             },
             "Pick_TableBase.name-or-label-or-groupLabel-or-description-or-requiredAttributes-or-anyAttributes_": {
                 "properties": {
-                    "name": {
+                    "description": {
                         "type": "string"
                     },
-                    "description": {
+                    "name": {
                         "type": "string"
                     },
                     "label": {
@@ -55945,13 +56625,13 @@
             },
             "Pick_ChartSummary.uuid-or-slug-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_": {
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Display name of the chart"
-                    },
                     "description": {
                         "type": "string",
                         "description": "Optional description of what this chart displays"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "slug": {
                         "type": "string",
@@ -57817,6 +58497,16 @@
             },
             "Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__": {
                 "properties": {
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "filters": {
                         "properties": {
                             "tableCalculations": {},
@@ -57834,21 +58524,11 @@
                         },
                         "type": "array"
                     },
-                    "metrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "sorts": {
                         "items": {
                             "$ref": "#/components/schemas/SortField"
                         },
                         "type": "array"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
                     },
                     "tableCalculations": {
                         "items": {
@@ -57897,12 +58577,12 @@
                     }
                 },
                 "required": [
+                    "metrics",
+                    "limit",
                     "filters",
                     "exploreName",
                     "dimensions",
-                    "metrics",
                     "sorts",
-                    "limit",
                     "tableCalculations"
                 ],
                 "type": "object",
@@ -59497,10 +60177,10 @@
             },
             "Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid-or-ownerUserUuid_": {
                 "properties": {
-                    "name": {
+                    "description": {
                         "type": "string"
                     },
-                    "description": {
+                    "name": {
                         "type": "string"
                     },
                     "spaceUuid": {
@@ -59525,6 +60205,9 @@
             },
             "Pick_CreateDashboard.tiles-or-filters-or-parameters-or-updatedByUser-or-tabs-or-config_": {
                 "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    },
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
                     },
@@ -59536,9 +60219,6 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
-                    },
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
                     },
                     "tiles": {
                         "items": {
@@ -60203,18 +60883,18 @@
             },
             "Pick_Content.Exclude_keyofContent.space-or-pinnedList__": {
                 "properties": {
-                    "name": {
-                        "type": "string"
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType"
                     },
                     "description": {
                         "type": "string",
                         "nullable": true
                     },
-                    "slug": {
+                    "name": {
                         "type": "string"
                     },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType"
+                    "slug": {
+                        "type": "string"
                     },
                     "verification": {
                         "allOf": [
@@ -60308,10 +60988,10 @@
                     }
                 },
                 "required": [
-                    "name",
-                    "description",
-                    "slug",
                     "contentType",
+                    "description",
+                    "name",
+                    "slug",
                     "verification",
                     "uuid",
                     "views",
@@ -60328,18 +61008,18 @@
             },
             "DataAppContent": {
                 "properties": {
-                    "name": {
-                        "type": "string"
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DATA_APP"
                     },
                     "description": {
                         "type": "string",
                         "nullable": true
                     },
-                    "slug": {
+                    "name": {
                         "type": "string"
                     },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType.DATA_APP"
+                    "slug": {
+                        "type": "string"
                     },
                     "verification": {
                         "allOf": [
@@ -60492,10 +61172,10 @@
                     }
                 },
                 "required": [
-                    "name",
-                    "description",
-                    "slug",
                     "contentType",
+                    "description",
+                    "name",
+                    "slug",
                     "verification",
                     "uuid",
                     "views",
@@ -61355,7 +62035,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.216.0",
+        "version": "2.217.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -61367,6 +62047,122 @@
         }
     },
     "paths": {
+        "/api/v1/projects/{projectUuid}/code/homepages": {
+            "get": {
+                "operationId": "getCodeHomepages",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiHomepageAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "names",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/homepages/{name}": {
+            "post": {
+                "operationId": "upsertCodeHomepage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiHomepageAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "publish",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/HomepageAsCode"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/slugs/rename": {
             "post": {
                 "operationId": "renameContentSlug",

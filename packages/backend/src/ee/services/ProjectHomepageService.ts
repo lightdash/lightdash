@@ -4,6 +4,7 @@ import {
     ANNOUNCEMENT_CATEGORY_META,
     assertUnreachable,
     CommercialFeatureFlags,
+    ContentAsCodeType,
     convertOrganizationRoleToProjectRole,
     defaultHomepageConfig,
     ForbiddenError,
@@ -12,11 +13,15 @@ import {
     isSystemRole,
     NotFoundError,
     ParameterError,
+    parseHomepageAsCode,
     parseHomepageConfig,
     PersistentDownloadFileAccessMode,
     type AnnouncementsPage,
+    type ApiHomepageAsCodeListResponse,
+    type ApiHomepageAsCodeUpsertResponse,
     type CreateAnnouncementRequest,
     type CreateProjectHomepageRequest,
+    type HomepageAsCode,
     type HomepageAssignment,
     type HomepageAudience,
     type HomepageConfig,
@@ -54,6 +59,7 @@ import type { RecentContentService } from '../../services/RecentContentService/R
 import { secureFetch } from '../../utils/secureFetch/secureFetch';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
+import { downloadHomepageConfig, uploadHomepageConfig } from './homepageAsCode';
 import {
     classifyResourceUrl,
     parseOpenGraph,
@@ -197,6 +203,9 @@ export type ProjectHomepageServiceArguments = {
         | 'findOrgHomepageSettings'
         | 'upsertOrgHomepageSettings'
         | 'swapHeroBlocks'
+        | 'getCodeReferences'
+        | 'getCodeGroups'
+        | 'upsertAsCode'
     >;
     analytics: Pick<LightdashAnalytics, 'track'>;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
@@ -616,6 +625,173 @@ export class ProjectHomepageService extends BaseService {
             name: data.name,
             draftConfig,
             createdByUserUuid: user.userUuid,
+        });
+    }
+
+    private async assertCanUseCode(
+        user: SessionUser,
+        projectUuid: string,
+        action: 'view' | 'manage',
+    ): Promise<void> {
+        await this.assertFlagEnabled(user);
+        await this.assertCanManage(user, projectUuid);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                action,
+                subject('ContentAsCode', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to use homepage as code',
+            );
+        }
+    }
+
+    async downloadHomepagesAsCode(
+        user: SessionUser,
+        projectUuid: string,
+        names: string[] = [],
+    ): Promise<ApiHomepageAsCodeListResponse['results']> {
+        await this.assertCanUseCode(user, projectUuid, 'view');
+        const homepages = await this.projectHomepageModel.list(projectUuid);
+        const selected = homepages.filter(
+            (h) =>
+                h.publishedConfig !== null &&
+                (names.length === 0 || names.includes(h.name)),
+        );
+        for (const homepage of selected) {
+            if (homepages.filter((h) => h.name === homepage.name).length > 1)
+                throw new ParameterError(
+                    `Homepage name "${homepage.name}" is ambiguous in this project`,
+                );
+        }
+        const references =
+            await this.projectHomepageModel.getCodeReferences(projectUuid);
+        const assignments =
+            await this.projectHomepageModel.getAssignments(projectUuid);
+        return {
+            homepages: selected
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((homepage) => ({
+                    contentType: ContentAsCodeType.HOMEPAGE,
+                    version: 1,
+                    name: homepage.name,
+                    config: downloadHomepageConfig(
+                        homepage.publishedConfig!,
+                        projectUuid,
+                        references,
+                        this.lightdashConfig.siteUrl,
+                    ),
+                    publication: {
+                        isDefault: homepage.isDefault,
+                        groups: assignments
+                            .filter(
+                                (a) =>
+                                    a.homepageUuid === homepage.homepageUuid &&
+                                    a.targetType === 'group',
+                            )
+                            .map((a) => {
+                                if (!a.groupName)
+                                    throw new ParameterError(
+                                        'Homepage assignment references a missing group',
+                                    );
+                                return {
+                                    name: a.groupName,
+                                    priority: a.priority,
+                                };
+                            })
+                            .sort(
+                                (a, b) =>
+                                    a.priority - b.priority ||
+                                    a.name.localeCompare(b.name),
+                            ),
+                        roles: assignments
+                            .filter(
+                                (a) =>
+                                    a.homepageUuid === homepage.homepageUuid &&
+                                    a.targetType === 'role',
+                            )
+                            .map((a) => {
+                                if (!a.role)
+                                    throw new ParameterError(
+                                        'Homepage assignment references a missing role',
+                                    );
+                                return a.role;
+                            })
+                            .sort(),
+                    },
+                })),
+            missingNames: names.filter(
+                (name) => !selected.some((h) => h.name === name),
+            ),
+        };
+    }
+
+    async upsertHomepageAsCode(
+        user: SessionUser,
+        projectUuid: string,
+        name: string,
+        input: HomepageAsCode,
+        publish: boolean = false,
+    ): Promise<ApiHomepageAsCodeUpsertResponse['results']> {
+        await this.assertCanUseCode(user, projectUuid, 'manage');
+        const document = parseHomepageAsCode(input, name);
+        if (name !== document.name)
+            throw new ParameterError('Homepage path and body names must match');
+        if (publish && document.publication === null)
+            throw new ParameterError(
+                'Publishing a homepage requires publication settings',
+            );
+        const config = parseHomepageConfig(
+            uploadHomepageConfig(
+                document.config,
+                projectUuid,
+                await this.projectHomepageModel.getCodeReferences(projectUuid),
+                this.lightdashConfig.siteUrl,
+            ),
+        );
+        const groups =
+            await this.projectHomepageModel.getCodeGroups(projectUuid);
+        const publication =
+            document.publication === null
+                ? null
+                : {
+                      ...document.publication,
+                      groups: document.publication.groups.map((group) => {
+                          const matches = groups.filter(
+                              (g) => g.name === group.name,
+                          );
+                          if (matches.length !== 1)
+                              throw new ParameterError(
+                                  `Homepage group "${group.name}" is missing or ambiguous in the destination organization`,
+                              );
+                          return {
+                              groupUuid: matches[0].groupUuid,
+                              priority: group.priority,
+                          };
+                      }),
+                  };
+        if (
+            publication &&
+            (new Set(publication.groups.map((g) => g.groupUuid)).size !==
+                publication.groups.length ||
+                new Set(publication.groups.map((g) => g.priority)).size !==
+                    publication.groups.length ||
+                new Set(publication.roles).size !== publication.roles.length)
+        ) {
+            throw new ParameterError(
+                'Homepage publication contains duplicate groups, priorities, or roles',
+            );
+        }
+        return this.projectHomepageModel.upsertAsCode({
+            projectUuid,
+            name,
+            config,
+            publication,
+            publish,
+            userUuid: user.userUuid,
         });
     }
 

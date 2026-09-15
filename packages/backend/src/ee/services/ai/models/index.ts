@@ -28,6 +28,7 @@ import {
     ModelPreset,
     ModelPresetProvider,
     openRouterPreset,
+    ReasoningEffort,
     SelectableModelProvider,
 } from './presets';
 import { AiModel, AiProvider } from './types';
@@ -367,6 +368,8 @@ export const getModel = (
     config: CopilotConfigForModel,
     options?: {
         enableReasoning?: boolean;
+        /** Anthropic and Bedrock only; other providers keep their preset effort. */
+        reasoningEffort?: ReasoningEffort;
         modelName?: string;
         provider?: typeof config.defaultProvider;
         /** Only server-generated immutable snapshots may pin non-preset names. */
@@ -434,6 +437,7 @@ export const getModel = (
                 applyStreamingCapability(
                     getAnthropicModel(anthropicConfig, preset, {
                         enableReasoning: options?.enableReasoning,
+                        reasoningEffort: options?.reasoningEffort,
                     }),
                     anthropicConfig.supportsStreaming,
                 ),
@@ -505,6 +509,7 @@ export const getModel = (
                 applyStreamingCapability(
                     getBedrockModel(bedrockConfig, preset, {
                         enableReasoning: options?.enableReasoning,
+                        reasoningEffort: options?.reasoningEffort,
                     }),
                     bedrockConfig.supportsStreaming,
                 ),

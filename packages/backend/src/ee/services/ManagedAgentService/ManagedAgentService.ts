@@ -58,6 +58,7 @@ import type { SpaceModel } from '../../../models/SpaceModel';
 import type { UserModel } from '../../../models/UserModel';
 import type { ValidationModel } from '../../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../../scheduler/SchedulerClient';
+import type { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { ValidationService } from '../../../services/ValidationService/ValidationService';
@@ -85,6 +86,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import type { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import type { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { runAutopilotAgent } from './AutopilotAgentRunner';
@@ -92,7 +94,10 @@ import {
     AUTOPILOT_MANAGED_MODEL_ID,
     renderAutopilotAgent,
 } from './config/agent';
-import { renderHeartbeatSummary } from './heartbeatSummary';
+import {
+    renderHeartbeatSummary,
+    type HeartbeatSummaryContext,
+} from './heartbeatSummary';
 import { pickAutopilotModel } from './modelSelection';
 import { buildPreAggCandidateSuggestion } from './preAggCandidates';
 import { loadAutopilotSkill } from './skills';
@@ -114,12 +119,13 @@ type RunsCursor = { startedAt: Date; runUuid: string };
 type HeartbeatContext = {
     runUuid: string;
     projectUuid: string;
+    projectName: string | null;
     organizationUuid: string;
     settings: ManagedAgentSettings | null;
     triggeredBy: ManagedAgentRunTriggeredBy;
     startedAtMs: number;
     analyticsUserId: string | null;
-    summaryContext: string[];
+    summaryContext: HeartbeatSummaryContext;
     // Snapshot from the actual run resolver, never re-resolved on completion.
     modelAttribution: Pick<
         ManagedAgentRuntimeInfo,
@@ -204,6 +210,7 @@ type ManagedAgentServiceDependencies = {
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     aiAgentToolsService: AiAgentToolsService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
+    asyncQueryService: AsyncQueryService;
 };
 
 type AutopilotToolCallHandler = (
@@ -259,6 +266,8 @@ export class ManagedAgentService extends BaseService {
 
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
 
+    private readonly asyncQueryService: AsyncQueryService;
+
     constructor(deps: ManagedAgentServiceDependencies) {
         super();
         this.lightdashConfig = deps.lightdashConfig;
@@ -281,9 +290,44 @@ export class ManagedAgentService extends BaseService {
         this.orgAiCopilotConfigResolver = deps.orgAiCopilotConfigResolver;
         this.aiAgentToolsService = deps.aiAgentToolsService;
         this.aiOrganizationSettingsService = deps.aiOrganizationSettingsService;
+        this.asyncQueryService = deps.asyncQueryService;
     }
 
     // --- Validation helpers ---
+
+    // Runs the chart query at limit 1 so a bad field or SQL fails here, not
+    // on the next validation pass after the version is already saved.
+    private async assertChartQueryRuns(
+        actor: SessionUser,
+        projectUuid: string,
+        metricQuery: MetricQuery,
+        parameters: SavedChart['parameters'],
+        abortSignal?: AbortSignal,
+    ): Promise<void> {
+        try {
+            await this.asyncQueryService.executeMetricQueryAndGetResults(
+                {
+                    account: fromSession(actor),
+                    projectUuid,
+                    context: QueryExecutionContext.AI,
+                    metricQuery: { ...metricQuery, limit: 1 },
+                    parameters,
+                },
+                { abortSignal },
+            );
+        } catch (error) {
+            abortSignal?.throwIfAborted();
+            // Same handling as the shared runMetricQuery tool: log, record a
+            // Sentry breadcrumb, and forward the warehouse message so the
+            // model can fix the field it got wrong.
+            throw new Error(
+                toolErrorHandler(
+                    error,
+                    'The chart query failed, so nothing was saved. Fix the query and try again.',
+                ),
+            );
+        }
+    }
 
     private static validateEnum<T extends string>(
         value: unknown,
@@ -485,8 +529,10 @@ export class ManagedAgentService extends BaseService {
                 );
             return {
                 copilotConfig,
+                // Unattended and destructive: think as hard as the model allows.
                 ...getModel(copilotConfig, {
                     enableReasoning: true,
+                    reasoningEffort: 'xhigh',
                     provider: selected.provider,
                     modelName: selected.modelName,
                 }),
@@ -1887,10 +1933,11 @@ export class ManagedAgentService extends BaseService {
             const report = renderHeartbeatSummary({
                 actions: savedActions,
                 interrupted: runError !== null,
+                projectName: ctx.projectName,
+                seed: runUuid,
+                context: ctx.summaryContext,
             });
-            const slackSummary = [...ctx.summaryContext, report.text].join(
-                '\n\n',
-            );
+            const slackSummary = report.text;
             const actionCount = Object.values(actionCountsByType).reduce(
                 (sum, n) => sum + n,
                 0,
@@ -1980,9 +2027,14 @@ export class ManagedAgentService extends BaseService {
             model: AUTOPILOT_MANAGED_MODEL_ID,
             keyManagement: null,
         };
-        ctx.summaryContext = [
-            `Provider: anthropic; model: ${AUTOPILOT_MANAGED_MODEL_ID}.`,
-        ];
+        ctx.summaryContext = {
+            attribution: {
+                provider: 'anthropic',
+                model: AUTOPILOT_MANAGED_MODEL_ID,
+                keySource: 'instance',
+            },
+            notice: null,
+        };
         const result = await this.managedAgentClient.runSession(
             sessionConfig,
             projectUuid,
@@ -2023,10 +2075,14 @@ export class ManagedAgentService extends BaseService {
             model: runtimeInfo.model,
             keyManagement: runtimeInfo.keyManagement,
         };
-        ctx.summaryContext = [
-            `Provider: ${runtimeInfo.provider}; model: ${runtimeInfo.model}; key: ${runtimeInfo.keySource}.`,
-            runtimeInfo.notice,
-        ].filter((value): value is string => Boolean(value));
+        ctx.summaryContext = {
+            attribution: {
+                provider: runtimeInfo.provider,
+                model: runtimeInfo.model,
+                keySource: runtimeInfo.keySource,
+            },
+            notice: runtimeInfo.notice,
+        };
         const agent = renderAutopilotAgent({
             toolSettings,
             policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
@@ -2181,17 +2237,18 @@ export class ManagedAgentService extends BaseService {
             return null;
         }
         const settings = await this.managedAgentModel.getSettings(projectUuid);
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
         return {
             runUuid,
             projectUuid,
+            projectName: projectName ?? null,
             organizationUuid,
             settings,
             triggeredBy: run.triggeredBy,
             startedAtMs: run.startedAt.getTime(),
             analyticsUserId: settings?.enabledByUserUuid ?? null,
-            summaryContext: [],
+            summaryContext: { attribution: null, notice: null },
             modelAttribution: null,
         };
     }
@@ -2420,16 +2477,11 @@ export class ManagedAgentService extends BaseService {
                 blocks: mainBlocks,
             });
 
-            // Thread reply: full detailed report
+            // Thread reply: the markdown report, posted as markdown blocks
             if (agentSummary && mainMessage?.ts) {
-                const slackSummary = agentSummary
-                    .replace(/^#{1,3}\s+(.+)$/gm, '*$1*')
-                    .replace(/\*{2}([^*]+)\*{2}/g, '*$1*')
-                    .replace(/\|---[|\-\s]*\|/g, '');
-
                 // Split into chunks of 2800 chars to stay under Slack's 3000 limit
                 const chunks: string[] = [];
-                let remaining = slackSummary;
+                let remaining = agentSummary;
                 while (remaining.length > 0) {
                     chunks.push(remaining.slice(0, 2800));
                     remaining = remaining.slice(2800);
@@ -2616,6 +2668,7 @@ export class ManagedAgentService extends BaseService {
                 return this.handleReverseOwnAction(
                     actor,
                     projectUuid,
+                    runUuid,
                     input,
                     abortSignal,
                     allowContentDeletion,
@@ -3158,6 +3211,16 @@ chartConfig:
         );
         await this.assertActorCanManageProject(actor, projectUuid);
         await this.assertActorCanUpdateChart(actor, chart);
+        await this.assertChartQueryRuns(
+            actor,
+            projectUuid,
+            {
+                ...(input.metric_query as MetricQuery),
+                exploreName: chart.tableName,
+            },
+            chart.parameters,
+            abortSignal,
+        );
 
         const previousVersion =
             await this.savedChartModel.getLatestVersionSummary(chartUuid);
@@ -3366,8 +3429,15 @@ chartConfig:
             );
         }
 
-        // Get or create the Agent Suggestions space
         await this.assertActorCanManageProject(actor, projectUuid);
+        await this.assertChartQueryRuns(
+            actor,
+            projectUuid,
+            { ...(mq as unknown as MetricQuery), exploreName: tableName },
+            undefined,
+            abortSignal,
+        );
+        // Get or create the Agent Suggestions space
         abortSignal?.throwIfAborted();
         const spaceUuid = await this.getOrCreateAgentSpace(actor, projectUuid);
         await this.assertActorCanCreateChart(
@@ -4503,6 +4573,7 @@ chartConfig:
     private async handleReverseOwnAction(
         actor: SessionUser,
         projectUuid: string,
+        runUuid: string,
         input: Record<string, unknown>,
         abortSignal?: AbortSignal,
         allowContentDeletion = true,
@@ -4526,6 +4597,11 @@ chartConfig:
             return JSON.stringify({
                 error: `Action already reversed`,
                 reversed_at: action.reversedAt,
+            });
+        }
+        if (action.managedAgentRunUuid !== runUuid) {
+            return JSON.stringify({
+                error: 'This action was recorded by an earlier run. Only actions from the current run can be reversed; admins can dismiss or restore older actions from the activity page.',
             });
         }
         await this.assertActorCanManageProject(actor, projectUuid);

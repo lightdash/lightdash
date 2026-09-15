@@ -1,4 +1,8 @@
-import { ContentAsCodeType, type AgentAsCode } from '@lightdash/common';
+import {
+    ContentAsCodeType,
+    type AgentAsCode,
+    type HomepageAsCode,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
@@ -6,6 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
+    HOMEPAGE_CODE_RESOURCE,
 } from './projectResources';
 import { readCodeResourceFiles, writeCodeResourceDocuments } from './resource';
 
@@ -40,6 +45,43 @@ afterEach(async () => {
 });
 
 describe('content-as-code resource files', () => {
+    it('round trips exact homepage names safely and rejects duplicate local identities', async () => {
+        const basePath = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'lightdash-homepage-code-'),
+        );
+        temporaryDirectories.push(basePath);
+        const document: HomepageAsCode = {
+            contentType: ContentAsCodeType.HOMEPAGE,
+            version: 1,
+            name: '../Home / 100%',
+            config: { version: 1, rows: [] },
+            publication: null,
+        };
+        await writeCodeResourceDocuments({
+            definition: HOMEPAGE_CODE_RESOURCE,
+            basePath,
+            documents: [document],
+            pruneOtherDocuments: true,
+        });
+        const fileNames = await fs.readdir(path.join(basePath, 'homepages'));
+        expect(fileNames).toHaveLength(1);
+        expect(fileNames[0]).not.toContain('/');
+        const result = await readCodeResourceFiles({
+            definition: HOMEPAGE_CODE_RESOURCE,
+            basePath,
+        });
+        expect(result.files[0].document).toEqual(document);
+        await fs.copyFile(
+            path.join(basePath, 'homepages', fileNames[0]),
+            path.join(basePath, 'homepages', 'duplicate.yaml'),
+        );
+        const duplicates = await readCodeResourceFiles({
+            definition: HOMEPAGE_CODE_RESOURCE,
+            basePath,
+        });
+        expect(duplicates.files).toEqual([]);
+        expect(duplicates.failures[0].message).toContain('Duplicate');
+    });
     it('preserves other documents when writing a filtered download', async () => {
         const basePath = await fs.mkdtemp(
             path.join(os.tmpdir(), 'lightdash-content-as-code-'),

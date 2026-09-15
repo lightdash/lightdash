@@ -1377,3 +1377,75 @@ describe('choosing a chart type icon', () => {
         );
     });
 });
+
+describe('getDataAppVizDeleteImpact', () => {
+    it.each([0, 3])(
+        'returns the dependent count (%s) for a chart type manager',
+        async (chartCount) => {
+            const findVisualizationApp = vi
+                .fn()
+                .mockResolvedValue(makeDataAppVizRow());
+            const countChartsUsingDataAppViz = vi
+                .fn()
+                .mockResolvedValue(chartCount);
+            const { service, user } = buildServiceWithRealAbility(
+                { findVisualizationApp },
+                OrganizationMemberRole.ADMIN,
+                'user-1',
+                { savedChartModel: { countChartsUsingDataAppViz } },
+            );
+
+            await expect(
+                service.getDataAppVizDeleteImpact(
+                    user,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toEqual({ chartCount });
+            expect(findVisualizationApp).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                'project-1',
+            );
+            expect(countChartsUsingDataAppViz).toHaveBeenCalledWith(
+                'project-1',
+                'data-app-viz-1',
+            );
+        },
+    );
+
+    it('does not disclose dependent counts to users who cannot manage the chart type', async () => {
+        const countChartsUsingDataAppViz = vi.fn();
+        const { service, user } = buildServiceWithRealAbility(
+            {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            },
+            OrganizationMemberRole.VIEWER,
+            'other-user',
+            { savedChartModel: { countChartsUsingDataAppViz } },
+        );
+
+        await expect(
+            service.getDataAppVizDeleteImpact(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(countChartsUsingDataAppViz).not.toHaveBeenCalled();
+    });
+
+    it('rejects a missing chart type before querying dependencies', async () => {
+        const countChartsUsingDataAppViz = vi.fn();
+        const service = buildService(
+            { findVisualizationApp: vi.fn().mockResolvedValue(undefined) },
+            { savedChartModel: { countChartsUsingDataAppViz } },
+        );
+
+        await expect(
+            service.getDataAppVizDeleteImpact(USER, 'project-1', 'missing-viz'),
+        ).rejects.toThrow(NotFoundError);
+        expect(countChartsUsingDataAppViz).not.toHaveBeenCalled();
+    });
+});

@@ -1,7 +1,12 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { getAnthropicApiBaseUrl } from '../../../../config/aiGatewayConfig';
 import { LightdashConfig } from '../../../../config/parseConfig';
-import { ModelPreset } from './presets';
+import {
+    ModelPreset,
+    ReasoningEffort,
+    XHIGH_MAX_OUTPUT_TOKENS,
+    XHIGH_THINKING_BUDGET_TOKENS,
+} from './presets';
 import { AiModel } from './types';
 
 const PROVIDER = 'anthropic';
@@ -11,7 +16,7 @@ export const getAnthropicModel = (
         LightdashConfig['ai']['copilot']['providers']['anthropic']
     >,
     preset: ModelPreset<'anthropic'>,
-    options?: { enableReasoning?: boolean },
+    options?: { enableReasoning?: boolean; reasoningEffort?: ReasoningEffort },
 ): AiModel<typeof PROVIDER> => {
     const anthropic = config.baseUrl
         ? createAnthropic({
@@ -31,12 +36,18 @@ export const getAnthropicModel = (
         options?.enableReasoning && preset.supportsReasoning;
 
     const reasoningStyle = preset.reasoningStyle ?? 'budget';
+    const effort = options?.reasoningEffort ?? 'medium';
 
     return {
         model,
         callOptions: {
             ...preset.callOptions,
             ...(reasoningEnabled && { temperature: undefined }),
+            // A large thinking budget needs room in max_tokens.
+            ...(reasoningEnabled &&
+                effort === 'xhigh' && {
+                    maxOutputTokens: XHIGH_MAX_OUTPUT_TOKENS,
+                }),
         },
         providerOptions: {
             [PROVIDER]: {
@@ -73,14 +84,17 @@ export const getAnthropicModel = (
                               // sending enabled, both produce a 400.
                               // @ai-sdk/anthropic exposes the adaptive variant
                               // from 3.0.62+.
-                              effort: 'medium' as const,
+                              effort,
                               thinking: { type: 'adaptive' as const },
                           }
                         : {
                               thinking: {
                                   type: 'enabled' as const,
                                   /** @ref https://platform.claude.com/docs/en/build-with-claude/extended-thinking#working-with-thinking-budgets */
-                                  budgetTokens: 2048,
+                                  budgetTokens:
+                                      effort === 'xhigh'
+                                          ? XHIGH_THINKING_BUDGET_TOKENS
+                                          : 2048,
                               },
                           })),
             },

@@ -1,4 +1,4 @@
-import { DimensionType, FieldType } from '@lightdash/common';
+import { DimensionType, FieldType, MetricType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
                       fields: Array<{
                           name: string;
                           label: string;
-                          type: 'dimension';
+                          type: 'dimension' | 'metric';
                           required: boolean;
                       }>;
                       configOptions: Array<{
@@ -59,12 +59,20 @@ const mocks = vi.hoisted(() => ({
     iframePreview: vi.fn(
         (_props: {
             onScreenshotAvailabilityChange: (available: boolean) => void;
-        }) => null,
+            onIframeLoad: () => void;
+        }) => <iframe data-testid="app-preview" title="App preview" />,
     ),
     renderMetadataHook: vi.fn(),
     previewTokenHook: vi.fn(),
     setFetchAll: vi.fn(),
     canViewUnderlyingData: { current: true },
+    openUnderlyingDataModal: vi.fn(),
+    metricQueryData: {
+        current: undefined as
+            | { openUnderlyingDataModal: (...args: unknown[]) => void }
+            | undefined,
+    },
+    isLoading: { current: false },
     explore: { current: undefined as { name: string } | undefined },
     exploreHook: vi.fn(),
     // Extra keys merged into the useVisualizationContext mock return value.
@@ -111,6 +119,7 @@ vi.mock('../../features/apps/previewOrigin', () => ({
 vi.mock('../../hooks/useContextMenuPermissions', () => ({
     useContextMenuPermissions: () => ({
         canViewUnderlyingData: mocks.canViewUnderlyingData.current,
+        canDrillInto: false,
     }),
 }));
 vi.mock('../../hooks/useExplore', () => ({
@@ -181,10 +190,24 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
                 hidden: false,
                 colors: { Hardware: '#00ff00' },
             },
+            orders_count: {
+                fieldType: FieldType.METRIC,
+                type: MetricType.COUNT,
+                name: 'count',
+                label: 'Count',
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: '${TABLE}.count',
+                hidden: false,
+            },
         },
         colorPalette: ['#7162FF'],
+        isLoading: mocks.isLoading.current,
         ...mocks.vizContextOverrides.current,
     }),
+}));
+vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({
+    useMetricQueryDataContext: () => mocks.metricQueryData.current,
 }));
 
 import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
@@ -217,6 +240,12 @@ const announceIframeAvailable = () => {
     const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
     if (!iframeProps) throw new Error('Expected the iframe preview to render');
     act(() => iframeProps.onScreenshotAvailabilityChange(true));
+};
+
+const loadIframe = () => {
+    const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
+    if (!iframeProps) throw new Error('Expected the iframe preview to render');
+    act(() => iframeProps.onIframeLoad());
 };
 
 const readyMetadata = () => ({
@@ -259,6 +288,9 @@ describe('DataAppVizRenderer', () => {
         mocks.previewTokenHook.mockClear();
         mocks.setFetchAll.mockClear();
         mocks.canViewUnderlyingData.current = true;
+        mocks.openUnderlyingDataModal.mockClear();
+        mocks.metricQueryData.current = undefined;
+        mocks.isLoading.current = false;
         mocks.explore.current = undefined;
         mocks.exploreHook.mockClear();
         mocks.vizContextOverrides.current = {};
@@ -276,15 +308,65 @@ describe('DataAppVizRenderer', () => {
         ).toBeInTheDocument();
     });
 
-    it('shows a neutral loading state while render metadata is pending', () => {
+    it('uses the standard chart loading overlay while render metadata is pending', () => {
         mocks.metadata.current = undefined;
 
         renderRenderer();
 
-        expect(
-            screen.getByText('Loading custom chart type…'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Loading chart')).toBeInTheDocument();
         expect(mocks.iframePreview).not.toHaveBeenCalled();
+    });
+
+    it('uses the standard chart loading overlay while the preview token is pending', () => {
+        mocks.token.current = undefined;
+
+        renderRenderer();
+
+        expect(screen.getByText('Loading chart')).toBeInTheDocument();
+        expect(mocks.iframePreview).not.toHaveBeenCalled();
+    });
+
+    it('keeps the standard chart loading overlay until the app preview loads', () => {
+        renderRenderer();
+        const preview = screen.getByTestId('app-preview');
+
+        expect(screen.getByText('Loading chart')).toBeInTheDocument();
+        expect(preview.parentElement).toHaveAttribute('inert');
+
+        loadIframe();
+
+        expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
+        expect(preview.parentElement).not.toHaveAttribute('inert');
+    });
+
+    it.each(['metadata', 'token'])(
+        'waits for a remounted iframe after %s becomes pending',
+        (pending) => {
+            const view = renderRenderer();
+            loadIframe();
+            if (pending === 'metadata') mocks.metadata.current = undefined;
+            else mocks.token.current = undefined;
+            view.rerender(rendererElement());
+            mocks.metadata.current = readyMetadata();
+            mocks.token.current = 'preview-token';
+            view.rerender(rendererElement());
+            expect(screen.getByText('Loading chart')).toBeInTheDocument();
+            loadIframe();
+            expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
+        },
+    );
+
+    it('keeps the app preview mounted under the standard loading overlay while query results refresh', () => {
+        const view = renderRenderer();
+        loadIframe();
+        const preview = screen.getByTestId('app-preview');
+
+        mocks.isLoading.current = true;
+        view.rerender(rendererElement());
+
+        expect(screen.getByText('Loading chart')).toBeInTheDocument();
+        expect(screen.getByTestId('app-preview')).toBe(preview);
+        expect(preview.parentElement).toHaveAttribute('inert');
     });
 
     it('shows generating only for metadata building state', () => {
@@ -707,13 +789,14 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         mocks.embedToken.current = undefined;
         mocks.dataAppVizUuid.current = 'viz-uuid';
         mocks.iframePreview.mockClear();
+        mocks.isLoading.current = false;
         mocks.canViewUnderlyingData.current = true;
         mocks.explore.current = undefined;
         mocks.vizContextOverrides.current = {};
         mocks.trackingContext.current = { track: mocks.track };
     });
 
-    it('does not signal ready on mount, and signals once the iframe announces with context delivered', () => {
+    it('waits for iframe load after the SDK announces before signaling screenshot readiness', () => {
         const onScreenshotReady = vi.fn();
 
         renderRenderer({ onScreenshotReady });
@@ -721,6 +804,8 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         expect(onScreenshotReady).not.toHaveBeenCalled();
 
         announceScreenshotAvailable();
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+        loadIframe();
 
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
@@ -732,6 +817,7 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         };
 
         const view = renderRenderer({ onScreenshotReady });
+        loadIframe();
         announceScreenshotAvailable();
 
         expect(onScreenshotReady).not.toHaveBeenCalled();
@@ -739,6 +825,18 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         mocks.vizContextOverrides.current = {};
         view.rerender(rendererElement({ onScreenshotReady }));
 
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for query loading to finish before signaling screenshot readiness', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.isLoading.current = true;
+        const view = renderRenderer({ onScreenshotReady });
+        loadIframe();
+        announceScreenshotAvailable();
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+        mocks.isLoading.current = false;
+        view.rerender(rendererElement({ onScreenshotReady }));
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
 
@@ -884,13 +982,31 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         )?.[0] as {
             dataAppVizContext?: {
                 pivotDetails: unknown;
-                underlyingData: { enabled: boolean };
+                underlyingData: {
+                    enabled: boolean;
+                    openEnabled?: boolean;
+                };
             };
             rewriteVizUnderlyingDataRequest?: (intent: unknown) => unknown;
+            onVizUnderlyingDataIntent?: (intent: unknown) => void;
         };
 
     beforeEach(() => {
-        mocks.metadata.current = readyMetadata();
+        mocks.metadata.current = {
+            ...readyMetadata(),
+            schema: {
+                ...readyMetadata().schema,
+                fields: [
+                    ...readyMetadata().schema.fields,
+                    {
+                        name: 'value',
+                        label: 'Value',
+                        type: 'metric' as const,
+                        required: true,
+                    },
+                ],
+            },
+        };
         mocks.metadataError.current = undefined;
         mocks.token.current = 'preview-token';
         mocks.tokenError.current = undefined;
@@ -899,6 +1015,10 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         mocks.iframePreview.mockClear();
         mocks.exploreHook.mockClear();
         mocks.canViewUnderlyingData.current = true;
+        mocks.openUnderlyingDataModal.mockClear();
+        mocks.metricQueryData.current = {
+            openUnderlyingDataModal: mocks.openUnderlyingDataModal,
+        };
         mocks.explore.current = { name: 'orders' };
         mocks.vizContextOverrides.current = { resultsData: happyResultsData() };
         mocks.track.mockClear();
@@ -910,8 +1030,62 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         const props = lastIframeProps();
         expect(props.dataAppVizContext?.underlyingData).toEqual({
             enabled: true,
+            openEnabled: true,
         });
         expect(props.rewriteVizUnderlyingDataRequest).toBeTypeOf('function');
+        expect(props.onVizUnderlyingDataIntent).toBeTypeOf('function');
+    });
+
+    it('opens the host underlying-data modal from a viz intent', () => {
+        renderRenderer();
+
+        act(() => {
+            lastIframeProps().onVizUnderlyingDataIntent?.({
+                row: {
+                    orders_category: {
+                        value: { raw: 'Hardware', formatted: 'Hardware' },
+                    },
+                    orders_count: {
+                        value: { raw: 12, formatted: '12' },
+                    },
+                },
+                metric: 'value',
+            });
+        });
+
+        expect(mocks.openUnderlyingDataModal).toHaveBeenCalledWith({
+            item: expect.objectContaining({
+                fieldType: FieldType.METRIC,
+                name: 'count',
+            }),
+            value: { raw: 12, formatted: '12' },
+            fieldValues: {
+                orders_category: { raw: 'Hardware', formatted: 'Hardware' },
+                orders_count: { raw: 12, formatted: '12' },
+            },
+        });
+        expect(mocks.track).toHaveBeenCalledWith({
+            name: 'view_underlying_data.clicked',
+            properties: {
+                organizationId: 'organization-uuid',
+                userId: 'user-uuid',
+                projectId: 'project-uuid',
+            },
+        });
+    });
+
+    it('keeps legacy fetching enabled when the host modal provider is absent', () => {
+        mocks.metricQueryData.current = undefined;
+
+        renderRenderer();
+
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext?.underlyingData).toEqual({
+            enabled: true,
+            openEnabled: false,
+        });
+        expect(props.rewriteVizUnderlyingDataRequest).toBeTypeOf('function');
+        expect(props.onVizUnderlyingDataIntent).toBeUndefined();
     });
 
     it('forwards pivot metadata and disables underlying data for pivoted rows', () => {
@@ -930,8 +1104,10 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         expect(props.dataAppVizContext?.pivotDetails).toBe(pivotDetails);
         expect(props.dataAppVizContext?.underlyingData).toEqual({
             enabled: false,
+            openEnabled: false,
         });
         expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
+        expect(props.onVizUnderlyingDataIntent).toBeUndefined();
     });
 
     it.each([
@@ -997,8 +1173,10 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         const props = lastIframeProps();
         expect(props.dataAppVizContext?.underlyingData).toEqual({
             enabled: false,
+            openEnabled: false,
         });
         expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
+        expect(props.onVizUnderlyingDataIntent).toBeUndefined();
     });
 
     it('gated surfaces disable the explore fetch itself', () => {

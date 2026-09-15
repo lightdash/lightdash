@@ -2,11 +2,13 @@ import { Ability } from '@casl/ability';
 import {
     ANNOUNCEMENT_BODY_MAX_LENGTH,
     AnnouncementCategory,
+    ContentAsCodeType,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     ProjectMemberRole,
+    PromotionAction,
     type HomepageConfig,
     type PossibleAbilities,
     type ProjectHomepage,
@@ -165,6 +167,9 @@ const makeService = ({
             }),
         },
         projectHomepageModel: {
+            getCodeReferences: vi.fn().mockResolvedValue([]),
+            getCodeGroups: vi.fn().mockResolvedValue([]),
+            upsertAsCode: vi.fn(),
             getDefault: vi.fn().mockResolvedValue(undefined),
             getByUuid: vi.fn().mockResolvedValue(makeHomepage()),
             getPublishedDefault: vi.fn().mockResolvedValue(undefined),
@@ -245,6 +250,167 @@ const makeService = ({
     });
 
 describe('ProjectHomepageService', () => {
+    describe('homepage as code', () => {
+        const codeUser = (): SessionUser => {
+            const user = makeAdminUser();
+            return {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    ...user.ability.rules,
+                    {
+                        action: 'manage',
+                        subject: 'ContentAsCode',
+                        conditions: {
+                            organizationUuid: ORGANIZATION_UUID,
+                            projectUuid: PROJECT_UUID,
+                        },
+                    },
+                ]),
+            };
+        };
+        const document = {
+            contentType: ContentAsCodeType.HOMEPAGE as const,
+            version: 1 as const,
+            name: 'Team homepage',
+            config: {
+                version: 1 as const,
+                rows: [
+                    {
+                        id: 'row-1',
+                        blocks: [
+                            {
+                                id: 'b1',
+                                type: 'markdown' as const,
+                                config: { content: 'hello' },
+                            },
+                        ],
+                    },
+                ],
+            },
+            publication: { isDefault: true, groups: [], roles: [] },
+        };
+
+        it('exports the published layout, excluding unpublished pages', async () => {
+            const service = makeService({
+                projectHomepageModel: {
+                    list: vi.fn().mockResolvedValue([
+                        makeHomepage({
+                            publishedConfig: validConfig,
+                            draftConfig: { version: 1, rows: [] },
+                        }),
+                        makeHomepage({ name: 'Draft only' }),
+                    ]),
+                },
+            });
+            const result = await service.downloadHomepagesAsCode(
+                codeUser(),
+                PROJECT_UUID,
+                ['Team homepage', 'Draft only'],
+            );
+            expect(result.homepages).toEqual([document]);
+            expect(result.missingNames).toEqual(['Draft only']);
+        });
+
+        it('saves drafts by default and publishes only when explicitly requested, without announcements', async () => {
+            const upsertAsCode = vi
+                .fn()
+                .mockResolvedValue({ action: PromotionAction.CREATE });
+            const publishAnnouncements = vi.fn();
+            const service = makeService({
+                projectHomepageModel: {
+                    upsertAsCode,
+                    publishProjectDraftAnnouncements: publishAnnouncements,
+                },
+            });
+            await service.upsertHomepageAsCode(
+                codeUser(),
+                PROJECT_UUID,
+                document.name,
+                document,
+            );
+            expect(upsertAsCode).toHaveBeenLastCalledWith(
+                expect.objectContaining({ publish: false }),
+            );
+            await service.upsertHomepageAsCode(
+                codeUser(),
+                PROJECT_UUID,
+                document.name,
+                document,
+                true,
+            );
+            expect(upsertAsCode).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    publish: true,
+                    publication: document.publication,
+                }),
+            );
+            expect(publishAnnouncements).not.toHaveBeenCalled();
+        });
+
+        it('rejects disabled features, missing code permissions, and access to another project', async () => {
+            await expect(
+                makeService({ flagEnabled: false }).downloadHomepagesAsCode(
+                    codeUser(),
+                    PROJECT_UUID,
+                ),
+            ).rejects.toThrow();
+            await expect(
+                makeService().downloadHomepagesAsCode(
+                    makeAdminUser(),
+                    PROJECT_UUID,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                makeService().upsertHomepageAsCode(
+                    codeUser(),
+                    'other-project',
+                    document.name,
+                    document,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('rejects duplicate names, unresolved groups, and mismatched identities before writing', async () => {
+            const upsertAsCode = vi.fn();
+            const service = makeService({
+                projectHomepageModel: {
+                    upsertAsCode,
+                    list: vi
+                        .fn()
+                        .mockResolvedValue([
+                            makeHomepage({ publishedConfig: validConfig }),
+                            makeHomepage(),
+                        ]),
+                },
+            });
+            await expect(
+                service.downloadHomepagesAsCode(codeUser(), PROJECT_UUID),
+            ).rejects.toThrow('ambiguous');
+            await expect(
+                service.upsertHomepageAsCode(
+                    codeUser(),
+                    PROJECT_UUID,
+                    'different-name',
+                    document,
+                ),
+            ).rejects.toThrow('names must match');
+            await expect(
+                service.upsertHomepageAsCode(
+                    codeUser(),
+                    PROJECT_UUID,
+                    document.name,
+                    {
+                        ...document,
+                        publication: {
+                            ...document.publication,
+                            groups: [{ name: 'Missing', priority: 0 }],
+                        },
+                    },
+                ),
+            ).rejects.toThrow('missing or ambiguous');
+            expect(upsertAsCode).not.toHaveBeenCalled();
+        });
+    });
     it('accepts fileStorageClient and persistentDownloadFileService in its constructor', () => {
         expect(() => makeService()).not.toThrow();
     });
