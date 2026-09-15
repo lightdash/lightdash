@@ -78,3 +78,38 @@ export type DocumentList = {
     nextOffset: number | null;
 };
 export type ApiDocumentListResponse = ApiSuccess<DocumentList>;
+
+export type CreateDocumentRequest = {
+    name: string;
+    slug?: string;
+    description: string;
+    spaceUuid: string;
+    schemaVersion: 1;
+    content: DocumentContentV1;
+};
+
+export type UpdateDocumentMetadataRequest = {
+    name?: string;
+    slug?: string;
+    description?: string;
+};
+
+export type DocumentCellOperation =
+    | { type: 'append'; cell: DocumentCellV1 }
+    | {
+          type: 'insert_before' | 'insert_after';
+          targetCellId: string;
+          cell: DocumentCellV1;
+      }
+    | { type: 'replace'; cellId: string; cell: DocumentCellV1 }
+    | { type: 'remove'; cellId: string }
+    | {
+          type: 'move_before' | 'move_after';
+          cellId: string;
+          targetCellId: string;
+      };
+
+export type UpdateDocumentContentRequest = {
+    baseVersionUuid: string;
+    operations: DocumentCellOperation[];
+};
