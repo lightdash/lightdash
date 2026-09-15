@@ -31,7 +31,7 @@ const FilterOperatorOption: FC<Props> = ({ operator, label }) => {
         );
     }
 
-    return <Box>{dropdownLabel}</Box>;
+    return <Box w="100%">{dropdownLabel}</Box>;
 };
 
 export default FilterOperatorOption;
