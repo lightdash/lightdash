@@ -282,7 +282,7 @@ const Space: FC = () => {
                                         <Menu.Target>
                                             <Button
                                                 data-testid="Space/AddButton"
-                                                h={{ base: 44, md: 36 }}
+                                                h={{ base: 32, md: 36 }}
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={IconPlus}
@@ -388,8 +388,8 @@ const Space: FC = () => {
                                     <ActionIcon
                                         variant="default"
                                         size={36}
-                                        w={{ base: 44, md: 36 }}
-                                        h={{ base: 44, md: 36 }}
+                                        w={{ base: 32, md: 36 }}
+                                        h={{ base: 32, md: 36 }}
                                         aria-label="Space actions"
                                         // Anchor for scope walkthroughs
                                         data-tour-anchor="space-actions"
@@ -397,7 +397,7 @@ const Space: FC = () => {
                                     >
                                         <MantineIcon
                                             icon={IconDots}
-                                            size="lg"
+                                            size="md"
                                         />
                                     </ActionIcon>
                                 </SpaceBrowserMenu>
