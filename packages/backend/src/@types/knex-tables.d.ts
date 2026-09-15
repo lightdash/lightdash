@@ -606,6 +606,8 @@ import {
     PreAggregateDefinitionsTableName,
     PreAggregateMaterializationsTable,
     PreAggregateMaterializationsTableName,
+    PreAggregateReuseStateTable,
+    PreAggregateReuseStateTableName,
 } from '../ee/database/entities/preAggregates';
 import {
     ProjectCiStatusTable,
@@ -822,6 +824,7 @@ declare module 'knex/types/tables' {
         [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;
         [PreAggregateDailyStatsTableName]: PreAggregateDailyStatsTable;
         [PreAggregateMaterializationsTableName]: PreAggregateMaterializationsTable;
+        [PreAggregateReuseStateTableName]: PreAggregateReuseStateTable;
         [ProjectParametersTableName]: ProjectParametersTable;
         [RolesTableName]: RoleTable;
         [ScopedRolesTableName]: ScopedRoleTable;

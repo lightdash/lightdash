@@ -85,12 +85,13 @@ const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
 export const getOrgDeliveryQueueName = (organizationUuid: string): string =>
     `delivery:${organizationUuid}`;
 
-type SchedulablePreAggregate = Omit<
+export type SchedulablePreAggregate = Omit<
     PreAggregateSchedulerDetails,
-    'preAggExploreName'
+    'preAggExploreName' | 'scheduleRevision'
 > & {
     createdByUserUuid: string;
     preAggExploreName?: string;
+    scheduleRevision: string;
 };
 
 export const getDailyDatesFromCron = (
@@ -386,6 +387,7 @@ export class SchedulerClient {
                             preAggregateDefinitionUuid:
                                 definition.preAggregateDefinitionUuid,
                             trigger: 'cron',
+                            scheduleRevision: definition.scheduleRevision,
                         },
                         runAt,
                     ).then(({ jobId }) => ({
@@ -397,6 +399,28 @@ export class SchedulerClient {
         );
 
         return Promise.all(materializationJobs);
+    }
+
+    async reconcilePreAggregateCronSchedule(
+        {
+            preAggregateDefinitionUuid,
+            definition,
+        }: {
+            preAggregateDefinitionUuid: string;
+            definition: SchedulablePreAggregate | null;
+        },
+        startingDateTime: Date = new Date(),
+    ): Promise<void> {
+        await this.deleteScheduledPreAggregateCronJobsForDefinition(
+            preAggregateDefinitionUuid,
+        );
+
+        if (definition) {
+            await this.schedulePreAggregateCronJobs(
+                [definition],
+                startingDateTime,
+            );
+        }
     }
 
     async getQueueSize(): Promise<number> {
@@ -1385,6 +1409,7 @@ export class SchedulerClient {
             JobPriority.MEDIUM,
             1,
             jobKey,
+            `preagg:${payload.preAggregateDefinitionUuid}`,
         );
 
         await this.schedulerModel.logSchedulerJob({
@@ -1398,6 +1423,7 @@ export class SchedulerClient {
                 projectUuid: payload.projectUuid,
                 preAggregateDefinitionUuid: payload.preAggregateDefinitionUuid,
                 trigger: payload.trigger,
+                scheduleRevision: payload.scheduleRevision,
             },
         });
 

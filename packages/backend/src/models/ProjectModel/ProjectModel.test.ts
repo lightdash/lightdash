@@ -167,6 +167,42 @@ describe('ProjectModel', () => {
         expect(result).toEqual(expectedTablesConfiguration);
         expect(tracker.history.select).toHaveLength(1);
     });
+    describe('getAllExploresFromCache', () => {
+        test('bounds a transactional fetch to the requested source names', async () => {
+            tracker.on.select(CachedExploreTableName).response([
+                {
+                    cached_explore_uuid: 'source-uuid',
+                    explore: exploreWithMetricFilters,
+                },
+            ]);
+            const result = await database.transaction((trx) =>
+                model.getAllExploresFromCache(projectUuid, trx, [
+                    'orders',
+                    'payments',
+                ]),
+            );
+            expect(result).toEqual({ 'source-uuid': exploreWithMetricFilters });
+            const { queries } = tracker.history.transactions[0];
+            const select = queries.find(({ sql }) => sql.startsWith('select'));
+            expect(select?.sql).toContain('"name" in');
+            expect(select?.bindings).toEqual([
+                projectUuid,
+                'orders',
+                'payments',
+            ]);
+        });
+
+        test('retains the complete project fetch when names are omitted', async () => {
+            tracker.on.select(CachedExploreTableName).response([]);
+            await expect(
+                model.getAllExploresFromCache(projectUuid),
+            ).resolves.toEqual({});
+            const [select] = tracker.history.select;
+            expect(select.sql).not.toContain('"name" in');
+            expect(select.bindings).toEqual([projectUuid]);
+        });
+    });
+
     describe('getExploreFromCache', () => {
         const createQualifiedExplore = (name: string) => ({
             ...exploreWithMetricFilters,
@@ -881,16 +917,51 @@ describe('ProjectModel', () => {
                 .delete(({ sql }) => sql.includes('"cached_explore"'))
                 .response(1);
 
-            await model.saveExploresToCache(projectUuid, [incoming], false, [
-                'retained',
-                'selected',
-            ]);
+            const onCacheWritten = vi.fn().mockResolvedValue(undefined);
+            await model.saveExploresToCache(
+                projectUuid,
+                [incoming],
+                false,
+                ['retained', 'selected'],
+                onCacheWritten,
+            );
+            expect(onCacheWritten).toHaveBeenCalledWith(expect.any(Function), {
+                deletedExploreNames: ['deleted'],
+            });
 
             expect(tracker.history.delete).toHaveLength(1);
             expect(tracker.history.delete[0].bindings).toEqual([
                 projectUuid,
                 'deleted',
             ]);
+        });
+
+        test('publishes dependent registry writes inside the array cache transaction', async () => {
+            tracker.on.insert(CachedExploresTableName).response([]);
+            tracker.on.select(CachedExploresTableName).response([{}]);
+            tracker.on.select(CachedExploreTableName).response([]);
+            tracker.on.delete(CachedExploreTableName).response(0);
+            tracker.on.insert(CachedExploreTableName).response([]);
+            tracker.on.insert('publication_marker').response([]);
+            await model.saveExploresToCache(
+                projectUuid,
+                [exploreWithMetricFilters],
+                true,
+                undefined,
+                async (trx) => {
+                    await trx('publication_marker').insert({
+                        marker: 'published',
+                    });
+                },
+            );
+            const { queries } = tracker.history.transactions[0];
+            const cacheInsert = queries.findIndex(({ sql }) =>
+                sql.startsWith('insert into "cached_explore"'),
+            );
+            const markerInsert = queries.findIndex(({ sql }) =>
+                sql.includes('publication_marker'),
+            );
+            expect(markerInsert).toBeGreaterThan(cacheInsert);
         });
 
         test('preserves cached explores when the payload is not explicitly complete', async () => {
@@ -1353,6 +1424,43 @@ describe('ProjectModel', () => {
             }
             return { stagedRows };
         };
+
+        test('publishes dependent registry writes inside the stream swap transaction', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+            tracker.on.insert('publication_marker').response([]);
+            await model.saveExploreStreamToCache(
+                projectUuid,
+                stream([exploreWithMetricFilters]),
+                async (trx) => {
+                    await trx('publication_marker').insert({
+                        marker: 'published',
+                    });
+                },
+            );
+            const { queries } = tracker.history.transactions[0];
+            const cacheInsert = queries.findIndex(({ sql }) =>
+                sql.startsWith('INSERT INTO "cached_explore"'),
+            );
+            const markerInsert = queries.findIndex(({ sql }) =>
+                sql.includes('publication_marker'),
+            );
+            expect(markerInsert).toBeGreaterThan(cacheInsert);
+        });
+
+        test('rejects the stream swap when dependent publication fails', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([exploreWithMetricFilters]),
+                    async () => {
+                        throw new Error('Publication failed');
+                    },
+                ),
+            ).rejects.toThrow('Publication failed');
+        });
 
         test('fully consumes the generator before taking the transaction lock', async () => {
             oneRowChunks();
