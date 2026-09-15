@@ -46,13 +46,18 @@ describe('content similarity (PostgreSQL)', () => {
         )!;
         const space = options.space ?? sharedSpace;
         const row = await tx('spaces')
+            .join('projects', 'projects.project_id', 'spaces.project_id')
             .where('space_uuid', space)
-            .first<{ space_id: number }>();
+            .first<{ space_id: number; project_uuid: string }>(
+                'spaces.space_id',
+                'projects.project_uuid',
+            );
         const uuid = randomUUID();
         await tx(source.table).insert({
             [source.uuid]: uuid,
             name,
             slug: uuid,
+            project_uuid: row!.project_uuid,
             space_id: row!.space_id,
             space_uuid: space,
             deleted_at: options.deleted ? new Date() : null,
@@ -104,7 +109,7 @@ describe('content similarity (PostgreSQL)', () => {
         await Promise.all(
             sources.map((source) =>
                 tx.raw(
-                    'CREATE TEMP TABLE ?? (?? uuid, name text, slug text, space_id int, space_uuid uuid, owner_uuid uuid, deleted_at timestamptz) ON COMMIT DROP',
+                    'CREATE TEMP TABLE ?? (?? uuid, name text, slug text, project_uuid uuid, space_id int, space_uuid uuid, owner_uuid uuid, deleted_at timestamptz) ON COMMIT DROP',
                     [source.table, source.uuid],
                 ),
             ),

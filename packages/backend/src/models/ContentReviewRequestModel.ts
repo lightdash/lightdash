@@ -619,6 +619,9 @@ export class ContentReviewRequestModel {
                             );
                         });
                     });
+                if (source.contentType === ContentReviewContentType.CHART) {
+                    void query.where('content.project_uuid', projectUuid);
+                }
             })
             .join(
                 { projects: ProjectTableName },
