@@ -1,3 +1,12 @@
+## [2.221.2](https://github.com/lightdash/lightdash/compare/2.221.1...2.221.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* explain when analytics data is not available yet ([#29053](https://github.com/lightdash/lightdash/issues/29053)) ([bff86d0](https://github.com/lightdash/lightdash/commit/bff86d097970c10d64dc802317f24cc47bc4c6de))
+* preserve spaces in homepage code filenames ([#29262](https://github.com/lightdash/lightdash/issues/29262)) ([9cf74b8](https://github.com/lightdash/lightdash/commit/9cf74b829431f92bdbfed548760125779ec821eb))
+* reduce headless query result polling (PROD-11296) ([#29250](https://github.com/lightdash/lightdash/issues/29250)) ([52d5f99](https://github.com/lightdash/lightdash/commit/52d5f990c5e943233cb06eab51ac9774bac33bd7))
+
 ## [2.221.1](https://github.com/lightdash/lightdash/compare/2.221.0...2.221.1) (2026-09-15)
 
 
