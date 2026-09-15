@@ -27,6 +27,7 @@ import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBu
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { clarificationStub } from '../features/chartTypes/testing/clarificationRoundStub';
 import { buildStub } from '../features/chartTypes/testing/dataAppVizBuildStub';
+import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeBuilder from './ChartTypeBuilder';
@@ -34,6 +35,7 @@ import ChartTypeBuilder from './ChartTypeBuilder';
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
+vi.mock('../hooks/useExplores', () => ({ useExplores: vi.fn() }));
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'p1',
 }));
@@ -273,6 +275,10 @@ const staleUpgradeOffer: SdkUpgradeOffer = {
 describe('ChartTypeBuilder', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(useExplores).mockReturnValue({
+            data: [{ name: 'orders', label: 'Orders' }],
+            isInitialLoading: false,
+        } as unknown as ReturnType<typeof useExplores>);
         setFlag(true);
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
@@ -561,20 +567,26 @@ describe('ChartTypeBuilder', () => {
             'href',
             '/projects/p1/gallery',
         );
-        const previewLink = screen.getByRole('link', {
-            name: 'Preview in explorer',
-        });
-        expect(previewLink).toHaveAttribute(
-            'href',
-            `/projects/p1/tables?dataAppVizUuid=${dataAppVizUuid}`,
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Preview in explorer' }),
         );
-
-        fireEvent.click(previewLink);
-
+        expect(
+            screen.getByRole('dialog', { name: 'Preview in explorer' }),
+        ).toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent(
-            `/projects/p1/tables?dataAppVizUuid=${dataAppVizUuid}`,
+            `/projects/p1/chart-types/${dataAppVizUuid}`,
         );
-        expect(screen.getByText('table-picker')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Open in explorer' }),
+        ).toBeDisabled();
+        fireEvent.click(screen.getByPlaceholderText('Select a table'));
+        fireEvent.click(screen.getByText('Orders'));
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Open in explorer' }),
+        );
+        expect(screen.getByTestId('location')).toHaveTextContent(
+            `/projects/p1/tables/orders?dataAppVizUuid=${dataAppVizUuid}&chartSidebar=configure`,
+        );
     });
 
     it('treats malformed Explorer state as a standalone builder session', () => {
@@ -853,7 +865,7 @@ describe('ChartTypeBuilder', () => {
             'preview-v1',
         );
 
-        fireEvent.click(screen.getByLabelText('Close history'));
+        fireEvent.click(screen.getByLabelText('Collapse version history'));
         expect(screen.queryByLabelText('Version history')).toBeNull();
         expect(screen.getByTestId('app-preview')).toHaveTextContent(
             'preview-v2',
@@ -917,7 +929,7 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByLabelText('Show grid')).toBeInTheDocument();
         expect(screen.queryByLabelText('Show markers')).toBeNull();
 
-        fireEvent.click(screen.getByLabelText('Close history'));
+        fireEvent.click(screen.getByLabelText('Collapse version history'));
         expect(screen.getByLabelText('Show markers')).toBeInTheDocument();
         expect(screen.queryByLabelText('Show grid')).toBeNull();
     });
@@ -940,7 +952,7 @@ describe('ChartTypeBuilder', () => {
 
         fireEvent.click(screen.getByText('History'));
         fireEvent.click(screen.getByLabelText('View v1'));
-        fireEvent.click(screen.getByLabelText('Close history'));
+        fireEvent.click(screen.getByLabelText('Collapse version history'));
 
         expect(screen.getByLabelText('Show markers')).not.toBeChecked();
     });

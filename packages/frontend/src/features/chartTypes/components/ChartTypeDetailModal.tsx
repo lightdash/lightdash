@@ -29,6 +29,7 @@ import DataAppVizFieldsList from './DataAppVizFieldsList';
 import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 
 type Props = {
+    opened: boolean;
     projectUuid: string;
     dataAppViz: DataAppViz;
     isActive: boolean;
@@ -40,6 +41,7 @@ type Props = {
 };
 
 const ChartTypeDetailModal: FC<Props> = ({
+    opened,
     projectUuid,
     dataAppViz,
     isActive,
@@ -57,7 +59,7 @@ const ChartTypeDetailModal: FC<Props> = ({
         true;
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
-    const isDetailActive = isActive && !isForkOpen;
+    const isDetailActive = opened && isActive && !isForkOpen;
     const upgradeMutation = useInstallRegistryChartType();
     const { track } = useTracking();
     const registryUpdate =
@@ -96,7 +98,7 @@ const ChartTypeDetailModal: FC<Props> = ({
     return (
         <>
             <MantineModal
-                opened
+                opened={opened}
                 onClose={onClose}
                 modalRootProps={{
                     closeOnEscape: isDetailActive,

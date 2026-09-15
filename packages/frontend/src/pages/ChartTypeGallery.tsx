@@ -303,6 +303,7 @@ const ChartTypeGallery = () => {
 
             {selected && (
                 <ChartTypeDetailModal
+                    opened={previewUuid === null}
                     projectUuid={projectUuid}
                     dataAppViz={selected}
                     isActive={previewUuid === null && deleteUuid === null}
@@ -317,7 +318,10 @@ const ChartTypeGallery = () => {
                     projectUuid={projectUuid}
                     dataAppVizUuid={previewUuid}
                     registrySlug={toPreview?.registrySlug ?? null}
-                    onClose={() => setPreviewUuid(null)}
+                    onClose={() => {
+                        setPreviewUuid(null);
+                        setSelectedUuid(null);
+                    }}
                 />
             )}
             {toDelete && (
