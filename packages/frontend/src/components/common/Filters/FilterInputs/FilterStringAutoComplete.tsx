@@ -152,7 +152,7 @@ const SearchErrorIndicator: FC<{
     );
     const canRetry = RETRYABLE_ERROR_KINDS.includes(kind);
 
-    if (isRetrying) return <Loader size="xs" color="gray" />;
+    if (isRetrying) return <Loader size={14} color="gray" />;
 
     return (
         <HoverCard
@@ -559,7 +559,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                     }}
                                 >
                                     {isInitialLoading ? (
-                                        <Loader size="xs" color="gray" />
+                                        <Loader size={14} color="gray" />
                                     ) : isError ? (
                                         <SearchErrorIndicator
                                             error={error}
