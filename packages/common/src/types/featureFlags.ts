@@ -100,6 +100,14 @@ export enum FeatureFlags {
     EnableDataAppCustomDependencies = 'enable-data-app-custom-dependencies',
 
     /**
+     * Per-organization rollout of AI analysis in data apps (detect anomalies,
+     * investigate with an agent). Gates the endpoints and the admin toggle;
+     * the org's `dataAppRuntimeAiEnabled` setting is the separate customer
+     * consent. Disabled by default.
+     */
+    EnableDataAppAnalysis = 'enable-data-app-analysis',
+
+    /**
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',

@@ -49,6 +49,8 @@ const SurfaceRow: FC<{
 type AiSurfacesCardProps = {
     aiAgentsVisible: boolean;
     mcpAgentsEnabled: boolean;
+    // Rolled out per org by feature flag; hidden until then.
+    showDataAppRuntimeAi: boolean;
     dataAppRuntimeAiEnabled: boolean;
     slackInstallation: SlackSettings | undefined;
     slackAgentsEnabled: boolean;
@@ -64,6 +66,7 @@ type AiSurfacesCardProps = {
 export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     aiAgentsVisible,
     mcpAgentsEnabled,
+    showDataAppRuntimeAi,
     dataAppRuntimeAiEnabled,
     slackInstallation,
     slackAgentsEnabled,
@@ -119,15 +122,19 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                     disabled={disabled}
                     onChange={onUpdateMcpAgentsEnabled}
                 />
-                <Divider />
-                <SurfaceRow
-                    icon={IconApps}
-                    name="Data apps"
-                    description="Runtime analysis inside data apps. Sends query results a viewer already has access to, to your configured AI provider."
-                    checked={dataAppRuntimeAiEnabled}
-                    disabled={disabled}
-                    onChange={onUpdateDataAppRuntimeAiEnabled}
-                />
+                {showDataAppRuntimeAi && (
+                    <>
+                        <Divider />
+                        <SurfaceRow
+                            icon={IconApps}
+                            name="Data apps"
+                            description="Runtime analysis inside data apps. Sends query results a viewer already has access to, to your configured AI provider."
+                            checked={dataAppRuntimeAiEnabled}
+                            disabled={disabled}
+                            onChange={onUpdateDataAppRuntimeAiEnabled}
+                        />
+                    </>
+                )}
                 <Divider />
                 <SurfaceRow
                     icon={IconBrandSlack}
