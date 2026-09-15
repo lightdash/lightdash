@@ -3,9 +3,10 @@
  * read from the frontend, how docs sentences are cited, and how a set of
  * markers becomes a walkthrough. See generate.ts for the marker contract.
  */
-import { getScopes } from '@lightdash/common';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { friendlyName, getScopes } from '@lightdash/common';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import type { SandboxLesson } from '../../packages/frontend/src/features/learn/sandboxLessons';
 
 export const root = path.resolve(__dirname, '../..');
 export const frontendSrc = path.join(root, 'packages/frontend/src');
@@ -386,11 +387,14 @@ export const docsParagraph = (ref: string): string => {
         }
     }
     if (current.length > 0) paragraphs.push(current);
-    // Prose only: skip image/JSX blocks and bullet or numbered lists (a
-    // paragraph that merely starts with bold text is prose).
+    // Prose only: skip image/JSX blocks, the MDX component imports a page
+    // opens with, and bullet or numbered lists (a paragraph that merely
+    // starts with bold text is prose).
     const prose = paragraphs.filter(
         (para) =>
-            !/^[<!]/.test(para[0]) && !/^\s*(?:[-*]\s|\d+\.\s)/.test(para[0]),
+            !/^[<!]/.test(para[0]) &&
+            !/^(?:import|export)\s/.test(para[0]) &&
+            !/^\s*(?:[-*]\s|\d+\.\s)/.test(para[0]),
     );
     // A list item, counted across the section's lists in order.
     const items = paragraphs
@@ -515,12 +519,236 @@ export type ScopeTourBuild = {
     files: string[];
 };
 
+export const LESSON_SOURCE =
+    'packages/frontend/src/features/learn/sandboxLessons.ts';
+const LESSON_ID = /^docs:[a-z0-9-]+(?:\/[a-z0-9-]+)+$/;
+const WORKSPACE_ROUTE = '/projects/:projectUuid/learn/workspace';
+const EXPLORE_ROUTE = '/projects/:projectUuid/tables/:tableName';
+const BUSY_OUTPUT = '[data-tour-anchor="terminal-running"]';
+
+/** The card title of a docs page: its sidebar title when it has one, else its title. */
+export const docsCardTitle = (relative: string): string => {
+    const lines = readFileSync(path.join(docsDir, relative), 'utf8').split(
+        '\n',
+    );
+    const front = lines.slice(
+        0,
+        lines[0] === '---' ? lines.indexOf('---', 1) : 0,
+    );
+    const read = (key: string) =>
+        front
+            .find((line) => line.startsWith(`${key}:`))
+            ?.replace(`${key}:`, '')
+            .trim()
+            .replace(/^["']|["']$/g, '');
+    const title = read('sidebarTitle') ?? read('title');
+    if (!title) throw new Error(`Docs page has no title: ${relative}`);
+    return title;
+};
+
+const learnBundlePaths = (): Set<string> => {
+    const bundle = JSON.parse(
+        readFileSync(
+            path.join(root, 'packages/backend/assets/learn/jaffle-dbt.json'),
+            'utf8',
+        ),
+    ) as { files: { path: string }[] };
+    return new Set(bundle.files.map((file) => file.path));
+};
+
+const validateLesson = (lesson: SandboxLesson, bundlePaths: Set<string>) => {
+    const where = `${LESSON_SOURCE}: lesson ${lesson.id}`;
+    if (!LESSON_ID.test(lesson.id)) {
+        throw new Error(
+            `${where}: id must look like docs:<docs path without .mdx>`,
+        );
+    }
+    if (lesson.id !== `docs:${lesson.docs.replace(/\.mdx$/, '')}`) {
+        throw new Error(`${where}: id and docs page disagree`);
+    }
+    if (!existsSync(path.join(docsDir, lesson.docs))) {
+        throw new Error(
+            `${where}: docs page ${lesson.docs} not found under ${docsDir}`,
+        );
+    }
+    if (
+        !/^models\/(?:[^/]+\/)*[^/]+\.yml$/.test(lesson.file) ||
+        !bundlePaths.has(lesson.file)
+    ) {
+        throw new Error(
+            `${where}: file must be an editable models/**/*.yml in the learn bundle`,
+        );
+    }
+    if (lesson.snippet.trim() === '')
+        throw new Error(`${where}: snippet is empty`);
+    const [tool] = lesson.command.trim().split(/\s+/);
+    if (tool !== 'lightdash' && tool !== 'dbt') {
+        throw new Error(`${where}: command must start with lightdash or dbt`);
+    }
+    for (const name of [lesson.result.explore, lesson.result.field]) {
+        if (!/^[a-z][a-z0-9_]*$/.test(name)) {
+            throw new Error(
+                `${where}: result names must be dbt names (${name})`,
+            );
+        }
+    }
+};
+
+const click = (
+    target: string,
+    route: string,
+    title: string,
+    via: string[],
+): ScopeTourStepDefinition => ({
+    target,
+    route,
+    title,
+    body: '',
+    interactive: true,
+    advanceOnTargetClick: true,
+    advanceOnTargetInput: false,
+    via,
+});
+
+const typed = (
+    target: string,
+    route: string,
+    title: string,
+    body: string,
+    suggestion: string,
+    via: string[],
+): ScopeTourStepDefinition => ({
+    target,
+    route,
+    title,
+    body,
+    interactive: true,
+    advanceOnTargetClick: false,
+    advanceOnTargetInput: true,
+    via,
+    suggestion,
+});
+
+const look = (
+    target: string,
+    route: string,
+    title: string,
+    body: string,
+    via: string[],
+    busy?: string,
+): ScopeTourStepDefinition => ({
+    target,
+    route,
+    title,
+    body,
+    interactive: false,
+    advanceOnTargetClick: false,
+    advanceOnTargetInput: false,
+    via,
+    ...(busy ? { busy } : {}),
+});
+
 /**
- * Every walkthrough the markers describe. Throws on the first inconsistency
- * (the generator stops; the checker reports it with the file it came from).
+ * One tour per lesson from a fixed template: read the docs, open the file,
+ * append the snippet, type the command, run it, watch the output, then open
+ * the explore and find the new field. Hints and docs are read the way marker
+ * tours read them, so a missing anchor or citation fails the build.
+ */
+export const buildLessonTours = (
+    lessons: SandboxLesson[],
+    files: string[],
+): ScopeTourDefinition[] => {
+    if (lessons.length === 0) return [];
+    const bundlePaths = learnBundlePaths();
+    return lessons.map((lesson) => {
+        validateLesson(lesson, bundlePaths);
+        const fileRow = `[data-tour-anchor="workspace-file"][data-tour-value="${lesson.file}"]`;
+        const editor = '[data-tour-anchor="workspace-editor"]';
+        const command = '[data-tour-anchor="terminal-command"]';
+        const run = '[data-tour-anchor="terminal-run"]';
+        const output = '[data-learn-terminal-output]';
+        const newMenu = '[data-tour-nav="new"]';
+        const newChart = '[data-tour-nav="new-chart"]';
+        const exploreLabel = friendlyName(lesson.result.explore);
+        const fieldLabel = friendlyName(lesson.result.field);
+        const table = `[data-tour-anchor="explore-table"][data-tour-value="${exploreLabel}"]`;
+        const search = '[data-tour-anchor="explore-search"]';
+        const fieldRow = `[data-tour-anchor="explore-metric"][data-tour-value="${fieldLabel}"]`;
+        for (const selector of [editor, command, search]) {
+            if (!isInputAnchor(selector, files)) {
+                throw new Error(
+                    `${LESSON_SOURCE}: ${selector} must be a typed anchor (data-tour-input)`,
+                );
+            }
+        }
+        const title = docsCardTitle(lesson.docs);
+        const steps: ScopeTourStepDefinition[] = [
+            look(
+                fileRow,
+                WORKSPACE_ROUTE,
+                title,
+                docsParagraph(lesson.intro),
+                [],
+            ),
+            click(fileRow, WORKSPACE_ROUTE, hintFor(fileRow, files), []),
+            typed(
+                editor,
+                WORKSPACE_ROUTE,
+                hintFor(editor, files),
+                docsParagraph(lesson.snippetDocs),
+                lesson.snippet,
+                [fileRow],
+            ),
+            typed(
+                command,
+                WORKSPACE_ROUTE,
+                hintFor(command, files),
+                docsParagraph(lesson.commandDocs),
+                lesson.command,
+                [fileRow],
+            ),
+            click(run, WORKSPACE_ROUTE, hintFor(run, files), [fileRow]),
+            look(
+                output,
+                WORKSPACE_ROUTE,
+                'See the result',
+                docsParagraph(lesson.outputDocs),
+                [],
+                BUSY_OUTPUT,
+            ),
+            click(newMenu, WORKSPACE_ROUTE, hintFor(newMenu, files), []),
+            click(newChart, WORKSPACE_ROUTE, hintFor(newChart, files), [
+                newMenu,
+            ]),
+            click(table, EXPLORE_ROUTE, hintFor(table, files), [
+                newMenu,
+                newChart,
+            ]),
+            typed(search, EXPLORE_ROUTE, `Find ${fieldLabel}`, '', fieldLabel, [
+                newMenu,
+                newChart,
+                table,
+            ]),
+            look(
+                fieldRow,
+                EXPLORE_ROUTE,
+                docsHeading(lesson.resultDocs),
+                docsParagraph(lesson.resultDocs),
+                [newMenu, newChart, table],
+            ),
+        ];
+        return { scope: lesson.id, title, sources: [LESSON_SOURCE], steps };
+    });
+};
+
+/**
+ * Every walkthrough the markers describe, and one per developer lesson.
+ * Throws on the first inconsistency (the generator stops; the checker reports
+ * it with the file it came from).
  */
 export const buildTours = (
     files: string[] = listTsx(frontendSrc),
+    lessons: SandboxLesson[] = [],
 ): ScopeTourBuild => {
     const markers = files.flatMap(findMarkers);
     const scopes = new Map(
@@ -778,5 +1006,6 @@ export const buildTours = (
             tours.push({ ...primaryTours.get(marker.scope)!, scope: covered });
         }
     }
+    tours.push(...buildLessonTours(lessons, files));
     return { tours, markers, files };
 };

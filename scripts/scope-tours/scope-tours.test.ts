@@ -84,6 +84,95 @@ const write = (name: string, source: string) => {
     return file;
 };
 
+mkdirSync(path.join(docs, 'semantic-layer'), { recursive: true });
+mkdirSync(path.join(docs, 'workflow/cli'), { recursive: true });
+writeFileSync(
+    path.join(docs, 'semantic-layer/metrics.mdx'),
+    `---
+title: "Metrics reference"
+sidebarTitle: "Metrics"
+---
+
+import LiquidTemplating from '/snippets/liquid-templating.mdx';
+
+A metric is a value that describes or summarizes features from a collection of data points. For example: count of total number of user IDs, or sum of revenue.
+
+In Lightdash, metrics are used to summarize dimensions or, sometimes, other metrics.
+
+## Adding metrics to your project using the \`meta\` tag.
+
+### 1. Using the column \`meta\` tag
+
+To add a metric to Lightdash using the \`meta\` tag, you define it in your dbt project under the dimension name you're trying to describe/summarize.
+
+### average
+
+Takes the average (mean) of the values in the given field. Like SQL's \`AVG\` function.
+`,
+);
+writeFileSync(
+    path.join(docs, 'workflow/cli/deploy.mdx'),
+    `---
+title: Deploy changes to production
+---
+
+import StrictCompilationFlags from '/snippets/strict-compilation-flags.mdx';
+
+\`lightdash deploy\` pushes your local dbt or native Lightdash YAML models to Lightdash.
+
+## Option 1: Deploy via the CLI
+
+Basic usage:
+
+By default, this will:
+
+* Use your local dbt profile for the connection
+
+* Push the current state of your local dbt project files to the authenticated Lightdash project
+
+* Trigger a re-compile and refresh of your Lightdash project
+`,
+);
+const workspace = `
+export const Workspace = () => (
+    <div>
+        <a data-tour-anchor="workspace-file" data-tour-hint="Open the file" data-tour-hint-named="Open {value}" data-tour-value="models/payments.yml" />
+        <div data-tour-anchor="workspace-editor" data-tour-hint="Edit the file" data-tour-input="true" data-tour-suggest="# Edited" />
+        <input data-tour-anchor="terminal-command" data-tour-hint="Type the command" data-tour-input="true" data-tour-suggest="dbt parse" />
+        <button data-tour-anchor="terminal-run" data-tour-hint="Run the command" />
+        <div data-learn-terminal-output data-tour-anchor="terminal-running" data-tour-hint="Wait for the command to finish" />
+    </div>
+);
+`;
+const explore = `
+export const Explore = () => (
+    <div>
+        <a data-tour-nav="new" data-tour-hint="Click New" />
+        <a data-tour-nav="new-chart" data-tour-hint="Choose Chart" />
+        <a data-tour-anchor="explore-table" data-tour-hint="Open a table" data-tour-hint-named="Open {value}" data-tour-value="Payments" />
+        <input data-tour-anchor="explore-search" data-tour-hint="Search for the table" data-tour-input="true" data-tour-suggest="Orders by status" />
+        <div
+            //   data-tour-anchor="explore-metric" data-tour-hint="Select a metric" data-tour-hint-named="Find {value}"
+            data-tour-anchor={x ? 'explore-metric' : undefined}
+        />
+    </div>
+);
+`;
+const metricsLesson = {
+    id: 'docs:semantic-layer/metrics' as const,
+    docs: 'semantic-layer/metrics.mdx',
+    intro: 'semantic-layer/metrics.mdx#intro:1-2',
+    file: 'models/payments.yml',
+    snippet:
+        '              average_payment_amount:\n                type: average',
+    snippetDocs: 'semantic-layer/metrics.mdx#average:1-2',
+    command: 'lightdash deploy',
+    commandDocs: 'workflow/cli/deploy.mdx#intro:1',
+    outputDocs: 'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li3',
+    result: { explore: 'payments', field: 'average_payment_amount' },
+    resultDocs: 'semantic-layer/metrics.mdx#1-using-the-column-meta-tag:1',
+};
+
 const run = async () => {
     const { checkTours } = await import('./check');
     const { buildTours, docsHeading, docsParagraph } = await import('./lib');
@@ -571,6 +660,142 @@ export const Card = () => (
         const { conceptOf } = await import('./order');
         assert.strictEqual(conceptOf('explore/homepage'), 'homepage');
         assert.strictEqual(conceptOf('explore/no-such-page'), undefined);
+    }
+
+    // A lesson becomes a fixed eleven-step tour over the workspace and the explore.
+    {
+        const { buildLessonTours, docsCardTitle } = await import('./lib');
+        const files = [
+            write('Workspace.tsx', workspace),
+            write('Explore.tsx', explore),
+        ];
+        const [tour] = buildLessonTours([metricsLesson], files);
+        assert.strictEqual(tour.scope, 'docs:semantic-layer/metrics');
+        assert.strictEqual(tour.title, 'Metrics');
+        assert.strictEqual(
+            docsCardTitle('workflow/cli/deploy.mdx'),
+            'Deploy changes to production',
+        );
+        assert.strictEqual(
+            tour.steps.map((s) => s.title).join(' > '),
+            'Metrics > Open models/payments.yml > Edit the file > Type the command > Run the command > See the result > Click New > Choose Chart > Open Payments > Find Average payment amount > Using the column meta tag',
+        );
+        assert.strictEqual(
+            tour.steps[0].body,
+            'A metric is a value that describes or summarizes features from a collection of data points. For example: count of total number of user IDs, or sum of revenue.',
+        );
+        assert.strictEqual(tour.steps[2].suggestion, metricsLesson.snippet);
+        assert.strictEqual(
+            tour.steps[2].body,
+            "Takes the average (mean) of the values in the given field. Like SQL's **AVG** function.",
+        );
+        assert.strictEqual(tour.steps[3].suggestion, 'lightdash deploy');
+        assert.strictEqual(
+            tour.steps[3].body,
+            '**lightdash deploy** pushes your local dbt or native Lightdash YAML models to Lightdash.',
+        );
+        assert.strictEqual(
+            tour.steps[5].target,
+            '[data-learn-terminal-output]',
+        );
+        assert.strictEqual(
+            tour.steps[5].busy,
+            '[data-tour-anchor="terminal-running"]',
+        );
+        assert.strictEqual(
+            tour.steps[5].body,
+            'Trigger a re-compile and refresh of your Lightdash project',
+        );
+        assert.strictEqual(tour.steps[9].suggestion, 'Average payment amount');
+        assert.deepStrictEqual(tour.steps[9].via, [
+            '[data-tour-nav="new"]',
+            '[data-tour-nav="new-chart"]',
+            '[data-tour-anchor="explore-table"][data-tour-value="Payments"]',
+        ]);
+        assert.strictEqual(
+            tour.steps[10].target,
+            '[data-tour-anchor="explore-metric"][data-tour-value="Average payment amount"]',
+        );
+        assert.strictEqual(tour.steps[10].interactive, false);
+        assert.strictEqual(
+            tour.steps[0].route,
+            '/projects/:projectUuid/learn/workspace',
+        );
+        assert.strictEqual(
+            tour.steps[8].route,
+            '/projects/:projectUuid/tables/:tableName',
+        );
+        assert.deepStrictEqual(tour.sources, [
+            'packages/frontend/src/features/learn/sandboxLessons.ts',
+        ]);
+
+        // The checker sees the lesson tour and finds nothing wrong with it.
+        const errors = checkTours(files, [metricsLesson]).filter(
+            (f) => f.level === 'error',
+        );
+        assert.deepStrictEqual(errors, [], JSON.stringify(errors, null, 2));
+
+        // A lesson is validated before anything is built.
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [{ ...metricsLesson, id: 'docs:metrics' as const }],
+                    files,
+                ),
+            /id must look like/,
+        );
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [{ ...metricsLesson, file: 'models/nope.yml' }],
+                    files,
+                ),
+            /learn bundle/,
+        );
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [{ ...metricsLesson, command: 'rm -rf /' }],
+                    files,
+                ),
+            /lightdash or dbt/,
+        );
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [
+                        {
+                            ...metricsLesson,
+                            snippetDocs: 'semantic-layer/metrics.mdx#nope:1',
+                        },
+                    ],
+                    files,
+                ),
+            /Docs anchor not found/,
+        );
+        // Missing anchors in the frontend fail loudly, naming the selector.
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [metricsLesson],
+                    [
+                        files[0],
+                        write(
+                            'ExploreNoTable.tsx',
+                            explore.replace(
+                                /^.*data-tour-anchor="explore-table".*$/m,
+                                '',
+                            ),
+                        ),
+                    ],
+                ),
+            /explore-table/,
+        );
+        // A field the learner types into must be a typed anchor.
+        assert.throws(
+            () => buildLessonTours([metricsLesson], [files[0]]),
+            /\[data-tour-anchor="explore-search"\] must be a typed anchor/,
+        );
     }
 
     console.log('scope-tours: all checks passed');

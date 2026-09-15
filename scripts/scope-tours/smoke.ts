@@ -527,7 +527,10 @@ const main = async () => {
         for (const scope of scopes) {
             const started = Date.now();
             try {
-                if (!traineeScopes.includes(scope)) {
+                if (
+                    !scope.startsWith('docs:') &&
+                    !traineeScopes.includes(scope)
+                ) {
                     throw new Error(
                         'the scope is not in the trainee set a training copy grants',
                     );

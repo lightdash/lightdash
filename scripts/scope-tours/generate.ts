@@ -79,6 +79,15 @@
  *                                          `data-tour-hint`. The tour never
  *                                          navigates for the learner.
  *
+ * Developer lessons (one per semantic-layer docs page) are not markers. They
+ * are declared in packages/frontend/src/features/learn/sandboxLessons.ts and
+ * become tours under their `docs:<page>` id from a fixed template: read the
+ * page's intro, open `file` in the workspace, append `snippet` (cited), type
+ * `command` (cited), run it and watch the output (cited), then open the
+ * `result.explore` explore, search for the field and look at it (cited).
+ * Titles come from the anchors' hints and the docs page; nothing else is
+ * authored. The lesson compile test proves each snippet compiles.
+ *
  * Titles come from the scope registry in @lightdash/common; explanatory text
  * comes from the docs page the marker cites. Nothing is invented at build time.
  * The recipe for adding a walkthrough is the repo skill
@@ -88,10 +97,11 @@
  */
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { SANDBOX_LESSONS } from '../../packages/frontend/src/features/learn/sandboxLessons';
 import { buildTours, outputPath, root } from './lib';
 
 const main = () => {
-    const { tours, markers } = buildTours();
+    const { tours, markers } = buildTours(undefined, SANDBOX_LESSONS);
     const body = tours
         .map(
             (tour) =>
