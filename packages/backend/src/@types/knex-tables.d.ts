@@ -100,6 +100,12 @@ import {
     DashboardSlugMappingTable,
 } from '../database/entities/dashboardSlugMappings';
 import {
+    DocumentGroupAccessTable,
+    DocumentGroupAccessTableName,
+    DocumentUserAccessTable,
+    DocumentUserAccessTableName,
+} from '../database/entities/documentAccess';
+import {
     DocumentsTable,
     DocumentsTableName,
     DocumentVersionsTable,
@@ -680,6 +686,8 @@ declare module 'knex/types/tables' {
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardUserAccessTableName]: DashboardUserAccessTable;
+        [DocumentUserAccessTableName]: DocumentUserAccessTable;
+        [DocumentGroupAccessTableName]: DocumentGroupAccessTable;
         [DashboardGroupAccessTableName]: DashboardGroupAccessTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
         [DashboardViewsTableName]: DashboardViewTable;

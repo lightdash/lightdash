@@ -407,6 +407,7 @@ export class ServiceRepository
             'documentService',
             () =>
                 new DocumentService({
+                    directAccessService: this.getDirectAccessService(),
                     documentModel: this.models.getDocumentModel(),
                     projectService: this.getProjectService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
@@ -1291,10 +1292,12 @@ export class ServiceRepository
             'directAccessService',
             () =>
                 new DirectAccessService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     directAccessModel: this.models.getDirectAccessModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     directAccessFeatureGate: this.getDirectAccessFeatureGate(),
                     appAccessModel: this.models.getAppAccessModel(),
+                    documentAccessModel: this.models.getDocumentAccessModel(),
                     dashboardAccessModel: this.models.getDashboardAccessModel(),
                     savedChartAccessModel:
                         this.models.getSavedChartAccessModel(),
@@ -1308,9 +1311,11 @@ export class ServiceRepository
             'spacePermissionService',
             () =>
                 new SpacePermissionService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     spaceModel: this.models.getSpaceModel(),
                     spacePermissionModel: this.models.getSpacePermissionModel(),
                     appAccessModel: this.models.getAppAccessModel(),
+                    documentAccessModel: this.models.getDocumentAccessModel(),
                     dashboardAccessModel: this.models.getDashboardAccessModel(),
                     savedChartAccessModel:
                         this.models.getSavedChartAccessModel(),
@@ -1625,6 +1630,8 @@ export class ServiceRepository
             'contentService',
             () =>
                 new ContentService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    documentService: this.getDocumentService(),
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
                     contentModel: this.models.getContentModel(),

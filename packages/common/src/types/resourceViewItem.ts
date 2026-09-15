@@ -7,7 +7,7 @@ import {
 } from './content';
 import { type DashboardBasicDetails } from './dashboard';
 import { type SpaceQuery } from './savedCharts';
-import { type Space, type SpaceSummary } from './space';
+import { type Space, type SpaceMemberRole, type SpaceSummary } from './space';
 
 export { ResourceViewItemType };
 
@@ -84,7 +84,22 @@ export type ResourceViewSpaceItem = {
         chartCount: number;
         childSpaceCount: number;
         appCount: number;
+        documentCount?: number;
     };
+};
+
+export type ResourceViewDocumentItem = {
+    type: ResourceViewItemType.DOCUMENT;
+    data: Omit<
+        ResourceViewDashboardItem['data'],
+        'owner' | 'validationErrors'
+    > & {
+        projectUuid: string;
+        organizationUuid: string;
+        createdByUserUuid: string | null;
+        directAccessRoles: SpaceMemberRole[];
+    };
+    category?: ResourceItemCategory;
 };
 
 export type ResourceViewDataAppItem = {
@@ -116,12 +131,14 @@ type ResourceViewAcceptedItems =
     | ResourceViewSpaceItem['data']
     | ResourceViewChartItem['data']
     | ResourceViewDashboardItem['data']
+    | ResourceViewDocumentItem['data']
     | ResourceViewDataAppItem['data'];
 
 export type ResourceViewItem =
     | ResourceViewChartItem
     | ResourceViewDashboardItem
     | ResourceViewSpaceItem
+    | ResourceViewDocumentItem
     | ResourceViewDataAppItem;
 
 export const isResourceViewItemChart = (
@@ -141,6 +158,11 @@ export const isResourceViewDataAppItem = (
     item: ResourceViewItem,
 ): item is ResourceViewDataAppItem =>
     item.type === ResourceViewItemType.DATA_APP;
+
+export const isResourceViewDocumentItem = (
+    item: ResourceViewItem,
+): item is ResourceViewDocumentItem =>
+    item.type === ResourceViewItemType.DOCUMENT;
 
 /**
  * Display name for any resource view item. Identical to `item.data.name` for
@@ -169,6 +191,8 @@ export const wrapResource = <T extends ResourceViewAcceptedItems>(
                 type,
                 data: resource as ResourceViewDataAppItem['data'],
             };
+        case ResourceViewItemType.DOCUMENT:
+            return { type, data: resource as ResourceViewDocumentItem['data'] };
         default:
             return assertUnreachable(type, `Unknown resource type: ${type}`);
     }
@@ -195,6 +219,7 @@ export const spaceToResourceViewItem = (
     chartCount: space.chartCount,
     childSpaceCount: space.childSpaceCount,
     appCount: space.appCount,
+    documentCount: space.documentCount,
     access: space.access,
     parentSpaceUuid: space.parentSpaceUuid,
     path: space.path,
@@ -210,6 +235,25 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
         content.lastUpdatedBy || content.createdBy || undefined;
 
     switch (content.contentType) {
+        case ResourceViewItemType.DOCUMENT:
+            return wrapResource(
+                {
+                    ...content,
+                    description: content.description || undefined,
+                    spaceUuid: content.space.uuid,
+                    projectUuid: content.project.uuid,
+                    organizationUuid: content.organization.uuid,
+                    createdByUserUuid: content.createdBy?.uuid ?? null,
+                    pinnedListUuid: null,
+                    pinnedListOrder: null,
+                    updatedAt: content.lastUpdatedAt || content.createdAt,
+                    updatedByUser: updatedByUser && {
+                        ...updatedByUser,
+                        userUuid: updatedByUser.uuid,
+                    },
+                },
+                ResourceViewItemType.DOCUMENT,
+            );
         case ResourceViewItemType.CHART:
             const chartViewItem: ResourceViewChartItem['data'] & {
                 projectUuid: string;

@@ -16,6 +16,8 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
             return 'Space';
         case ResourceViewItemType.DATA_APP:
             return 'Data app';
+        case ResourceViewItemType.DOCUMENT:
+            return 'Document';
         case ResourceViewItemType.CHART:
             switch (item.data.chartKind) {
                 case undefined:
@@ -105,6 +107,8 @@ export const getResourceUrl = (
             return `/projects/${projectUrlIdentifier}/spaces/${item.data.uuid}`;
         case ResourceViewItemType.DATA_APP:
             return `/projects/${projectUuid}/apps/${item.data.uuid}/view`;
+        case ResourceViewItemType.DOCUMENT:
+            return `/projects/${projectUuid}/documents/${item.data.uuid}`;
         default:
             return assertUnreachable(item, `Can't get URL for ${itemType}`);
     }
@@ -120,6 +124,8 @@ export const getResourceName = (type: ResourceViewItemType) => {
             return 'Space';
         case ResourceViewItemType.DATA_APP:
             return 'Data app';
+        case ResourceViewItemType.DOCUMENT:
+            return 'Document';
         default:
             return assertUnreachable(type, 'Resource type not supported');
     }

@@ -4224,6 +4224,7 @@ export class CoderService extends BaseService {
             }
             case ContentType.SPACE:
             case ContentType.DATA_APP:
+            case ContentType.DOCUMENT:
                 throw new NotImplementedError(
                     `Slug renaming is not supported for resource type "${resourceType}" yet`,
                 );
@@ -4923,6 +4924,7 @@ export class CoderService extends BaseService {
                 dashboardCount: 0,
                 childSpaceCount: 0,
                 appCount: 0,
+                documentCount: 0,
             },
             created: true,
         };

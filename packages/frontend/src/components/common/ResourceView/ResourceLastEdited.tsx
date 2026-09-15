@@ -2,6 +2,7 @@ import {
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
     type ResourceViewDataAppItem,
+    type ResourceViewDocumentItem,
 } from '@lightdash/common';
 import { Text, Tooltip } from '@mantine/core';
 import dayjs from 'dayjs';
@@ -12,6 +13,7 @@ interface ResourceLastEditedProps {
     item:
         | ResourceViewChartItem
         | ResourceViewDashboardItem
+        | ResourceViewDocumentItem
         | ResourceViewDataAppItem;
 }
 

@@ -8,6 +8,7 @@ import {
     ContentType,
     FeatureFlags,
     isResourceViewDataAppItem,
+    isResourceViewDocumentItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
@@ -33,6 +34,7 @@ import {
     IconAppWindow,
     IconChartBar,
     IconFolder,
+    IconFileText,
     IconFolderSymlink,
     IconLayoutDashboard,
     IconSearch,
@@ -226,6 +228,9 @@ const InfiniteResourceTable = ({
     );
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
+    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
+    const documentsEnabled =
+        documentsFlag.data?.enabled === true && !documentsFlag.isError;
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
     });
@@ -366,7 +371,10 @@ const InfiniteResourceTable = ({
             header: 'Views',
             size: 100,
             Cell: ({ row }) => {
-                if (isResourceViewSpaceItem(row.original))
+                if (
+                    isResourceViewSpaceItem(row.original) ||
+                    isResourceViewDocumentItem(row.original)
+                )
                     return (
                         <Text fz="xs" fw={500} c="ldGray.7">
                             -
@@ -429,11 +437,19 @@ const InfiniteResourceTable = ({
                             chartCount,
                             childSpaceCount,
                             appCount,
+                            documentCount,
                         },
                     },
                 } = row;
                 return (
                     <Group>
+                        {documentsEnabled && documentCount !== undefined && (
+                            <AttributeCount
+                                Icon={IconFileText}
+                                count={documentCount}
+                                name="Documents"
+                            />
+                        )}
                         <AttributeCount
                             Icon={IconLayoutDashboard}
                             count={dashboardCount}
@@ -576,6 +592,7 @@ const InfiniteResourceTable = ({
         return data.pages
             .flatMap((page) => page.data.map(contentToResourceViewItem))
             .filter((item) => {
+                if (isResourceViewDocumentItem(item)) return documentsEnabled;
                 if (!isResourceViewSpaceItem(item)) return true;
                 if (!userCanManageProject) return true;
                 if (
@@ -593,6 +610,7 @@ const InfiniteResourceTable = ({
         userCanManageProject,
         spaces,
         selectedAdminContentType,
+        documentsEnabled,
         contentView?.value,
     ]);
 
@@ -985,6 +1003,35 @@ const InfiniteResourceTable = ({
         },
         enableEditing: true,
         ...contentTableProps,
+        enableRowSelection: contentTableProps.enableRowSelection
+            ? (row) => {
+                  const allowed =
+                      typeof contentTableProps.enableRowSelection === 'function'
+                          ? contentTableProps.enableRowSelection(row)
+                          : true;
+                  if (!allowed || !isResourceViewDocumentItem(row.original)) {
+                      return allowed;
+                  }
+                  const item = row.original;
+                  const space = spaces.find(
+                      ({ uuid }) => uuid === item.data.spaceUuid,
+                  );
+                  return (
+                      user.data?.ability.can(
+                          'update',
+                          subject('Document', {
+                              organizationUuid: item.data.organizationUuid,
+                              projectUuid: item.data.projectUuid,
+                              inheritsFromOrgOrProject:
+                                  space?.inheritsFromOrgOrProject ?? false,
+                              access: space?.userAccess
+                                  ? [space.userAccess]
+                                  : [],
+                          }),
+                      ) === true
+                  );
+              }
+            : false,
         mantineSelectCheckboxProps: {
             size: 'sm',
         },
@@ -1024,10 +1071,11 @@ const InfiniteResourceTable = ({
                                     },
                                 ];
                             case ContentType.DASHBOARD:
+                            case ContentType.DOCUMENT:
                                 return [
                                     {
                                         uuid: item.data.uuid,
-                                        contentType: ContentType.DASHBOARD,
+                                        contentType: item.type,
                                     },
                                 ];
                             case ContentType.SPACE:

@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     SpaceMemberRole,
@@ -19,6 +20,8 @@ import {
     type DirectAccessModel,
     type DirectAccessResourceLocation,
 } from '../../models/DirectAccessModel';
+import type { DocumentAccessModel } from '../../models/DocumentAccessModel';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type SavedChartAccessModel } from '../../models/SavedChartAccessModel';
 import { type SavedSqlAccessModel } from '../../models/SavedSqlAccessModel';
 import { BaseService } from '../BaseService';
@@ -38,6 +41,8 @@ type DirectAccessServiceArguments = {
     spacePermissionService: SpacePermissionService;
     directAccessFeatureGate: DirectAccessFeatureGate;
     appAccessModel: AppAccessModel;
+    documentAccessModel: DocumentAccessModel;
+    featureFlagModel: FeatureFlagModel;
     dashboardAccessModel: DashboardAccessModel;
     savedChartAccessModel: SavedChartAccessModel;
     savedSqlAccessModel: SavedSqlAccessModel;
@@ -71,6 +76,10 @@ export class DirectAccessService extends BaseService {
 
     private readonly appAccessModel: AppAccessModel;
 
+    private readonly documentAccessModel: DocumentAccessModel;
+
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly dashboardAccessModel: DashboardAccessModel;
 
     private readonly savedChartAccessModel: SavedChartAccessModel;
@@ -83,6 +92,8 @@ export class DirectAccessService extends BaseService {
         this.spacePermissionService = args.spacePermissionService;
         this.directAccessFeatureGate = args.directAccessFeatureGate;
         this.appAccessModel = args.appAccessModel;
+        this.documentAccessModel = args.documentAccessModel;
+        this.featureFlagModel = args.featureFlagModel;
         this.dashboardAccessModel = args.dashboardAccessModel;
         this.savedChartAccessModel = args.savedChartAccessModel;
         this.savedSqlAccessModel = args.savedSqlAccessModel;
@@ -105,6 +116,8 @@ export class DirectAccessService extends BaseService {
         >;
     } {
         switch (resourceType) {
+            case DirectAccessResourceType.DOCUMENT:
+                return this.documentAccessModel;
             case DirectAccessResourceType.DASHBOARD:
                 return this.dashboardAccessModel;
             case DirectAccessResourceType.CHART:
@@ -143,13 +156,23 @@ export class DirectAccessService extends BaseService {
         }
 
         const perType = await Promise.all(
-            withUuids.map(async ({ resourceType, uuids }) =>
-                this.getGrantReadModel(resourceType).getUserAccess(
+            withUuids.map(async ({ resourceType, uuids }) => {
+                if (
+                    resourceType === DirectAccessResourceType.DOCUMENT &&
+                    !(
+                        await this.featureFlagModel.get({
+                            featureFlagId: FeatureFlags.Documents,
+                            user,
+                        })
+                    ).enabled
+                )
+                    return {};
+                return this.getGrantReadModel(resourceType).getUserAccess(
                     uuids,
                     user.userUuid,
                     { organizationUuid: user.organizationUuid },
-                ),
-            ),
+                );
+            }),
         );
 
         return perType.reduce<Record<string, SpaceMemberRole[]>>(
@@ -191,12 +214,14 @@ export class DirectAccessService extends BaseService {
     ): Promise<SharedWithMeAccess> {
         const empty: SharedWithMeAccess = {
             uuidsByType: {
+                [DirectAccessResourceType.DOCUMENT]: [],
                 [DirectAccessResourceType.DASHBOARD]: [],
                 [DirectAccessResourceType.CHART]: [],
                 [DirectAccessResourceType.SQL_CHART]: [],
                 [DirectAccessResourceType.APP]: [],
             },
             rolesByType: {
+                [DirectAccessResourceType.DOCUMENT]: {},
                 [DirectAccessResourceType.DASHBOARD]: {},
                 [DirectAccessResourceType.CHART]: {},
                 [DirectAccessResourceType.SQL_CHART]: {},
@@ -216,6 +241,16 @@ export class DirectAccessService extends BaseService {
         const resourceTypes = Object.values(DirectAccessResourceType);
         const entries = await Promise.all(
             resourceTypes.map(async (resourceType) => {
+                if (
+                    resourceType === DirectAccessResourceType.DOCUMENT &&
+                    !(
+                        await this.featureFlagModel.get({
+                            featureFlagId: FeatureFlags.Documents,
+                            user,
+                        })
+                    ).enabled
+                )
+                    return [resourceType, {}] as const;
                 const candidates =
                     await this.directAccessModel.findCandidateResourceUuidsForUser(
                         resourceType,
@@ -272,6 +307,12 @@ export class DirectAccessService extends BaseService {
         };
 
         switch (resourceType) {
+            case DirectAccessResourceType.DOCUMENT:
+                return {
+                    type: 'document',
+                    documentUuid: resourceUuid,
+                    spaceUuid: requireSpaceUuid(),
+                };
             case DirectAccessResourceType.DASHBOARD:
                 return {
                     type: 'dashboard',
@@ -318,6 +359,17 @@ export class DirectAccessService extends BaseService {
         const { organizationUuid } = account.organization;
         if (organizationUuid === undefined) {
             throw new ForbiddenError('Direct access is not available');
+        }
+        if (
+            resourceType === DirectAccessResourceType.DOCUMENT &&
+            !(
+                await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.Documents,
+                    user: { userUuid: account.user.userUuid, organizationUuid },
+                })
+            ).enabled
+        ) {
+            throw new ForbiddenError('Documents are not enabled');
         }
         const location = await this.directAccessModel.findResourceLocation(
             resourceType,
@@ -394,6 +446,16 @@ export class DirectAccessService extends BaseService {
         if (!enabled) {
             return {};
         }
+        if (
+            resourceType === DirectAccessResourceType.DOCUMENT &&
+            !(
+                await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.Documents,
+                    user,
+                })
+            ).enabled
+        )
+            return {};
         return this.directAccessModel.listAssignmentsForResources({
             resourceType,
             resourceUuids,

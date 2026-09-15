@@ -214,6 +214,37 @@ const mutate = (
 };
 
 describe('DocumentService mutations', () => {
+    test.each([
+        SpaceMemberRole.VIEWER,
+        SpaceMemberRole.EDITOR,
+        SpaceMemberRole.ADMIN,
+    ])('direct %s grants enforce document-local editing', async (role) => {
+        const { service, spacePermissionService, documentModel } = setup();
+        spacePermissionService.resolveAccess.mockResolvedValue({
+            projectUuid,
+            organizationUuid,
+            inheritsFromOrgOrProject: false,
+            access: [{ userUuid, role, grantedVia: 'document' }],
+        } as never);
+        const request = service.updateMetadata(
+            makeAccount(),
+            projectUuid,
+            documentUuid,
+            { name: 'Edited' },
+        );
+        if (role === SpaceMemberRole.VIEWER) {
+            await expect(request).rejects.toThrow(ForbiddenError);
+            expect(documentModel.updateMetadata).not.toHaveBeenCalled();
+        } else {
+            await expect(request).resolves.toMatchObject({
+                directAccessRoles: [role],
+            });
+        }
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            userUuid,
+            { type: 'document', documentUuid, spaceUuid },
+        );
+    });
     test.each(mutations)(
         'denies %s to an inherited viewer before writing or compiling',
         async (mutation) => {
@@ -237,7 +268,9 @@ describe('DocumentService mutations', () => {
         'allows %s for an editor with editor Space access',
         async (mutation) => {
             const { service } = setup();
-            await expect(mutate(service, mutation)).resolves.toEqual(document);
+            await expect(mutate(service, mutation)).resolves.toMatchObject(
+                document,
+            );
         },
     );
 
@@ -257,7 +290,7 @@ describe('DocumentService mutations', () => {
                     mutation,
                     makeAccount(OrganizationMemberRole.ADMIN),
                 ),
-            ).resolves.toEqual(document);
+            ).resolves.toMatchObject(document);
         },
     );
 
@@ -339,7 +372,7 @@ describe('DocumentService mutations', () => {
                 documentUuid,
                 metadata,
             ),
-        ).resolves.toEqual(document);
+        ).resolves.toMatchObject(document);
         expect(documentModel.updateMetadata).toHaveBeenCalledWith(
             projectUuid,
             documentUuid,
@@ -396,7 +429,7 @@ describe('DocumentService mutations', () => {
                     documentUuid,
                     request,
                 ),
-            ).resolves.toEqual(document);
+            ).resolves.toMatchObject(document);
             expect(projectService.compileQuery).not.toHaveBeenCalled();
             expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
             expect(documentModel.updateContent).toHaveBeenCalledWith(
@@ -413,7 +446,7 @@ describe('DocumentService mutations', () => {
 
         await expect(
             service.create(makeAccount(), projectUuid, createInput),
-        ).resolves.toEqual(document);
+        ).resolves.toMatchObject(document);
         expect(documentModel.create).toHaveBeenCalledWith({
             ...createInput,
             projectUuid,

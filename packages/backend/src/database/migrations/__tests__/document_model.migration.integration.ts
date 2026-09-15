@@ -1,12 +1,24 @@
-import { SEED_ORG_1_ADMIN, SEED_PROJECT } from '@lightdash/common';
+import {
+    DirectAccessPrincipalType,
+    DirectAccessResourceType,
+    SEED_ORG_1_ADMIN,
+    SEED_PROJECT,
+    SpaceMemberRole,
+} from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import { DirectAccessModel } from '../../../models/DirectAccessModel';
+import { DocumentAccessModel } from '../../../models/DocumentAccessModel';
 import { CreateDocument, DocumentModel } from '../../../models/DocumentModel';
 import {
     DocumentsTableName,
     DocumentVersionsTableName,
 } from '../../entities/documents';
 import { up } from '../20260915170000_create_documents';
+import {
+    down as grantsDown,
+    up as grantsUp,
+} from '../20260916100000_create_document_access_tables';
 
 describe('DocumentModel PostgreSQL integration', () => {
     let database: Knex;
@@ -90,6 +102,365 @@ describe('DocumentModel PostgreSQL integration', () => {
         if (!transaction.isCompleted()) {
             await transaction.rollback();
         }
+    });
+
+    describe('Document grants and moving', () => {
+        let organizationUuid: string;
+        let groupUuid: string;
+        let accessModel: DocumentAccessModel;
+        let grantStore: DirectAccessModel;
+        beforeEach(async () => {
+            await transaction.raw(`
+                ALTER TABLE users ADD COLUMN user_id serial;
+                CREATE TABLE groups (group_uuid uuid PRIMARY KEY, organization_id integer, name text);
+                CREATE TABLE organization_memberships (user_id integer,organization_id integer,role text,role_uuid uuid);
+                CREATE TABLE organization_membership_custom_roles (user_id integer,organization_id integer);
+                CREATE TABLE project_memberships (user_id integer,project_id integer);
+                CREATE TABLE project_group_access (group_uuid uuid,project_uuid uuid);
+                CREATE TABLE group_memberships (group_uuid uuid,user_id integer,organization_id integer);
+            `);
+            await transaction.raw('UPDATE users SET is_active=true');
+            await transaction.raw(
+                "INSERT INTO organization_memberships SELECT user_id,1,'viewer',NULL FROM users",
+            );
+            const org =
+                await transaction('organizations').first('organization_uuid');
+            if (!org) throw new Error('Missing organization');
+            organizationUuid = org.organization_uuid;
+            groupUuid = randomUUID();
+            await transaction.raw('INSERT INTO groups VALUES (?,1,?)', [
+                groupUuid,
+                'Report readers',
+            ]);
+            await transaction.raw(
+                'INSERT INTO project_group_access VALUES (?,?)',
+                [groupUuid, input.projectUuid],
+            );
+            await transaction.raw(
+                'INSERT INTO group_memberships SELECT ?,user_id,1 FROM users',
+                [groupUuid],
+            );
+            await grantsUp(transaction);
+            accessModel = new DocumentAccessModel(transaction);
+            grantStore = new DirectAccessModel(transaction);
+        });
+        const grant = async (
+            documentUuid: string,
+            type = DirectAccessPrincipalType.USER,
+        ) =>
+            grantStore.upsertAccess({
+                resourceType: DirectAccessResourceType.DOCUMENT,
+                resourceUuid: documentUuid,
+                organizationUuid,
+                principal: {
+                    type,
+                    uuid:
+                        type === DirectAccessPrincipalType.USER
+                            ? SEED_ORG_1_ADMIN.user_uuid
+                            : groupUuid,
+                },
+                role:
+                    type === DirectAccessPrincipalType.USER
+                        ? SpaceMemberRole.VIEWER
+                        : SpaceMemberRole.EDITOR,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            });
+
+        test('concrete user/group grants combine roles and stay tenant-scoped', async () => {
+            const document = await model.create(input);
+            await grant(document.documentUuid);
+            await grant(document.documentUuid, DirectAccessPrincipalType.GROUP);
+            const read = await accessModel.getUserAccess(
+                [document.documentUuid],
+                SEED_ORG_1_ADMIN.user_uuid,
+                { organizationUuid },
+            );
+            expect(read[document.documentUuid]).toEqual({
+                organizationUuid,
+                projectUuid: input.projectUuid,
+                spaceUuid: input.spaceUuid,
+                userRole: SpaceMemberRole.VIEWER,
+                groupRoles: [SpaceMemberRole.EDITOR],
+            });
+            expect(
+                await accessModel.getUserAccess(
+                    [document.documentUuid],
+                    SEED_ORG_1_ADMIN.user_uuid,
+                    { organizationUuid: randomUUID() },
+                ),
+            ).toEqual({});
+            await expect(
+                grantStore.upsertAccess({
+                    resourceType: DirectAccessResourceType.DOCUMENT,
+                    resourceUuid: document.documentUuid,
+                    organizationUuid: randomUUID(),
+                    principal: {
+                        type: DirectAccessPrincipalType.USER,
+                        uuid: SEED_ORG_1_ADMIN.user_uuid,
+                    },
+                    role: SpaceMemberRole.ADMIN,
+                    grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                }),
+            ).rejects.toThrow('not found');
+        });
+
+        test.each([
+            'inactive-user',
+            'lost-project',
+            'lost-group',
+            'deleted-document',
+            'deleted-space',
+        ])('ignores inert %s grants without deleting rows', async (reason) => {
+            const document = await model.create(input);
+            await grant(document.documentUuid, DirectAccessPrincipalType.GROUP);
+            if (reason === 'inactive-user')
+                await transaction.raw('UPDATE users SET is_active=false');
+            if (reason === 'lost-project') {
+                await transaction.raw(
+                    "UPDATE organization_memberships SET role='member'",
+                );
+                await transaction.raw('DELETE FROM project_group_access');
+            }
+            if (reason === 'lost-group')
+                await transaction.raw('DELETE FROM project_group_access');
+            if (reason === 'deleted-document')
+                await transaction(DocumentsTableName)
+                    .where('document_uuid', document.documentUuid)
+                    .update({ deleted_at: new Date() });
+            if (reason === 'deleted-space')
+                await transaction('spaces')
+                    .where('space_uuid', input.spaceUuid)
+                    .update({
+                        deleted_at: new Date(),
+                        deleted_by_user_uuid: null,
+                    });
+            expect(
+                await accessModel.getUserAccess(
+                    [document.documentUuid],
+                    SEED_ORG_1_ADMIN.user_uuid,
+                    { organizationUuid },
+                ),
+            ).toEqual({});
+            expect(await transaction('document_group_access')).toHaveLength(1);
+        });
+
+        test('move preserves grants, immutable version and stable identity', async () => {
+            const document = await model.create(input);
+            await grant(document.documentUuid);
+            const targetSpaceUuid = randomUUID();
+            await transaction.raw(
+                'INSERT INTO spaces (space_id,space_uuid,project_id) VALUES (2,?,1)',
+                [targetSpaceUuid],
+            );
+            const moved = await model.moveToSpace({
+                projectUuid: input.projectUuid,
+                documentUuid: document.documentUuid,
+                sourceSpaceUuid: input.spaceUuid,
+                targetSpaceUuid,
+            });
+            expect(moved).toMatchObject({
+                documentUuid: document.documentUuid,
+                spaceUuid: targetSpaceUuid,
+                slug: document.slug,
+                version: document.version,
+            });
+            expect(
+                (
+                    await accessModel.getUserAccess(
+                        [document.documentUuid],
+                        SEED_ORG_1_ADMIN.user_uuid,
+                        { organizationUuid },
+                    )
+                )[document.documentUuid].spaceUuid,
+            ).toBe(targetSpaceUuid);
+            await expect(
+                model.moveToSpace({
+                    projectUuid: input.projectUuid,
+                    documentUuid: document.documentUuid,
+                    sourceSpaceUuid: input.spaceUuid,
+                    targetSpaceUuid,
+                }),
+            ).rejects.toThrow('has moved');
+        });
+
+        test('OR-list permission filtering happens before pagination and never includes siblings', async () => {
+            const granted = await model.create(input);
+            const sibling = await model.create({
+                ...input,
+                name: 'Private sibling',
+            });
+            const visibleSpaceUuid = randomUUID();
+            await transaction.raw(
+                'INSERT INTO spaces (space_id,space_uuid,project_id) VALUES (2,?,1)',
+                [visibleSpaceUuid],
+            );
+            const visible = await model.create({
+                ...input,
+                spaceUuid: visibleSpaceUuid,
+            });
+            await transaction(DocumentsTableName)
+                .where('document_uuid', granted.documentUuid)
+                .update({ updated_at: new Date('2026-01-01') });
+            await transaction(DocumentsTableName)
+                .where('document_uuid', sibling.documentUuid)
+                .update({ updated_at: new Date('2026-02-01') });
+            const first = await model.list(input.projectUuid, {
+                spaceUuids: [visibleSpaceUuid],
+                documentUuids: [granted.documentUuid],
+                limit: 1,
+                offset: 0,
+            });
+            const second = await model.list(input.projectUuid, {
+                spaceUuids: [visibleSpaceUuid],
+                documentUuids: [granted.documentUuid],
+                limit: 1,
+                offset: 1,
+            });
+            expect(first.map((item) => item.documentUuid)).toEqual([
+                visible.documentUuid,
+            ]);
+            expect(second.map((item) => item.documentUuid)).toEqual([
+                granted.documentUuid,
+            ]);
+        });
+
+        test('revocation is idempotent and foreign/missing resources fail closed', async () => {
+            const document = await model.create(input);
+            await grant(document.documentUuid);
+            const args = {
+                resourceType: DirectAccessResourceType.DOCUMENT,
+                resourceUuid: document.documentUuid,
+                organizationUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: SEED_ORG_1_ADMIN.user_uuid,
+                },
+            };
+            await grantStore.revokeAccess(args);
+            await grantStore.revokeAccess(args);
+            expect(
+                await accessModel.getUserAccess(
+                    [document.documentUuid],
+                    SEED_ORG_1_ADMIN.user_uuid,
+                    { organizationUuid },
+                ),
+            ).toEqual({});
+            expect(
+                await grantStore.findResourceLocation(
+                    DirectAccessResourceType.DOCUMENT,
+                    document.documentUuid,
+                    randomUUID(),
+                ),
+            ).toBeUndefined();
+        });
+
+        test('grant migration rolls back independently without deleting documents', async () => {
+            const document = await model.create(input);
+            await grantsDown(transaction);
+            expect(
+                await transaction.schema.hasTable('document_user_access'),
+            ).toBe(false);
+            expect(
+                await model.get(input.projectUuid, document.documentUuid),
+            ).toMatchObject(document);
+            await grantsUp(transaction);
+            await grant(document.documentUuid);
+        });
+
+        test('rejects invalid principals and enforces one grant per resource/principal', async () => {
+            const document = await model.create(input);
+            await expect(
+                grantStore.upsertAccess({
+                    resourceType: DirectAccessResourceType.DOCUMENT,
+                    resourceUuid: document.documentUuid,
+                    organizationUuid,
+                    principal: {
+                        type: DirectAccessPrincipalType.USER,
+                        uuid: randomUUID(),
+                    },
+                    role: SpaceMemberRole.VIEWER,
+                    grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                }),
+            ).rejects.toThrow('not found');
+            await grant(document.documentUuid);
+            await expect(
+                transaction.transaction(async (savepoint) => {
+                    await savepoint('document_user_access').insert({
+                        document_uuid: document.documentUuid,
+                        user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                        space_role: SpaceMemberRole.EDITOR,
+                        granted_by_user_uuid: null,
+                    });
+                }),
+            ).rejects.toMatchObject({ code: '23505' });
+            await transaction.raw('UPDATE users SET is_active=false');
+            await expect(grant(document.documentUuid)).rejects.toThrow(
+                'not found',
+            );
+        });
+
+        test('grantor deletion sets null; resource and principal deletion cascade', async () => {
+            const document = await model.create(input);
+            await grant(document.documentUuid, DirectAccessPrincipalType.GROUP);
+            await transaction('users')
+                .where('user_uuid', SEED_ORG_1_ADMIN.user_uuid)
+                .delete();
+            expect(
+                await transaction('document_group_access').first(),
+            ).toMatchObject({ granted_by_user_uuid: null });
+            await transaction('groups').where('group_uuid', groupUuid).delete();
+            expect(await transaction('document_group_access')).toEqual([]);
+            await transaction.raw(
+                'INSERT INTO users (user_uuid,is_active) VALUES (?,true)',
+                [SEED_ORG_1_ADMIN.user_uuid],
+            );
+            await transaction('document_user_access').insert({
+                document_uuid: document.documentUuid,
+                user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                space_role: SpaceMemberRole.VIEWER,
+                granted_by_user_uuid: null,
+            });
+            await transaction(DocumentsTableName)
+                .where('document_uuid', document.documentUuid)
+                .delete();
+            expect(await transaction('document_user_access')).toEqual([]);
+            expect(await transaction(DocumentVersionsTableName)).toEqual([]);
+        });
+
+        test('move rejects foreign and deleted destinations and preserves original ownership', async () => {
+            const document = await model.create(input);
+            const foreignSpaceUuid = randomUUID();
+            await transaction.raw('INSERT INTO projects VALUES (2,?,1)', [
+                randomUUID(),
+            ]);
+            await transaction.raw(
+                'INSERT INTO spaces (space_id,space_uuid,project_id) VALUES (2,?,2)',
+                [foreignSpaceUuid],
+            );
+            await expect(
+                model.moveToSpace({
+                    projectUuid: input.projectUuid,
+                    documentUuid: document.documentUuid,
+                    sourceSpaceUuid: input.spaceUuid,
+                    targetSpaceUuid: foreignSpaceUuid,
+                }),
+            ).rejects.toThrow('Space not found');
+            await transaction.raw(
+                'UPDATE spaces SET project_id=1,deleted_at=NOW() WHERE space_id=2',
+            );
+            await expect(
+                model.moveToSpace({
+                    projectUuid: input.projectUuid,
+                    documentUuid: document.documentUuid,
+                    sourceSpaceUuid: input.spaceUuid,
+                    targetSpaceUuid: foreignSpaceUuid,
+                }),
+            ).rejects.toThrow('Space not found');
+            expect(
+                (await model.get(input.projectUuid, document.documentUuid))
+                    .spaceUuid,
+            ).toBe(input.spaceUuid);
+        });
     });
 
     test('content updates append exactly one immutable version', async () => {
