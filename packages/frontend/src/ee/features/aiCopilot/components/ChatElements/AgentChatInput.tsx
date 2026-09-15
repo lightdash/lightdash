@@ -1227,7 +1227,9 @@ export const AgentChatInput = ({
     };
 
     const composerCommonProps = {
-        placeholder,
+        placeholder: canSteer
+            ? 'Add guidance for the running agent'
+            : placeholder,
         defaultValue,
         autoFocus: true,
         disabled,

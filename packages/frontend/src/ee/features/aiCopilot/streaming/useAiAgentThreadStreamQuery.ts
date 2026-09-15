@@ -41,6 +41,16 @@ export const useActiveAiAgentThreadStreamParts = (): StreamPart[] =>
         shallowEqual,
     );
 
+const EMPTY_STEER_UUIDS: string[] = [];
+
+export const useAiAgentThreadConsumedSteerUuids = (threadUuid: string) =>
+    useAiAgentStoreSelector(
+        (state) =>
+            state.aiAgentThreadStream[threadUuid]?.consumedSteerUuids ??
+            EMPTY_STEER_UUIDS,
+        shallowEqual,
+    );
+
 export const useAiAgentThreadMessageStreaming = (
     threadUuid: string,
     messageUuid: string,
