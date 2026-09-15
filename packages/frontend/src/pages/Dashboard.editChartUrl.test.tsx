@@ -24,6 +24,9 @@ const editChart = mockSavedChartResponse();
 const state = vi.hoisted(() => ({ chartEditorEnabled: true }));
 
 vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../hooks/useContentAuthoringEnabled', () => ({
+    useContentAuthoringEnabled: () => true,
+}));
 
 // The dashboard's own data layer is not under test: a fixed context stands in
 // for the provider so the page renders straight to the chart editor.

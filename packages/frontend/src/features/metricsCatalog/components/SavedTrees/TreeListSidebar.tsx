@@ -95,7 +95,7 @@ const TreeListSidebar: FC<{ opened: boolean; onClose: () => void }> = ({
                     <ScrollArea flex={1} offsetScrollbars>
                         {isLoading ? (
                             <Text fz="xs" c="dimmed" ta="center" mt="md">
-                                Loading trees...
+                                Loading trees…
                             </Text>
                         ) : trees.length > 0 ? (
                             <Stack gap="xs">

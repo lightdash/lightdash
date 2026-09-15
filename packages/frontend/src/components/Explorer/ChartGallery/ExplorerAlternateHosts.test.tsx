@@ -10,6 +10,9 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import DashboardChartEditorModal from '../../DashboardTiles/DashboardChartEditorModal';
 
 vi.mock('../../MonacoEditor', () => ({ default: () => null }));
+vi.mock('../../../hooks/useContentAuthoringEnabled', () => ({
+    useContentAuthoringEnabled: () => true,
+}));
 
 vi.mock('../VisualizationCard/VisualizationConfig', async () => {
     const { ConfigTabs } =
@@ -173,6 +176,10 @@ describe('Explorer chart configuration in alternate hosts', () => {
             </MemoryRouter>,
         );
 
+        const navigation = screen.queryByRole('button', {
+            name: 'Navigation',
+        });
+        if (navigation) await user.click(navigation);
         await user.click(screen.getByRole('button', { name: 'Orders' }));
         expect(
             document.getElementById('visualization-config-portal'),

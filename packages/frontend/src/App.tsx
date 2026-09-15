@@ -3,9 +3,9 @@ import { wrapCreateBrowserRouterV7 } from '@sentry/react';
 import { lazy, Suspense } from 'react';
 import { flushSync } from 'react-dom';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
+import { APP_ROUTES } from './AppRoutes';
 import { DocumentTitle } from './components/common/DocumentTitle';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
-import { CommercialWebAppRoutes } from './ee/CommercialRoutes';
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
 import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher';
@@ -23,7 +23,6 @@ import ReactQueryProvider from './providers/ReactQuery/ReactQueryProvider';
 import SchedulerJobsProvider from './providers/SchedulerJobs/SchedulerJobsProvider';
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import TrackingProvider from './providers/Tracking/TrackingProvider';
-import Routes from './Routes';
 
 installChunkLoadErrorHandler();
 
@@ -88,7 +87,7 @@ const router = sentryCreateBrowserRouter([
                 </FullscreenProvider>
             </AppProvider>
         ),
-        children: [...Routes, ...CommercialWebAppRoutes],
+        children: APP_ROUTES,
     },
 ]);
 
