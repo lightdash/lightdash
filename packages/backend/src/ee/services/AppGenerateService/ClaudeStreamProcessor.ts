@@ -27,6 +27,13 @@ export type ClaudeGenerationUsage = {
     outputTokens: number;
     cacheReadInputTokens: number;
     cacheCreationInputTokens: number;
+    /**
+     * `cacheCreationInputTokens` split by cache TTL (`usage.cache_creation`
+     * on the result event); the two sum to the total. Null when the CLI did
+     * not report the split, which is unknown rather than zero.
+     */
+    cacheCreation5mInputTokens: number | null;
+    cacheCreation1hInputTokens: number | null;
     numTurns: number;
     durationApiMs: number;
     costUsd: number;
@@ -46,10 +53,17 @@ export const ZERO_CLAUDE_USAGE: ClaudeGenerationUsage = {
     outputTokens: 0,
     cacheReadInputTokens: 0,
     cacheCreationInputTokens: 0,
+    cacheCreation5mInputTokens: 0,
+    cacheCreation1hInputTokens: 0,
     numTurns: 0,
     durationApiMs: 0,
     costUsd: 0,
 };
+
+// A run that did not report the split makes the total unknown.
+function addNullable(a: number | null, b: number | null): number | null {
+    return a === null || b === null ? null : a + b;
+}
 
 export type ClaudeGenerationTelemetry = {
     usage: ClaudeGenerationUsage;
@@ -112,6 +126,14 @@ export function addClaudeUsage(
         cacheReadInputTokens: a.cacheReadInputTokens + b.cacheReadInputTokens,
         cacheCreationInputTokens:
             a.cacheCreationInputTokens + b.cacheCreationInputTokens,
+        cacheCreation5mInputTokens: addNullable(
+            a.cacheCreation5mInputTokens,
+            b.cacheCreation5mInputTokens,
+        ),
+        cacheCreation1hInputTokens: addNullable(
+            a.cacheCreation1hInputTokens,
+            b.cacheCreation1hInputTokens,
+        ),
         numTurns: a.numTurns + b.numTurns,
         durationApiMs: a.durationApiMs + b.durationApiMs,
         costUsd: a.costUsd + b.costUsd,
@@ -290,6 +312,32 @@ function asFiniteNumber(value: unknown): number {
 }
 
 /**
+ * Parse `usage.cache_creation` (`{ ephemeral_5m_input_tokens,
+ * ephemeral_1h_input_tokens }`). Older CLI versions omit the object; that is
+ * "not reported", so both come back null rather than 0.
+ */
+function parseCacheCreation(raw: unknown): {
+    cacheCreation5mInputTokens: number | null;
+    cacheCreation1hInputTokens: number | null;
+} {
+    if (!raw || typeof raw !== 'object') {
+        return {
+            cacheCreation5mInputTokens: null,
+            cacheCreation1hInputTokens: null,
+        };
+    }
+    const fields = raw as Record<string, unknown>;
+    return {
+        cacheCreation5mInputTokens: asFiniteNumber(
+            fields.ephemeral_5m_input_tokens,
+        ),
+        cacheCreation1hInputTokens: asFiniteNumber(
+            fields.ephemeral_1h_input_tokens,
+        ),
+    };
+}
+
+/**
  * Parse the result event's `modelUsage` map (`{ [modelId]: { inputTokens,
  * outputTokens, cacheReadInputTokens, cacheCreationInputTokens, ... } }`).
  * Returns `undefined` when the CLI didn't report it or reported nothing usable,
@@ -355,6 +403,7 @@ function parseResult(line: string):
             cacheCreationInputTokens: asFiniteNumber(
                 usage.cache_creation_input_tokens,
             ),
+            ...parseCacheCreation(usage.cache_creation),
             numTurns: asFiniteNumber(event.num_turns),
             durationApiMs: asFiniteNumber(event.duration_api_ms),
             costUsd: asFiniteNumber(event.total_cost_usd),

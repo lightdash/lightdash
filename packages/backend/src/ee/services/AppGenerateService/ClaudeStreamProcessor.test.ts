@@ -25,6 +25,10 @@ const resultLine = (overrides: Record<string, unknown> = {}) =>
             output_tokens: 5_000,
             cache_creation_input_tokens: 2_000,
             cache_read_input_tokens: 40_000,
+            cache_creation: {
+                ephemeral_5m_input_tokens: 500,
+                ephemeral_1h_input_tokens: 1_500,
+            },
         },
         ...overrides,
     });
@@ -45,10 +49,32 @@ describe('ClaudeStreamProcessor result parsing', () => {
             inputTokens: 1_000,
             outputTokens: 5_000,
             cacheCreationInputTokens: 2_000,
+            cacheCreation5mInputTokens: 500,
+            cacheCreation1hInputTokens: 1_500,
             cacheReadInputTokens: 40_000,
             numTurns: 42,
             durationApiMs: 350_000,
             costUsd: 1.23,
+        });
+    });
+
+    test('reports the cache-write split as unknown when cache_creation is absent', () => {
+        const processor = new ClaudeStreamProcessor();
+        processor.feedChunk(
+            resultLine({
+                usage: {
+                    input_tokens: 1_000,
+                    output_tokens: 5_000,
+                    cache_creation_input_tokens: 2_000,
+                    cache_read_input_tokens: 40_000,
+                },
+            }),
+        );
+
+        expect(processor.lastUsage).toMatchObject({
+            cacheCreationInputTokens: 2_000,
+            cacheCreation5mInputTokens: null,
+            cacheCreation1hInputTokens: null,
         });
     });
 
@@ -118,7 +144,11 @@ describe('ClaudeStreamProcessor result parsing', () => {
         expect(events).toEqual([
             { kind: 'result', text: '', structuredOutput: null },
         ]);
-        expect(processor.lastUsage).toEqual(ZERO_CLAUDE_USAGE);
+        expect(processor.lastUsage).toEqual({
+            ...ZERO_CLAUDE_USAGE,
+            cacheCreation5mInputTokens: null,
+            cacheCreation1hInputTokens: null,
+        });
     });
 
     test('captures structured_output when the run used --json-schema', () => {
@@ -270,6 +300,8 @@ describe('addClaudeUsage', () => {
         outputTokens: n,
         cacheReadInputTokens: n,
         cacheCreationInputTokens: n,
+        cacheCreation5mInputTokens: n,
+        cacheCreation1hInputTokens: n,
         numTurns: n,
         durationApiMs: n,
         costUsd: n,
@@ -285,6 +317,47 @@ describe('addClaudeUsage', () => {
             ZERO_CLAUDE_USAGE,
         );
     });
+
+    test('keeps the cache-write split summing to the total across attempts', () => {
+        const first: ClaudeGenerationUsage = {
+            ...ZERO_CLAUDE_USAGE,
+            cacheCreationInputTokens: 300,
+            cacheCreation5mInputTokens: 100,
+            cacheCreation1hInputTokens: 200,
+        };
+        const second: ClaudeGenerationUsage = {
+            ...ZERO_CLAUDE_USAGE,
+            cacheCreationInputTokens: 50,
+            cacheCreation5mInputTokens: 0,
+            cacheCreation1hInputTokens: 50,
+        };
+
+        const total = addClaudeUsage(first, second);
+        expect(total).toMatchObject({
+            cacheCreationInputTokens: 350,
+            cacheCreation5mInputTokens: 100,
+            cacheCreation1hInputTokens: 250,
+        });
+        expect(
+            total.cacheCreation5mInputTokens! +
+                total.cacheCreation1hInputTokens!,
+        ).toBe(total.cacheCreationInputTokens);
+    });
+
+    test('makes the split unknown when any attempt did not report it', () => {
+        const unreported: ClaudeGenerationUsage = {
+            ...ZERO_CLAUDE_USAGE,
+            cacheCreationInputTokens: 50,
+            cacheCreation5mInputTokens: null,
+            cacheCreation1hInputTokens: null,
+        };
+
+        expect(addClaudeUsage(usage(1), unreported)).toMatchObject({
+            cacheCreationInputTokens: 51,
+            cacheCreation5mInputTokens: null,
+            cacheCreation1hInputTokens: null,
+        });
+    });
 });
 
 describe('addClaudeGenerationAttempt', () => {
@@ -293,6 +366,8 @@ describe('addClaudeGenerationAttempt', () => {
         outputTokens: n,
         cacheReadInputTokens: n,
         cacheCreationInputTokens: n,
+        cacheCreation5mInputTokens: n,
+        cacheCreation1hInputTokens: n,
         numTurns: n,
         durationApiMs: n,
         costUsd: n,

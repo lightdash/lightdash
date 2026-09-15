@@ -40,6 +40,8 @@ const aiUsageEvent: AiUsageEvent = {
         outputTokens: 200,
         cacheReadTokens: 800,
         cacheWriteTokens: 50,
+        cacheWrite5mTokens: 20,
+        cacheWrite1hTokens: 30,
         reasoningTokens: 30,
         totalTokens: 1200,
     },
@@ -77,6 +79,8 @@ describe('ai_usage stream projection', () => {
             output_tokens: 200,
             cache_read_tokens: 800,
             cache_write_tokens: 50,
+            cache_write_5m_tokens: 20,
+            cache_write_1h_tokens: 30,
             reasoning_tokens: 30,
             total_tokens: 1200,
         });
@@ -101,6 +105,8 @@ describe('ai_usage stream projection', () => {
                 deepResearchPhase: null,
                 cacheReadTokens: null,
                 cacheWriteTokens: null,
+                cacheWrite5mTokens: null,
+                cacheWrite1hTokens: null,
                 reasoningTokens: null,
             },
         });
@@ -119,6 +125,8 @@ describe('ai_usage stream projection', () => {
             deep_research_phase: null,
             cache_read_tokens: null,
             cache_write_tokens: null,
+            cache_write_5m_tokens: null,
+            cache_write_1h_tokens: null,
             reasoning_tokens: null,
         });
     });

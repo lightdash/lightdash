@@ -733,10 +733,39 @@ export type DataAppGenerationUsage = {
     outputTokens: number;
     cacheReadInputTokens: number;
     cacheCreationInputTokens: number;
+    // `cacheCreationInputTokens` split by cache TTL; the two sum to it. Null
+    // when the coding agent did not report the split (older CLI output), and
+    // for versions recorded before the split was stored.
+    cacheCreation5mInputTokens: number | null;
+    cacheCreation1hInputTokens: number | null;
     numTurns: number;
     durationApiMs: number;
     costUsd: number | null;
 };
+
+/**
+ * `app_versions.generation_usage` as stored. Rows written before the cache
+ * TTL split was recorded lack both split keys; read through
+ * `toDataAppGenerationUsage` so absence surfaces as null, never zero.
+ */
+export type StoredDataAppGenerationUsage = Omit<
+    DataAppGenerationUsage,
+    'cacheCreation5mInputTokens' | 'cacheCreation1hInputTokens'
+> &
+    Partial<
+        Pick<
+            DataAppGenerationUsage,
+            'cacheCreation5mInputTokens' | 'cacheCreation1hInputTokens'
+        >
+    >;
+
+export const toDataAppGenerationUsage = (
+    stored: StoredDataAppGenerationUsage,
+): DataAppGenerationUsage => ({
+    ...stored,
+    cacheCreation5mInputTokens: stored.cacheCreation5mInputTokens ?? null,
+    cacheCreation1hInputTokens: stored.cacheCreation1hInputTokens ?? null,
+});
 
 /**
  * One data app generation event — a row of the org-wide activity log. Backed by

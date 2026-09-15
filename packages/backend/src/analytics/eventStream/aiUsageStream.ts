@@ -28,6 +28,8 @@ export const aiUsageCompactedColumns: CompactedStreamColumn[] = [
     { name: 'output_tokens', type: 'BIGINT' },
     { name: 'cache_read_tokens', type: 'BIGINT' },
     { name: 'cache_write_tokens', type: 'BIGINT' },
+    { name: 'cache_write_5m_tokens', type: 'BIGINT' },
+    { name: 'cache_write_1h_tokens', type: 'BIGINT' },
     { name: 'reasoning_tokens', type: 'BIGINT' },
     { name: 'total_tokens', type: 'BIGINT' },
 ];
@@ -59,6 +61,8 @@ const projectAiUsageEvent = (payload: AiUsageEvent): ProjectionResult => {
             output_tokens: properties.outputTokens,
             cache_read_tokens: properties.cacheReadTokens,
             cache_write_tokens: properties.cacheWriteTokens,
+            cache_write_5m_tokens: properties.cacheWrite5mTokens,
+            cache_write_1h_tokens: properties.cacheWrite1hTokens,
             reasoning_tokens: properties.reasoningTokens,
             total_tokens: properties.totalTokens,
         },

@@ -60,6 +60,8 @@ describe('AppModel.recordVersionGenerationUsage', () => {
             outputTokens: 20,
             cacheReadInputTokens: 50,
             cacheCreationInputTokens: 0,
+            cacheCreation5mInputTokens: 0,
+            cacheCreation1hInputTokens: 0,
             numTurns: 2,
             durationApiMs: 0,
             costUsd: null,
@@ -67,6 +69,66 @@ describe('AppModel.recordVersionGenerationUsage', () => {
 
         expect(tracker.history.update[0].sql).toContain("'costUsd', NULL");
         expect(tracker.history.update[0].bindings).not.toContain(null);
+    });
+
+    it('persists an unreported cache-write split as null', async () => {
+        tracker.on.update(AppVersionsTableName).responseOnce(1);
+
+        await model.recordVersionGenerationUsage(appId, 1, {
+            inputTokens: 100,
+            outputTokens: 20,
+            cacheReadInputTokens: 50,
+            cacheCreationInputTokens: 30,
+            cacheCreation5mInputTokens: null,
+            cacheCreation1hInputTokens: null,
+            numTurns: 2,
+            durationApiMs: 0,
+            costUsd: 0.1,
+        });
+
+        const { sql, bindings } = tracker.history.update[0];
+        expect(sql).toContain("'cacheCreation5mInputTokens', NULL");
+        expect(sql).toContain("'cacheCreation1hInputTokens', NULL");
+        expect(bindings).not.toContain(null);
+    });
+
+    it('adds a reported cache-write split without coalescing a missing one to 0', async () => {
+        tracker.on.update(AppVersionsTableName).responseOnce(1);
+
+        await model.recordVersionGenerationUsage(appId, 1, {
+            inputTokens: 100,
+            outputTokens: 20,
+            cacheReadInputTokens: 50,
+            cacheCreationInputTokens: 30,
+            cacheCreation5mInputTokens: 10,
+            cacheCreation1hInputTokens: 20,
+            numTurns: 2,
+            durationApiMs: 0,
+            costUsd: 0.1,
+        });
+
+        const { sql, bindings } = tracker.history.update[0];
+        expect(sql).toContain(
+            "(generation_usage->>'cacheCreation5mInputTokens')::numeric + $",
+        );
+        expect(sql).not.toContain(
+            "COALESCE((generation_usage->>'cacheCreation1hInputTokens')",
+        );
+        expect(bindings).toEqual([
+            100,
+            20,
+            50,
+            30,
+            10,
+            10,
+            20,
+            20,
+            2,
+            0,
+            0.1,
+            appId,
+            1,
+        ]);
     });
 });
 

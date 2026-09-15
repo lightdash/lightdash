@@ -57,6 +57,7 @@ import {
     resolveDefaultVisibleDataAppClaudeModel,
     sanitizeAppPackageJsonScripts,
     themeLimitMessage,
+    toDataAppGenerationUsage,
     TooManyRequestsError,
     validateDataAppCode,
     validateDataAppDependencies,
@@ -140,6 +141,7 @@ import { z } from 'zod';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
+    UNKNOWN_CACHE_WRITE_SPLIT,
     type AiKeyManagement,
 } from '../../../analytics/aiUsage';
 import {
@@ -2235,6 +2237,15 @@ export class AppGenerateService extends BaseService {
                         tokens.cacheCreationInputTokens +
                         tokens.outputTokens,
                 },
+                // The CLI reports the TTL split only run-wide, so a model gets
+                // it only when it owns every cache write of the run.
+                tokens.cacheCreationInputTokens ===
+                    usage.cacheCreationInputTokens
+                    ? {
+                          cacheWrite5mTokens: usage.cacheCreation5mInputTokens,
+                          cacheWrite1hTokens: usage.cacheCreation1hInputTokens,
+                      }
+                    : UNKNOWN_CACHE_WRITE_SPLIT,
             );
 
         // The run is launched with a tier alias (`opus`, `sonnet`) that the
@@ -2388,6 +2399,10 @@ export class AppGenerateService extends BaseService {
                 cacheReadInputTokens: generationUsage?.cacheReadInputTokens,
                 cacheCreationInputTokens:
                     generationUsage?.cacheCreationInputTokens,
+                cacheCreation5mInputTokens:
+                    generationUsage?.cacheCreation5mInputTokens,
+                cacheCreation1hInputTokens:
+                    generationUsage?.cacheCreation1hInputTokens,
                 numTurns: generationUsage?.numTurns,
                 durationApiMs: generationUsage?.durationApiMs,
                 totalCostUsd:
@@ -5642,7 +5657,7 @@ export class AppGenerateService extends BaseService {
                 .map(([k, v]) => `${k}=${v}ms`)
                 .join(
                     ', ',
-                )}, generationAttempts=${generationAttemptCount}, numTurns=${generationUsage.numTurns}, inputTokens=${generationUsage.inputTokens}, outputTokens=${generationUsage.outputTokens}, cacheReadTokens=${generationUsage.cacheReadInputTokens}, cacheCreationTokens=${generationUsage.cacheCreationInputTokens}, costUsd=${generationUsage.costUsd})`,
+                )}, generationAttempts=${generationAttemptCount}, numTurns=${generationUsage.numTurns}, inputTokens=${generationUsage.inputTokens}, outputTokens=${generationUsage.outputTokens}, cacheReadTokens=${generationUsage.cacheReadInputTokens}, cacheCreationTokens=${generationUsage.cacheCreationInputTokens}, cacheCreation5mTokens=${generationUsage.cacheCreation5mInputTokens}, cacheCreation1hTokens=${generationUsage.cacheCreation1hInputTokens}, costUsd=${generationUsage.costUsd})`,
         );
 
         // Aggregated across every `claude` CLI invocation in the pipeline. The
@@ -5695,6 +5710,10 @@ export class AppGenerateService extends BaseService {
                 cacheReadInputTokens: generationUsage.cacheReadInputTokens,
                 cacheCreationInputTokens:
                     generationUsage.cacheCreationInputTokens,
+                cacheCreation5mInputTokens:
+                    generationUsage.cacheCreation5mInputTokens,
+                cacheCreation1hInputTokens:
+                    generationUsage.cacheCreation1hInputTokens,
                 numTurns: generationUsage.numTurns,
                 durationApiMs: generationUsage.durationApiMs,
                 totalCostUsd:
@@ -9344,7 +9363,7 @@ export class AppGenerateService extends BaseService {
                 row.generation_usage === null
                     ? null
                     : {
-                          ...row.generation_usage,
+                          ...toDataAppGenerationUsage(row.generation_usage),
                           costUsd:
                               codingAgent === 'codex'
                                   ? null

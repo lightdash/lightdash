@@ -77,6 +77,21 @@ export type AiUsageTokens = {
     totalTokens: number | null;
 };
 
+/**
+ * `cacheWriteTokens` split by Anthropic cache TTL. Kept apart from
+ * `AiUsageTokens` because only producers that see the raw `cache_creation`
+ * breakdown (data app builds) can report it; null means not reported.
+ */
+export type AiUsageCacheWriteSplit = {
+    cacheWrite5mTokens: number | null;
+    cacheWrite1hTokens: number | null;
+};
+
+export const UNKNOWN_CACHE_WRITE_SPLIT: AiUsageCacheWriteSplit = {
+    cacheWrite5mTokens: null,
+    cacheWrite1hTokens: null,
+};
+
 // Defensive against the type: providers (and test mocks) don't always report
 // usage, and a missing field must never throw into the AI call path.
 export const languageModelUsageToTokens = (
@@ -131,7 +146,8 @@ export type AiUsageEvent = BaseTrack & {
         keyManagement: AiKeyManagement | null;
         deepResearchRunId: string | null;
         deepResearchPhase: AiDeepResearchPhase | null;
-    } & AiUsageTokens;
+    } & AiUsageTokens &
+        AiUsageCacheWriteSplit;
 };
 
 type AiUsageTrackFn = (event: AiUsageEvent) => void;
@@ -177,6 +193,7 @@ const getMetadataString = (
 export const emitAiUsage = (
     telemetry: AiCallTelemetryConfig,
     tokens: AiUsageTokens,
+    cacheWriteSplit: AiUsageCacheWriteSplit = UNKNOWN_CACHE_WRITE_SPLIT,
 ): void => {
     try {
         const { metadata } = telemetry;
@@ -203,6 +220,7 @@ export const emitAiUsage = (
                 'deepResearchPhase',
             ) as AiDeepResearchPhase | null,
             ...tokens,
+            ...cacheWriteSplit,
         };
 
         // Interpolate the key fields into the message itself: the default
@@ -213,6 +231,7 @@ export const emitAiUsage = (
             `AI usage: feature=${properties.feature} provider=${properties.provider} keyManagement=${properties.keyManagement} model=${properties.model} ` +
                 `inputTokens=${properties.inputTokens} outputTokens=${properties.outputTokens} ` +
                 `cacheReadTokens=${properties.cacheReadTokens} cacheWriteTokens=${properties.cacheWriteTokens} ` +
+                `cacheWrite5mTokens=${properties.cacheWrite5mTokens} cacheWrite1hTokens=${properties.cacheWrite1hTokens} ` +
                 `reasoningTokens=${properties.reasoningTokens} totalTokens=${properties.totalTokens} ` +
                 `organizationId=${properties.organizationId} projectId=${properties.projectId} userId=${userUuid}`,
             {

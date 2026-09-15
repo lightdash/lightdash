@@ -174,6 +174,8 @@ describe('emitAiUsage', () => {
             deepResearchRunId: null,
             deepResearchPhase: null,
             ...tokens,
+            cacheWrite5mTokens: null,
+            cacheWrite1hTokens: null,
         };
 
         expect(Logger.info).toHaveBeenCalledWith(
@@ -194,6 +196,26 @@ describe('emitAiUsage', () => {
             event: 'ai.usage',
             userId: 'user-1',
             properties: expectedProperties,
+        });
+    });
+
+    it('emits the cache-write TTL split when the producer reports it', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+
+        emitAiUsage(
+            {
+                functionId: 'appClaudeGeneration',
+                metadata: { feature: 'data-app', organizationUuid: 'org-1' },
+            },
+            tokens,
+            { cacheWrite5mTokens: 20, cacheWrite1hTokens: 30 },
+        );
+
+        expect(track.mock.calls[0][0].properties).toMatchObject({
+            cacheWriteTokens: 50,
+            cacheWrite5mTokens: 20,
+            cacheWrite1hTokens: 30,
         });
     });
 

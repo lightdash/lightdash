@@ -1860,6 +1860,10 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         outputTokens: number;
         cacheReadInputTokens: number;
         cacheCreationInputTokens: number;
+        // cacheCreationInputTokens split by cache TTL; null when the coding
+        // agent did not report it.
+        cacheCreation5mInputTokens: number | null;
+        cacheCreation1hInputTokens: number | null;
         numTurns: number;
         durationApiMs: number;
         totalCostUsd: number | null;
@@ -1924,6 +1928,8 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         outputTokens?: number;
         cacheReadInputTokens?: number;
         cacheCreationInputTokens?: number;
+        cacheCreation5mInputTokens?: number | null;
+        cacheCreation1hInputTokens?: number | null;
         numTurns?: number;
         durationApiMs?: number;
         totalCostUsd?: number | null;

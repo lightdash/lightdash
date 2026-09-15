@@ -3,10 +3,10 @@ import {
     type AppVersionResources,
     type AppVersionStatus,
     type AppVersionStatusHistoryEntry,
-    type DataAppGenerationUsage,
     type DataAppTemplate,
     type DataAppVizSchema,
     type PersistedDataAppDataReferences,
+    type StoredDataAppGenerationUsage,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 
@@ -122,7 +122,7 @@ export type DbAppVersion = {
     data_references: PersistedDataAppDataReferences | null;
     // Token/cost spend for this version's generation. Null when the version
     // predates spend recording or never called the model.
-    generation_usage: DataAppGenerationUsage | null;
+    generation_usage: StoredDataAppGenerationUsage | null;
     // Registry version string this app version was installed/updated from.
     registry_version: string | null;
     created_at: Date;

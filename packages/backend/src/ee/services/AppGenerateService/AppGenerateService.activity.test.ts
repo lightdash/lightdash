@@ -40,6 +40,8 @@ describe('AppGenerateService data app activity mapping', () => {
                 outputTokens: 20,
                 cacheReadInputTokens: 50,
                 cacheCreationInputTokens: 0,
+                cacheCreation5mInputTokens: 0,
+                cacheCreation1hInputTokens: 0,
                 numTurns: 2,
                 durationApiMs: 0,
                 costUsd: 0,
@@ -67,6 +69,12 @@ describe('AppGenerateService data app activity mapping', () => {
                 durationApiMs: 10,
                 costUsd: 0.12,
             },
+        });
+
+        // Recorded before the cache-write split was stored: unknown, not 0.
+        expect(event.usage).toMatchObject({
+            cacheCreation5mInputTokens: null,
+            cacheCreation1hInputTokens: null,
         });
 
         expect(event).toMatchObject({

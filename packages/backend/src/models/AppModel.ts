@@ -235,6 +235,20 @@ export class AppModel {
     ): Promise<void> {
         const sum = (field: keyof DataAppGenerationUsage) =>
             `COALESCE((generation_usage->>'${field}')::numeric, 0) + ?`;
+        // Unknown stays unknown: a leg without the split, or a row recorded
+        // before the split was stored, leaves the total null rather than 0.
+        const sumSplit = (
+            field: 'cacheCreation5mInputTokens' | 'cacheCreation1hInputTokens',
+        ) =>
+            usage[field] === null
+                ? 'NULL'
+                : `CASE WHEN generation_usage IS NULL THEN ?::numeric ELSE (generation_usage->>'${field}')::numeric + ? END`;
+        const splitBindings = (
+            field: 'cacheCreation5mInputTokens' | 'cacheCreation1hInputTokens',
+        ) => {
+            const value = usage[field];
+            return value === null ? [] : [value, value];
+        };
         const costSql = usage.costUsd === null ? 'NULL' : sum('costUsd');
         await this.database(AppVersionsTableName)
             .where({ app_id: appId, version })
@@ -247,6 +261,12 @@ export class AppModel {
                         'cacheCreationInputTokens', ${sum(
                             'cacheCreationInputTokens',
                         )},
+                        'cacheCreation5mInputTokens', ${sumSplit(
+                            'cacheCreation5mInputTokens',
+                        )},
+                        'cacheCreation1hInputTokens', ${sumSplit(
+                            'cacheCreation1hInputTokens',
+                        )},
                         'numTurns', ${sum('numTurns')},
                         'durationApiMs', ${sum('durationApiMs')},
                         'costUsd', ${costSql}
@@ -256,6 +276,8 @@ export class AppModel {
                         usage.outputTokens,
                         usage.cacheReadInputTokens,
                         usage.cacheCreationInputTokens,
+                        ...splitBindings('cacheCreation5mInputTokens'),
+                        ...splitBindings('cacheCreation1hInputTokens'),
                         usage.numTurns,
                         usage.durationApiMs,
                         ...(usage.costUsd === null ? [] : [usage.costUsd]),

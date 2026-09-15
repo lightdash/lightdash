@@ -8,6 +8,7 @@ import {
     pruneDataAppVizOptionValues,
     resolveDefaultDataAppClaudeModel,
     resolveDefaultVisibleDataAppClaudeModel,
+    toDataAppGenerationUsage,
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
 } from './types';
@@ -566,5 +567,38 @@ describe('pruneDataAppVizOptionValues', () => {
 
     it('never seeds defaults', () => {
         expect(pruneDataAppVizOptionValues(options, {})).toEqual({});
+    });
+});
+
+describe('toDataAppGenerationUsage', () => {
+    const stored = {
+        inputTokens: 100,
+        outputTokens: 20,
+        cacheReadInputTokens: 50,
+        cacheCreationInputTokens: 30,
+        numTurns: 2,
+        durationApiMs: 10,
+        costUsd: 0.12,
+    };
+
+    it('reads a row recorded before the cache-write split as unknown, not 0', () => {
+        expect(toDataAppGenerationUsage(stored)).toEqual({
+            ...stored,
+            cacheCreation5mInputTokens: null,
+            cacheCreation1hInputTokens: null,
+        });
+    });
+
+    it('passes a recorded split through', () => {
+        expect(
+            toDataAppGenerationUsage({
+                ...stored,
+                cacheCreation5mInputTokens: 10,
+                cacheCreation1hInputTokens: 20,
+            }),
+        ).toMatchObject({
+            cacheCreation5mInputTokens: 10,
+            cacheCreation1hInputTokens: 20,
+        });
     });
 });
