@@ -1,3 +1,10 @@
+## [2.215.1](https://github.com/lightdash/lightdash/compare/2.215.0...2.215.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** paginate broken content beyond the first 100 items ([#29159](https://github.com/lightdash/lightdash/issues/29159)) ([f3c5d13](https://github.com/lightdash/lightdash/commit/f3c5d1382834ee23997f600d5e92c9e06329a3e4))
+
 # [2.215.0](https://github.com/lightdash/lightdash/compare/2.214.1...2.215.0) (2026-09-15)
 
 
