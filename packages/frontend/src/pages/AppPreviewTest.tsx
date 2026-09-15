@@ -1,6 +1,6 @@
 import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
-import { IconAppsOff, IconMaximize } from '@tabler/icons-react';
+import { IconAppsOff, IconMaximize, IconSparkles } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
@@ -8,6 +8,8 @@ import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { AskAiAgentMenuItem } from '../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import DataAppAnalysisPanel from '../features/apps/analysis/DataAppAnalysisPanel';
+import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../features/apps/AppIframePreview';
@@ -95,6 +97,16 @@ export default function AppPreviewTest() {
     const identityKey = `${appUuid}:${version}`;
     const inspector = useAppInspector({ identityKey, defaultHidden: true });
     const { rolloverLogs } = inspector;
+
+    // "Analyse this view": host-side AI analysis over the queries the app
+    // ran. Hidden entirely until the org is rolled out; otherwise the panel
+    // explains any remaining reason it is unavailable.
+    const analysisAvailability = useDataAppAnalysisAvailability();
+    const [analysisOpened, setAnalysisOpened] = useState(false);
+    const showAnalysis =
+        analysisAvailability.status === 'available' ||
+        (analysisAvailability.status === 'unavailable' &&
+            analysisAvailability.reason !== 'not_rolled_out');
 
     // Manual refresh: bumping the counter changes the iframe URL, forcing a
     // reload so the app's metric queries re-fire. `invalidateCache` latches on
@@ -241,6 +253,18 @@ export default function AppPreviewTest() {
                         {...inspector.panelProps}
                     />
                 )}
+                {showAnalysis && (
+                    <DataAppAnalysisPanel
+                        opened={analysisOpened}
+                        onClose={() => setAnalysisOpened(false)}
+                        projectUuid={projectUuid}
+                        appUuid={appUuid}
+                        queries={inspector.panelProps.queries}
+                        availability={analysisAvailability}
+                        lineageAvailable={inspector.panelProps.lineageAvailable}
+                        onHoverQuery={inspector.panelProps.onHoverQuery}
+                    />
+                )}
             </>
         );
     }
@@ -281,6 +305,30 @@ export default function AppPreviewTest() {
                     rightSection={
                         <AppHeaderActions
                             capturedQueryCount={inspector.readyQueryCount}
+                            analysisToggle={
+                                showAnalysis ? (
+                                    <Tooltip
+                                        label="Analyse this view"
+                                        position="bottom"
+                                        openDelay={200}
+                                    >
+                                        <ActionIcon
+                                            variant="light"
+                                            color="indigo"
+                                            size="md"
+                                            onClick={() =>
+                                                setAnalysisOpened(true)
+                                            }
+                                            aria-label="Analyse this view"
+                                        >
+                                            <MantineIcon
+                                                icon={IconSparkles}
+                                                size="md"
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                ) : null
+                            }
                             fullscreenToggle={
                                 isFullscreenFeatureEnabled &&
                                 document.fullscreenEnabled ? (

@@ -4172,10 +4172,6 @@
                                 ],
                                 "description": "Position of data labels"
                             },
-                            "color": {
-                                "type": "string",
-                                "description": "Custom data label color (hex code)"
-                            },
                             "show": {
                                 "type": "boolean",
                                 "description": "Show data labels on points"
@@ -4522,9 +4518,6 @@
                     },
                     "showPercentage": {
                         "type": "boolean"
-                    },
-                    "valueLabelColor": {
-                        "type": "string"
                     }
                 },
                 "type": "object",
@@ -4580,10 +4573,6 @@
                     "groupLabelOverrides": {
                         "$ref": "#/components/schemas/Record_string.string_",
                         "description": "Custom labels for each group/slice"
-                    },
-                    "valueLabelColor": {
-                        "type": "string",
-                        "description": "Custom color for value labels"
                     },
                     "showPercentage": {
                         "type": "boolean",
