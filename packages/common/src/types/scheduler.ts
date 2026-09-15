@@ -913,6 +913,8 @@ export type PreAggregateMaterializationTrigger =
 export type MaterializePreAggregatePayload = TraceTaskBase & {
     preAggregateDefinitionUuid: string;
     trigger: PreAggregateMaterializationTrigger;
+    // Older queued jobs omit this; cron workers reject them after reconciliation.
+    scheduleRevision?: string;
 };
 
 export type ReplaceCustomFieldsPayload = TraceTaskBase;

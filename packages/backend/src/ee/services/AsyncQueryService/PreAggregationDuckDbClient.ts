@@ -278,7 +278,7 @@ export class PreAggregationDuckDbClient {
                 ),
         );
 
-        if (!activeMaterialization) {
+        if (!activeMaterialization || !activeMaterialization.queryUuid) {
             return {
                 resolved: false,
                 reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,

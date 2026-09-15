@@ -3041,8 +3041,8 @@ export default class SchedulerTask {
 
         await Promise.all(
             preAggregateSchedulerDetails.map(async (definition) => {
-                const { createdByUserUuid } = definition;
-                if (!createdByUserUuid) {
+                const { createdByUserUuid, scheduleRevision } = definition;
+                if (!createdByUserUuid || !scheduleRevision) {
                     return;
                 }
 
@@ -3057,6 +3057,7 @@ export default class SchedulerTask {
                                     createdByUserUuid,
                                     preAggregateDefinitionUuid:
                                         definition.preAggregateDefinitionUuid,
+                                    scheduleRevision,
                                     refreshCron: definition.refreshCron,
                                     schedulerTimezone:
                                         definition.schedulerTimezone ||
