@@ -513,6 +513,7 @@ export function useMetricVisualization({
             yFields: chartConfig.config.layout.yField,
             defaultLabel: firstSerie?.label,
             itemsMap: createQuery.data?.fields ?? {},
+            existingSeries: chartConfig.config.eChartsConfig.series,
         });
 
         const pivotKeys = segmentDimensionId ? [segmentDimensionId] : undefined;
