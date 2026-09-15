@@ -23,6 +23,9 @@ const stubs = vi.hoisted(() => {
         onDidBlurEditorText: vi.fn(),
         updateOptions: vi.fn(),
         focus: vi.fn(),
+        revealLineInCenter: vi.fn(),
+        setPosition: vi.fn(),
+        createDecorationsCollection: vi.fn(() => ({ clear: vi.fn() })),
     };
     const monaco = {
         editor: {
@@ -163,74 +166,127 @@ describe('WorkspaceEditor', () => {
         ).toHaveAttribute('data-learn-editor-state', 'dirty');
     });
 
-    it('appends via tourEditor.setValue using executeEdits at the end of the model, prefixing a newline, and calls onChange', () => {
-        const onChange = vi.fn();
-        const { container } = renderEditor({ onChange, content: 'existing' });
+    const tourEditorOf = (container: HTMLElement) =>
+        (
+            container.querySelector(
+                '[data-tour-anchor="workspace-editor"]',
+            ) as HTMLDivElement & {
+                tourEditor?: { setValue: (v: string) => void };
+            }
+        ).tourEditor;
 
-        const wrapper = container.querySelector(
-            '[data-tour-anchor="workspace-editor"]',
-        ) as HTMLDivElement & {
-            tourEditor?: { setValue: (v: string) => void };
-        };
-        expect(wrapper.tourEditor).toBeDefined();
+    it('types the snippet in at the end of the model after a newline, then reports the change and focuses', () => {
+        vi.useFakeTimers();
+        try {
+            const onChange = vi.fn();
+            const { container } = renderEditor({
+                onChange,
+                content: 'existing',
+            });
+            const wrapper = container.querySelector(
+                '[data-tour-anchor="workspace-editor"]',
+            ) as HTMLDivElement;
+            const inputs = vi.fn();
+            wrapper.addEventListener('input', inputs);
 
-        wrapper.tourEditor?.setValue('x');
+            tourEditorOf(container)?.setValue('ab');
 
-        expect(stubs.editor.executeEdits).toHaveBeenCalledWith('learn-tour', [
-            expect.objectContaining({
-                range: {
-                    startLineNumber: 1,
-                    startColumn: 'existing'.length + 1,
-                    endLineNumber: 1,
-                    endColumn: 'existing'.length + 1,
-                },
-                text: '\nx',
-                forceMoveMarkers: true,
-            }),
-        ]);
-        expect(onChange).toHaveBeenCalledWith('existing\nx');
-        // Without focus the appended text could never blur, and the page's
-        // autosave runs on blur.
-        expect(stubs.editor.focus).toHaveBeenCalled();
+            // The newline and the first character land at once; the rest
+            // arrive one per tick, and the change is reported only at the end.
+            expect(stubs.model.content).toBe('existing\na');
+            expect(onChange).not.toHaveBeenCalled();
+            expect(stubs.editor.executeEdits).toHaveBeenCalledWith(
+                'learn-tour',
+                [
+                    expect.objectContaining({
+                        range: {
+                            startLineNumber: 1,
+                            startColumn: 'existing'.length + 1,
+                            endLineNumber: 1,
+                            endColumn: 'existing'.length + 1,
+                        },
+                        text: '\n',
+                        forceMoveMarkers: true,
+                    }),
+                ],
+            );
+            vi.runAllTimers();
+            expect(stubs.model.content).toBe('existing\nab');
+            expect(onChange).toHaveBeenCalledWith('existing\nab');
+            // One input event per character keeps the tour's typed-step
+            // advance waiting until the last one has landed.
+            expect(inputs).toHaveBeenCalledTimes(2);
+            expect(stubs.editor.revealLineInCenter).toHaveBeenCalled();
+            expect(
+                stubs.editor.createDecorationsCollection,
+            ).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    options: expect.objectContaining({ isWholeLine: true }),
+                }),
+            ]);
+            // Without focus the appended text could never blur, and the
+            // page's autosave runs on blur.
+            expect(stubs.editor.focus).toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('ignores Use it while a snippet is still being typed, and once it is already there', () => {
+        vi.useFakeTimers();
+        try {
+            const onChange = vi.fn();
+            const { container } = renderEditor({
+                onChange,
+                content: 'existing',
+            });
+            const tour = tourEditorOf(container);
+            tour?.setValue('abc');
+            vi.advanceTimersByTime(30);
+            tour?.setValue('abc');
+            vi.runAllTimers();
+            expect(stubs.model.content).toBe('existing\nabc');
+            expect(onChange).toHaveBeenCalledTimes(1);
+            tour?.setValue('abc');
+            vi.runAllTimers();
+            expect(stubs.model.content).toBe('existing\nabc');
+            expect(onChange).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('does not prefix a newline when the model is empty', () => {
-        stubs.model.content = '';
-        const onChange = vi.fn();
-        const { container } = renderEditor({ onChange, content: '' });
-
-        const wrapper = container.querySelector(
-            '[data-tour-anchor="workspace-editor"]',
-        ) as HTMLDivElement & {
-            tourEditor?: { setValue: (v: string) => void };
-        };
-        wrapper.tourEditor?.setValue('first line');
-
-        expect(stubs.editor.executeEdits).toHaveBeenCalledWith('learn-tour', [
-            expect.objectContaining({ text: 'first line' }),
-        ]);
-        expect(onChange).toHaveBeenCalledWith('first line');
+        vi.useFakeTimers();
+        try {
+            stubs.model.content = '';
+            const onChange = vi.fn();
+            const { container } = renderEditor({ onChange, content: '' });
+            tourEditorOf(container)?.setValue('first line');
+            vi.runAllTimers();
+            expect(stubs.model.content).toBe('first line');
+            expect(onChange).toHaveBeenCalledWith('first line');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('does not prefix a newline when the model already ends with one', () => {
-        stubs.model.content = 'existing\n';
-        const onChange = vi.fn();
-        const { container } = renderEditor({
-            onChange,
-            content: 'existing\n',
-        });
-
-        const wrapper = container.querySelector(
-            '[data-tour-anchor="workspace-editor"]',
-        ) as HTMLDivElement & {
-            tourEditor?: { setValue: (v: string) => void };
-        };
-        wrapper.tourEditor?.setValue('next line');
-
-        expect(stubs.editor.executeEdits).toHaveBeenCalledWith('learn-tour', [
-            expect.objectContaining({ text: 'next line' }),
-        ]);
-        expect(onChange).toHaveBeenCalledWith('existing\nnext line');
+        vi.useFakeTimers();
+        try {
+            stubs.model.content = 'existing\n';
+            const onChange = vi.fn();
+            const { container } = renderEditor({
+                onChange,
+                content: 'existing\n',
+            });
+            tourEditorOf(container)?.setValue('next line');
+            vi.runAllTimers();
+            expect(stubs.model.content).toBe('existing\nnext line');
+            expect(onChange).toHaveBeenCalledWith('existing\nnext line');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('calls onBlur when the editor reports blur via onDidBlurEditorText', () => {

@@ -718,15 +718,15 @@ export const Card = () => (
             tour.steps[0].body,
             'A metric is a value that describes or summarizes features from a collection of data points. For example: count of total number of user IDs, or sum of revenue. In Lightdash, metrics are used to summarize dimensions or, sometimes, other metrics.',
         );
-        // Opening the file says where metrics live and which one this is.
+        // Opening the file says where metrics live; the editor step says which.
         assert.strictEqual(
             tour.steps[1].body,
-            "To add a metric to Lightdash using the **meta** tag, you define it in your dbt project under the dimension name you're trying to describe/summarize. This lesson adds **average_payment_amount** to the **payments** model under its **amount** column.",
+            "To add a metric to Lightdash using the **meta** tag, you define it in your dbt project under the dimension name you're trying to describe/summarize.",
         );
         assert.strictEqual(tour.steps[2].suggestion, metricsLesson.snippet);
         assert.strictEqual(
             tour.steps[2].body,
-            "Takes the average (mean) of the values in the given field. Like SQL's **AVG** function. Use it appends the snippet at the end of the file, inside the **amount** column's metrics, as the **average** metric **average_payment_amount**.",
+            "Takes the average (mean) of the values in the given field. Like SQL's **AVG** function. Let's add **average_payment_amount**, an **average** of the **amount** column: it goes under that column's metrics, at the end of the file. Type it in, or press Use it to add it for you.",
         );
         assert.strictEqual(tour.steps[3].suggestion, 'lightdash deploy');
         assert.strictEqual(
