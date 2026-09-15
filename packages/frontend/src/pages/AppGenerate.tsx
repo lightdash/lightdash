@@ -2571,6 +2571,7 @@ const AppGenerate: FC = () => {
                                     <PromptComposer
                                         ref={promptEditorRef}
                                         size={compact ? 'sm' : 'md'}
+                                        stackToolbarOnMobile
                                         placeholder="Describe the app you want to build..."
                                         autoFocus
                                         // Editable while the agent works so the next prompt
