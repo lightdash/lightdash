@@ -169,6 +169,7 @@ export const Explore = () => (
         <input data-tour-anchor="explore-search" data-tour-hint="Search for the table" data-tour-input="true" data-tour-suggest="Orders by status" />
         <input data-tour-anchor="explore-field-search" data-tour-hint="Search for the field" data-tour-input="true" data-tour-suggest="Total revenue" />
         <div
+            //   data-tour-anchor="explore-dimension" data-tour-hint="Select a dimension" data-tour-hint-named="Find {value}"
             //   data-tour-anchor="explore-metric" data-tour-hint="Select a metric" data-tour-hint-named="Find {value}"
             data-tour-anchor={x ? 'explore-metric' : undefined}
         />
@@ -186,7 +187,7 @@ const metricsLesson = {
     column: 'amount',
     fileDocs: 'semantic-layer/metrics.mdx#1-using-the-column-meta-tag:1',
     snippet:
-        '              average_payment_amount:\n                type: average',
+        '            metrics:\n              average_payment_amount:\n                type: average',
     snippetDocs: 'semantic-layer/metrics.mdx#average:p2:1',
     command: 'lightdash deploy',
     commandDocs: 'workflow/cli/deploy.mdx#intro:1',
@@ -194,7 +195,11 @@ const metricsLesson = {
         'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li2',
         'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li3',
     ],
-    result: { explore: 'payments', field: 'average_payment_amount' },
+    result: {
+        explore: 'payments',
+        field: 'average_payment_amount',
+        kind: 'metric' as const,
+    },
     resultDocs: 'explore/explore-view.mdx#the-explore-page:li1',
 };
 
@@ -728,7 +733,7 @@ export const Card = () => (
         assert.strictEqual(tour.steps[2].suggestion, metricsLesson.snippet);
         assert.strictEqual(
             tour.steps[2].body,
-            "The **average** metric can be used on any numeric dimension or, [for custom SQL](https://docs.lightdash.com/semantic-layer/metrics#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column. Let's add **average_payment_amount**, an **average** of the **amount** column: it goes under that column's metrics, at the end of the file. Type it in, or press Use it to add it.",
+            "The **average** metric can be used on any numeric dimension or, [for custom SQL](https://docs.lightdash.com/semantic-layer/metrics#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column. Let's add **average_payment_amount**, an **average** metric on the **amount** column: it goes under that column's **metrics**. Type it in, or press Use it to add it.",
         );
         assert.strictEqual(tour.steps[3].suggestion, 'lightdash deploy');
         assert.strictEqual(
@@ -790,6 +795,66 @@ export const Card = () => (
             tour.steps[11].body,
             '**Metrics and dimensions** available on the table you selected. **Average payment amount** is the metric you just deployed.',
         );
+        // A dimension lesson ends on the dimension row and says so.
+        const [dimensionTour] = buildLessonTours(
+            [
+                {
+                    ...metricsLesson,
+                    result: {
+                        ...metricsLesson.result,
+                        kind: 'dimension' as const,
+                    },
+                },
+            ],
+            files,
+        );
+        assert.strictEqual(
+            dimensionTour.steps[11].target,
+            '[data-tour-anchor="explore-dimension"][data-tour-value="Average payment amount"]',
+        );
+        assert.ok(
+            dimensionTour.steps[11].body.endsWith(
+                'is the dimension you just deployed.',
+            ),
+        );
+        assert.ok(
+            dimensionTour.steps[2].body.includes(
+                'an **average** dimension on the **amount** column',
+            ),
+        );
+        // The snippet has to land under the declared column's `under:` key.
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [
+                        {
+                            ...metricsLesson,
+                            snippet: metricsLesson.snippet.replace(
+                                'metrics:',
+                                'additional_dimensions:',
+                            ),
+                        },
+                    ],
+                    files,
+                ),
+            /has no additional_dimensions: key/,
+        );
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [{ ...metricsLesson, snippet: '  foo: 1' }],
+                    files,
+                ),
+            /must start with the key it extends/,
+        );
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [{ ...metricsLesson, column: 'payment_id' }],
+                    files,
+                ),
+            /belongs to amount, not payment_id/,
+        );
         // A lesson names a real column of its file and a typed snippet.
         assert.throws(
             () =>
@@ -799,10 +864,16 @@ export const Card = () => (
         assert.throws(
             () =>
                 buildLessonTours(
-                    [{ ...metricsLesson, snippet: '  foo: 1' }],
+                    [
+                        {
+                            ...metricsLesson,
+                            snippet:
+                                '            metrics:\n              foo:\n                label: x',
+                        },
+                    ],
                     files,
                 ),
-            /declares no metric type/,
+            /declares no type/,
         );
         assert.strictEqual(
             tour.steps[0].route,
@@ -895,7 +966,7 @@ export const Card = () => (
                         write(
                             'ExploreNoMetric.tsx',
                             explore.replace(
-                                /^.*data-tour-hint-named="Find \{value\}".*$/m,
+                                /^.*data-tour-anchor="explore-metric".*$/m,
                                 '',
                             ),
                         ),

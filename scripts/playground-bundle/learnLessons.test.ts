@@ -23,15 +23,11 @@ import {
     materialiseWorkspace,
 } from '../../packages/backend/src/services/LearnSandboxService/workspace';
 import { SANDBOX_LESSONS } from '../../packages/frontend/src/features/learn/sandboxLessons';
+import { insertSnippet } from '../../packages/frontend/src/features/learnSandbox/snippetInsertion';
 import { getCatalog } from './compile';
 
 const venvBin = path.join(__dirname, '.venv/bin');
 
-/** The editor's append: a newline first unless the file already ends in one. */
-const appendSnippet = (content: string, snippet: string) =>
-    `${content}${
-        content.length === 0 || content.endsWith('\n') ? '' : '\n'
-    }${snippet}`;
 
 const checkLesson = async (
     lesson: (typeof SANDBOX_LESSONS)[number],
@@ -52,7 +48,7 @@ const checkLesson = async (
         overlay: [
             {
                 path: lesson.file,
-                content: appendSnippet(file.content, lesson.snippet),
+                content: insertSnippet(file.content, lesson.snippet),
             },
         ],
         workspaceDir,

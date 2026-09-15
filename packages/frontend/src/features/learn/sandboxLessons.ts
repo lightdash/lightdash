@@ -26,6 +26,7 @@ export type SandboxLesson = {
     /** Citation shown when the file is opened: where metrics live in the YAML. */
     fileDocs: DocsCitation;
     /** Appended by "Use it"; must extend the file's last mapping. */
+    /** Starts with the key it extends (`metrics:`), then the entry to add under it. */
     snippet: string;
     /** Citation shown with the editor step. */
     snippetDocs: DocsCitation;
@@ -36,7 +37,12 @@ export type SandboxLesson = {
     /** Citation shown while the command runs. */
     outputDocs: DocsCitation;
     /** The explore name and field name the learner ends on, not their ids. */
-    result: { explore: string; field: string };
+    result: {
+        explore: string;
+        field: string;
+        /** Which field list the learner finds it in at the end. */
+        kind: 'metric' | 'dimension';
+    };
     /** Citation on the final look. */
     resultDocs: DocsCitation;
 };
@@ -53,6 +59,7 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
         column: 'amount',
         fileDocs: 'semantic-layer/metrics.mdx#1-using-the-column-meta-tag:1',
         snippet: [
+            '            metrics:',
             '              average_payment_amount:',
             '                type: average',
         ].join('\n'),
@@ -65,7 +72,41 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
             'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li2',
             'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li3',
         ],
-        result: { explore: 'payments', field: 'average_payment_amount' },
+        result: {
+            explore: 'payments',
+            field: 'average_payment_amount',
+            kind: 'metric',
+        },
+        resultDocs: 'explore/explore-view.mdx#the-explore-page:li1',
+    },
+    {
+        id: 'docs:semantic-layer/dimensions',
+        docs: 'semantic-layer/dimensions.mdx',
+        intro: [
+            'semantic-layer/dimensions.mdx#intro:1',
+            'semantic-layer/dimensions.mdx#adding-dimensions-to-your-project:1',
+        ],
+        file: 'models/orders.yml',
+        column: 'shipping_cost',
+        fileDocs: 'semantic-layer/dimensions.mdx#dimension-configuration:1',
+        snippet: [
+            '            additional_dimensions:',
+            '              shipping_cost_rounded:',
+            '                type: number',
+            '                sql: ROUND(${TABLE}.shipping_cost)',
+        ].join('\n'),
+        snippetDocs: 'semantic-layer/dimensions.mdx#additional-dimensions:1',
+        command: 'lightdash deploy',
+        commandDocs: 'workflow/cli/deploy.mdx#intro:1',
+        outputDocs: [
+            'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li2',
+            'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li3',
+        ],
+        result: {
+            explore: 'orders',
+            field: 'shipping_cost_rounded',
+            kind: 'dimension',
+        },
         resultDocs: 'explore/explore-view.mdx#the-explore-page:li1',
     },
 ];

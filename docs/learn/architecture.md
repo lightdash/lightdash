@@ -149,8 +149,8 @@ profile only when the file sits directly inside it.
 #### Lessons
 
 A lesson teaches one docs page by having the learner change the project and then look at what changed. Each is
-declared in `features/learn/sandboxLessons.ts`, one entry per page, naming the file to open and the column the
-snippet extends, the snippet to add, the command to run, and the explore and field the learner ends on. Every
+declared in `features/learn/sandboxLessons.ts`, one entry per page, naming the file to open, the column the snippet
+extends, the snippet to add, the command to run, and the explore and field the learner ends on. Every
 sentence the learner reads is either a cited docs sentence (a step may cite several, read in order) or one of
 two fixed task sentences the template fills from the entry (which metric to add and which column's metrics
 it goes under, and which metric the learner ends on), so the snippet and the entry's facts are
@@ -165,9 +165,9 @@ same twelve steps: read the page's introduction on a card with nothing spotlit, 
 output to the end, then New, Chart, search for the table, open it, search for the field, and look at the field
 that now exists. The two searches are not decoration: both lists in Explore are virtualised, so neither the
 table nor the field is on the page until it has been searched for, and they are two different controls, because
-opening a table replaces the table list with the field tree. The snippet is appended to the end of the file, so
-it has to be indented to extend the mapping the file ends in; an entry that would start a new top-level key
-produces YAML the deploy rejects. `pnpm test:learn-lessons` compiles every snippet against the shipped bundle,
+opening a table replaces the table list with the field tree. The snippet starts with the key it extends (`metrics:`), and Use it types the
+lines after it directly under the last line in the file that is that key, so the entry appears where a developer
+would write it and the card shows the path it takes; the build checks that key belongs to the column the cards name. `pnpm test:learn-lessons` compiles every snippet against the shipped bundle,
 so that mistake fails a build rather than a learner. Use it types the snippet into the editor one character at a time, scrolls
 it into view and highlights the added lines for a moment, so the learner sees what changed and where before the
 tour moves on. A deploy that finishes invalidates the explore list in the

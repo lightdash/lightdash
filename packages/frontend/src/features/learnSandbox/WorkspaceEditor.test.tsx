@@ -4,11 +4,28 @@ import type { ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const stubs = vi.hoisted(() => {
+    const offsetOf = (line: number, column: number) => {
+        const lines = model.content.split('\n');
+        return (
+            lines.slice(0, line - 1).join('\n').length +
+            (line > 1 ? 1 : 0) +
+            column -
+            1
+        );
+    };
     const model = {
         content: '',
         getValue: () => model.content,
-        getLineCount: () => 1,
-        getLineMaxColumn: () => model.content.length + 1,
+        getLineCount: () => model.content.split('\n').length,
+        getLineMaxColumn: (line: number) =>
+            model.content.split('\n')[line - 1].length + 1,
+        getPositionAt: (offset: number) => {
+            const lines = model.content.slice(0, offset).split('\n');
+            return {
+                lineNumber: lines.length,
+                column: lines[lines.length - 1].length + 1,
+            };
+        },
     };
     const editorInstance = {
         getValue: () => model.content,
@@ -16,10 +33,26 @@ const stubs = vi.hoisted(() => {
             model.content = v;
         },
         getModel: () => model,
-        executeEdits: vi.fn((_source: string, edits: { text: string }[]) => {
-            model.content += edits[0].text;
-            return true;
-        }),
+        executeEdits: vi.fn(
+            (
+                _source: string,
+                edits: {
+                    text: string;
+                    range: { startLineNumber: number; startColumn: number };
+                }[],
+            ) => {
+                const [edit] = edits;
+                const at = offsetOf(
+                    edit.range.startLineNumber,
+                    edit.range.startColumn,
+                );
+                model.content =
+                    model.content.slice(0, at) +
+                    edit.text +
+                    model.content.slice(at);
+                return true;
+            },
+        ),
         onDidBlurEditorText: vi.fn(),
         updateOptions: vi.fn(),
         focus: vi.fn(),
@@ -251,6 +284,36 @@ describe('WorkspaceEditor', () => {
             vi.runAllTimers();
             expect(stubs.model.content).toBe('existing\nabc');
             expect(onChange).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('types the snippet in directly under the key it extends, not at the end of the file', () => {
+        vi.useFakeTimers();
+        try {
+            const content = 'meta:\n  metrics:\n    old:\n      type: sum';
+            stubs.model.content = content;
+            const onChange = vi.fn();
+            const { container } = renderEditor({ onChange, content });
+            tourEditorOf(container)?.setValue(
+                '  metrics:\n    fresh:\n      type: average',
+            );
+            vi.runAllTimers();
+            expect(stubs.model.content).toBe(
+                'meta:\n  metrics:\n    fresh:\n      type: average\n    old:\n      type: sum',
+            );
+            expect(onChange).toHaveBeenCalledWith(stubs.model.content);
+            expect(
+                stubs.editor.createDecorationsCollection,
+            ).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    range: expect.objectContaining({
+                        startLineNumber: 3,
+                        endLineNumber: 4,
+                    }),
+                }),
+            ]);
         } finally {
             vi.useRealTimers();
         }

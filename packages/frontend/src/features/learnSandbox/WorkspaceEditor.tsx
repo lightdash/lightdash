@@ -16,6 +16,7 @@ import {
 } from '../sqlRunner/utils/monaco';
 // eslint-disable-next-line css-modules/no-unused-class -- classes used from FileTree.tsx
 import styles from './LearnWorkspace.module.css';
+import { insertionPoint } from './snippetInsertion';
 
 /** Registers the dbt YAML schema against the single shared monaco-yaml
  * instance (see configureLightdashYaml — monaco-yaml only allows one
@@ -81,7 +82,8 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     onBlurRef.current = onBlur;
 
     // The tour's "Use it" types the snippet in rather than dropping it in:
-    // one character a tick, scrolled into view and highlighted for a moment
+    // one character a tick, directly under the key it extends (see
+    // snippetInsertion.ts), scrolled into view and highlighted for a moment
     // afterwards, so the learner sees what was added and where. Each tick
     // fires an input event on the wrapper, which holds the tour's typed-step
     // advance until the last character has landed.
@@ -96,47 +98,44 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
         // is already there, adds nothing: the learner (and the smoke) can
         // press Use it again without doubling the metric.
         if (typingRef.current) return;
-        if (model.getValue().endsWith(value)) return;
-        const insertAtEnd = (text: string) => {
-            const line = model.getLineCount();
-            const col = model.getLineMaxColumn(line);
+        const point = insertionPoint(model.getValue(), value);
+        if (model.getValue().includes(point.text)) return;
+        let offset = point.offset;
+        const insertHere = (text: string) => {
+            const at = model.getPositionAt(offset);
             ed.executeEdits('learn-tour', [
                 {
                     range: {
-                        startLineNumber: line,
-                        startColumn: col,
-                        endLineNumber: line,
-                        endColumn: col,
+                        startLineNumber: at.lineNumber,
+                        startColumn: at.column,
+                        endLineNumber: at.lineNumber,
+                        endColumn: at.column,
                     },
                     text,
                     forceMoveMarkers: true,
                 },
             ]);
+            offset += text.length;
         };
-        const current = model.getValue();
-        const prefix =
-            current.length === 0 || current.endsWith('\n') ? '' : '\n';
-        if (prefix) insertAtEnd(prefix);
-        const firstLine = model.getLineCount();
-        const chars = [...value];
+        if (point.prefix) insertHere(point.prefix);
+        const firstLine = model.getPositionAt(offset).lineNumber;
+        const chars = [...point.text];
         const wrapper = wrapperRef.current;
         let index = 0;
         let timer: number | undefined;
         let cancelled = false;
         const finish = () => {
-            const lastLine = model.getLineCount();
+            const end = model.getPositionAt(offset);
+            if (point.suffix) insertHere(point.suffix);
             onChangeRef.current(model.getValue());
-            ed.setPosition({
-                lineNumber: lastLine,
-                column: model.getLineMaxColumn(lastLine),
-            });
-            ed.revealLineInCenter(lastLine);
+            ed.setPosition(end);
+            ed.revealLineInCenter(end.lineNumber);
             const added = ed.createDecorationsCollection([
                 {
                     range: {
                         startLineNumber: firstLine,
                         startColumn: 1,
-                        endLineNumber: lastLine,
+                        endLineNumber: end.lineNumber,
                         endColumn: 1,
                     },
                     options: { isWholeLine: true, className: styles.tourInsert },
@@ -152,9 +151,9 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
         };
         const tick = () => {
             if (cancelled) return;
-            insertAtEnd(chars[index]);
+            insertHere(chars[index]);
             index += 1;
-            ed.revealLineInCenter(model.getLineCount());
+            ed.revealLineInCenter(model.getPositionAt(offset).lineNumber);
             wrapper?.dispatchEvent(new Event('input', { bubbles: true }));
             if (index < chars.length) {
                 timer = window.setTimeout(tick, TOUR_TYPE_INTERVAL_MS);
