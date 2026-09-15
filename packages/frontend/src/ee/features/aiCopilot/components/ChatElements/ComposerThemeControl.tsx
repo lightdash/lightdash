@@ -137,7 +137,7 @@ export const ComposerThemeButton: FC<Props> = (props) => {
                     >
                         {label}
                         {detail && (
-                            <Text component="span" size="xs" c="dimmed" ml={4}>
+                            <Text component="span" size="xs" c="dimmed" ml="xs">
                                 · {detail}
                             </Text>
                         )}

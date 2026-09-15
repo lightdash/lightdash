@@ -1,21 +1,13 @@
 import { type ApiOrganizationDesign } from '@lightdash/common';
 
 // The composer's theme control stays out of the way until the draft reads as
-// a data app request; from then on it stays for the rest of the client session.
+// a data app request; from then on it stays while that composer is mounted.
 
 const DATA_APP_DRAFT_MARKERS =
     /\b(?:data app|app|presentation|slideshow|slides|deck|pdf)\b/i;
 
 export const isDataAppDraft = (text: string): boolean =>
     DATA_APP_DRAFT_MARKERS.test(text);
-
-let surfacedThisSession = false;
-
-export const hasThemeControlSurfaced = (): boolean => surfacedThisSession;
-
-export const markThemeControlSurfaced = (): void => {
-    surfacedThisSession = true;
-};
 
 export const THEME_CONTROL_TOOLTIP =
     'Theme for the data app this prompt builds';

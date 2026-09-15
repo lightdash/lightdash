@@ -100,12 +100,7 @@ import {
     type ContentMentionMenuState,
     type ContentMentionSuggestionItem,
 } from './contentMentions';
-import {
-    hasThemeControlSurfaced,
-    isDataAppDraft,
-    markThemeControlSurfaced,
-    type ComposerTheme,
-} from './dataAppThemeComposer';
+import { isDataAppDraft, type ComposerTheme } from './dataAppThemeComposer';
 import {
     PromptAttachments,
     type ExternalSourceAttachment,
@@ -410,23 +405,19 @@ export const AgentChatInput = ({
     const [selectedTheme, setSelectedTheme] = useState<ComposerTheme | null>(
         null,
     );
-    const [themeControlSurfaced, setThemeControlSurfaced] = useState(
-        hasThemeControlSurfaced,
-    );
+    // Sticky while this composer is mounted; other composers are unaffected.
+    const [themeControlSurfaced, setThemeControlSurfaced] = useState(false);
     const { data: dataAppsFlag } = useServerFeatureFlag(
         FeatureFlags.EnableDataApps,
     );
     const canCreateDataApp = useCanCreateDataApp(projectUuid);
     const canPickTheme = Boolean(
-        dataAppsFlag?.enabled &&
-        agent?.enableContentTools &&
-        canCreateDataApp &&
-        !disabled,
+        dataAppsFlag?.enabled && agent?.enableContentTools && canCreateDataApp,
     );
     const { data: themes = [] } = useOrganizationDesigns({
         enabled: canPickTheme,
     });
-    const showThemeControl = canPickTheme && themes.length > 0;
+    const showThemeControl = canPickTheme && !disabled && themes.length > 0;
     const canManageThemes = Boolean(
         app.user.data?.ability.can('manage', 'OrganizationDesign'),
     );
@@ -884,9 +875,8 @@ export const AgentChatInput = ({
     const showDeepResearchNudge =
         nudgeState === 'shown' && isDeepResearchDraft(value);
 
-    // Surface the theme control once the prompt looks like a data app request
-    // — trigger words, a pinned or mentioned data app, an element reference —
-    // and keep it for the session so it does not flicker while editing.
+    // Surface the theme control once the draft reads as a data app request
+    // (trigger words, pinned/mentioned app, element ref).
     const hasPinnedDataApp =
         elementReferences.length > 0 ||
         contentMentionPriorityItems.some(
@@ -903,7 +893,6 @@ export const AgentChatInput = ({
             ) ??
                 false);
         if (isDataAppDraft(value) || hasPinnedDataApp || mentionsDataApp) {
-            markThemeControlSurfaced();
             setThemeControlSurfaced(true);
         }
     }, [value, hasPinnedDataApp, showThemeControl, themeControlSurfaced]);
