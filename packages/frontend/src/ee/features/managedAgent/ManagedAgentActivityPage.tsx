@@ -62,7 +62,6 @@ import {
     IconLayoutDashboard,
     IconPlayerPlay,
     IconSearch,
-    IconSelector,
     IconSettings,
     IconTarget,
     IconTool,
@@ -115,11 +114,11 @@ import {
 } from './hooks/useManagedAgentRuntime';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
-import { ManagedAgentRunModel } from './ManagedAgentRunModel';
 import { ManagedAgentRunSummary } from './ManagedAgentRunSummary';
 import { ManagedAgentRuntimeAlerts } from './ManagedAgentRuntimeDetails';
 import { SuggestionsSpaceAccess } from './SuggestionsSpaceAccess';
 import { ToolActivityBadge } from './ToolActivityBadge';
+import { toPlainPreview } from './utils/runSummaryMarkdown';
 
 const reverseAction = async (
     projectUuid: string,
@@ -155,10 +154,6 @@ const runHeartbeat = async (projectUuid: string) =>
         body: undefined,
     });
 
-// Messages can be several paragraphs of agent reasoning; the hover tooltip only
-// needs a preview, the sidebar renders the full markdown.
-const MESSAGE_TOOLTIP_MAX_LENGTH = 280;
-
 const SCHEDULE_OPTIONS = [
     { value: ManagedAgentScheduleOption.EVERY_6_HOURS, label: 'Every 6 hours' },
     {
@@ -175,21 +170,20 @@ const CAPABILITY_GROUPS = [
         key: 'readOnly',
         label: 'Read content',
         description:
-            'Reads project health signals, recent Autopilot actions, stale charts and dashboards, broken content, chart definitions, user questions, popular content, preview projects, slow query history, inactive project members, content whose owner has left, AI agents with little or no traffic, and pre-aggregate candidates from query patterns.',
+            'Reads project health, content usage, broken content, query history and member activity. Always on.',
         locked: true,
     },
     {
         key: 'createContent',
         label: 'Create content',
-        description:
-            'Allows Autopilot to create net new suggested charts in the Agent Suggestions space from chart-as-code definitions.',
+        description: 'Creates suggested charts in the Agent Suggestions space.',
         locked: false,
     },
     {
         key: 'modifyExistingContent',
         label: 'Modify existing content',
         description:
-            'Allows Autopilot to soft-delete stale charts or dashboards, update broken chart definitions, and reverse its own previous content changes.',
+            'Soft-deletes stale content, repairs broken charts, and reverts its own changes.',
         locked: false,
     },
 ];
@@ -291,52 +285,61 @@ const SetupSection: FC<{
     return (
         <Stack gap={0}>
             <Group justify="space-between" align="center" pb="md">
-                <Stack gap={0}>
-                    <Group gap="sm" align="center">
-                        <Box className={classes.setupOrb}>
-                            <IconTarget size={16} />
-                        </Box>
-                        <Title order={4}>Autopilot</Title>
-                        <Box className={classes.activeBadge}>
-                            <Box
-                                className={
-                                    enabled
-                                        ? classes.activeDotInline
-                                        : classes.disabledDotInline
-                                }
-                            />
-                            {enabled ? (
-                                <>Active &middot; {scheduleLabel}</>
-                            ) : (
-                                'Disabled'
+                <Group gap="sm" align="center" wrap="nowrap">
+                    <Box
+                        className={classes.setupOrb}
+                        data-state={enabled ? 'active' : 'disabled'}
+                    >
+                        <IconTarget size={22} stroke={2} />
+                    </Box>
+                    <Stack gap={2}>
+                        <Group gap="sm" align="center">
+                            <Title order={2}>Autopilot</Title>
+                            <Box className={classes.activeBadge}>
+                                <Box
+                                    className={
+                                        isRunning
+                                            ? classes.runningDotInline
+                                            : enabled
+                                              ? classes.activeDotInline
+                                              : classes.disabledDotInline
+                                    }
+                                />
+                                {isRunning ? (
+                                    'Running'
+                                ) : enabled ? (
+                                    <>Active &middot; {scheduleLabel}</>
+                                ) : (
+                                    'Disabled'
+                                )}
+                            </Box>
+                        </Group>
+                        <Text fz="sm" c="dimmed">
+                            Fixes broken charts, flags stale content, suggests
+                            new ones
+                            {canManageAiSettings && (
+                                <>
+                                    {' · '}
+                                    <Anchor
+                                        component={Link}
+                                        to="/generalSettings/ai/general"
+                                        target="_blank"
+                                        fz="sm"
+                                        fw={600}
+                                        c="dimmed"
+                                        className={classes.aiSettingsLink}
+                                    >
+                                        AI settings
+                                        <MantineIcon
+                                            icon={IconExternalLink}
+                                            size={14}
+                                        />
+                                    </Anchor>
+                                </>
                             )}
-                        </Box>
-                    </Group>
-                    <Text fz="xs" c="dimmed" ml={46}>
-                        Fixes broken charts, flags stale content, suggests new
-                        ones
-                        {canManageAiSettings && (
-                            <>
-                                {' · '}
-                                <Anchor
-                                    component={Link}
-                                    to="/generalSettings/ai/general"
-                                    target="_blank"
-                                    fz="xs"
-                                    fw={600}
-                                    c="dimmed"
-                                    className={classes.aiSettingsLink}
-                                >
-                                    AI settings
-                                    <MantineIcon
-                                        icon={IconExternalLink}
-                                        size={14}
-                                    />
-                                </Anchor>
-                            </>
-                        )}
-                    </Text>
-                </Stack>
+                        </Text>
+                    </Stack>
+                </Group>
                 <Group gap="xs">
                     <Tooltip
                         label={
@@ -350,7 +353,7 @@ const SetupSection: FC<{
                         <ActionIcon
                             aria-label="Run Autopilot now"
                             variant="default"
-                            size="md"
+                            size="lg"
                             onClick={onRunNow}
                             disabled={!enabled || isRunNowLoading || isRunning}
                             loading={isRunNowLoading || isRunning}
@@ -360,8 +363,10 @@ const SetupSection: FC<{
                     </Tooltip>
                     <Button
                         variant={settingsOpen ? 'light' : 'default'}
-                        size="xs"
-                        leftSection={<IconSettings size={14} />}
+                        size="sm"
+                        leftSection={
+                            <MantineIcon icon={IconSettings} size={14} />
+                        }
                         onClick={onOpenSettings}
                     >
                         Settings
@@ -380,44 +385,52 @@ const SetupSection: FC<{
 
 const ACTION_CONFIG: Record<
     ManagedAgentAction['actionType'],
-    { label: string; dotColor: string; tooltip?: string }
+    { label: string; pluralLabel: string; dotColor: string; tooltip?: string }
 > = {
     flagged_stale: {
         label: 'Flagged stale',
+        pluralLabel: 'flagged stale',
         dotColor: 'var(--mantine-color-orange-5)',
         tooltip:
             'Marked as unused. Future Autopilot runs will review flagged items and clean them up.',
     },
     soft_deleted: {
         label: 'Deleted',
+        pluralLabel: 'deleted',
         dotColor: 'var(--mantine-color-red-5)',
     },
     flagged_broken: {
         label: 'Flagged broken',
+        pluralLabel: 'flagged broken',
         dotColor: 'var(--mantine-color-red-5)',
         tooltip:
             'Marked as broken. Future Autopilot runs will review flagged items and attempt to fix them.',
     },
     flagged_slow: {
         label: 'Flagged slow',
+        pluralLabel: 'flagged slow',
         dotColor: 'var(--mantine-color-yellow-6)',
         tooltip:
             'Marked as slow. Future Autopilot runs will review flagged items and try to optimize them.',
     },
     fixed_broken: {
         label: 'Fixed',
+        pluralLabel: 'fixed',
         dotColor: 'var(--mantine-color-teal-5)',
     },
     created_content: {
         label: 'Created',
+        pluralLabel: 'created',
         dotColor: 'var(--mantine-color-blue-5)',
     },
     insight: {
         label: 'Insight',
+        pluralLabel: 'insights',
         dotColor: 'var(--mantine-color-violet-5)',
     },
     blocked: {
         label: 'Blocked',
+        pluralLabel: 'blocked',
         dotColor: 'var(--mantine-color-ldGray-6)',
         tooltip:
             'Autopilot attempted this but an admin protection stopped it. Dismiss to acknowledge.',
@@ -453,7 +466,7 @@ const formatAbsoluteTimestamp = (dateStr: string) =>
 // --- Detail Sidebar ---
 
 const MetadataLabel: FC<{ label: string }> = ({ label }) => (
-    <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.5}>
+    <Text fz="sm" fw={500}>
         {label}
     </Text>
 );
@@ -1066,12 +1079,17 @@ const DetailSidebar: FC<{
                         <Menu position="bottom-end">
                             <Menu.Target>
                                 <UnstyledButton className={classes.closeBtn}>
-                                    <IconDots size={14} />
+                                    <MantineIcon icon={IconDots} size={14} />
                                 </UnstyledButton>
                             </Menu.Target>
                             <Menu.Dropdown>
                                 <Menu.Item
-                                    leftSection={<IconArrowBackUp size={14} />}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconArrowBackUp}
+                                            size={14}
+                                        />
+                                    }
                                     disabled={
                                         isReversed || revertMutation.isLoading
                                     }
@@ -1086,17 +1104,18 @@ const DetailSidebar: FC<{
                             onClick={onClose}
                             className={classes.closeBtn}
                         >
-                            <IconX size={14} />
+                            <MantineIcon icon={IconX} size={14} />
                         </UnstyledButton>
                     </Group>
                 </Group>
                 <Group gap={6} wrap="nowrap">
-                    <TargetIcon
+                    <MantineIcon
+                        icon={TargetIcon}
                         size={16}
-                        color="var(--mantine-color-dimmed)"
+                        color="dimmed"
                         className={classes.targetIcon}
                     />
-                    <TruncatedText maxWidth={260} fz="sm" fw={600}>
+                    <TruncatedText maxWidth={280} fz="md" fw={600}>
                         {action.targetName}
                     </TruncatedText>
                     {targetLink && (
@@ -1421,9 +1440,10 @@ const SettingsSidebar: FC<{
             <Stack gap={2} className={classes.sidebarHeader}>
                 <Group justify="space-between" align="center">
                     <Group gap={6}>
-                        <IconSettings
+                        <MantineIcon
+                            icon={IconSettings}
                             size={16}
-                            color="var(--mantine-color-dimmed)"
+                            color="dimmed"
                         />
                         <Text fz="sm" fw={600}>
                             Autopilot settings
@@ -1433,7 +1453,7 @@ const SettingsSidebar: FC<{
                         onClick={onClose}
                         className={classes.closeBtn}
                     >
-                        <IconX size={14} />
+                        <MantineIcon icon={IconX} size={14} />
                     </UnstyledButton>
                 </Group>
                 <Text fz="xs" c="dimmed">
@@ -1487,9 +1507,10 @@ const SettingsSidebar: FC<{
                             <Group justify="space-between" align="flex-start">
                                 <Stack gap={4}>
                                     <Group gap={6}>
-                                        <IconBrandSlack
+                                        <MantineIcon
+                                            icon={IconBrandSlack}
                                             size={16}
-                                            color="var(--mantine-color-dimmed)"
+                                            color="dimmed"
                                         />
                                         <Text fz="sm" fw={500}>
                                             Send updates to Slack
@@ -1524,17 +1545,8 @@ const SettingsSidebar: FC<{
                                             onChange={handleSlackChannelChange}
                                         />
                                         <Text fz="xs" c="dimmed">
-                                            Please invite Lightdash to this
-                                            channel, we can&apos;t post messages
-                                            until you do. (
-                                            <Text
-                                                component="span"
-                                                inherit
-                                                ff="monospace"
-                                            >
-                                                /invite @Lightdash
-                                            </Text>
-                                            )
+                                            Invite Lightdash to the channel so
+                                            it can post there.
                                         </Text>
                                     </Stack>
                                 )
@@ -1550,7 +1562,10 @@ const SettingsSidebar: FC<{
                                         variant="default"
                                         size="xs"
                                         leftSection={
-                                            <IconExternalLink size={14} />
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                                size={14}
+                                            />
                                         }
                                     >
                                         Open integrations
@@ -1562,9 +1577,10 @@ const SettingsSidebar: FC<{
                         <Stack gap="md" className={classes.settingsRow}>
                             <Stack gap={4}>
                                 <Group gap={6}>
-                                    <IconTool
+                                    <MantineIcon
+                                        icon={IconTool}
                                         size={16}
-                                        color="var(--mantine-color-dimmed)"
+                                        color="dimmed"
                                     />
                                     <Text fz="sm" fw={500}>
                                         Permissions
@@ -1712,9 +1728,10 @@ const SettingsSidebar: FC<{
                         <Stack gap="md" className={classes.settingsRow}>
                             <Stack gap={4}>
                                 <Group gap={6}>
-                                    <IconAdjustments
+                                    <MantineIcon
+                                        icon={IconAdjustments}
                                         size={16}
-                                        color="var(--mantine-color-dimmed)"
+                                        color="dimmed"
                                     />
                                     <Text fz="sm" fw={500}>
                                         Policy
@@ -1923,33 +1940,30 @@ const ActionRow: FC<{
             <Table.Td w={100}>
                 <CategoryBadge
                     variant="dot"
+                    bordered={false}
                     label={config.label}
                     color={config.dotColor}
                     tooltip={config.tooltip}
                     className={classes.actionPill}
                 />
             </Table.Td>
-            <Table.Td w={250}>
+            <Table.Td w={300}>
                 <Group gap={6} wrap="nowrap">
-                    <TargetIcon
+                    <MantineIcon
+                        icon={TargetIcon}
                         size={14}
-                        color="var(--mantine-color-dimmed)"
+                        color="dimmed"
                         className={classes.targetIcon}
                     />
-                    <TruncatedText maxWidth={220} fz="xs" fw={500}>
+                    <TruncatedText maxWidth={270} fz="sm" fw={500}>
                         {action.targetName}
                     </TruncatedText>
                 </Group>
             </Table.Td>
             <Table.Td className={classes.messageCell}>
-                <TruncatedText
-                    maxWidth={9999}
-                    tooltipMaxLength={MESSAGE_TOOLTIP_MAX_LENGTH}
-                    fz="xs"
-                    c="dimmed"
-                >
-                    {action.description}
-                </TruncatedText>
+                <Text fz="xs" c="ldGray.7" lineClamp={1}>
+                    {toPlainPreview(action.description)}
+                </Text>
             </Table.Td>
         </Table.Tr>
     );
@@ -1957,19 +1971,10 @@ const ActionRow: FC<{
 
 // --- Run row ---
 
-const TargetPulseLoader: FC<{ size?: number }> = ({ size = 12 }) => (
-    <Box className={classes.boltPulseLoader} aria-label="Running">
-        <IconTarget size={size} stroke={2.5} />
-    </Box>
-);
-
-const TRIGGERED_BY_ICON: Record<
-    ManagedAgentRun['triggeredBy'],
-    { icon: typeof IconClock; tooltip: string }
-> = {
-    cron: { icon: IconClock, tooltip: 'Scheduled run' },
-    manual: { icon: IconPlayerPlay, tooltip: 'Manual run' },
-    on_enable: { icon: IconClock, tooltip: 'Scheduled run' },
+const TRIGGERED_BY_LABEL: Record<ManagedAgentRun['triggeredBy'], string> = {
+    cron: 'Scheduled',
+    manual: 'Manual',
+    on_enable: 'Scheduled',
 };
 
 const runVariant = (
@@ -1989,9 +1994,8 @@ const RunHeaderRow: FC<{
     onToggle: () => void;
 }> = ({ run, variant, isOpen, expandable, onToggle }) => (
     <Table.Tr
-        className={`${classes.runHeaderRow} ${
-            isOpen ? classes.runHeaderRowOpen : ''
-        }`}
+        className={classes.runHeaderRow}
+        data-open={isOpen}
         onClick={expandable ? onToggle : undefined}
         style={expandable ? undefined : { cursor: 'default' }}
     >
@@ -1999,7 +2003,8 @@ const RunHeaderRow: FC<{
             <Group justify="space-between" gap="xs" wrap="nowrap">
                 <Group gap="xs" wrap="nowrap">
                     {expandable ? (
-                        <IconChevronRight
+                        <MantineIcon
+                            icon={IconChevronRight}
                             size={12}
                             className={
                                 isOpen
@@ -2010,54 +2015,45 @@ const RunHeaderRow: FC<{
                     ) : (
                         <Box w={12} />
                     )}
-                    {variant === 'live' ? (
-                        <TargetPulseLoader size={12} />
-                    ) : variant === 'errored' ? (
-                        <IconAlertTriangle
-                            size={12}
-                            color="var(--mantine-color-red-6)"
-                        />
-                    ) : (
-                        <Tooltip
-                            label={TRIGGERED_BY_ICON[run.triggeredBy].tooltip}
-                        >
-                            <Box display="inline-flex">
-                                <MantineIcon
-                                    icon={
-                                        TRIGGERED_BY_ICON[run.triggeredBy].icon
-                                    }
-                                    size={12}
-                                    color="dimmed"
-                                />
-                            </Box>
-                        </Tooltip>
-                    )}
-                    <Text fz="xs" fw={600} tt="uppercase" c="bright" lts={0.4}>
+                    <Text fz="sm" fw={600} c={isOpen ? undefined : 'ldGray.7'}>
                         Run
                     </Text>
-                    {variant !== 'live' && (
+                    <Text fz="xs" c="dimmed">
+                        ·
+                    </Text>
+                    <Tooltip
+                        label={formatAbsoluteTimestamp(
+                            run.startedAt.toString(),
+                        )}
+                    >
+                        <Text fz="sm" c={isOpen ? undefined : 'ldGray.7'}>
+                            {formatTimestamp(run.startedAt.toString())}
+                        </Text>
+                    </Tooltip>
+                    <Text fz="xs" c="dimmed">
+                        ·
+                    </Text>
+                    <Text fz="sm" c={isOpen ? undefined : 'ldGray.7'}>
+                        {TRIGGERED_BY_LABEL[run.triggeredBy]}
+                    </Text>
+                    {variant === 'live' && (
                         <>
                             <Text fz="xs" c="dimmed">
                                 ·
                             </Text>
-                            <Tooltip
-                                label={formatAbsoluteTimestamp(
-                                    run.startedAt.toString(),
-                                )}
-                            >
-                                <Text fz="xs" c="dimmed">
-                                    {formatTimestamp(run.startedAt.toString())}
-                                </Text>
-                            </Tooltip>
+                            <Box className={classes.runningDotInline} />
+                            <Text fz="xs" fw={500}>
+                                Running
+                            </Text>
                         </>
                     )}
-                    <ManagedAgentRunModel run={run} />
                     {variant === 'errored' && (
                         <>
                             <Text fz="xs" c="dimmed">
                                 ·
                             </Text>
-                            <Text fz="xs" c="red.6">
+                            <Box className={classes.failedDotInline} />
+                            <Text fz="xs" fw={500} c="red.7">
                                 Failed
                             </Text>
                         </>
@@ -2078,24 +2074,22 @@ const RunHeaderRow: FC<{
                                         ];
                                     if (!cfg || !count) return null;
                                     return (
-                                        <Tooltip key={type} label={cfg.label}>
-                                            <span
-                                                className={classes.runCountPill}
-                                            >
-                                                <Box
-                                                    className={classes.dot}
-                                                    bg={cfg.dotColor}
-                                                />
-                                                {count}
-                                            </span>
-                                        </Tooltip>
+                                        <span
+                                            key={type}
+                                            className={classes.runCountPill}
+                                        >
+                                            <Box
+                                                className={classes.dot}
+                                                bg={cfg.dotColor}
+                                            />
+                                            {count}{' '}
+                                            {count === 1
+                                                ? cfg.label.toLowerCase()
+                                                : cfg.pluralLabel}
+                                        </span>
                                     );
                                 },
                             )}
-                            <Text fz="xs" c="dimmed">
-                                {run.actionCount}{' '}
-                                {run.actionCount === 1 ? 'action' : 'actions'}
-                            </Text>
                         </>
                     ) : null}
                 </Group>
@@ -2120,7 +2114,7 @@ const RunRow: FC<{
         runUuid: run.runUuid,
     });
     return (
-        <Table.Tbody>
+        <Table.Tbody className={classes.runGroup} data-open={isOpen}>
             <RunHeaderRow
                 run={run}
                 variant={variant}
@@ -2129,33 +2123,33 @@ const RunRow: FC<{
                 onToggle={onToggle}
             />
             {isOpen && run.summary && (
-                <Table.Tr>
+                <Table.Tr className={classes.runSummaryRow}>
                     <Table.Td colSpan={3}>
-                        <Box px="md" py="xs" className={classes.runSummary}>
+                        <Box className={classes.runSummary}>
                             <ManagedAgentRunSummary summary={run.summary} />
                         </Box>
                     </Table.Td>
                 </Table.Tr>
             )}
             {variant === 'errored' && isOpen && run.error && (
-                <Table.Tr>
+                <Table.Tr className={classes.runSummaryRow}>
                     <Table.Td colSpan={3}>
-                        <Text fz="xs" c="red.6" px="md" py={6}>
-                            {run.error}
-                        </Text>
+                        <Box className={classes.runSummary}>
+                            <Text fz={13}>{run.error}</Text>
+                        </Box>
                     </Table.Td>
                 </Table.Tr>
             )}
             {expandable && isOpen && (
                 <>
                     {isLive && (
-                        <Table.Tr className={classes.liveActivityRow}>
+                        <Table.Tr className={classes.runSummaryRow}>
                             <Table.Td colSpan={3}>
-                                <Group gap="xs" justify="center" py="xs">
+                                <Box className={classes.runSummary}>
                                     <ToolActivityBadge
                                         currentActivity={run.currentActivity}
                                     />
-                                </Group>
+                                </Box>
                             </Table.Td>
                         </Table.Tr>
                     )}
@@ -2204,26 +2198,21 @@ const QuietRunsGroup: FC<{
     onToggle: () => void;
 }> = ({ runs, isOpen, onToggle }) => (
     <Table.Tbody>
-        <Table.Tr
-            className={`${classes.quietGroupRow} ${
-                isOpen ? classes.quietGroupRowOpen : ''
-            }`}
-            onClick={onToggle}
-        >
+        <Table.Tr className={classes.quietGroupRow} onClick={onToggle}>
             <Table.Td colSpan={3}>
-                <Tooltip
-                    label={`${runs.length} quiet ${
-                        runs.length === 1 ? 'run' : 'runs'
-                    }`}
-                >
-                    <Box style={{ display: 'flex', justifyContent: 'center' }}>
-                        <MantineIcon
-                            icon={IconSelector}
-                            size={10}
-                            color="dimmed"
-                        />
-                    </Box>
-                </Tooltip>
+                <Group gap="xs" wrap="nowrap">
+                    <MantineIcon
+                        icon={IconChevronRight}
+                        size={12}
+                        className={
+                            isOpen ? classes.runChevronOpen : classes.runChevron
+                        }
+                    />
+                    <Text fz="sm" c="dimmed">
+                        {runs.length} quiet {runs.length === 1 ? 'run' : 'runs'}{' '}
+                        · no actions
+                    </Text>
+                </Group>
             </Table.Td>
         </Table.Tr>
         {isOpen &&
@@ -2236,31 +2225,18 @@ const QuietRunsGroup: FC<{
                                 wrap="nowrap"
                                 className={classes.quietRunMeta}
                             >
-                                <MantineIcon
-                                    icon={
-                                        TRIGGERED_BY_ICON[run.triggeredBy].icon
-                                    }
-                                    size={11}
-                                    color="dimmed"
-                                />
                                 <Group gap={4} wrap="nowrap">
-                                    <Text
-                                        fz="xs"
-                                        fw={600}
-                                        tt="uppercase"
-                                        c="dimmed"
-                                        lts={0.4}
-                                    >
+                                    <Text fz="xs" fw={500} c="dimmed">
                                         Run
                                     </Text>
                                     <Text fz="xs" c="dimmed">
                                         ·{' '}
                                         {formatTimestamp(
                                             run.startedAt.toString(),
-                                        )}
+                                        )}{' '}
+                                        · {TRIGGERED_BY_LABEL[run.triggeredBy]}
                                     </Text>
                                 </Group>
-                                <ManagedAgentRunModel run={run} />
                             </Group>
                             <Text fz="xs" c="dimmed">
                                 No actions
@@ -2599,7 +2575,7 @@ const FilteredActionsView: FC<{
             <Table.Thead>
                 <Table.Tr>
                     <Table.Th w={140}>Action</Table.Th>
-                    <Table.Th w={260}>Name</Table.Th>
+                    <Table.Th w={300}>Name</Table.Th>
                     <Table.Th>Message</Table.Th>
                 </Table.Tr>
             </Table.Thead>
@@ -2634,13 +2610,7 @@ const FilteredActionsView: FC<{
                         <Fragment key={group.day}>
                             <Table.Tr className={classes.dayHeaderRow}>
                                 <Table.Td colSpan={3}>
-                                    <Text
-                                        fz="xs"
-                                        fw={600}
-                                        tt="uppercase"
-                                        c="dimmed"
-                                        lts={0.4}
-                                    >
+                                    <Text fz="xs" fw={500} c="dimmed">
                                         {group.day}
                                     </Text>
                                 </Table.Td>
@@ -2916,11 +2886,14 @@ const ManagedAgentActivityPage: FC = () => {
                             {runs.length === 0 ? (
                                 <Box className={classes.empty}>
                                     <Text fw={500} fz="sm" mt="xs">
-                                        No activity yet
+                                        {settings?.enabled
+                                            ? 'No runs yet'
+                                            : 'Autopilot is off'}
                                     </Text>
                                     <Text fz="xs" c="dimmed">
-                                        The agent runs on a schedule, check back
-                                        soon.
+                                        {settings?.enabled
+                                            ? 'The first scheduled run has not happened yet. Run it now to see results sooner.'
+                                            : 'Turn it on in settings to start monitoring this project.'}
                                     </Text>
                                 </Box>
                             ) : (
@@ -2948,7 +2921,7 @@ const ManagedAgentActivityPage: FC = () => {
                                                     <Table.Th w={140}>
                                                         Action
                                                     </Table.Th>
-                                                    <Table.Th w={260}>
+                                                    <Table.Th w={300}>
                                                         Name
                                                     </Table.Th>
                                                     <Table.Th>Message</Table.Th>
