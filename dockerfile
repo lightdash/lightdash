@@ -260,6 +260,7 @@ COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses/
 COPY packages/backend/tsconfig.json ./packages/backend/
+COPY packages/backend/tsconfig.build.json ./packages/backend/
 COPY packages/backend/tsconfig.sentry.json ./packages/backend/
 COPY packages/backend/tsoa.yml ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src/

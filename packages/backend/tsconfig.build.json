@@ -1,0 +1,19 @@
+{
+    // Emit config: everything tsconfig.json typechecks, minus test-only sources.
+    // tsconfig.json keeps the tests so `typecheck`, editors and Vitest still see them.
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "tsBuildInfoFile": "dist/.tsbuildinfo.build"
+    },
+    "exclude": [
+        "dist",
+        "node_modules",
+        "src/ee/services/McpService/mcp-chart-app",
+        "src/**/*.test.ts",
+        "src/**/*.mock.ts",
+        "src/**/__tests__",
+        "src/**/__snapshots__",
+        "src/ee/repl/scripts/testUtils",
+        "src/utils/QueryBuilder/metricQueryBuilderSnapshots"
+    ]
+}
