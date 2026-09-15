@@ -1,7 +1,9 @@
 import { Box, Tooltip } from '@mantine/core';
 import { useDrag } from '@mantine/hooks';
 import {
+    useEffect,
     useRef,
+    useState,
     type CSSProperties,
     type FC,
     type KeyboardEvent,
@@ -29,6 +31,8 @@ const KEY_DIRECTIONS: Record<string, readonly [number, number]> = {
 const PAGE_MARGIN = 32;
 const NAVBAR_GAP = 8;
 
+const HINT_TIMEOUT_MS = 3000;
+
 const readNavbarHeight = () =>
     parseFloat(
         getComputedStyle(document.documentElement).getPropertyValue(
@@ -49,9 +53,27 @@ const measure = (frame: HTMLElement) => {
 };
 
 export const LauncherPanelFrame: FC<Props> = ({ style, children }) => {
-    const { previewSize, commitSize } = useLauncherPanelSizeContext();
+    const { previewSize, commitSize, resizeHintSeen, markResizeHintSeen } =
+        useLauncherPanelSizeContext();
     const frameRef = useRef<HTMLDivElement>(null);
     const dragStartRef = useRef<ReturnType<typeof measure> | null>(null);
+
+    // The hint is shown once: it closes on leave, on timeout or on the first
+    // resize, and is never shown again after that.
+    const [hintOpen, setHintOpen] = useState(false);
+    const closeHint = () => {
+        if (!hintOpen) return;
+        setHintOpen(false);
+        markResizeHintSeen();
+    };
+    useEffect(() => {
+        if (!hintOpen) return;
+        const timer = window.setTimeout(() => {
+            setHintOpen(false);
+            markResizeHintSeen();
+        }, HINT_TIMEOUT_MS);
+        return () => window.clearTimeout(timer);
+    }, [hintOpen, markResizeHintSeen]);
 
     // The panel is anchored bottom-right, so dragging the corner up or left
     // grows it.
@@ -80,7 +102,10 @@ export const LauncherPanelFrame: FC<Props> = ({ style, children }) => {
                 return;
             }
             dragStartRef.current = null;
-            if (distance[0] > 0 || distance[1] > 0) commitSize(size);
+            if (distance[0] > 0 || distance[1] > 0) {
+                setHintOpen(false);
+                commitSize(size);
+            }
         },
     );
 
@@ -106,7 +131,7 @@ export const LauncherPanelFrame: FC<Props> = ({ style, children }) => {
             {children}
             <Tooltip
                 label="Drag to resize, double-click to reset"
-                openDelay={400}
+                opened={hintOpen}
             >
                 <Box
                     ref={handleRef}
@@ -114,6 +139,10 @@ export const LauncherPanelFrame: FC<Props> = ({ style, children }) => {
                     aria-label="Resize panel"
                     tabIndex={0}
                     className={styles.resizeHandle}
+                    onPointerEnter={() => {
+                        if (!resizeHintSeen) setHintOpen(true);
+                    }}
+                    onPointerLeave={closeHint}
                     onDoubleClick={() => commitSize(null)}
                     onKeyDown={handleKeyDown}
                 />

@@ -4,6 +4,8 @@ import { type LauncherPanelSize } from './launcherPanelSize';
 export type LauncherPanelSizeContextValue = {
     previewSize: (size: LauncherPanelSize) => void;
     commitSize: (size: LauncherPanelSize | null) => void;
+    resizeHintSeen: boolean;
+    markResizeHintSeen: () => void;
 };
 
 export const LauncherPanelSizeContext =

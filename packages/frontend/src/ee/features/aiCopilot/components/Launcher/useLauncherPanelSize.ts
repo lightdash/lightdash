@@ -6,7 +6,8 @@ import {
 } from './launcherPanelSize';
 import { type LauncherPanelSizeContextValue } from './LauncherPanelSizeContext';
 
-const STORAGE_KEY = 'aiAgentsLauncherPanelSize:v1';
+const SIZE_STORAGE_KEY = 'aiAgentsLauncherPanelSize:v1';
+const HINT_STORAGE_KEY = 'aiAgentsLauncherPanelResizeHintSeen:v1';
 
 type LauncherPanelVars = Record<
     '--ai-launcher-panel-width' | '--ai-launcher-panel-height',
@@ -22,11 +23,16 @@ export const useLauncherPanelSize = () => {
     const rootRef = useRef<HTMLDivElement>(null);
     const [storedSize, setStoredSize] =
         useLocalStorage<LauncherPanelSize | null>({
-            key: STORAGE_KEY,
+            key: SIZE_STORAGE_KEY,
             defaultValue: null,
             getInitialValueInEffect: false,
             deserialize: parseLauncherPanelSize,
         });
+    const [resizeHintSeen, setResizeHintSeen] = useLocalStorage<boolean>({
+        key: HINT_STORAGE_KEY,
+        defaultValue: false,
+        getInitialValueInEffect: false,
+    });
 
     // Drag updates go straight to the DOM so the chat below is not re-rendered
     // on every pointer move; the final size is committed through React.
@@ -38,14 +44,22 @@ export const useLauncherPanelSize = () => {
         );
     }, []);
 
+    const markResizeHintSeen = useCallback(
+        () => setResizeHintSeen(true),
+        [setResizeHintSeen],
+    );
+
     const commitSize = useCallback(
-        (size: LauncherPanelSize | null) => setStoredSize(size),
-        [setStoredSize],
+        (size: LauncherPanelSize | null) => {
+            setStoredSize(size);
+            if (size) setResizeHintSeen(true);
+        },
+        [setStoredSize, setResizeHintSeen],
     );
 
     const context = useMemo<LauncherPanelSizeContextValue>(
-        () => ({ previewSize, commitSize }),
-        [previewSize, commitSize],
+        () => ({ previewSize, commitSize, resizeHintSeen, markResizeHintSeen }),
+        [previewSize, commitSize, resizeHintSeen, markResizeHintSeen],
     );
 
     const rootVars = useMemo(
