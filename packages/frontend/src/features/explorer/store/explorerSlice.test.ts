@@ -259,6 +259,28 @@ describe('explorerSlice chart type authoring', () => {
         expect(cancelled.chartSidebarStep).toBe('choose');
     });
 
+    it.each(['choose', 'configure'] as const)(
+        'returns to %s after editing an existing type',
+        (step) => {
+            const entered = explorerReducer(
+                explorerReducer(
+                    fromChoose,
+                    explorerActions.setChartSidebarStep(step),
+                ),
+                explorerActions.startChartTypeAuthoring({
+                    dataAppVizUuid: 'viz-1',
+                }),
+            );
+            const finished = explorerReducer(
+                entered,
+                explorerActions.finishChartTypeAuthoring(),
+            );
+            expect(finished.chartSidebarStep).toBe(step);
+            expect(finished.chartTypeAuthoring).toBeNull();
+            expect(finished.isVisualizationConfigOpen).toBe(true);
+        },
+    );
+
     it('finishes on the configuration of the authored type', () => {
         const finished = explorerReducer(
             authoringNew,

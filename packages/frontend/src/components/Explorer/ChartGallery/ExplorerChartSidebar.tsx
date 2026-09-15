@@ -3,9 +3,17 @@ import {
     isOfficialChartType,
     type ChartType,
 } from '@lightdash/common';
-import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
-    IconArrowLeft,
+    ActionIcon,
+    Anchor,
+    Button,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconChevronLeft,
     IconFilePencil,
     IconLayoutSidebarRightCollapse,
     IconSettings,
@@ -161,13 +169,20 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                             <Group justify="space-between" wrap="nowrap">
                                 <Group gap="xs" wrap="nowrap">
                                     <Tooltip label="Back to configuration">
-                                        <ActionIcon
-                                            size="sm"
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconChevronLeft}
+                                                    size={15}
+                                                />
+                                            }
                                             aria-label="Back to configuration"
                                             onClick={showConfigure}
                                         >
-                                            <MantineIcon icon={IconArrowLeft} />
-                                        </ActionIcon>
+                                            Back
+                                        </Button>
                                     </Tooltip>
                                     <Text
                                         id={

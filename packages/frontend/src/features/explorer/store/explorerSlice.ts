@@ -470,12 +470,16 @@ const explorerSlice = createSlice({
             state.chartTypeAuthoring = null;
             state.isVisualizationConfigOpen = true;
         },
-        // The chart now uses the authored type, so land on its configuration.
+        // Return edits to their entry point; a new type needs configuration.
         finishChartTypeAuthoring: (state) => {
-            if (state.chartTypeAuthoring === null) return;
+            const authoring = state.chartTypeAuthoring;
+            if (authoring === null) return;
+            state.chartSidebarStep =
+                authoring.dataAppVizUuid !== null && !authoring.createdInSession
+                    ? authoring.previous.chartSidebarStep
+                    : 'configure';
             state.chartTypeAuthoring = null;
             state.isVisualizationConfigOpen = true;
-            state.chartSidebarStep = 'configure';
         },
 
         toggleCustomDimensionModal: (
