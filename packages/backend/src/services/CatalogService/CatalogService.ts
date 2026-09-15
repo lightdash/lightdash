@@ -95,8 +95,9 @@ import {
  * triggered (SPK-2121): a browse page load, a search request (both via
  * getFilteredExplores), or the background index job. Browse and search share
  * a code path up to getFilteredExplores but diverge immediately after - a
- * search request throws away the returned filteredExplores and re-reads via
- * searchCatalog, so they must not share a log bucket.
+ * search request discards the returned filteredExplores and searches the
+ * catalog_search index instead, so the cached_explore read it just paid for
+ * is wasted. They must not share a log bucket.
  */
 type CatalogBrowseTrigger = 'browse' | 'search' | 'index';
 
@@ -373,13 +374,8 @@ export class CatalogService<
         projectUuid: string,
         requestKind: Extract<CatalogBrowseTrigger, 'browse' | 'search'>,
     ) {
-        // /dataCatalog browse+search - the user-facing page PROD-10912
-        // deliberately does not touch. Same field contract as the other
-        // cached-explore read sites (SPK-2121), plus a DB-read/Node-filter
-        // phase split since this path also filters by user attribute.
-        // requestKind is decided by the caller (getCatalog already knows
-        // whether this is a search) and passed in rather than re-derived
-        // here, so browse and search land in different log buckets.
+        // /dataCatalog browse+search - PROD-10912 deliberately does not
+        // touch this path, but it shares the same cached-explore read.
         const browseReadContext: ExploreCacheReadContext & {
             trigger: CatalogBrowseTrigger;
         } = {
@@ -467,10 +463,6 @@ export class CatalogService<
     }
 
     async indexCatalog(projectUuid: string, userUuid: string | undefined) {
-        // Background index job over the same cache the /dataCatalog browse
-        // read uses (SPK-2121) - shares codePath 'catalog-browse' with
-        // getFilteredExplores, distinguished by trigger so a scheduled job
-        // and a user-facing page request don't land in the same bucket.
         const indexReadContext: ExploreCacheReadContext & {
             trigger: CatalogBrowseTrigger;
         } = {
