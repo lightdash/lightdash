@@ -400,7 +400,6 @@ export class CatalogService<
                         ),
                     ),
                 ]);
-                browseReadContext.dbReadMs = performance.now() - dbReadStart;
 
                 if (!cachedExplores) return [];
 
