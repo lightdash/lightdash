@@ -1,5 +1,4 @@
 import {
-    type AiAgentSummary,
     type DataAppAnomaly,
     type DataAppAnomalySeverity,
 } from '@lightdash/common';
@@ -16,7 +15,6 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
 import { IconSparkles } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { type FC } from 'react';
@@ -24,20 +22,12 @@ import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useLauncherDock } from '../../../ee/features/aiCopilot/components/Launcher/useLauncherDock';
-import { useProjectAiAgents } from '../../../ee/features/aiCopilot/hooks/useProjectAiAgents';
-import { openPanel } from '../../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
-import { useAiAgentStoreDispatch } from '../../../ee/features/aiCopilot/store/hooks';
-import { type QueryEvent } from '../hooks/useAppSdkBridge';
 import classes from './DataAppAnalysisPanel.module.css';
-import {
-    useDataAppAnalysis,
-    type InvestigationState,
-} from './useDataAppAnalysis';
+import { type InvestigationState } from './useDataAppAnalysis';
 import { type DataAppAnalysisAvailability } from './useDataAppAnalysisAvailability';
+import { type DataAppAnalysisController } from './useDataAppAnalysisController';
 
 const PANEL_WIDTH = 440;
-const AGENT_STORAGE_KEY = 'data-apps:analysis-agent';
 
 const SEVERITY_COLOR: Record<DataAppAnomalySeverity, string> = {
     high: 'red',
@@ -70,7 +60,7 @@ const AnomalyCard: FC<{
     highlightable: boolean;
     onHover: (queryUuid: string | null) => void;
     onInvestigate: () => void;
-    onContinue: (threadUuid: string, agentUuid: string, title: string) => void;
+    onContinue: () => void;
 }> = ({
     anomaly,
     investigation,
@@ -135,13 +125,7 @@ const AnomalyCard: FC<{
                             size="xs"
                             variant="light"
                             color="indigo"
-                            onClick={() =>
-                                onContinue(
-                                    investigation.investigation.threadUuid,
-                                    investigation.investigation.agentUuid,
-                                    anomaly.text,
-                                )
-                            }
+                            onClick={onContinue}
                         >
                             Continue in Ask AI
                         </Button>
@@ -155,10 +139,9 @@ const AnomalyCard: FC<{
 type Props = {
     opened: boolean;
     onClose: () => void;
-    projectUuid: string;
     appUuid: string;
-    queries: QueryEvent[];
     availability: DataAppAnalysisAvailability;
+    controller: DataAppAnalysisController;
     lineageAvailable: boolean;
     onHoverQuery: (queryUuid: string | null) => void;
 };
@@ -166,50 +149,28 @@ type Props = {
 const DataAppAnalysisPanel: FC<Props> = ({
     opened,
     onClose,
-    projectUuid,
-    appUuid,
-    queries,
     availability,
+    controller,
     lineageAvailable,
     onHoverQuery,
 }) => {
-    const dispatch = useAiAgentStoreDispatch();
-    const { addItem: addDockItem } = useLauncherDock(projectUuid);
-    const { sources, inFlight, state, investigations, analyse, investigate } =
-        useDataAppAnalysis({ projectUuid, appUuid, queries });
+    const {
+        sources,
+        inFlight,
+        state,
+        investigations,
+        analyse,
+        agents,
+        agentsLoading,
+        selectedAgentUuid,
+        rememberedAgentMissing,
+        selectAgent,
+        investigateAnomaly,
+        continueInAskAi,
+    } = controller;
 
-    const agentsQuery = useProjectAiAgents({
-        projectUuid,
-        redirectOnUnauthorized: false,
-        options: { enabled: availability.status === 'available' },
-    });
-    const agents: AiAgentSummary[] = agentsQuery.data ?? [];
-    const [agentByApp, setAgentByApp] = useLocalStorage<Record<string, string>>(
-        { key: AGENT_STORAGE_KEY, defaultValue: {} },
-    );
-    const rememberedAgent = agentByApp[appUuid];
-    // An agent that disappeared or lost access shows as unavailable rather
-    // than silently falling back to another one.
-    const rememberedIsUsable = agents.some((a) => a.uuid === rememberedAgent);
-    const selectedAgentUuid = rememberedAgent
-        ? rememberedIsUsable
-            ? rememberedAgent
-            : null
-        : (agents[0]?.uuid ?? null);
-
-    // The launcher only shows threads it knows about, so dock it first.
-    const handleContinue = (
-        threadUuid: string,
-        agentUuid: string,
-        title: string,
-    ) => {
-        addDockItem({
-            threadId: threadUuid,
-            agentUuid,
-            title,
-            createdAt: Date.now(),
-        });
-        dispatch(openPanel({ threadId: threadUuid, agentUuid }));
+    const handleContinue = (anomalyId: string) => {
+        continueInAskAi(anomalyId);
         onClose();
     };
 
@@ -267,20 +228,17 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                             }))}
                                             value={selectedAgentUuid}
                                             onChange={(value) =>
-                                                value &&
-                                                setAgentByApp({
-                                                    ...agentByApp,
-                                                    [appUuid]: value,
-                                                })
+                                                value && selectAgent(value)
                                             }
                                             error={
-                                                rememberedAgent &&
-                                                !rememberedIsUsable &&
-                                                !agentsQuery.isInitialLoading
+                                                rememberedAgentMissing
                                                     ? 'The agent you picked is no longer available'
                                                     : undefined
                                             }
-                                            disabled={agents.length === 0}
+                                            disabled={
+                                                agents.length === 0 ||
+                                                agentsLoading
+                                            }
                                         />
                                         <Button
                                             size="xs"
@@ -378,18 +336,15 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                                                 onHover={
                                                                     onHoverQuery
                                                                 }
-                                                                onInvestigate={() => {
-                                                                    if (
-                                                                        !selectedAgentUuid
-                                                                    )
-                                                                        return;
-                                                                    void investigate(
+                                                                onInvestigate={() =>
+                                                                    investigateAnomaly(
                                                                         anomaly.id,
-                                                                        selectedAgentUuid,
-                                                                    );
-                                                                }}
-                                                                onContinue={
-                                                                    handleContinue
+                                                                    )
+                                                                }
+                                                                onContinue={() =>
+                                                                    handleContinue(
+                                                                        anomaly.id,
+                                                                    )
                                                                 }
                                                             />
                                                         ),

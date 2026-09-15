@@ -170,6 +170,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Replace any underlying-data dialog, table, fetch, and download UI in the viz with underlyingData.open({ row: datum.sourceRow, metric: "<field name>" }). Keep only the data-point action menu in the viz, gated on underlyingData.enabled; Lightdash owns the dialog.',
     },
     {
+        key: 'ai-insights',
+        appliesTo: ['data_app'],
+        label: 'AI analysis',
+        description:
+            "Render the host's AI analysis of the current view inside the app: an executive summary with notable changes, markers on the flagged data points, and Investigate / Continue in Ask AI actions.",
+        wiring: 'Call useInsights() for the view-level headline, summary, limitations and anomalies (render a summary block; call analyse() from a Regenerate control), and useInsights(result) per chart to mark rows where matches(row) is non-empty and to offer investigate(id). Render nothing when status is "unavailable".',
+    },
+    {
         key: 'viz-drill-down',
         appliesTo: ['chart_type'],
         label: 'Drill into data points',
