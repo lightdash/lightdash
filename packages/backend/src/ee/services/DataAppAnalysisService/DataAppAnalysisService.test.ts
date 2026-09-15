@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    FeatureFlags,
     FieldType,
     ForbiddenError,
     MetricType,
@@ -78,6 +79,7 @@ function buildService(
         orgSettingEnabled?: boolean;
         copilotEnabled?: boolean;
         dataAppsEnabled?: boolean;
+        analysisEnabled?: boolean;
         queryContext?: QueryExecutionContext;
     } = {},
 ) {
@@ -125,11 +127,14 @@ function buildService(
             }),
         },
         featureFlagModel: {
-            get: vi
-                .fn()
-                .mockResolvedValue({
-                    enabled: overrides.dataAppsEnabled ?? true,
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    enabled:
+                        featureFlagId === FeatureFlags.EnableDataAppAnalysis
+                            ? (overrides.analysisEnabled ?? true)
+                            : (overrides.dataAppsEnabled ?? true),
                 }),
+            ),
         },
         spacePermissionService: {
             resolveAccess: vi.fn().mockResolvedValue({}),
@@ -219,6 +224,7 @@ describe('DataAppAnalysisService.detect', () => {
     it.each([
         ['copilot', { copilotEnabled: false }, 'copilot_disabled'],
         ['data apps flag', { dataAppsEnabled: false }, 'data_apps_disabled'],
+        ['analysis flag', { analysisEnabled: false }, 'analysis_disabled'],
     ])('rejects when %s is off', async (_label, overrides, code) => {
         const { service } = buildService(overrides);
         await expect(
