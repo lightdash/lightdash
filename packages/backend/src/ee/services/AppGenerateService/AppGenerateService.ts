@@ -21,6 +21,7 @@ import {
     chartTypeIconSchema,
     checkThemeLimits,
     compareSemverVersions,
+    ConflictError,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_CODEX_MODELS,
     DATA_APP_VIZ_TEMPLATE,
@@ -9701,7 +9702,28 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        await this.appModel.restore(appUuid, projectUuid);
+        // A fresh copy installed since the uninstall holds the one-active-
+        // install-per-slug index; surface that actionably instead of leaking
+        // the DB violation as a 500.
+        const restoreConflict = () =>
+            new ConflictError(
+                'A copy of this chart type is already installed. Uninstall it before restoring this one — existing charts point at the copy being restored.',
+            );
+        if (app.registry_slug !== null) {
+            const active =
+                await this.appModel.listRegistryInstalledApps(projectUuid);
+            if (active.some((a) => a.registry_slug === app.registry_slug)) {
+                throw restoreConflict();
+            }
+        }
+        try {
+            await this.appModel.restore(appUuid, projectUuid);
+        } catch (e) {
+            if (isUniqueConstraintViolation(e)) {
+                throw restoreConflict();
+            }
+            throw e;
+        }
 
         this.analytics.track({
             event: 'data_app.restored',
