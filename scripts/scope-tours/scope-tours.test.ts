@@ -151,6 +151,7 @@ export const Explore = () => (
         <a data-tour-nav="new-chart" data-tour-hint="Choose Chart" />
         <a data-tour-anchor="explore-table" data-tour-hint="Open a table" data-tour-hint-named="Open {value}" data-tour-value="Payments" />
         <input data-tour-anchor="explore-search" data-tour-hint="Search for the table" data-tour-input="true" data-tour-suggest="Orders by status" />
+        <input data-tour-anchor="explore-field-search" data-tour-hint="Search for the field" data-tour-input="true" data-tour-suggest="Total revenue" />
         <div
             //   data-tour-anchor="explore-metric" data-tour-hint="Select a metric" data-tour-hint-named="Find {value}"
             data-tour-anchor={x ? 'explore-metric' : undefined}
@@ -662,7 +663,7 @@ export const Card = () => (
         assert.strictEqual(conceptOf('explore/no-such-page'), undefined);
     }
 
-    // A lesson becomes a fixed eleven-step tour over the workspace and the explore.
+    // A lesson becomes a fixed twelve-step tour over the workspace and the explore.
     {
         const { buildLessonTours, docsCardTitle } = await import('./lib');
         const files = [
@@ -678,7 +679,7 @@ export const Card = () => (
         );
         assert.strictEqual(
             tour.steps.map((s) => s.title).join(' > '),
-            'Metrics > Open models/payments.yml > Edit the file > Type the command > Run the command > See the result > Click New > Choose Chart > Open Payments > Find Average payment amount > Using the column meta tag',
+            'Metrics > Open models/payments.yml > Edit the file > Type the command > Run the command > See the result > Click New > Choose Chart > Search for Payments > Open Payments > Find Average payment amount > Using the column meta tag',
         );
         assert.strictEqual(
             tour.steps[0].body,
@@ -706,17 +707,40 @@ export const Card = () => (
             tour.steps[5].body,
             'Trigger a re-compile and refresh of your Lightdash project',
         );
-        assert.strictEqual(tour.steps[9].suggestion, 'Average payment amount');
+        // The table list is virtualised: the table is searched for before it
+        // can be clicked.
+        assert.strictEqual(tour.steps[8].suggestion, 'Payments');
+        assert.strictEqual(
+            tour.steps[8].target,
+            '[data-tour-anchor="explore-search"]',
+        );
+        assert.strictEqual(
+            tour.steps[9].target,
+            '[data-tour-anchor="explore-table"][data-tour-value="Payments"]',
+        );
         assert.deepStrictEqual(tour.steps[9].via, [
             '[data-tour-nav="new"]',
             '[data-tour-nav="new-chart"]',
+            '[data-tour-anchor="explore-search"]',
+        ]);
+        // The table list's search is gone once the explore is open: the
+        // field tree has its own.
+        assert.strictEqual(
+            tour.steps[10].target,
+            '[data-tour-anchor="explore-field-search"]',
+        );
+        assert.strictEqual(tour.steps[10].suggestion, 'Average payment amount');
+        assert.deepStrictEqual(tour.steps[10].via, [
+            '[data-tour-nav="new"]',
+            '[data-tour-nav="new-chart"]',
+            '[data-tour-anchor="explore-search"]',
             '[data-tour-anchor="explore-table"][data-tour-value="Payments"]',
         ]);
         assert.strictEqual(
-            tour.steps[10].target,
+            tour.steps[11].target,
             '[data-tour-anchor="explore-metric"][data-tour-value="Average payment amount"]',
         );
-        assert.strictEqual(tour.steps[10].interactive, false);
+        assert.strictEqual(tour.steps[11].interactive, false);
         assert.strictEqual(
             tour.steps[0].route,
             '/projects/:projectUuid/learn/workspace',

@@ -333,6 +333,13 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 value={search}
                 onChange={handleSearchChange}
                 data-testid="ExploreTree/SearchInput"
+                // Typed anchor for scope walkthroughs and developer lessons:
+                // the field tree is virtualised, so a field far down it is
+                // reached by searching for it.
+                data-tour-anchor="explore-field-search"
+                data-tour-hint="Search for the field"
+                data-tour-input="true"
+                data-tour-suggest="Total revenue"
             />
 
             {!hideSelectedFields && (

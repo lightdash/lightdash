@@ -5633,6 +5633,17 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: ['[data-tour-nav="new"]'],
             },
             {
+                target: '[data-tour-anchor="explore-search"]',
+                route: '/projects/:projectUuid/tables/:tableName',
+                title: 'Search for Payments',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: true,
+                via: ['[data-tour-nav="new"]', '[data-tour-nav="new-chart"]'],
+                suggestion: 'Payments',
+            },
+            {
                 target: '[data-tour-anchor="explore-table"][data-tour-value="Payments"]',
                 route: '/projects/:projectUuid/tables/:tableName',
                 title: 'Open Payments',
@@ -5640,10 +5651,14 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 interactive: true,
                 advanceOnTargetClick: true,
                 advanceOnTargetInput: false,
-                via: ['[data-tour-nav="new"]', '[data-tour-nav="new-chart"]'],
+                via: [
+                    '[data-tour-nav="new"]',
+                    '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
+                ],
             },
             {
-                target: '[data-tour-anchor="explore-search"]',
+                target: '[data-tour-anchor="explore-field-search"]',
                 route: '/projects/:projectUuid/tables/:tableName',
                 title: 'Find Average payment amount',
                 body: '',
@@ -5653,6 +5668,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-nav="new"]',
                     '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
                     '[data-tour-anchor="explore-table"][data-tour-value="Payments"]',
                 ],
                 suggestion: 'Average payment amount',
@@ -5668,7 +5684,9 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-nav="new"]',
                     '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
                     '[data-tour-anchor="explore-table"][data-tour-value="Payments"]',
+                    '[data-tour-anchor="explore-field-search"]',
                 ],
             },
         ],

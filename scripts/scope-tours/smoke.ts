@@ -76,7 +76,9 @@ const login = async (page: Page) => {
     await page.goto(`${BASE}/login`);
     await page.getByLabel('Email address').fill(EMAIL);
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByLabel('Password').fill(PASSWORD);
+    // By role: the visibility toggle beside the field also carries a label
+    // containing "password", so a label lookup alone is ambiguous.
+    await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
     // Only the URL: after login the app may bounce for a while between the
     // project list and a copy an earlier run left behind (its remembered
