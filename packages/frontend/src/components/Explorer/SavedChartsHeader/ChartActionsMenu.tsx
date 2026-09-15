@@ -70,6 +70,7 @@ import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useChartPermissions } from '../../../hooks/useChartPermissions';
 import { useContentAction } from '../../../hooks/useContent';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import {
     useUnverifyChartMutation,
     useVerifyChartMutation,
@@ -148,6 +149,7 @@ const ChartActionsMenu: FC<Props> = ({
     onSlugRenamed,
     schedulerDeepLink = null,
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const { data: changeChartExploreFlag } = useServerFeatureFlag(
         FeatureFlags.ChangeChartExplore,
     );
@@ -319,7 +321,7 @@ const ChartActionsMenu: FC<Props> = ({
                         !hasUnsavedChanges &&
                         !chartBelongsToDashboard && (
                             <Menu.Item
-                                visibleFrom="sm"
+                                display={authoringEnabled ? undefined : 'none'}
                                 leftSection={<MantineIcon icon={IconCopy} />}
                                 onClick={chartDuplicateModalHandlers.open}
                             >
@@ -328,7 +330,7 @@ const ChartActionsMenu: FC<Props> = ({
                         )}
                     {userCanManageChart && !chartBelongsToDashboard && (
                         <Menu.Item
-                            visibleFrom="sm"
+                            display={authoringEnabled ? undefined : 'none'}
                             leftSection={
                                 <MantineIcon icon={IconLayoutGridAdd} />
                             }
@@ -341,7 +343,7 @@ const ChartActionsMenu: FC<Props> = ({
                         userCanManageChartViaSpace &&
                         savedChart.dashboardUuid && (
                             <Menu.Item
-                                visibleFrom="sm"
+                                display={authoringEnabled ? undefined : 'none'}
                                 leftSection={<MantineIcon icon={IconFolders} />}
                                 onClick={() => setIsMovingChart(true)}
                             >
@@ -384,7 +386,7 @@ const ChartActionsMenu: FC<Props> = ({
                         )}
                     {userCanManageChart && !chartBelongsToDashboard && (
                         <Menu.Item
-                            visibleFrom="sm"
+                            display={authoringEnabled ? undefined : 'none'}
                             leftSection={
                                 <MantineIcon icon={IconFolderSymlink} />
                             }
@@ -406,7 +408,7 @@ const ChartActionsMenu: FC<Props> = ({
                         changeChartExploreEnabled &&
                         userCanManageChart && (
                             <Menu.Item
-                                visibleFrom="sm"
+                                display={authoringEnabled ? undefined : 'none'}
                                 leftSection={
                                     <MantineIcon icon={IconArrowsExchange} />
                                 }
@@ -422,7 +424,9 @@ const ChartActionsMenu: FC<Props> = ({
                         >
                             <div>
                                 <Menu.Item
-                                    visibleFrom="sm"
+                                    display={
+                                        authoringEnabled ? undefined : 'none'
+                                    }
                                     disabled={promoteDisabled}
                                     leftSection={
                                         <MantineIcon
@@ -479,7 +483,9 @@ const ChartActionsMenu: FC<Props> = ({
                             )}
                             {userCanManageChart && (
                                 <Menu.Item
-                                    visibleFrom="sm"
+                                    display={
+                                        authoringEnabled ? undefined : 'none'
+                                    }
                                     leftSection={
                                         <MantineIcon icon={IconLink} />
                                     }

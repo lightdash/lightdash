@@ -19,6 +19,7 @@ import {
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
+import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
 import {
     clearPreview,
@@ -51,6 +52,7 @@ const VerifiedBadge: FC<{ verification: ContentVerificationInfo }> = ({
 };
 
 export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const dispatch = useAiAgentStoreDispatch();
 
     const {
@@ -140,7 +142,9 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                             </Menu.Target>
                             <Menu.Dropdown>
                                 <Menu.Item
-                                    visibleFrom="sm"
+                                    display={
+                                        authoringEnabled ? undefined : 'none'
+                                    }
                                     component="a"
                                     href={chartUrl}
                                     target="_blank"

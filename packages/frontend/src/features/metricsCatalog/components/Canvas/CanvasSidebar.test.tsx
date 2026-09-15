@@ -1,8 +1,10 @@
+import { useMediaQuery } from '@mantine/hooks';
 import { act, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { Panel, PanelGroup } from 'react-resizable-panels';
 import { describe, expect, it, vi } from 'vitest';
+import ResizableSplitter from '../../../../components/common/ResizableSplitter';
+import { mockViewport } from '../../../../testing/mockViewport';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { CanvasSidebar } from './CanvasSidebar';
 
@@ -19,29 +21,68 @@ const DraftCanvas = () => {
 
 const CanvasWithSidebar = () => {
     const [opened, setOpened] = useState(false);
+    const compact = useMediaQuery('(width < 48em)', undefined, {
+        getInitialValueInEffect: false,
+    });
     return (
         <>
             <button onClick={() => setOpened(true)}>Open trees</button>
-            <PanelGroup direction="horizontal">
-                <CanvasSidebar
+            <ResizableSplitter
+                orientation="horizontal"
+                sizes={compact ? [0, 100] : undefined}
+                resizable={!compact}
+            >
+                <ResizableSplitter.Pane
                     id="trees"
-                    title="Saved trees"
-                    opened={opened}
-                    onClose={() => setOpened(false)}
+                    defaultSize={20}
+                    min={compact ? 0 : 15}
+                    max={40}
                 >
-                    <button onClick={() => setOpened(false)}>
-                        Revenue tree
-                    </button>
-                </CanvasSidebar>
-                <Panel id="canvas" order={2} defaultSize={80}>
+                    <CanvasSidebar
+                        title="Saved trees"
+                        opened={opened}
+                        onClose={() => setOpened(false)}
+                    >
+                        <button onClick={() => setOpened(false)}>
+                            Revenue tree
+                        </button>
+                    </CanvasSidebar>
+                </ResizableSplitter.Pane>
+                <ResizableSplitter.Pane id="canvas" defaultSize={80}>
                     <DraftCanvas />
-                </Panel>
-            </PanelGroup>
+                </ResizableSplitter.Pane>
+            </ResizableSplitter>
         </>
     );
 };
 
 describe('responsive canvas sidebar', () => {
+    it('preserves state inside the sidebar across resize', () => {
+        const viewport = mockViewport(1024);
+        const { unmount } = renderWithProviders(
+            <CanvasSidebar title="Saved trees" opened onClose={() => {}}>
+                <DraftCanvas />
+            </CanvasSidebar>,
+        );
+        try {
+            const input = screen.getByRole('textbox', { name: 'Canvas draft' });
+            fireEvent.change(input, { target: { value: 'Unsaved selection' } });
+            viewport.resize(744);
+            expect(screen.getByRole('textbox', { name: 'Canvas draft' })).toBe(
+                input,
+            );
+            expect(input).toHaveValue('Unsaved selection');
+            viewport.resize(1024);
+            expect(screen.getByRole('textbox', { name: 'Canvas draft' })).toBe(
+                input,
+            );
+            expect(input).toHaveValue('Unsaved selection');
+        } finally {
+            unmount();
+            viewport.restore();
+        }
+    });
+
     it('opens and closes a compact drawer without remounting the sibling canvas', async () => {
         let compact = false;
         const listeners = new Set<(event: MediaQueryListEvent) => void>();

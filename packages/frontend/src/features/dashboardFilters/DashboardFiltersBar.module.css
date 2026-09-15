@@ -5,16 +5,11 @@
 }
 
 .drawerContent {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    composes: scrollContent from '../../components/common/SidebarDrawer.module.css';
 }
 
 .drawerBody {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
+    composes: body from '../../components/common/SidebarDrawer.module.css';
     padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
 

@@ -1,3 +1,11 @@
+.sidebarSlot {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
 .root {
     --navbar-offset: 0px;
     --header-offset: 0px;

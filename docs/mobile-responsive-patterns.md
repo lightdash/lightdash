@@ -43,7 +43,7 @@ Saved/SQL dashboard charts use 60% of saved height, bounded to 3–6 grid rows (
 ## Phone interaction policy
 
 - Chart/dashboard editor routes show a phone-specific notice on detected phones, including direct links to Explorer and SQL Runner. Saved viewers remain available. Create, edit, duplicate, add-to-dashboard and Explore from here actions are unavailable on phones; narrowing a desktop window never removes these actions. Device detection is a capability hint only, never a layout or routing signal.
-- **Selected direction B for both headers:** full-width title, compact metadata, then an equally spaced labeled action row. Dashboard: Refresh / Share / More. Saved chart: Share / Favorite / More, subject to existing permissions. Controls are 48px tall with 18px icons, 8px icon-label gaps and a shared 16px horizontal inset. Details and secondary actions live under More; the saved-chart author remains in Details.
+- Content headers place title and metadata above a wrapping action grid. Actions respect permissions and the shared authoring policy. Controls are 32px tall for fine pointers and 44px for coarse pointers, with 8px icon-label gaps and a shared 16px horizontal inset. Generic page headers preserve caller-specified button and icon sizes.
 - Dashboard Refresh runs immediately. Auto-refresh settings open from More; the same refresh component stays mounted across phone/tablet resizing so its timer survives. Desktop retains its split control. The pre-aggregate bolt is omitted from the phone header.
 - Navigation uses grouped vertical rows. Settings, page-details and AI settings drawers use a bounded flex body so their option lists scroll while the close control remains reachable.
 - Dashboard filter/parameter rows use a container query below 600px: full-width wrapping controls, with Add filter and Reset kept together. Saved-chart filter rules stack field/operator/value controls below 768px; parameter fields remain one column with wrapping labels.
@@ -56,9 +56,17 @@ Saved/SQL dashboard charts use 60% of saved height, bounded to 3–6 grid rows (
 ## Rules for subsequent work
 
 - Choose presentation by available space and task: navigation → side drawer; dashboard filters → bottom sheet; substantial forms → fullscreen modal; short confirmations → dialog; small contextual choices → bounded popover.
-- Reuse the same controls, queries and permissions. Preserve selections, unsaved input, URL state and canvas/iframe state across resize. A component swap does not imply mounting a second full workspace.
+- Reuse the same controls, queries and permissions. `Page` and `CanvasSidebar` use `StableContent` to move one portal host between the sidebar and drawer, preserving child state. `MantineModal` keeps the same body tree when becoming fullscreen. Keep selections, unsaved input, URL state and canvas/iframe state across resize.
 - Use CSS for wrapping, dimensions and touch targets. Use Mantine `useMatches` / `useMediaQuery` when interaction or component placement changes. Observe container width for reusable dashboard/embed content. Reserve `useIsPhoneDevice` for genuine phone-only product restrictions; never use it to select responsive presentation or a route.
-- Target 44px controls and 16px form inputs on compact/touch layouts. Keep close/actions reachable with short landscape heights, scrolling content, safe areas and the on-screen keyboard. Check keyboard opening, nested Escape handling and focus return.
+- Use coarse-pointer styles for larger touch targets and 16px form inputs. Keep compact fine-pointer controls small; avoid ancestor selectors that override every descendant button or icon. Keep close/actions reachable with short landscape heights, scrolling content, safe areas and the on-screen keyboard. Check keyboard opening, nested Escape handling and focus return.
 - Record each new replacement here with its trigger, exception, source component and audit evidence. Mark unverified behavior explicitly.
 
 Theme breakpoints are `sm=48em`, `md=62em`, `lg=75em` (768/992/1200px at the default font size). Dashboard grid breakpoints are a separate system: 768/996/1200px. A narrow embed can need the stacked grid while its host window remains desktop-sized. These thresholds must not be conflated.
+
+## Shared ownership
+
+- `src/styles/responsiveBreakpoints.json` owns custom navigation and content-header thresholds. PostCSS and React hooks consume the same values; standard layout thresholds use Mantine's theme variables.
+- `OmnibarTarget.module.css` owns search width, height, positioning and label visibility. Navbar styles must not override its dimensions.
+- `SidebarDrawer.module.css` owns flex structure, scrolling and safe-area defaults for page, navigation, filter and canvas drawers. Individual drawers set placement and size.
+- Authoring affordances use `useContentAuthoringEnabled` alongside existing permissions. Never use `visibleFrom`, a compact-layout flag, or container width to decide whether creation/editing is available.
+- Verify actual menu items and editor entry points at tablet widths. Route-policy tests alone cannot catch CSS-hidden actions. Resize tests should retain the same input node and its draft value across the breakpoint in both directions.

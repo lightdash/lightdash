@@ -36,6 +36,7 @@ import {
     RequestReviewModal,
     useContentReviewEligibility,
 } from '../../../../ee/features/contentReview';
+import { useContentAuthoringEnabled } from '../../../../hooks/useContentAuthoringEnabled';
 import { useProject } from '../../../../hooks/useProject';
 import useApp from '../../../../providers/App/useApp';
 import {
@@ -73,6 +74,7 @@ const savedChartTourProps = {
 };
 
 export const HeaderView: FC = () => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const navigate = useNavigate();
     const { search, pathname } = useLocation();
     const dispatch = useAppDispatch();
@@ -260,7 +262,7 @@ export const HeaderView: FC = () => {
                     <Group gap="xs">
                         {canManageSqlRunner && canManageChart && (
                             <Button
-                                visibleFrom="sm"
+                                display={authoringEnabled ? undefined : 'none'}
                                 size="xs"
                                 variant="default"
                                 onClick={() =>

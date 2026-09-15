@@ -44,6 +44,7 @@ type ResourceActionMenuItemsProps = {
     isFavorited: boolean;
     isPersonalDataApp: boolean;
     isChartOrDashboard: boolean;
+    authoringEnabled: boolean;
     isSqlChart: boolean;
     isDashboardPage: boolean;
     isPinned: boolean;
@@ -83,6 +84,7 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
     isFavorited,
     isPersonalDataApp,
     isChartOrDashboard,
+    authoringEnabled,
     isSqlChart,
     isDashboardPage,
     isPinned,
@@ -193,7 +195,11 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                 )}
 
                 <Menu.Item
-                    visibleFrom={isChartOrDashboard ? 'sm' : undefined}
+                    display={
+                        isChartOrDashboard && !authoringEnabled
+                            ? 'none'
+                            : undefined
+                    }
                     component="button"
                     role="menuitem"
                     leftSection={<IconEdit size={18} />}
@@ -214,7 +220,7 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                 {item.type === ResourceViewItemType.CHART ||
                 item.type === ResourceViewItemType.DASHBOARD ? (
                     <Menu.Item
-                        visibleFrom="sm"
+                        display={authoringEnabled ? undefined : 'none'}
                         component="button"
                         role="menuitem"
                         leftSection={<MantineIcon icon={IconCopy} size={18} />}

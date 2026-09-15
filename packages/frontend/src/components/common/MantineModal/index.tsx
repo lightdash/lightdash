@@ -5,7 +5,6 @@ import {
     Group,
     Modal,
     Paper,
-    ScrollArea,
     Stack,
     Text,
     useMatches,
@@ -369,49 +368,6 @@ const MantineModal: React.FC<MantineModalProps> = ({
 
     const confirmButtonColor = config.color;
 
-    const renderBody = () => {
-        if (fullScreen || mobileFullScreen) {
-            // Fullscreen mode: no ScrollArea, body fills available space
-            return (
-                <Modal.Body p={0} className={classes.fullScreenBody}>
-                    <Box
-                        px={modalBodyProps?.px ?? { base: 'md', sm: 'xl' }}
-                        py={modalBodyProps?.py ?? 'md'}
-                        h="100%"
-                    >
-                        {effectiveDescription && (
-                            <Text fz="sm">{effectiveDescription}</Text>
-                        )}
-                        {children}
-                    </Box>
-                </Modal.Body>
-            );
-        }
-
-        // Standard mode: ScrollArea with max height
-        return (
-            <Modal.Body p={0} className={classes.body}>
-                <ScrollArea.Autosize mah={bodyScrollAreaMaxHeight} mih={0}>
-                    <Stack
-                        gap="md"
-                        px={modalBodyProps?.px ?? 'xl'}
-                        py={modalBodyProps?.py ?? 'md'}
-                        {...(modalBodyProps?.bg
-                            ? { bg: modalBodyProps.bg }
-                            : {})}
-                        mah={modalBodyProps?.mah}
-                        mih={modalBodyProps?.mih}
-                    >
-                        {effectiveDescription && (
-                            <Text fz="sm">{effectiveDescription}</Text>
-                        )}
-                        {children}
-                    </Stack>
-                </ScrollArea.Autosize>
-            </Modal.Body>
-        );
-    };
-
     return (
         <MantineModalContext.Provider value={closeContext}>
             <Modal.Root
@@ -507,7 +463,30 @@ const MantineModal: React.FC<MantineModalProps> = ({
                         )}
                     </Modal.Header>
 
-                    {renderBody()}
+                    <Modal.Body
+                        p={0}
+                        className={classes.body}
+                        mah={
+                            fullScreen || mobileFullScreen
+                                ? undefined
+                                : bodyScrollAreaMaxHeight
+                        }
+                    >
+                        <Stack
+                            gap="md"
+                            h={fullScreen ? '100%' : undefined}
+                            px={modalBodyProps?.px ?? { base: 'md', sm: 'xl' }}
+                            py={modalBodyProps?.py ?? 'md'}
+                            bg={modalBodyProps?.bg}
+                            mah={modalBodyProps?.mah}
+                            mih={modalBodyProps?.mih}
+                        >
+                            {effectiveDescription && (
+                                <Text fz="sm">{effectiveDescription}</Text>
+                            )}
+                            {children}
+                        </Stack>
+                    </Modal.Body>
 
                     {footer && !fullScreen ? (
                         <Box className={classes.actions} px="xl" py="md">

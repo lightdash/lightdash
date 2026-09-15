@@ -599,7 +599,11 @@ export const AiChartQuickOptions = ({
                             <>
                                 {quickSaveDashboard && (
                                     <Menu.Item
-                                        visibleFrom="sm"
+                                        display={
+                                            authoringEnabled
+                                                ? undefined
+                                                : 'none'
+                                        }
                                         onClick={() =>
                                             void handleSaveToCurrentDashboard()
                                         }
@@ -619,7 +623,11 @@ export const AiChartQuickOptions = ({
                                 )}
                                 {canSaveChart && (
                                     <Menu.Item
-                                        visibleFrom="sm"
+                                        display={
+                                            authoringEnabled
+                                                ? undefined
+                                                : 'none'
+                                        }
                                         onClick={() => open()}
                                         disabled={isDisabled || !savedData}
                                         leftSection={
@@ -638,7 +646,7 @@ export const AiChartQuickOptions = ({
 
                         {hasExploreAction && (
                             <Menu.Item
-                                visibleFrom="sm"
+                                display={authoringEnabled ? undefined : 'none'}
                                 leftSection={
                                     <MantineIcon icon={IconExternalLink} />
                                 }

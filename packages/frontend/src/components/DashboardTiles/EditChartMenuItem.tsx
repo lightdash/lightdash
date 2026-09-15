@@ -51,7 +51,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
     if (onEditChart && chart && canMutateVerification) {
         return (
             <Menu.Item
-                visibleFrom="sm"
+                display={authoringEnabled ? undefined : 'none'}
                 leftSection={<MantineIcon icon={IconFilePencil} />}
                 onClick={() => onEditChart(chart)}
                 disabled={props.disabled}

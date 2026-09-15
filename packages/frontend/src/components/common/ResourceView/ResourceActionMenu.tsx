@@ -34,6 +34,7 @@ import {
     usePromoteDashboardDiffMutation,
     usePromoteDashboardMutation,
 } from '../../../features/promotion/hooks/usePromoteDashboard';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import {
     useUnverifyChartMutation,
     useUnverifyDashboardMutation,
@@ -247,6 +248,7 @@ const ExistingResourceViewActionMenu: FC<
     onAction,
 }) => {
     const { user } = useApp();
+    const authoringEnabled = useContentAuthoringEnabled();
     const location = useLocation();
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
@@ -427,7 +429,6 @@ const ExistingResourceViewActionMenu: FC<
     // open a modal that lets the user pick a name/space first.
     const duplicateDataAppMenuItem = (
         <Menu.Item
-            visibleFrom="sm"
             component="button"
             role="menuitem"
             leftSection={<MantineIcon icon={IconCopy} size={18} />}
@@ -487,6 +488,7 @@ const ExistingResourceViewActionMenu: FC<
                         isFavorited={isFavorited}
                         isPersonalDataApp={isPersonalDataApp}
                         isChartOrDashboard={isChartOrDashboard}
+                        authoringEnabled={authoringEnabled}
                         isSqlChart={isSqlChart}
                         isDashboardPage={isDashboardPage}
                         isPinned={isPinned}

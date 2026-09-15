@@ -4,10 +4,11 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../api';
 import { createExplorerStore } from '../../../features/explorer/store';
 import { AbilityContext } from '../../../providers/Ability/context';
+import { mockViewport } from '../../../testing/mockViewport';
 import {
     manageChartRule,
     mockSavedChartResponse,
@@ -15,6 +16,15 @@ import {
 import { renderWithProviders } from '../../../testing/testUtils';
 import { buildDashboardEditorInitialState } from '../../DashboardTiles/buildDashboardEditorInitialState';
 import ChartActionsMenu, { type ChartActionsHost } from './ChartActionsMenu';
+
+const device = vi.hoisted(() => ({ isPhone: false }));
+vi.mock('../../../hooks/useIsPhoneDevice', () => ({
+    useIsPhoneDevice: () => device.isPhone,
+}));
+afterEach(() => {
+    device.isPhone = false;
+    vi.restoreAllMocks();
+});
 
 vi.mock('../../../api', () => ({
     lightdashApi: vi.fn(() => new Promise(() => {})),
@@ -75,6 +85,24 @@ const renderMenu = (host: ChartActionsHost) => {
 };
 
 describe('ChartActionsMenu', () => {
+    it.each([false, true])(
+        'uses phone capability for actions at tablet width (phone=%s)',
+        async (isPhone) => {
+            mockViewport(744);
+            device.isPhone = isPhone;
+            renderMenu('page');
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Chart actions' }),
+            );
+            const move = screen.queryByRole('menuitem', {
+                name: 'Move to space',
+            });
+            if (isPhone) expect(move).toBeNull();
+            else expect(move).toBeVisible();
+            expect(screen.getByText('Version history')).toBeVisible();
+        },
+    );
+
     it('in a modal host hides page-only items and opens history in place', async () => {
         const user = userEvent.setup();
         const { onOpenVersionHistory } = renderMenu('modal');
