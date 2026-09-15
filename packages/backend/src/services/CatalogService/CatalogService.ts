@@ -90,6 +90,16 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 
+/**
+ * Distinguishes the three ways the 'catalog-browse' cached-explore read is
+ * triggered (SPK-2121): a browse page load, a search request (both via
+ * getFilteredExplores), or the background index job. Browse and search share
+ * a code path up to getFilteredExplores but diverge immediately after - a
+ * search request throws away the returned filteredExplores and re-reads via
+ * searchCatalog, so they must not share a log bucket.
+ */
+type CatalogBrowseTrigger = 'browse' | 'search' | 'index';
+
 export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -361,16 +371,20 @@ export class CatalogService<
         user: SessionUser,
         organizationUuid: string,
         projectUuid: string,
+        requestKind: Extract<CatalogBrowseTrigger, 'browse' | 'search'>,
     ) {
         // /dataCatalog browse+search - the user-facing page PROD-10912
         // deliberately does not touch. Same field contract as the other
         // cached-explore read sites (SPK-2121), plus a DB-read/Node-filter
         // phase split since this path also filters by user attribute.
+        // requestKind is decided by the caller (getCatalog already knows
+        // whether this is a search) and passed in rather than re-derived
+        // here, so browse and search land in different log buckets.
         const browseReadContext: ExploreCacheReadContext & {
-            trigger: 'page';
+            trigger: CatalogBrowseTrigger;
         } = {
             ...newExploreCacheReadContext('catalog-browse', undefined),
-            trigger: 'page',
+            trigger: requestKind,
         };
         const { result: filteredExplores } = await measureTime(
             async () => {
@@ -458,7 +472,7 @@ export class CatalogService<
         // getFilteredExplores, distinguished by trigger so a scheduled job
         // and a user-facing page request don't land in the same bucket.
         const indexReadContext: ExploreCacheReadContext & {
-            trigger: 'index';
+            trigger: CatalogBrowseTrigger;
         } = {
             ...newExploreCacheReadContext('catalog-browse', undefined),
             trigger: 'index',
@@ -781,6 +795,7 @@ export class CatalogService<
             user,
             organizationUuid,
             projectUuid,
+            catalogSearch.searchQuery ? 'search' : 'browse',
         );
 
         const userAttributes =
