@@ -1186,35 +1186,30 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [SCHEDULER_TASKS.INDEX_CATALOG]: async (payload, helpers) => {
+                const abortController = new AbortController();
+                const work = SchedulerClient.processJob(
+                    SCHEDULER_TASKS.INDEX_CATALOG,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.indexCatalog(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                            abortController.signal,
+                        );
+                    },
+                );
                 await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        SCHEDULER_TASKS.INDEX_CATALOG,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.indexCatalog(
-                                helpers.job.id,
-                                helpers.job.run_at,
-                                payload,
-                            );
-                        },
-                    ),
+                    work,
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
-                    async (job, e) => {
-                        await this.schedulerService.logSchedulerJob({
-                            task: SCHEDULER_TASKS.INDEX_CATALOG,
-                            jobId: job.id,
-                            scheduledTime: job.run_at,
-                            status: SchedulerJobStatus.ERROR,
-                            details: {
-                                createdByUserUuid: payload.userUuid,
-                                error: getErrorMessage(e),
-                                projectUuid: payload.projectUuid,
-                                organizationUuid: payload.organizationUuid,
-                            },
-                        });
+                    async (_job, error) => {
+                        abortController.abort(error);
+                        // Hold the worker until the current stage stops, so a retry cannot overlap it.
+                        await work.catch(() => undefined);
+                        throw error;
                     },
                 );
             },

@@ -5795,6 +5795,7 @@ export default class SchedulerTask {
         jobId: string,
         scheduledTime: Date,
         payload: SchedulerIndexCatalogJobPayload,
+        signal: AbortSignal,
     ) {
         await this.logWrapper(
             {
@@ -5808,37 +5809,44 @@ export default class SchedulerTask {
                 },
             },
             async () => {
+                signal.throwIfAborted();
                 const { catalogFieldMap } =
                     await this.catalogService.indexCatalog(
                         payload.projectUuid,
                         payload.userUuid,
                     );
 
+                signal.throwIfAborted();
                 await this.catalogService.migrateCatalogItemTags(
                     payload.projectUuid,
                     payload.prevCatalogItemsWithTags,
                 );
 
+                signal.throwIfAborted();
                 await this.catalogService.migrateCatalogItemIcons(
                     payload.projectUuid,
                     payload.prevCatalogItemsWithIcons,
                 );
 
+                signal.throwIfAborted();
                 await this.catalogService.migrateMetricsTreeEdges(
                     payload.projectUuid,
                     payload.prevMetricTreeEdges,
                 );
 
+                signal.throwIfAborted();
                 await this.catalogService.migrateMetricsTreeNodes(
                     payload.projectUuid,
                     payload.prevMetricsTreeNodes,
                 );
 
+                signal.throwIfAborted();
                 await this.catalogService.setChartUsages(
                     payload.projectUuid,
                     catalogFieldMap,
                 );
 
+                signal.throwIfAborted();
                 return {}; // Don't pollute with more details
             },
         );
