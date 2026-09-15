@@ -22,7 +22,8 @@ export type DbProjectHomepageIn = Pick<
     | 'draft_config'
     | 'is_default'
     | 'created_by_user_uuid'
->;
+> &
+    Partial<Pick<DbProjectHomepage, 'published_config'>>;
 
 export type DbProjectHomepageUpdate = Partial<
     Pick<

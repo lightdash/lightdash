@@ -177,6 +177,7 @@ import {
     type ApiChartContentResponse,
     type ApiContentResponse,
 } from './content';
+import type { ApiHomepageAsCodeListResponse } from './contentAsCode/homepages';
 import {
     type ContentReviewRequest,
     type ContentReviewRequestDetail,
@@ -1449,6 +1450,7 @@ type ApiResults =
     | ApiScheduledDeliveryAsCodeListResponse['results']
     | ApiScheduledDeliveryAsCodeUpsertResponse['results']
     | ApiVirtualViewAsCodeListResponse['results']
+    | ApiHomepageAsCodeListResponse['results']
     | ApiVirtualViewAsCodeUpsertResponse['results']
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']

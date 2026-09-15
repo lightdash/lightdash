@@ -40,6 +40,7 @@ export const getContentAsCodeFilePath = (
 export const CONTENT_AS_CODE_VERSION = 1 as const;
 
 export const CONTENT_AS_CODE_VERSIONS = {
+    homepage: 1,
     chart: 1,
     dashboard: 1,
     sql_chart: 1,
@@ -58,6 +59,7 @@ export const CONTENT_AS_CODE_VERSIONS = {
 export type ContentAsCodeScope = 'project' | 'organization';
 
 export type ContentAsCodeResourceKind =
+    | 'homepage'
     | 'chart'
     | 'dashboard'
     | 'sql_chart'

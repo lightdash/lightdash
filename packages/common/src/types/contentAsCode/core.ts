@@ -3,6 +3,7 @@ import type { FilterRule } from '../filter';
 export const currentVersion = 1;
 
 export enum ContentAsCodeType {
+    HOMEPAGE = 'homepage',
     CHART = 'chart',
     DASHBOARD = 'dashboard',
     SQL_CHART = 'sql_chart',

@@ -56,6 +56,28 @@ handlers:
 New resources should use these extension points instead of adding another
 standalone download/upload implementation.
 
+## Homepages
+
+Published homepage layouts can be exported with `lightdash download
+--include-homepages`, `--homepages "Team homepage"`, or `--include-all`.
+They are stored in `homepages/*.yml` under the content root. The exact homepage
+name is its project-scoped identity; duplicate names are rejected and changing
+the name creates a separate homepage.
+
+Uploads resolve content slugs and organization group names in the destination.
+The existing upload flow imports homepage files after their referenced content.
+`lightdash upload --homepages "Team homepage"` imports only that homepage, so its
+referenced content must already exist. Imports save drafts by default; add
+`--publish` to publish the layout and apply its exported default/group/role
+assignments. `--skip-homepages` excludes homepage files from an upload.
+
+Internal content links use `lightdash://dashboards/<slug>/view` (or `saved`,
+`spaces`, and `apps`) in files and become destination project links on upload.
+External links and live collection rules remain unchanged. Announcement entries,
+personalized results, signed app thumbnails, and organization homepage settings
+are not exported. Imports require the existing homepage builder feature and
+homepage management permission; they do not enable it or publish announcements.
+
 ## Download flow
 
 1. The CLI resolves the project or organization and the local content root.
@@ -252,8 +274,8 @@ flags.
 
 ## External connections
 
-Data-app external connections (see `docs/data-apps.md` → *External
-connections*) are enterprise-only and both download and upload require the
+Data-app external connections (see `docs/data-apps.md` → _External
+connections_) are enterprise-only and both download and upload require the
 admin-only `manage:ExternalConnection` scope. When `--include-all` reaches
 them implicitly on a non-enterprise server or without that permission, the
 CLI warns and skips; the explicit `--external-connections <slugs...>` and
@@ -310,7 +332,7 @@ warned about, never uploaded.
 App↔connection links are not part of these documents — each data app's
 bundle manifest (`lightdash-app.yml`) carries them as
 `externalConnections: [{alias, connectionSlug}]`, resolved by slug in the
-target project on app upload. See `docs/data-apps.md` → *Data apps as code*.
+target project on app upload. See `docs/data-apps.md` → _Data apps as code_.
 
 ## Spaces and access
 
