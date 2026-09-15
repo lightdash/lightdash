@@ -15,7 +15,9 @@ import {
     ActionIcon,
     Highlight,
     ScrollArea,
+    SegmentedControl,
     Tooltip,
+    clsx,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
@@ -24,6 +26,7 @@ import {
     IconCloudDataConnection,
     IconEye,
     IconEyeTable,
+    IconList,
     IconSearch,
     IconTable,
     IconX,
@@ -228,42 +231,47 @@ type SchemaExpansion = {
 };
 const NO_OVERRIDES: Record<string, boolean> = {};
 
-const TYPE_FILTER_TOGGLES: {
-    filter: TableTypeFilter;
+const TYPE_FILTER_OPTIONS: {
+    value: 'all' | TableTypeFilter;
     icon: Icon;
     label: string;
 }[] = [
-    { filter: 'tables', icon: IconTable, label: 'Only tables' },
-    { filter: 'views', icon: IconEye, label: 'Only views' },
+    { value: 'all', icon: IconList, label: 'Show all' },
+    { value: 'tables', icon: IconTable, label: 'Only tables' },
+    { value: 'views', icon: IconEye, label: 'Only views' },
 ];
 
-// One toggle active at a time; clicking the active one shows everything again
 const TableTypeToggle: FC<{
     value: TableTypeFilter | null;
     onChange: (value: TableTypeFilter | null) => void;
 }> = ({ value, onChange }) => (
-    <ActionIcon.Group>
-        {TYPE_FILTER_TOGGLES.map(({ filter, icon, label }) => {
-            const isActive = value === filter;
-            return (
-                <Tooltip
-                    key={filter}
-                    label={isActive ? 'Show all' : label}
-                    openDelay={400}
-                >
-                    <ActionIcon
-                        variant={isActive ? 'light' : 'default'}
-                        size="input-sm"
-                        aria-label={label}
-                        aria-pressed={isActive}
-                        onClick={() => onChange(isActive ? null : filter)}
-                    >
-                        <MantineIcon icon={icon} />
-                    </ActionIcon>
+    <SegmentedControl
+        size="xs"
+        withItemsBorders={false}
+        value={value ?? 'all'}
+        aria-label="Filter tables by type"
+        classNames={{
+            root: styles.typeFilter,
+            label: styles.typeFilterLabel,
+        }}
+        onChange={(next) =>
+            onChange(next === 'all' ? null : (next as TableTypeFilter))
+        }
+        data={TYPE_FILTER_OPTIONS.map((option) => ({
+            value: option.value,
+            label: (
+                <Tooltip label={option.label} openDelay={400}>
+                    <Box component="span" lh={0} display="inline-block">
+                        <MantineIcon
+                            icon={option.icon}
+                            size="sm"
+                            aria-label={option.label}
+                        />
+                    </Box>
                 </Tooltip>
-            );
-        })}
-    </ActionIcon.Group>
+            ),
+        }))}
+    />
 );
 
 const VirtualRow: FC<{
@@ -404,53 +412,66 @@ export const Tables: FC = () => {
         overscan: 10,
     });
 
+    const showTypeFilter = hasViews;
+    const showClear = search.length > 0;
+
     return (
         <>
-            <Group gap="xs" wrap="nowrap">
-                <Tooltip
-                    opened={
-                        search.length > 0 && search.length < MIN_SEARCH_LENGTH
+            <Tooltip
+                opened={search.length > 0 && search.length < MIN_SEARCH_LENGTH}
+                label={`Enter at least ${MIN_SEARCH_LENGTH} characters to search`}
+            >
+                <TextInput
+                    size="sm"
+                    disabled={!data && !debouncedSearch}
+                    classNames={{
+                        wrapper: clsx(
+                            showTypeFilter &&
+                                showClear &&
+                                styles.searchWithFilterAndClear,
+                            showTypeFilter &&
+                                !showClear &&
+                                styles.searchWithFilter,
+                        ),
+                        section: styles.searchSection,
+                    }}
+                    leftSection={
+                        isLoading ? (
+                            <Loader size="xs" />
+                        ) : (
+                            <MantineIcon icon={IconSearch} />
+                        )
                     }
-                    label={`Enter at least ${MIN_SEARCH_LENGTH} characters to search`}
-                >
-                    <TextInput
-                        size="sm"
-                        flex={1}
-                        disabled={!data && !debouncedSearch}
-                        leftSection={
-                            isLoading ? (
-                                <Loader size="xs" />
-                            ) : (
-                                <MantineIcon icon={IconSearch} />
-                            )
-                        }
-                        rightSectionPointerEvents="all"
-                        rightSection={
-                            search ? (
-                                <ActionIcon
-                                    aria-label="Clear search"
-                                    onMouseDown={(event) =>
-                                        event.preventDefault()
-                                    }
-                                    size="xs"
-                                    onClick={() => setSearch('')}
-                                >
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            ) : null
-                        }
-                        placeholder="Search tables"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </Tooltip>
-                {hasViews && (
-                    <TableTypeToggle
-                        value={typeFilter}
-                        onChange={setTypeFilter}
-                    />
-                )}
-            </Group>
+                    rightSectionPointerEvents="all"
+                    rightSection={
+                        showClear || showTypeFilter ? (
+                            <Group gap="xxs" wrap="nowrap">
+                                {showClear ? (
+                                    <ActionIcon
+                                        aria-label="Clear search"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
+                                        size="xs"
+                                        onClick={() => setSearch('')}
+                                    >
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                ) : null}
+                                {showTypeFilter ? (
+                                    <TableTypeToggle
+                                        value={typeFilter}
+                                        onChange={setTypeFilter}
+                                    />
+                                ) : null}
+                            </Group>
+                        ) : null
+                    }
+                    placeholder="Search tables"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+            </Tooltip>
 
             <ScrollArea
                 viewportRef={viewportRef}
