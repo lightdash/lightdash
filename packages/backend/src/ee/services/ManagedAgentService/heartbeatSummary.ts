@@ -147,14 +147,16 @@ const buildSegments = (active: SummaryAction[]): Segment[] => {
             segment: `💡 **Fresh Picks**\n${created.length} ${plural(created.length, 'chart', 'charts')} built from questions your team asked, waiting in Agent Suggestions.`,
         });
     }
+    // Lead with the biggest change; notes always close the story.
+    const ordered = segments.sort((a, b) => b.count - a.count);
     if (insights.length) {
-        segments.push({
+        ordered.push({
             count: insights.length,
             story: `I also left ${insights.length} ${plural(insights.length, 'note', 'notes')} on the activity page about things worth a look.`,
             segment: null,
         });
     }
-    return segments.sort((a, b) => b.count - a.count);
+    return ordered;
 };
 
 // Built only from saved actions: one snapshot feeds the stored run summary,

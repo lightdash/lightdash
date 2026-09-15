@@ -89,6 +89,17 @@ describe('heartbeat summaries from saved actions', () => {
         expect(report.text).not.toContain('Chart 104');
     });
 
+    it('closes the story with the notes even when they outnumber the changes', () => {
+        const report = render([
+            action(ManagedAgentActionType.INSIGHT, 'Note 1'),
+            action(ManagedAgentActionType.INSIGHT, 'Note 2'),
+            action(ManagedAgentActionType.CREATED_CONTENT, 'Orders by week'),
+        ]);
+        expect(report.text.indexOf('so I built 1 chart')).toBeLessThan(
+            report.text.indexOf('I also left 2 notes'),
+        );
+    });
+
     it('keeps a quiet run short and skips the named segments', () => {
         const report = render([
             action(ManagedAgentActionType.FIXED_BROKEN, 'Revenue'),
