@@ -1188,7 +1188,7 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
 };
 
 // Default-on: streaming is disabled only when the env var is the literal 'false'
-export const getProviderSupportsStreaming = (envVar: string): boolean =>
+const getProviderSupportsStreaming = (envVar: string): boolean =>
     process.env[envVar] !== 'false';
 
 const isEnabledBoolean = (value: string | undefined): boolean =>

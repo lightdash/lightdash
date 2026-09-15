@@ -3,7 +3,9 @@ import {
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
-import { getProviderSupportsStreaming } from '../config/parseConfig';
+
+const isExploreCacheReadStorageBytesEnabled = () =>
+    process.env.LIGHTDASH_EXPLORE_CACHE_READ_STORAGE_BYTES !== 'false';
 
 /**
  * Identifies which PROD-10912 call site produced a cached-explore-read log
@@ -75,11 +77,7 @@ export const newExploreCacheReadContext = (
 export const safeGetCachedExploreStorageBytes = async (
     getStorageBytes: () => Promise<number>,
 ): Promise<number | undefined> => {
-    if (
-        !getProviderSupportsStreaming(
-            'LIGHTDASH_EXPLORE_CACHE_READ_STORAGE_BYTES',
-        )
-    ) {
+    if (!isExploreCacheReadStorageBytesEnabled()) {
         return undefined;
     }
 
