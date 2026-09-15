@@ -31,6 +31,7 @@ export const snowflakePassportStrategy = !(
                   lightdashConfig.siteUrl,
               ).href,
               passReqToCallback: true,
+              state: true,
           },
           async (
               req: Express.Request,
