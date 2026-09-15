@@ -752,7 +752,7 @@ export const buildLessonTours = (
                 editor,
                 WORKSPACE_ROUTE,
                 hintFor(editor, files),
-                `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** of the **${lesson.column}** column: it goes under that column's metrics, at the end of the file. Type it in, or press Use it to add it for you.`,
+                `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** of the **${lesson.column}** column: it goes under that column's metrics, at the end of the file. Type it in, or press Use it to add it.`,
                 lesson.snippet,
                 [fileRow],
             ),

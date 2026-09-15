@@ -56,7 +56,9 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
             '              average_payment_amount:',
             '                type: average',
         ].join('\n'),
-        snippetDocs: 'semantic-layer/metrics.mdx#average:1-2',
+        // The section's second paragraph: the first is a glossary entry with
+        // no subject once it leaves the page ("Takes the average...").
+        snippetDocs: 'semantic-layer/metrics.mdx#average:p2:1',
         command: 'lightdash deploy',
         commandDocs: 'workflow/cli/deploy.mdx#intro:1',
         outputDocs: [
