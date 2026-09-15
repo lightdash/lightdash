@@ -1397,6 +1397,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiOrganizationSettingsService(),
                     aiAgentToolsService:
                         repository.getAiAgentToolsService<AiAgentToolsService>(),
+                    asyncQueryService: repository.getAsyncQueryService(),
                 }),
             deployService: ({ models, clients, repository, context }) =>
                 new DeployService({
