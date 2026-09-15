@@ -1,7 +1,7 @@
 import {
     ChartType,
     type Document,
-    type DocumentCellV1,
+    type DocumentCellV2,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -12,6 +12,7 @@ import DocumentPage from './Document';
 
 const mocks = vi.hoisted(() => ({
     api: vi.fn(),
+    chartFails: false,
     flag: { data: { enabled: true }, isInitialLoading: false, isError: false },
 }));
 
@@ -41,11 +42,18 @@ vi.mock('../features/documents/DocumentChart', () => ({
     default: ({
         cell,
     }: {
-        cell: Extract<DocumentCellV1, { type: 'chart' }>;
-    }) => <div data-testid="document-chart">{cell.content.chart.name}</div>,
+        cell: Extract<DocumentCellV2, { type: 'chart' }>;
+    }) => {
+        if (mocks.chartFails) {
+            throw new Error('Chart rendering failed');
+        }
+        return (
+            <div data-testid="document-chart">{cell.content.chart.name}</div>
+        );
+    },
 }));
 
-const chart: DocumentCellV1 = {
+const chart: DocumentCellV2 = {
     id: 'chart',
     type: 'chart',
     content: {
@@ -80,12 +88,26 @@ const document: Document = {
     version: {
         versionUuid: 'version-uuid',
         versionNumber: 1,
-        schemaVersion: 1,
+        schemaVersion: 2,
         content: {
             cells: [
-                { id: 'intro', type: 'markdown', content: '## Findings' },
+                {
+                    id: 'intro',
+                    type: 'markdown',
+                    content: {
+                        title: 'Findings',
+                        markdown: 'Supporting findings',
+                    },
+                },
                 chart,
-                { id: 'end', type: 'markdown', content: '## Recommendations' },
+                {
+                    id: 'end',
+                    type: 'markdown',
+                    content: {
+                        title: 'Recommendations',
+                        markdown: 'Next steps',
+                    },
+                },
             ],
         },
         createdAt: new Date('2026-09-15'),
@@ -135,6 +157,7 @@ const renderPage = (returnTo?: string) => {
 
 describe('Document page', () => {
     beforeEach(() => {
+        mocks.chartFails = false;
         mocks.api.mockReset();
         mocks.api.mockResolvedValue(document);
         mocks.flag = {
@@ -213,10 +236,131 @@ describe('Document page', () => {
         expect(
             screen.getByRole('button', { name: 'Findings' }),
         ).toBeInTheDocument();
-        expect(heading).toHaveAttribute('id', 'document-intro-0');
+        expect(heading).toHaveAttribute('id', 'document-intro');
         expect(
             screen.getByRole('heading', { name: 'Recommendations' }),
-        ).toHaveAttribute('id', 'document-end-0');
+        ).toHaveAttribute('id', 'document-end');
+    });
+
+    test('indexes chart titles and leaves Markdown headings out of the contents', async () => {
+        mocks.api.mockResolvedValue({
+            ...document,
+            version: {
+                ...document.version,
+                content: {
+                    cells: [
+                        {
+                            id: 'untitled',
+                            type: 'markdown',
+                            content: { markdown: '## Embedded heading' },
+                        },
+                        {
+                            ...chart,
+                            content: {
+                                ...chart.content,
+                                title: 'Chart section',
+                            },
+                        },
+                    ],
+                },
+            },
+        });
+        renderPage();
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Chart section',
+                level: 2,
+            }),
+        ).toHaveAttribute('id', 'document-chart');
+        expect(
+            screen.getByRole('button', { name: 'Chart section' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { name: 'Embedded heading' }),
+        ).not.toHaveAttribute('data-report-heading');
+        expect(
+            screen.queryByRole('button', { name: 'Embedded heading' }),
+        ).not.toBeInTheDocument();
+    });
+
+    test('preserves the chart section title and navigation when its renderer throws', async () => {
+        mocks.chartFails = true;
+        const errorLog = vi
+            .spyOn(console, 'error')
+            .mockImplementation(() => {});
+        mocks.api.mockResolvedValue({
+            ...document,
+            version: {
+                ...document.version,
+                content: {
+                    cells: [
+                        {
+                            ...chart,
+                            content: {
+                                ...chart.content,
+                                title: 'Failed chart section',
+                            },
+                        },
+                        document.version.content.cells[0],
+                    ],
+                },
+            },
+        });
+        try {
+            renderPage();
+            expect(
+                await screen.findByRole('heading', {
+                    name: 'Failed chart section',
+                    level: 2,
+                }),
+            ).toHaveAttribute('id', 'document-chart');
+            expect(
+                screen.getByRole('button', { name: 'Failed chart section' }),
+            ).toBeInTheDocument();
+            const title = screen.getByRole('heading', {
+                name: 'Failed chart section',
+            });
+            title.scrollIntoView = vi.fn();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Failed chart section' }),
+            );
+            expect(title.scrollIntoView).toHaveBeenCalledWith({
+                block: 'start',
+            });
+            expect(
+                screen.getByRole('heading', { name: 'Findings' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByTestId('document-chart'),
+            ).not.toBeInTheDocument();
+        } finally {
+            errorLog.mockRestore();
+        }
+    });
+
+    test('renders section titles as literal text rather than Markdown or HTML', async () => {
+        const title = '<img src=x onerror=alert(1)> **Results**';
+        mocks.api.mockResolvedValue({
+            ...document,
+            version: {
+                ...document.version,
+                content: {
+                    cells: [
+                        {
+                            id: 'safe-title',
+                            type: 'markdown',
+                            content: { title, markdown: '' },
+                        },
+                    ],
+                },
+            },
+        });
+        const { container } = renderPage();
+        expect(
+            await screen.findByRole('heading', { name: title }),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: title })).toBeInTheDocument();
+        expect(container.querySelector('img, [onerror], strong')).toBeNull();
     });
 
     test('renders an empty document explicitly', async () => {
@@ -281,15 +425,17 @@ describe('Document page', () => {
                         {
                             id: 'unsafe',
                             type: 'markdown',
-                            content: [
-                                '## Safe heading',
-                                '<iframe src="https://example.com"></iframe>',
-                                '<script>alert(1)</script>',
-                                '<img src=x onerror="alert(1)">',
-                                '[unsafe](javascript:alert%281%29)',
-                                '[data link](data:text/html,test)',
-                                '[safe link](https://example.com/report)',
-                            ].join('\n\n'),
+                            content: {
+                                markdown: [
+                                    '## Safe heading',
+                                    '<iframe src="https://example.com"></iframe>',
+                                    '<script>alert(1)</script>',
+                                    '<img src=x onerror="alert(1)">',
+                                    '[unsafe](javascript:alert%281%29)',
+                                    '[data link](data:text/html,test)',
+                                    '[safe link](https://example.com/report)',
+                                ].join('\n\n'),
+                            },
                         },
                     ],
                 },

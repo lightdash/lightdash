@@ -1,5 +1,5 @@
 import { type Document } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
+import { Stack, Text, Title } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useMemo } from 'react';
 import markdownStyles from '../../components/common/AiMarkdown/AiMarkdown.module.css';
@@ -26,65 +26,50 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
                     <Text c="dimmed">This document is empty.</Text>
                 )}
                 {cells.map((cell) => (
-                    <ErrorBoundary
+                    <Stack
+                        component="section"
+                        gap="md"
                         key={`${document.version.versionUuid}:${cell.id}`}
                     >
-                        {cell.type === 'markdown' ? (
-                            <MarkdownPreview
-                                prefixCls=""
-                                className={`${markdownStyles.aiMarkdown} ${styles.reportProse}`}
-                                source={cell.content}
-                                skipHtml
-                                components={{
-                                    h1: ({ node, children, ...props }) => (
-                                        <h1
-                                            {...props}
-                                            id={getDocumentHeadingId(
-                                                cell.id,
-                                                node?.position?.start.offset ??
-                                                    0,
-                                            )}
-                                            data-report-heading=""
-                                        >
-                                            {children}
-                                        </h1>
-                                    ),
-                                    h2: ({ node, children, ...props }) => (
-                                        <h2
-                                            {...props}
-                                            id={getDocumentHeadingId(
-                                                cell.id,
-                                                node?.position?.start.offset ??
-                                                    0,
-                                            )}
-                                            data-report-heading=""
-                                        >
-                                            {children}
-                                        </h2>
-                                    ),
-                                }}
-                                pluginsFilter={(type, plugins) =>
-                                    type === 'rehype'
-                                        ? markdownSanitizeRehypePlugins
-                                        : plugins
-                                }
-                            />
-                        ) : cell.type === 'chart' &&
-                          (cell.content.source === 'semantic' ||
-                              cell.content.source === 'merge') ? (
-                            <DocumentChart
-                                projectUuid={document.projectUuid}
-                                spaceUuid={document.spaceUuid}
-                                documentUuid={document.documentUuid}
-                                versionUuid={document.version.versionUuid}
-                                cell={cell}
-                            />
-                        ) : (
-                            <Text c="dimmed">
-                                This content type is not supported yet.
-                            </Text>
+                        {cell.content.title && (
+                            <Title
+                                order={2}
+                                id={getDocumentHeadingId(cell.id)}
+                                data-report-heading=""
+                            >
+                                {cell.content.title}
+                            </Title>
                         )}
-                    </ErrorBoundary>
+                        <ErrorBoundary>
+                            {cell.type === 'markdown' ? (
+                                <MarkdownPreview
+                                    prefixCls=""
+                                    className={`${markdownStyles.aiMarkdown} ${styles.reportProse}`}
+                                    source={cell.content.markdown}
+                                    skipHtml
+                                    pluginsFilter={(type, plugins) =>
+                                        type === 'rehype'
+                                            ? markdownSanitizeRehypePlugins
+                                            : plugins
+                                    }
+                                />
+                            ) : cell.type === 'chart' &&
+                              (cell.content.source === 'semantic' ||
+                                  cell.content.source === 'merge') ? (
+                                <DocumentChart
+                                    projectUuid={document.projectUuid}
+                                    spaceUuid={document.spaceUuid}
+                                    documentUuid={document.documentUuid}
+                                    versionUuid={document.version.versionUuid}
+                                    cell={cell}
+                                />
+                            ) : (
+                                <Text c="dimmed">
+                                    This content type is not supported yet.
+                                </Text>
+                            )}
+                        </ErrorBoundary>
+                    </Stack>
                 ))}
             </Stack>
         </DocumentReportLayout>
