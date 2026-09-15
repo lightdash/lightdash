@@ -397,12 +397,13 @@ export class CatalogService<
                     ),
                 ]);
                 browseReadContext.dbReadMs = performance.now() - dbReadStart;
+
+                if (!cachedExplores) return [];
+
                 Object.assign(browseReadContext, {
                     ...summarizeExploreCacheRead(cachedExplores),
                     storedExploreBytes,
                 });
-
-                if (!cachedExplores) return [];
 
                 const explores = Object.values(cachedExplores);
 
