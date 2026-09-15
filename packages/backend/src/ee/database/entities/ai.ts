@@ -474,7 +474,8 @@ export type AiPromptContextEntityType =
     | 'preview_environment'
     | 'data_app_element'
     | 'data_app_restore'
-    | 'data_app';
+    | 'data_app'
+    | 'design';
 
 // Element reference snapshot stored in runtime_overrides; entity_ref holds the
 // natural key so one prompt can reference several elements of the same app.

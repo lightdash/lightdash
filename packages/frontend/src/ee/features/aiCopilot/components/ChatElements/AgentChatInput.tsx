@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ContentType,
     FeatureFlags,
     getExternalSourceDisplayName,
     isSpaceRestrictedAgent,
@@ -45,6 +46,8 @@ import {
     ComposerSubmitButton,
     PromptComposer,
 } from '../../../../../components/common/PromptComposer';
+import { useCanCreateDataApp } from '../../../../../features/apps/hooks/useCanCreateDataApp';
+import { useOrganizationDesigns } from '../../../../../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useUser from '../../../../../hooks/user/useUser';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
@@ -85,6 +88,10 @@ import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import {
+    ComposerThemeButton,
+    ComposerThemeMenuEntry,
+} from './ComposerThemeControl';
+import {
     CLOSED_CONTENT_MENTION_MENU,
     contentMentionMenuOwnsEnter,
     createContentMentionExtension,
@@ -93,6 +100,7 @@ import {
     type ContentMentionMenuState,
     type ContentMentionSuggestionItem,
 } from './contentMentions';
+import { isDataAppDraft, type ComposerTheme } from './dataAppThemeComposer';
 import {
     PromptAttachments,
     type ExternalSourceAttachment,
@@ -111,10 +119,12 @@ const buildSubmitContext = ({
     mentionContext,
     externalSources,
     elementReferences,
+    theme,
 }: {
     mentionContext: SubmitContext;
     externalSources: ExternalSourceAttachment[];
     elementReferences: ThreadElementReference[];
+    theme: ComposerTheme | null;
 }): SubmitContext => {
     const context: AiPromptContextItemInput[] = [
         ...(mentionContext.context ?? []),
@@ -130,6 +140,9 @@ const buildSubmitContext = ({
             text,
             loc,
         })),
+        ...(theme
+            ? [{ type: 'design' as const, designUuid: theme.designUuid }]
+            : []),
     ];
     const optimisticContext: AiPromptContextItem[] = [
         ...(mentionContext.optimisticContext ?? []),
@@ -154,6 +167,16 @@ const buildSubmitContext = ({
                 displayName: appDisplayName,
             }),
         ),
+        ...(theme
+            ? [
+                  {
+                      type: 'design' as const,
+                      designUuid: theme.designUuid,
+                      designSlug: theme.slug,
+                      displayName: theme.name,
+                  },
+              ]
+            : []),
     ];
     return {
         ...(context.length > 0 ? { context } : {}),
@@ -378,6 +401,26 @@ export const AgentChatInput = ({
     const hidePersonalDataAppsRef = useRef(false);
     hidePersonalDataAppsRef.current =
         agent !== undefined && isSpaceRestrictedAgent(agent);
+    // Theme for the next data app build; per prompt, so it resets on submit.
+    const [selectedTheme, setSelectedTheme] = useState<ComposerTheme | null>(
+        null,
+    );
+    // Sticky while this composer is mounted; other composers are unaffected.
+    const [themeControlSurfaced, setThemeControlSurfaced] = useState(false);
+    const { data: dataAppsFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataApps,
+    );
+    const canCreateDataApp = useCanCreateDataApp(projectUuid);
+    const canPickTheme = Boolean(
+        dataAppsFlag?.enabled && agent?.enableContentTools && canCreateDataApp,
+    );
+    const { data: themes = [] } = useOrganizationDesigns({
+        enabled: canPickTheme,
+    });
+    const showThemeControl = canPickTheme && !disabled && themes.length > 0;
+    const canManageThemes = Boolean(
+        app.user.data?.ability.can('manage', 'OrganizationDesign'),
+    );
     // What the @-mention dropdown is doing, sourced from the suggestion render
     // lifecycle — the plugin's own `active` flag alone can't tell an open
     // menu from a dismissed or empty one.
@@ -594,6 +637,7 @@ export const AgentChatInput = ({
                     mentionContext: {},
                     externalSources: externalSourceAttachments,
                     elementReferences,
+                    theme: selectedTheme,
                 }),
             });
             if (clearOnSubmitRef.current) {
@@ -601,6 +645,7 @@ export const AgentChatInput = ({
                 setValueState('');
                 setExternalSourceAttachments([]);
                 clearElementReferences();
+                setSelectedTheme(null);
             }
             trackClick();
         },
@@ -619,6 +664,7 @@ export const AgentChatInput = ({
             clearElementReferences,
             isPreparingCsv,
             retainCsvSources,
+            selectedTheme,
         ],
     );
 
@@ -698,7 +744,8 @@ export const AgentChatInput = ({
     const showComposerActionsMenu = Boolean(
         showSqlModeControl ||
         showAttachControl ||
-        showDeepResearchInComposerMenu,
+        showDeepResearchInComposerMenu ||
+        showThemeControl,
     );
 
     const handleStartDeepResearch = async () => {
@@ -752,6 +799,7 @@ export const AgentChatInput = ({
                 mentionContext: extractContentMentionContext(ed),
                 externalSources: externalSourceAttachments,
                 elementReferences,
+                theme: selectedTheme,
             }),
         });
         if (clearOnSubmitRef.current) {
@@ -759,6 +807,7 @@ export const AgentChatInput = ({
             setValueState('');
             setExternalSourceAttachments([]);
             clearElementReferences();
+            setSelectedTheme(null);
         }
     };
 
@@ -825,6 +874,32 @@ export const AgentChatInput = ({
     ]);
     const showDeepResearchNudge =
         nudgeState === 'shown' && isDeepResearchDraft(value);
+
+    // Surface the theme control once the draft reads as a data app request
+    // (trigger words, pinned/mentioned app, element ref).
+    const hasPinnedDataApp =
+        elementReferences.length > 0 ||
+        contentMentionPriorityItems.some(
+            (item) =>
+                item.group === 'current' &&
+                item.contentType === ContentType.DATA_APP,
+        );
+    useEffect(() => {
+        if (themeControlSurfaced || !showThemeControl) return;
+        const mentionsDataApp =
+            editorRef.current !== null &&
+            (extractContentMentionContext(editorRef.current).context?.some(
+                (item) => item.type === 'data_app',
+            ) ??
+                false);
+        if (isDataAppDraft(value) || hasPinnedDataApp || mentionsDataApp) {
+            setThemeControlSurfaced(true);
+        }
+    }, [value, hasPinnedDataApp, showThemeControl, themeControlSurfaced]);
+    // The compact composer only shows the button once a theme is picked.
+    const showThemeButton =
+        showThemeControl &&
+        (selectedTheme !== null || (themeControlSurfaced && !isMinimalMode));
 
     const chipRow = useMemo(() => {
         if (!emptyStateMode && !postResponseMode) return null;
@@ -985,7 +1060,8 @@ export const AgentChatInput = ({
                                 )}
                             </FileButton>
                             {(showSqlModeControl ||
-                                showDeepResearchInComposerMenu) && (
+                                showDeepResearchInComposerMenu ||
+                                showThemeControl) && (
                                 <Menu.Divider role="separator" mx="sm" />
                             )}
                         </>
@@ -1020,10 +1096,34 @@ export const AgentChatInput = ({
                         </Menu.Item>
                     )}
                     {showDeepResearchInComposerMenu && deepResearchMenuItem}
+                    {showThemeControl && (
+                        <>
+                            {(showSqlModeControl ||
+                                showDeepResearchInComposerMenu) && (
+                                <Menu.Divider role="separator" mx="sm" />
+                            )}
+                            <ComposerThemeMenuEntry
+                                themes={themes}
+                                value={selectedTheme}
+                                onChange={setSelectedTheme}
+                                canManageThemes={canManageThemes}
+                            />
+                        </>
+                    )}
                 </Menu.Dropdown>
             </Menu>
         );
     };
+
+    const renderThemeButton = () =>
+        showThemeButton ? (
+            <ComposerThemeButton
+                themes={themes}
+                value={selectedTheme}
+                onChange={setSelectedTheme}
+                canManageThemes={canManageThemes}
+            />
+        ) : null;
 
     const renderedAttachments =
         externalSourceAttachments.length > 0 ||
@@ -1141,7 +1241,12 @@ export const AgentChatInput = ({
                         {...composerCommonProps}
                         variant="inline"
                         attachments={renderedAttachments}
-                        toolbarLeft={renderComposerActionsMenu()}
+                        toolbarLeft={
+                            <Group gap={4} align="center" wrap="nowrap">
+                                {renderComposerActionsMenu()}
+                                {renderThemeButton()}
+                            </Group>
+                        }
                         toolbarRight={
                             <Group gap={4} align="center" wrap="nowrap">
                                 {renderComposerAction('sm')}
@@ -1189,6 +1294,7 @@ export const AgentChatInput = ({
                 toolbarLeft={
                     <Group gap="xs" align="center" wrap="nowrap">
                         {renderComposerActionsMenu()}
+                        {renderThemeButton()}
                     </Group>
                 }
                 toolbarRight={

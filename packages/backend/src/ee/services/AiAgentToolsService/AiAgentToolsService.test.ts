@@ -115,6 +115,7 @@ const makeService = ({
     contentService = {},
     searchService = {},
     appGenerateService = {},
+    organizationDesignModel = {},
     appModel = {},
     savedChartModel = {},
     dashboardModel = {},
@@ -142,6 +143,7 @@ const makeService = ({
     contentService?: Record<string, unknown>;
     searchService?: Record<string, unknown>;
     appGenerateService?: Record<string, unknown>;
+    organizationDesignModel?: Record<string, unknown>;
     appModel?: Record<string, unknown>;
     savedChartModel?: Record<string, unknown>;
     dashboardModel?: Record<string, unknown>;
@@ -215,6 +217,7 @@ const makeService = ({
         asyncQueryService,
         querySourceService,
         appGenerateService,
+        organizationDesignModel,
         appModel,
         savedChartModel,
         dashboardModel,
@@ -2923,6 +2926,27 @@ describe('AiAgentToolsService.aggregateDataAppDataReferences', () => {
     });
 });
 
+// Positional `options` arg of AppGenerateService.generateApp / iterateApp.
+const GENERATE_APP_OPTIONS_ARG = 11;
+const ITERATE_APP_OPTIONS_ARG = 8;
+const generateAppOptions = (appGenerateService: {
+    generateApp: ReturnType<typeof vi.fn>;
+}) => appGenerateService.generateApp.mock.calls[0][GENERATE_APP_OPTIONS_ARG];
+const iterateAppOptions = (appGenerateService: {
+    iterateApp: ReturnType<typeof vi.fn>;
+}) => appGenerateService.iterateApp.mock.calls[0][ITERATE_APP_OPTIONS_ARG];
+
+type DesignModelTheme = { designUuid: string; slug: string; name: string };
+// Mirrors the real model: slug lookup on the hit path, the full list only on a miss.
+const makeDesignModelWithThemes = (themes: DesignModelTheme[]) => ({
+    findByIdOrSlug: vi
+        .fn()
+        .mockImplementation(async (_org: string, slug: string) =>
+            themes.find((theme) => theme.slug === slug),
+        ),
+    listByOrganization: vi.fn().mockResolvedValue(themes),
+});
+
 describe('AiAgentToolsService generateDataApp', () => {
     const makeAppGenerateService = ({
         enabled = true,
@@ -2962,6 +2986,7 @@ describe('AiAgentToolsService generateDataApp', () => {
             template: null,
             dashboardSlug: null,
             chartSlugs: null,
+            themeSlug: null,
             toolCallId: 'tool-call-1',
             ...args,
         });
@@ -3155,6 +3180,92 @@ describe('AiAgentToolsService generateDataApp', () => {
         ).rejects.toThrow('Chart "no-such-chart" was not found');
         expect(appGenerateService.generateApp).not.toHaveBeenCalled();
     });
+
+    describe('themeSlug', () => {
+        const makeDesignModel = () =>
+            makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+                { designUuid: 'dark-uuid', slug: 'dark', name: 'Dark' },
+            ]);
+
+        it('resolves the slug within the organization to the theme uuid', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const organizationDesignModel = makeDesignModel();
+            const service = makeService({
+                appGenerateService,
+                organizationDesignModel,
+            });
+
+            await runGenerate(
+                service,
+                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                { themeSlug: 'dark' },
+            );
+
+            expect(organizationDesignModel.findByIdOrSlug).toHaveBeenCalledWith(
+                organizationUuid,
+                'dark',
+            );
+            expect(
+                organizationDesignModel.listByOrganization,
+            ).not.toHaveBeenCalled();
+            const opts = generateAppOptions(appGenerateService);
+            expect(opts).toEqual({
+                creationExperience: 'ai_agent',
+                aiAgentToolCall: {
+                    promptUuid: 'prompt-uuid',
+                    toolCallId: 'tool-call-1',
+                },
+                designUuidInput: 'dark-uuid',
+            });
+        });
+
+        it('names the valid slugs for an unknown slug and starts no build', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const organizationDesignModel = makeDesignModel();
+            const service = makeService({
+                appGenerateService,
+                organizationDesignModel,
+            });
+
+            await expect(
+                runGenerate(
+                    service,
+                    makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                    { themeSlug: 'no-such-theme' },
+                ),
+            ).rejects.toThrow(
+                'Theme "no-such-theme" was not found. Valid theme slugs: brand, dark',
+            );
+            expect(
+                organizationDesignModel.listByOrganization,
+            ).toHaveBeenCalledWith(organizationUuid);
+            expect(appGenerateService.generateApp).not.toHaveBeenCalled();
+        });
+
+        it('passes no theme input when the slug is absent', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const organizationDesignModel = makeDesignModel();
+            const service = makeService({
+                appGenerateService,
+                organizationDesignModel,
+            });
+
+            await runGenerate(
+                service,
+                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+            );
+
+            expect(
+                organizationDesignModel.findByIdOrSlug,
+            ).not.toHaveBeenCalled();
+            expect(
+                organizationDesignModel.listByOrganization,
+            ).not.toHaveBeenCalled();
+            const opts = generateAppOptions(appGenerateService);
+            expect(opts).not.toHaveProperty('designUuidInput');
+        });
+    });
 });
 
 describe('AiAgentToolsService iterateDataApp', () => {
@@ -3195,6 +3306,7 @@ describe('AiAgentToolsService iterateDataApp', () => {
             prompt: 'Add an order status filter',
             dashboardSlug: null,
             chartSlugs: null,
+            themeSlug: null,
             toolCallId: 'tool-call-1',
             ...args,
         });
@@ -3343,5 +3455,79 @@ describe('AiAgentToolsService iterateDataApp', () => {
             'iterateDataApp requires a prompt',
         );
         expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+    });
+
+    describe('themeSlug', () => {
+        const makeDesignModel = () =>
+            makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+            ]);
+
+        it('switches the theme alongside the brief', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const organizationDesignModel = makeDesignModel();
+            const service = makeService({
+                appGenerateService,
+                organizationDesignModel,
+                appModel: makeAppModel(),
+            });
+
+            await runIterate(
+                service,
+                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                { themeSlug: 'brand' },
+            );
+
+            const opts = iterateAppOptions(appGenerateService);
+            expect(opts).toEqual({
+                creationExperience: 'ai_agent',
+                aiAgentToolCall: {
+                    promptUuid: 'prompt-uuid',
+                    toolCallId: 'tool-call-1',
+                },
+                designUuidInput: 'brand-uuid',
+                themeChangePrompt: 'append',
+            });
+        });
+
+        it('names the valid slugs for an unknown slug and starts no build', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const organizationDesignModel = makeDesignModel();
+            const service = makeService({
+                appGenerateService,
+                organizationDesignModel,
+                appModel: makeAppModel(),
+            });
+
+            await expect(
+                runIterate(
+                    service,
+                    makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                    { themeSlug: 'no-such-theme' },
+                ),
+            ).rejects.toThrow(
+                'Theme "no-such-theme" was not found. Valid theme slugs: brand',
+            );
+            expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+        });
+
+        it('keeps the app theme when the slug is absent', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const organizationDesignModel = makeDesignModel();
+            const service = makeService({
+                appGenerateService,
+                organizationDesignModel,
+                appModel: makeAppModel(),
+            });
+
+            await runIterate(
+                service,
+                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+            );
+
+            const opts = iterateAppOptions(appGenerateService);
+            expect(opts).not.toHaveProperty('designUuidInput');
+            expect(opts).not.toHaveProperty('themeChangePrompt');
+        });
     });
 });

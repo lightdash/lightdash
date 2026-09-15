@@ -268,6 +268,12 @@ export type AiPromptContextItemInput =
           type: 'data_app';
           appUuid: string;
           appSlug?: string | null;
+      }
+    | {
+          // The organization theme picked in the composer for a data app
+          // build; the server snapshots its name at attach time.
+          type: 'design';
+          designUuid: string;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
@@ -384,6 +390,13 @@ export type AiPromptContextItem =
           pinnedVersion: number | null;
           // Personal apps have no space; space-restricted agents cannot read them.
           isPersonal: boolean;
+      }
+    | {
+          type: 'design';
+          designUuid: string;
+          // Null when the theme was deleted after it was pinned.
+          designSlug: string | null;
+          displayName: string | null;
       };
 
 export type AiPromptContext = AiPromptContextItem[];

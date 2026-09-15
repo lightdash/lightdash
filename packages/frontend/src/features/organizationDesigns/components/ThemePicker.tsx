@@ -8,16 +8,11 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconBrush,
-    IconCheck,
-    IconChevronDown,
-    IconSettings,
-} from '@tabler/icons-react';
+import { IconBrush, IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationDesigns } from '../hooks/useOrganizationDesigns';
+import { ManageThemesMenuItem } from './ManageThemesMenuItem';
 import classes from './ThemePicker.module.css';
 
 const LIGHTDASH_DEFAULT_LABEL = 'No theme';
@@ -49,7 +44,6 @@ export const ThemePicker: FC<Props> = ({
     lockedAfterCreation,
     compact,
 }) => {
-    const navigate = useNavigate();
     const [opened, setOpened] = useState(false);
     const { data: themes = [] } = useOrganizationDesigns();
 
@@ -205,14 +199,7 @@ export const ThemePicker: FC<Props> = ({
                     )}
                 </ScrollArea.Autosize>
                 <Menu.Divider />
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconSettings} size={14} />}
-                    onClick={() =>
-                        void navigate('/generalSettings/dataApps/themes')
-                    }
-                >
-                    <Text size="xs">Manage themes</Text>
-                </Menu.Item>
+                <ManageThemesMenuItem />
             </Menu.Dropdown>
         </Menu>
     );

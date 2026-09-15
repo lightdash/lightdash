@@ -27,6 +27,7 @@ const states = {
         name: APP_NAME,
         version: 1,
         durationMs: 372_000,
+        themeName: null,
         restoredFromVersion: null,
         completionMessage:
             'Your app is ready. Five regional pages, weekly revenue over the last 26 weeks.',
@@ -81,6 +82,7 @@ export const ReadyRestored: Story = {
             ...states.ready,
             version: 3,
             durationMs: null,
+            themeName: null,
             restoredFromVersion: 1,
             completionMessage: 'Restored version 1 as version 3.',
         },

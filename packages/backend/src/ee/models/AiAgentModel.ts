@@ -125,6 +125,7 @@ import {
     ExternalSourcesTableName,
     ExternalSourceTablesTableName,
 } from '../../database/entities/externalSources';
+import { OrganizationDesignsTableName } from '../../database/entities/organizationDesigns';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
 import {
     SavedChartsTableName,
@@ -6589,6 +6590,20 @@ export class AiAgentModel {
             ).map((r) => [r.app_id, r.name] as const),
         );
 
+        const designUuids = context.flatMap((c) =>
+            c.type === 'design' ? [c.designUuid] : [],
+        );
+        const designNameByUuid = new Map(
+            (
+                await trx(OrganizationDesignsTableName)
+                    .whereIn('design_uuid', designUuids)
+                    .select<{ design_uuid: string; name: string }[]>(
+                        'design_uuid',
+                        'name',
+                    )
+            ).map((r) => [r.design_uuid, r.name] as const),
+        );
+
         const pinnedAppUuids = context.flatMap((c) =>
             c.type === 'data_app' ? [c.appUuid] : [],
         );
@@ -6922,6 +6937,14 @@ export class AiAgentModel {
                         } satisfies AiPromptDataAppSnapshot,
                     };
                 }
+                case 'design':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'design' as AiPromptContextEntityType,
+                        entity_uuid: ctx.designUuid,
+                        display_name:
+                            designNameByUuid.get(ctx.designUuid) ?? null,
+                    };
                 default:
                     return assertUnreachable(
                         ctx,
@@ -7100,6 +7123,22 @@ export class AiAgentModel {
             ),
         );
 
+        const designUuids = rows
+            .filter((r) => r.entity_type === 'design')
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
+        const designDataByUuid = new Map(
+            (
+                await this.database(OrganizationDesignsTableName)
+                    .whereIn('design_uuid', designUuids)
+                    .select<
+                        { design_uuid: string; slug: string; name: string }[]
+                    >('design_uuid', 'slug', 'name')
+            ).map(
+                (r) => [r.design_uuid, { slug: r.slug, name: r.name }] as const,
+            ),
+        );
+
         const previewProjectUuids = rows
             .filter((r) => r.entity_type === 'preview_environment')
             .map((r) => r.entity_uuid)
@@ -7133,6 +7172,7 @@ export class AiAgentModel {
                     reviewItem,
                     projectNameByUuid,
                     appDataByUuid,
+                    designDataByUuid,
                 ),
             );
             grouped.set(row.ai_prompt_uuid, existing);
@@ -7181,6 +7221,7 @@ export class AiAgentModel {
             string,
             { slug: string; name: string; spaceUuid: string | null }
         >,
+        designDataByUuid: Map<string, { slug: string; name: string }>,
     ): AiPromptContextItem {
         // chart/dashboard/thread are uuid-keyed: entity_uuid is a non-null
         // invariant (only file/repository leave it null, using entity_ref).
@@ -7339,6 +7380,16 @@ export class AiAgentModel {
                         : row.display_name,
                     pinnedVersion: snapshot?.version ?? null,
                     isPersonal: app !== undefined && app.spaceUuid === null,
+                };
+            }
+            case 'design': {
+                const designUuid = requireEntityUuid();
+                const design = designDataByUuid.get(designUuid);
+                return {
+                    type: 'design',
+                    designUuid,
+                    designSlug: design?.slug ?? null,
+                    displayName: design?.name ?? row.display_name,
                 };
             }
             default:

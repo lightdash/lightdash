@@ -72,6 +72,7 @@ import {
     deriveDataAppVizPivotConfig,
     deriveDataAppVizPivotConfiguration,
     derivePivotConfigurationFromChart,
+    designContextKey,
     DownloadFileType,
     elementReferenceToWireString,
     EmbedArtifactVersionJobPayload,
@@ -237,6 +238,7 @@ import { DownloadFileModel } from '../../../models/DownloadFileModel';
 import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
+import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { PullRequestsModel } from '../../../models/PullRequestsModel';
 import { RolesModel } from '../../../models/RolesModel';
@@ -580,6 +582,10 @@ type AiAgentServiceDependencies = {
         AppModel,
         'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
     >;
+    organizationDesignModel: Pick<
+        OrganizationDesignModel,
+        'findInOrganization'
+    >;
     appGenerateService: Pick<
         AppGenerateService,
         'canViewApp' | 'restoreVersion'
@@ -863,6 +869,11 @@ export class AiAgentService extends BaseService {
         'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
     >;
 
+    private readonly organizationDesignModel: Pick<
+        OrganizationDesignModel,
+        'findInOrganization'
+    >;
+
     private readonly appGenerateService: Pick<
         AppGenerateService,
         'canViewApp' | 'restoreVersion'
@@ -1101,6 +1112,9 @@ export class AiAgentService extends BaseService {
                 case 'data_app':
                     key = dataAppContextKey(item.appUuid);
                     break;
+                case 'design':
+                    key = designContextKey(item.designUuid);
+                    break;
                 default:
                     return assertUnreachable(
                         item,
@@ -1270,6 +1284,19 @@ export class AiAgentService extends BaseService {
                         'This context item can only be attached by the review remediation flow',
                     );
                 }
+                // Themes are organization-scoped; the agent's org is the boundary.
+                if (item.type === 'design') {
+                    const design =
+                        await this.organizationDesignModel.findInOrganization(
+                            agent.organizationUuid,
+                            item.designUuid,
+                        );
+                    if (!design) {
+                        throw new NotFoundError('Theme not found');
+                    }
+                    return;
+                }
+
                 // data_app_restore is written by the thread restore endpoint only.
                 if (item.type === 'data_app_restore') {
                     throw new ForbiddenError(
@@ -1350,6 +1377,7 @@ export class AiAgentService extends BaseService {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
         this.appModel = dependencies.appModel;
+        this.organizationDesignModel = dependencies.organizationDesignModel;
         this.appGenerateService = dependencies.appGenerateService;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
@@ -9091,6 +9119,11 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Data app restore: version ${item.restoredFromVersion} of "${name}" (appSlug: ${slugText}) was restored as version ${item.version} — the app now matches version ${item.restoredFromVersion}; iterate from version ${item.version}.`;
+                }
+                case 'design': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.designSlug ?? '(slug unavailable)';
+                    return `- Theme: ${name} (slug: ${slugText}) — the organization theme the user picked for this data app build; pass its slug as themeSlug to generateDataApp or iterateDataApp.`;
                 }
                 default:
                     return assertUnreachable(

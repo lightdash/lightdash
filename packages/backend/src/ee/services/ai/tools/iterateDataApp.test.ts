@@ -37,6 +37,7 @@ const executeIterateDataApp = (tool: IterateDataAppTool) =>
             prompt: 'Add a filter for order status',
             dashboardSlug: null,
             chartSlugs: ['orders-by-status'],
+            themeSlug: null,
         },
         { messages: [], toolCallId: 'tool-call-1' },
     ) as Promise<IterateDataAppOutput>;
@@ -60,6 +61,7 @@ describe('getIterateDataApp', () => {
             prompt: 'Add a filter for order status',
             dashboardSlug: null,
             chartSlugs: ['orders-by-status'],
+            themeSlug: null,
             toolCallId: 'tool-call-1',
         });
         expect(output.metadata).toEqual({

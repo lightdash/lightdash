@@ -17,12 +17,23 @@ _Avoid_: ask agent, open copilot, AI button
 **Pinned context**:
 The set of content a user attaches to one AI agent prompt: charts,
 dashboards, data apps, previous conversations, dbt files, repositories,
-external sources. Stored with the prompt and shown to the agent as names and
-slugs; the agent reads the content itself with its tools. Outside this
-context, qualify as "AI agent pinned context"; it is not data-app **Context**,
-which is what the coding agent receives.
+external sources, and a theme picked for a data app build. Stored with the
+prompt and shown to the agent as names and slugs; the agent reads the content
+itself with its tools. Outside this context, qualify as "AI agent pinned
+context"; it is not data-app **Context**, which is what the coding agent
+receives.
 _Avoid_: context (unqualified), attachments, references, mentions (for the
 set)
+
+**Theme pick**:
+The data app theme a user chooses from the composer's `+` menu for the
+prompt about to be sent. Offered only when the agent can start data app
+builds and the organization has themes; it surfaces on the main input once
+the draft reads as a data app request. Per prompt, not per thread: it rides
+the prompt as pinned context, shows as a chip on the sent message, and beats
+a theme named in the prompt's text. Leaving it unset keeps the organization
+default.
+_Avoid_: theme setting, thread theme, design pick
 
 **Mention**:
 Attaching content to a prompt by typing `@` and picking it from search, the

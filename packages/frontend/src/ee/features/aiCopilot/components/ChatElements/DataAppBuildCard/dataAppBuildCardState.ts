@@ -45,6 +45,7 @@ const getReadyState = ({
     name: getAppDisplayName(name, appUuid),
     version,
     durationMs: row ? getBuildDurationMs(row) : null,
+    themeName: row?.resources?.design?.name ?? null,
     restoredFromVersion: null,
     completionMessage:
         row?.statusMessage ??
@@ -158,11 +159,16 @@ export const getDataAppRestoreCardState = (
         (source.kind === 'loaded'
             ? getAppDisplayName(source.app.name, item.appUuid)
             : 'Data app');
+    const row =
+        source.kind === 'loaded'
+            ? source.app.versions.find((v) => v.version === item.version)
+            : undefined;
     return {
         kind: 'ready',
         name,
         version: item.version,
         durationMs: null,
+        themeName: row?.resources?.design?.name ?? null,
         restoredFromVersion: item.restoredFromVersion,
         completionMessage:
             response ??

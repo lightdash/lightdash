@@ -420,6 +420,9 @@ export type DataAppReadSource = {
 type GenerateAppOptions = {
     creationExperience?: DataAppCreationExperience;
     designUuidInput?: string | null;
+    // Iterate with designUuidInput: 'replace' swaps the prompt for a
+    // style-only restyle; 'append' adds the restyle to the prompt's change.
+    themeChangePrompt?: 'replace' | 'append';
     externalConnections?: AppExternalConnectionReference[];
     codexModelInput?: DataAppCodexModel;
     // The AI agent tool call that started the build; travels on the job so
@@ -3466,6 +3469,12 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /** Styling rules shared by every theme-change prompt. */
+    private static readonly THEME_RESTYLE_RULES = [
+        'Only change visual styling needed for the theme: colors, typography, spacing, borders, shadows, chart palette, and appropriate theme asset usage.',
+        'If a theme is active, read and use the files under /app/src/design/ and follow the organization theme instructions. Do not edit files under /app/src/design/.',
+    ];
+
     private static buildThemeChangePrompt(themeName: string | null): string {
         const target = themeName
             ? `the active organization theme "${themeName}"`
@@ -3474,8 +3483,21 @@ export class AppGenerateService extends BaseService {
         return [
             `Restyle the current app to follow ${target}.`,
             'Preserve the app content exactly: do not change text, metrics, queries, filters, chart semantics, layout intent, or interactions.',
-            'Only change visual styling needed for the theme: colors, typography, spacing, borders, shadows, chart palette, and appropriate theme asset usage.',
-            'If a theme is active, read and use the files under /app/src/design/ and follow the organization theme instructions. Do not edit files under /app/src/design/.',
+            ...AppGenerateService.THEME_RESTYLE_RULES,
+        ].join('\n');
+    }
+
+    /** The user's change plus a theme switch in one build. */
+    private static buildPromptWithThemeChange(
+        prompt: string,
+        themeName: string,
+    ): string {
+        return [
+            prompt,
+            '',
+            `In the same build, restyle the app to follow the active organization theme "${themeName}".`,
+            'Apart from the change requested above, preserve the app content exactly: do not change other text, metrics, queries, filters, chart semantics, layout intent, or interactions.',
+            ...AppGenerateService.THEME_RESTYLE_RULES,
         ].join('\n');
     }
 
@@ -6562,6 +6584,7 @@ export class AppGenerateService extends BaseService {
         const {
             creationExperience,
             designUuidInput,
+            themeChangePrompt = 'replace',
             externalConnections,
             codexModelInput,
             aiAgentToolCall,
@@ -6647,9 +6670,8 @@ export class AppGenerateService extends BaseService {
             sampleStats,
         } = await this.resolveChartReferences(refs, user, projectUuid);
 
-        // Omitted designUuid means a normal content iteration that inherits
-        // the app's current theme. Explicit string/null means "change the
-        // app theme and run a style-only iteration".
+        // Omitted designUuid inherits the app's current theme. Explicit
+        // string/null changes it; themeChangePrompt decides the prompt shape.
         const isThemeChange = designUuidInput !== undefined;
         let effectiveDesignUuid: string | null = isThemeChange
             ? designUuidInput
@@ -6683,11 +6705,17 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        const pipelinePrompt = isThemeChange
-            ? AppGenerateService.buildThemeChangePrompt(
-                  designSnapshot?.name ?? null,
-              )
-            : prompt;
+        let pipelinePrompt = prompt;
+        if (isThemeChange) {
+            const themeName = designSnapshot?.name ?? null;
+            pipelinePrompt =
+                themeChangePrompt === 'append' && themeName !== null
+                    ? AppGenerateService.buildPromptWithThemeChange(
+                          prompt,
+                          themeName,
+                      )
+                    : AppGenerateService.buildThemeChangePrompt(themeName);
+        }
 
         const resources: AppVersionResources = {
             ...AppGenerateService.toAttachmentResources(stagedFiles),

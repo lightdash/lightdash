@@ -23,6 +23,10 @@ export type DataAppBuildTemplate = (typeof DATA_APP_BUILD_TEMPLATES)[number];
 export const DATA_APP_VIZ_LINE_FORMAT =
     '[viz title][explore; metrics; dimensions; filters; sort]';
 
+/** Shared by generateDataApp and iterateDataApp; the iterate tool adds its own theme-change caveat in its description. */
+export const DATA_APP_THEME_SLUG_DESCRIPTION =
+    'Organization theme to build the app with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build.';
+
 export const TOOL_GENERATE_DATA_APP_DESCRIPTION = [
     "Start building a new data app — an interactive application generated from a brief on top of this project's semantic layer.",
     'Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools.',
@@ -57,6 +61,11 @@ export const toolGenerateDataAppArgsSchema = z.object({
         .describe(
             'Saved charts (slugs from findContent) whose queries the app is built on; the charts themselves stay unchanged. Omit when not building on saved charts.',
         ),
+    themeSlug: z
+        .string()
+        .nullish()
+        .default(null)
+        .describe(DATA_APP_THEME_SLUG_DESCRIPTION),
 });
 
 export const toolGenerateDataAppOutputSchema = z.object({

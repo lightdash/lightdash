@@ -961,6 +961,13 @@ const toOptimisticContextItem = (
                 pinnedVersion: null,
                 isPersonal: false,
             };
+        case 'design':
+            return {
+                type: 'design',
+                designUuid: item.designUuid,
+                designSlug: null,
+                displayName: null,
+            };
         // System-only pins are seeded by the remediation flow or the thread
         // restore endpoint, never optimistically attached from the UI.
         case 'proposed_change':

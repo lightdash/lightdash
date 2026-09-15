@@ -406,3 +406,32 @@ describe('AiAgentService.createPinnedContextMessage data app pins', () => {
         expect(chartAt).toBeGreaterThan(appAt);
     });
 });
+
+describe('AiAgentService.createPinnedContextMessage theme pins', () => {
+    it('renders the theme as a name and slug bullet', () => {
+        const content = buildMessage([
+            {
+                type: 'design',
+                designUuid: 'design-1',
+                designSlug: 'brand',
+                displayName: 'Brand',
+            },
+        ]);
+        expect(content).toContain('- Theme: Brand (slug: brand)');
+        expect(content).not.toContain('design-1');
+    });
+
+    it('marks a deleted theme as unavailable rather than dropping it', () => {
+        const content = buildMessage([
+            {
+                type: 'design',
+                designUuid: 'design-1',
+                designSlug: null,
+                displayName: null,
+            },
+        ]);
+        expect(content).toContain(
+            '- Theme: (name unavailable) (slug: (slug unavailable))',
+        );
+    });
+});
