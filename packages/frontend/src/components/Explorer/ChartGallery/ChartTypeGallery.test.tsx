@@ -242,7 +242,10 @@ describe('ChartTypeGallery', () => {
         expect(onConfigure).not.toHaveBeenCalled();
         expect(onEdit).not.toHaveBeenCalled();
         expect(
-            screen.queryByRole('menuitem', { name: 'Edit chart type…' }),
+            screen.queryByRole('menuitem', {
+                name: 'Edit chart type',
+                exact: true,
+            }),
         ).not.toBeInTheDocument();
     });
 
@@ -313,20 +316,25 @@ describe('ChartTypeGallery', () => {
 
         expect(
             await screen.findByRole('menuitem', {
-                name: 'Edit chart type…',
+                name: 'Edit chart type',
+                exact: true,
             }),
         ).toBeInTheDocument();
 
         await userEvent.keyboard('{Escape}');
         expect(
-            screen.queryByRole('menuitem', { name: 'Edit chart type…' }),
+            screen.queryByRole('menuitem', {
+                name: 'Edit chart type',
+                exact: true,
+            }),
         ).not.toBeInTheDocument();
         expect(menuButton).toHaveFocus();
 
         await userEvent.keyboard('{Enter}');
         await userEvent.click(
             await screen.findByRole('menuitem', {
-                name: 'Edit chart type…',
+                name: 'Edit chart type',
+                exact: true,
             }),
         );
 
@@ -750,7 +758,10 @@ describe('ExplorerChartTypeGallery', () => {
             }),
         );
         await userEvent.click(
-            await screen.findByRole('menuitem', { name: 'Edit chart type…' }),
+            await screen.findByRole('menuitem', {
+                name: 'Edit chart type',
+                exact: true,
+            }),
         );
 
         expect(mocks.dispatch).toHaveBeenCalledWith({

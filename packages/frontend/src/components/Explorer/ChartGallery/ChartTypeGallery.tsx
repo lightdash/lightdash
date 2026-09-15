@@ -80,7 +80,7 @@ const ChartTypeIcon: FC<ChartTypeIconProps> = ({
         data-rotated={rotatedIcon}
         icon={icon}
         size={small ? 'md' : 'xl'}
-        stroke={1.25}
+        stroke={1.5}
     />
 );
 
@@ -204,6 +204,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     opened={isMenuOpened}
                     onChange={setIsMenuOpened}
                     position="bottom-end"
+                    withArrow
                     closeOnItemClick
                 >
                     <Menu.Target>
@@ -218,18 +219,18 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                                 aria-label={`More actions for ${item.label}`}
                                 disabled={item.disabled}
                             >
-                                <MantineIcon icon={IconDots} size={14} />
+                                <MantineIcon icon={IconDots} size={16} />
                             </ActionIcon>
                         </Tooltip>
                     </Menu.Target>
                     <Menu.Dropdown>
                         <Menu.Item
                             leftSection={
-                                <MantineIcon icon={IconFilePencil} size={14} />
+                                <MantineIcon icon={IconFilePencil} size={16} />
                             }
                             onClick={item.onEdit}
                         >
-                            Edit chart type…
+                            Edit chart type
                         </Menu.Item>
                     </Menu.Dropdown>
                 </Menu>
@@ -318,18 +319,25 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                             section.onLoadMore?.();
                         }}
                     >
-                        {section.loadingMore ? (
-                            <Loader size="sm" color="ldGray.6" />
-                        ) : (
-                            <MantineIcon
-                                className={classes.icon}
-                                icon={IconDots}
-                                size="xl"
-                                stroke={1.5}
-                                color="dimmed"
-                            />
-                        )}
-                        <Text fz="xs" fw={500} lh={1.2}>
+                        <Box className={classes.cardIcon}>
+                            {section.loadingMore ? (
+                                <Loader size="sm" color="ldGray.6" />
+                            ) : (
+                                <MantineIcon
+                                    className={classes.icon}
+                                    icon={IconDots}
+                                    size="xl"
+                                    stroke={1.5}
+                                    color="dimmed"
+                                />
+                            )}
+                        </Box>
+                        <Text
+                            className={classes.cardLabel}
+                            fz="xs"
+                            fw={500}
+                            lh={1.2}
+                        >
                             +{section.moreCount} more
                         </Text>
                     </UnstyledButton>
@@ -342,14 +350,21 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                         aria-label="Create new chart type"
                         onClick={section.onCreateNew}
                     >
-                        <MantineIcon
-                            className={classes.icon}
-                            icon={IconPlus}
-                            size="xl"
-                            stroke={1.5}
-                            color="dimmed"
-                        />
-                        <Text fz="xs" fw={500} lh={1.2}>
+                        <Box className={classes.cardIcon}>
+                            <MantineIcon
+                                className={classes.icon}
+                                icon={IconPlus}
+                                size="xl"
+                                stroke={1.5}
+                                color="dimmed"
+                            />
+                        </Box>
+                        <Text
+                            className={classes.cardLabel}
+                            fz="xs"
+                            fw={500}
+                            lh={1.2}
+                        >
                             New chart type
                         </Text>
                     </UnstyledButton>
