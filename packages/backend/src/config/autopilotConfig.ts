@@ -11,10 +11,18 @@ const validatedModelSchema = z
 
 export type AutopilotValidatedModel = z.infer<typeof validatedModelSchema>;
 
+// Exact provider/model pairs that passed the cleanup scorecard on PROD-11224.
+// Provider ids match runtime attribution; model ids match the preset modelId.
+export const DEFAULT_AUTOPILOT_VALIDATED_MODELS: AutopilotValidatedModel[] = [
+    { provider: 'anthropic', model: 'claude-sonnet-5', mode: 'cleanup' },
+    { provider: 'openai', model: 'gpt-5.4-2026-03-05', mode: 'cleanup' },
+];
+
 export const parseAutopilotValidatedModels = (
     value: string | undefined,
 ): AutopilotValidatedModel[] => {
-    if (!value) return [];
+    if (value === undefined) return DEFAULT_AUTOPILOT_VALIDATED_MODELS;
+    if (value.trim() === '') return [];
     try {
         return z.array(validatedModelSchema).parse(JSON.parse(value));
     } catch {
