@@ -43,7 +43,27 @@ beforeEach(() => {
 describe('managed agent runtime variable', () => {
     afterEach(() => {
         delete process.env.MANAGED_AGENT_RUNTIME;
+        delete process.env.MANAGED_AGENT_ANTHROPIC_API_KEY;
+        delete process.env.MANAGED_AGENT_SKILL_IDS;
     });
+
+    it.each(['MANAGED_AGENT_ANTHROPIC_API_KEY', 'MANAGED_AGENT_SKILL_IDS'])(
+        'warns that the retired %s is no longer used',
+        (name) => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            process.env[name] = 'retired-value';
+            try {
+                parseConfig();
+                expect(warn).toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        `${name} is set but no longer used`,
+                    ),
+                );
+            } finally {
+                warn.mockRestore();
+            }
+        },
+    );
 
     it.each(['anthropic-managed', 'ai-sdk'])(
         'warns that MANAGED_AGENT_RUNTIME=%s is ignored',
@@ -68,7 +88,7 @@ describe('managed agent runtime variable', () => {
         try {
             parseConfig();
             expect(warn).not.toHaveBeenCalledWith(
-                expect.stringContaining('MANAGED_AGENT_RUNTIME'),
+                expect.stringContaining('MANAGED_AGENT_'),
             );
         } finally {
             warn.mockRestore();

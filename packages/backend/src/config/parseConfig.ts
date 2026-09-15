@@ -2789,6 +2789,21 @@ export const parseConfig = (): LightdashConfig => {
             'WARNING: MANAGED_AGENT_RUNTIME is set but no longer selects a runtime. Autopilot always runs on the AI SDK; remove the variable.',
         );
     }
+    // Still read for one release so operators are told to remove them and the
+    // release-safety config diff does not report them as removed.
+    const retiredManagedAgentVariables = [
+        process.env.MANAGED_AGENT_ANTHROPIC_API_KEY
+            ? 'MANAGED_AGENT_ANTHROPIC_API_KEY'
+            : null,
+        (process.env.MANAGED_AGENT_SKILL_IDS || '') !== ''
+            ? 'MANAGED_AGENT_SKILL_IDS'
+            : null,
+    ].filter((name): name is string => name !== null);
+    for (const name of retiredManagedAgentVariables) {
+        console.warn(
+            `WARNING: ${name} is set but no longer used. Autopilot runs on the organization's AI provider; remove the variable.`,
+        );
+    }
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
     if (!lightdashSecret) {
         throw new ParseError(
