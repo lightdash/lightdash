@@ -1,3 +1,11 @@
+## [2.222.1](https://github.com/lightdash/lightdash/compare/2.222.0...2.222.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **assets:** load retained chunks after deployments ([#29158](https://github.com/lightdash/lightdash/issues/29158)) ([5eff97d](https://github.com/lightdash/lightdash/commit/5eff97dadf89b037ccfba6a838b39eb44aa2afcb))
+* preserve metric chart types when breakdowns change ([#29266](https://github.com/lightdash/lightdash/issues/29266)) ([b2f9b2a](https://github.com/lightdash/lightdash/commit/b2f9b2ae7b9069c7cbf2aaa46702bc7efad1b63f))
+
 # [2.222.0](https://github.com/lightdash/lightdash/compare/2.221.2...2.222.0) (2026-09-15)
 
 
