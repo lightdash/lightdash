@@ -202,12 +202,15 @@ describe('runAutopilotAgent', () => {
     });
     it('serializes same-step actions so the last deletion slot cannot be spent twice', async () => {
         let count = 24;
-        const first = toolCallTurn('soft_delete_content', {
-            target_uuid: 'first',
-        });
-        const second = toolCallTurn('soft_delete_content', {
-            target_uuid: 'second',
-        });
+        const deletion = (targetUuid: string) =>
+            toolCallTurn('soft_delete_content', {
+                description: 'Unviewed for a year',
+                target_name: `Chart ${targetUuid}`,
+                target_type: 'chart',
+                target_uuid: targetUuid,
+            });
+        const first = deletion('first');
+        const second = deletion('second');
         const model = new MockLanguageModelV3({
             doGenerate: async () => ({
                 ...first,
@@ -289,8 +292,10 @@ describe('runAutopilotAgent', () => {
                 calls += 1;
                 if (calls === 1)
                     return toolCallTurn('log_insight', {
-                        title: 'Backlog',
                         description: '350 broken charts',
+                        target_name: 'Backlog',
+                        target_type: 'dashboard',
+                        target_uuid: 'dashboard-1',
                     });
                 if (calls === 2)
                     return toolCallTurn('write_slack_summary', {
