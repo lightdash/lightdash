@@ -36,6 +36,7 @@ import {
 import * as Sentry from '@sentry/core';
 import { type ClientAuthMethod } from 'openid-client';
 import { z } from 'zod';
+import { type S3AuthMode } from '../clients/Aws/S3BaseClient';
 import { VERSION } from '../version';
 import {
     AI_PROVIDER_KEYS,
@@ -911,6 +912,23 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
     };
 };
 
+/** GCS does not sign a URL that lasts longer than 7 days. */
+const GCS_MAX_EXPIRATION_TIME_SECONDS = 604800;
+
+const parseS3AuthMode = (value: string | undefined): S3AuthMode => {
+    const authMode = value?.trim().toLowerCase();
+    if (!authMode || authMode === 'default') {
+        return 'default';
+    }
+    if (authMode === 'gcp_oauth') {
+        return 'gcp_oauth';
+    }
+    throw new ParseError(
+        `Invalid S3_AUTH_MODE: "${value}". Expected "default" or "gcp_oauth".`,
+        {},
+    );
+};
+
 export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     const endpoint = process.env.S3_ENDPOINT;
     const bucket = process.env.S3_BUCKET;
@@ -935,10 +953,23 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     const useCredentialsFrom = useCredentialsFromRaw
         .map((v) => v.trim().toLowerCase())
         .filter((v) => v.length > 0);
+    const authMode = parseS3AuthMode(process.env.S3_AUTH_MODE);
 
     if (!endpoint || !bucket || !region) {
         throw new ParseError(
             'S3-compatible storage is required. Set S3_ENDPOINT, S3_BUCKET and S3_REGION (AWS S3, GCS, MinIO, etc.) - https://docs.lightdash.com/self-host/customize-deployment/environment-variables#s3',
+            {},
+        );
+    }
+
+    // Fail at startup instead of letting the deployment create URLs that
+    // GCS rejects when a user opens them.
+    if (
+        authMode === 'gcp_oauth' &&
+        expirationTime > GCS_MAX_EXPIRATION_TIME_SECONDS
+    ) {
+        throw new ParseError(
+            `S3_EXPIRATION_TIME is ${expirationTime} seconds, but Google Cloud Storage signed URLs cannot last longer than ${GCS_MAX_EXPIRATION_TIME_SECONDS} seconds (7 days) when S3_AUTH_MODE is gcp_oauth.`,
             {},
         );
     }
@@ -952,6 +983,7 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
         secretKey,
         expirationTime,
         forcePathStyle,
+        authMode,
         useCredentialsFrom: useCredentialsFrom.length
             ? useCredentialsFrom
             : undefined,
@@ -972,6 +1004,7 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         accessKey: baseAccessKey,
         secretKey: baseSecretKey,
         forcePathStyle: baseForcePathStyle,
+        authMode: baseAuthMode,
         useCredentialsFrom: baseUseCredentialsFrom,
     } = baseS3Config;
 
@@ -1004,6 +1037,7 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         region,
         accessKey,
         secretKey,
+        authMode: baseAuthMode,
         useCredentialsFrom: baseUseCredentialsFrom,
     };
 };
@@ -1032,6 +1066,7 @@ export const parsePreAggregateResultsS3Config = ():
     const {
         endpoint,
         forcePathStyle,
+        authMode,
         useCredentialsFrom,
         accessKey: baseAccessKey,
         secretKey: baseSecretKey,
@@ -1051,6 +1086,7 @@ export const parsePreAggregateResultsS3Config = ():
         region,
         accessKey: accessKey || baseAccessKey,
         secretKey: secretKey || baseSecretKey,
+        authMode,
         useCredentialsFrom,
     };
 };
@@ -1068,6 +1104,7 @@ export const parseUsageEventsS3Config = (): Omit<
     const {
         endpoint,
         forcePathStyle,
+        authMode,
         useCredentialsFrom,
         bucket: baseBucket,
         region: baseRegion,
@@ -1082,6 +1119,7 @@ export const parseUsageEventsS3Config = (): Omit<
         region: process.env.USAGE_EVENTS_S3_REGION || baseRegion,
         accessKey: process.env.USAGE_EVENTS_S3_ACCESS_KEY || baseAccessKey,
         secretKey: process.env.USAGE_EVENTS_S3_SECRET_KEY || baseSecretKey,
+        authMode,
         useCredentialsFrom,
     };
 };
@@ -1931,6 +1969,14 @@ export type S3Config = {
     secretKey?: string;
     forcePathStyle?: boolean;
     /**
+     * Selects how Lightdash authenticates requests. `default` signs requests
+     * with SigV4. `gcp_oauth` sends a Google OAuth bearer token instead, which
+     * lets Lightdash reach GCS from a workload identity service account
+     * without static keys. Set this value with S3_AUTH_MODE. Every storage
+     * configuration shares it.
+     */
+    authMode?: S3AuthMode;
+    /**
      * Ordered list of credential sources to use for AWS SDK credential resolution.
      * Comma-separated env var S3_USE_CREDENTIALS_FROM -> ["env","token_file","ini","container_metadata","instance_metadata"], etc.
      */
@@ -2468,6 +2514,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             accessKey: baseAccessKey,
             secretKey: baseSecretKey,
             forcePathStyle: baseForcePathStyle,
+            authMode: baseAuthMode,
             useCredentialsFrom: baseUseCredentialsFrom,
         } = baseS3Config;
 
@@ -2484,6 +2531,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             region,
             accessKey,
             secretKey,
+            authMode: baseAuthMode,
             useCredentialsFrom: baseUseCredentialsFrom,
         };
     }

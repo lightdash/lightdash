@@ -9,7 +9,6 @@ import {
     S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
     DownloadFileType,
     getErrorMessage,
@@ -50,7 +49,11 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         fileOpts: { contentType: string; attachmentDownloadName?: string },
         urlOptions?: { expiresIn: number },
     ): Promise<string> {
-        if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
+        if (
+            !this.lightdashConfig.s3?.bucket ||
+            this.s3 === undefined ||
+            this.urlSigner === undefined
+        ) {
             throw new MissingConfigError(
                 "Missing S3 bucket configuration, can't upload files",
             );
@@ -69,16 +72,10 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         });
         try {
             await upload.done();
-            const url = await getSignedUrl(
-                this.s3,
-                new GetObjectCommand({
-                    Bucket: this.lightdashConfig.s3.bucket,
-                    Key: fileId,
-                }),
-                {
-                    expiresIn: this.lightdashConfig.s3.expirationTime,
-                    ...urlOptions,
-                },
+            const url = await this.urlSigner.getSignedDownloadUrl(
+                this.lightdashConfig.s3.bucket,
+                fileId,
+                urlOptions?.expiresIn ?? this.lightdashConfig.s3.expirationTime,
             );
             return url;
         } catch (error) {
@@ -384,19 +381,18 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
      * @returns Pre-signed URL for downloading the file
      */
     async getFileUrl(fileName: string, expiresIn?: number) {
-        if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
+        if (
+            !this.lightdashConfig.s3?.bucket ||
+            this.s3 === undefined ||
+            this.urlSigner === undefined
+        ) {
             throw new MissingConfigError('S3 configuration is not set');
         }
 
-        const url = await getSignedUrl(
-            this.s3,
-            new GetObjectCommand({
-                Bucket: this.lightdashConfig.s3.bucket,
-                Key: fileName,
-            }),
-            {
-                expiresIn: expiresIn ?? this.lightdashConfig.s3.expirationTime,
-            },
+        const url = await this.urlSigner.getSignedDownloadUrl(
+            this.lightdashConfig.s3.bucket,
+            fileName,
+            expiresIn ?? this.lightdashConfig.s3.expirationTime,
         );
 
         return url;

@@ -141,6 +141,7 @@ import {
     type DataAppUploadRejectedEvent,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
+import { createObjectUrlSigner } from '../../../clients/Aws/ObjectUrlSigner';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import {
@@ -1953,12 +1954,10 @@ export class AppGenerateService extends BaseService {
         const { client: s3Client, bucket } = this.getS3Client();
         const s3Key = AppGenerateService.fileStagingKey(appUuid, imageId);
 
-        const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
-        const imageUrl = await getSignedUrl(
+        const imageUrl = await createObjectUrlSigner(
             s3Client,
-            new GetObjectCommand({ Bucket: bucket, Key: s3Key }),
-            { expiresIn: 900 },
-        );
+            this.lightdashConfig.appRuntime.s3 ?? {},
+        ).getSignedDownloadUrl(bucket, s3Key, 900);
 
         return { imageUrl };
     }
@@ -2052,12 +2051,10 @@ export class AppGenerateService extends BaseService {
             throw error;
         }
 
-        const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
-        const thumbnailUrl = await getSignedUrl(
+        const thumbnailUrl = await createObjectUrlSigner(
             s3Client,
-            new GetObjectCommand({ Bucket: bucket, Key: key }),
-            { expiresIn: 900 },
-        );
+            this.lightdashConfig.appRuntime.s3 ?? {},
+        ).getSignedDownloadUrl(bucket, key, 900);
 
         return { thumbnailUrl };
     }

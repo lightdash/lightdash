@@ -9,6 +9,21 @@ import {
     fromTokenFile,
 } from '@aws-sdk/credential-providers';
 import Logger from '../../logging/logger';
+import { applyGcpOAuth } from './gcpOAuth';
+import { createObjectUrlSigner, type ObjectUrlSigner } from './ObjectUrlSigner';
+
+/**
+ * Selects how Lightdash authenticates requests to the object store.
+ *
+ * - `default`: sign requests with SigV4 and AWS credentials. Use this value
+ *   for S3, MinIO, and GCS HMAC keys.
+ * - `gcp_oauth`: send a Google OAuth bearer token. Use this value to reach GCS
+ *   from a workload identity service account, which needs no static keys.
+ *
+ * This setting is not a credential source like `useCredentialsFrom`. It
+ * replaces the signing algorithm.
+ */
+export type S3AuthMode = 'default' | 'gcp_oauth';
 
 export type S3BaseConfiguration =
     | {
@@ -18,6 +33,7 @@ export type S3BaseConfiguration =
           accessKey?: string;
           secretKey?: string;
           expirationTime?: number;
+          authMode?: S3AuthMode;
           /**
            * Ordered list of credential sources to use for AWS SDK credential resolution.
            * If undefined or empty, do NOT set explicit credentials so the SDK default
@@ -35,6 +51,7 @@ export type S3ConnectionConfig = {
     forcePathStyle?: boolean;
     accessKey?: string;
     secretKey?: string;
+    authMode?: S3AuthMode;
     useCredentialsFrom?: string[];
 };
 
@@ -124,12 +141,39 @@ export function resolveS3Credentials(
     return undefined;
 }
 
-function buildS3ClientConfig(config: S3ConnectionConfig): S3ClientConfig {
+export function buildS3ClientConfig(
+    config: S3ConnectionConfig,
+): S3ClientConfig {
     const clientConfig: S3ClientConfig = {
         region: config.region,
         endpoint: config.endpoint || undefined,
         forcePathStyle: config.forcePathStyle ?? false,
     };
+
+    if (config.authMode === 'gcp_oauth') {
+        if (config.accessKey && config.secretKey) {
+            Logger.warn(
+                'S3_AUTH_MODE is gcp_oauth but access key credentials are also set. The keys are ignored for request signing; unset S3_ACCESS_KEY and S3_SECRET_KEY',
+            );
+        }
+        // The SDK resolves an identity even when it does not sign the
+        // request, and it searches for AWS credentials when the caller sets
+        // none. The SDK never uses these placeholder values.
+        clientConfig.credentials = {
+            accessKeyId: 'gcp-oauth',
+            secretAccessKey: 'gcp-oauth',
+        };
+        // Returning the request unchanged stops SigV4 from running. The
+        // bearer token that applyGcpOAuth adds is then the only
+        // authentication on the request.
+        clientConfig.signer = { sign: async (request) => request };
+        // GCS accepts the SDK's checksum headers and then ignores them.
+        // Calculating the checksums reads the whole payload and protects
+        // nothing.
+        clientConfig.requestChecksumCalculation = 'WHEN_REQUIRED';
+        clientConfig.responseChecksumValidation = 'WHEN_REQUIRED';
+        return clientConfig;
+    }
 
     const credentials = resolveS3Credentials(config);
     if (credentials) {
@@ -140,11 +184,30 @@ function buildS3ClientConfig(config: S3ConnectionConfig): S3ClientConfig {
 }
 
 /**
+ * Constructs every S3 SDK client in the backend. Some authentication modes
+ * need more than configuration. For example, `gcp_oauth` needs a middleware.
+ * Routing every client through this function stops a new call site from
+ * omitting that step.
+ */
+function createClient<TClient extends S3 | S3Client>(
+    config: S3ConnectionConfig,
+    construct: (clientConfig: S3ClientConfig) => TClient,
+): TClient {
+    const client = construct(buildS3ClientConfig(config));
+
+    if (config.authMode === 'gcp_oauth') {
+        applyGcpOAuth(client);
+    }
+
+    return client;
+}
+
+/**
  * Builds an S3 client for a bucket configuration. Callers that read and write
  * the same bucket must share this, or one can authenticate where another can't.
  */
 export function createS3ClientFromConfig(config: S3ConnectionConfig): S3Client {
-    return new S3Client(buildS3ClientConfig(config));
+    return createClient(config, (clientConfig) => new S3Client(clientConfig));
 }
 
 /**
@@ -155,6 +218,9 @@ export function createS3ClientFromConfig(config: S3ConnectionConfig): S3Client {
  */
 export class S3BaseClient {
     protected readonly s3: S3 | undefined;
+
+    /** Undefined when `s3` is undefined, which happens when no bucket is configured. */
+    protected readonly urlSigner: ObjectUrlSigner | undefined;
 
     constructor(configuration: S3BaseConfiguration) {
         if (
@@ -167,9 +233,14 @@ export class S3BaseClient {
             return;
         }
 
-        this.s3 = new S3({
-            ...buildS3ClientConfig(configuration),
-            apiVersion: '2006-03-01',
-        });
+        this.s3 = createClient(
+            configuration,
+            (clientConfig) =>
+                new S3({
+                    ...clientConfig,
+                    apiVersion: '2006-03-01',
+                }),
+        );
+        this.urlSigner = createObjectUrlSigner(this.s3, configuration);
     }
 }
