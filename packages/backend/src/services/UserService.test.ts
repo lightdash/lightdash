@@ -17,6 +17,7 @@ import {
     OpenIdIdentityIssuerType,
     OrganizationMemberProfile,
     OrganizationMemberRole,
+    OrganizationSettings,
     OrganizationSsoProvider,
     ParameterError,
     PasswordResetLink,
@@ -198,10 +199,12 @@ const organizationSsoModel = {
 };
 
 const organizationSettingsModel = {
-    get: vi.fn(async () => ({
-        oidcLinkingEnabled: null,
-        oidcToEmailLinkingEnabled: null,
-    })),
+    get: vi.fn(
+        async (): Promise<Partial<OrganizationSettings>> => ({
+            oidcLinkingEnabled: null,
+            oidcToEmailLinkingEnabled: null,
+        }),
+    ),
     update: vi.fn(),
 };
 
@@ -4695,11 +4698,14 @@ describe('UserService', () => {
                 InviteLinkPurpose.Member,
             );
         });
-        test('should cap invite expiry at three days', async () => {
+        test('should cap invite expiry at the organization setting', async () => {
             const now = new Date('2026-08-11T12:00:00.000Z');
             const dateNowSpy = vi
                 .spyOn(Date, 'now')
                 .mockReturnValue(now.getTime());
+            vi.mocked(organizationSettingsModel.get).mockResolvedValueOnce({
+                inviteLinkExpirationDays: 7,
+            });
 
             await userService.createPendingUserAndInviteLink(sessionUser, {
                 ...inviteUser,
@@ -4708,14 +4714,14 @@ describe('UserService', () => {
 
             expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
                 expect.any(String),
-                new Date('2026-08-14T12:00:00.000Z'),
+                new Date('2026-08-18T12:00:00.000Z'),
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
             );
             dateNowSpy.mockRestore();
         });
-        test('should replace a past invite expiry with three days', async () => {
+        test('should replace a past invite expiry with the default three days', async () => {
             const now = new Date('2026-08-11T12:00:00.000Z');
             const dateNowSpy = vi
                 .spyOn(Date, 'now')
@@ -4750,6 +4756,42 @@ describe('UserService', () => {
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
             );
+        });
+        test('should use a changed organization setting for subsequent links only', async () => {
+            const now = new Date('2026-08-11T12:00:00.000Z');
+            const dateNowSpy = vi
+                .spyOn(Date, 'now')
+                .mockReturnValue(now.getTime());
+            vi.mocked(organizationSettingsModel.get)
+                .mockResolvedValueOnce({ inviteLinkExpirationDays: 3 })
+                .mockResolvedValueOnce({ inviteLinkExpirationDays: 7 });
+
+            await userService.createPendingUserAndInviteLink(sessionUser, {
+                ...inviteUser,
+                expiresAt: undefined,
+            });
+            await userService.createPendingUserAndInviteLink(sessionUser, {
+                ...inviteUser,
+                expiresAt: undefined,
+            });
+
+            expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenNthCalledWith(
+                1,
+                expect.any(String),
+                new Date('2026-08-14T12:00:00.000Z'),
+                sessionUser.organizationUuid,
+                newUser.userUuid,
+                InviteLinkPurpose.Member,
+            );
+            expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenNthCalledWith(
+                2,
+                expect.any(String),
+                new Date('2026-08-18T12:00:00.000Z'),
+                sessionUser.organizationUuid,
+                newUser.userUuid,
+                InviteLinkPurpose.Member,
+            );
+            dateNowSpy.mockRestore();
         });
         test('should force setup invites to use the admin role', async () => {
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);

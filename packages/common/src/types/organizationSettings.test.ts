@@ -21,6 +21,7 @@ describe('resolveEffectiveOrganizationSettings', () => {
             oidcToEmailLinkingEnabled: true,
             supportImpersonationEnabled: false,
             semanticLayerPgwireEnabled: false,
+            inviteLinkExpirationDays: 3,
             scheduledDeliveryExpirationSeconds: 259200,
             scheduledDeliveryExpirationSecondsEmail: null,
             scheduledDeliveryExpirationSecondsSlack: null,
@@ -80,6 +81,19 @@ describe('resolveEffectiveOrganizationSettings', () => {
             resolveEffectiveOrganizationSettings({}, INSTANCE_DEFAULTS)
                 .supportImpersonationEnabled,
         ).toBe(false);
+    });
+
+    test('invite link expiration defaults to three days and accepts an org override', () => {
+        expect(
+            resolveEffectiveOrganizationSettings({}, INSTANCE_DEFAULTS)
+                .inviteLinkExpirationDays,
+        ).toBe(3);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { inviteLinkExpirationDays: 7 },
+                INSTANCE_DEFAULTS,
+            ).inviteLinkExpirationDays,
+        ).toBe(7);
     });
 
     test('CORS settings default to no org domains, without env inheritance', () => {

@@ -74,6 +74,31 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
         expect(organizationSettingsModel.update).toHaveBeenCalled();
     });
 
+    it('allows an invite link expiration from one to seven whole days', async () => {
+        const { service, organizationSettingsModel } = buildService(false);
+        await service.updateOrganizationSettings(account, {
+            inviteLinkExpirationDays: 7,
+        });
+        expect(organizationSettingsModel.update).toHaveBeenCalledWith(
+            'org-uuid',
+            { inviteLinkExpirationDays: 7 },
+        );
+    });
+
+    it.each([0, 1.5, 8, '7'])(
+        'rejects invalid invite link expiration %s',
+        async (inviteLinkExpirationDays) => {
+            const { service, organizationSettingsModel } = buildService(false);
+            await expect(
+                service.updateOrganizationSettings(account, {
+                    inviteLinkExpirationDays:
+                        inviteLinkExpirationDays as number,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(organizationSettingsModel.update).not.toHaveBeenCalled();
+        },
+    );
+
     it('allows a limit update when pro-limits is enabled', async () => {
         const { service, organizationSettingsModel } = buildService(true);
         await service.updateOrganizationSettings(account, {

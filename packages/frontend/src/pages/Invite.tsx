@@ -39,10 +39,35 @@ import classes from './Invite.module.css';
 
 interface WelcomeCardProps {
     email: string | undefined;
+    expiresAt: Date;
     setReadyToJoin: (isReady: boolean) => void;
 }
 
-const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
+const InviteExpirationText: FC<{
+    expiresAt: Date;
+    textAlign: 'left' | 'center';
+}> = ({ expiresAt, textAlign }) => {
+    const expirationDate = new Date(expiresAt);
+
+    return (
+        <Text c="dimmed" ta={textAlign} fz="sm">
+            This invite link expires on{' '}
+            <time dateTime={expirationDate.toISOString()}>
+                {expirationDate.toLocaleString(undefined, {
+                    dateStyle: 'long',
+                    timeStyle: 'short',
+                })}
+            </time>
+            .
+        </Text>
+    );
+};
+
+const WelcomeCard: FC<WelcomeCardProps> = ({
+    email,
+    expiresAt,
+    setReadyToJoin,
+}) => {
     const { data: org } = useOrganization();
     const { isNewLayout } = useAuthLayoutVariant();
     const textAlign = isNewLayout ? 'left' : 'center';
@@ -59,10 +84,10 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
                 {`Your teammates ${
                     org?.name ? `at ${org.name}` : ''
                 } are using Lightdash to discover
-                    and share data insights. Click on the link below within the
-                    next 72 hours to join your team and start exploring your
-                    data!`}
+                    and share data insights. Join your team to start exploring
+                    your data!`}
             </Text>
+            <InviteExpirationText expiresAt={expiresAt} textAlign={textAlign} />
             <Button onClick={() => setReadyToJoin(true)}>Join your team</Button>
         </Stack>
     );
@@ -136,6 +161,7 @@ const PrivacyTermsFootnote: FC = () => (
 
 interface OneClickCardProps {
     email: string;
+    expiresAt: Date;
     isSetupInvite: boolean;
     isLoading: boolean;
     onActivate: () => void;
@@ -143,6 +169,7 @@ interface OneClickCardProps {
 
 const OneClickCard: FC<OneClickCardProps> = ({
     email,
+    expiresAt,
     isSetupInvite,
     isLoading,
     onActivate,
@@ -162,6 +189,7 @@ const OneClickCard: FC<OneClickCardProps> = ({
                     ? 'One click and we’ll take you straight to connecting the data warehouse.'
                     : 'One click to join your team.'}
             </Text>
+            <InviteExpirationText expiresAt={expiresAt} textAlign={textAlign} />
             <Button
                 fullWidth
                 loading={isLoading}
@@ -333,6 +361,12 @@ const Invite: FC = () => {
                     setup.
                 </Text>
             )}
+            {inviteLinkQuery.data ? (
+                <InviteExpirationText
+                    expiresAt={inviteLinkQuery.data.expiresAt}
+                    textAlign={isNewLayout ? 'left' : 'center'}
+                />
+            ) : null}
             {logins}
         </>
     );
@@ -351,6 +385,7 @@ const Invite: FC = () => {
                 <>
                     <OneClickCard
                         email={inviteLinkQuery.data.email}
+                        expiresAt={inviteLinkQuery.data.expiresAt}
                         isSetupInvite={isSetupInvite}
                         isLoading={
                             activateInvite.isLoading || activateInvite.isSuccess
@@ -382,12 +417,13 @@ const Invite: FC = () => {
                     )}
                     <PrivacyTermsFootnote />
                 </>
-            ) : (
+            ) : inviteLinkQuery.data ? (
                 <WelcomeCard
-                    email={inviteLinkQuery.data?.email}
+                    email={inviteLinkQuery.data.email}
+                    expiresAt={inviteLinkQuery.data.expiresAt}
                     setReadyToJoin={setIsLinkFromEmail}
                 />
-            )}
+            ) : null}
         </AuthLayout>
     );
 };

@@ -20,6 +20,7 @@ import {
     CreateUserArgs,
     DatabricksAuthenticationType,
     DeactivatedAccountError,
+    DEFAULT_INVITE_LINK_EXPIRATION_DAYS,
     DeleteOpenIdentity,
     EmailStatus,
     EmailStatusExpiring,
@@ -49,6 +50,7 @@ import {
     MANAGED_SIGN_IN_PROVIDER,
     MANAGED_SIGN_IN_SCOPES,
     ManagedSignIn,
+    MAX_INVITE_LINK_EXPIRATION_DAYS,
     MissingConfigError,
     MobileLoginIntent,
     MobileLoginSsoPresentation,
@@ -147,7 +149,7 @@ import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsS
 
 const AWS_SSO_DEVICE_GRANT_TYPE =
     'urn:ietf:params:oauth:grant-type:device_code';
-const MAX_INVITE_LINK_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const ORGANIZATION_SSO_REQUIRED_MESSAGE =
     'Your organisation requires SSO sign-in';
 
@@ -734,19 +736,38 @@ export class UserService extends BaseService {
         // We assume users can only have one org
         const { organizationUuid } = user;
 
+        if (organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+
         if (
             auditedAbility.cannot(
                 'create',
-                subject('InviteLink', { organizationUuid: organizationUuid! }),
+                subject('InviteLink', { organizationUuid }),
             )
         ) {
             throw new ForbiddenError();
         }
         const { email, role } = createInviteLink;
         const purpose = createInviteLink.purpose ?? InviteLinkPurpose.Member;
-        // Same expiry as the invite modal in the frontend
+        const rawOrganizationSettings =
+            await this.organizationSettingsModel.get(organizationUuid);
+        const { inviteLinkExpirationDays } =
+            resolveEffectiveOrganizationSettings(
+                rawOrganizationSettings,
+                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+            );
+        const boundedExpirationDays = Math.min(
+            Math.max(
+                inviteLinkExpirationDays ?? DEFAULT_INVITE_LINK_EXPIRATION_DAYS,
+                1,
+            ),
+            MAX_INVITE_LINK_EXPIRATION_DAYS,
+        );
         const now = Date.now();
-        const maximumExpiresAt = new Date(now + MAX_INVITE_LINK_TTL_MS);
+        const maximumExpiresAt = new Date(
+            now + boundedExpirationDays * MILLISECONDS_PER_DAY,
+        );
         const expiresAt =
             createInviteLink.expiresAt &&
             createInviteLink.expiresAt.getTime() > now &&
@@ -754,9 +775,6 @@ export class UserService extends BaseService {
                 ? createInviteLink.expiresAt
                 : maximumExpiresAt;
         const inviteCode = nanoid(30);
-        if (organizationUuid === undefined) {
-            throw new NotFoundError('Organization not found');
-        }
 
         const existingUserWithEmail =
             await this.userModel.findUserByEmail(email);

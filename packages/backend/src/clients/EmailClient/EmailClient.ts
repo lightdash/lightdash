@@ -39,6 +39,19 @@ import {
 } from './plainTextEmailBody';
 
 const RETRYABLE_ERROR_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
+const MILLISECONDS_PER_HOUR = 60 * 60 * 1000;
+
+const getInviteExpirationLabel = (expiresAt: Date): string => {
+    const hours = Math.max(
+        1,
+        Math.ceil((expiresAt.getTime() - Date.now()) / MILLISECONDS_PER_HOUR),
+    );
+    if (hours % 24 === 0) {
+        const days = hours / 24;
+        return `${days} ${days === 1 ? 'day' : 'days'}`;
+    }
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+};
 
 /**
  * Appends `?ref=<id>` (or `&ref=`) to the URL so support can paste the
@@ -651,6 +664,7 @@ export default class EmailClient {
         invite: InviteLink,
     ) {
         const inviteUrl = `${invite.inviteUrl}?from=email`;
+        const expirationLabel = getInviteExpirationLabel(invite.expiresAt);
         switch (invite.purpose) {
             case InviteLinkPurpose.Member:
                 return this.sendEmail({
@@ -661,8 +675,9 @@ export default class EmailClient {
                         orgName: userThatInvited.organizationName,
                         inviteUrl,
                         host: this.lightdashConfig.siteUrl,
+                        expirationLabel,
                     },
-                    text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${inviteUrl}`,
+                    text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next ${expirationLabel} to join your team and start exploring your data! ${inviteUrl}`,
                 });
             case InviteLinkPurpose.Setup: {
                 const inviterName =
@@ -678,8 +693,9 @@ export default class EmailClient {
                         orgName: userThatInvited.organizationName,
                         inviteUrl,
                         host: this.lightdashConfig.siteUrl,
+                        expirationLabel,
                     },
-                    text: `${inviterName} is setting up Lightdash for ${userThatInvited.organizationName} and needs someone with data-warehouse access to connect their data. Lightdash is the Agentic BI platform for modern data teams — build and manage analytics straight from the tools you already use, with AI handling the busywork. Built on dbt. Loved by developers. Actually used by businesses. Accept the invite and we'll take you straight to connecting ${userThatInvited.organizationName}'s data warehouse — the last step before your team can start asking questions of their data. This link is valid for the next 72 hours. ${inviteUrl}`,
+                    text: `${inviterName} is setting up Lightdash for ${userThatInvited.organizationName} and needs someone with data-warehouse access to connect their data. Lightdash is the Agentic BI platform for modern data teams — build and manage analytics straight from the tools you already use, with AI handling the busywork. Built on dbt. Loved by developers. Actually used by businesses. Accept the invite and we'll take you straight to connecting ${userThatInvited.organizationName}'s data warehouse — the last step before your team can start asking questions of their data. This link is valid for the next ${expirationLabel}. ${inviteUrl}`,
                 });
             }
             default:
