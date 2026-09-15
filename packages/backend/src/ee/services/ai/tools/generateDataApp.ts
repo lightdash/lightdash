@@ -17,7 +17,7 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async (
-            { prompt, template, dashboardSlug, chartSlugs },
+            { prompt, template, dashboardSlug, chartSlugs, themeSlug },
             { toolCallId },
         ) => {
             try {
@@ -26,6 +26,7 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
                     template,
                     dashboardSlug,
                     chartSlugs,
+                    themeSlug,
                     toolCallId,
                 });
 

@@ -17,4 +17,10 @@ Briefs are for the coding agent, which explores the semantic layer itself — an
 - Carry analysis as queries, not numbers: a value pasted into the brief gets hardcoded into the app, while a metric query line stays live.
 - Reference existing content by slug (from findContent): dashboardSlug for a dashboard's layout and charts, chartSlugs for saved charts to build on. The source content stays unchanged. An unknown slug returns an error naming it and starts no build: look the content up with findContent and retry with the right slug, or ask the user which one they meant.
 
+Themes are organization-wide looks the coding agent applies from theme files it receives directly, so a theme is chosen with themeSlug, never described in the brief:
+- The attached context lists "Theme: <name> (slug: <slug>)" → pass that slug as themeSlug. It wins over any theme named in the message.
+- No theme in the context or the message → omit themeSlug; the organization default applies.
+- iterateDataApp: themeSlug switches the app's theme. Pass it only when the user asked to switch the theme in this request; an ordinary change keeps the app's current theme.
+- An unknown slug returns an error naming the valid slugs and starts no build: retry with the matching one, or ask the user which they meant.
+
 When the user later asks about the app, read the outcome from the earlier tool result: "success" carries the app name, slug, and the builder link (href) to share; "error" carries the failure message; "pending" means still building. readContent (type data_app) reads a finished app; the content tools create and edit charts and dashboards, never data apps.`;

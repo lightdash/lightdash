@@ -4622,6 +4622,14 @@ Parameters:
             "null",
           ],
         },
+        "themeSlug": {
+          "default": null,
+          "description": "Organization theme to build the app with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
       },
       "required": [
         "prompt",
@@ -4776,6 +4784,14 @@ Parameters:
         "prompt": {
           "description": "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
           "type": "string",
+        },
+        "themeSlug": {
+          "default": null,
+          "description": "Organization theme to build the app with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build. On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme.",
+          "type": [
+            "string",
+            "null",
+          ],
         },
       },
       "required": [

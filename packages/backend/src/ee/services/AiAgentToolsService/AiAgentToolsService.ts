@@ -58,6 +58,7 @@ import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel'
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
+import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
@@ -326,6 +327,10 @@ type AiAgentToolsServiceDependencies = {
     coderService: CoderService;
     contentService: ContentService;
     appGenerateService: AppGenerateService;
+    organizationDesignModel: Pick<
+        OrganizationDesignModel,
+        'listByOrganization'
+    >;
     aiAgentContentValidation: AiAgentContentValidation;
     projectContextModel: ProjectContextModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -385,6 +390,11 @@ export class AiAgentToolsService extends BaseService {
     private readonly contentService: ContentService;
 
     private readonly appGenerateService: AppGenerateService;
+
+    private readonly organizationDesignModel: Pick<
+        OrganizationDesignModel,
+        'listByOrganization'
+    >;
 
     private readonly aiAgentContentValidation: AiAgentContentValidation;
 
@@ -460,6 +470,7 @@ export class AiAgentToolsService extends BaseService {
         coderService,
         contentService,
         appGenerateService,
+        organizationDesignModel,
         aiAgentContentValidation,
         aiAgentDocumentModel,
         aiDeepResearchRunModel,
@@ -493,6 +504,7 @@ export class AiAgentToolsService extends BaseService {
         this.coderService = coderService;
         this.contentService = contentService;
         this.appGenerateService = appGenerateService;
+        this.organizationDesignModel = organizationDesignModel;
         this.aiAgentContentValidation = aiAgentContentValidation;
         this.aiAgentDocumentModel = aiAgentDocumentModel;
         this.aiDeepResearchRunModel = aiDeepResearchRunModel;
@@ -1625,6 +1637,26 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    /** Resolves a theme slug within the agent's organization; an unknown slug names the valid ones. */
+    private async resolveDataAppThemeReference(
+        context: AiAgentToolsRuntimeContext,
+        themeSlug: string,
+    ): Promise<string> {
+        const designs = await this.organizationDesignModel.listByOrganization(
+            context.organizationUuid,
+        );
+        const design = designs.find((d) => d.slug === themeSlug);
+        if (design) {
+            return design.designUuid;
+        }
+        const validSlugs = designs.map((d) => d.slug);
+        throw new NotFoundError(
+            validSlugs.length === 0
+                ? `Theme "${themeSlug}" was not found: the organization has no themes`
+                : `Theme "${themeSlug}" was not found. Valid theme slugs: ${validSlugs.join(', ')}`,
+        );
+    }
+
     private generateDataApp(
         context: AiAgentToolsRuntimeContext,
         {
@@ -1632,6 +1664,7 @@ export class AiAgentToolsService extends BaseService {
             template,
             dashboardSlug,
             chartSlugs,
+            themeSlug,
             toolCallId,
         }: Parameters<GenerateDataAppFn>[0],
     ): ReturnType<GenerateDataAppFn> {
@@ -1641,6 +1674,7 @@ export class AiAgentToolsService extends BaseService {
                 template,
                 fromDashboard: dashboardSlug !== null,
                 chartCount: chartSlugs?.length ?? 0,
+                withTheme: themeSlug !== null,
             },
             async () => {
                 const { promptUuid } = context;
@@ -1649,6 +1683,13 @@ export class AiAgentToolsService extends BaseService {
                         'generateDataApp requires a prompt',
                     );
                 }
+                const designUuid =
+                    themeSlug === null
+                        ? undefined
+                        : await this.resolveDataAppThemeReference(
+                              context,
+                              themeSlug,
+                          );
                 const dashboard =
                     dashboardSlug === null
                         ? undefined
@@ -1682,6 +1723,9 @@ export class AiAgentToolsService extends BaseService {
                     {
                         creationExperience: 'ai_agent',
                         aiAgentToolCall: { promptUuid, toolCallId },
+                        ...(designUuid === undefined
+                            ? {}
+                            : { designUuidInput: designUuid }),
                     },
                 );
             },
@@ -1695,6 +1739,7 @@ export class AiAgentToolsService extends BaseService {
             prompt,
             dashboardSlug,
             chartSlugs,
+            themeSlug,
             toolCallId,
         }: Parameters<IterateDataAppFn>[0],
     ): ReturnType<IterateDataAppFn> {
@@ -1703,6 +1748,7 @@ export class AiAgentToolsService extends BaseService {
             {
                 fromDashboard: dashboardSlug !== null,
                 chartCount: chartSlugs?.length ?? 0,
+                withTheme: themeSlug !== null,
             },
             async () => {
                 const { promptUuid } = context;
@@ -1711,6 +1757,13 @@ export class AiAgentToolsService extends BaseService {
                         'iterateDataApp requires a prompt',
                     );
                 }
+                const designUuid =
+                    themeSlug === null
+                        ? undefined
+                        : await this.resolveDataAppThemeReference(
+                              context,
+                              themeSlug,
+                          );
                 const app = await this.appModel.findAppBySlug(
                     context.projectUuid,
                     appSlug,
@@ -1755,6 +1808,14 @@ export class AiAgentToolsService extends BaseService {
                     {
                         creationExperience: 'ai_agent',
                         aiAgentToolCall: { promptUuid, toolCallId },
+                        // The brief is a real change request, so the restyle
+                        // rides along with it instead of replacing it.
+                        ...(designUuid === undefined
+                            ? {}
+                            : {
+                                  designUuidInput: designUuid,
+                                  themeChangePrompt: 'append' as const,
+                              }),
                     },
                 );
             },

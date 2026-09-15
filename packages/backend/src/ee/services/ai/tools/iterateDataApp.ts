@@ -17,7 +17,7 @@ export const getIterateDataApp = ({ iterateDataApp }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async (
-            { appSlug, prompt, dashboardSlug, chartSlugs },
+            { appSlug, prompt, dashboardSlug, chartSlugs, themeSlug },
             { toolCallId },
         ) => {
             try {
@@ -26,6 +26,7 @@ export const getIterateDataApp = ({ iterateDataApp }: Dependencies) =>
                     prompt,
                     dashboardSlug,
                     chartSlugs,
+                    themeSlug,
                     toolCallId,
                 });
 
