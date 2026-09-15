@@ -41,8 +41,7 @@ type Props = {
 
 type SteerState = 'pending' | 'applying' | 'applied' | 'dropped';
 
-// Waiting = dashed, applying = shimmer, applied = solid, dropped = dashed and
-// faded. A steer sent after the agent's last step is never consumed.
+// A steer sent after the agent's last step is never consumed.
 const getSteerState = (
     steer: AiPromptSteer,
     isRunActive: boolean,

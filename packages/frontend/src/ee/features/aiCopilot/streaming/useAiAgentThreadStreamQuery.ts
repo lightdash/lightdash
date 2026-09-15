@@ -44,8 +44,6 @@ export const useActiveAiAgentThreadStreamParts = (): StreamPart[] =>
 
 const EMPTY_STEER_UUIDS: string[] = [];
 
-/** True while the run for this user message is still going (including
- *  recovery/polling), so late guidance isn't judged as dropped too early. */
 export const useAiAgentThreadMessageActive = (
     threadUuid: string,
     messageUuid: string,

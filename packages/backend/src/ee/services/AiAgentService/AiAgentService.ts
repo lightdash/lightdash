@@ -10161,8 +10161,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 progressId?: string,
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void | Promise<void>;
-            // Fired when mid-run guidance is handed to the model, so the web
-            // client can move the guidance bubble from waiting to applying.
             onSteersConsumed?: (steerUuids: string[]) => void;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             suppressWritebackPreview?: boolean;

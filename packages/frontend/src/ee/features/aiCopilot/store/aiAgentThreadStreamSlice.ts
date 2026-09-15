@@ -119,11 +119,7 @@ export interface AiAgentThreadStreamingState {
      * hover, etc.) without changing the wire protocol.
      */
     stepProgressMessages: StepProgressMessage[];
-    /**
-     * Steers (mid-run guidance) the agent has already been handed during
-     * this stream. The thread query only learns `consumedAt` on refetch, so
-     * this is what lets the guidance bubble move to "applying" live.
-     */
+    // Known before the thread refetch brings `consumedAt`.
     consumedSteerUuids: string[];
     timing: StreamTiming;
 }
