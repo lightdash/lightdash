@@ -3,8 +3,11 @@ import {
     type ManagedAgentPolicy,
 } from '@lightdash/common';
 import {
+    AUTOPILOT_CHART_SKILL_NAME,
+    AUTOPILOT_SLACK_SKILL_NAME,
     getManagedAgentConfigHash,
     getManagedAgentMcpUrl,
+    renderAutopilotAgent,
     renderManagedAgentConfig,
 } from './agent';
 
@@ -269,5 +272,49 @@ describe('renderManagedAgentConfig with policy', () => {
             }),
         );
         expect(a).not.toEqual(b);
+    });
+});
+
+describe('renderAutopilotAgent', () => {
+    it('points the AI SDK runtime at in-process tools and loadSkill', () => {
+        const { system, tools } = renderAutopilotAgent({ runtime: 'ai-sdk' });
+
+        expect(system).not.toContain('MCP');
+        expect(system).toContain('grepFields and getMetadata');
+        expect(system).toContain('Call runMetricQuery');
+        expect(system).toContain(
+            `Call loadSkill with name "${AUTOPILOT_CHART_SKILL_NAME}"`,
+        );
+        expect(system).toContain(
+            `Call loadSkill with name "${AUTOPILOT_SLACK_SKILL_NAME}"`,
+        );
+        expect(tools.map((tool) => tool.name)).toContain('write_slack_summary');
+        expect(
+            tools.find((tool) => tool.name === 'create_content_from_code')
+                ?.description,
+        ).not.toContain('MCP');
+    });
+
+    it('ships the same action tools to both runtimes', () => {
+        const aiSdk = renderAutopilotAgent({
+            runtime: 'ai-sdk',
+            toolSettings: { createContent: false },
+            policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'flag' },
+        });
+        const managed = renderManagedAgentConfig({
+            ...baseArgs,
+            toolSettings: { createContent: false },
+            policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'flag' },
+        });
+
+        expect(aiSdk.tools.map((tool) => tool.name)).toEqual(
+            customToolNames(managed),
+        );
+        expect(aiSdk.tools.map((tool) => tool.name)).not.toContain(
+            'soft_delete_content',
+        );
+        expect(aiSdk.tools.map((tool) => tool.name)).not.toContain(
+            'create_content_from_code',
+        );
     });
 });

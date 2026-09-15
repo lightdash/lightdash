@@ -632,12 +632,18 @@ export class AiAgentToolsService extends BaseService {
             analyzeFieldImpact: (args) =>
                 this.analyzeFieldImpact(context, args),
             syncDbtProject: (args) => this.syncDbtProject(context, args),
-            runAsyncQuery: (metricQuery, additionalMetrics, parameters) =>
+            runAsyncQuery: (
+                metricQuery,
+                additionalMetrics,
+                parameters,
+                abortSignal,
+            ) =>
                 this.runAsyncQuery(
                     context,
                     metricQuery,
                     additionalMetrics,
                     parameters,
+                    abortSignal,
                 ),
             runAsyncMergeQuery: (mergeQuery, parameters) =>
                 this.runAsyncMergeQuery(context, mergeQuery, parameters),
@@ -2563,11 +2569,13 @@ export class AiAgentToolsService extends BaseService {
         metricQuery: Parameters<RunAsyncQueryFn>[0],
         _additionalMetrics: Parameters<RunAsyncQueryFn>[1],
         parameters: Parameters<RunAsyncQueryFn>[2],
+        abortSignal?: AbortSignal,
     ): ReturnType<RunAsyncQueryFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runAsyncQuery`,
             metricQuery,
             async () => {
+                abortSignal?.throwIfAborted();
                 const explore = await this.getExploreForRuntime(context, {
                     table: metricQuery.exploreName,
                 });
@@ -2613,6 +2621,7 @@ export class AiAgentToolsService extends BaseService {
                             userAttributeOverrides:
                                 context.userAttributeOverrides,
                         },
+                        { abortSignal },
                     );
 
                 if (context.queryResultsExpirationMs) {

@@ -1,3 +1,5 @@
+import { QueryHistoryStatus, type QueryHistory } from '@lightdash/common';
+import type { Knex } from 'knex';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
 describe('QueryHistoryModel', () => {
@@ -181,5 +183,28 @@ describe('QueryHistoryModel', () => {
             });
             expect(hash1).not.toBe(hash2);
         });
+    });
+});
+
+describe('QueryHistoryModel polling cancellation', () => {
+    it('interrupts the polling delay without reading again', async () => {
+        const model = new QueryHistoryModel({ database: {} as Knex });
+        const controller = new AbortController();
+        const get = vi
+            .spyOn(model, 'getByQueryUuid')
+            .mockImplementation(async () => {
+                controller.abort();
+                return { status: QueryHistoryStatus.EXECUTING } as QueryHistory;
+            });
+        await expect(
+            model.pollForQueryCompletion({
+                queryUuid: 'query',
+                projectUuid: 'project',
+                account: null,
+                initialBackoffMs: 60_000,
+                abortSignal: controller.signal,
+            }),
+        ).rejects.toMatchObject({ name: 'AbortError' });
+        expect(get).toHaveBeenCalledOnce();
     });
 });

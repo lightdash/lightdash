@@ -18,29 +18,37 @@ import {
     ParameterError,
     ProjectMemberRole,
     ProjectType,
+    QueryExecutionContext,
     ServiceAccountScope,
     ValidationErrorType,
     ValidationSourceType,
     type ChartConfig,
+    type Explore,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
     type ManagedAgentAudience,
     type ManagedAgentPolicy,
     type ManagedAgentRun,
     type ManagedAgentRunsListResponse,
+    type ManagedAgentRuntimeInfo,
     type ManagedAgentRunTriggeredBy,
     type ManagedAgentSettings,
     type MetricQuery,
+    type RegisteredAccount,
     type SavedChart,
     type SessionUser,
     type UpdateManagedAgentSettings,
     type ValidationResponse,
 } from '@lightdash/common';
 import type { KnownBlock } from '@slack/bolt';
+import type { ToolSet } from 'ai';
 import type { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account';
 import type { SlackClient } from '../../../clients/Slack/SlackClient';
+import { getAutopilotCleanupMode } from '../../../config/autopilotConfig';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
+import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import type { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { OrganizationModel } from '../../../models/OrganizationModel';
@@ -59,7 +67,31 @@ import {
 } from '../../clients/ManagedAgentClient';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
+import {
+    filterModelsForOrg,
+    getAvailableModels,
+    getDefaultModel,
+    getModel,
+} from '../ai/models';
+import type { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
+import { getFindContent } from '../ai/tools/findContent';
+import { getGetDashboardCharts } from '../ai/tools/getDashboardCharts';
+import { getGetMetadata } from '../ai/tools/getMetadata';
+import { getGrepFields } from '../ai/tools/grepFields';
+import { getLoadSkill } from '../ai/tools/loadSkill';
+import { getRunMetricQuery } from '../ai/tools/runMetricQuery';
+import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../ai/utils/aiCallTelemetry';
+import type { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
+import type { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
+import { runAutopilotAgent } from './AutopilotAgentRunner';
+import { renderAutopilotAgent } from './config/agent';
+import { pickAutopilotModel } from './modelSelection';
 import { buildPreAggCandidateSuggestion } from './preAggCandidates';
+import { loadAutopilotSkill } from './skills';
 import {
     buildManagedAgentToolListResult,
     formatManagedAgentToolListResult,
@@ -156,6 +188,22 @@ type ManagedAgentServiceDependencies = {
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     managedAgentClient: ManagedAgentClient;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    aiAgentToolsService: AiAgentToolsService;
+    aiOrganizationSettingsService: AiOrganizationSettingsService;
+};
+
+type AutopilotToolCallHandler = (
+    toolName: string,
+    input: Record<string, unknown>,
+    abortSignal?: AbortSignal,
+    allowContentDeletion?: boolean,
+) => Promise<string>;
+
+type HeartbeatSessionResult = {
+    sessionId: string;
+    slackSummary: string | null;
+    error: string | null;
 };
 
 export class ManagedAgentService extends BaseService {
@@ -193,6 +241,12 @@ export class ManagedAgentService extends BaseService {
 
     private readonly managedAgentClient: ManagedAgentClient;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
+    private readonly aiAgentToolsService: AiAgentToolsService;
+
+    private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
+
     constructor(deps: ManagedAgentServiceDependencies) {
         super();
         this.lightdashConfig = deps.lightdashConfig;
@@ -212,6 +266,9 @@ export class ManagedAgentService extends BaseService {
         this.schedulerClient = deps.schedulerClient;
         this.slackClient = deps.slackClient;
         this.managedAgentClient = deps.managedAgentClient;
+        this.orgAiCopilotConfigResolver = deps.orgAiCopilotConfigResolver;
+        this.aiAgentToolsService = deps.aiAgentToolsService;
+        this.aiOrganizationSettingsService = deps.aiOrganizationSettingsService;
     }
 
     // --- Validation helpers ---
@@ -309,22 +366,16 @@ export class ManagedAgentService extends BaseService {
         const organization = await this.organizationModel.get(
             project.organizationUuid,
         );
-        const settings = await this.managedAgentModel.getSettings(projectUuid);
-        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
+        const { toolSettings, policy } =
+            await this.getAutopilotRenderArgs(projectUuid);
 
         return {
             projectUuid,
             serviceAccountPat: serviceAccountToken,
             resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
             skillIds: this.lightdashConfig.managedAgent.skillIds,
-            toolSettings: settings?.toolSettings ?? {},
-            policy: {
-                ...policy,
-                audience: await this.resolveSuggestionsAudience(
-                    projectUuid,
-                    policy.audience,
-                ),
-            },
+            toolSettings,
+            policy,
             persistedAgentId: agentId,
             persistedAgentConfigHash: agentConfigHash,
             persistedAgentVersion: agentVersion,
@@ -356,6 +407,94 @@ export class ManagedAgentService extends BaseService {
                 );
             },
         };
+    }
+
+    // Policy and capability settings feed the prompt and tool list on both
+    // runtimes; the audience is resolved from the suggestions space each time.
+    private async getAutopilotRenderArgs(projectUuid: string): Promise<{
+        toolSettings: Record<string, boolean>;
+        policy: ManagedAgentPolicy;
+    }> {
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
+        return {
+            toolSettings: settings?.toolSettings ?? {},
+            policy: {
+                ...policy,
+                audience: await this.resolveSuggestionsAudience(
+                    projectUuid,
+                    policy.audience,
+                ),
+            },
+        };
+    }
+
+    private usesManagedAgentsApi(): boolean {
+        return (
+            this.lightdashConfig.managedAgent.runtime === 'anthropic-managed'
+        );
+    }
+
+    // Recheck availability because keys and the provider catalog can change between runs.
+    private async resolveAutopilotModel(organizationUuid: string) {
+        try {
+            const [copilotConfig, orgDefaultModel, overrides] =
+                await Promise.all([
+                    this.orgAiCopilotConfigResolver.getCopilotConfig(
+                        organizationUuid,
+                    ),
+                    this.aiOrganizationSettingsService.getDefaultModelConfig(
+                        organizationUuid,
+                    ),
+                    this.orgAiCopilotConfigResolver.getOrgModelOverrides(
+                        organizationUuid,
+                    ),
+                ]);
+            const selected = pickAutopilotModel({
+                orgDefault: orgDefaultModel,
+                instanceDefault: getDefaultModel(copilotConfig),
+                availableModels: filterModelsForOrg(
+                    getAvailableModels(copilotConfig),
+                    overrides,
+                ),
+            });
+            if (!selected)
+                throw new ParameterError(
+                    'No AI model is available under the organization model settings',
+                );
+            return {
+                copilotConfig,
+                ...getModel(copilotConfig, {
+                    enableReasoning: true,
+                    provider: selected.provider,
+                    modelName: selected.modelName,
+                }),
+            };
+        } catch (error) {
+            const cause = error instanceof Error ? error.message : 'Unknown';
+            throw new ParameterError(
+                `Autopilot needs an AI provider before it can run. ${cause}. Add a provider key under Organization settings, AI, or set AI_DEFAULT_PROVIDER and that provider's key on the instance.`,
+            );
+        }
+    }
+
+    // Discovery tool names the model can call differ per runtime.
+    private getDiscoveryToolNames(): {
+        fields: string;
+        explores: string;
+        validate: string;
+    } {
+        return this.usesManagedAgentsApi()
+            ? {
+                  fields: 'find_fields MCP tool',
+                  explores: 'list_explores MCP tool',
+                  validate: 'run_metric_query',
+              }
+            : {
+                  fields: 'grepFields',
+                  explores: 'grepFields',
+                  validate: 'runMetricQuery',
+              };
     }
 
     private async ensureProjectScopedServiceAccount(
@@ -443,7 +582,7 @@ export class ManagedAgentService extends BaseService {
     ): Promise<Set<string>> {
         const settings = await this.managedAgentModel.getSettings(projectUuid);
         const mode =
-            settings?.policy.spaceScopeMode ??
+            settings?.policy?.spaceScopeMode ??
             DEFAULT_MANAGED_AGENT_POLICY.spaceScopeMode;
         const selected = settings?.scopedSpaceUuids ?? [];
         if (mode === 'all-except' && selected.length === 0) {
@@ -1159,6 +1298,83 @@ export class ManagedAgentService extends BaseService {
 
     // --- Settings API ---
 
+    async getRuntimeInfo(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<ManagedAgentRuntimeInfo> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'update',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        )
+            throw new ForbiddenError();
+        const policy = await this.getPolicy(projectUuid);
+        if (this.usesManagedAgentsApi()) {
+            return {
+                runtime: 'anthropic-managed',
+                provider: 'anthropic',
+                model: 'claude-opus-4-6',
+                keySource: 'instance',
+                requestedCleanupMode: policy.aggression,
+                effectiveCleanupMode: policy.aggression,
+                notice: null,
+                error: null,
+            };
+        }
+        try {
+            const resolved = await this.resolveAutopilotModel(organizationUuid);
+            return this.describeAiSdkRuntime(policy, resolved);
+        } catch {
+            return {
+                runtime: 'ai-sdk',
+                provider: null,
+                model: null,
+                keySource: null,
+                requestedCleanupMode: policy.aggression,
+                effectiveCleanupMode: 'observe',
+                notice: null,
+                error: 'Autopilot needs a configured AI provider. Check Organization settings → AI.',
+            };
+        }
+    }
+
+    private describeAiSdkRuntime(
+        policy: ManagedAgentPolicy,
+        resolved: Awaited<
+            ReturnType<ManagedAgentService['resolveAutopilotModel']>
+        >,
+    ): ManagedAgentRuntimeInfo {
+        const { provider = null, model = null } = getLanguageModelAttribution(
+            resolved.model,
+        );
+        const effectiveCleanupMode = getAutopilotCleanupMode(
+            policy.aggression,
+            provider,
+            model,
+            this.lightdashConfig.managedAgent.validatedModels,
+        );
+        return {
+            runtime: 'ai-sdk',
+            provider,
+            model,
+            keySource: resolved.copilotConfig.byoProviders.some(
+                (byoProvider) => byoProvider === provider,
+            )
+                ? 'organization'
+                : 'instance',
+            requestedCleanupMode: policy.aggression,
+            effectiveCleanupMode,
+            notice:
+                effectiveCleanupMode === policy.aggression
+                    ? null
+                    : `Cleanup mode is ${effectiveCleanupMode}: ${provider}/${model} has not been validated for ${policy.aggression}.`,
+            error: null,
+        };
+    }
+
     async getSettings(
         user: SessionUser,
         projectUuid: string,
@@ -1175,6 +1391,14 @@ export class ManagedAgentService extends BaseService {
     ): Promise<ManagedAgentSettings> {
         await this.assertCanManageProject(user, projectUuid);
         const previous = await this.managedAgentModel.getSettings(projectUuid);
+
+        // Fail the enable request, not the first scheduled run, when the org
+        // has no usable AI provider.
+        if (update.enabled && !this.usesManagedAgentsApi()) {
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectUuid);
+            await this.resolveAutopilotModel(organizationUuid);
+        }
 
         // Space scope updates replace the selection atomically and keep the
         // mode on the policy object. Reject uuids from other projects.
@@ -1207,9 +1431,9 @@ export class ManagedAgentService extends BaseService {
             effectiveUpdate,
         );
 
-        // Create a service account for MCP auth if one doesn't exist yet.
-        // Service accounts use Bearer auth which the MCP endpoint accepts.
-        if (update.enabled) {
+        // The managed-agents runtime reaches our MCP server with a service
+        // account; the AI SDK runtime runs tools in-process and needs none.
+        if (update.enabled && this.usesManagedAgentsApi()) {
             const existingToken =
                 await this.managedAgentModel.getServiceAccountToken(
                     projectUuid,
@@ -1231,7 +1455,9 @@ export class ManagedAgentService extends BaseService {
                     `Created service account for managed agent in project ${projectUuid}`,
                 );
             }
+        }
 
+        if (update.enabled) {
             // Schedule the first heartbeat job
             const schedule =
                 getManagedAgentScheduleCron(settings.schedule) ??
@@ -1246,9 +1472,10 @@ export class ManagedAgentService extends BaseService {
         }
 
         if (
-            update.enabled ||
-            update.toolSettings !== undefined ||
-            update.policy !== undefined
+            this.usesManagedAgentsApi() &&
+            (update.enabled ||
+                update.toolSettings !== undefined ||
+                update.policy !== undefined)
         ) {
             await this.syncProjectAgentConfig(projectUuid);
         }
@@ -1535,7 +1762,22 @@ export class ManagedAgentService extends BaseService {
     // --- Heartbeat ---
 
     async runHeartbeat(projectUuid: string, runUuid: string): Promise<void> {
-        const ctx = await this.loadHeartbeatContext(projectUuid, runUuid);
+        let ctx: HeartbeatContext | null;
+        try {
+            ctx = await this.loadHeartbeatContext(projectUuid, runUuid);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown';
+            this.logger.error(
+                `Failed to initialize Autopilot run ${runUuid}: ${message}`,
+            );
+            await this.managedAgentModel.finishRun(runUuid, {
+                status: ManagedAgentRunStatus.ERROR,
+                actionCount: 0,
+                summary: null,
+                error: message,
+            });
+            return;
+        }
         if (!ctx) return;
 
         this.trackRunStarted(ctx);
@@ -1545,36 +1787,26 @@ export class ManagedAgentService extends BaseService {
             return;
         }
 
-        const serviceAccountToken =
-            await this.managedAgentModel.getServiceAccountToken(projectUuid);
-        if (!serviceAccountToken) {
-            this.logger.warn(
-                `No service account token for project ${projectUuid}, skipping heartbeat`,
-            );
-            await this.failRunSafely(ctx, 'No service account token');
-            return;
-        }
-
         this.logger.info(`Running heartbeat for project: ${projectUuid}`);
 
-        const sessionConfig = await this.getSessionConfig(
-            projectUuid,
-            serviceAccountToken,
-        );
         let sessionId = '';
         let slackSummary = '';
         let runError: string | null = null;
 
-        const onToolCall = async (
-            toolName: string,
-            input: Record<string, unknown>,
-        ): Promise<string> =>
+        const onToolCall: AutopilotToolCallHandler = async (
+            toolName,
+            input,
+            abortSignal,
+            allowContentDeletion,
+        ) =>
             this.handleToolCall(
                 projectUuid,
                 sessionId,
                 runUuid,
                 toolName,
                 input,
+                abortSignal,
+                allowContentDeletion,
             );
 
         const onSessionCreated = (id: string) => {
@@ -1591,14 +1823,14 @@ export class ManagedAgentService extends BaseService {
         };
 
         try {
-            const result = await this.managedAgentClient.runSession(
-                sessionConfig,
-                projectUuid,
+            const result = await this.runHeartbeatSession(
+                ctx,
                 onToolCall,
                 onSessionCreated,
             );
             sessionId = result.sessionId;
             slackSummary = result.slackSummary ?? '';
+            runError = result.error;
             this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
         } catch (error) {
             this.logger.error(
@@ -1646,6 +1878,232 @@ export class ManagedAgentService extends BaseService {
                 error: runError,
             });
         }
+    }
+
+    private async runHeartbeatSession(
+        ctx: HeartbeatContext,
+        onToolCall: AutopilotToolCallHandler,
+        onSessionCreated: (sessionId: string) => void,
+    ): Promise<HeartbeatSessionResult> {
+        const { runtime } = this.lightdashConfig.managedAgent;
+        switch (runtime) {
+            case 'anthropic-managed':
+                return this.runManagedAgentSession(
+                    ctx.projectUuid,
+                    onToolCall,
+                    onSessionCreated,
+                );
+            case 'ai-sdk':
+                return this.runAiSdkSession(ctx, onToolCall, onSessionCreated);
+            default:
+                return assertUnreachable(
+                    runtime,
+                    `Unknown managed agent runtime: ${runtime}`,
+                );
+        }
+    }
+
+    private async runManagedAgentSession(
+        projectUuid: string,
+        onToolCall: AutopilotToolCallHandler,
+        onSessionCreated: (sessionId: string) => void,
+    ): Promise<HeartbeatSessionResult> {
+        const serviceAccountToken =
+            await this.managedAgentModel.getServiceAccountToken(projectUuid);
+        if (!serviceAccountToken) {
+            throw new NotFoundError(
+                `No service account token for project ${projectUuid}`,
+            );
+        }
+        const sessionConfig = await this.getSessionConfig(
+            projectUuid,
+            serviceAccountToken,
+        );
+        const result = await this.managedAgentClient.runSession(
+            sessionConfig,
+            projectUuid,
+            onToolCall,
+            onSessionCreated,
+        );
+        return {
+            sessionId: result.sessionId,
+            slackSummary: result.slackSummary,
+            error: null,
+        };
+    }
+
+    // The run uuid doubles as the session id: actions and the activity page
+    // key on it, and there is no external session to reference.
+    private async runAiSdkSession(
+        ctx: HeartbeatContext,
+        onToolCall: AutopilotToolCallHandler,
+        onSessionCreated: (sessionId: string) => void,
+    ): Promise<HeartbeatSessionResult> {
+        const { projectUuid, organizationUuid, runUuid } = ctx;
+        onSessionCreated(runUuid);
+
+        const actor = await this.getAutopilotActor(projectUuid);
+        await this.assertActorCanViewProject(actor, projectUuid);
+
+        const [{ toolSettings, policy }, project, resolvedModel] =
+            await Promise.all([
+                this.getAutopilotRenderArgs(projectUuid),
+                this.projectModel.getSummary(projectUuid),
+                this.resolveAutopilotModel(organizationUuid),
+            ]);
+        const runtimeInfo = this.describeAiSdkRuntime(policy, resolvedModel);
+        const agent = renderAutopilotAgent({
+            toolSettings,
+            policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
+            preAggregatesEnabled: this.lightdashConfig.preAggregates.enabled,
+            runtime: 'ai-sdk',
+        });
+        const {
+            copilotConfig,
+            model,
+            callOptions,
+            providerOptions,
+            keyManagement,
+        } = resolvedModel;
+        const { tools: dataTools, availableExplores } =
+            await this.buildAutopilotDataTools(
+                actor,
+                projectUuid,
+                organizationUuid,
+            );
+        const telemetry = getAiCallTelemetry({
+            functionId: 'autopilotHeartbeat',
+            extra: { runUuid },
+            feature: 'managed-agent',
+            organizationUuid,
+            projectUuid,
+            userUuid: actor.userUuid,
+            ...getLanguageModelAttribution(model),
+            keyManagement,
+            recordIO: copilotConfig.telemetryEnabled,
+        });
+        const { sessionTimeoutMs, maxSteps } =
+            this.lightdashConfig.managedAgent;
+
+        const result = await runAutopilotAgent({
+            model,
+            callOptions,
+            providerOptions,
+            agent,
+            dataTools,
+            availableExplores,
+            executeTool: (name, input, signal) =>
+                onToolCall(
+                    name,
+                    input,
+                    signal,
+                    runtimeInfo.effectiveCleanupMode === 'cleanup',
+                ),
+            projectName: project.name,
+            maxSteps,
+            timeoutMs: sessionTimeoutMs,
+            telemetry,
+        });
+
+        return {
+            sessionId: runUuid,
+            slackSummary: [
+                `Provider: ${runtimeInfo.provider}; model: ${runtimeInfo.model}; key: ${runtimeInfo.keySource}.`,
+                runtimeInfo.notice,
+                result.slackSummary,
+            ]
+                .filter(Boolean)
+                .join('\n\n'),
+            error: result.error,
+        };
+    }
+
+    // The semantic-layer and content tools Autopilot needs to create and fix
+    // charts, taken from the same tool set the chat agents use.
+    private async buildAutopilotDataTools(
+        actor: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<{ tools: ToolSet; availableExplores: Explore[] }> {
+        const [spaces, excludedSpaces] = await Promise.all([
+            this.spaceModel.find({ projectUuid }),
+            this.getExcludedSpaceUuids(projectUuid),
+        ]);
+        const allowedSpaceUuids = spaces
+            .filter((space) => !excludedSpaces.has(space.uuid))
+            .map((space) => space.uuid);
+        // Pass an explicit snapshot of allowed spaces. An empty array means
+        // unrestricted to shared tools, so deny it before calling them.
+        const emptyScope = allowedSpaceUuids.length === 0;
+        const runtime = this.aiAgentToolsService.createRuntime({
+            user: actor,
+            account: fromSession(actor),
+            organizationUuid,
+            projectUuid,
+            source: 'ai_agent',
+            catalogSearchContext: CatalogSearchContext.AI_AGENT,
+            defaultQueryExecutionContext: QueryExecutionContext.AI,
+            tags: null,
+            spaceAccess: allowedSpaceUuids,
+        });
+        const [availableExplores, projectParameterDefinitions] =
+            await Promise.all([
+                runtime.listExplores(),
+                runtime.getProjectParameterDefinitions(),
+            ]);
+        const verifiedFieldUsage = await runtime
+            .getVerifiedFieldUsage()
+            .catch(() => new Map<string, number>());
+        const { siteUrl } = this.lightdashConfig;
+        const { maxQueryLimit, toolDescriptionMaxChars } =
+            this.lightdashConfig.ai.copilot;
+
+        const tools: ToolSet = {
+            grepFields: getGrepFields({
+                availableExplores,
+                findExplores: runtime.findExplores,
+                verifiedFieldUsage,
+            }),
+            getMetadata: getGetMetadata({
+                availableExplores,
+                projectParameterDefinitions,
+            }),
+            findContent: getFindContent({
+                findContent: emptyScope
+                    ? async () => ({ content: [] })
+                    : runtime.findContent,
+                siteUrl,
+                toolDescriptionMaxChars,
+                dashboardDetailsToolName: 'getDashboardCharts',
+                trackCoverage: () => {},
+            }),
+            getDashboardCharts: getGetDashboardCharts({
+                getDashboardCharts: async (args) => {
+                    if (emptyScope)
+                        throw new ForbiddenError(
+                            'No content is in Autopilot scope',
+                        );
+                    return runtime.getDashboardCharts(args);
+                },
+                siteUrl,
+                pageSize: 20,
+            }),
+            runMetricQuery: getRunMetricQuery({
+                runAsyncQuery: runtime.runAsyncQuery,
+                maxLimit: maxQueryLimit,
+            }),
+            searchFieldValues: getSearchFieldValues({
+                searchFieldValues: runtime.searchFieldValues,
+                getExplore: runtime.getExplore,
+                enableFilterExpressions: false,
+            }),
+            loadSkill: getLoadSkill({
+                loadSkill: (name) =>
+                    loadAutopilotSkill(name, runtime.loadSkill),
+            }),
+        };
+
+        return { tools, availableExplores };
     }
 
     private async loadHeartbeatContext(
@@ -1742,6 +2200,7 @@ export class ManagedAgentService extends BaseService {
                 runUuid: ctx.runUuid,
                 triggeredBy: ctx.triggeredBy,
                 status: outcome.status,
+                runtime: this.lightdashConfig.managedAgent.runtime,
                 durationMs: Date.now() - ctx.startedAtMs,
                 actionCount: outcome.actionCount,
                 actionCountsByType: outcome.actionCountsByType,
@@ -1979,7 +2438,19 @@ export class ManagedAgentService extends BaseService {
         runUuid: string,
         toolName: string,
         input: Record<string, unknown>,
+        abortSignal?: AbortSignal,
+        allowContentDeletion = true,
     ): Promise<string> {
+        if (
+            !allowContentDeletion &&
+            ['soft_delete_content', 'bulk_delete_broken_content'].includes(
+                toolName,
+            )
+        ) {
+            return JSON.stringify({
+                error: 'This model is not enabled for cleanup in this run',
+            });
+        }
         if (!NON_ACTIVITY_TOOL_NAMES.has(toolName)) {
             void this.managedAgentModel
                 .setCurrentActivity(runUuid, friendlyToolLabel(toolName))
@@ -1993,6 +2464,7 @@ export class ManagedAgentService extends BaseService {
         }
         const actor = await this.getAutopilotActor(projectUuid);
         await this.assertActorCanViewProject(actor, projectUuid);
+        abortSignal?.throwIfAborted();
         switch (toolName) {
             case 'get_recent_actions':
                 return this.handleGetRecentActions(
@@ -2021,6 +2493,7 @@ export class ManagedAgentService extends BaseService {
                     sessionId,
                     runUuid,
                     input,
+                    abortSignal,
                 );
             case 'soft_delete_content':
                 return this.handleSoftDelete(
@@ -2029,6 +2502,7 @@ export class ManagedAgentService extends BaseService {
                     sessionId,
                     runUuid,
                     input,
+                    abortSignal,
                 );
             case 'bulk_delete_broken_content':
                 return this.handleBulkDeleteBrokenContent(
@@ -2037,6 +2511,7 @@ export class ManagedAgentService extends BaseService {
                     sessionId,
                     runUuid,
                     input,
+                    abortSignal,
                 );
             case 'log_insight':
                 return this.handleLogInsight(
@@ -2045,6 +2520,7 @@ export class ManagedAgentService extends BaseService {
                     sessionId,
                     runUuid,
                     input,
+                    abortSignal,
                 );
             case 'get_chart_details':
                 return this.handleGetChartDetails(actor, projectUuid, input);
@@ -2057,6 +2533,7 @@ export class ManagedAgentService extends BaseService {
                     sessionId,
                     runUuid,
                     input,
+                    abortSignal,
                 );
             case 'create_content_from_code':
                 return this.handleCreateContent(
@@ -2065,6 +2542,7 @@ export class ManagedAgentService extends BaseService {
                     sessionId,
                     runUuid,
                     input,
+                    abortSignal,
                 );
             case 'get_user_questions':
                 return this.handleGetUserQuestions(actor, projectUuid, input);
@@ -2079,7 +2557,13 @@ export class ManagedAgentService extends BaseService {
             case 'get_preagg_candidates':
                 return this.handleGetPreAggCandidates(projectUuid, input);
             case 'reverse_own_action':
-                return this.handleReverseOwnAction(actor, projectUuid, input);
+                return this.handleReverseOwnAction(
+                    actor,
+                    projectUuid,
+                    input,
+                    abortSignal,
+                    allowContentDeletion,
+                );
             default:
                 return JSON.stringify({ error: `Unknown tool: ${toolName}` });
         }
@@ -2468,8 +2952,8 @@ export class ManagedAgentService extends BaseService {
         );
     }
 
-    // eslint-disable-next-line class-methods-use-this
     private async handleGetChartSchema(): Promise<string> {
+        const tools = this.getDiscoveryToolNames();
         // Return the chart-as-code YAML structure from the developing-in-lightdash skill
         return `Chart-as-code YAML/JSON reference. Use this when calling create_content_from_code.
 
@@ -2481,12 +2965,12 @@ chartConfig:
 contentType: chart
 metricQuery:
   dimensions:
-    - explore_name_dimension_name    # Field IDs from find_fields
+    - explore_name_dimension_name    # Field IDs from ${tools.fields}
   exploreName: explore_name
   filters: {}
   limit: 500
   metrics:
-    - explore_name_metric_name       # Field IDs from find_fields
+    - explore_name_metric_name       # Field IDs from ${tools.fields}
   sorts:
     - fieldId: explore_name_metric_name
       descending: true
@@ -2512,9 +2996,9 @@ version: 1
 ## CRITICAL Rules
 - chartConfig.type MUST be "cartesian" for line, bar, area, scatter charts. NEVER use "line" or "bar".
 - Every dimension in metricQuery.dimensions must be used in the chart (layout xField, yField, or group).
-- Field IDs use the format: explorename_fieldname (get exact IDs from find_fields MCP tool).
-- tableName and exploreName must match a real explore (get from list_explores MCP tool).
-- Always validate data with run_metric_query before creating.
+- Field IDs use the format: explorename_fieldname (get exact IDs from ${tools.fields}).
+- tableName and exploreName must match a real explore (get from ${tools.explores}).
+- Always validate data with ${tools.validate} before creating.
 - Prefix slug with "agent-" to identify agent-created content.
 
 ## Cartesian Config Example (bar chart)
@@ -2551,7 +3035,11 @@ chartConfig:
             'Chart',
             chartUuid,
         );
-        if (!(await this.canActorViewChart(actor, chart))) {
+        const excludedSpaces = await this.getExcludedSpaceUuids(projectUuid);
+        if (
+            excludedSpaces.has(chart.spaceUuid) ||
+            !(await this.canActorViewChart(actor, chart))
+        ) {
             throw new ForbiddenError(
                 `Autopilot actor cannot view chart ${chartUuid}`,
             );
@@ -2573,6 +3061,7 @@ chartConfig:
         sessionId: string,
         runUuid: string,
         input: Record<string, unknown>,
+        abortSignal?: AbortSignal,
     ): Promise<string> {
         const chartUuid = input.chart_uuid as string;
         const chartName = input.chart_name as string;
@@ -2621,6 +3110,7 @@ chartConfig:
         const previousVersionUuid = previousVersion.versionUuid;
 
         // Create a new version with the fixed config
+        abortSignal?.throwIfAborted();
         await this.savedChartModel.createVersion(
             chartUuid,
             {
@@ -2731,6 +3221,7 @@ chartConfig:
         sessionId: string,
         runUuid: string,
         input: Record<string, unknown>,
+        abortSignal?: AbortSignal,
     ): Promise<string> {
         const chartAsCode = input.chart_as_code as Record<string, unknown>;
         if (!chartAsCode || typeof chartAsCode !== 'object') {
@@ -2782,7 +3273,7 @@ chartConfig:
         const explore = explores[tableName];
         if (!explore || 'errors' in explore) {
             throw new Error(
-                `Explore "${tableName}" not found or has errors. Use list_explores MCP tool to find valid explore names.`,
+                `Explore "${tableName}" not found or has errors. Use ${this.getDiscoveryToolNames().explores} to find valid explore names.`,
             );
         }
 
@@ -2812,12 +3303,13 @@ chartConfig:
                 errors.push(`Invalid metrics: ${invalidMetrics.join(', ')}`);
             }
             throw new Error(
-                `${errors.join('. ')}. Use find_fields MCP tool to discover valid field IDs for the "${tableName}" explore.`,
+                `${errors.join('. ')}. Use ${this.getDiscoveryToolNames().fields} to discover valid field IDs for the "${tableName}" explore.`,
             );
         }
 
         // Get or create the Agent Suggestions space
         await this.assertActorCanManageProject(actor, projectUuid);
+        abortSignal?.throwIfAborted();
         const spaceUuid = await this.getOrCreateAgentSpace(actor, projectUuid);
         await this.assertActorCanCreateChart(
             actor,
@@ -2836,6 +3328,7 @@ chartConfig:
         }
 
         // Create the chart directly via the model
+        abortSignal?.throwIfAborted();
         const chart = await this.savedChartModel.create(projectUuid, userUuid, {
             name: chartName,
             description: description ?? null,
@@ -2892,6 +3385,7 @@ chartConfig:
         sessionId: string,
         runUuid: string,
         input: Record<string, unknown>,
+        abortSignal?: AbortSignal,
     ): Promise<string> {
         const targetUuid = input.target_uuid as string;
         const targetName = input.target_name as string;
@@ -2999,6 +3493,7 @@ chartConfig:
             }
         }
 
+        abortSignal?.throwIfAborted();
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
@@ -3084,6 +3579,7 @@ chartConfig:
         actorUuid: string;
         attemptedAction: 'fix' | 'flag' | 'soft-delete';
         flagFirstAlways: boolean;
+        abortSignal?: AbortSignal;
     }): Promise<string | null> {
         const {
             actor,
@@ -3149,6 +3645,7 @@ chartConfig:
         if (chartEscalationBlock) {
             return chartEscalationBlock;
         }
+        args.abortSignal?.throwIfAborted();
         await this.savedChartModel.softDelete(chartUuid, actorUuid);
         // Clear the chart's validation errors so the Validator updates
         // without waiting for the next validation run
@@ -3165,6 +3662,7 @@ chartConfig:
         sessionId: string,
         runUuid: string,
         input: Record<string, unknown>,
+        abortSignal?: AbortSignal,
     ): Promise<string> {
         const targetUuid = input.target_uuid as string;
         const targetName = input.target_name as string;
@@ -3219,6 +3717,7 @@ chartConfig:
                 actorUuid,
                 attemptedAction: 'soft-delete',
                 flagFirstAlways: true,
+                abortSignal,
             });
             if (chartBlock) {
                 return chartBlock;
@@ -3270,6 +3769,7 @@ chartConfig:
             if (dashEscalationBlock) {
                 return dashEscalationBlock;
             }
+            abortSignal?.throwIfAborted();
             await this.dashboardModel.softDelete(targetUuid, actorUuid);
             // Clear the dashboard's validation errors so the Validator
             // updates without waiting for the next validation run
@@ -3307,6 +3807,7 @@ chartConfig:
         sessionId: string,
         runUuid: string,
         input: Record<string, unknown>,
+        abortSignal?: AbortSignal,
     ): Promise<string> {
         const tableName = input.table_name as string;
         const reason = input.reason as string;
@@ -3360,6 +3861,7 @@ chartConfig:
         // Sequential on purpose: each delete runs the full guard chain and
         // writes an action row
         for (const [chartUuid, chartName] of toProcess) {
+            abortSignal?.throwIfAborted();
             // eslint-disable-next-line no-await-in-loop
             const chart = await this.savedChartModel.get(chartUuid);
             // Defense against stale validation rows: the chart must still
@@ -3383,6 +3885,7 @@ chartConfig:
                     actorUuid,
                     attemptedAction: 'soft-delete',
                     flagFirstAlways: false,
+                    abortSignal,
                 });
                 if (chartBlock) {
                     let blockReason = chartBlock;
@@ -3450,6 +3953,7 @@ chartConfig:
         sessionId: string,
         runUuid: string,
         input: Record<string, unknown>,
+        abortSignal?: AbortSignal,
     ): Promise<string> {
         const targetUuid = input.target_uuid as string;
         const targetName = input.target_name as string;
@@ -3478,6 +3982,7 @@ chartConfig:
             );
         }
 
+        abortSignal?.throwIfAborted();
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
@@ -3840,6 +4345,8 @@ chartConfig:
         actor: SessionUser,
         projectUuid: string,
         input: Record<string, unknown>,
+        abortSignal?: AbortSignal,
+        allowContentDeletion = true,
     ): Promise<string> {
         const actionUuid = input.action_uuid as string;
         const reason = input.reason as string;
@@ -3874,6 +4381,7 @@ chartConfig:
                         { deleted: true },
                     );
                     await this.assertActorCanRestoreChart(actor, chart);
+                    abortSignal?.throwIfAborted();
                     await this.savedChartModel.restore(action.targetUuid);
                 } else if (
                     action.targetType === ManagedAgentTargetType.DASHBOARD
@@ -3883,10 +4391,15 @@ chartConfig:
                         { deleted: true },
                     );
                     await this.assertActorCanRestoreDashboard(actor, dashboard);
+                    abortSignal?.throwIfAborted();
                     await this.dashboardModel.restore(action.targetUuid);
                 }
                 break;
             case ManagedAgentActionType.CREATED_CONTENT:
+                if (!allowContentDeletion)
+                    return JSON.stringify({
+                        error: 'This model cannot delete content when reversing a creation in this run',
+                    });
                 if (action.targetType === ManagedAgentTargetType.CHART) {
                     const chart = await this.savedChartModel.get(
                         action.targetUuid,
@@ -3898,6 +4411,7 @@ chartConfig:
                         await this.managedAgentModel.getSettings(projectUuid);
                     const actorUuid =
                         settings?.enabledByUserUuid ?? projectUuid;
+                    abortSignal?.throwIfAborted();
                     await this.savedChartModel.softDelete(
                         action.targetUuid,
                         actorUuid,

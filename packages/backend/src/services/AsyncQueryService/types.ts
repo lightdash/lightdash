@@ -255,6 +255,7 @@ export const isExecuteAsyncSqlChartByUuid = (
 ): args is ExecuteAsyncSqlChartByUuidArgs => 'savedSqlUuid' in args;
 
 export type PollingOptions = {
+    abortSignal?: AbortSignal;
     initialBackoffMs?: number;
     maxBackoffMs?: number;
     timeoutMs?: number;

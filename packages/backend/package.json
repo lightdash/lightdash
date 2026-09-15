@@ -21,6 +21,7 @@
         "nats-worker": "node dist/natsWorker.js",
         "nats-worker-dev": "tsx watch --clear-screen=false src/natsWorker.ts",
         "test": "vitest run --config vitest.config.ts",
+        "test:autopilot": "vitest run --config vitest.autopilot.config.ts",
         "test-sequential": "vitest run --config vitest.config.ts --pool=forks --maxWorkers=1",
         "test:dev": "vitest watch --config vitest.config.ts --changed",
         "test:dev:nowatch": "vitest run --config vitest.config.ts --changed",

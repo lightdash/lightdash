@@ -55,6 +55,10 @@ import {
     normalizeAnthropicGatewayBaseUrl,
     normalizeLlmGatewayBaseUrl,
 } from './aiGatewayConfig';
+import {
+    parseAutopilotValidatedModels,
+    type AutopilotValidatedModel,
+} from './autopilotConfig';
 
 enum TokenEnvironmentVariable {
     SERVICE_ACCOUNT = 'LD_SETUP_SERVICE_ACCOUNT_TOKEN',
@@ -98,6 +102,23 @@ export const getIntegerFromEnvironmentVariable = (
         );
     }
     return parsed;
+};
+
+// Timers above 2^31-1 ms fire immediately in Node.
+const MAX_TIMER_MS = 2_147_483_647;
+
+export const getPositiveIntegerFromEnvironmentVariable = (
+    name: string,
+    defaultValue: number,
+    max = Number.MAX_SAFE_INTEGER,
+): number => {
+    const value = getIntegerFromEnvironmentVariable(name) ?? defaultValue;
+    if (value < 1 || value > max) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be an integer between 1 and ${max} but ${name}=${value}`,
+        );
+    }
+    return value;
 };
 
 export const getFloatFromEnvironmentVariable = (
@@ -403,6 +424,16 @@ const parseApiExpiration = (envVariable: string): Date | null => {
     }
     return new Date(Date.now() + 1000 * 60 * 60 * 24 * apiExpirationDays);
 };
+
+// Which engine runs Autopilot heartbeats: the in-process AI SDK loop on the
+// org's copilot provider, or a hosted session on Anthropic's Managed Agents API.
+export const MANAGED_AGENT_RUNTIMES = {
+    AI_SDK: 'ai-sdk',
+    ANTHROPIC_MANAGED: 'anthropic-managed',
+} as const;
+
+export type ManagedAgentRuntime =
+    (typeof MANAGED_AGENT_RUNTIMES)[keyof typeof MANAGED_AGENT_RUNTIMES];
 
 const parseEnum = <T>(
     value: string | undefined,
@@ -1715,10 +1746,13 @@ export type LightdashConfig = {
         projectId?: string;
     };
     managedAgent: {
+        runtime: ManagedAgentRuntime;
         anthropicApiKey: string | null;
         skillIds: string[];
         schedule: string;
         sessionTimeoutMs: number;
+        maxSteps: number;
+        validatedModels: AutopilotValidatedModel[];
     };
     aiWriteback: {
         /**
@@ -3679,6 +3713,14 @@ export const parseConfig = (): LightdashConfig => {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
         managedAgent: {
+            validatedModels: parseAutopilotValidatedModels(
+                process.env.MANAGED_AGENT_VALIDATED_MODELS,
+            ),
+            runtime:
+                parseEnum<ManagedAgentRuntime>(
+                    process.env.MANAGED_AGENT_RUNTIME,
+                    MANAGED_AGENT_RUNTIMES,
+                ) ?? 'anthropic-managed',
             anthropicApiKey:
                 process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
                 (!process.env.ANTHROPIC_BASE_URL
@@ -3690,10 +3732,15 @@ export const parseConfig = (): LightdashConfig => {
                 .map((skillId) => skillId.trim())
                 .filter(Boolean),
             schedule: process.env.MANAGED_AGENT_SCHEDULE || '0 0 * * *',
-            sessionTimeoutMs: parseInt(
-                process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '600000',
-                10,
-            ), // 10 minutes default
+            sessionTimeoutMs: getPositiveIntegerFromEnvironmentVariable(
+                'MANAGED_AGENT_SESSION_TIMEOUT_MS',
+                600_000,
+                MAX_TIMER_MS,
+            ),
+            maxSteps: getPositiveIntegerFromEnvironmentVariable(
+                'MANAGED_AGENT_MAX_STEPS',
+                120,
+            ),
         },
         aiWriteback: {
             legacyAnthropicApiKey:

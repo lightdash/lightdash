@@ -2071,7 +2071,7 @@ const RunRow: FC<{
     onSelectAction: (action: ManagedAgentAction) => void;
 }> = ({ run, isOpen, onToggle, selectedActionUuid, onSelectAction }) => {
     const variant = runVariant(run);
-    const expandable = variant !== 'completed-empty';
+    const expandable = variant !== 'completed-empty' || !!run.summary;
     const isLive = variant === 'live';
     const { data: actions } = useManagedAgentActions({
         enabled: expandable && isOpen,
@@ -2087,6 +2087,20 @@ const RunRow: FC<{
                 expandable={expandable}
                 onToggle={onToggle}
             />
+            {isOpen && run.summary && (
+                <Table.Tr>
+                    <Table.Td colSpan={3}>
+                        <Text
+                            fz="xs"
+                            px="md"
+                            py="xs"
+                            className={classes.runSummary}
+                        >
+                            {run.summary}
+                        </Text>
+                    </Table.Td>
+                </Table.Tr>
+            )}
             {variant === 'errored' && isOpen && run.error && (
                 <Table.Tr>
                     <Table.Td colSpan={3}>
@@ -2215,6 +2229,15 @@ const QuietRunsGroup: FC<{
                                 No actions
                             </Text>
                         </Group>
+                        {run.summary && (
+                            <Text
+                                fz="xs"
+                                mt="xs"
+                                className={classes.runSummary}
+                            >
+                                {run.summary}
+                            </Text>
+                        )}
                     </Table.Td>
                 </Table.Tr>
             ))}

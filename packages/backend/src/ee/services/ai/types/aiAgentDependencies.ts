@@ -418,6 +418,7 @@ export type RunAsyncQueryFn = (
     metricQuery: AiMetricQueryWithFilters,
     additionalMetrics?: AdditionalMetric[],
     parameters?: ParametersValuesMap,
+    abortSignal?: AbortSignal,
 ) => Promise<{
     queryUuid: string;
     rows: Record<string, AnyType>[];

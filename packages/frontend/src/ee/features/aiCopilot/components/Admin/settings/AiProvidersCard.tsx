@@ -311,6 +311,11 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                         never the instance&apos;s default keys.
                     </Callout>
                 )}
+                <Text fz="sm" c="dimmed">
+                    Autopilot setup shows which provider, model, and key it
+                    uses. Scheduled runs can make multiple model calls and incur
+                    usage on that key.
+                </Text>
                 {BYO_AI_PROVIDERS.map((provider, index) => (
                     <Stack gap="md" key={provider}>
                         {index > 0 && <Divider />}
