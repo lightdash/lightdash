@@ -38,6 +38,7 @@ import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
 import { DirectAccessFeatureGate } from './DirectAccess/DirectAccessFeatureGate';
 import { DirectAccessService } from './DirectAccess/DirectAccessService';
+import { DocumentService } from './DocumentService/DocumentService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
@@ -112,6 +113,7 @@ interface ServiceManifest {
     dashboardService: DashboardService;
     directAccessFeatureGate: DirectAccessFeatureGate;
     directAccessService: DirectAccessService;
+    documentService: DocumentService;
     deployService: DeployService;
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
@@ -397,6 +399,19 @@ export class ServiceRepository
                     downloadAuditModel: this.models.getDownloadAuditModel(),
                     projectModel: this.models.getProjectModel(),
                     csvService: this.getCsvService(),
+                }),
+        );
+    }
+
+    public getDocumentService(): DocumentService {
+        return this.getService(
+            'documentService',
+            () =>
+                new DocumentService({
+                    documentModel: this.models.getDocumentModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectModel: this.models.getProjectModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }
