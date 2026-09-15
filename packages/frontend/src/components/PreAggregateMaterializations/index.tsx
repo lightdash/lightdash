@@ -64,7 +64,7 @@ import {
 import TruncatedText from '../common/TruncatedText';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
-import { StatusBadge } from './StatusBadge';
+import { MaterializationStatusBadge, StatusBadge } from './StatusBadge';
 
 type Props = {
     projectUuid: string;
@@ -86,7 +86,7 @@ type StatusType =
 
 const STATUS_LABELS: Record<StatusType, string> = {
     active: 'Active',
-    in_progress: 'Building',
+    in_progress: 'In progress',
     failed: 'Failed',
     superseded: 'Superseded',
     external: 'External',
@@ -118,7 +118,7 @@ const StatusFilter: FC<{
     return (
         <Popover width={250} position="bottom-start">
             <Popover.Target>
-                <Tooltip label="Filter by status">
+                <Tooltip label="Filter by latest attempt status">
                     <Button
                         h={32}
                         c="foreground"
@@ -143,14 +143,14 @@ const StatusFilter: FC<{
                             ) : null
                         }
                     >
-                        Status
+                        Latest attempt
                     </Button>
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown p="sm">
                 <Stack gap={4}>
                     <Text fz="xs" c="dimmed" fw={600}>
-                        Filter by status:
+                        Filter by latest attempt:
                     </Text>
                     <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
                         <Radio.Group
@@ -246,12 +246,21 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     );
     const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
         useDisclosure(false);
-    const [selectedSummary, setSelectedSummary] =
-        useState<PreAggregateMaterializationSummary | null>(null);
+    const [selectedDefinitionUuid, setSelectedDefinitionUuid] = useState<
+        string | null
+    >(null);
+    const selectedSummary = useMemo(
+        () =>
+            materializations.find(
+                (item) =>
+                    item.preAggregateDefinitionUuid === selectedDefinitionUuid,
+            ) ?? null,
+        [materializations, selectedDefinitionUuid],
+    );
 
     const handleRowClick = useCallback(
         (summary: PreAggregateMaterializationSummary) => {
-            setSelectedSummary(summary);
+            setSelectedDefinitionUuid(summary.preAggregateDefinitionUuid);
             openDrawer();
         },
         [openDrawer],
@@ -282,7 +291,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     const summary = useMemo(() => {
         const total = filteredMaterializations.length;
         const active = filteredMaterializations.filter(
-            (m) => m.materialization?.status === 'active',
+            (m) =>
+                m.activeMaterialization?.status === 'active' &&
+                !m.definitionError,
         ).length;
         const warningCount = filteredMaterializations.filter(
             (m) => m.warnings.length > 0,
@@ -338,7 +349,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'status',
-                header: 'Status',
+                header: 'Current materialization',
                 enableSorting: false,
                 size: 140,
                 Header: ({ column }) => (
@@ -349,11 +360,24 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => <StatusBadge summary={row.original} />,
             },
             {
+                id: 'latestAttempt',
+                header: 'Latest attempt',
+                enableSorting: false,
+                size: 140,
+                Cell: ({ row }) =>
+                    row.original.externalTable ? null : (
+                        <MaterializationStatusBadge
+                            materialization={row.original.materialization}
+                        />
+                    ),
+            },
+            {
                 id: 'rowCount',
                 header: 'Row count',
                 enableSorting: true,
                 size: 100,
-                accessorFn: (row) => row.materialization?.rowCount ?? null,
+                accessorFn: (row) =>
+                    row.activeMaterialization?.rowCount ?? null,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
                         <MantineIcon
@@ -364,7 +388,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const rowCount = row.original.materialization?.rowCount;
+                    const rowCount =
+                        row.original.activeMaterialization?.rowCount;
                     const hasRowCountWarning = row.original.warnings.some(
                         (w: PreAggregateMaterializationWarning) =>
                             w.type === 'row_count_exceeded',
@@ -416,7 +441,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const cols = row.original.materialization?.columns;
+                    const cols = row.original.activeMaterialization?.columns;
                     const count = cols ? Object.keys(cols).length : null;
                     return (
                         <Text size="xs" c="dimmed" ff="monospace">
@@ -430,7 +455,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 header: 'File size',
                 enableSorting: true,
                 size: 100,
-                accessorFn: (row) => row.materialization?.totalBytes ?? null,
+                accessorFn: (row) =>
+                    row.activeMaterialization?.totalBytes ?? null,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
                         <MantineIcon icon={IconFile} color="dimmed" />
@@ -438,7 +464,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const bytes = row.original.materialization?.totalBytes;
+                    const bytes =
+                        row.original.activeMaterialization?.totalBytes;
                     return (
                         <Text size="xs" c="dimmed" ff="monospace">
                             {bytes != null ? formatFileSize(bytes) : '\u2014'}
@@ -449,10 +476,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'buildTime',
-                header: 'Build time',
+                header: 'Materialization time',
                 enableSorting: true,
                 size: 100,
-                accessorFn: (row) => row.materialization?.durationMs ?? null,
+                accessorFn: (row) =>
+                    row.activeMaterialization?.durationMs ?? null,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
                         <MantineIcon icon={IconHourglass} color="dimmed" />
@@ -460,7 +488,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const durationMs = row.original.materialization?.durationMs;
+                    const durationMs =
+                        row.original.activeMaterialization?.durationMs;
                     return (
                         <Text size="xs" c="dimmed" ff="monospace">
                             {durationMs != null
@@ -477,7 +506,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 enableSorting: true,
                 size: 140,
                 accessorFn: (row) =>
-                    row.materialization?.materializedAt ?? null,
+                    row.activeMaterialization?.materializedAt ?? null,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
                         <MantineIcon icon={IconClock} color="dimmed" />
@@ -485,7 +514,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const { materialization } = row.original;
+                    const { activeMaterialization: materialization } =
+                        row.original;
                     const materializedAt = materialization?.materializedAt;
 
                     if (
@@ -535,9 +565,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     }
                     if (!refreshCron) {
                         return (
-                            <Text size="xs" c="dimmed">
-                                Manual
-                            </Text>
+                            <Tooltip label="Unchanged deploys keep the current materialization. Refresh manually or through the API after source data changes.">
+                                <Text size="xs" c="dimmed">
+                                    On definition change / manual
+                                </Text>
+                            </Tooltip>
                         );
                     }
                     return (
@@ -571,7 +603,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         refreshingDefinitionName ===
                             row.original.preAggregateName;
                     return (
-                        <Tooltip label="Rebuild this pre-aggregate">
+                        <Tooltip label="Refresh this pre-aggregate">
                             <ActionIcon
                                 size="sm"
                                 loading={isThisRowRefreshing}
@@ -712,7 +744,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                                 loading={isRefreshingAll || hasActiveJobs}
                                 onClick={handleRefreshAllClick}
                             >
-                                Rebuild managed
+                                Refresh managed
                             </Button>
                         )}
                     </SettingsPageActions>
@@ -763,13 +795,13 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             <MantineModal
                 opened={isRefreshModalOpen}
                 onClose={closeRefreshModal}
-                title="Rebuild managed pre-aggregates"
+                title="Refresh managed pre-aggregates"
                 icon={IconRefreshDot}
                 size="lg"
                 onConfirm={handleRefreshAllConfirm}
-                confirmLabel="Rebuild managed"
+                confirmLabel="Refresh managed"
                 confirmLoading={isRefreshingAll}
-                description={`This rebuilds ${managedMaterializations.length} Lightdash-managed pre-aggregate${managedMaterializations.length === 1 ? '' : 's'}. External definitions stay untouched.`}
+                description={`This materializes ${managedMaterializations.length} managed pre-aggregate${managedMaterializations.length === 1 ? '' : 's'} again using the latest warehouse data.`}
             >
                 <Stack gap="sm">
                     <Text fz="xs" c="dimmed">

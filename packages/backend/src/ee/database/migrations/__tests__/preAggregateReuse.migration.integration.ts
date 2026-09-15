@@ -670,6 +670,38 @@ describe('Pre-aggregate registry PostgreSQL migration and lifecycle', () => {
         ).toHaveLength(1);
     });
 
+    it('keeps compatible active monitoring separate from the latest failed attempt', async () => {
+        await activate();
+        const current = definition();
+        await publish([current], { replaceCache: true });
+        const active = await start(current, new Date('2026-09-01T00:00:00Z'));
+        await finish(active.materializationUuid);
+        const failed = await start(current, new Date('2026-09-02T00:00:00Z'));
+        await model.markFailed({
+            materializationUuid: failed.materializationUuid,
+            errorMessage: 'Synthetic warehouse failure',
+        });
+        const summary =
+            await model.getDefinitionsWithLatestMaterialization(projectUuid);
+        expect(
+            summary.data.materializations[0].activeMaterialization
+                ?.materializationUuid,
+        ).toBe(active.materializationUuid);
+        expect(summary.data.materializations[0].materialization?.status).toBe(
+            'failed',
+        );
+        await publish([definition('daily', 'b'.repeat(64))], {
+            replaceCache: true,
+        });
+        const changed =
+            await model.getDefinitionsWithLatestMaterialization(projectUuid);
+        expect(
+            changed.data.materializations[0].activeMaterialization,
+        ).toBeNull();
+        expect(changed.data.materializations[0].materialization?.status).toBe(
+            'failed',
+        );
+    });
     it('atomically invalidates context and changes schedule revisions only for effective timezone updates', async () => {
         await activate();
         const prepared = definition();

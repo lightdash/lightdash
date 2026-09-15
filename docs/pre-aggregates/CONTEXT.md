@@ -44,6 +44,12 @@ The `refresh` YAML key configures the cron schedule for this.
 Not dashboard auto-refresh or dbt `--full-refresh`.
 _Avoid_: rebuild, re-run, sync
 
+An unchanged compile retains a verified compatible, usable active managed
+materialization, with or without a cron schedule. Cron and manual refreshes still
+materialize again. Without cron, source-data changes require a manual/API refresh.
+See [refresh lifecycle](refresh-lifecycle.md) for publication, scheduling, and
+rollout details.
+
 **Trigger**:
 What initiated a materialization: compile (dbt project compiled), cron
 (scheduled refresh), or manual (user-requested refresh). Not a scheduler
