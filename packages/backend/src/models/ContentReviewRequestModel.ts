@@ -186,6 +186,9 @@ type SimilarContentScope = {
     accessibleSpaceUuids: string[];
 };
 
+// Cancels the server-side statement too, so slow lookups cannot pile up.
+const SIMILARITY_QUERY_TIMEOUT_MS = 5_000;
+
 const escapeLikeWildcards = (value: string): string =>
     value.replace(/[%_\\]/g, '\\$&');
 
@@ -651,6 +654,7 @@ export class ContentReviewRequestModel {
                 spaceUuid: 'content.space_uuid',
                 spaceName: 'content.space_name',
             })
+            .timeout(SIMILARITY_QUERY_TIMEOUT_MS, { cancel: true })
             .from(branches.as('content'));
     }
 
