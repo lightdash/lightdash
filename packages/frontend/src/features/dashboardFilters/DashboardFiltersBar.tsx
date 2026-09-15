@@ -9,7 +9,6 @@ import {
     Button,
     Divider,
     Drawer,
-    useMatches,
     Group,
     Text,
     Tooltip,
@@ -25,6 +24,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
 import PinnedParameters from '../../components/PinnedParameters';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -74,10 +74,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     isDateZoomDisabled,
     onCollapse,
 }) => {
-    const compact = useMatches(
-        { base: true, sm: false },
-        { getInitialValueInEffect: false },
-    );
+    const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
     const getUiString = useUiStrings();
     const isAddFilterDisabled = useDashboardContext(
