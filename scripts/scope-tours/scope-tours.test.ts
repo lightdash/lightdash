@@ -84,6 +84,20 @@ const write = (name: string, source: string) => {
     return file;
 };
 
+writeFileSync(
+    path.join(docs, 'explore/explore-view.mdx'),
+    `---
+title: The Explore view
+---
+
+## The Explore page
+
+The Explore page is made up of five areas:
+
+1. **Metrics and dimensions** available on the table you selected
+2. **Filters**, which restrict the data in your query
+`,
+);
 mkdirSync(path.join(docs, 'semantic-layer'), { recursive: true });
 mkdirSync(path.join(docs, 'workflow/cli'), { recursive: true });
 writeFileSync(
@@ -162,16 +176,24 @@ export const Explore = () => (
 const metricsLesson = {
     id: 'docs:semantic-layer/metrics' as const,
     docs: 'semantic-layer/metrics.mdx',
-    intro: 'semantic-layer/metrics.mdx#intro:1-2',
+    intro: [
+        'semantic-layer/metrics.mdx#intro:1-2',
+        'semantic-layer/metrics.mdx#intro:p2:1',
+    ],
     file: 'models/payments.yml',
+    column: 'amount',
+    fileDocs: 'semantic-layer/metrics.mdx#1-using-the-column-meta-tag:1',
     snippet:
         '              average_payment_amount:\n                type: average',
     snippetDocs: 'semantic-layer/metrics.mdx#average:1-2',
     command: 'lightdash deploy',
     commandDocs: 'workflow/cli/deploy.mdx#intro:1',
-    outputDocs: 'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li3',
+    outputDocs: [
+        'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li2',
+        'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li3',
+    ],
     result: { explore: 'payments', field: 'average_payment_amount' },
-    resultDocs: 'semantic-layer/metrics.mdx#1-using-the-column-meta-tag:1',
+    resultDocs: 'explore/explore-view.mdx#the-explore-page:li1',
 };
 
 const run = async () => {
@@ -688,16 +710,23 @@ export const Card = () => (
         );
         assert.strictEqual(
             tour.steps.map((s) => s.title).join(' > '),
-            'Metrics > Open models/payments.yml > Edit the file > Type the command > Run the command > See the result > Click New > Choose Chart > Search for the table > Open Payments > Find Average payment amount > Using the column meta tag',
+            'Metrics > Open models/payments.yml > Edit the file > Type the command > Run the command > See the result > Click New > Choose Chart > Search for the table > Open Payments > Find Average payment amount > The Explore page',
         );
+        // The intro is a centered explainer: it names no control.
+        assert.strictEqual(tour.steps[0].target, null);
         assert.strictEqual(
             tour.steps[0].body,
-            'A metric is a value that describes or summarizes features from a collection of data points. For example: count of total number of user IDs, or sum of revenue.',
+            'A metric is a value that describes or summarizes features from a collection of data points. For example: count of total number of user IDs, or sum of revenue. In Lightdash, metrics are used to summarize dimensions or, sometimes, other metrics.',
+        );
+        // Opening the file says where metrics live and which one this is.
+        assert.strictEqual(
+            tour.steps[1].body,
+            "To add a metric to Lightdash using the **meta** tag, you define it in your dbt project under the dimension name you're trying to describe/summarize. This lesson adds **average_payment_amount** to the **payments** model under its **amount** column.",
         );
         assert.strictEqual(tour.steps[2].suggestion, metricsLesson.snippet);
         assert.strictEqual(
             tour.steps[2].body,
-            "Takes the average (mean) of the values in the given field. Like SQL's **AVG** function.",
+            "Takes the average (mean) of the values in the given field. Like SQL's **AVG** function. Use it appends the snippet at the end of the file, inside the **amount** column's metrics, as the **average** metric **average_payment_amount**.",
         );
         assert.strictEqual(tour.steps[3].suggestion, 'lightdash deploy');
         assert.strictEqual(
@@ -714,7 +743,7 @@ export const Card = () => (
         );
         assert.strictEqual(
             tour.steps[5].body,
-            'Trigger a re-compile and refresh of your Lightdash project',
+            'Push the current state of your local dbt project files to the authenticated Lightdash project. Trigger a re-compile and refresh of your Lightdash project.',
         );
         // The table list is virtualised: the table is searched for before it
         // can be clicked.
@@ -754,6 +783,25 @@ export const Card = () => (
             '[data-tour-anchor="explore-metric"][data-tour-value="Average payment amount"]',
         );
         assert.strictEqual(tour.steps[11].interactive, false);
+        assert.strictEqual(tour.steps[11].title, 'The Explore page');
+        assert.strictEqual(
+            tour.steps[11].body,
+            '**Metrics and dimensions** available on the table you selected. **Average payment amount** is the metric you just deployed.',
+        );
+        // A lesson names a real column of its file and a typed snippet.
+        assert.throws(
+            () =>
+                buildLessonTours([{ ...metricsLesson, column: 'nope' }], files),
+            /column nope is not a column of models\/payments.yml/,
+        );
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [{ ...metricsLesson, snippet: '  foo: 1' }],
+                    files,
+                ),
+            /declares no metric type/,
+        );
         assert.strictEqual(
             tour.steps[0].route,
             '/projects/:projectUuid/learn/workspace',

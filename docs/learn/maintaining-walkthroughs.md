@@ -77,7 +77,7 @@ A developer lesson is a walkthrough over the sandbox workspace rather than over 
 
 To add one:
 
-1. **Declare it** in `packages/frontend/src/features/learn/sandboxLessons.ts`: the docs page, the citation each step shows, the file to open, the snippet, the command, and the explore and field the learner ends on. Nothing else is authored. The twelve steps come from a fixed template, so a lesson cannot invent a click path.
+1. **Declare it** in `packages/frontend/src/features/learn/sandboxLessons.ts`: the docs page, the citation each step shows (one, or a list read in order), the file to open and the column the snippet extends, the snippet, the command, and the explore and field the learner ends on. Nothing else is authored. The twelve steps come from a fixed template, so a lesson cannot invent a click path, and the only wording that is not a docs sentence is three fixed task sentences the template fills from the entry: which metric this lesson adds to which model under which column, where Use it puts the snippet, and which metric the learner is looking at when the tour ends. The build refuses a column the file does not declare and a snippet with no `type`.
 
 2. **Keep the snippet extending the file's tail.** It is appended to the end of the file, so it has to be indented to continue the mapping that file ends in. If the model file changes shape upstream, the snippet changes with it.
 

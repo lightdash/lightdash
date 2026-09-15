@@ -6,7 +6,10 @@
 import { friendlyName, getScopes } from '@lightdash/common';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import type { SandboxLesson } from '../../packages/frontend/src/features/learn/sandboxLessons';
+import type {
+    DocsCitation,
+    SandboxLesson,
+} from '../../packages/frontend/src/features/learn/sandboxLessons';
 
 export const root = path.resolve(__dirname, '../..');
 export const frontendSrc = path.join(root, 'packages/frontend/src');
@@ -485,7 +488,8 @@ export const selectorFor = (marker: Marker) =>
           : `[data-tour-scope="${marker.scope}"][data-tour-result="${marker.result}"]`;
 
 export type ScopeTourStepDefinition = {
-    target: string;
+    /** CSS selector of the spotlit control; null renders a centered explainer. */
+    target: string | null;
     route?: string;
     title: string;
     body: string;
@@ -547,17 +551,37 @@ export const docsCardTitle = (relative: string): string => {
     return title;
 };
 
-const learnBundlePaths = (): Set<string> => {
+const learnBundleFiles = (): Map<string, string> => {
     const bundle = JSON.parse(
         readFileSync(
             path.join(root, 'packages/backend/assets/learn/jaffle-dbt.json'),
             'utf8',
         ),
-    ) as { files: { path: string }[] };
-    return new Set(bundle.files.map((file) => file.path));
+    ) as { files: { path: string; content: string }[] };
+    return new Map(bundle.files.map((file) => [file.path, file.content]));
 };
 
-const validateLesson = (lesson: SandboxLesson, bundlePaths: Set<string>) => {
+/**
+ * Several citations read as one body: each is closed with a full stop when
+ * the docs leave it open (a list item), then they are joined in order.
+ */
+const cite = (refs: DocsCitation): string =>
+    (Array.isArray(refs) ? refs : [refs])
+        .map((ref) => docsParagraph(ref))
+        .map((text) => (/[.!?:]\**$/.test(text) ? text : `${text}.`))
+        .join(' ');
+
+const firstCitation = (refs: DocsCitation): string =>
+    Array.isArray(refs) ? refs[0] : refs;
+
+/** The `type:` a lesson's snippet declares; the cards name it. */
+const snippetMetricType = (snippet: string): string | undefined =>
+    /^\s*type:\s*([a-z_]+)\s*$/m.exec(snippet)?.[1];
+
+const validateLesson = (
+    lesson: SandboxLesson,
+    bundleFiles: Map<string, string>,
+) => {
     const where = `${LESSON_SOURCE}: lesson ${lesson.id}`;
     if (!LESSON_ID.test(lesson.id)) {
         throw new Error(
@@ -574,14 +598,27 @@ const validateLesson = (lesson: SandboxLesson, bundlePaths: Set<string>) => {
     }
     if (
         !/^models\/(?:[^/]+\/)*[^/]+\.yml$/.test(lesson.file) ||
-        !bundlePaths.has(lesson.file)
+        !bundleFiles.has(lesson.file)
     ) {
         throw new Error(
             `${where}: file must be an editable models/**/*.yml in the learn bundle`,
         );
     }
+    if (
+        !/^[a-z][a-z0-9_]*$/.test(lesson.column) ||
+        !new RegExp(`^\\s*- name: ${lesson.column}\\s*$`, 'm').test(
+            bundleFiles.get(lesson.file)!,
+        )
+    ) {
+        throw new Error(
+            `${where}: column ${lesson.column} is not a column of ${lesson.file}`,
+        );
+    }
     if (lesson.snippet.trim() === '')
         throw new Error(`${where}: snippet is empty`);
+    if (!snippetMetricType(lesson.snippet)) {
+        throw new Error(`${where}: snippet declares no metric type`);
+    }
     const [tool] = lesson.command.trim().split(/\s+/);
     if (tool !== 'lightdash' && tool !== 'dbt') {
         throw new Error(`${where}: command must start with lightdash or dbt`);
@@ -631,7 +668,7 @@ const typed = (
 });
 
 const look = (
-    target: string,
+    target: string | null,
     route: string,
     title: string,
     body: string,
@@ -667,9 +704,10 @@ export const buildLessonTours = (
         }
         seen.add(id);
     });
-    const bundlePaths = learnBundlePaths();
+    const bundleFiles = learnBundleFiles();
     return lessons.map((lesson) => {
-        validateLesson(lesson, bundlePaths);
+        validateLesson(lesson, bundleFiles);
+        const metricType = snippetMetricType(lesson.snippet)!;
         const fileRow = `[data-tour-anchor="workspace-file"][data-tour-value="${lesson.file}"]`;
         const editor = '[data-tour-anchor="workspace-editor"]';
         const command = '[data-tour-anchor="terminal-command"]';
@@ -693,18 +731,25 @@ export const buildLessonTours = (
         const title = docsCardTitle(lesson.docs);
         const steps: ScopeTourStepDefinition[] = [
             look(
-                fileRow,
+                // The intro explains the page's concept before any control is named.
+                null,
                 WORKSPACE_ROUTE,
                 title,
-                docsParagraph(lesson.intro),
+                cite(lesson.intro),
                 [],
             ),
-            click(fileRow, WORKSPACE_ROUTE, hintFor(fileRow, files), []),
+            // The docs say where a metric lives; the lesson's own facts say
+            // which one this is. The three task sentences below are the only
+            // fixed wording in a lesson besides 'See the result'.
+            {
+                ...click(fileRow, WORKSPACE_ROUTE, hintFor(fileRow, files), []),
+                body: `${cite(lesson.fileDocs)} This lesson adds **${lesson.result.field}** to the **${lesson.result.explore}** model under its **${lesson.column}** column.`,
+            },
             typed(
                 editor,
                 WORKSPACE_ROUTE,
                 hintFor(editor, files),
-                docsParagraph(lesson.snippetDocs),
+                `${cite(lesson.snippetDocs)} Use it appends the snippet at the end of the file, inside the **${lesson.column}** column's metrics, as the **${metricType}** metric **${lesson.result.field}**.`,
                 lesson.snippet,
                 [fileRow],
             ),
@@ -712,7 +757,7 @@ export const buildLessonTours = (
                 command,
                 WORKSPACE_ROUTE,
                 hintFor(command, files),
-                docsParagraph(lesson.commandDocs),
+                cite(lesson.commandDocs),
                 lesson.command,
                 [fileRow],
             ),
@@ -721,7 +766,7 @@ export const buildLessonTours = (
                 output,
                 WORKSPACE_ROUTE,
                 'See the result',
-                docsParagraph(lesson.outputDocs),
+                cite(lesson.outputDocs),
                 [],
                 BUSY_OUTPUT,
             ),
@@ -759,8 +804,8 @@ export const buildLessonTours = (
             look(
                 fieldRow,
                 EXPLORE_ROUTE,
-                docsHeading(lesson.resultDocs),
-                docsParagraph(lesson.resultDocs),
+                docsHeading(firstCitation(lesson.resultDocs)),
+                `${cite(lesson.resultDocs)} **${fieldLabel}** is the metric you just deployed.`,
                 [newMenu, newChart, search, table, fieldSearch],
             ),
         ];

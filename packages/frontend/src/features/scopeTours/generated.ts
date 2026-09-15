@@ -4,7 +4,8 @@
 // `pnpm scope-tours:generate`.
 
 export type ScopeTourStepDefinition = {
-    target: string;
+    /** CSS selector of the spotlit control; null renders a centered explainer. */
+    target: string | null;
     route?: string;
     title: string;
     body: string;
@@ -5326,10 +5327,10 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         sources: ['packages/frontend/src/features/learn/sandboxLessons.ts'],
         steps: [
             {
-                target: '[data-tour-anchor="workspace-file"][data-tour-value="models/payments.yml"]',
+                target: null,
                 route: '/projects/:projectUuid/learn/workspace',
                 title: 'Metrics',
-                body: 'A metric is a value that describes or summarizes features from a collection of data points. For example: count of total number of user IDs, or sum of revenue.',
+                body: 'A metric is a value that describes or summarizes features from a collection of data points. For example: count of total number of user IDs, or sum of revenue. In Lightdash, metrics are used to summarize dimensions or, sometimes, other metrics.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
@@ -5339,7 +5340,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-anchor="workspace-file"][data-tour-value="models/payments.yml"]',
                 route: '/projects/:projectUuid/learn/workspace',
                 title: 'Open models/payments.yml',
-                body: '',
+                body: "To add a metric to Lightdash using the **meta** tag, you define it in your dbt project under the dimension name you're trying to describe/summarize. This lesson adds **average_payment_amount** to the **payments** model under its **amount** column.",
                 interactive: true,
                 advanceOnTargetClick: true,
                 advanceOnTargetInput: false,
@@ -5349,7 +5350,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-anchor="workspace-editor"]',
                 route: '/projects/:projectUuid/learn/workspace',
                 title: 'Edit the file',
-                body: "Takes the average (mean) of the values in the given field. Like SQL's **AVG** function.",
+                body: "Takes the average (mean) of the values in the given field. Like SQL's **AVG** function. Use it appends the snippet at the end of the file, inside the **amount** column's metrics, as the **average** metric **average_payment_amount**.",
                 interactive: true,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: true,
@@ -5388,7 +5389,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-learn-terminal-output]',
                 route: '/projects/:projectUuid/learn/workspace',
                 title: 'See the result',
-                body: 'Trigger a re-compile and refresh of your Lightdash project',
+                body: 'Push the current state of your local dbt project files (including uncommitted changes or code from your active branch) to the authenticated Lightdash project. Trigger a re-compile and refresh of your Lightdash project.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
@@ -5459,8 +5460,8 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-anchor="explore-metric"][data-tour-value="Average payment amount"]',
                 route: '/projects/:projectUuid/tables/:tableName',
-                title: 'Using the column meta tag',
-                body: "To add a metric to Lightdash using the **meta** tag, you define it in your dbt project under the dimension name you're trying to describe/summarize.",
+                title: 'The Explore page',
+                body: '**Metrics and dimensions** available on the table you selected. **Average payment amount** is the metric you just deployed.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
