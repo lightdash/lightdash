@@ -1,9 +1,12 @@
 import {
     assertRegisteredAccount,
+    ParameterError,
+    type ApiDocumentCellQueryResponse,
     type ApiDocumentListResponse,
     type ApiDocumentResponse,
     type ApiErrorPayload,
     type CreateDocumentRequest,
+    type ExecuteDocumentCellQueryRequest,
     type UpdateDocumentContentRequest,
     type UpdateDocumentMetadataRequest,
     type UUID,
@@ -34,6 +37,38 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Documents')
 export class DocumentController extends BaseController {
+    @Post('{documentUuid}/cells/{cellId}/query')
+    @OperationId('ExecuteDocumentCellQuery')
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    async executeCellQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuid: UUID,
+        @Path() cellId: string,
+        @Body() body: ExecuteDocumentCellQueryRequest,
+    ): Promise<ApiDocumentCellQueryResponse> {
+        assertRegisteredAccount(req.account);
+        if (Object.keys(req.body).some((key) => key !== 'versionUuid')) {
+            throw new ParameterError(
+                'Document chart queries accept only a versionUuid',
+            );
+        }
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAsyncQueryService()
+                .executeAsyncDocumentCellQuery({
+                    account: req.account,
+                    projectUuid,
+                    reference: {
+                        documentUuid,
+                        cellId,
+                        versionUuid: body.versionUuid,
+                    },
+                }),
+        };
+    }
+
     @Post()
     @OperationId('CreateDocument')
     @Middlewares([

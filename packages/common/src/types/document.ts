@@ -1,3 +1,4 @@
+import type { ApiExecuteAsyncMetricQueryResults } from './api';
 import type { ApiSuccess } from './api/success';
 import type { ChartAsCode } from './contentAsCode/charts';
 import type { SavedMergeQuery } from './mergeQuery';
@@ -113,3 +114,14 @@ export type UpdateDocumentContentRequest = {
     baseVersionUuid: string;
     operations: DocumentCellOperation[];
 };
+
+export type ExecuteDocumentCellQueryRequest = { versionUuid: string };
+
+export type DocumentQueryReference = {
+    documentUuid: string;
+    versionUuid: string;
+    cellId: string;
+};
+
+export type ApiDocumentCellQueryResponse =
+    ApiSuccess<ApiExecuteAsyncMetricQueryResults>;

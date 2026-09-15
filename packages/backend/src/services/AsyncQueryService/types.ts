@@ -41,6 +41,7 @@ import type {
     QueryComposer,
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
+import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 
 export type CommonAsyncQueryArgs = {
     account: Account;
@@ -99,6 +100,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
+    documentQueryContext?: DocumentQueryContext;
     metricQuery: MetricQuery;
     dataAppPreviewToken?: string;
     customSqlProvenanceChartUuid?: UUID;
@@ -204,6 +206,7 @@ export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
+    documentQueryContext?: DocumentQueryContext;
     mergeQuery: MergeQuery;
     mode: MergeQueryExecutionMode;
     chart?: MergeQueryChart;

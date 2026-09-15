@@ -23,6 +23,7 @@ import {
     IconChevronDown,
     IconChevronRight,
     IconAppWindow,
+    IconFileText,
     IconFolder,
     IconFolders,
     IconLayoutDashboard,
@@ -106,6 +107,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     const { data: favorites } = useFavorites(projectUuid);
     const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const chartTypesEnabled = useChartTypesEnabled();
     const canViewDataApps = user.data?.ability?.can('view', 'DataApp') ?? false;
     // The gallery list endpoint is gated on `manage Explore`, not on data app access.
@@ -194,6 +196,16 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 >
                     All saved charts
                 </Menu.Item>
+
+                {documentsFlag.data?.enabled && !documentsFlag.isError && (
+                    <Menu.Item
+                        component={Link}
+                        to={`/projects/${projectUuid}/documents`}
+                        leftSection={<MantineIcon icon={IconFileText} />}
+                    >
+                        All documents
+                    </Menu.Item>
+                )}
 
                 {dataAppsFlag.data?.enabled && canViewDataApps && (
                     <Menu.Item

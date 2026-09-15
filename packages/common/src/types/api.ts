@@ -203,6 +203,7 @@ import {
 } from './dashboard';
 import { type ApiDataTimezonePreviewResults } from './dataTimezonePreview';
 import { type DbtExposure } from './dbt';
+import type { Document, DocumentList } from './document';
 import { type EmailStatusExpiring } from './email';
 import {
     type Explore,
@@ -1265,6 +1266,8 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | Document
+    | DocumentList
     | ContentReviewRequest
     | ContentReviewRequestDetail
     | ContentReviewSettings

@@ -9,6 +9,7 @@ import type {
     UserAttributeValueMap,
 } from '@lightdash/common';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
+import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 
 export type ScanSchemaArgs = {
     account: Account;
@@ -32,6 +33,7 @@ export type SourceQueryExecutionContext = {
 };
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
+    documentQueryContext?: DocumentQueryContext;
     account: Account;
     projectUuid: string;
     context: QueryExecutionContext;
