@@ -12227,6 +12227,15 @@ const models: TsoaRoute.Models = {
                     ref: 'ManagedAgentAggression',
                     required: true,
                 },
+                keyManagement: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['self-managed'] },
+                        { dataType: 'enum', enums: ['lightdash-managed'] },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 keySource: {
                     dataType: 'union',
                     subSchemas: [
@@ -12619,6 +12628,22 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 startedAt: { dataType: 'datetime', required: true },
+                modelName: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                modelProvider: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 sessionId: {
                     dataType: 'union',
                     subSchemas: [

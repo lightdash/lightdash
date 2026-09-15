@@ -1,3 +1,10 @@
+# [2.214.0](https://github.com/lightdash/lightdash/compare/2.213.0...2.214.0) (2026-09-15)
+
+
+### Features
+
+* **autopilot:** show current configuration and historical run models ([#29228](https://github.com/lightdash/lightdash/issues/29228)) ([e8f47da](https://github.com/lightdash/lightdash/commit/e8f47da3e6028dd52a232da37370e5ddf65c7638))
+
 # [2.213.0](https://github.com/lightdash/lightdash/compare/2.212.2...2.213.0) (2026-09-15)
 
 

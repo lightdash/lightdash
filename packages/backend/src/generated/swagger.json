@@ -12827,6 +12827,11 @@
                     "requestedCleanupMode": {
                         "$ref": "#/components/schemas/ManagedAgentAggression"
                     },
+                    "keyManagement": {
+                        "type": "string",
+                        "enum": ["self-managed", "lightdash-managed", null],
+                        "nullable": true
+                    },
                     "keySource": {
                         "type": "string",
                         "enum": ["organization", "instance", null],
@@ -12850,6 +12855,7 @@
                     "notice",
                     "effectiveCleanupMode",
                     "requestedCleanupMode",
+                    "keyManagement",
                     "keySource",
                     "model",
                     "provider",
@@ -13144,6 +13150,14 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "modelName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "modelProvider": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "sessionId": {
                         "type": "string",
                         "nullable": true
@@ -13169,6 +13183,8 @@
                     "actionCount",
                     "finishedAt",
                     "startedAt",
+                    "modelName",
+                    "modelProvider",
                     "sessionId",
                     "status",
                     "triggeredBy",
@@ -61283,7 +61299,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.213.0",
+        "version": "2.214.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
