@@ -143,7 +143,7 @@ async function createDashboard(knex: Knex) {
         signupsTileUuid,
         revenueTab.uuid,
         { x: 0, y: 9, w: 12, h: 9 },
-        'Customer signups by month',
+        'How many users were created each month ?',
     );
 
     const ordersIntroTile: CreateDashboardMarkdownTile = {
@@ -290,7 +290,7 @@ async function createDashboard(knex: Knex) {
         },
         {
             tileUuid: signupsTileUuid,
-            tileTitle: 'Customer signups by month',
+            tileTitle: 'How many users were created each month ?',
             threads: [
                 {
                     author: viewer,
