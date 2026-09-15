@@ -1,6 +1,11 @@
 import { Knex } from 'knex';
 
-export const up = async (knex: Knex): Promise<void> => {
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates empty document tables without modifying existing content or permissions',
+} as const;
+
+export async function up(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
     await knex.schema.createTable('documents', (table) => {
         table.increments('document_id').primary();
@@ -84,10 +89,10 @@ export const up = async (knex: Knex): Promise<void> => {
         table.check('version_number > 0');
         table.check('schema_version > 0');
     });
-};
+}
 
-export const down = async (knex: Knex): Promise<void> => {
+export async function down(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
     await knex.schema.dropTable('document_versions');
     await knex.schema.dropTable('documents');
-};
+}
