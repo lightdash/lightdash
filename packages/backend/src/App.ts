@@ -45,6 +45,8 @@ import {
 } from './clients/ClientRepository';
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { SlackClient } from './clients/Slack/SlackClient';
+import { createStaticAssetsFallbackHandler } from './clients/StaticAssets/staticAssetsFallbackMiddleware';
+import { StaticAssetsS3Client } from './clients/StaticAssets/StaticAssetsS3Client';
 import { LightdashConfig } from './config/parseConfig';
 import {
     apiKeyPassportStrategy,
@@ -839,6 +841,15 @@ export default class App {
                         },
                     },
                 },
+            ),
+        );
+
+        expressApp.get(
+            '/assets/*',
+            createStaticAssetsFallbackHandler(
+                new StaticAssetsS3Client({
+                    lightdashConfig: this.lightdashConfig,
+                }),
             ),
         );
 
