@@ -1,3 +1,17 @@
+# [2.217.0](https://github.com/lightdash/lightdash/compare/2.216.0...2.217.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** run chart queries before saving, scope reversals to the run, report in markdown ([#29206](https://github.com/lightdash/lightdash/issues/29206)) ([8446901](https://github.com/lightdash/lightdash/commit/8446901439aa632d70fded55da360b1829829af0))
+* **frontend:** unify custom chart type loading states ([#29214](https://github.com/lightdash/lightdash/issues/29214)) ([9e38407](https://github.com/lightdash/lightdash/commit/9e384077b0c6c9cdf2059c71eaecdbdd6aa96597))
+
+
+### Features
+
+* **charts:** open underlying data in the Lightdash host ([#29226](https://github.com/lightdash/lightdash/issues/29226)) ([f0a540a](https://github.com/lightdash/lightdash/commit/f0a540a8e32adc82cd03aef80b94732464d7e404))
+* support homepage layouts as code in CLI ([#29142](https://github.com/lightdash/lightdash/issues/29142)) ([b24da6c](https://github.com/lightdash/lightdash/commit/b24da6c8d5d438ffee8b87da868e08621919a66b))
+
 # [2.216.0](https://github.com/lightdash/lightdash/compare/2.215.3...2.216.0) (2026-09-15)
 
 
