@@ -27,6 +27,16 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             inheritsFromOrgOrProject: true,
         });
+        can('view', 'Document', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+        can('view', 'Document', {
+            projectUuid: member.projectUuid,
+            inheritsFromOrgOrProject: true,
+        });
         can('view', 'JobStatus', {
             createdByUserUuid: member.userUuid,
         });
@@ -120,6 +130,17 @@ export const projectMemberAbilities: Record<
                 $elemMatch: {
                     userUuid: member.userUuid,
                     role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('manage', 'Document', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: {
+                        $in: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
+                    },
                 },
             },
         });
@@ -403,6 +424,9 @@ export const projectMemberAbilities: Record<
         });
 
         can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'Document', {
             projectUuid: member.projectUuid,
         });
 
