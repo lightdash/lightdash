@@ -803,8 +803,9 @@ export type ApiDataAppActivityResponse = ApiSuccess<{
 // schema (runtime validation of the generated declaration), kept in sync by the
 // compile-time assertion below.
 
-// Binds a host query column: dimension (grouping), metric (measure), series (splits/colours).
-export type DataAppVizFieldType = 'dimension' | 'metric' | 'series';
+// Binds a host query column: dimension (grouping), metric (measure), series
+// (splits/colours), column (any result column — metric or dimension).
+export type DataAppVizFieldType = 'dimension' | 'metric' | 'series' | 'column';
 export type DataAppVizField = {
     name: string;
     label: string;
@@ -856,9 +857,9 @@ const vizFields = z
                 .string()
                 .describe('Human label shown in the field-mapping UI.'),
             type: z
-                .enum(['dimension', 'metric', 'series'])
+                .enum(['dimension', 'metric', 'series', 'column'])
                 .describe(
-                    'dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart.',
+                    'dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart, column = any result column (metric or dimension) — use when the chart handles non-numeric values.',
                 ),
             required: z
                 .boolean()

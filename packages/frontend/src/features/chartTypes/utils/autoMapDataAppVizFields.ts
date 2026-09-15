@@ -9,19 +9,22 @@ import { getDataAppVizFieldItems } from './getDataAppVizFieldItems';
 
 /**
  * Which of the query's column pools a slot draws from. `series` splits or
- * colours a measure, so it draws from the dimensions. Shared with the config
- * panel: if the two disagreed, auto-binding could set a column the select
- * cannot offer.
+ * colours a measure, so it draws from the dimensions; `column` accepts any
+ * result column, metrics first so auto-binding favours measures. Shared with
+ * the config panel: if the two disagreed, auto-binding could set a column the
+ * select cannot offer.
  */
 export const poolKeyForSlot = (
     field: DataAppVizField,
-): 'dimension' | 'metric' => {
+): 'dimension' | 'metric' | 'column' => {
     switch (field.type) {
         case 'metric':
             return 'metric';
         case 'dimension':
         case 'series':
             return 'dimension';
+        case 'column':
+            return 'column';
         default:
             return assertUnreachable(
                 field.type,
@@ -32,13 +35,14 @@ export const poolKeyForSlot = (
 
 // Column ids of each type, in result order. Ids rather than items, because
 // every binding is compared and stored as an id.
-type Pools = Record<'dimension' | 'metric', string[]>;
+type Pools = Record<'dimension' | 'metric' | 'column', string[]>;
 
 const poolsFor = (itemsMap: ItemsMap): Pools => {
     const { dimensions, metrics } = getDataAppVizFieldItems(itemsMap);
     return {
         dimension: dimensions.map(getItemId),
         metric: metrics.map(getItemId),
+        column: [...metrics, ...dimensions].map(getItemId),
     };
 };
 
