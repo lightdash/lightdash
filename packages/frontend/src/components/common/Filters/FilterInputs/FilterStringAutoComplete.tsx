@@ -3,6 +3,7 @@ import {
     isDimension,
     isFilterAutocompleteManualOnly,
     type FilterableItem,
+    type UiStringKey,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -11,6 +12,7 @@ import {
     Highlight,
     Loader,
     Pill,
+    Stack,
     Text,
     TextInput,
     Tooltip,
@@ -34,6 +36,10 @@ import {
     type FC,
 } from 'react';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
+import {
+    classifyFieldValueSearchError,
+    type FieldValueSearchErrorKind,
+} from '../../../../hooks/fieldValueSearchError';
 import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
@@ -120,6 +126,66 @@ const RefreshIndicator: FC<{
     );
 };
 
+const ERROR_HEADLINE_KEY: Record<FieldValueSearchErrorKind, UiStringKey> = {
+    configuration: 'filters.autocomplete.error.configuration',
+    forbidden: 'filters.autocomplete.error.forbidden',
+    warehouse: 'filters.autocomplete.error.warehouse',
+    unknown: 'filters.autocomplete.error.unknown',
+};
+
+const RETRYABLE_ERROR_KINDS: FieldValueSearchErrorKind[] = [
+    'warehouse',
+    'unknown',
+];
+
+const SearchErrorIndicator: FC<{
+    error: unknown;
+    isRetrying: boolean;
+    onRetry: () => void;
+}> = ({ error, isRetrying, onRetry }) => {
+    const getUiString = useUiStrings();
+    const { kind, detail } = useMemo(
+        () => classifyFieldValueSearchError(error),
+        [error],
+    );
+    const hintKey = RETRYABLE_ERROR_KINDS.includes(kind)
+        ? 'filters.autocomplete.error.retry'
+        : 'filters.autocomplete.error.filterStillApplies';
+
+    if (isRetrying) return <Loader size="xs" color="gray" />;
+
+    return (
+        <Tooltip
+            multiline
+            w={280}
+            label={
+                <Stack gap="xxs">
+                    <Text fz="xs" fw={500}>
+                        {getUiString(ERROR_HEADLINE_KEY[kind])}
+                    </Text>
+                    {detail ? (
+                        <Text fz="xs" c="dimmed" lineClamp={4}>
+                            {detail}
+                        </Text>
+                    ) : null}
+                    <Text fz="xs">{getUiString(hintKey)}</Text>
+                </Stack>
+            }
+        >
+            <ActionIcon
+                size="sm"
+                aria-label={getUiString(
+                    'filters.autocomplete.error.retryAriaLabel',
+                )}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={onRetry}
+            >
+                <MantineIcon icon={IconAlertCircle} color="red" />
+            </ActionIcon>
+        </Tooltip>
+    );
+};
+
 const FilterStringAutoComplete: FC<Props> = ({
     filterId,
     values,
@@ -190,6 +256,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         reset,
         error,
         isError,
+        isFetching,
     } = useFieldValues(
         search,
         initialSuggestionData,
@@ -471,19 +538,13 @@ const FilterStringAutoComplete: FC<Props> = ({
                                     {isInitialLoading ? (
                                         <Loader size="xs" color="gray" />
                                     ) : isError ? (
-                                        <Tooltip
-                                            label={
-                                                error?.error?.message ||
-                                                getUiString(
-                                                    'filters.autocomplete.filterNotAvailable',
-                                                )
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={IconAlertCircle}
-                                                color="red"
-                                            />
-                                        </Tooltip>
+                                        <SearchErrorIndicator
+                                            error={error}
+                                            isRetrying={isFetching}
+                                            onRetry={() => {
+                                                refetch().catch(console.error);
+                                            }}
+                                        />
                                     ) : null}
 
                                     <Tooltip

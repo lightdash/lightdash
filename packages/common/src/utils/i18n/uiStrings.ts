@@ -222,6 +222,17 @@ export const DEFAULT_UI_STRINGS = {
     'filters.autocomplete.manageValuesTooltip': 'Manage filter values',
     'filters.autocomplete.refreshTooltip': 'Click to refresh filter values',
     'filters.autocomplete.resultsLoadedAt': 'Results loaded at {time}',
+    'filters.autocomplete.error.configuration':
+        "Suggestions unavailable: this field's autocomplete isn't set up correctly.",
+    'filters.autocomplete.error.forbidden':
+        "You don't have access to suggestions for this field.",
+    'filters.autocomplete.error.warehouse':
+        'Suggestions unavailable: the warehouse query failed.',
+    'filters.autocomplete.error.unknown': "Suggestions couldn't be loaded.",
+    'filters.autocomplete.error.filterStillApplies':
+        'Your filter still applies. Type a value and press Enter.',
+    'filters.autocomplete.error.retry': 'Click to try again.',
+    'filters.autocomplete.error.retryAriaLabel': 'Retry loading suggestions',
     'filters.manageValues.title': 'Manage values',
     'filters.manageValues.filterValuesTitle': 'Manage filter values',
     'filters.manageValues.clearAllValues': 'Clear all values',

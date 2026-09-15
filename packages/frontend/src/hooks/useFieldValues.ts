@@ -5,6 +5,7 @@ import {
     isDimension,
     isField,
     QueryHistoryStatus,
+    WarehouseQueryError,
     type AndFilterGroup,
     type ApiError,
     type ApiExecuteAsyncFieldValueSearchResults,
@@ -174,7 +175,7 @@ export const pollForFieldValueResults = async (
     attempt: number = 0,
 ): Promise<ApiGetAsyncQueryResults> => {
     if (attempt >= MAX_POLL_ATTEMPTS) {
-        throw new Error('Field value search timed out. Please try again.');
+        throw new WarehouseQueryError('Field value search timed out.');
     }
 
     const results = await lightdashApi<ApiGetAsyncQueryResults>({
@@ -243,7 +244,9 @@ export const getFieldValuesAsync = async (
         queryResult.status === QueryHistoryStatus.ERROR ||
         queryResult.status === QueryHistoryStatus.EXPIRED
     ) {
-        throw new Error(queryResult.error || 'Error fetching field values');
+        throw new WarehouseQueryError(
+            queryResult.error || 'Error fetching field values',
+        );
     }
 
     if (queryResult.status !== QueryHistoryStatus.READY) {
