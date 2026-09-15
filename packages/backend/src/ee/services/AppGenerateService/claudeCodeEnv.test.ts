@@ -1,8 +1,10 @@
 import {
     buildClaudeCodeEnv,
+    CLAUDE_CODE_SECRET_ENV_KEYS,
     claudeCodeAllowedHosts,
     describeClaudeCodeEnv,
 } from './claudeCodeEnv';
+import { redactSandboxEnvSecrets } from './sandboxOutputRedaction';
 
 describe('buildClaudeCodeEnv', () => {
     const bedrockApiKey = { apiKey: 'bedrock-key', region: 'us-east-1' };
@@ -10,6 +12,7 @@ describe('buildClaudeCodeEnv', () => {
     test('uses the Bedrock API-key env when defaultProvider is bedrock', () => {
         const env = buildClaudeCodeEnv(
             {
+                promptCacheTtl: null,
                 defaultProvider: 'bedrock',
                 providers: { bedrock: bedrockApiKey },
             },
@@ -28,6 +31,7 @@ describe('buildClaudeCodeEnv', () => {
     test('uses the Bedrock IAM env with a session token when defaultProvider is bedrock', () => {
         const env = buildClaudeCodeEnv(
             {
+                promptCacheTtl: null,
                 defaultProvider: 'bedrock',
                 providers: {
                     bedrock: {
@@ -55,6 +59,7 @@ describe('buildClaudeCodeEnv', () => {
     test('omits AWS_SESSION_TOKEN when the IAM session token is absent', () => {
         const env = buildClaudeCodeEnv(
             {
+                promptCacheTtl: null,
                 defaultProvider: 'bedrock',
                 providers: {
                     bedrock: {
@@ -79,6 +84,7 @@ describe('buildClaudeCodeEnv', () => {
     test('sets only the region when using default credentials, letting the AWS SDK resolve them', () => {
         const env = buildClaudeCodeEnv(
             {
+                promptCacheTtl: null,
                 defaultProvider: 'bedrock',
                 providers: {
                     bedrock: {
@@ -101,6 +107,7 @@ describe('buildClaudeCodeEnv', () => {
     test('uses the Anthropic key when defaultProvider is not bedrock, even if Bedrock creds exist', () => {
         const env = buildClaudeCodeEnv(
             {
+                promptCacheTtl: null,
                 defaultProvider: 'openai',
                 providers: { bedrock: bedrockApiKey },
             },
@@ -113,6 +120,7 @@ describe('buildClaudeCodeEnv', () => {
     test('routes Anthropic-wire traffic through the gateway with bearer auth', () => {
         const env = buildClaudeCodeEnv(
             {
+                promptCacheTtl: null,
                 defaultProvider: 'anthropic',
                 providers: {
                     anthropic: {
@@ -133,6 +141,7 @@ describe('buildClaudeCodeEnv', () => {
     test('routes Bedrock-wire traffic through the gateway and can skip Bedrock auth', () => {
         const env = buildClaudeCodeEnv(
             {
+                promptCacheTtl: null,
                 defaultProvider: 'bedrock',
                 providers: {
                     bedrock: {
@@ -157,6 +166,7 @@ describe('buildClaudeCodeEnv', () => {
         expect(() =>
             buildClaudeCodeEnv(
                 {
+                    promptCacheTtl: null,
                     defaultProvider: 'bedrock',
                     providers: {
                         bedrock: {
@@ -170,10 +180,70 @@ describe('buildClaudeCodeEnv', () => {
         ).toThrow('requires BEDROCK_BASE_URL');
     });
 
+    test('emits the 1h prompt cache TTL on the Anthropic API', () => {
+        const env = buildClaudeCodeEnv(
+            {
+                promptCacheTtl: '1h',
+                defaultProvider: 'anthropic',
+                providers: {},
+            },
+            () => 'anthropic-key',
+        );
+
+        expect(env).toEqual({
+            ANTHROPIC_API_KEY: 'anthropic-key',
+            CLAUDE_CODE_PROMPT_CACHE_TTL: '1h',
+        });
+    });
+
+    test('emits the 1h prompt cache TTL through the Anthropic gateway', () => {
+        const env = buildClaudeCodeEnv(
+            {
+                promptCacheTtl: '1h',
+                defaultProvider: 'anthropic',
+                providers: {
+                    anthropic: {
+                        apiKey: 'gateway-token',
+                        baseUrl: 'https://llm-gateway.example/anthropic',
+                    },
+                },
+            },
+            () => 'gateway-token',
+        );
+
+        expect(env).toEqual({
+            ANTHROPIC_BASE_URL: 'https://llm-gateway.example/anthropic',
+            ANTHROPIC_AUTH_TOKEN: 'gateway-token',
+            CLAUDE_CODE_PROMPT_CACHE_TTL: '1h',
+        });
+    });
+
+    test('never emits the prompt cache TTL on Bedrock', () => {
+        const env = buildClaudeCodeEnv(
+            {
+                promptCacheTtl: '1h',
+                defaultProvider: 'bedrock',
+                providers: { bedrock: bedrockApiKey },
+            },
+            () => 'unused',
+        );
+
+        expect(env).not.toHaveProperty('CLAUDE_CODE_PROMPT_CACHE_TTL');
+        expect(env).toEqual({
+            CLAUDE_CODE_USE_BEDROCK: '1',
+            AWS_REGION: 'us-east-1',
+            AWS_BEARER_TOKEN_BEDROCK: 'bedrock-key',
+        });
+    });
+
     test('throws when defaultProvider is bedrock but no Bedrock creds are configured', () => {
         expect(() =>
             buildClaudeCodeEnv(
-                { defaultProvider: 'bedrock', providers: {} },
+                {
+                    promptCacheTtl: null,
+                    defaultProvider: 'bedrock',
+                    providers: {},
+                },
                 () => 'anthropic-key',
             ),
         ).toThrow('BEDROCK_API_KEY');
@@ -183,6 +253,7 @@ describe('buildClaudeCodeEnv', () => {
         expect(() =>
             buildClaudeCodeEnv(
                 {
+                    promptCacheTtl: null,
                     defaultProvider: 'bedrock',
                     providers: { bedrock: { apiKey: 'k', region: '' } },
                 },
@@ -218,6 +289,23 @@ describe('describeClaudeCodeEnv', () => {
         expect(
             describeClaudeCodeEnv({ ANTHROPIC_API_KEY: 'super-secret' }),
         ).toBe('Anthropic API');
+    });
+
+    test('describes the prompt cache TTL without treating it as a secret', () => {
+        const env = {
+            ANTHROPIC_API_KEY: 'super-secret',
+            CLAUDE_CODE_PROMPT_CACHE_TTL: '1h',
+        };
+        expect(describeClaudeCodeEnv(env)).toBe(
+            'Anthropic API (prompt cache 1h)',
+        );
+        expect(
+            redactSandboxEnvSecrets(
+                'ttl=1h key=super-secret',
+                env,
+                CLAUDE_CODE_SECRET_ENV_KEYS,
+            ),
+        ).toBe('ttl=1h key=[redacted]');
     });
 });
 
