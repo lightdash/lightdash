@@ -574,6 +574,8 @@ const cite = (refs: DocsCitation): string =>
 const firstCitation = (refs: DocsCitation): string =>
     Array.isArray(refs) ? refs[0] : refs;
 
+const article = (word: string) => (/^[aeiou]/.test(word) ? 'an' : 'a');
+
 /** The `type:` a lesson's snippet declares; the cards name it. */
 const snippetMetricType = (snippet: string): string | undefined =>
     /^\s*type:\s*([a-z_]+)\s*$/m.exec(snippet)?.[1];
@@ -738,18 +740,19 @@ export const buildLessonTours = (
                 cite(lesson.intro),
                 [],
             ),
-            // The docs say where a metric lives; the lesson's own facts say
-            // which one this is. The three task sentences below are the only
-            // fixed wording in a lesson besides 'See the result'.
+            // The docs say where a metric lives; the editor step then says
+            // which one this lesson adds. Its task sentence and the closing
+            // one are the only fixed wording in a lesson besides 'See the
+            // result'.
             {
                 ...click(fileRow, WORKSPACE_ROUTE, hintFor(fileRow, files), []),
-                body: `${cite(lesson.fileDocs)} This lesson adds **${lesson.result.field}** to the **${lesson.result.explore}** model under its **${lesson.column}** column.`,
+                body: cite(lesson.fileDocs),
             },
             typed(
                 editor,
                 WORKSPACE_ROUTE,
                 hintFor(editor, files),
-                `${cite(lesson.snippetDocs)} Use it appends the snippet at the end of the file, inside the **${lesson.column}** column's metrics, as the **${metricType}** metric **${lesson.result.field}**.`,
+                `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** of the **${lesson.column}** column: it goes under that column's metrics, at the end of the file. Type it in, or press Use it to add it for you.`,
                 lesson.snippet,
                 [fileRow],
             ),
