@@ -91,6 +91,10 @@ import type { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsSer
 import type { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { runAutopilotAgent } from './AutopilotAgentRunner';
 import {
+    captureAutopilotFailure,
+    type AutopilotFailureStage,
+} from './autopilotFailure';
+import {
     AUTOPILOT_MANAGED_MODEL_ID,
     renderAutopilotAgent,
 } from './config/agent';
@@ -1912,6 +1916,7 @@ export class ManagedAgentService extends BaseService {
             this.logger.error(
                 `Heartbeat session error for project ${projectUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
             );
+            this.reportHeartbeatFailure(ctx, 'session', error);
             runError = error instanceof Error ? error.message : 'Unknown';
         } finally {
             let savedActions: ManagedAgentAction[] | null = null;
@@ -1946,6 +1951,8 @@ export class ManagedAgentService extends BaseService {
                           ...reportInputs,
                           notice: ctx.summaryContext.notice,
                           actions: savedActions,
+                          onFailure: (error) =>
+                              this.reportHeartbeatFailure(ctx, 'report', error),
                       })
                     : null;
             const report = renderHeartbeatSummary({
@@ -1995,6 +2002,21 @@ export class ManagedAgentService extends BaseService {
                 error: runError,
             });
         }
+    }
+
+    private reportHeartbeatFailure(
+        ctx: HeartbeatContext,
+        stage: AutopilotFailureStage,
+        error: unknown,
+    ): void {
+        captureAutopilotFailure(error, {
+            stage,
+            runtime: this.lightdashConfig.managedAgent.runtime,
+            organizationUuid: ctx.organizationUuid,
+            projectUuid: ctx.projectUuid,
+            runUuid: ctx.runUuid,
+            attribution: ctx.modelAttribution,
+        });
     }
 
     private async runHeartbeatSession(
@@ -2154,6 +2176,14 @@ export class ManagedAgentService extends BaseService {
             timeoutMs: sessionTimeoutMs,
             telemetry,
         });
+
+        if (result.cause !== null) {
+            this.reportHeartbeatFailure(
+                ctx,
+                result.stopReason === 'timeout' ? 'timeout' : 'run',
+                result.cause,
+            );
+        }
 
         return {
             sessionId: runUuid,

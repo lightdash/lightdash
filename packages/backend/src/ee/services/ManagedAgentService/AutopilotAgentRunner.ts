@@ -15,6 +15,7 @@ import Logger from '../../../logging/logger';
 import type { AiModel, AiProvider } from '../ai/models/types';
 import { AgentContext } from '../ai/utils/AgentContext';
 import type { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
+import { AutopilotRunError } from './autopilotFailure';
 import type { RenderedAutopilotAgent } from './config/agent';
 import { buildAutopilotTools, type ExecuteAutopilotTool } from './config/tools';
 
@@ -35,6 +36,8 @@ export type AutopilotAgentRunResult = {
     stepCount: number;
     stopReason: AutopilotStopReason;
     error: string | null;
+    // What stopped the run, for failure reporting; null when it finished.
+    cause: Error | null;
 };
 
 export type RunAutopilotAgentArgs = {
@@ -82,13 +85,17 @@ export const runAutopilotAgent = async ({
         timeoutMs,
     );
     const { signal: abortSignal } = controller;
-    const timeoutResult = (): AutopilotAgentRunResult => ({
-        slackSummary,
-        evidence,
-        stepCount,
-        stopReason: 'timeout',
-        error: `Autopilot timed out after ${Math.round(timeoutMs / 1000)} seconds at step ${stepCount}`,
-    });
+    const timeoutResult = (): AutopilotAgentRunResult => {
+        const error = `Autopilot timed out after ${Math.round(timeoutMs / 1000)} seconds at step ${stepCount}`;
+        return {
+            slackSummary,
+            evidence,
+            stepCount,
+            stopReason: 'timeout',
+            error,
+            cause: new AutopilotRunError('AutopilotTimeoutError', error),
+        };
+    };
     const tools: ToolSet = {
         ...dataTools,
         ...buildAutopilotTools({
@@ -147,6 +154,7 @@ export const runAutopilotAgent = async ({
                     stepCount,
                     stopReason: 'end_turn',
                     error: null,
+                    cause: null,
                 };
             case 'tool-calls':
                 return {
@@ -155,6 +163,10 @@ export const runAutopilotAgent = async ({
                     stepCount,
                     stopReason: 'step_cap',
                     error: `Autopilot stopped after ${stepCount} steps before finishing its checklist`,
+                    cause: new AutopilotRunError(
+                        'AutopilotStepCapError',
+                        `Autopilot stopped after ${stepCount} steps before finishing its checklist`,
+                    ),
                 };
             case 'length':
             case 'content-filter':
@@ -166,6 +178,10 @@ export const runAutopilotAgent = async ({
                     stepCount,
                     stopReason: 'error',
                     error: `Autopilot did not finish its checklist (provider finish reason: ${result.finishReason})`,
+                    cause: new AutopilotRunError(
+                        'AutopilotFinishReasonError',
+                        `Autopilot did not finish its checklist (provider finish reason: ${result.finishReason})`,
+                    ),
                 };
             default:
                 return assertUnreachable(
@@ -184,6 +200,10 @@ export const runAutopilotAgent = async ({
                 error instanceof Error
                     ? error.message
                     : 'Unknown provider error',
+            cause:
+                error instanceof Error
+                    ? error
+                    : new Error('Unknown provider error'),
         };
     } finally {
         clearTimeout(timer);
