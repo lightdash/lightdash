@@ -49,6 +49,10 @@ import {
 } from '../ai/agents/chartSimilarity';
 import { generateCustomDimension as generateCustomDimensionFromContext } from '../ai/agents/customDimensionGenerator';
 import {
+    detectDataAppAnomalies,
+    type DataAppDetection,
+} from '../ai/agents/dataAppAnomalyDetector';
+import {
     generateFormulaTableCalculation as generateFormulaTableCalculationFromContext,
     sanitizeCustomFormat as sanitizeFormulaCustomFormat,
 } from '../ai/agents/formulaTableCalculationGenerator';
@@ -67,6 +71,7 @@ import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import {
     AiCallAttribution,
     getGeneratorTelemetry,
+    getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
 import { DEFAULT_CUSTOM_VIZ_PROMPT } from './utils/prompts';
 import { getTotalTokenUsage } from './utils/tokens';
@@ -604,6 +609,37 @@ export class AiService extends BaseService {
 
         return {
             html: result.html,
+        };
+    }
+
+    /**
+     * Single-shot anomaly detection over the query results behind a data app
+     * view, on the ambient fast model. Content is already filtered to what the
+     * viewer may see; the model never re-queries the warehouse.
+     */
+    async detectDataAppAnomalies(
+        user: SessionUser,
+        {
+            content,
+            instructions,
+            projectUuid,
+        }: {
+            content: string;
+            instructions: string | null;
+            projectUuid: string;
+        },
+    ): Promise<{ detection: DataAppDetection; modelId: string | null }> {
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+        const detection = await detectDataAppAnomalies(modelOptions, {
+            content,
+            instructions,
+        });
+        return {
+            detection,
+            modelId:
+                getLanguageModelAttribution(modelOptions.model).model ?? null,
         };
     }
 
