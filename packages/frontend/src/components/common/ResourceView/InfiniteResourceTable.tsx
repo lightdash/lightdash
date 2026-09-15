@@ -938,6 +938,7 @@ const InfiniteResourceTable = ({
                                         w={1}
                                         h={20}
                                         color="#DEE2E6"
+                                        visibleFrom="sm"
                                     />
                                     <ContentTypeFilter
                                         value={selectedContentType}

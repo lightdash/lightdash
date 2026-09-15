@@ -533,7 +533,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             )}
             <AppShell.Main pt={0} pr={0} pb={0}>
                 {compact && (
-                    <Group px="sm" py="xs" className={classes.mobileNavigation}>
+                    <Group px="sm" py={6} className={classes.mobileNavigation}>
                         <Button
                             variant="default"
                             onClick={() => setSidebarOpened(true)}

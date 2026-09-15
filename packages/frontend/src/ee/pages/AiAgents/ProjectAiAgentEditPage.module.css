@@ -29,9 +29,7 @@
 }
 
 .mobileNavigation {
-    position: sticky;
-    top: var(--navbar-height);
-    z-index: 2;
+    flex-shrink: 0;
     background: var(--mantine-color-body);
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
 }
@@ -43,6 +41,7 @@
     }
 
     .mobileNavigation :global(button) {
-        min-height: 44px;
+        height: 32px;
+        min-height: 32px;
     }
 }

@@ -72,7 +72,9 @@ const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
         return (
             <Select
                 aria-label="Content type"
-                w="100%"
+                miw={112}
+                maw={160}
+                flex="1 1 112px"
                 value={value ?? 'all'}
                 data={data}
                 allowDeselect={false}
