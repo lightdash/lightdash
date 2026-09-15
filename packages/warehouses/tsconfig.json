@@ -18,7 +18,7 @@
     "include": ["src/**/*.ts", "src/**/*.json"],
     "references": [
         {
-            "path": "../common"
+            "path": "../common/tsconfig.types.json"
         }
     ]
 }

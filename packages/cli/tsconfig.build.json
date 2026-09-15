@@ -1,0 +1,17 @@
+{
+    // Emit config: everything tsconfig.json typechecks, minus test-only sources.
+    // tsconfig.json keeps the tests so `typecheck`, editors and Vitest still see them.
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "tsBuildInfoFile": "dist/.tsbuildinfo.build"
+    },
+    "exclude": ["dist", "node_modules", "src/**/*.test.ts"],
+    "references": [
+        {
+            "path": "../common/tsconfig.types.json"
+        },
+        {
+            "path": "../warehouses/tsconfig.build.json"
+        }
+    ]
+}

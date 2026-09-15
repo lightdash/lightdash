@@ -31,10 +31,10 @@
     "exclude": ["dist", "node_modules", "src/ee/services/McpService/mcp-chart-app"],
     "references": [
         {
-            "path": "../common"
+            "path": "../common/tsconfig.types.json"
         },
         {
-            "path": "../warehouses"
+            "path": "../warehouses/tsconfig.build.json"
         }
     ]
 }

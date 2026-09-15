@@ -249,6 +249,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 FROM prod-builder AS build-warehouses
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY packages/warehouses/tsconfig.json ./packages/warehouses/
+COPY packages/warehouses/tsconfig.build.json ./packages/warehouses/
 COPY packages/warehouses/src/ ./packages/warehouses/src/
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
@@ -260,6 +261,7 @@ COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses/
 COPY packages/backend/tsconfig.json ./packages/backend/
+COPY packages/backend/tsconfig.build.json ./packages/backend/
 COPY packages/backend/tsconfig.sentry.json ./packages/backend/
 COPY packages/backend/tsoa.yml ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src/
