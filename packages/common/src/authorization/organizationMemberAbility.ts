@@ -54,6 +54,16 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,
         });
+        can('view', 'Document', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+        can('view', 'Document', {
+            organizationUuid: member.organizationUuid,
+            inheritsFromOrgOrProject: true,
+        });
         can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,
@@ -150,6 +160,17 @@ export const applyOrganizationMemberStaticAbilities: Record<
                 $elemMatch: {
                     userUuid: member.userUuid,
                     role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('manage', 'Document', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: {
+                        $in: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
+                    },
                 },
             },
         });
@@ -473,6 +494,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         });
 
         can('manage', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'Document', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Space', {

@@ -67,7 +67,7 @@ describe('walkthrough catalogue', () => {
     it('offers only walkthroughs as available modules', () => {
         const modules = buildLearnCatalogue();
         expect(modules.filter((m) => m.available)).toHaveLength(42);
-        expect(modules.filter((m) => !m.available)).toHaveLength(21);
+        expect(modules.filter((m) => !m.available)).toHaveLength(23);
         expect(
             modules.every(
                 (m) => !m.available || SCOPE_TOURS[m.scope] !== undefined,

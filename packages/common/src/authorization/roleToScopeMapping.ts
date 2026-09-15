@@ -17,6 +17,7 @@ const BASE_ROLE_SCOPES = {
     [ProjectMemberRole.VIEWER]: [
         // Basic viewing permissions
         'view:Dashboard',
+        'view:Document',
         'view:JobStatus@self', // For viewing job status created by user
         'view:SavedChart',
         'view:Space',
@@ -68,6 +69,7 @@ const BASE_ROLE_SCOPES = {
 
         // Space-level content management (requires space admin/editor role)
         'manage:Dashboard@space', // Via space access
+        'manage:Document@space',
         'manage:SavedChart@space', // Via space access
         'manage:SemanticViewer@space', // Via space access (paired w/ @space content)
         'manage:DataApp@space', // Via space access
@@ -188,6 +190,7 @@ const BASE_ROLE_SCOPES = {
         'delete:Project', // Any project
         'view:Analytics',
         'manage:Dashboard', // All dashboards
+        'manage:Document',
         'manage:Space', // All spaces
         'manage:Project', // Required for managing non-private spaces
         'manage:SavedChart', // All saved charts

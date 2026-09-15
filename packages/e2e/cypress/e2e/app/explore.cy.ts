@@ -1,5 +1,16 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
+const openChartGallery = () => {
+    cy.get('#chart-gallery-sidebar-title')
+        .should('be.visible')
+        .then(($title) => {
+            if ($title.text().trim() !== 'Choose chart type') {
+                cy.get('[data-chart-type-gallery-change]').click();
+            }
+        });
+    cy.findByText('Choose chart type').should('be.visible');
+};
+
 describe('Explore', () => {
     beforeEach(() => {
         cy.login();
@@ -80,11 +91,13 @@ describe('Explore', () => {
         cy.findByText('Configure', { timeout: 10000 })
             .should('be.visible')
             .click();
-        cy.wait(300); // Wait for configure panel to open
-        cy.findByRole('button', { name: 'Change' }).click();
+        openChartGallery();
         cy.findByRole('button', {
             name: 'Horizontal bar chart',
         }).click();
+        cy.findByRole('button', {
+            name: 'Horizontal bar chart',
+        }).should('have.attr', 'aria-pressed', 'true');
 
         // cy.findByText('Save changes').parent().should('not.be.disabled');
         cy.findByText('Save changes').parent().click();
@@ -121,11 +134,15 @@ describe('Explore', () => {
 
         // open the chart gallery and change chart types
         cy.findByText('Configure').click();
-        cy.findByRole('button', { name: 'Change' }).click();
+        openChartGallery();
 
         const selectChartType = (chartType: string) => {
             cy.findByRole('button', { name: chartType }).click();
-            cy.findByRole('button', { name: 'Change' }).click();
+            cy.findByRole('button', { name: chartType }).should(
+                'have.attr',
+                'aria-pressed',
+                'true',
+            );
         };
 
         selectChartType('Bar chart');
@@ -135,8 +152,7 @@ describe('Explore', () => {
         selectChartType('Scatter chart');
         selectChartType('Pie chart');
         selectChartType('Table');
-        cy.findByRole('button', { name: 'Big value' }).click();
-        cy.findByText('Big value').should('be.visible');
+        selectChartType('Big value');
     });
 
     // todo: move to unit test

@@ -154,6 +154,37 @@ const selfPreviewSpaceCondition = (
 
 const scopes: Scope[] = [
     {
+        name: 'view:Document',
+        description: 'View documents',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: (context) => [
+            addUuidCondition(context, { inheritsFromOrgOrProject: true }),
+            addAccessCondition(context),
+        ],
+    },
+    {
+        name: 'manage:Document',
+        description: 'Create, edit, and delete all documents',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }, { name: 'view:Space' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:Document@space',
+        description:
+            'Create, edit, and delete documents in spaces where you have editor or admin access',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }, { name: 'view:Space' }],
+        getConditions: (context) => [
+            addAccessCondition(context, SpaceMemberRole.EDITOR),
+            addAccessCondition(context, SpaceMemberRole.ADMIN),
+        ],
+    },
+    {
         name: 'view:Dashboard',
         description: 'View dashboards',
         isEnterprise: false,
