@@ -1,4 +1,4 @@
-import { ActionIcon, Menu, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Menu, Text, Tooltip } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import { IconCheck, IconChevronDown, IconRefresh } from '@tabler/icons-react';
 import {
@@ -41,10 +41,17 @@ const REFRESH_INTERVAL_OPTIONS = [
 type DashboardRefreshButtonProps = {
     onIntervalChange: (intervalMin?: number) => void;
     compact?: boolean;
+    settingsOpened?: boolean;
+    onSettingsClose?: () => void;
 };
 
 export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
-    ({ onIntervalChange, compact = false }) => {
+    ({
+        onIntervalChange,
+        compact = false,
+        settingsOpened = false,
+        onSettingsClose,
+    }) => {
         const { showToastSuccess } = useToaster();
         const [isOpen, setIsOpen] = useState(false);
         const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(
@@ -157,42 +164,35 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                     withArrow
                     closeOnItemClick
                     closeOnClickOutside
-                    opened={isOpen}
-                    onClose={() => setIsOpen(false)}
+                    opened={compact ? settingsOpened : isOpen}
+                    onClose={compact ? onSettingsClose : () => setIsOpen(false)}
                 >
                     <Menu.Target>
-                        <ActionIcon
-                            aria-label={
-                                compact
-                                    ? 'Refresh options'
-                                    : 'Auto-refresh options'
-                            }
-                            size="md"
-                            variant="default"
-                            disabled={isOneAtLeastFetching}
-                            onClick={() => setIsOpen((prev) => !prev)}
-                        >
-                            <MantineIcon
-                                icon={compact ? IconRefresh : IconChevronDown}
-                            />
-                        </ActionIcon>
+                        {compact ? (
+                            <Button
+                                variant="subtle"
+                                aria-label="Refresh dashboard"
+                                loading={isOneAtLeastFetching}
+                                onClick={() =>
+                                    void invalidateAndSetRefreshTime()
+                                }
+                                leftSection={<MantineIcon icon={IconRefresh} />}
+                            >
+                                Refresh
+                            </Button>
+                        ) : (
+                            <ActionIcon
+                                aria-label="Auto-refresh options"
+                                size="md"
+                                variant="default"
+                                disabled={isOneAtLeastFetching}
+                                onClick={() => setIsOpen((prev) => !prev)}
+                            >
+                                <MantineIcon icon={IconChevronDown} />
+                            </ActionIcon>
+                        )}
                     </Menu.Target>
                     <Menu.Dropdown>
-                        {compact && (
-                            <>
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon icon={IconRefresh} />
-                                    }
-                                    onClick={() =>
-                                        void invalidateAndSetRefreshTime()
-                                    }
-                                >
-                                    Refresh now
-                                </Menu.Item>
-                                <Menu.Divider />
-                            </>
-                        )}
                         <Menu.Label>Auto-refresh while viewing</Menu.Label>
                         <Menu.Item
                             fz="xs"

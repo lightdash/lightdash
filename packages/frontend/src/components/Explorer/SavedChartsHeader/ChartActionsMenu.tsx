@@ -9,7 +9,7 @@ import {
     ResourceViewItemType,
     type ResourceViewChartItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Box, Menu, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconArrowsExchange,
@@ -117,6 +117,7 @@ export type ChartActionsHost = 'page' | 'modal';
 
 type Props = {
     children?: ReactNode;
+    withLabel?: boolean;
     /**
      * The chart page navigates for history, deletion and moves. A modal host
      * stays put: history and the AI launcher open in place, while items that
@@ -141,6 +142,7 @@ type Props = {
 const ChartActionsMenu: FC<Props> = ({
     children,
     host,
+    withLabel = false,
     onOpenVersionHistory,
     onDeleted,
     onMovedToSpace,
@@ -278,7 +280,25 @@ const ChartActionsMenu: FC<Props> = ({
         [savedChart, chartViewStats.data],
     );
 
-    if (!savedChart || !showChartActions) return null;
+    if (!savedChart) return null;
+    if (!showChartActions) {
+        // Read-only viewers still need the header's Details action.
+        if (!withLabel) return null;
+        return (
+            <Menu position="bottom" withArrow>
+                <Menu.Target>
+                    <Button
+                        variant="subtle"
+                        aria-label="Chart actions"
+                        leftSection={<MantineIcon icon={IconDots} />}
+                    >
+                        More
+                    </Button>
+                </Menu.Target>
+                <Menu.Dropdown>{children}</Menu.Dropdown>
+            </Menu>
+        );
+    }
 
     return (
         <>
@@ -542,16 +562,26 @@ const ChartActionsMenu: FC<Props> = ({
                     )}
                 </Menu.Dropdown>
                 <Menu.Target>
-                    <ActionIcon
-                        variant="default"
-                        aria-label="Chart actions"
-                        disabled={!unsavedChartVersion.tableName}
-                        // Anchor for scope walkthroughs (data-tour-via)
-                        data-tour-anchor="chart-actions"
-                        data-tour-hint="Open the chart's actions"
-                    >
-                        <MantineIcon icon={IconDots} />
-                    </ActionIcon>
+                    {withLabel ? (
+                        <Button
+                            variant="subtle"
+                            aria-label="Chart actions"
+                            leftSection={<MantineIcon icon={IconDots} />}
+                        >
+                            More
+                        </Button>
+                    ) : (
+                        <ActionIcon
+                            variant="default"
+                            aria-label="Chart actions"
+                            disabled={!unsavedChartVersion.tableName}
+                            // Anchor for scope walkthroughs (data-tour-via)
+                            data-tour-anchor="chart-actions"
+                            data-tour-hint="Open the chart's actions"
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    )}
                 </Menu.Target>
             </Menu>
 

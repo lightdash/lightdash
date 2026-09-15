@@ -19,6 +19,14 @@ This supersedes earlier phone authoring/drill/restore checks below: chart and da
 - Browser screenshots: `lightdash-header-plain-after.png`, `lightdash-nav-drawer-after.png`, `lightdash-settings-sidebar-after.png`, `lightdash-settings-sidebar-bottom.png`, `lightdash-filter-form-after.png`, `lightdash-filter-chip-after.png`, `lightdash-tablet-768-after.png`, `lightdash-tablet-1024-after.png`, `lightdash-saved-chart-after.png` in the evidence directory. The subsequent alignment pass supersedes the first header captures: `lightdash-dashboard-header-grid.png`, `lightdash-saved-chart-header-grid.png`, `lightdash-chart-header-aligned.png` and `lightdash-chart-tablet-aligned.png`. The saved-chart check used a chart without parameters; populated parameter controls were covered in the earlier audit, not re-verified in this follow-up.
 - Validation: 46 focused tests across route boundaries, refresh, chart editor/history, filter rules, parameters and canvas state preservation. Frontend typecheck and changed-file lint pass. 767px editor blocking and 768px availability are regression-tested.
 
+## Approved header direction B
+
+The user selected B for both dashboard and saved-chart headers. This supersedes the earlier title/actions two-column pass. Titles now use the full width; metadata is below; a separated row contains three equally sized labeled actions. Dashboard: Refresh / Share / More. Saved chart: Share / Favorite / More. Existing permissions still control availability. Details move into More and remain reachable for read-only viewers.
+
+- Verified phone header crops at 390px and 320px, and the unchanged saved-chart desktop toolbar at 768px. Evidence: `lightdash-dashboard-b.png`, `lightdash-dashboard-b-320.png`, `lightdash-chart-b.png`, `lightdash-chart-b-320.png`, `lightdash-chart-b-tablet.png`.
+- Opened Details on both pages and Auto-refresh from the dashboard menu. Direct refresh and scheduled refresh pass tests, including switching between phone and desktop controls without resetting the schedule.
+- 33 focused tests pass across refresh, chart-editor header and authoring boundaries; frontend typecheck and changed-file lint pass.
+
 ## Coverage ledger
 
 | View family | Before | After | Behavior verified |

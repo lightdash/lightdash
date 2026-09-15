@@ -1,4 +1,4 @@
-import { ActionIcon } from '@mantine/core';
+import { ActionIcon, Button } from '@mantine/core';
 import { IconCheck, IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation } from 'react-router';
@@ -8,8 +8,9 @@ import MantineIcon from '../MantineIcon';
 
 const ShareShortLinkButton: FC<{
     disabled?: boolean;
+    withLabel?: boolean;
     url?: { pathname: string; search: string };
-}> = ({ disabled, url }) => {
+}> = ({ disabled, url, withLabel = false }) => {
     const location = useLocation();
 
     const { isLoading, mutateAsync: createShareUrl } = useCreateShareMutation();
@@ -23,6 +24,22 @@ const ShareShortLinkButton: FC<{
         return response.shareUrl;
     };
     const { handleCopy, copied } = useAsyncClipboard(getSharedUrl);
+
+    if (withLabel) {
+        return (
+            <Button
+                variant="subtle"
+                onClick={handleCopy}
+                disabled={isDisabled}
+                aria-label={copied ? 'Link copied' : 'Copy share link'}
+                leftSection={
+                    <MantineIcon icon={copied ? IconCheck : IconLink} />
+                }
+            >
+                {copied ? 'Copied' : 'Share'}
+            </Button>
+        );
+    }
 
     return (
         <ActionIcon

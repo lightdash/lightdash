@@ -44,6 +44,7 @@ import {
     IconMessages,
     IconMinimize,
     IconPencil,
+    IconClock,
     IconStar,
     IconStarFilled,
     IconPin,
@@ -100,6 +101,7 @@ import AddTileButton from '../../DashboardTiles/AddTileButton';
 import ContentSlugRenameModal from '../ContentSlugRenameModal/ContentSlugRenameModal';
 import { FavoriteActionIcon } from '../FavoriteActionIcon';
 import MantineIcon from '../MantineIcon';
+import MantineModal from '../MantineModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
 import DashboardInfoOverlay from '../PageHeader/DashboardInfoOverlay';
@@ -200,6 +202,8 @@ const DashboardHeader = memo(
         const { data: project } = useProject(projectUuid);
 
         const { track } = useTracking();
+        const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+        const [isRefreshOptionsOpen, setIsRefreshOptionsOpen] = useState(false);
         const [isUpdating, setIsUpdating] = useState(false);
         const [isSlugRenameModalOpen, slugRenameModalHandlers] =
             useDisclosure(false);
@@ -648,76 +652,23 @@ const DashboardHeader = memo(
                     )}
                 </Group>
 
-                {compact && !isEditMode && (
-                    <Group data-header-metadata>
-                        <Box miw={0}>
-                            {oldestCacheTime && (
-                                <Tooltip
-                                    label={`Dashboard uses cached data from ${dayjs(
-                                        oldestCacheTime,
-                                    ).format('MMM D, YYYY h:mm A')}`}
-                                    position="bottom"
-                                    openDelay={200}
-                                    transitionProps={{
-                                        transition: 'fade',
-                                        duration: 150,
-                                    }}
-                                >
-                                    <UnstyledButton
-                                        mr={compact ? 'auto' : undefined}
-                                    >
-                                        <Group gap={6}>
-                                            <MantineIcon
-                                                icon={IconDatabase}
-                                                size="sm"
-                                                color="dimmed"
-                                            />
-
-                                            <Text fz="xs" c="dimmed">
-                                                {dayjs(oldestCacheTime).format(
-                                                    'MMM D, h:mm A',
-                                                )}
-                                            </Text>
-                                        </Group>
-                                    </UnstyledButton>
-                                </Tooltip>
-                            )}
-                        </Box>
-                        <Group gap={0} wrap="nowrap">
-                            {' '}
-                            <Popover
-                                withArrow
-                                offset={{
-                                    mainAxis: -2,
-                                    crossAxis: 6,
-                                }}
-                            >
-                                <Popover.Target>
-                                    <ActionIcon
-                                        size="md"
-                                        aria-label="Dashboard information"
-                                    >
-                                        <MantineIcon icon={IconInfoCircle} />
-                                    </ActionIcon>
-                                </Popover.Target>
-
-                                <Popover.Dropdown maw={500} p={0}>
-                                    <DashboardInfoOverlay
-                                        dashboard={dashboard}
-                                        projectUuid={projectUuid}
-                                    />
-                                </Popover.Dropdown>
-                            </Popover>{' '}
-                            {userCanExportData && (
-                                <DashboardRefreshButton
-                                    compact={compact}
-                                    onIntervalChange={
-                                        handleDashboardRefreshUpdateEvent
-                                    }
-                                />
-                            )}
-                        </Group>
-                    </Group>
+                {compact && !isEditMode && oldestCacheTime && (
+                    <Text data-header-metadata fz="xs" c="dimmed">
+                        Data from{' '}
+                        {dayjs(oldestCacheTime).format('MMM D, h:mm A')}
+                    </Text>
+                )}
+                {isDetailsOpen && (
+                    <MantineModal
+                        opened
+                        title="Dashboard details"
+                        onClose={() => setIsDetailsOpen(false)}
+                    >
+                        <DashboardInfoOverlay
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
+                        />
+                    </MantineModal>
                 )}
                 {userCanManageDashboard && isEditMode ? (
                     <Group gap="xs">
@@ -881,16 +832,20 @@ const DashboardHeader = memo(
                                         </UnstyledButton>
                                     </Tooltip>
                                 )}
-                                {userCanExportData && (
-                                    <DashboardRefreshButton
-                                        compact={compact}
-                                        onIntervalChange={
-                                            handleDashboardRefreshUpdateEvent
-                                        }
-                                    />
-                                )}
                             </>
-                        )}{' '}
+                        )}
+                        {userCanExportData && (
+                            <DashboardRefreshButton
+                                compact={compact}
+                                settingsOpened={isRefreshOptionsOpen}
+                                onSettingsClose={() =>
+                                    setIsRefreshOptionsOpen(false)
+                                }
+                                onIntervalChange={
+                                    handleDashboardRefreshUpdateEvent
+                                }
+                            />
+                        )}
                         {!isEditMode &&
                             (!compact || isFullscreen) &&
                             document.fullscreenEnabled &&
@@ -931,7 +886,8 @@ const DashboardHeader = memo(
                             )}
                         {canViewDashboardComments &&
                             !isFullscreen &&
-                            openThreadCount > 0 && (
+                            openThreadCount > 0 &&
+                            !compact && (
                                 <Tooltip
                                     label="Comments"
                                     position="bottom"
@@ -968,7 +924,7 @@ const DashboardHeader = memo(
                                 </Tooltip>
                             )}
                         {userCanExportData && !isFullscreen && (
-                            <ShareShortLinkButton />
+                            <ShareShortLinkButton withLabel={compact} />
                         )}
                         {!isFullscreen && (
                             <Menu
@@ -977,6 +933,7 @@ const DashboardHeader = memo(
                                 position="bottom"
                                 withArrow
                                 disabled={
+                                    !compact &&
                                     !userCanManageDashboard &&
                                     !userCanExportData &&
                                     !userCanViewContentAsCode &&
@@ -1009,13 +966,27 @@ const DashboardHeader = memo(
                                                 />
                                             </Box>
                                         )}
-                                        <ActionIcon
-                                            variant="default"
-                                            size="md"
-                                            aria-label="Dashboard actions"
-                                        >
-                                            <MantineIcon icon={IconDots} />
-                                        </ActionIcon>
+                                        {compact ? (
+                                            <Button
+                                                variant="subtle"
+                                                aria-label="Dashboard actions"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconDots}
+                                                    />
+                                                }
+                                            >
+                                                More
+                                            </Button>
+                                        ) : (
+                                            <ActionIcon
+                                                variant="default"
+                                                size="md"
+                                                aria-label="Dashboard actions"
+                                            >
+                                                <MantineIcon icon={IconDots} />
+                                            </ActionIcon>
+                                        )}
                                     </Box>
                                 </Menu.Target>
 
@@ -1023,6 +994,38 @@ const DashboardHeader = memo(
                                     mah="calc(100dvh - 24px)"
                                     style={{ overflowY: 'auto' }}
                                 >
+                                    {compact && (
+                                        <>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconInfoCircle}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    setIsDetailsOpen(true)
+                                                }
+                                            >
+                                                Details
+                                            </Menu.Item>
+                                            {userCanExportData && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconClock}
+                                                        />
+                                                    }
+                                                    onClick={() =>
+                                                        setIsRefreshOptionsOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                >
+                                                    Auto-refresh
+                                                </Menu.Item>
+                                            )}
+                                        </>
+                                    )}
                                     {compact && dashboardUuid && (
                                         <Menu.Item
                                             leftSection={
@@ -1067,7 +1070,7 @@ const DashboardHeader = memo(
                                         clickedFrom="dashboard_header"
                                     />
                                     {canViewDashboardComments &&
-                                        openThreadCount === 0 && (
+                                        (openThreadCount === 0 || compact) && (
                                             <Menu.Item
                                                 leftSection={
                                                     <MantineIcon
