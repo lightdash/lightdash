@@ -24,11 +24,7 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { LearnDoneModal } from '../learn/LearnDoneModal';
 import { readLearnOrigin } from '../learn/origin';
-import {
-    markScopeCompleted,
-    markScopeStarted,
-    useLearnProgress,
-} from '../learn/progress';
+import { useLearnProgress, useLearnProgressActions } from '../learn/progress';
 import { SCOPE_TOURS } from './generated';
 import {
     createTrainingPreview,
@@ -153,6 +149,7 @@ const ScopeTourHost: FC = () => {
     const { user } = useApp();
     const { track } = useTracking();
     const { completed } = useLearnProgress();
+    const { markScopeStarted, markScopeCompleted } = useLearnProgressActions();
     // The step the learner has actually reached, and when the tour began.
     // Both are refs: they are read when a tour ends, and re-rendering on
     // every step would hand GuidedTour a new starting step mid-tour.
@@ -412,7 +409,7 @@ const ScopeTourHost: FC = () => {
         // Starts from the library and from Next were recorded where they
         // were clicked, and arrive with from=learn. Anything else is a tour
         // link opened directly (docs, the smoke), so this is the first
-        // anyone hears of it: record the start here, as local progress and
+        // anyone hears of it: record the start here, as progress and
         // as the event, or its completion would have nothing to pair with.
         if (
             requestedFrom !== 'learn' &&
@@ -465,6 +462,7 @@ const ScopeTourHost: FC = () => {
         upstream,
         track,
         completed,
+        markScopeStarted,
         organizationUuid,
     ]);
 
