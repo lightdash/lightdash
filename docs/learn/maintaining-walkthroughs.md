@@ -70,6 +70,37 @@ Each walkthrough prints `PASS` or `FAIL` with a screenshot path. `SMOKE_DEBUG=1`
 - Enterprise walkthroughs (AI agents, data apps) need a licence, and data apps need their flag. Without them those walkthroughs stall on a control that is not rendered, so leave them out of `SMOKE_SCOPES` on a non-Enterprise instance.
 - A walkthrough can behave differently on an instance configured differently from yours. If your change depends on configuration, run the smoke with that configuration too. For example, `AUTH_GOOGLE_OAUTH2_CLIENT_ID=x` and `GOOGLE_DRIVE_API_KEY=x` (any non-empty value) make the export menu show the Google Sheets option it shows on Cloud.
 
+## Developer lessons
+
+A developer lesson is a walkthrough over the sandbox workspace rather than over the product: the learner edits a model file, deploys it, and opens the field they just created. Its steps are not marked up in components, so most of this guide does not apply, but the same two failures reach it, through the lesson's declaration and through the three anchors it borrows from Explore.
+
+To add one:
+
+1. **Declare it** in `packages/frontend/src/features/learn/sandboxLessons.ts`: the docs page, the citation each step shows, the file to open, the snippet, the command, and the explore and field the learner ends on. Nothing else is authored. The twelve steps come from a fixed template, so a lesson cannot invent a click path.
+
+2. **Keep the snippet extending the file's tail.** It is appended to the end of the file, so it has to be indented to continue the mapping that file ends in. If the model file changes shape upstream, the snippet changes with it.
+
+3. **Regenerate, check and compile.**
+
+    ```sh
+    pnpm scope-tours:generate
+    pnpm scope-tours:check
+    pnpm test:learn-lessons
+    ```
+
+    `test:learn-lessons` appends each snippet the way the editor appends it, compiles the workspace with dbt, and asserts the field the tour ends on exists. It needs the playground virtualenv (`scripts/playground-bundle/README.md`) and a built `common`. This is what catches an indentation that no longer fits, and it catches it long before a learner meets a deploy that fails.
+
+4. **Smoke it** like a walkthrough, naming the lesson by its id. The sandbox has to be on: `GET /api/v1/health` should report `learnSandbox.enabled`.
+
+    ```sh
+    SMOKE_BASE_URL=http://localhost:<frontend port> \
+    SMOKE_EMAIL=demo3@lightdash.com SMOKE_PASSWORD='demo_password!' \
+    SMOKE_SCOPES=docs:semantic-layer/metrics \
+    pnpm scope-tours:smoke
+    ```
+
+The last six steps leave the workspace, so a lesson also depends on three anchors it does not own: `data-tour-anchor="explore-table"` and `data-tour-anchor="explore-metric"`, each found by the label it renders, carried in `data-tour-value` (`Payments`, `Average payment amount`); and `data-tour-anchor="explore-search"`, which the lesson types into twice, once for the table and once for the field, because both lists are virtualised. Renaming a table or a field in the playground bundle leaves every attribute in place and still breaks the lesson, because the value no longer matches what the step looks for. The checker sees a missing anchor; only the smoke sees a label that changed.
+
 ## When CI fails
 
 `Scope walkthrough checks` (`.github/workflows/scope-tours-check.yml`) runs these steps in order. The first one that fails is the one to read.
