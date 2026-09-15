@@ -87,7 +87,384 @@ describe('DocumentModel PostgreSQL integration', () => {
     });
 
     afterEach(async () => {
-        await transaction.rollback();
+        if (!transaction.isCompleted()) {
+            await transaction.rollback();
+        }
+    });
+
+    test('content updates append exactly one immutable version', async () => {
+        const document = await model.create(input);
+        const updated = await model.updateContent(
+            input.projectUuid,
+            document.documentUuid,
+            {
+                baseVersionUuid: document.version.versionUuid,
+                operations: [
+                    {
+                        type: 'append',
+                        cell: {
+                            id: 'conclusion',
+                            type: 'markdown',
+                            content: { title: 'Conclusion', markdown: 'Done' },
+                        },
+                    },
+                ],
+            },
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        expect(updated.version.versionNumber).toBe(2);
+        expect(updated.version.versionUuid).not.toBe(
+            document.version.versionUuid,
+        );
+        expect(updated.version.content.cells.map((cell) => cell.id)).toEqual([
+            'introduction',
+            'conclusion',
+        ]);
+        expect(updated.version.createdByUserUuid).toBe(
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        const versions = await transaction(DocumentVersionsTableName).orderBy(
+            'version_number',
+        );
+        expect(versions).toHaveLength(2);
+        expect(versions[0].content).toEqual(input.content);
+    });
+
+    test('invalid later operations roll back every operation and version write', async () => {
+        const document = await model.create(input);
+        await expect(
+            model.updateContent(
+                input.projectUuid,
+                document.documentUuid,
+                {
+                    baseVersionUuid: document.version.versionUuid,
+                    operations: [
+                        {
+                            type: 'append',
+                            cell: {
+                                id: 'conclusion',
+                                type: 'markdown',
+                                content: { markdown: 'Done' },
+                            },
+                        },
+                        { type: 'remove', cellId: 'missing' },
+                    ],
+                },
+                SEED_ORG_1_ADMIN.user_uuid,
+            ),
+        ).rejects.toThrow();
+        expect(
+            await model.get(input.projectUuid, document.documentUuid),
+        ).toEqual(document);
+        expect(await transaction(DocumentVersionsTableName)).toHaveLength(1);
+    });
+
+    test('editing a legacy latest version appends V2 without rewriting its identity or payload', async () => {
+        const document = await model.create(input);
+        const legacyContent = {
+            cells: [{ id: 'legacy', type: 'markdown', content: '# Original' }],
+        };
+        await transaction.raw(
+            'UPDATE ?? SET schema_version = 1, content = ?::jsonb WHERE document_version_uuid = ?',
+            [
+                DocumentVersionsTableName,
+                JSON.stringify(legacyContent),
+                document.version.versionUuid,
+            ],
+        );
+        const legacyRow = await transaction(DocumentVersionsTableName)
+            .where('document_version_uuid', document.version.versionUuid)
+            .first();
+        const updated = await model.updateContent(
+            input.projectUuid,
+            document.documentUuid,
+            {
+                baseVersionUuid: document.version.versionUuid,
+                operations: [
+                    {
+                        type: 'append',
+                        cell: {
+                            id: 'conclusion',
+                            type: 'markdown',
+                            content: { title: 'Conclusion', markdown: 'Done' },
+                        },
+                    },
+                ],
+            },
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        expect(updated.documentUuid).toBe(document.documentUuid);
+        expect(updated.version).toMatchObject({
+            versionNumber: 2,
+            schemaVersion: 2,
+            content: {
+                cells: [
+                    {
+                        id: 'legacy',
+                        type: 'markdown',
+                        content: { markdown: '# Original' },
+                    },
+                    {
+                        id: 'conclusion',
+                        type: 'markdown',
+                        content: { title: 'Conclusion', markdown: 'Done' },
+                    },
+                ],
+            },
+        });
+        expect(updated.version.versionUuid).not.toBe(
+            document.version.versionUuid,
+        );
+        const rows = await transaction(DocumentVersionsTableName).orderBy(
+            'version_number',
+        );
+        expect(rows).toHaveLength(2);
+        expect(rows[0]).toEqual(legacyRow);
+        expect(rows[1]).toMatchObject({
+            schema_version: 2,
+            version_number: 2,
+            content: updated.version.content,
+        });
+    });
+
+    test('stale content edits conflict without changing the current version', async () => {
+        const document = await model.create(input);
+        await expect(
+            model.updateContent(
+                input.projectUuid,
+                document.documentUuid,
+                {
+                    baseVersionUuid: randomUUID(),
+                    operations: [{ type: 'remove', cellId: 'introduction' }],
+                },
+                SEED_ORG_1_ADMIN.user_uuid,
+            ),
+        ).rejects.toThrow('Document has changed');
+        expect(
+            await model.get(input.projectUuid, document.documentUuid),
+        ).toEqual(document);
+    });
+
+    test('metadata updates preserve the immutable content version', async () => {
+        const document = await model.create(input);
+        const updated = await model.updateMetadata(
+            input.projectUuid,
+            document.documentUuid,
+            {
+                name: 'Renamed',
+                description: 'New description',
+                slug: 'renamed',
+            },
+        );
+        expect(updated).toMatchObject({
+            name: 'Renamed',
+            description: 'New description',
+            slug: 'renamed',
+            version: document.version,
+        });
+        expect(await transaction(DocumentVersionsTableName)).toHaveLength(1);
+        expect(
+            (
+                await model.updateMetadata(
+                    input.projectUuid,
+                    document.documentUuid,
+                    { name: 'Renamed again' },
+                )
+            ).slug,
+        ).toBe('renamed');
+    });
+
+    test('metadata cannot claim another document slug even after soft deletion', async () => {
+        const document = await model.create(input);
+        const other = await model.create(input);
+        await transaction(DocumentsTableName)
+            .where('document_uuid', other.documentUuid)
+            .update({ deleted_at: new Date() });
+        await expect(
+            model.updateMetadata(input.projectUuid, document.documentUuid, {
+                name: 'Not saved',
+                slug: other.slug,
+            }),
+        ).rejects.toThrow('already exists');
+        expect(
+            await model.get(input.projectUuid, document.documentUuid),
+        ).toEqual(document);
+        expect(
+            (
+                await model.updateMetadata(
+                    input.projectUuid,
+                    document.documentUuid,
+                    { slug: document.slug },
+                )
+            ).slug,
+        ).toBe(document.slug);
+    });
+
+    test.each(['foreign-project', 'deleted-document', 'deleted-space'])(
+        'mutations reject %s',
+        async (scenario) => {
+            const document = await model.create(input);
+            const projectUuid =
+                scenario === 'foreign-project'
+                    ? randomUUID()
+                    : input.projectUuid;
+            if (scenario === 'deleted-document') {
+                await transaction(DocumentsTableName)
+                    .where('document_uuid', document.documentUuid)
+                    .update({ deleted_at: new Date() });
+            }
+            if (scenario === 'deleted-space') {
+                await transaction('spaces')
+                    .where('space_uuid', input.spaceUuid)
+                    .update({
+                        deleted_at: new Date(),
+                        deleted_by_user_uuid: null,
+                    });
+            }
+            await expect(
+                model.updateMetadata(projectUuid, document.documentUuid, {
+                    name: 'Not saved',
+                }),
+            ).rejects.toThrow('Document not found');
+            await expect(
+                model.updateContent(
+                    projectUuid,
+                    document.documentUuid,
+                    {
+                        baseVersionUuid: document.version.versionUuid,
+                        operations: [
+                            { type: 'remove', cellId: 'introduction' },
+                        ],
+                    },
+                    SEED_ORG_1_ADMIN.user_uuid,
+                ),
+            ).rejects.toThrow('Document not found');
+            expect(await transaction(DocumentVersionsTableName)).toHaveLength(
+                1,
+            );
+        },
+    );
+
+    test('two connections racing from the same base commit one version and return one conflict', async () => {
+        const schemaResult = await transaction.raw<{
+            rows: { schema: string }[];
+        }>('SELECT current_schema() AS schema');
+        const { schema } = schemaResult.rows[0];
+        const document = await model.create(input);
+        await transaction.commit();
+        const firstConnection = knex({
+            ...database.client.config,
+            searchPath: [schema, 'public'],
+            pool: { min: 0, max: 1 },
+        });
+        const secondConnection = knex({
+            ...database.client.config,
+            searchPath: [schema, 'public'],
+            pool: { min: 0, max: 1 },
+        });
+        try {
+            const [firstPid, secondPid] = await Promise.all([
+                firstConnection.raw<{ rows: { pid: number }[] }>(
+                    'SELECT pg_backend_pid() AS pid',
+                ),
+                secondConnection.raw<{ rows: { pid: number }[] }>(
+                    'SELECT pg_backend_pid() AS pid',
+                ),
+            ]);
+            expect(firstPid.rows[0].pid).not.toBe(secondPid.rows[0].pid);
+            const firstModel = new DocumentModel({ database: firstConnection });
+            const secondModel = new DocumentModel({
+                database: secondConnection,
+            });
+            const blocker = await database.transaction();
+            await blocker(DocumentsTableName)
+                .withSchema(schema)
+                .where('document_uuid', document.documentUuid)
+                .forUpdate()
+                .first();
+            const pendingOutcomes = Promise.allSettled(
+                [firstModel, secondModel].map((writer, index) =>
+                    writer.updateContent(
+                        input.projectUuid,
+                        document.documentUuid,
+                        {
+                            baseVersionUuid: document.version.versionUuid,
+                            operations: [
+                                {
+                                    type: 'append',
+                                    cell: {
+                                        id: `writer-${index}`,
+                                        type: 'markdown',
+                                        content: {
+                                            markdown: `Writer ${index}`,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                        SEED_ORG_1_ADMIN.user_uuid,
+                    ),
+                ),
+            );
+            try {
+                const deadline = Date.now() + 5000;
+                const waitForBothWriters = async (): Promise<void> => {
+                    const waiting = await database.raw<{
+                        rows: { count: string }[];
+                    }>(
+                        "SELECT count(*) FROM pg_stat_activity WHERE pid IN (?, ?) AND wait_event_type = 'Lock'",
+                        [firstPid.rows[0].pid, secondPid.rows[0].pid],
+                    );
+                    if (waiting.rows[0].count === '2') {
+                        return;
+                    }
+                    if (Date.now() > deadline) {
+                        throw new Error(
+                            'Both Document writers did not reach the row lock',
+                        );
+                    }
+                    await new Promise<void>((resolve) => {
+                        setTimeout(resolve, 10);
+                    });
+                    await waitForBothWriters();
+                };
+                await waitForBothWriters();
+            } finally {
+                await blocker.rollback();
+            }
+            const outcomes = await pendingOutcomes;
+            expect(
+                outcomes.filter((outcome) => outcome.status === 'fulfilled'),
+            ).toHaveLength(1);
+            expect(
+                outcomes.filter((outcome) => outcome.status === 'rejected'),
+            ).toHaveLength(1);
+            const rejected = outcomes.find(
+                (outcome) => outcome.status === 'rejected',
+            );
+            expect(
+                rejected?.status === 'rejected'
+                    ? rejected.reason.message
+                    : null,
+            ).toContain('Document has changed');
+            const persisted = await firstModel.get(
+                input.projectUuid,
+                document.documentUuid,
+            );
+            expect(persisted.version.versionNumber).toBe(2);
+            expect(persisted.version.content.cells).toHaveLength(2);
+            const versions = await firstConnection(
+                DocumentVersionsTableName,
+            ).orderBy('version_number');
+            expect(versions).toHaveLength(2);
+            expect(versions[0].content).toEqual(input.content);
+        } finally {
+            await Promise.all([
+                firstConnection.destroy(),
+                secondConnection.destroy(),
+            ]);
+            await database.raw('DROP SCHEMA ?? CASCADE', [schema]);
+        }
     });
 
     test('creates identity and first immutable version together', async () => {
@@ -397,7 +774,7 @@ describe('DocumentModel PostgreSQL integration', () => {
                 await savepoint(DocumentVersionsTableName).insert({
                     document_id: row.document_id,
                     version_number: 1,
-                    schema_version: 1,
+                    schema_version: 2,
                     content: input.content,
                     created_by_user_uuid: null,
                 });
