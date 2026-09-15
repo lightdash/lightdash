@@ -13,6 +13,7 @@ import {
     AiWritebackPipelineJobPayload,
     AppBuildFromSourceJobPayload,
     AppGeneratePipelineJobPayload,
+    DataAppInvestigateJobPayload,
     EE_SCHEDULER_TASKS,
     EmbedArtifactVersionJobPayload,
     GenerateArtifactQuestionJobPayload,
@@ -275,6 +276,20 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 1,
                 jobKey: `ai-agent-review-remediation-run:${payload.remediationUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async dataAppInvestigate(payload: DataAppInvestigateJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `data-app-investigate:${payload.analysisId}:${payload.anomalyId}:${payload.userUuid}`,
             },
         );
         return { jobId };

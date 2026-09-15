@@ -72,6 +72,7 @@ const CREATED_FROM_LABELS: Record<AiThreadCreatedFrom, string> = {
     web_app: 'Web',
     evals: 'Evals',
     scheduler: 'Scheduler',
+    data_app: 'Data app',
 };
 
 type AiAgentAdminThreadsTableProps = {

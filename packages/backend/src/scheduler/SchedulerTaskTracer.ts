@@ -330,6 +330,13 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
     }),
+    [SCHEDULER_TASKS.DATA_APP_INVESTIGATE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+        'app.uuid': payload.appUuid,
+        'agent.uuid': payload.agentUuid,
+    }),
     [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

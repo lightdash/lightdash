@@ -519,7 +519,15 @@ const isGithubMcpBearerServer = (
 ) => isGithubMcpServerUrl(server.url) && server.authType === 'bearer';
 
 type GenerateAgentExecutionOptions =
-    | { mode: 'standard' }
+    | {
+          mode: 'standard';
+          /** Caps model steps for bounded one-shot runs; defaults to the agent max. */
+          maxSteps?: number;
+          /** Called per warehouse query; throw to stop the run at a budget. */
+          onWarehouseQuery?: () => void | Promise<void>;
+          /** Restricts the run to these registered tool names. */
+          toolAllowlist?: ReadonlySet<string>;
+      }
     | {
           mode: 'deep_research';
           runUuid: string;
@@ -11155,10 +11163,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             runtimeOptions: options.runtimeOptions,
             suppressWritebackPreview: options.suppressWritebackPreview,
             dbtSourceUuid: options.dbtSourceUuid,
-            onWarehouseQuery:
-                responseExecution.mode === 'deep_research'
-                    ? responseExecution.onWarehouseQuery
-                    : undefined,
+            onWarehouseQuery: responseExecution.onWarehouseQuery,
         });
 
         const agentSettings = await this.getAgentSettings(user, prompt);
@@ -11559,7 +11564,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         } else {
             execution = {
                 mode: 'standard',
-                maxSteps: DEFAULT_AGENT_MAX_STEPS,
+                maxSteps: responseExecution.maxSteps ?? DEFAULT_AGENT_MAX_STEPS,
+                toolAllowlist: responseExecution.toolAllowlist,
             };
         }
 
