@@ -88,8 +88,7 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
         docs: 'semantic-layer/dimensions.mdx',
         intro: 'semantic-layer/dimensions.mdx#intro:1',
         file: 'models/fm_buildings.yml',
-        fileDocs:
-            'semantic-layer/dimensions.mdx#adding-dimensions-to-your-project:1',
+        fileDocs: 'semantic-layer/dimensions.mdx#dimension-configuration:1',
         // fm_buildings has many table columns its YAML never declares;
         // declaring one is exactly how a dimension is added.
         snippet: [
@@ -97,8 +96,10 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
             '      - name: number_of_floors',
             '        description: Storeys above ground',
         ].join('\n'),
+        // Not the page's next sentence: that one proposes `lightdash generate`,
+        // which the sandbox terminal does not offer yet.
         snippetDocs:
-            'semantic-layer/dimensions.mdx#adding-dimensions-to-your-project:p3:1',
+            'semantic-layer/dimensions.mdx#adding-dimensions-to-your-project:1',
         command: 'lightdash deploy',
         commandDocs: 'workflow/cli/deploy.mdx#intro:1',
         outputDocs: [

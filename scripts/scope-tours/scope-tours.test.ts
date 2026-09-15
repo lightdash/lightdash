@@ -641,7 +641,7 @@ export const Card = () => (
     // sentence.
     assert.strictEqual(
         docsParagraph('explore/homepage.mdx#pin-content:4'),
-        'See [sharing](https://docs.lightdash.com/explore/homepage#sharing) or the [**spaces page**](https://docs.lightdash.com/explore/spaces.mdx) for who can see it.',
+        'See [sharing](https://docs.lightdash.com/explore/homepage#sharing) or the [spaces page](https://docs.lightdash.com/explore/spaces.mdx) for who can see it.',
     );
     // Bold italics become bold; plain italics become plain text.
     assert.strictEqual(

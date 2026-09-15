@@ -443,7 +443,10 @@ export const docsParagraph = (ref: string): string => {
         .replace(/`([^`]+)`/g, '**$1**')
         // Bold italics read as bold in a card; plain italics as plain text.
         .replace(/\*\*\*([^*]+)\*\*\*/g, '**$1**')
-        .replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, '$1$2');
+        .replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, '$1$2')
+        // A link is already set apart; bold inside its label would reach
+        // the card as literal asterisks.
+        .replace(/\[\*\*([^\]]+?)\*\*\]/g, '[$1]');
     const restoreLinks = (x: string) =>
         x.replace(/\(§(\d+)\)/g, (_, i: string) => `(${links[Number(i)]})`);
     if (!range) return restoreLinks(text);
