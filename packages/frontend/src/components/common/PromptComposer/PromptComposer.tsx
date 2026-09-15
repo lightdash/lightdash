@@ -68,7 +68,6 @@ type Props = {
     attachments?: ReactNode;
     toolbarLeft?: ReactNode;
     toolbarRight?: ReactNode;
-    stackToolbarOnMobile?: boolean;
     className?: string;
 };
 
@@ -95,7 +94,6 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
             attachments,
             toolbarLeft,
             toolbarRight,
-            stackToolbarOnMobile = false,
             className,
         },
         ref,
@@ -231,7 +229,6 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 data-size={size}
                 data-accent={accent}
                 data-disabled={disabled || undefined}
-                data-stack-toolbar-mobile={stackToolbarOnMobile || undefined}
                 onMouseDown={onMouseDown}
             >
                 {header && <Box className={classes.header}>{header}</Box>}

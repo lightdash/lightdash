@@ -1,4 +1,5 @@
 import {
+    ActionIcon,
     Box,
     Button,
     Group,
@@ -35,6 +36,7 @@ type Props = {
      */
     lockedAfterCreation?: boolean;
     compact?: boolean;
+    iconOnly?: boolean;
 };
 
 export const ThemePicker: FC<Props> = ({
@@ -43,6 +45,7 @@ export const ThemePicker: FC<Props> = ({
     disabled,
     lockedAfterCreation,
     compact,
+    iconOnly = false,
 }) => {
     const [opened, setOpened] = useState(false);
     const { data: themes = [] } = useOrganizationDesigns();
@@ -56,66 +59,88 @@ export const ThemePicker: FC<Props> = ({
     // Compact trigger reads as a call to action until a theme is picked, then
     // switches to showing the selected theme's name.
     const compactLabel = selected ? label : COMPACT_EMPTY_LABEL;
-    const button = compact ? (
-        <Button
-            variant="subtle"
-            size="xs"
-            radius="xl"
-            color="gray"
-            h="auto"
-            py={6}
-            className={classes.compactTrigger}
-            data-selected={!!selected}
-            onClick={() => setOpened((o) => !o)}
-            disabled={disabled || lockedAfterCreation}
-            leftSection={<MantineIcon icon={IconBrush} size={14} />}
-            rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
-            aria-label={selected ? `Theme: ${label}` : COMPACT_EMPTY_LABEL}
-        >
-            <Group gap={5} wrap="nowrap">
-                {selected && (
-                    <Text
-                        span
-                        size="xs"
-                        fw={500}
-                        lh={1.2}
-                        className={classes.compactPrefix}
-                    >
-                        Theme:
+    const button =
+        compact && iconOnly ? (
+            <ActionIcon
+                variant="subtle"
+                color="gray"
+                size={32}
+                radius="xl"
+                className={classes.compactTrigger}
+                data-selected={!!selected}
+                onClick={() => setOpened((o) => !o)}
+                disabled={disabled || lockedAfterCreation}
+                aria-label={selected ? `Theme: ${label}` : COMPACT_EMPTY_LABEL}
+                title={selected ? `Theme: ${label}` : COMPACT_EMPTY_LABEL}
+            >
+                <MantineIcon icon={IconBrush} size={16} />
+            </ActionIcon>
+        ) : compact ? (
+            <Button
+                variant="subtle"
+                size="xs"
+                radius="xl"
+                color="gray"
+                h="auto"
+                py={6}
+                className={classes.compactTrigger}
+                data-selected={!!selected}
+                onClick={() => setOpened((o) => !o)}
+                disabled={disabled || lockedAfterCreation}
+                leftSection={<MantineIcon icon={IconBrush} size={14} />}
+                rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
+                aria-label={selected ? `Theme: ${label}` : COMPACT_EMPTY_LABEL}
+            >
+                <Group gap={5} wrap="nowrap">
+                    {selected && (
+                        <Text
+                            span
+                            size="xs"
+                            fw={500}
+                            lh={1.2}
+                            className={classes.compactPrefix}
+                        >
+                            Theme:
+                        </Text>
+                    )}
+                    <Text span size="xs" fw={600} lh={1.2} lineClamp={1}>
+                        {compactLabel}
                     </Text>
-                )}
-                <Text span size="xs" fw={600} lh={1.2} lineClamp={1}>
-                    {compactLabel}
-                </Text>
-            </Group>
-        </Button>
-    ) : (
-        <Button
-            variant="default"
-            size="xs"
-            color="gray"
-            miw={200}
-            h="auto"
-            py="xs"
-            justify="space-between"
-            onClick={() => setOpened((o) => !o)}
-            disabled={disabled || lockedAfterCreation}
-            rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
-            aria-label={`Theme: ${label}`}
-            classNames={{ label: classes.triggerWrap }}
-        >
-            <Stack gap={2} align="flex-start" w="100%">
-                <Text size="sm" fw={600} lh={1.2} ta="left">
-                    {label}
-                </Text>
-                {description && (
-                    <Text size="xs" c="dimmed" lh={1.3} lineClamp={3} ta="left">
-                        {description}
+                </Group>
+            </Button>
+        ) : (
+            <Button
+                variant="default"
+                size="xs"
+                color="gray"
+                miw={200}
+                h="auto"
+                py="xs"
+                justify="space-between"
+                onClick={() => setOpened((o) => !o)}
+                disabled={disabled || lockedAfterCreation}
+                rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
+                aria-label={`Theme: ${label}`}
+                classNames={{ label: classes.triggerWrap }}
+            >
+                <Stack gap={2} align="flex-start" w="100%">
+                    <Text size="sm" fw={600} lh={1.2} ta="left">
+                        {label}
                     </Text>
-                )}
-            </Stack>
-        </Button>
-    );
+                    {description && (
+                        <Text
+                            size="xs"
+                            c="dimmed"
+                            lh={1.3}
+                            lineClamp={3}
+                            ta="left"
+                        >
+                            {description}
+                        </Text>
+                    )}
+                </Stack>
+            </Button>
+        );
 
     const themeOption = (
         key: string,
