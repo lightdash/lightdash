@@ -5,32 +5,32 @@ import {
     parseLauncherPanelSize,
 } from './launcherPanelSize';
 
-const viewport = { width: 1440, height: 900 };
+const available = { width: 1408, height: 820 };
 
 describe('clampLauncherPanelSize', () => {
-    it('keeps a size that fits the viewport', () => {
+    it('keeps a size that fits the available space', () => {
         expect(
-            clampLauncherPanelSize({ width: 520, height: 700 }, viewport),
+            clampLauncherPanelSize({ width: 520, height: 700 }, available),
         ).toEqual({ width: 520, height: 700 });
     });
 
     it('never shrinks below the minimum usable size', () => {
         expect(
-            clampLauncherPanelSize({ width: 10, height: 10 }, viewport),
+            clampLauncherPanelSize({ width: 10, height: 10 }, available),
         ).toEqual(LAUNCHER_PANEL_MIN_SIZE);
     });
 
-    it('keeps a page margin and top headroom inside the viewport', () => {
+    it('never grows past the available space', () => {
         expect(
-            clampLauncherPanelSize({ width: 5000, height: 5000 }, viewport),
-        ).toEqual({ width: 1408, height: 820 });
+            clampLauncherPanelSize({ width: 5000, height: 5000 }, available),
+        ).toEqual(available);
     });
 
-    it('prefers the minimum size when the viewport is smaller than it', () => {
+    it('prefers the minimum size when the available space is smaller than it', () => {
         expect(
             clampLauncherPanelSize(
                 { width: 800, height: 800 },
-                { width: 300, height: 300 },
+                { width: 200, height: 200 },
             ),
         ).toEqual(LAUNCHER_PANEL_MIN_SIZE);
     });

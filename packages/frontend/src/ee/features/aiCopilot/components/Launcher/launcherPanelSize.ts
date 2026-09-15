@@ -1,7 +1,5 @@
 export type LauncherPanelSize = { width: number; height: number };
 
-type Viewport = { width: number; height: number };
-
 export const LAUNCHER_PANEL_MIN_SIZE: LauncherPanelSize = {
     width: 360,
     height: 400,
@@ -9,30 +7,18 @@ export const LAUNCHER_PANEL_MIN_SIZE: LauncherPanelSize = {
 
 export const LAUNCHER_PANEL_KEYBOARD_STEP = 16;
 
-// Mirrors the viewport clamps in AiAgentsLauncher.module.css: a page margin
-// on each side and headroom above so the panel never covers the top bar.
-const VIEWPORT_INSET: Viewport = { width: 32, height: 80 };
-
 const clamp = (value: number, min: number, max: number) =>
     Math.min(Math.max(value, min), Math.max(min, max));
 
 export const clampLauncherPanelSize = (
     size: LauncherPanelSize,
-    viewport: Viewport,
+    available: LauncherPanelSize,
 ): LauncherPanelSize => ({
     width: Math.round(
-        clamp(
-            size.width,
-            LAUNCHER_PANEL_MIN_SIZE.width,
-            viewport.width - VIEWPORT_INSET.width,
-        ),
+        clamp(size.width, LAUNCHER_PANEL_MIN_SIZE.width, available.width),
     ),
     height: Math.round(
-        clamp(
-            size.height,
-            LAUNCHER_PANEL_MIN_SIZE.height,
-            viewport.height - VIEWPORT_INSET.height,
-        ),
+        clamp(size.height, LAUNCHER_PANEL_MIN_SIZE.height, available.height),
     ),
 });
 

@@ -139,9 +139,10 @@
         var(--ai-launcher-panel-width, rem(440px)),
         calc(100vw - var(--mantine-spacing-md) * 2)
     );
+    /* Cap leaves room for the navbar above and the dock row below the panel. */
     --panel-height: min(
         var(--ai-launcher-panel-height, rem(640px)),
-        calc(100vh - rem(80px))
+        calc(100vh - var(--navbar-height, 0px) - var(--mantine-spacing-md) * 4)
     );
     position: absolute;
     bottom: calc(100% + var(--mantine-spacing-xs));
@@ -177,41 +178,16 @@
     top: 0;
     left: 0;
     z-index: 1;
-    width: rem(16px);
-    height: rem(16px);
+    width: rem(20px);
+    height: rem(20px);
     cursor: nwse-resize;
     touch-action: none;
+    border-top-left-radius: var(--mantine-radius-lg);
 }
 
 .resizeHandle:focus-visible {
     outline: 2px solid var(--mantine-primary-color-filled);
     outline-offset: -2px;
-}
-
-/* Corner mark only shows while the panel is in use, like the dock close button. */
-.resizeHandle::after {
-    content: '';
-    position: absolute;
-    top: rem(5px);
-    left: rem(5px);
-    width: rem(6px);
-    height: rem(6px);
-    border-top: 2px solid var(--mantine-color-dimmed);
-    border-left: 2px solid var(--mantine-color-dimmed);
-    border-top-left-radius: rem(2px);
-    opacity: 0;
-    transition: opacity 120ms ease;
-}
-
-.panel:hover .resizeHandle::after,
-.resizeHandle:focus-visible::after {
-    opacity: 1;
-}
-
-@media (hover: none) {
-    .resizeHandle::after {
-        opacity: 1;
-    }
 }
 
 .panelHeader {

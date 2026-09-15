@@ -25,61 +25,78 @@ const KEY_DIRECTIONS: Record<string, readonly [number, number]> = {
     ArrowDown: [0, -1],
 };
 
-const getViewport = () => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-});
+// Mirrors the CSS clamps: a page margin on each side, and a gap below the navbar.
+const PAGE_MARGIN = 32;
+const NAVBAR_GAP = 8;
 
-const measure = (element: HTMLElement | null): LauncherPanelSize | null => {
-    if (!element) return null;
-    const { width, height } = element.getBoundingClientRect();
-    return { width, height };
+const readNavbarHeight = () =>
+    parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+            '--navbar-height',
+        ),
+    ) || 0;
+
+const measure = (frame: HTMLElement) => {
+    const rect = frame.getBoundingClientRect();
+    const size: LauncherPanelSize = { width: rect.width, height: rect.height };
+    // The panel grows upwards from a fixed bottom edge, so the room above it
+    // is what's left between that edge and the navbar.
+    const available: LauncherPanelSize = {
+        width: window.innerWidth - PAGE_MARGIN,
+        height: rect.bottom - readNavbarHeight() - NAVBAR_GAP,
+    };
+    return { size, available };
 };
 
 export const LauncherPanelFrame: FC<Props> = ({ style, children }) => {
     const { previewSize, commitSize } = useLauncherPanelSizeContext();
     const frameRef = useRef<HTMLDivElement>(null);
-    const dragStartSizeRef = useRef<LauncherPanelSize | null>(null);
+    const dragStartRef = useRef<ReturnType<typeof measure> | null>(null);
 
     // The panel is anchored bottom-right, so dragging the corner up or left
     // grows it.
     const { ref: handleRef } = useDrag(
         ({ first, last, movement: [dx, dy], distance, event }) => {
             if (first) {
-                dragStartSizeRef.current = measure(frameRef.current);
+                dragStartRef.current = frameRef.current
+                    ? measure(frameRef.current)
+                    : null;
                 (event.currentTarget as HTMLElement | null)?.setPointerCapture(
                     event.pointerId,
                 );
                 return;
             }
-            const start = dragStartSizeRef.current;
+            const start = dragStartRef.current;
             if (!start) return;
             const size = clampLauncherPanelSize(
-                { width: start.width - dx, height: start.height - dy },
-                getViewport(),
+                {
+                    width: start.size.width - dx,
+                    height: start.size.height - dy,
+                },
+                start.available,
             );
             if (!last) {
                 previewSize(size);
                 return;
             }
-            dragStartSizeRef.current = null;
+            dragStartRef.current = null;
             if (distance[0] > 0 || distance[1] > 0) commitSize(size);
         },
     );
 
     const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         const direction = KEY_DIRECTIONS[event.key];
-        const current = measure(frameRef.current);
-        if (!direction || !current) return;
+        if (!direction || !frameRef.current) return;
         event.preventDefault();
+        const { size, available } = measure(frameRef.current);
         const step = LAUNCHER_PANEL_KEYBOARD_STEP * (event.shiftKey ? 4 : 1);
         commitSize(
             clampLauncherPanelSize(
                 {
-                    width: current.width + direction[0] * step,
-                    height: current.height + direction[1] * step,
+                    width: size.width + direction[0] * step,
+                    height: size.height + direction[1] * step,
                 },
-                getViewport(),
+                available,
             ),
         );
     };
