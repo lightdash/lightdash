@@ -5418,7 +5418,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-anchor="explore-search"]',
                 route: '/projects/:projectUuid/tables/:tableName',
-                title: 'Search for Payments',
+                title: 'Search for the table',
                 body: '',
                 interactive: true,
                 advanceOnTargetClick: false,

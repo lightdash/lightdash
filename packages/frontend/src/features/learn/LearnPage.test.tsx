@@ -365,7 +365,7 @@ describe('LearnPage access', () => {
         );
         expect(card).not.toBeNull();
         expect(card!.textContent).toContain('Metrics');
-        expect(card!.textContent).toContain('11 steps');
+        expect(card!.textContent).toContain('12 steps');
         expect(
             container.querySelector('[data-learn-group="developer"]'),
         ).not.toBeNull();

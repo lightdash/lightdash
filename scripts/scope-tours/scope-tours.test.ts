@@ -679,7 +679,7 @@ export const Card = () => (
         );
         assert.strictEqual(
             tour.steps.map((s) => s.title).join(' > '),
-            'Metrics > Open models/payments.yml > Edit the file > Type the command > Run the command > See the result > Click New > Choose Chart > Search for Payments > Open Payments > Find Average payment amount > Using the column meta tag',
+            'Metrics > Open models/payments.yml > Edit the file > Type the command > Run the command > See the result > Click New > Choose Chart > Search for the table > Open Payments > Find Average payment amount > Using the column meta tag',
         );
         assert.strictEqual(
             tour.steps[0].body,
@@ -710,6 +710,9 @@ export const Card = () => (
         // The table list is virtualised: the table is searched for before it
         // can be clicked.
         assert.strictEqual(tour.steps[8].suggestion, 'Payments');
+        // Titled from the anchor's own hint, like every other click or
+        // typed step; only the two look steps carry a literal title.
+        assert.strictEqual(tour.steps[8].title, 'Search for the table');
         assert.strictEqual(
             tour.steps[8].target,
             '[data-tour-anchor="explore-search"]',
