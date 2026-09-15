@@ -72,7 +72,7 @@ Each walkthrough prints `PASS` or `FAIL` with a screenshot path. `SMOKE_DEBUG=1`
 
 ## Developer lessons
 
-A developer lesson is a walkthrough over the sandbox workspace rather than over the product: the learner edits a model file, deploys it, and opens the field they just created. Its steps are not marked up in components, so most of this guide does not apply, but the same two failures reach it, through the lesson's declaration and through the three anchors it borrows from Explore.
+A developer lesson is a walkthrough over the sandbox workspace rather than over the product: the learner edits a model file, deploys it, and opens the field they just created. Its steps are not marked up in components, so most of this guide does not apply, but the same two failures reach it, through the lesson's declaration and through the four anchors it borrows from Explore.
 
 To add one:
 
@@ -99,7 +99,7 @@ To add one:
     pnpm scope-tours:smoke
     ```
 
-The last six steps leave the workspace, so a lesson also depends on three anchors it does not own: `data-tour-anchor="explore-table"` and `data-tour-anchor="explore-metric"`, each found by the label it renders, carried in `data-tour-value` (`Payments`, `Average payment amount`); and `data-tour-anchor="explore-search"`, which the lesson types into twice, once for the table and once for the field, because both lists are virtualised. Renaming a table or a field in the playground bundle leaves every attribute in place and still breaks the lesson, because the value no longer matches what the step looks for. The checker sees a missing anchor; only the smoke sees a label that changed.
+The last four steps leave the workspace (Click New and Choose Chart are still on the workspace route; the step after them is the first one in Explore), so a lesson also depends on four anchors it does not own. Both lists in Explore are virtualised, so each is reached by searching first: `data-tour-anchor="explore-search"` is typed to find the table, and `data-tour-anchor="explore-field-search"`, the explore's own field search, is typed to find the field. The two rows are then found by the label they render, carried in `data-tour-value`: `data-tour-anchor="explore-table"` (`Payments`) and `data-tour-anchor="explore-metric"` (`Average payment amount`). The two searches are not interchangeable: opening a table replaces the table list with the field tree, so the table's search is gone by the time the field is looked for. Renaming a table or a field in the playground bundle leaves every attribute in place and still breaks the lesson, because the value no longer matches what the step looks for. The checker sees a missing anchor; only the smoke sees a label that changed.
 
 ## When CI fails
 

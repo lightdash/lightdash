@@ -723,14 +723,10 @@ export const buildLessonTours = (
             ]),
             // The table list is virtualised, so the lesson's table is not on
             // the page until it is searched for.
-            typed(
-                search,
-                EXPLORE_ROUTE,
-                `Search for ${exploreLabel}`,
-                '',
-                exploreLabel,
-                [newMenu, newChart],
-            ),
+            typed(search, EXPLORE_ROUTE, hintFor(search, files), '', exploreLabel, [
+                newMenu,
+                newChart,
+            ]),
             click(table, EXPLORE_ROUTE, hintFor(table, files), [
                 newMenu,
                 newChart,
