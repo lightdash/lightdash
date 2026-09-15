@@ -1,5 +1,5 @@
 import { type Document } from '@lightdash/common';
-import { Stack, Text, Title } from '@mantine/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useMemo } from 'react';
 import markdownStyles from '../../components/common/AiMarkdown/AiMarkdown.module.css';
@@ -21,19 +21,24 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
             description={document.description}
             headings={headings}
         >
-            <Stack gap="xl">
+            <Stack className={styles.structuredReport}>
                 {cells.length === 0 && (
                     <Text c="dimmed">This document is empty.</Text>
                 )}
-                {cells.map((cell) => (
-                    <Stack
+                {cells.map((cell, index) => (
+                    <Box
                         component="section"
-                        gap="md"
+                        className={
+                            cell.content.title
+                                ? styles.reportFinding
+                                : styles.reportIntroduction
+                        }
                         key={`${document.version.versionUuid}:${cell.id}`}
                     >
                         {cell.content.title && (
                             <Title
                                 order={2}
+                                className={styles.reportFindingTitle}
                                 id={getDocumentHeadingId(cell.id)}
                                 data-report-heading=""
                             >
@@ -44,7 +49,7 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
                             {cell.type === 'markdown' ? (
                                 <MarkdownPreview
                                     prefixCls=""
-                                    className={`${markdownStyles.aiMarkdown} ${styles.reportProse}`}
+                                    className={`${markdownStyles.aiMarkdown} ${index === 0 && !cell.content.title ? styles.reportIntroductionProse : styles.reportProse}`}
                                     source={cell.content.markdown}
                                     skipHtml
                                     pluginsFilter={(type, plugins) =>
@@ -69,7 +74,7 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
                                 </Text>
                             )}
                         </ErrorBoundary>
-                    </Stack>
+                    </Box>
                 ))}
             </Stack>
         </DocumentReportLayout>

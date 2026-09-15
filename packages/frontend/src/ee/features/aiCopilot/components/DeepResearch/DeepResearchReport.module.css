@@ -12,12 +12,6 @@
     width: 100%;
 }
 
-.reportControls {
-    width: min(100%, 74rem);
-    margin-inline: auto;
-    padding-inline: var(--mantine-spacing-lg);
-}
-
 .visuallyHidden {
     position: absolute;
     width: 1px;
