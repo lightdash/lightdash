@@ -1,44 +1,20 @@
-import type { AgentCreateParams } from '@anthropic-ai/sdk/resources/beta/agents';
 import {
     assertUnreachable,
-    DEFAULT_MANAGED_AGENT_POLICY,
     resolveManagedAgentPolicy,
     type ManagedAgentPolicy,
 } from '@lightdash/common';
 import type { JSONSchema7 } from 'ai';
-import { createHash } from 'crypto';
-import { produce } from 'immer';
-import type { ManagedAgentRuntime } from '../../../../config/parseConfig';
 
 export type ManagedAgentPromptOptions = {
     preAggregatesEnabled?: boolean;
-    runtime?: ManagedAgentRuntime;
 };
 
 export const AUTOPILOT_CHART_SKILL_NAME = 'developing-in-lightdash';
 
-// The managed-agents runtime reaches the semantic layer over MCP; the AI SDK
-// runtime has the equivalent tools in-process under different names.
-const getDataToolWording = (runtime: ManagedAgentRuntime) => {
-    switch (runtime) {
-        case 'anthropic-managed':
-            return {
-                skills: `You have the **"Developing in Lightdash"** skill attached. Use it when creating or fixing charts:`,
-                discover: `3. The MCP connection is already pinned to this project. Use MCP tools (list_explores, find_fields) to discover the data model. Do not attempt to switch projects
-4. Use find_content (MCP) to check if a chart already exists for the topic
-5. Call run_metric_query to validate the data before creating`,
-            };
-        case 'ai-sdk':
-            return {
-                skills: `Call loadSkill with name "${AUTOPILOT_CHART_SKILL_NAME}" before creating or fixing charts:`,
-                discover: `3. Use grepFields and getMetadata to discover the data model. Every field ID must come from those tools
+const SKILLS_WORDING = `Call loadSkill with name "${AUTOPILOT_CHART_SKILL_NAME}" before creating or fixing charts:`;
+const DISCOVER_WORDING = `3. Use grepFields and getMetadata to discover the data model. Every field ID must come from those tools
 4. Use findContent to check if a chart already exists for the topic
-5. Call runMetricQuery to validate the data before creating`,
-            };
-        default:
-            return assertUnreachable(runtime, `Unknown runtime: ${runtime}`);
-    }
-};
+5. Call runMetricQuery to validate the data before creating`;
 
 // Tail sections number themselves so a conditional section (pre-aggregates)
 // does not force renumbering every section after it.
@@ -164,13 +140,11 @@ export const buildManagedAgentSystemPrompt = (
             ? 'record an insight instead'
             : 'flag it instead';
 
-    const wording = getDataToolWording(options.runtime ?? 'anthropic-managed');
-
     return `You are Autopilot, a Lightdash project health agent. You run on a schedule to keep this project clean and useful.
 
 ## Skills
 
-${wording.skills}
+${SKILLS_WORDING}
 - It contains the full chart-as-code YAML reference, chart type guide, and field ID conventions
 - When creating charts via create_content_from_code, follow the YAML structure from the skill (sorted keys, correct chartConfig.type, contentType:        chart)
 - When fixing broken charts via fix_broken_chart, reference the skill for valid metricQuery and chartConfig shapes
@@ -235,7 +209,7 @@ Also create when you notice a gap:
 When creating, use create_content_from_code:
 1. Call get_user_questions to see what users are asking about
 2. Call get_chart_schema for the exact JSON format
-${wording.discover}
+${DISCOVER_WORDING}
 6. Prefix slugs with "agent-" to identify agent-created content
 7. Place all charts in the "Agent Suggestions" space for admin review
 
@@ -777,97 +751,16 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
     },
 ];
 
-const toAnthropicCustomTool = (
-    definition: AutopilotToolDefinition,
-): NonNullable<AgentCreateParams['tools']>[number] => ({
-    type: 'custom',
-    name: definition.name,
-    description: definition.description,
-    input_schema: { ...definition.inputSchema, type: 'object' },
-});
-
-// Anthropic-hosted sandbox tools: file access exists only so the agent can read
-// its attached skills.
-const managedAgentSandboxToolsets: NonNullable<AgentCreateParams['tools']> = [
-    {
-        configs: [
-            {
-                enabled: true,
-                name: 'read',
-                permission_policy: {
-                    type: 'always_allow',
-                },
-            },
-            {
-                enabled: true,
-                name: 'write',
-                permission_policy: {
-                    type: 'always_allow',
-                },
-            },
-        ],
-        default_config: {
-            enabled: false,
-            permission_policy: {
-                type: 'always_allow',
-            },
-        },
-        type: 'agent_toolset_20260401',
-    },
-    {
-        configs: [],
-        default_config: {
-            enabled: true,
-            permission_policy: {
-                type: 'always_allow',
-            },
-        },
-        mcp_server_name: 'lightdash',
-        type: 'mcp_toolset',
-    },
-];
-
-export const AUTOPILOT_MANAGED_MODEL_ID = 'claude-opus-4-6';
-
-const managedAgentConfig: AgentCreateParams = {
-    name: 'Lightdash Autopilot Agent',
-    description: null,
-    model: {
-        id: AUTOPILOT_MANAGED_MODEL_ID,
-        speed: 'standard',
-    },
-    system: buildManagedAgentSystemPrompt(DEFAULT_MANAGED_AGENT_POLICY),
-    mcp_servers: [],
-    metadata: {},
-    skills: [],
-    tools: [],
-};
-
 type RenderAutopilotAgentArgs = {
     toolSettings?: Record<string, boolean>;
     policy?: ManagedAgentPolicy;
     preAggregatesEnabled?: boolean;
-    runtime: ManagedAgentRuntime;
 };
 
 export type RenderedAutopilotAgent = {
     system: string;
     tools: AutopilotToolDefinition[];
 };
-
-type RenderManagedAgentConfigArgs = Omit<
-    RenderAutopilotAgentArgs,
-    'runtime'
-> & {
-    lightdashSiteUrl: string;
-    projectUuid: string;
-    skillIds: string[];
-};
-
-export const getManagedAgentMcpUrl = (
-    lightdashSiteUrl: string,
-    projectUuid: string,
-) => `${lightdashSiteUrl}/api/v1/mcp/projects/${projectUuid}`;
 
 // Aggression levels remove cleanup tools entirely so the model cannot use them
 const aggressionDisabledTools: Record<
@@ -921,8 +814,7 @@ export const renderAutopilotAgent = ({
     toolSettings = {},
     policy,
     preAggregatesEnabled = false,
-    runtime,
-}: RenderAutopilotAgentArgs): RenderedAutopilotAgent => {
+}: RenderAutopilotAgentArgs = {}): RenderedAutopilotAgent => {
     const resolvedPolicy = resolveManagedAgentPolicy(policy);
     const normalizedToolSettings =
         normalizeManagedAgentToolSettings(toolSettings);
@@ -947,7 +839,6 @@ export const renderAutopilotAgent = ({
 
     const baseSystem = buildManagedAgentSystemPrompt(resolvedPolicy, {
         preAggregatesEnabled,
-        runtime,
     });
     const system =
         disabledCapabilities.length > 0
@@ -965,42 +856,3 @@ export const renderAutopilotAgent = ({
 
     return { system, tools };
 };
-
-export const renderManagedAgentConfig = ({
-    lightdashSiteUrl,
-    projectUuid,
-    skillIds,
-    ...agentArgs
-}: RenderManagedAgentConfigArgs): AgentCreateParams => {
-    const { system, tools } = renderAutopilotAgent({
-        ...agentArgs,
-        runtime: 'anthropic-managed',
-    });
-
-    return produce(managedAgentConfig, (draft) => {
-        // eslint-disable-next-line no-param-reassign
-        draft.system = system;
-        // eslint-disable-next-line no-param-reassign
-        draft.mcp_servers = [
-            {
-                name: 'lightdash',
-                type: 'url',
-                url: getManagedAgentMcpUrl(lightdashSiteUrl, projectUuid),
-            },
-        ];
-        // eslint-disable-next-line no-param-reassign
-        draft.skills = skillIds.map((skillId) => ({
-            skill_id: skillId,
-            type: 'custom',
-            version: 'latest',
-        }));
-        // eslint-disable-next-line no-param-reassign
-        draft.tools = [
-            ...managedAgentSandboxToolsets,
-            ...tools.map(toAnthropicCustomTool),
-        ];
-    });
-};
-
-export const getManagedAgentConfigHash = (agentConfig: AgentCreateParams) =>
-    createHash('md5').update(JSON.stringify(agentConfig)).digest('hex');

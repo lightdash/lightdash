@@ -425,16 +425,6 @@ const parseApiExpiration = (envVariable: string): Date | null => {
     return new Date(Date.now() + 1000 * 60 * 60 * 24 * apiExpirationDays);
 };
 
-// Which engine runs Autopilot heartbeats: the in-process AI SDK loop on the
-// org's copilot provider, or a hosted session on Anthropic's Managed Agents API.
-export const MANAGED_AGENT_RUNTIMES = {
-    AI_SDK: 'ai-sdk',
-    ANTHROPIC_MANAGED: 'anthropic-managed',
-} as const;
-
-export type ManagedAgentRuntime =
-    (typeof MANAGED_AGENT_RUNTIMES)[keyof typeof MANAGED_AGENT_RUNTIMES];
-
 const parseEnum = <T>(
     value: string | undefined,
     enumObj?: AnyType,
@@ -1746,9 +1736,6 @@ export type LightdashConfig = {
         projectId?: string;
     };
     managedAgent: {
-        runtime: ManagedAgentRuntime;
-        anthropicApiKey: string | null;
-        skillIds: string[];
         schedule: string;
         sessionTimeoutMs: number;
         maxSteps: number;
@@ -2797,6 +2784,26 @@ const parseMobilePushCredential = (
 };
 
 export const parseConfig = (): LightdashConfig => {
+    if (process.env.MANAGED_AGENT_RUNTIME) {
+        console.warn(
+            'WARNING: MANAGED_AGENT_RUNTIME is set but no longer selects a runtime. Autopilot always runs on the AI SDK; remove the variable.',
+        );
+    }
+    // Still read for one release so operators are told to remove them and the
+    // release-safety config diff does not report them as removed.
+    const retiredManagedAgentVariables = [
+        process.env.MANAGED_AGENT_ANTHROPIC_API_KEY
+            ? 'MANAGED_AGENT_ANTHROPIC_API_KEY'
+            : null,
+        (process.env.MANAGED_AGENT_SKILL_IDS || '') !== ''
+            ? 'MANAGED_AGENT_SKILL_IDS'
+            : null,
+    ].filter((name): name is string => name !== null);
+    for (const name of retiredManagedAgentVariables) {
+        console.warn(
+            `WARNING: ${name} is set but no longer used. Autopilot runs on the organization's AI provider; remove the variable.`,
+        );
+    }
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
     if (!lightdashSecret) {
         throw new ParseError(
@@ -3716,21 +3723,6 @@ export const parseConfig = (): LightdashConfig => {
             validatedModels: parseAutopilotValidatedModels(
                 process.env.MANAGED_AGENT_VALIDATED_MODELS,
             ),
-            runtime:
-                parseEnum<ManagedAgentRuntime>(
-                    process.env.MANAGED_AGENT_RUNTIME,
-                    MANAGED_AGENT_RUNTIMES,
-                ) ?? 'ai-sdk',
-            anthropicApiKey:
-                process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
-                (!process.env.ANTHROPIC_BASE_URL
-                    ? process.env.ANTHROPIC_API_KEY
-                    : undefined) ||
-                null,
-            skillIds: (process.env.MANAGED_AGENT_SKILL_IDS || '')
-                .split(',')
-                .map((skillId) => skillId.trim())
-                .filter(Boolean),
             schedule: process.env.MANAGED_AGENT_SCHEDULE || '0 0 * * *',
             sessionTimeoutMs: getPositiveIntegerFromEnvironmentVariable(
                 'MANAGED_AGENT_SESSION_TIMEOUT_MS',
