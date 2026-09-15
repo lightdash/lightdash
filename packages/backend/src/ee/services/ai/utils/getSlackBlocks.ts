@@ -191,6 +191,7 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     repoShell: 'Reading repository',
     listProjects: 'Checking projects',
     getProjectInfo: 'Reading project',
+    listDataAppThemes: 'Checking data app themes',
 };
 
 const truncateTaskText = (text: string, maxLength = 256) =>

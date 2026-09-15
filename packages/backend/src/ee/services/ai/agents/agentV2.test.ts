@@ -1145,7 +1145,7 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('editRepo');
     });
 
-    it('exposes generateDataApp and iterateDataApp only when the data app gate is satisfied', () => {
+    it('exposes the data app tools only when the data app gate is satisfied', () => {
         const withGate = toolNames({
             enableCodingAgent: false,
             enableAiWriteback: false,
@@ -1159,8 +1159,10 @@ describe('getAgentTools workstream tool gate', () => {
 
         expect(withGate).toContain('generateDataApp');
         expect(withGate).toContain('iterateDataApp');
+        expect(withGate).toContain('listDataAppThemes');
         expect(withoutGate).not.toContain('generateDataApp');
         expect(withoutGate).not.toContain('iterateDataApp');
+        expect(withoutGate).not.toContain('listDataAppThemes');
     });
 
     it('exposes loadProjectContext when AI agent memory is enabled', () => {

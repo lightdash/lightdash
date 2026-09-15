@@ -94,6 +94,7 @@ const TOOLS_WITHOUT_PREVIEW = new Set<string>(['runSql', 'runSavedChart']);
 // in ToolCallDescription.tsx — discoverFields is intentionally excluded
 // because it has no description string but does render a subagent trace.
 const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
+    'listDataAppThemes',
     'listKnowledgeDocuments',
     'listProjects',
     'getProjectInfo',

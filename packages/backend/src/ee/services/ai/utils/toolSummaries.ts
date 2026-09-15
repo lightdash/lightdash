@@ -80,6 +80,8 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
             return 'Starting a data app build';
         case 'iterateDataApp':
             return 'Iterating on a data app';
+        case 'listDataAppThemes':
+            return 'Checking data app themes';
         case 'editRepo':
             return 'Editing repository';
         default:

@@ -372,6 +372,7 @@ export const ToolCallDescription: FC<{
         case 'getPullRequestDiff':
         case 'generateDataApp':
         case 'iterateDataApp':
+        case 'listDataAppThemes':
         case 'editDbtProject':
         case 'editProjectContext':
         case 'editRepo':
