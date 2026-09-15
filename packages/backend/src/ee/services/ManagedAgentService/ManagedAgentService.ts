@@ -3,6 +3,7 @@ import {
     AGENT_SUGGESTIONS_SPACE_SLUG,
     assertUnreachable,
     computeAutopilotExcludedSpaceUuids,
+    ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
     FeatureFlags,
     ForbiddenError,
@@ -1362,7 +1363,16 @@ export class ManagedAgentService extends BaseService {
         projectUuid: string,
         triggeredBy: ManagedAgentRunTriggeredBy,
     ): Promise<ManagedAgentRun> {
-        return this.managedAgentModel.createRun({ projectUuid, triggeredBy });
+        const run = await this.managedAgentModel.createRunIfIdle({
+            projectUuid,
+            triggeredBy,
+        });
+        if (!run) {
+            throw new ConflictError(
+                'Autopilot is already running for this project',
+            );
+        }
+        return run;
     }
 
     async getLatestRun(
@@ -1802,6 +1812,15 @@ export class ManagedAgentService extends BaseService {
         triggeredBy: 'manual' | 'on_enable' = 'manual',
     ): Promise<void> {
         await this.assertCanManageProject(user, projectUuid);
+
+        // Stale runs already read as errors, so only a live one blocks.
+        const latestRun =
+            await this.managedAgentModel.getLatestRun(projectUuid);
+        if (latestRun?.status === ManagedAgentRunStatus.STARTED) {
+            throw new ConflictError(
+                'Autopilot is already running for this project',
+            );
+        }
 
         const settings = await this.managedAgentModel.getSettings(projectUuid);
         if (settings) {
