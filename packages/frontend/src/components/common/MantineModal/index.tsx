@@ -20,6 +20,7 @@ import {
     IconTrash,
     type Icon as IconType,
 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import MantineIcon from '../MantineIcon';
 import classes from './MantineModal.module.css';
@@ -384,7 +385,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
         // Standard mode: ScrollArea with max height
         return (
             <Modal.Body p={0} className={classes.body}>
-                <ScrollArea.Autosize mah={bodyScrollAreaMaxHeight}>
+                <ScrollArea.Autosize mah={bodyScrollAreaMaxHeight} mih={0}>
                     <Stack
                         gap="md"
                         px={modalBodyProps?.px ?? 'xl'}
@@ -426,7 +427,10 @@ const MantineModal: React.FC<MantineModalProps> = ({
                     className={
                         fullScreen
                             ? classes.fullScreenContent
-                            : modalContentProps?.className
+                            : clsx(
+                                  classes.content,
+                                  modalContentProps?.className,
+                              )
                     }
                 >
                     <Modal.Header
