@@ -80,6 +80,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { Link } from 'react-router';
 import { lightdashApi } from '../../../api';
 import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import { CategoryBadge } from '../../../components/common/CategoryBadge';
@@ -108,11 +109,14 @@ import {
 } from './hooks/useManagedAgentActions';
 import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
 import { useManagedAgentRuns } from './hooks/useManagedAgentRuns';
-import { useManagedAgentRuntime } from './hooks/useManagedAgentRuntime';
+import {
+    hasManagedAgentRuntimeAlert,
+    useManagedAgentRuntime,
+} from './hooks/useManagedAgentRuntime';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
 import { ManagedAgentRunModel } from './ManagedAgentRunModel';
-import { ManagedAgentRuntimeDetails } from './ManagedAgentRuntimeDetails';
+import { ManagedAgentRuntimeAlerts } from './ManagedAgentRuntimeDetails';
 import { SuggestionsSpaceAccess } from './SuggestionsSpaceAccess';
 import { ToolActivityBadge } from './ToolActivityBadge';
 
@@ -310,6 +314,19 @@ const SetupSection: FC<{
                     <Text fz="xs" c="dimmed" ml={46}>
                         Fixes broken charts, flags stale content, suggests new
                         ones
+                        {canManageAiSettings && (
+                            <>
+                                {' · '}
+                                <Anchor
+                                    component={Link}
+                                    to="/generalSettings/ai/general"
+                                    fz="xs"
+                                    c="dimmed"
+                                >
+                                    AI settings
+                                </Anchor>
+                            </>
+                        )}
                     </Text>
                 </Stack>
                 <Group gap="xs">
@@ -343,12 +360,11 @@ const SetupSection: FC<{
                     </Button>
                 </Group>
             </Group>
-            <Box pb="md">
-                <ManagedAgentRuntimeDetails
-                    runtime={runtime}
-                    canManageAiSettings={canManageAiSettings}
-                />
-            </Box>
+            {hasManagedAgentRuntimeAlert(runtime) && (
+                <Box pb="md">
+                    <ManagedAgentRuntimeAlerts runtime={runtime} />
+                </Box>
+            )}
             <Box className={classes.headerDivider} />
         </Stack>
     );
