@@ -2,6 +2,7 @@ import { Card, Flex, useMatches, type CardProps } from '@mantine/core';
 import { type FC, type PropsWithChildren } from 'react';
 import { PAGE_HEADER_HEIGHT } from './constants';
 import classes from './PageHeader.module.css';
+import { useCompactContentHeader } from './useCompactContentHeader';
 
 type Props = PropsWithChildren<{
     cardProps?: Omit<CardProps, 'children'>;
@@ -9,10 +10,13 @@ type Props = PropsWithChildren<{
 }>;
 
 const PageHeader: FC<Props> = ({ cardProps, children, mobileLayout }) => {
-    const compact = useMatches(
+    const compactContentHeader = useCompactContentHeader();
+    const compactPageHeader = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
     );
+    const compact =
+        mobileLayout === 'content' ? compactContentHeader : compactPageHeader;
     return (
         <Card
             component={Flex}
