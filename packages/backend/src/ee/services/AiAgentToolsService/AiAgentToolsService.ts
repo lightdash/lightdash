@@ -2231,6 +2231,7 @@ export class AiAgentToolsService extends BaseService {
                 const patchedContent: unknown = JsonPatch.applyPatch(
                     structuredClone(currentContent.content),
                     patch,
+                    true,
                 ).newDocument;
                 let patchedSlug = slug;
                 let uuid: string | undefined;
