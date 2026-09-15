@@ -200,6 +200,7 @@ describe('ChartTypeGallery', () => {
 
     it('marks the selected grid card and disables cards that cannot be picked', async () => {
         const onConfigure = vi.fn();
+        const onEdit = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
                 search=""
@@ -213,6 +214,7 @@ describe('ChartTypeGallery', () => {
                                 ...galleryItem('Line chart'),
                                 disabled: true,
                                 onConfigure,
+                                onEdit,
                             },
                         ],
                     }),
@@ -229,10 +231,107 @@ describe('ChartTypeGallery', () => {
         expect(
             screen.getByRole('button', { name: 'Configure Line chart' }),
         ).toBeDisabled();
+        const moreActions = screen.getByRole('button', {
+            name: 'More actions for Line chart',
+        });
+        expect(moreActions).toBeDisabled();
         await userEvent.click(
             screen.getByRole('button', { name: 'Configure Line chart' }),
         );
+        await userEvent.click(moreActions);
         expect(onConfigure).not.toHaveBeenCalled();
+        expect(onEdit).not.toHaveBeenCalled();
+        expect(
+            screen.queryByRole('menuitem', { name: 'Edit chart type…' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('keeps selecting a tile separate from configuring it', async () => {
+        const select = vi.fn();
+        const onConfigure = vi.fn();
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                disabledReason={null}
+                sections={[
+                    gallerySection({
+                        items: [
+                            {
+                                ...galleryItem('Pie chart'),
+                                select,
+                                onConfigure,
+                            },
+                        ],
+                    }),
+                ]}
+            />,
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Pie chart' }),
+        );
+
+        expect(select).toHaveBeenCalledOnce();
+        expect(onConfigure).not.toHaveBeenCalled();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Configure Pie chart' }),
+        );
+
+        expect(onConfigure).toHaveBeenCalledOnce();
+        expect(select).toHaveBeenCalledOnce();
+    });
+
+    it('opens and dismisses an editable chart type menu from its own button', async () => {
+        const select = vi.fn();
+        const onEdit = vi.fn();
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                disabledReason={null}
+                sections={[
+                    gallerySection({
+                        items: [
+                            {
+                                ...galleryItem('Event pulse'),
+                                select,
+                                onEdit,
+                            },
+                        ],
+                    }),
+                ]}
+            />,
+        );
+
+        const menuButton = screen.getByRole('button', {
+            name: 'More actions for Event pulse',
+        });
+        menuButton.focus();
+        await userEvent.keyboard('{Enter}');
+
+        expect(
+            await screen.findByRole('menuitem', {
+                name: 'Edit chart type…',
+            }),
+        ).toBeInTheDocument();
+
+        await userEvent.keyboard('{Escape}');
+        expect(
+            screen.queryByRole('menuitem', { name: 'Edit chart type…' }),
+        ).not.toBeInTheDocument();
+        expect(menuButton).toHaveFocus();
+
+        await userEvent.keyboard('{Enter}');
+        await userEvent.click(
+            await screen.findByRole('menuitem', {
+                name: 'Edit chart type…',
+            }),
+        );
+
+        expect(onEdit).toHaveBeenCalledOnce();
+        expect(select).not.toHaveBeenCalled();
     });
 
     it('keeps keyboard focus on a card when selection rerenders it', async () => {
@@ -635,16 +734,23 @@ describe('ExplorerChartTypeGallery', () => {
         renderGallery();
 
         expect(
-            screen.queryByRole('button', { name: /Edit Event pulse/ }),
+            screen.queryByRole('button', {
+                name: 'More actions for Event pulse',
+            }),
         ).not.toBeInTheDocument();
     });
 
-    it('opens the custom chart builder directly without configuring or selecting', async () => {
+    it('opens the custom chart builder directly from the overflow menu', async () => {
         mocks.canEditChartType.mockReturnValue(true);
         const onConfigure = renderGallery();
 
         await userEvent.click(
-            screen.getByRole('button', { name: 'Edit Event pulse' }),
+            screen.getByRole('button', {
+                name: 'More actions for Event pulse',
+            }),
+        );
+        await userEvent.click(
+            await screen.findByRole('menuitem', { name: 'Edit chart type…' }),
         );
 
         expect(mocks.dispatch).toHaveBeenCalledWith({
@@ -675,7 +781,9 @@ describe('ExplorerChartTypeGallery', () => {
         renderGallery();
 
         expect(
-            screen.queryByRole('button', { name: 'Edit Event pulse' }),
+            screen.queryByRole('button', {
+                name: 'More actions for Event pulse',
+            }),
         ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Configure Event pulse' }),

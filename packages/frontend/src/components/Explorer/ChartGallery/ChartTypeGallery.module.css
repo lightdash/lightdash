@@ -29,16 +29,35 @@
 }
 
 /* Keep secondary actions quiet until hover or keyboard focus reveals them. */
-.cardActions {
+.cardConfigureAction,
+.cardMoreActions {
     opacity: 0;
     pointer-events: none;
     transition: opacity 100ms ease-out;
 }
 
-.cardWrapper:hover .cardActions,
-.cardWrapper:has(:focus-visible) .cardActions {
+.cardWrapper:hover .cardConfigureAction:not(:disabled),
+.cardWrapper:hover .cardMoreActions:not(:disabled),
+.cardWrapper:has(:focus-visible) .cardConfigureAction,
+.cardWrapper:has(:focus-visible) .cardMoreActions,
+.cardWrapper[data-menu-open='true'] .cardMoreActions {
     opacity: 1;
     pointer-events: auto;
+}
+
+.cardConfigureAction {
+    position: absolute;
+    top: var(--mantine-spacing-lg);
+    left: 50%;
+    z-index: 1;
+    transform: translateX(-50%);
+}
+
+.cardMoreActions {
+    position: absolute;
+    top: calc(var(--mantine-spacing-xs) / 2);
+    right: calc(var(--mantine-spacing-xs) / 2);
+    z-index: 2;
 }
 
 .card {
@@ -64,6 +83,11 @@
         transform 120ms cubic-bezier(0.23, 1, 0.32, 1),
         background-color 120ms ease,
         box-shadow 120ms ease;
+}
+
+.cardWrapper .card {
+    justify-content: flex-start;
+    padding-top: var(--mantine-spacing-lg);
 }
 
 .card:hover:not(:disabled):not([data-selected='true']) {
@@ -114,9 +138,19 @@
     transform: scale(0.98);
 }
 
+.cardIcon {
+    display: grid;
+    place-items: center;
+    height: 32px;
+    flex: 0 0 32px;
+    transition: opacity 100ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .card,
-    .cardActions {
+    .cardConfigureAction,
+    .cardMoreActions,
+    .cardIcon {
         transition: none;
     }
 
@@ -127,6 +161,25 @@
 
 .card:disabled {
     opacity: 0.5;
+}
+
+.cardWrapper[data-configurable='true']:hover .cardIcon,
+.cardWrapper[data-configurable='true']:has(:focus-visible) .cardIcon {
+    opacity: 0;
+}
+
+/* Touch users cannot reveal an invisible control by hovering, so preserve a
+   direct configuration target on devices without hover. */
+@media (hover: none) {
+    .cardWrapper[data-configurable='true'] .cardConfigureAction,
+    .cardMoreActions:not(:disabled) {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .cardWrapper[data-configurable='true'] .cardIcon {
+        opacity: 0;
+    }
 }
 
 /* Resting glyphs stay gray; only selection earns the blue fill. */
