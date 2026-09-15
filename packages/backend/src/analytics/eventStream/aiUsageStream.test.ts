@@ -1,4 +1,8 @@
-import type { AiUsageEvent } from '../aiUsage';
+import {
+    emitAiUsage,
+    registerAiUsageTracker,
+    type AiUsageEvent,
+} from '../aiUsage';
 import { EventStreamSink } from './EventStreamSink';
 import { EVENT_STREAM_SCHEMA_VERSION } from './projection';
 import { eventStreamRegistry } from './registry';
@@ -34,6 +38,7 @@ const aiUsageEvent: AiUsageEvent = {
         model: 'claude-sonnet-5',
         provider: 'anthropic',
         keyManagement: 'self-managed',
+        managedAgentRunId: null,
         deepResearchRunId: 'run-1',
         deepResearchPhase: 'investigating',
         inputTokens: 1000,
@@ -48,6 +53,48 @@ const aiUsageEvent: AiUsageEvent = {
 describe('ai_usage stream projection', () => {
     afterEach(() => {
         vi.clearAllMocks();
+        registerAiUsageTracker(() => {});
+    });
+
+    it('keeps Autopilot run attribution from runner telemetry through the usage stream', () => {
+        const writer = createWriterMock();
+        const sink = new EventStreamSink(eventStreamRegistry, writer);
+        registerAiUsageTracker((event) => sink.handle(event));
+        emitAiUsage(
+            {
+                functionId: 'autopilotHeartbeat',
+                metadata: {
+                    feature: 'managed-agent',
+                    runUuid: 'autopilot-run-1',
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                    provider: 'openai',
+                    model: 'gpt-test',
+                    keyManagement: 'self-managed',
+                },
+            },
+            {
+                inputTokens: 100,
+                outputTokens: 20,
+                totalTokens: 120,
+                cacheReadTokens: null,
+                cacheWriteTokens: null,
+                reasoningTokens: null,
+            },
+        );
+        expect(writer.push).toHaveBeenCalledWith(
+            'ai_usage',
+            expect.objectContaining({
+                feature: 'managed-agent',
+                managed_agent_run_id: 'autopilot-run-1',
+                provider: 'openai',
+                model: 'gpt-test',
+                key_management: 'self-managed',
+                project_id: 'project-1',
+                input_tokens: 100,
+                output_tokens: 20,
+            }),
+        );
     });
 
     it('projects an ai.usage event', () => {
@@ -97,6 +144,7 @@ describe('ai_usage stream projection', () => {
                 model: null,
                 provider: null,
                 keyManagement: null,
+                managedAgentRunId: null,
                 deepResearchRunId: null,
                 deepResearchPhase: null,
                 cacheReadTokens: null,

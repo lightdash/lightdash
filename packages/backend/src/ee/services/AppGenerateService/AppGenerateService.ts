@@ -21,6 +21,7 @@ import {
     chartTypeIconSchema,
     checkThemeLimits,
     compareSemverVersions,
+    ConflictError,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_CODEX_MODELS,
     DATA_APP_VIZ_TEMPLATE,
@@ -419,6 +420,9 @@ export type DataAppReadSource = {
 type GenerateAppOptions = {
     creationExperience?: DataAppCreationExperience;
     designUuidInput?: string | null;
+    // Iterate with designUuidInput: 'replace' swaps the prompt for a
+    // style-only restyle; 'append' adds the restyle to the prompt's change.
+    themeChangePrompt?: 'replace' | 'append';
     externalConnections?: AppExternalConnectionReference[];
     codexModelInput?: DataAppCodexModel;
     // The AI agent tool call that started the build; travels on the job so
@@ -3465,6 +3469,12 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /** Styling rules shared by every theme-change prompt. */
+    private static readonly THEME_RESTYLE_RULES = [
+        'Only change visual styling needed for the theme: colors, typography, spacing, borders, shadows, chart palette, and appropriate theme asset usage.',
+        'If a theme is active, read and use the files under /app/src/design/ and follow the organization theme instructions. Do not edit files under /app/src/design/.',
+    ];
+
     private static buildThemeChangePrompt(themeName: string | null): string {
         const target = themeName
             ? `the active organization theme "${themeName}"`
@@ -3473,8 +3483,21 @@ export class AppGenerateService extends BaseService {
         return [
             `Restyle the current app to follow ${target}.`,
             'Preserve the app content exactly: do not change text, metrics, queries, filters, chart semantics, layout intent, or interactions.',
-            'Only change visual styling needed for the theme: colors, typography, spacing, borders, shadows, chart palette, and appropriate theme asset usage.',
-            'If a theme is active, read and use the files under /app/src/design/ and follow the organization theme instructions. Do not edit files under /app/src/design/.',
+            ...AppGenerateService.THEME_RESTYLE_RULES,
+        ].join('\n');
+    }
+
+    /** The user's change plus a theme switch in one build. */
+    private static buildPromptWithThemeChange(
+        prompt: string,
+        themeName: string,
+    ): string {
+        return [
+            prompt,
+            '',
+            `In the same build, restyle the app to follow the active organization theme "${themeName}".`,
+            'Apart from the change requested above, preserve the app content exactly: do not change other text, metrics, queries, filters, chart semantics, layout intent, or interactions.',
+            ...AppGenerateService.THEME_RESTYLE_RULES,
         ].join('\n');
     }
 
@@ -6561,6 +6584,7 @@ export class AppGenerateService extends BaseService {
         const {
             creationExperience,
             designUuidInput,
+            themeChangePrompt = 'replace',
             externalConnections,
             codexModelInput,
             aiAgentToolCall,
@@ -6646,9 +6670,8 @@ export class AppGenerateService extends BaseService {
             sampleStats,
         } = await this.resolveChartReferences(refs, user, projectUuid);
 
-        // Omitted designUuid means a normal content iteration that inherits
-        // the app's current theme. Explicit string/null means "change the
-        // app theme and run a style-only iteration".
+        // Omitted designUuid inherits the app's current theme. Explicit
+        // string/null changes it; themeChangePrompt decides the prompt shape.
         const isThemeChange = designUuidInput !== undefined;
         let effectiveDesignUuid: string | null = isThemeChange
             ? designUuidInput
@@ -6682,11 +6705,17 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        const pipelinePrompt = isThemeChange
-            ? AppGenerateService.buildThemeChangePrompt(
-                  designSnapshot?.name ?? null,
-              )
-            : prompt;
+        let pipelinePrompt = prompt;
+        if (isThemeChange) {
+            const themeName = designSnapshot?.name ?? null;
+            pipelinePrompt =
+                themeChangePrompt === 'append' && themeName !== null
+                    ? AppGenerateService.buildPromptWithThemeChange(
+                          prompt,
+                          themeName,
+                      )
+                    : AppGenerateService.buildThemeChangePrompt(themeName);
+        }
 
         const resources: AppVersionResources = {
             ...AppGenerateService.toAttachmentResources(stagedFiles),
@@ -8820,9 +8849,11 @@ export class AppGenerateService extends BaseService {
 
     /**
      * Install a chart type from the chart registry, or append a new version
-     * when it's already installed at an older registry version. Registry
-     * artifacts are verified (digest-checked) and downloaded before any S3 or
-     * DB write; a DB write failure rolls back the copied S3 keys.
+     * when it's already installed at an older registry version. A soft-deleted
+     * install of the same slug is revived in place first, so charts built on
+     * it heal and the slug is not suffixed by the deleted row that owns it.
+     * Registry artifacts are verified (digest-checked) and downloaded before
+     * any S3 or DB write; a DB write failure rolls back the copied S3 keys.
      */
     async installRegistryChartType(
         user: SessionUser,
@@ -8869,9 +8900,33 @@ export class AppGenerateService extends BaseService {
 
         const installedApps =
             await this.appModel.listRegistryInstalledApps(projectUuid);
-        const existing = installedApps.find(
-            (a) => a.registry_slug === chartSlug,
-        );
+        let existing = installedApps.find((a) => a.registry_slug === chartSlug);
+        // Reinstall after uninstall: revive the soft-deleted install in
+        // place so charts built on it heal, instead of minting a new app
+        // (whose slug the deleted row would force onto a "-1" suffix).
+        let revived = false;
+        if (!existing) {
+            const deleted = await this.appModel.findNewestDeletedRegistryApp(
+                projectUuid,
+                chartSlug,
+            );
+            if (deleted) {
+                try {
+                    await this.appModel.restore(deleted.app_id, projectUuid);
+                } catch (e) {
+                    if (isUniqueConstraintViolation(e)) {
+                        // A concurrent fresh install claimed the slug between
+                        // the lookup and the restore.
+                        throw new ParameterError(
+                            'This chart type was just installed by someone else — refresh',
+                        );
+                    }
+                    throw e;
+                }
+                existing = deleted;
+                revived = true;
+            }
+        }
         if (
             existing &&
             existing.latest_ready_registry_version === entry.version
@@ -8879,11 +8934,31 @@ export class AppGenerateService extends BaseService {
             const latest = await this.appModel.getLatestReadyVersion(
                 existing.app_id,
             );
+            if (revived) {
+                // The registry icon may have moved on while uninstalled.
+                await this.appModel.updateApp(existing.app_id, projectUuid, {
+                    icon: entry.icon,
+                });
+                this.analytics.track({
+                    event: 'data_app.registry_installed',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        appUuid: existing.app_id,
+                        chartSlug: entry.slug,
+                        version: latest!.version,
+                        registryVersion: entry.version,
+                        action: 'installed',
+                        revived: true,
+                    },
+                });
+            }
             return {
                 appUuid: existing.app_id,
                 slug: chartSlug,
                 version: latest!.version,
-                action: 'unchanged',
+                action: revived ? 'installed' : 'unchanged',
             };
         }
 
@@ -8990,7 +9065,9 @@ export class AppGenerateService extends BaseService {
             throw e;
         }
 
-        const action = existing ? 'upgraded' : 'installed';
+        // A revived install reads as an install to the user even though it
+        // appends a version like an upgrade does.
+        const action = existing && !revived ? 'upgraded' : 'installed';
         this.analytics.track({
             event: 'data_app.registry_installed',
             userId: user.userUuid,
@@ -9002,6 +9079,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 registryVersion: entry.version,
                 action,
+                revived,
             },
         });
 
@@ -9652,7 +9730,28 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        await this.appModel.restore(appUuid, projectUuid);
+        // A fresh copy installed since the uninstall holds the one-active-
+        // install-per-slug index; surface that actionably instead of leaking
+        // the DB violation as a 500.
+        const restoreConflict = () =>
+            new ConflictError(
+                'A copy of this chart type is already installed. Uninstall it before restoring this one — existing charts point at the copy being restored.',
+            );
+        if (app.registry_slug !== null) {
+            const active =
+                await this.appModel.listRegistryInstalledApps(projectUuid);
+            if (active.some((a) => a.registry_slug === app.registry_slug)) {
+                throw restoreConflict();
+            }
+        }
+        try {
+            await this.appModel.restore(appUuid, projectUuid);
+        } catch (e) {
+            if (isUniqueConstraintViolation(e)) {
+                throw restoreConflict();
+            }
+            throw e;
+        }
 
         this.analytics.track({
             event: 'data_app.restored',

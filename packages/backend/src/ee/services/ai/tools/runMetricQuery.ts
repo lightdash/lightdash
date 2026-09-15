@@ -90,8 +90,12 @@ export const getRunMetricQuery = ({
 
     return tool({
         ...toolDefinition,
-        execute: async (toolArgs, { experimental_context: context }) => {
+        execute: async (
+            toolArgs,
+            { experimental_context: context, abortSignal },
+        ) => {
             try {
+                abortSignal?.throwIfAborted();
                 const ctx = AgentContext.from(context);
                 const vizTool =
                     toolRunMetricQueryArgsSchemaTransformed.parse(toolArgs);
@@ -116,6 +120,8 @@ export const getRunMetricQuery = ({
                         filterAggregationCustomMetrics(vizTool.customMetrics),
                         explore,
                     ),
+                    undefined,
+                    abortSignal,
                 );
 
                 if (results.rows.length === 0) {

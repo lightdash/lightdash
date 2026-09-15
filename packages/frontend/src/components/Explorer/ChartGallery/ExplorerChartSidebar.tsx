@@ -105,60 +105,69 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         isAuthoring && !selectedProjectType
             ? 'New chart type'
             : selectedItem.label;
+    const closeButton = !isAuthoring && (
+        <Tooltip label="Close visualization config" position="right">
+            <ActionIcon
+                size="sm"
+                aria-label="Close visualization config"
+                onClick={handleClose}
+            >
+                <MantineIcon icon={IconX} />
+            </ActionIcon>
+        </Tooltip>
+    );
 
     return (
         <ChartGalleryContext.Provider value={true}>
             <Stack className={classes.root} gap={0}>
-                <Group
-                    className={classes.header}
-                    justify="space-between"
-                    wrap="nowrap"
-                >
-                    <Group gap="xs" wrap="nowrap">
-                        <MantineIcon icon={IconSettings} />
-                        <Text
-                            id={CHART_GALLERY_SIDEBAR_TITLE_ID}
-                            fw={600}
-                            tabIndex={-1}
-                        >
-                            {/* While authoring, the panel holds the type's
-                                generated options, titled as the gallery
-                                builder titles them. */}
-                            {isAuthoring
-                                ? 'Generated options'
-                                : 'Configure chart'}
-                        </Text>
-                    </Group>
-                    {!isAuthoring && (
-                        <Tooltip
-                            label="Close visualization config"
-                            position="right"
-                        >
-                            <ActionIcon
-                                size="sm"
-                                aria-label="Close visualization config"
-                                onClick={handleClose}
+                {isAuthoring && (
+                    <Group className={classes.header} wrap="nowrap">
+                        <Group gap="xs" wrap="nowrap">
+                            <MantineIcon icon={IconSettings} />
+                            <Text
+                                id={CHART_GALLERY_SIDEBAR_TITLE_ID}
+                                fw={600}
+                                tabIndex={-1}
                             >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
+                                {/* While authoring, the panel holds the type's
+                                    generated options, titled as the gallery
+                                    builder titles them. */}
+                                Generated options
+                            </Text>
+                        </Group>
+                    </Group>
+                )}
 
-                <Stack className={classes.body} gap="md">
+                <Stack
+                    className={classes.body}
+                    gap="md"
+                    pt={isAuthoring ? 'md' : 0}
+                >
                     {step === 'choose' ? (
                         <>
-                            <Group gap="xs" wrap="nowrap">
-                                <ActionIcon
-                                    size="sm"
-                                    aria-label="Back to configuration"
-                                    onClick={showConfigure}
-                                >
-                                    <MantineIcon icon={IconArrowLeft} />
-                                </ActionIcon>
-                                <Text fw={600} fz="sm">
-                                    Choose chart type
-                                </Text>
+                            <Group justify="space-between" wrap="nowrap">
+                                <Group gap="xs" wrap="nowrap">
+                                    <ActionIcon
+                                        size="sm"
+                                        aria-label="Back to configuration"
+                                        onClick={showConfigure}
+                                    >
+                                        <MantineIcon icon={IconArrowLeft} />
+                                    </ActionIcon>
+                                    <Text
+                                        id={
+                                            !isAuthoring
+                                                ? CHART_GALLERY_SIDEBAR_TITLE_ID
+                                                : undefined
+                                        }
+                                        fw={600}
+                                        fz="sm"
+                                        tabIndex={-1}
+                                    >
+                                        Choose chart type
+                                    </Text>
+                                </Group>
+                                {closeButton}
                             </Group>
                             <ExplorerChartTypeGallery
                                 onSelected={showConfigure}
@@ -172,7 +181,18 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                     icon={selectedItem.icon}
                                     rotatedIcon={selectedItem.rotatedIcon}
                                 />
-                                <Text fw={600} fz="sm" truncate flex={1}>
+                                <Text
+                                    id={
+                                        !isAuthoring
+                                            ? CHART_GALLERY_SIDEBAR_TITLE_ID
+                                            : undefined
+                                    }
+                                    fw={600}
+                                    fz="sm"
+                                    truncate
+                                    flex={1}
+                                    tabIndex={-1}
+                                >
                                     {selectedLabel}
                                 </Text>
                                 {!isAuthoring && canEditSelectedType && (
@@ -211,6 +231,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                         Change
                                     </Anchor>
                                 )}
+                                {closeButton}
                             </Group>
 
                             <VisualizationConfig chartType={chartType} />

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 import {
+    DATA_APP_THEME_SLUG_DESCRIPTION,
     isToolGenerateDataAppResult,
     toolGenerateDataAppOutputSchema,
     type ToolGenerateDataAppOutput,
@@ -39,6 +40,13 @@ export const toolIterateDataAppArgsSchema = z.object({
         .default(null)
         .describe(
             'Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts.',
+        ),
+    themeSlug: z
+        .string()
+        .nullish()
+        .default(null)
+        .describe(
+            `${DATA_APP_THEME_SLUG_DESCRIPTION} On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme.`,
         ),
 });
 

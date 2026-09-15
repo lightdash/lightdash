@@ -43,3 +43,6 @@ export const dataAppRestoreContextKey = ({
 /** Identity of a pinned data app as prompt context. */
 export const dataAppContextKey = (appUuid: string): string =>
     `data_app:${appUuid}`;
+/** Identity of a pinned organization theme as prompt context. */
+export const designContextKey = (designUuid: string): string =>
+    `design:${designUuid}`;

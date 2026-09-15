@@ -33,6 +33,7 @@ const executeGenerateDataApp = (tool: GenerateDataAppTool) =>
             template: 'dashboard',
             dashboardSlug: null,
             chartSlugs: ['revenue-by-month'],
+            themeSlug: null,
         },
         { messages: [], toolCallId: 'tool-call-1' },
     ) as Promise<GenerateDataAppOutput>;
@@ -56,6 +57,7 @@ describe('getGenerateDataApp', () => {
             template: 'dashboard',
             dashboardSlug: null,
             chartSlugs: ['revenue-by-month'],
+            themeSlug: null,
             toolCallId: 'tool-call-1',
         });
         expect(output.metadata).toEqual({

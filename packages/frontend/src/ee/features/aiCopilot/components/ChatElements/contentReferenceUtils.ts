@@ -3,6 +3,7 @@ import {
     dataAppContextKey,
     dataAppElementContextKey,
     dataAppRestoreContextKey,
+    designContextKey,
     type AiPromptContextInput,
     type AiPromptContextItem,
 } from '@lightdash/common';
@@ -10,15 +11,18 @@ import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 
 // Element references never render inline; they always show as pills.
 // Restore items live on hidden turns and are rendered as build cards.
+// A theme pick is a composer setting, not a mention, so it stays a chip.
 type InlineReferenceItem = Exclude<
     AiPromptContextItem,
-    { type: 'data_app_element' | 'data_app_restore' }
+    { type: 'data_app_element' | 'data_app_restore' | 'design' }
 >;
 
 const isInlineReferenceItem = (
     item: AiPromptContextItem,
 ): item is InlineReferenceItem =>
-    item.type !== 'data_app_element' && item.type !== 'data_app_restore';
+    item.type !== 'data_app_element' &&
+    item.type !== 'data_app_restore' &&
+    item.type !== 'design';
 
 export type ContentReferenceSegment =
     | {
@@ -62,10 +66,16 @@ export const getPromptContextItemKey = (
             return dataAppRestoreContextKey(item);
         case 'data_app':
             return dataAppContextKey(item.appUuid);
+        case 'design':
+            return designContextKey(item.designUuid);
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
 };
+
+export const getThemeContextItemLabel = (
+    item: Extract<AiPromptContextItem, { type: 'design' }>,
+): string => `Theme: ${item.displayName ?? item.designSlug ?? 'unavailable'}`;
 
 export const getDataAppContextItemName = (
     item: Pick<
@@ -155,6 +165,9 @@ export const getPromptContextItemHref = (
             return null;
         case 'data_app':
             return dataAppHref(projectUuid, item.appUuid);
+        // A theme is an organization setting with no in-thread destination.
+        case 'design':
+            return null;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }

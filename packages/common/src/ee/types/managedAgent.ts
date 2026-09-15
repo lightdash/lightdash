@@ -208,6 +208,18 @@ export const resolveManagedAgentPolicy = (
     return result.success ? result.data : DEFAULT_MANAGED_AGENT_POLICY;
 };
 
+export type ManagedAgentRuntimeInfo = {
+    runtime: 'anthropic-managed' | 'ai-sdk';
+    provider: string | null;
+    model: string | null;
+    keySource: 'organization' | 'instance' | null;
+    keyManagement: 'self-managed' | 'lightdash-managed' | null;
+    requestedCleanupMode: ManagedAgentAggression;
+    effectiveCleanupMode: ManagedAgentAggression;
+    notice: string | null;
+    error: string | null;
+};
+
 export type ManagedAgentSettings = {
     projectUuid: string;
     enabled: boolean;
@@ -309,6 +321,8 @@ export type ManagedAgentRun = {
     triggeredBy: ManagedAgentRunTriggeredBy;
     status: ManagedAgentRunStatus;
     sessionId: string | null;
+    modelProvider: string | null;
+    modelName: string | null;
     startedAt: Date;
     finishedAt: Date | null;
     actionCount: number;

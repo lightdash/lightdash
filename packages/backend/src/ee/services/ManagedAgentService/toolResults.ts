@@ -85,6 +85,27 @@ type ManagedAgentBrokenContentItem = {
     errors_truncated: boolean;
 };
 
+export const formatManagedAgentBrokenContentPage = (
+    items: ManagedAgentBrokenContentItem[],
+    limit: number,
+    cursor: string | null,
+): string => {
+    const remaining = items
+        .filter((item) => cursor === null || item.uuid > cursor)
+        .sort((left, right) => {
+            if (left.uuid === right.uuid) return 0;
+            return left.uuid < right.uuid ? -1 : 1;
+        });
+    const page = buildManagedAgentToolListResult(remaining, limit);
+    return JSON.stringify({
+        ...page,
+        total_count: items.length,
+        next_cursor: page.truncated
+            ? page.items[page.items.length - 1].uuid
+            : null,
+    });
+};
+
 export const summarizeManagedAgentBrokenContent = (
     validations: {
         uuid: string;

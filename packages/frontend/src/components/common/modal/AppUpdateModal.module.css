@@ -1,0 +1,7 @@
+.iconPicker {
+    /* Keep the icon on the Name input line when its validation message adds
+       height to the adjacent InputWrapper. */
+    padding-top: calc(
+        var(--mantine-font-size-sm) * var(--mantine-line-height-sm) + rem(4px)
+    );
+}

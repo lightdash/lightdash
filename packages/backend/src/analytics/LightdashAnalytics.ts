@@ -72,14 +72,14 @@ import Analytics, {
 import { EventEmitter } from 'events';
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { LightdashConfig } from '../config/parseConfig';
+import { LightdashConfig, ManagedAgentRuntime } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
 import Logger from '../logging/logger';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
-import type { AiUsageEvent } from './aiUsage';
+import type { AiKeyManagement, AiUsageEvent } from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 import type {
     UpgradeEventName,
@@ -2093,6 +2093,8 @@ export type DataAppRegistryInstalledEvent = BaseTrack & {
         version: number;
         registryVersion: string;
         action: 'installed' | 'upgraded';
+        /** The install revived a soft-deleted copy instead of creating one. */
+        revived: boolean;
     };
 };
 
@@ -2319,6 +2321,10 @@ export type ManagedAgentRunCompletedEvent = BaseTrack & {
         runUuid: string;
         triggeredBy: 'cron' | 'manual' | 'on_enable';
         status: 'completed' | 'error';
+        runtime: ManagedAgentRuntime;
+        provider: string | null;
+        model: string | null;
+        keyManagement: AiKeyManagement | null;
         durationMs: number;
         actionCount: number;
         actionCountsByType: Record<string, number>;

@@ -4,6 +4,7 @@ import {
     IconArrowRight,
     IconAppWindow,
     IconBrandGithub,
+    IconBrush,
     IconChartBar,
     IconClick,
     IconFile,
@@ -29,6 +30,7 @@ type ContentReferenceKind =
     | 'dashboard'
     | 'data_app'
     | 'data_app_element'
+    | 'design'
     | 'thread'
     | 'file'
     | 'repository'
@@ -81,6 +83,12 @@ const getIconMeta = ({
                 color: 'violet.7',
                 fill: 'violet.4',
                 icon: IconClick,
+            };
+        case 'design':
+            return {
+                color: 'pink.7',
+                fill: 'pink.4',
+                icon: IconBrush,
             };
         case 'artifact':
             return {

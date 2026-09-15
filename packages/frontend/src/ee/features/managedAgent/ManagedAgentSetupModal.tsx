@@ -1,4 +1,4 @@
-import { ManagedAgentScheduleOption } from '@lightdash/common';
+import { type ApiError, ManagedAgentScheduleOption } from '@lightdash/common';
 import { Box, Group, Select, Stack, Text } from '@mantine/core';
 import {
     IconChartBar,
@@ -11,6 +11,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FC, useState } from 'react';
 import { lightdashApi } from '../../../api';
 import MantineModal from '../../../components/common/MantineModal';
+import useToaster from '../../../hooks/toaster/useToaster';
+import useApp from '../../../providers/App/useApp';
+import { useManagedAgentRuntime } from './hooks/useManagedAgentRuntime';
+import { ManagedAgentRuntimeDetails } from './ManagedAgentRuntimeDetails';
 import classes from './ManagedAgentSetupModal.module.css';
 
 const updateSettings = async (
@@ -38,7 +42,7 @@ const CAPABILITIES = [
     {
         icon: IconClock,
         title: 'Stale content cleanup',
-        detail: 'Flags charts & dashboards not viewed in 3+ months and preview projects older than 3 months. Zero-view content is soft-deleted.',
+        detail: 'Reviews stale charts, dashboards, and preview projects. Flags or deletes content according to the cleanup mode and project protections.',
     },
     {
         icon: IconTool,
@@ -65,9 +69,12 @@ export const ManagedAgentSetupModal: FC<{
     onEnabled: () => void;
 }> = ({ projectUuid, opened, onClose, onEnabled }) => {
     const queryClient = useQueryClient();
+    const { user } = useApp();
+    const runtime = useManagedAgentRuntime(projectUuid, opened);
+    const { showToastApiError } = useToaster();
     const [schedule, setSchedule] = useState(ManagedAgentScheduleOption.DAILY);
 
-    const mutation = useMutation({
+    const mutation = useMutation<unknown, ApiError>({
         mutationFn: () =>
             updateSettings(projectUuid, {
                 enabled: true,
@@ -82,6 +89,12 @@ export const ManagedAgentSetupModal: FC<{
             });
             onEnabled();
         },
+        onError: (error) => {
+            showToastApiError({
+                title: 'Failed to enable Autopilot',
+                apiError: error.error,
+            });
+        },
     });
 
     return (
@@ -94,6 +107,9 @@ export const ManagedAgentSetupModal: FC<{
             onConfirm={() => mutation.mutate()}
             confirmLabel="Enable"
             confirmLoading={mutation.isLoading}
+            confirmDisabled={
+                runtime.isLoading || runtime.isError || !!runtime.data?.error
+            }
             cancelDisabled={mutation.isLoading}
         >
             <Stack gap="xl">
@@ -121,17 +137,25 @@ export const ManagedAgentSetupModal: FC<{
                             <Box className={classes.capIcon}>
                                 <cap.icon size={14} />
                             </Box>
-                            <div>
+                            <Box>
                                 <Text fz="sm" fw={600}>
                                     {cap.title}
                                 </Text>
                                 <Text fz="xs" c="dimmed" lh={1.5}>
                                     {cap.detail}
                                 </Text>
-                            </div>
+                            </Box>
                         </Group>
                     ))}
                 </Stack>
+
+                <ManagedAgentRuntimeDetails
+                    runtime={runtime}
+                    canManageAiSettings={
+                        user.data?.ability.can('manage', 'Organization') ??
+                        false
+                    }
+                />
 
                 {/* Schedule */}
                 <Box>

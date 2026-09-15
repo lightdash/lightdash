@@ -2366,6 +2366,72 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeMetricQueryAndGetResults', () => {
+        it('does not submit a query after cancellation', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.executeAsyncMetricQuery = vi.fn();
+            const controller = new AbortController();
+            controller.abort(new Error('Run timed out'));
+            await expect(
+                service.executeMetricQueryAndGetResults(
+                    {
+                        account: sessionAccount,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.AI,
+                    },
+                    { abortSignal: controller.signal },
+                ),
+            ).rejects.toThrow('Run timed out');
+            expect(service.executeAsyncMetricQuery).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            QueryHistoryStatus.QUEUED,
+            QueryHistoryStatus.EXECUTING,
+            QueryHistoryStatus.READY,
+        ])(
+            'cancels unfinished warehouse work after an abort (%s)',
+            async (status) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const controller = new AbortController();
+                service.executeAsyncMetricQuery = vi.fn().mockResolvedValue({
+                    queryUuid: 'query-uuid',
+                    cacheMetadata: { cacheHit: false },
+                    fields: {},
+                });
+                service.pollForQueryCompletion = vi.fn(
+                    async ({ abortSignal }) => {
+                        expect(abortSignal).toBe(controller.signal);
+                        controller.abort(new Error('Run timed out'));
+                        throw controller.signal.reason;
+                    },
+                );
+                service.queryHistoryModel.get = vi
+                    .fn()
+                    .mockResolvedValue({ status });
+                service.cancelAsyncQuery = vi.fn().mockResolvedValue(undefined);
+                await expect(
+                    service.executeMetricQueryAndGetResults(
+                        {
+                            account: sessionAccount,
+                            projectUuid,
+                            metricQuery: metricQueryMock,
+                            context: QueryExecutionContext.AI,
+                        },
+                        { abortSignal: controller.signal },
+                    ),
+                ).rejects.toThrow('Run timed out');
+                if (status === QueryHistoryStatus.READY)
+                    expect(service.cancelAsyncQuery).not.toHaveBeenCalled();
+                else
+                    expect(service.cancelAsyncQuery).toHaveBeenCalledWith({
+                        account: sessionAccount,
+                        projectUuid,
+                        queryUuid: 'query-uuid',
+                    });
+            },
+        );
+
         it('preserves the query UUID with the ready results', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             service.executeAsyncMetricQuery = vi.fn().mockResolvedValue({

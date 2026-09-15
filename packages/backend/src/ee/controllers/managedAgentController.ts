@@ -5,9 +5,11 @@ import {
     ManagedAgentActionType,
     ManagedAgentRun,
     ManagedAgentRunsListResponse,
+    ManagedAgentRuntimeInfo,
     ManagedAgentSettings,
     ManagedAgentTargetType,
     UpdateManagedAgentSettings,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -40,6 +42,22 @@ import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgen
 export class ManagedAgentController extends BaseController {
     private getManagedAgentService() {
         return this.services.getManagedAgentService<ManagedAgentService>();
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/runtime')
+    @OperationId('getManagedAgentRuntime')
+    async getRuntimeInfo(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<{ status: 'ok'; results: ManagedAgentRuntimeInfo }> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getManagedAgentService().getRuntimeInfo(
+            req.account,
+            projectUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

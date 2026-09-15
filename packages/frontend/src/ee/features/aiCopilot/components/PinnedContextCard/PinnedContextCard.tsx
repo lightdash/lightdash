@@ -4,7 +4,10 @@ import { type FC, type MouseEvent } from 'react';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
-import { getDataAppContextItemLabel } from '../ChatElements/contentReferenceUtils';
+import {
+    getDataAppContextItemLabel,
+    getThemeContextItemLabel,
+} from '../ChatElements/contentReferenceUtils';
 import {
     isPlainLeftClick,
     useDataAppPreviewLink,
@@ -189,6 +192,12 @@ export const PinnedContextCard: FC<Props> = ({
         // System-only: written by the thread restore, rendered as a build card.
         case 'data_app_restore':
             return null;
+        case 'design':
+            return (
+                <ContentReferenceLink kind="design" showArrow={false}>
+                    {getThemeContextItemLabel(item)}
+                </ContentReferenceLink>
+            );
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }

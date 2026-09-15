@@ -137,7 +137,11 @@ _Avoid_: dashboard export, dashboard JSON, layout
 **Theme**:
 An organization-level bundle of CSS, fonts, images, a skill.md, and extra
 instructions that the coding agent applies when building an app. One theme
-can be the organization default. Named "design" in code.
+can be the organization default, which applies whenever no theme is chosen.
+The builder picks one per app; the AI agent passes one by slug on the builds
+it starts, from the theme pinned to the prompt or named in it. Switching an
+existing app's theme is an iteration, on its own or together with a content
+change. Named "design" in code.
 _Avoid_: design, style, skin, brand kit
 
 **External connection**:
@@ -218,8 +222,9 @@ _Avoid_: AI analyst, copilot (in code and docs), assistant, the agent
 The card under an AI agent reply that follows a build the agent started,
 or a restore made from the thread: queued, building (status message and
 narration), ready, failed, cancelled, or unavailable. Each card names one
-version; View opens that version in the thread's preview panel, and only
-the card for the version on show is active. It reads the version while the
+version and, once ready, the theme that version was built with; View opens
+that version in the thread's preview panel, and only the card for the
+version on show is active. It reads the version while the
 tool result is pending and the tool result once it is terminal; when a
 build watched in the thread lands, the app opens in the thread's preview
 panel.

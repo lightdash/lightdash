@@ -418,6 +418,7 @@ export type RunAsyncQueryFn = (
     metricQuery: AiMetricQueryWithFilters,
     additionalMetrics?: AdditionalMetric[],
     parameters?: ParametersValuesMap,
+    abortSignal?: AbortSignal,
 ) => Promise<{
     queryUuid: string;
     rows: Record<string, AnyType>[];
@@ -658,6 +659,7 @@ export type GenerateDataAppFn = (args: {
     template: DataAppBuildTemplate | null;
     dashboardSlug: string | null;
     chartSlugs: string[] | null;
+    themeSlug: string | null;
     toolCallId: string;
 }) => Promise<{ appUuid: string; version: number }>;
 
@@ -668,6 +670,7 @@ export type IterateDataAppFn = (args: {
     prompt: string;
     dashboardSlug: string | null;
     chartSlugs: string[] | null;
+    themeSlug: string | null;
     toolCallId: string;
 }) => Promise<{ appUuid: string; version: number }>;
 

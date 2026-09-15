@@ -2445,3 +2445,27 @@ describe('ai copilot key management config', () => {
         ]);
     });
 });
+
+describe('autopilot run limits', () => {
+    afterEach(() => {
+        delete process.env.MANAGED_AGENT_MAX_STEPS;
+        delete process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS;
+    });
+
+    test('defaults to 120 steps and a 10 minute session', () => {
+        expect(parseConfig().managedAgent).toMatchObject({
+            maxSteps: 120,
+            sessionTimeoutMs: 600_000,
+        });
+    });
+
+    test.each([
+        ['MANAGED_AGENT_MAX_STEPS', '0'],
+        ['MANAGED_AGENT_MAX_STEPS', '-5'],
+        ['MANAGED_AGENT_SESSION_TIMEOUT_MS', '0'],
+        ['MANAGED_AGENT_SESSION_TIMEOUT_MS', '2147483648'],
+    ])('rejects %s=%s at boot', (name, value) => {
+        process.env[name] = value;
+        expect(() => parseConfig()).toThrow(name);
+    });
+});

@@ -11,7 +11,10 @@ import {
     explorerActions,
 } from '../../../features/explorer/store';
 import { renderWithProviders } from '../../../testing/testUtils';
-import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryContext';
+import {
+    CHART_GALLERY_SEARCH_ID,
+    CHART_GALLERY_SIDEBAR_TITLE_ID,
+} from '../../common/ChartGallery/ChartGalleryContext';
 import ExplorerChartSidebar from './ExplorerChartSidebar';
 
 vi.mock('../VisualizationCard/VisualizationConfig', () => ({
@@ -201,6 +204,27 @@ describe('ExplorerChartSidebar', () => {
             screen.queryByRole('button', { name: 'Edit chart type' }),
         ).not.toBeInTheDocument();
     });
+
+    it('uses the selected chart title instead of a duplicate Configure chart header', () => {
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText('Table')).toHaveAttribute(
+            'id',
+            CHART_GALLERY_SIDEBAR_TITLE_ID,
+        );
+        expect(screen.queryByText('Configure chart')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'Close visualization config',
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('moves from Configure to Choose and back after selection', async () => {
         renderSidebar(
             <ExplorerChartSidebar

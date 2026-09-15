@@ -73,6 +73,7 @@ import {
 import cronstrue from 'cronstrue';
 import { type Knex } from 'knex';
 import { uniq } from 'lodash';
+import pLimit from 'p-limit';
 import { v4 as uuidv4 } from 'uuid';
 import {
     CreateDashboardOrVersionEvent,
@@ -2895,28 +2896,40 @@ export class DashboardService
         await this.assertCanDeleteGitBackedDashboard(user, dashboardToDelete);
 
         if (hasChartsInDashboard(dashboardToDelete)) {
-            try {
-                await Promise.all(
-                    tiles.map(async (tile) => {
+            const limit = pLimit(1);
+            const explores = new Map<string, Promise<Explore | ExploreError>>();
+            await Promise.all(
+                tiles.map((tile) =>
+                    limit(async () => {
                         if (
-                            isDashboardChartTileType(tile) &&
-                            tile.properties.belongsToDashboard &&
-                            tile.properties.savedChartUuid
+                            !isDashboardChartTileType(tile) ||
+                            !tile.properties.belongsToDashboard ||
+                            !tile.properties.savedChartUuid
                         ) {
+                            return;
+                        }
+                        try {
                             const chartInDashboard =
                                 await this.savedChartModel.get(
                                     tile.properties.savedChartUuid,
                                 );
-
-                            const cachedExplore =
-                                await this.projectModel.getExploreFromCache(
+                            let explore = explores.get(
+                                chartInDashboard.tableName,
+                            );
+                            if (!explore) {
+                                explore = this.projectModel.getExploreFromCache(
                                     projectUuid,
                                     chartInDashboard.tableName,
                                 );
-
+                                // Keep failed lookups too: a missing Explore can load the whole project cache.
+                                explores.set(
+                                    chartInDashboard.tableName,
+                                    explore,
+                                );
+                            }
                             await this.updateChartFieldUsage(
                                 projectUuid,
-                                cachedExplore,
+                                await explore,
                                 {
                                     oldChartFields: {
                                         metrics:
@@ -2932,15 +2945,15 @@ export class DashboardService
                                     },
                                 },
                             );
+                        } catch (error) {
+                            this.logger.error(
+                                `Error updating chart field usage for dashboard ${dashboardToDelete.uuid}`,
+                                error,
+                            );
                         }
                     }),
-                );
-            } catch (error) {
-                this.logger.error(
-                    `Error updating chart field usage for dashboard ${dashboardToDelete.uuid}`,
-                    error,
-                );
-            }
+                ),
+            );
         }
 
         const resolvedUuid = dashboardToDelete.uuid;

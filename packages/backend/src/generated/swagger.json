@@ -12807,6 +12807,62 @@
                 "required": ["pushToken"],
                 "type": "object"
             },
+            "ManagedAgentAggression": {
+                "type": "string",
+                "enum": ["observe", "flag", "cleanup"]
+            },
+            "ManagedAgentRuntimeInfo": {
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "notice": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "effectiveCleanupMode": {
+                        "$ref": "#/components/schemas/ManagedAgentAggression"
+                    },
+                    "requestedCleanupMode": {
+                        "$ref": "#/components/schemas/ManagedAgentAggression"
+                    },
+                    "keyManagement": {
+                        "type": "string",
+                        "enum": ["self-managed", "lightdash-managed", null],
+                        "nullable": true
+                    },
+                    "keySource": {
+                        "type": "string",
+                        "enum": ["organization", "instance", null],
+                        "nullable": true
+                    },
+                    "model": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "provider": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "runtime": {
+                        "type": "string",
+                        "enum": ["anthropic-managed", "ai-sdk"]
+                    }
+                },
+                "required": [
+                    "error",
+                    "notice",
+                    "effectiveCleanupMode",
+                    "requestedCleanupMode",
+                    "keyManagement",
+                    "keySource",
+                    "model",
+                    "provider",
+                    "runtime"
+                ],
+                "type": "object"
+            },
             "ManagedAgentScheduleOption": {
                 "enum": [
                     "every_6_hours",
@@ -12816,10 +12872,6 @@
                     "weekly"
                 ],
                 "type": "string"
-            },
-            "ManagedAgentAggression": {
-                "type": "string",
-                "enum": ["observe", "flag", "cleanup"]
             },
             "ManagedAgentAudience": {
                 "type": "string",
@@ -13098,6 +13150,14 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "modelName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "modelProvider": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "sessionId": {
                         "type": "string",
                         "nullable": true
@@ -13123,6 +13183,8 @@
                     "actionCount",
                     "finishedAt",
                     "startedAt",
+                    "modelName",
+                    "modelProvider",
                     "sessionId",
                     "status",
                     "triggeredBy",
@@ -16323,6 +16385,36 @@
                     }
                 ]
             },
+            "NestedTableProvenance": {
+                "properties": {
+                    "joinCondition": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the warehouse plans the lateral join without a condition."
+                    },
+                    "offsetSql": {
+                        "type": "string"
+                    },
+                    "elementSql": {
+                        "type": "string"
+                    },
+                    "columnPath": {
+                        "type": "string"
+                    },
+                    "parentTable": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "joinCondition",
+                    "offsetSql",
+                    "elementSql",
+                    "columnPath",
+                    "parentTable"
+                ],
+                "type": "object",
+                "description": "Where a virtual table comes from and how its element is addressed in SQL.\n`elementSql` is what `${TABLE}` resolves to for its fields: the alias itself\nwhere the unnest yields the element (BigQuery), `alias.col` where it yields\na row around it (Databricks)."
+            },
             "OrderFieldsByStrategy": {
                 "enum": ["LABEL", "INDEX"],
                 "type": "string"
@@ -16531,16 +16623,7 @@
                         "type": "array"
                     },
                     "nestedFrom": {
-                        "properties": {
-                            "columnPath": {
-                                "type": "string"
-                            },
-                            "parentTable": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["columnPath", "parentTable"],
-                        "type": "object",
+                        "$ref": "#/components/schemas/NestedTableProvenance",
                         "description": "Set on tables unnested from a repeated column of `parentTable`; their grain is derived, so they carry no primary key."
                     },
                     "sqlTable": {
@@ -33981,6 +34064,18 @@
             },
             "ContentReviewSimilarContentItem": {
                 "properties": {
+                    "explanation": {
+                        "type": "string"
+                    },
+                    "matchReason": {
+                        "type": "string",
+                        "enum": [
+                            "same_name",
+                            "similar_name",
+                            "potential_duplicate",
+                            "related"
+                        ]
+                    },
                     "score": {
                         "type": "number",
                         "format": "double"
@@ -34034,6 +34129,52 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_SavedChart.metricQuery-or-parameters-or-merge_": {
+                "properties": {
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery",
+                        "description": "The query configuration defining what data to fetch"
+                    },
+                    "merge": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SavedMergeQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
+                    }
+                },
+                "required": ["metricQuery"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ChartSimilarityContext": {
+                "$ref": "#/components/schemas/Pick_SavedChart.metricQuery-or-parameters-or-merge_"
+            },
+            "FindSimilarContentBody": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/ChartSimilarityContext"
+                    },
+                    "excludeContentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentReviewContentType"
+                    }
+                },
+                "required": ["excludeContentUuid", "name", "contentType"],
                 "type": "object"
             },
             "ContentReviewUser": {
@@ -56761,6 +56902,11 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
                     "verification": {
                         "allOf": [
                             {
@@ -56930,6 +57076,11 @@
                         "format": "double"
                     },
                     "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastViewedAt": {
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
@@ -59505,6 +59656,42 @@
                 "required": ["enabled", "id"],
                 "type": "object"
             },
+            "DirectAccessPrincipalType.GROUP": {
+                "enum": ["group"],
+                "type": "string"
+            },
+            "DirectAccessGroupPrincipal": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "groupUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DirectAccessPrincipalType.GROUP"
+                    }
+                },
+                "required": ["name", "groupUuid", "type"],
+                "type": "object"
+            },
+            "ApiDirectAccessGroupsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DirectAccessGroupPrincipal"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "DirectAccessPrincipalType.USER": {
                 "enum": ["user"],
                 "type": "string"
@@ -59535,25 +59722,6 @@
                     "userUuid",
                     "type"
                 ],
-                "type": "object"
-            },
-            "DirectAccessPrincipalType.GROUP": {
-                "enum": ["group"],
-                "type": "string"
-            },
-            "DirectAccessGroupPrincipal": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "groupUuid": {
-                        "$ref": "#/components/schemas/UUID"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/DirectAccessPrincipalType.GROUP"
-                    }
-                },
-                "required": ["name", "groupUuid", "type"],
                 "type": "object"
             },
             "DirectAccessPrincipal": {
@@ -59898,6 +60066,11 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
                     "verification": {
                         "allOf": [
                             {
@@ -60071,6 +60244,11 @@
                         "required": ["lastName", "firstName", "uuid"],
                         "type": "object",
                         "nullable": true
+                    },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -60190,6 +60368,11 @@
                         },
                         "required": ["lastName", "firstName", "uuid"],
                         "type": "object",
+                        "nullable": true
+                    },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
                         "nullable": true
                     },
                     "directAccessRoles": {
@@ -61116,7 +61299,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.206.2",
+        "version": "2.215.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -74462,9 +74645,10 @@
                         }
                     }
                 },
-                "description": "Charts or dashboards in shared spaces with a similar name, so a requester can check before submitting",
+                "description": "Deprecated — use POST /similar for AI-powered chart comparison instead.\nPreserves name matching until 14 December 2026. The replacement requires Ambient AI and a saved chart UUID or metric query context.",
                 "summary": "Find similar content",
                 "tags": ["Content Review Requests"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -74499,7 +74683,58 @@
                             "$ref": "#/components/schemas/UUID"
                         }
                     }
-                ]
+                ],
+                "x-mint": {
+                    "content": "<Warning>This endpoint is deprecated and scheduled for removal after 14 December 2026. Migrate to POST /api/v1/projects/{projectUuid}/review-requests/similar with contentType, name, excludeContentUuid, and chart query context when comparing unsaved charts. The replacement requires Ambient AI; it does not support name-only, SQL chart, or dashboard comparisons.</Warning>"
+                }
+            },
+            "post": {
+                "operationId": "compareSimilarContentForReview",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewSimilarContentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Find related charts using names and query definitions",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FindSimilarContentBody"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/review-requests/content/{contentType}/{contentUuid}": {
@@ -99347,6 +99582,63 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/direct-access/{resourceType}/{resourceUuid}/groups": {
+            "get": {
+                "operationId": "List direct access groups",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDirectAccessGroupsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List project groups eligible for sharing this resource. Requires the\nsame permission as managing its direct access assignments.",
+                "summary": "List groups eligible for direct access",
+                "tags": ["v2", "Direct Access"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/DirectAccessResourceType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]

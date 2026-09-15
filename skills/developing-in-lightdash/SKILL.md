@@ -5,6 +5,8 @@ description: Use when working with Lightdash YAML files, dbt models with Lightda
 
 # Developing in Lightdash
 
+For CLI users and writeback sandboxes working with YAML and dbt files.
+
 Build and deploy Lightdash analytics projects. This skill covers the **semantic layer** (metrics, dimensions, joins) and **content** (charts, dashboards).
 
 ## When to Use

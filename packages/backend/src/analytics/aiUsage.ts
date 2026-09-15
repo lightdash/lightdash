@@ -129,6 +129,7 @@ export type AiUsageEvent = BaseTrack & {
         model: string | null;
         provider: string | null;
         keyManagement: AiKeyManagement | null;
+        managedAgentRunId: string | null;
         deepResearchRunId: string | null;
         deepResearchPhase: AiDeepResearchPhase | null;
     } & AiUsageTokens;
@@ -194,6 +195,10 @@ export const emitAiUsage = (
             keyManagement: parseKeyManagement(
                 getMetadataString(metadata, 'keyManagement'),
             ),
+            managedAgentRunId:
+                metadata.feature === 'managed-agent'
+                    ? getMetadataString(metadata, 'runUuid')
+                    : null,
             deepResearchRunId: getMetadataString(
                 metadata,
                 'deepResearchRunUuid',
@@ -214,7 +219,7 @@ export const emitAiUsage = (
                 `inputTokens=${properties.inputTokens} outputTokens=${properties.outputTokens} ` +
                 `cacheReadTokens=${properties.cacheReadTokens} cacheWriteTokens=${properties.cacheWriteTokens} ` +
                 `reasoningTokens=${properties.reasoningTokens} totalTokens=${properties.totalTokens} ` +
-                `organizationId=${properties.organizationId} projectId=${properties.projectId} userId=${userUuid}`,
+                `organizationId=${properties.organizationId} projectId=${properties.projectId} userId=${userUuid} managedAgentRunId=${properties.managedAgentRunId}`,
             {
                 event: 'ai.usage',
                 userId: userUuid,

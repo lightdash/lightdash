@@ -13,11 +13,13 @@ import {
     SchedulerFormat,
     SessionUser,
     SpaceMemberRole,
+    SupportedDbtAdapter,
     type Account,
     type ContentVerificationInfo,
     type Dashboard,
     type DashboardChartTile,
     type DashboardFilterRule,
+    type Explore,
     type UpdateDashboard,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -129,6 +131,7 @@ const savedSqlModel = {
 };
 
 const projectModel = {
+    getExploreFromCache: vi.fn<ProjectModel['getExploreFromCache']>(),
     getCachedExploreNames: vi.fn(async () => []),
     get: vi.fn(async () => ({ schedulerTimezone: 'UTC' })),
 };
@@ -226,6 +229,11 @@ const spacePermissionService = {
     getFirstViewableSpaceUuid: vi.fn(async () => publicSpace.uuid),
 };
 
+const catalogModel = {
+    findTablesCachedExploreUuid: vi.fn(async () => ({})),
+    updateFieldsChartUsage: vi.fn(async () => undefined),
+};
+
 vi.spyOn(analyticsMock, 'track');
 describe('DashboardService', () => {
     const projectUuid = 'projectUuid';
@@ -255,7 +263,7 @@ describe('DashboardService', () => {
             findOpenDraft: vi.fn(),
             listOpenForContent: vi.fn(async () => []),
         } as never,
-        catalogModel: {} as CatalogModel,
+        catalogModel: catalogModel as unknown as CatalogModel,
         organizationModel: {
             findColorPalette: vi.fn(async () => null),
         } as unknown as OrganizationModel,
@@ -985,6 +993,132 @@ describe('DashboardService', () => {
                 event: 'dashboard.deleted',
             }),
         );
+    });
+
+    describe('deletion field usage cleanup', () => {
+        const tiles = Array.from(
+            { length: 40 },
+            (_, index): DashboardChartTile => ({
+                uuid: `tile-${index}`,
+                tabUuid: undefined,
+                type: DashboardTileTypes.SAVED_CHART,
+                x: 0,
+                y: 0,
+                w: 1,
+                h: 1,
+                properties: {
+                    savedChartUuid: `chart-${index}`,
+                    belongsToDashboard: true,
+                },
+            }),
+        );
+        const explore: Explore = {
+            name: chart.tableName,
+            label: 'Explore',
+            tags: [],
+            targetDatabase: SupportedDbtAdapter.POSTGRES,
+            baseTable: chart.tableName,
+            joinedTables: [],
+            tables: {},
+        };
+
+        afterEach(() => {
+            projectModel.getExploreFromCache.mockReset();
+            savedChartModel.get.mockImplementation(async () => chart);
+            catalogModel.updateFieldsChartUsage.mockImplementation(
+                async () => undefined,
+            );
+        });
+
+        test('reuses a failed lookup and still cleans up a valid chart before deleting', async () => {
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...dashboard,
+                tiles,
+            });
+            savedChartModel.get.mockResolvedValueOnce({
+                ...chart,
+                tableName: 'missing',
+            });
+            projectModel.getExploreFromCache
+                .mockRejectedValueOnce(new NotFoundError('missing Explore'))
+                .mockResolvedValue(explore);
+
+            await service.delete(user, dashboardUuid);
+
+            expect(projectModel.getExploreFromCache).toHaveBeenCalledTimes(2);
+            expect(catalogModel.updateFieldsChartUsage).toHaveBeenCalledTimes(
+                39,
+            );
+            expect(dashboardModel.permanentDelete).toHaveBeenCalledTimes(1);
+        });
+
+        test('loads the same missing Explore only once per deletion request', async () => {
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...dashboard,
+                tiles,
+            });
+            projectModel.getExploreFromCache.mockRejectedValue(
+                new NotFoundError('missing Explore'),
+            );
+            await service.delete(user, dashboardUuid);
+            expect(projectModel.getExploreFromCache).toHaveBeenCalledTimes(1);
+            expect(catalogModel.updateFieldsChartUsage).not.toHaveBeenCalled();
+            expect(dashboardModel.permanentDelete).toHaveBeenCalledTimes(1);
+
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...dashboard,
+                tiles,
+            });
+            await service.delete(user, dashboardUuid);
+            expect(projectModel.getExploreFromCache).toHaveBeenCalledTimes(2);
+        });
+
+        test('does not overlap distinct Explore loads or delete before cleanup settles', async () => {
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...dashboard,
+                tiles,
+            });
+            let active = 0;
+            let peak = 0;
+            let index = 0;
+            savedChartModel.get.mockImplementation(async () => ({
+                ...chart,
+                tableName: `table-${(index += 1)}`,
+            }));
+            projectModel.getExploreFromCache.mockImplementation(async () => {
+                active += 1;
+                peak = Math.max(peak, active);
+                await new Promise<void>((resolve) => {
+                    setTimeout(resolve, 1);
+                });
+                expect(dashboardModel.permanentDelete).not.toHaveBeenCalled();
+                active -= 1;
+                return explore;
+            });
+            await service.delete(user, dashboardUuid);
+            expect(peak).toBe(1);
+            expect(projectModel.getExploreFromCache).toHaveBeenCalledTimes(40);
+            expect(catalogModel.updateFieldsChartUsage).toHaveBeenCalledTimes(
+                40,
+            );
+            expect(dashboardModel.permanentDelete).toHaveBeenCalledTimes(1);
+        });
+
+        test('continues cleanup after a usage update fails', async () => {
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...dashboard,
+                tiles,
+            });
+            projectModel.getExploreFromCache.mockResolvedValue(explore);
+            catalogModel.updateFieldsChartUsage.mockRejectedValueOnce(
+                new Error('update failed'),
+            );
+            await service.delete(user, dashboardUuid);
+            expect(catalogModel.updateFieldsChartUsage).toHaveBeenCalledTimes(
+                40,
+            );
+            expect(dashboardModel.permanentDelete).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe.each(['delete', 'softDelete'] as const)(

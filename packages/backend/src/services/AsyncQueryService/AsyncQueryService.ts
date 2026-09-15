@@ -9902,6 +9902,7 @@ export class AsyncQueryService extends ProjectService {
         initialBackoffMs = 500,
         maxBackoffMs = 2000,
         timeoutMs = 5 * 60 * 1000, // 5 min default
+        abortSignal,
     }: {
         account: Account;
         projectUuid: string;
@@ -9909,6 +9910,7 @@ export class AsyncQueryService extends ProjectService {
         initialBackoffMs?: number;
         maxBackoffMs?: number;
         timeoutMs?: number;
+        abortSignal?: AbortSignal;
     }): Promise<void> {
         await this.queryHistoryModel.pollForQueryCompletion({
             queryUuid,
@@ -9917,6 +9919,7 @@ export class AsyncQueryService extends ProjectService {
             initialBackoffMs,
             maxBackoffMs,
             timeoutMs,
+            abortSignal,
         });
     }
 
@@ -9988,16 +9991,43 @@ export class AsyncQueryService extends ProjectService {
         displayTimezone: string | null;
     }> {
         const { account, projectUuid } = args;
+        const abortSignal = pollingOptions?.abortSignal;
+        abortSignal?.throwIfAborted();
 
         const { queryUuid, cacheMetadata, fields } =
             await this.executeAsyncMetricQuery(args);
 
-        await this.pollForQueryCompletion({
-            account,
-            projectUuid,
-            queryUuid,
-            ...pollingOptions,
-        });
+        try {
+            await this.pollForQueryCompletion({
+                account,
+                projectUuid,
+                queryUuid,
+                ...pollingOptions,
+            });
+            abortSignal?.throwIfAborted();
+        } catch (error) {
+            if (abortSignal?.aborted) {
+                const history = await this.queryHistoryModel.get(
+                    queryUuid,
+                    projectUuid,
+                    account,
+                );
+                if (
+                    [
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.QUEUED,
+                        QueryHistoryStatus.EXECUTING,
+                    ].includes(history.status)
+                ) {
+                    await this.cancelAsyncQuery({
+                        account,
+                        projectUuid,
+                        queryUuid,
+                    });
+                }
+            }
+            throw error;
+        }
 
         const results = await this.getReadyQueryResults({
             account,

@@ -1,6 +1,7 @@
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { type DbManagedAgentRun } from '../database/entities/managedAgent';
 import { ManagedAgentModel } from './ManagedAgentModel';
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
@@ -91,6 +92,45 @@ describe('ManagedAgentModel', () => {
                 model.createRunIfIdle({ projectUuid, triggeredBy: 'cron' }),
             ).resolves.toBeNull();
             expect(tracker.history.insert).toHaveLength(0);
+        });
+    });
+});
+
+describe('ManagedAgentModel run attribution', () => {
+    const row: DbManagedAgentRun = {
+        managed_agent_run_uuid: 'run-uuid',
+        project_uuid: projectUuid,
+        triggered_by: 'manual',
+        status: 'completed',
+        session_id: null,
+        started_at: new Date(),
+        finished_at: new Date(),
+        action_count: 0,
+        summary: null,
+        error: null,
+        current_activity: null,
+        created_at: new Date(),
+        model_provider: 'azure',
+        model_name: 'my-production-deployment',
+    };
+
+    it('returns the saved provider and deployment without re-resolving current settings', () => {
+        expect(ManagedAgentModel.mapDbRun(row)).toMatchObject({
+            modelProvider: 'azure',
+            modelName: 'my-production-deployment',
+        });
+    });
+
+    it('leaves historical model attribution unknown', () => {
+        expect(
+            ManagedAgentModel.mapDbRun({
+                ...row,
+                model_provider: null,
+                model_name: null,
+            }),
+        ).toMatchObject({
+            modelProvider: null,
+            modelName: null,
         });
     });
 });

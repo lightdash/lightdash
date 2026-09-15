@@ -1,0 +1,12 @@
+autopilot_eval:
+    target: dev
+    outputs:
+        dev:
+            type: postgres
+            host: "{{ env_var('PGHOST') }}"
+            port: "{{ env_var('PGPORT') | int }}"
+            user: "{{ env_var('PGUSER') }}"
+            password: "{{ env_var('PGPASSWORD', '') }}"
+            dbname: "{{ env_var('PGDATABASE') }}"
+            schema: jaffle
+            threads: 1

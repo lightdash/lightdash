@@ -1,3 +1,71 @@
+## [2.215.3](https://github.com/lightdash/lightdash/compare/2.215.2...2.215.3) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** enforce heartbeat safety and record provider evals ([#29166](https://github.com/lightdash/lightdash/issues/29166)) ([fbec8bc](https://github.com/lightdash/lightdash/commit/fbec8bc12cc0f22e7f2c181e527edf2e3afe6cf5))
+
+## [2.215.2](https://github.com/lightdash/lightdash/compare/2.215.1...2.215.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** validate chart filters and evaluate real content ([#29163](https://github.com/lightdash/lightdash/issues/29163)) ([a18bc6a](https://github.com/lightdash/lightdash/commit/a18bc6a6df6ec453f981a498e7775ba2a1f740b8))
+
+## [2.215.1](https://github.com/lightdash/lightdash/compare/2.215.0...2.215.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** paginate broken content beyond the first 100 items ([#29159](https://github.com/lightdash/lightdash/issues/29159)) ([f3c5d13](https://github.com/lightdash/lightdash/commit/f3c5d1382834ee23997f600d5e92c9e06329a3e4))
+
+# [2.215.0](https://github.com/lightdash/lightdash/compare/2.214.1...2.215.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* **frontend:** polish Explorer chart type authoring ([#29215](https://github.com/lightdash/lightdash/issues/29215)) ([87d994e](https://github.com/lightdash/lightdash/commit/87d994e4b24b795313437e0742f33a601d5ed7e2))
+
+
+### Features
+
+* **autopilot:** attribute model usage to each run ([#29144](https://github.com/lightdash/lightdash/issues/29144)) ([1226f19](https://github.com/lightdash/lightdash/commit/1226f194a7526c6f5710a0e7a7b0e68403b4541c))
+
+## [2.214.1](https://github.com/lightdash/lightdash/compare/2.214.0...2.214.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* disable press transforms in the dark navbar ([#29211](https://github.com/lightdash/lightdash/issues/29211)) ([d91debb](https://github.com/lightdash/lightdash/commit/d91debbe282b197bd4ef5593f8dede8057e547f0))
+
+# [2.214.0](https://github.com/lightdash/lightdash/compare/2.213.0...2.214.0) (2026-09-15)
+
+
+### Features
+
+* **autopilot:** show current configuration and historical run models ([#29228](https://github.com/lightdash/lightdash/issues/29228)) ([e8f47da](https://github.com/lightdash/lightdash/commit/e8f47da3e6028dd52a232da37370e5ddf65c7638))
+
+# [2.213.0](https://github.com/lightdash/lightdash/compare/2.212.2...2.213.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* contain the login page loading indicator below the heading ([#29225](https://github.com/lightdash/lightdash/issues/29225)) ([4d509c9](https://github.com/lightdash/lightdash/commit/4d509c9f9f9edc9f82b43bff69c40ff5f06d5d01))
+* restoring an uninstalled chart type conflicts cleanly over a fresh install ([#29185](https://github.com/lightdash/lightdash/issues/29185)) ([545e550](https://github.com/lightdash/lightdash/commit/545e55073e2a5bd75061346bd153b034d064bf70))
+
+
+### Features
+
+* **autopilot:** run heartbeats on the AI SDK behind MANAGED_AGENT_RUNTIME ([#29088](https://github.com/lightdash/lightdash/issues/29088)) ([277b147](https://github.com/lightdash/lightdash/commit/277b1471e64ba26c5f14a9c6554371d07b62d00d))
+
+## [2.212.2](https://github.com/lightdash/lightdash/compare/2.212.1...2.212.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* **frontend:** remove duplicate chart configuration header ([#29212](https://github.com/lightdash/lightdash/issues/29212)) ([86beaba](https://github.com/lightdash/lightdash/commit/86beababd87f45eef1670a1b99ade4380e469b5f))
+* reinstalling a chart type revives the uninstalled copy so its charts heal ([#29184](https://github.com/lightdash/lightdash/issues/29184)) ([41fce94](https://github.com/lightdash/lightdash/commit/41fce94260f2a9f099f148527f8f16df99b66296))
+
 ## [2.212.1](https://github.com/lightdash/lightdash/compare/2.212.0...2.212.1) (2026-09-15)
 
 

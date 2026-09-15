@@ -53,3 +53,28 @@
     top: rem(4px);
     right: rem(6px);
 }
+
+.searchWithFilter {
+    --input-right-section-width: rem(94px);
+}
+
+.searchWithFilterAndClear {
+    --input-right-section-width: rem(118px);
+}
+
+.searchSection[data-position='right'] {
+    justify-content: flex-end;
+    padding-inline-end: rem(4px);
+}
+
+.typeFilter {
+    height: rem(24px);
+}
+
+.typeFilterLabel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: rem(24px);
+    padding-inline: rem(6px);
+}

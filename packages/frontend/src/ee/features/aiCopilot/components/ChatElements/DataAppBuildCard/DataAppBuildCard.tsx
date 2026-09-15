@@ -39,6 +39,8 @@ export type DataAppBuildCardState =
           name: string;
           version: number;
           durationMs: number | null;
+          /** The theme this version was built with, from its snapshot. */
+          themeName: string | null;
           /** Set when this version was restored from an earlier one. */
           restoredFromVersion: number | null;
           completionMessage: string;
@@ -62,12 +64,16 @@ const FAILED_TITLE = "The app couldn't be built";
 const readySubtitle = (
     state: Extract<DataAppBuildCardState, { kind: 'ready' }>,
 ) => {
+    const parts = [`v${state.version}`];
     if (state.restoredFromVersion !== null) {
-        return `v${state.version} · restored from v${state.restoredFromVersion}`;
+        parts.push(`restored from v${state.restoredFromVersion}`);
+    } else if (state.durationMs !== null) {
+        parts.push(`built in ${formatBuildDuration(state.durationMs)}`);
     }
-    return state.durationMs === null
-        ? `v${state.version}`
-        : `v${state.version} · built in ${formatBuildDuration(state.durationMs)}`;
+    if (state.themeName !== null) {
+        parts.push(`${state.themeName} theme`);
+    }
+    return parts.join(' · ');
 };
 
 const BuilderButton: FC<{

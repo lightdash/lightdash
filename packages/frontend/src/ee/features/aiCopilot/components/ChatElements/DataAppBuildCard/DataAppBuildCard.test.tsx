@@ -17,6 +17,29 @@ afterEach(() => {
 });
 
 describe('DataAppBuildCard', () => {
+    it('ready: names the theme the version was built with', () => {
+        renderWithProviders(
+            <DataAppBuildCard
+                state={{
+                    kind: 'ready',
+                    name: 'Revenue app',
+                    version: 2,
+                    durationMs: 90_000,
+                    themeName: 'Brand',
+                    restoredFromVersion: null,
+                    completionMessage: 'Version 2 is ready!',
+                }}
+                compact={false}
+                isActive={false}
+                onOpenBuilder={noop}
+                onView={noop}
+            />,
+        );
+        expect(
+            screen.getByText('v2 · built in 1m 30s · Brand theme'),
+        ).toBeVisible();
+    });
+
     it('queued: explains the wait and offers the builder', async () => {
         const onOpenBuilder = vi.fn();
         renderWithProviders(
@@ -81,6 +104,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 1,
                     durationMs: 372_000,
+                    themeName: null,
                     restoredFromVersion: null,
                     completionMessage: 'Your app is ready.',
                 }}
@@ -117,6 +141,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 3,
                     durationMs: null,
+                    themeName: null,
                     restoredFromVersion: null,
                     completionMessage: 'Done.',
                 }}
@@ -137,6 +162,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 3,
                     durationMs: null,
+                    themeName: null,
                     restoredFromVersion: 1,
                     completionMessage: 'Restored version 1 as version 3.',
                 }}
@@ -161,6 +187,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 1,
                     durationMs: 372_000,
+                    themeName: null,
                     restoredFromVersion: null,
                     completionMessage:
                         'Built **five pages** from `src/App.jsx`.',
@@ -190,6 +217,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 1,
                     durationMs: 372_000,
+                    themeName: null,
                     restoredFromVersion: null,
                     completionMessage: 'A very long summary. '.repeat(50),
                 }}
@@ -213,6 +241,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 1,
                     durationMs: 372_000,
+                    themeName: null,
                     restoredFromVersion: null,
                     completionMessage: 'Your app is ready.',
                 }}
@@ -291,6 +320,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 1,
                     durationMs: 372_000,
+                    themeName: null,
                     restoredFromVersion: null,
                     completionMessage: 'Your app is ready.',
                 }}

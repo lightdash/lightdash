@@ -57,7 +57,21 @@ const chartTypeApp: App = {
     template: 'data_app_viz',
 };
 
-const buildService = (apps: App[]) => {
+type Design = { designUuid: string; organizationUuid: string };
+
+const buildService = (apps: App[], designs: Design[] = []) => {
+    const organizationDesignModel = {
+        findInOrganization: vi
+            .fn()
+            .mockImplementation(
+                async (organizationUuid: string, designUuid: string) =>
+                    designs.find(
+                        (d) =>
+                            d.designUuid === designUuid &&
+                            d.organizationUuid === organizationUuid,
+                    ),
+            ),
+    };
     const appModel = {
         findAppByUuid: vi
             .fn()
@@ -78,6 +92,7 @@ const buildService = (apps: App[]) => {
     const service = new AiAgentService({
         appModel,
         appGenerateService,
+        organizationDesignModel,
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: {} } },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,7 +107,7 @@ const buildService = (apps: App[]) => {
                 ) => Promise<AiPromptContextInput | undefined>;
             }
         ).validatePromptContextAccess(user, agent, context);
-    return { validate, appModel, appGenerateService };
+    return { validate, appModel, appGenerateService, organizationDesignModel };
 };
 
 describe('validatePromptContextAccess for data apps', () => {
@@ -146,5 +161,51 @@ describe('validatePromptContextAccess for data apps', () => {
             { type: 'data_app', appUuid: 'app-shared', appSlug: 'shared' },
         ]);
         expect(appModel.findAppByUuid).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('validatePromptContextAccess for themes', () => {
+    const orgTheme: Design = {
+        designUuid: 'design-org',
+        organizationUuid: 'org-uuid',
+    };
+    const foreignTheme: Design = {
+        designUuid: 'design-foreign',
+        organizationUuid: 'other-org',
+    };
+
+    it("accepts a theme from the agent's organization", async () => {
+        const { validate, organizationDesignModel } = buildService(
+            [],
+            [orgTheme],
+        );
+        const context: AiPromptContextInput = [
+            { type: 'design', designUuid: 'design-org' },
+        ];
+
+        await expect(validate(context)).resolves.toEqual(context);
+        expect(organizationDesignModel.findInOrganization).toHaveBeenCalledWith(
+            'org-uuid',
+            'design-org',
+        );
+    });
+
+    it('rejects a theme outside the organization as not found', async () => {
+        const { validate } = buildService([], [foreignTheme]);
+
+        await expect(
+            validate([{ type: 'design', designUuid: 'design-foreign' }]),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    it('collapses the same theme pinned twice into one item', async () => {
+        const { validate } = buildService([], [orgTheme]);
+
+        await expect(
+            validate([
+                { type: 'design', designUuid: 'design-org' },
+                { type: 'design', designUuid: 'design-org' },
+            ]),
+        ).resolves.toEqual([{ type: 'design', designUuid: 'design-org' }]);
     });
 });

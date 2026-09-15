@@ -150,6 +150,7 @@ describe('getDataAppBuildCardState', () => {
                 name: 'Revenue app',
                 version: 1,
                 durationMs: 372_000,
+                themeName: null,
                 restoredFromVersion: null,
                 completionMessage: 'Your revenue app is ready.',
             });
@@ -166,6 +167,7 @@ describe('getDataAppBuildCardState', () => {
                 name: 'Untitled app app-1',
                 completionMessage: 'Your app is ready!',
                 durationMs: null,
+                themeName: null,
                 restoredFromVersion: null,
             });
         });
@@ -239,6 +241,7 @@ describe('getDataAppBuildCardState', () => {
                 name: 'Revenue app',
                 version: 1,
                 durationMs: null,
+                themeName: null,
                 restoredFromVersion: null,
                 completionMessage: 'Your app is ready!',
             });
@@ -263,6 +266,7 @@ describe('getDataAppBuildCardState', () => {
                 name: 'Revenue app',
                 version: 1,
                 durationMs: 30_000,
+                themeName: null,
                 restoredFromVersion: null,
                 completionMessage: 'Done.',
             });
@@ -378,6 +382,7 @@ describe('getDataAppRestoreCardState', () => {
             name: 'Revenue app',
             version: 3,
             durationMs: null,
+            themeName: null,
             restoredFromVersion: 1,
             completionMessage: message,
         });
@@ -405,5 +410,30 @@ describe('getDataAppRestoreCardState', () => {
                 kind: 'unavailable',
             }),
         ).toEqual({ kind: 'unavailable' });
+    });
+});
+
+describe('getDataAppBuildCardState theme', () => {
+    it('reads the theme name from the version snapshot', () => {
+        const state = getDataAppBuildCardState(pending, {
+            kind: 'loaded',
+            app: app([
+                version({
+                    status: 'ready',
+                    resources: {
+                        images: [],
+                        charts: [],
+                        dashboardName: null,
+                        clarifications: [],
+                        design: {
+                            designUuid: 'design-1',
+                            name: 'Brand',
+                            fileCount: 3,
+                        },
+                    },
+                }),
+            ]),
+        });
+        expect(state).toMatchObject({ kind: 'ready', themeName: 'Brand' });
     });
 });

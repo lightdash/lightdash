@@ -1,0 +1,24 @@
+version: 2
+models:
+    - name: orders
+      description: Synthetic orders for isolated Autopilot chart evaluation.
+      columns:
+          - name: order_id
+            meta:
+                dimension:
+                    type: number
+                metrics:
+                    count_orders:
+                        type: count
+          - name: status
+            meta:
+                dimension:
+                    type: string
+          - name: revenue
+            description: Revenue amount; replaces the retired amount column.
+            meta:
+                dimension:
+                    type: number
+                metrics:
+                    total_revenue:
+                        type: sum
