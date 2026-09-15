@@ -156,6 +156,7 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     knex.raw(
                         `${AppsTableName}.created_at::timestamp as first_viewed_at`,
                     ),
+                    knex.raw('null::timestamp as last_viewed_at'),
                     knex.raw(
                         `${AppsTableName}.deleted_at::timestamp as deleted_at`,
                     ),
@@ -333,6 +334,7 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
+                lastViewedAt: value.last_viewed_at,
                 verification: null,
                 latestVersionNumber:
                     (value.metadata.latestVersionNumber as number | null) ??

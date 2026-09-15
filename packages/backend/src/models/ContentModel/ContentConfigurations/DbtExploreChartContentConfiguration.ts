@@ -144,6 +144,7 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                     knex.raw(
                         `${SavedChartsTableName}.first_viewed_at::timestamp as first_viewed_at`,
                     ),
+                    knex.raw('null::timestamp as last_viewed_at'),
                     knex.raw(
                         `${SavedChartsTableName}.deleted_at::timestamp as deleted_at`,
                     ),
@@ -290,6 +291,7 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
+                lastViewedAt: value.last_viewed_at,
                 verification:
                     value.verified_at !== null &&
                     value.verified_by_user_uuid !== null &&

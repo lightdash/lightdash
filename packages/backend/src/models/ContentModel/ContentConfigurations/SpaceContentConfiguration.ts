@@ -111,6 +111,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     knex.raw(`null as last_updated_by_user_last_name`),
                     knex.raw(`0 as views`),
                     knex.raw(`null as first_viewed_at`),
+                    knex.raw('null::timestamp as last_viewed_at'),
                     `${SpaceTableName}.deleted_at`,
                     `${SpaceTableName}.deleted_by_user_uuid`,
                     'deleted_by_user.first_name as deleted_by_user_first_name',
@@ -321,6 +322,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
+                lastViewedAt: value.last_viewed_at,
                 parentSpaceUuid: value.metadata.parentSpaceUuid,
                 path: value.metadata.path,
                 inheritParentPermissions:

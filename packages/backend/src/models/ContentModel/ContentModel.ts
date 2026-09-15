@@ -10,6 +10,10 @@ import {
     type DeletedDataAppContentSummary,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import {
+    AnalyticsChartViewsTableName,
+    AnalyticsDashboardViewsTableName,
+} from '../../database/entities/analytics';
 import KnexPaginate from '../../database/pagination';
 import { dashboardContentConfiguration } from './ContentConfigurations/DashboardContentConfiguration';
 import { dataAppContentConfiguration } from './ContentConfigurations/DataAppContentConfiguration';
@@ -108,6 +112,26 @@ export class ContentModel {
             paginateArgs,
         );
 
+        // Enrich only the returned page, never the catalogue or count query.
+        const [chartLastViews, dashboardLastViews] = await Promise.all([
+            this.getLastViewedAt(
+                data
+                    .filter(
+                        (row) =>
+                            row.content_type === ContentType.CHART &&
+                            row.metadata.source === ChartSourceType.DBT_EXPLORE,
+                    )
+                    .map((row) => row.uuid),
+                ContentType.CHART,
+            ),
+            this.getLastViewedAt(
+                data
+                    .filter((row) => row.content_type === ContentType.DASHBOARD)
+                    .map((row) => row.uuid),
+                ContentType.DASHBOARD,
+            ),
+        ]);
+
         return {
             pagination,
             data: data.map((result) => {
@@ -121,9 +145,46 @@ export class ContentModel {
                     );
                 }
 
-                return matchingConfig.convertSummaryRow(result);
+                let lastViewedAt = result.last_viewed_at;
+                if (result.content_type === ContentType.DASHBOARD) {
+                    lastViewedAt = dashboardLastViews.get(result.uuid) ?? null;
+                } else if (
+                    result.content_type === ContentType.CHART &&
+                    result.metadata.source === ChartSourceType.DBT_EXPLORE
+                ) {
+                    lastViewedAt = chartLastViews.get(result.uuid) ?? null;
+                }
+                return matchingConfig.convertSummaryRow({
+                    ...result,
+                    last_viewed_at: lastViewedAt,
+                });
             }),
         };
+    }
+
+    private async getLastViewedAt(
+        contentUuids: string[],
+        contentType: ContentType.CHART | ContentType.DASHBOARD,
+    ): Promise<Map<string, Date | null>> {
+        if (contentUuids.length === 0) return new Map();
+
+        const tableName =
+            contentType === ContentType.CHART
+                ? AnalyticsChartViewsTableName
+                : AnalyticsDashboardViewsTableName;
+        const uuidColumn =
+            contentType === ContentType.CHART ? 'chart_uuid' : 'dashboard_uuid';
+        const { rows } = await this.database.raw<{
+            rows: { uuid: string; last_viewed_at: Date | null }[];
+        }>(
+            `SELECT content.uuid,
+                (SELECT timestamp FROM ??
+                 WHERE ?? = content.uuid
+                 ORDER BY timestamp DESC LIMIT 1) AS last_viewed_at
+             FROM unnest(?::uuid[]) AS content(uuid)`,
+            [tableName, uuidColumn, contentUuids],
+        );
+        return new Map(rows.map((row) => [row.uuid, row.last_viewed_at]));
     }
 
     async findDeletedContents(

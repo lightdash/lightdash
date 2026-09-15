@@ -141,6 +141,7 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     knex.raw(
                         `${SavedSqlTableName}.first_viewed_at::timestamp as first_viewed_at`,
                     ),
+                    `${SavedSqlTableName}.last_viewed_at`,
                     knex.raw(
                         `${SavedSqlTableName}.deleted_at::timestamp as deleted_at`,
                     ),
@@ -277,6 +278,7 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
+                lastViewedAt: value.last_viewed_at,
                 verification:
                     value.verified_at !== null &&
                     value.verified_by_user_uuid !== null &&
