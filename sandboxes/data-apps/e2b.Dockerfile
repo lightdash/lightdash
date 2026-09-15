@@ -4,7 +4,7 @@ FROM node:24
 RUN npm install -g pnpm@11.17.0
 RUN npm install -g sfw@2.0.6
 RUN sfw npm install -g \
-    @anthropic-ai/claude-code@2.1.220 \
+    @anthropic-ai/claude-code@2.1.272 \
     @openai/codex@0.147.0
 
 WORKDIR /app
