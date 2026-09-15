@@ -20,11 +20,8 @@ import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterInputComponent from './FilterInputs';
-import {
-    filterOperatorDescriptionKey,
-    filterOperatorDropdownLabelKey,
-} from './FilterInputs/constants';
 import { getFilterOperatorOptions } from './FilterInputs/utils';
+import FilterOperatorOption from './FilterOperatorOption';
 import useFiltersContext from './useFiltersContext';
 
 type Props = {
@@ -194,34 +191,12 @@ const FilterRuleForm: FC<Props> = memo(
                     disabled={!isEditMode}
                     value={filterRule.operator}
                     data={filterOperatorOptions}
-                    renderOption={({ option }) => {
-                        const descriptionKey =
-                            filterOperatorDescriptionKey[
-                                option.value as FilterOperator
-                            ];
-                        const description = descriptionKey
-                            ? getUiString(descriptionKey)
-                            : undefined;
-                        const dropdownLabelKey =
-                            filterOperatorDropdownLabelKey[
-                                option.value as FilterOperator
-                            ];
-                        const dropdownLabel = dropdownLabelKey
-                            ? getUiString(dropdownLabelKey)
-                            : option.label;
-                        if (description) {
-                            return (
-                                <Tooltip
-                                    label={description}
-                                    position="right"
-                                    maw={300}
-                                >
-                                    <Box w="100%">{dropdownLabel}</Box>
-                                </Tooltip>
-                            );
-                        }
-                        return <span>{dropdownLabel}</span>;
-                    }}
+                    renderOption={({ option }) => (
+                        <FilterOperatorOption
+                            operator={option.value as FilterOperator}
+                            label={option.label}
+                        />
+                    )}
                     onChange={(value) => {
                         if (!value) return;
 

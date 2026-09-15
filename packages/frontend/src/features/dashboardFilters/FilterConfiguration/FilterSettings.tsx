@@ -25,11 +25,8 @@ import {
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
-import {
-    filterOperatorDescriptionKey,
-    filterOperatorDropdownLabelKey,
-} from '../../../components/common/Filters/FilterInputs/constants';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
+import FilterOperatorOption from '../../../components/common/Filters/FilterOperatorOption';
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -203,34 +200,12 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         )
                     }
                     value={filterRule.operator}
-                    renderOption={({ option }) => {
-                        const descriptionKey =
-                            filterOperatorDescriptionKey[
-                                option.value as FilterOperator
-                            ];
-                        const description = descriptionKey
-                            ? getUiString(descriptionKey)
-                            : undefined;
-                        const dropdownLabelKey =
-                            filterOperatorDropdownLabelKey[
-                                option.value as FilterOperator
-                            ];
-                        const dropdownLabel = dropdownLabelKey
-                            ? getUiString(dropdownLabelKey)
-                            : option.label;
-                        if (description) {
-                            return (
-                                <Tooltip
-                                    label={description}
-                                    position="right"
-                                    maw={300}
-                                >
-                                    <Box w="100%">{dropdownLabel}</Box>
-                                </Tooltip>
-                            );
-                        }
-                        return <Box>{dropdownLabel}</Box>;
-                    }}
+                    renderOption={({ option }) => (
+                        <FilterOperatorOption
+                            operator={option.value as FilterOperator}
+                            label={option.label}
+                        />
+                    )}
                     rightSectionWidth={140}
                     rightSectionPointerEvents="all"
                     rightSectionProps={{
