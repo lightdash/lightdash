@@ -13,15 +13,24 @@ export type GroundingSource = {
     rows: Record<string, Set<string>>[];
 };
 
+/**
+ * Deterministic per data point. A whole-table finding has no dimension values
+ * to key on, so its text stands in; otherwise two table-level findings on the
+ * same metric would collide and `investigate` could not tell them apart.
+ */
 export const anomalyId = (
-    anomaly: Pick<DataAppAnomaly, 'queryUuid' | 'fieldId' | 'dimensionValues'>,
+    anomaly: Pick<
+        DataAppAnomaly,
+        'queryUuid' | 'fieldId' | 'dimensionValues' | 'text'
+    >,
 ): string => {
     const dims = Object.keys(anomaly.dimensionValues)
         .sort()
         .map((key) => `${key}=${anomaly.dimensionValues[key]}`)
         .join('&');
+    const key = dims === '' ? anomaly.text : dims;
     return createHash('sha1')
-        .update(`${anomaly.queryUuid}|${anomaly.fieldId}|${dims}`)
+        .update(`${anomaly.queryUuid}|${anomaly.fieldId}|${key}`)
         .digest('hex')
         .slice(0, 16);
 };
@@ -67,5 +76,13 @@ export const groundAnomalies = (
         grounded.push({ ...anomaly, id: anomalyId(anomaly) });
     });
 
-    return { anomalies: grounded, droppedCount };
+    // Identical findings repeated by the model collapse to one.
+    const seen = new Set<string>();
+    const unique = grounded.filter((anomaly) => {
+        if (seen.has(anomaly.id)) return false;
+        seen.add(anomaly.id);
+        return true;
+    });
+
+    return { anomalies: unique, droppedCount };
 };

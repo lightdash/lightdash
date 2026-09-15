@@ -26,10 +26,19 @@ const AnomalySchema = z.object({
     fieldId: z
         .string()
         .describe('The field id (not the label) of the metric this is about'),
-    dimensionValues: z
-        .record(z.string(), z.string())
+    rowIdentity: z
+        .array(
+            z.object({
+                fieldId: z
+                    .string()
+                    .describe('A dimension field id from the Fields legend'),
+                value: z
+                    .string()
+                    .describe("That column's value, copied exactly as shown"),
+            }),
+        )
         .describe(
-            'Field id → value, copied exactly as shown in the data, for every dimension column that identifies the row',
+            'Every dimension column of the row this finding is about, for example [{ "fieldId": "orders_order_date_day", "value": "2025-01-03" }]. Required whenever the finding names a specific date, category, region or other row. Empty only for a finding about the table as a whole.',
         ),
     expected: z
         .string()
@@ -75,7 +84,25 @@ export const DataAppDetectionSchema = z.object({
         ),
 });
 
-export type DataAppDetection = z.infer<typeof DataAppDetectionSchema>;
+type RawDataAppDetection = z.infer<typeof DataAppDetectionSchema>;
+
+export type DataAppDetectionAnomaly = Omit<
+    RawDataAppDetection['anomalies'][number],
+    'rowIdentity'
+> & { dimensionValues: Record<string, string> };
+
+export type DataAppDetection = Omit<RawDataAppDetection, 'anomalies'> & {
+    anomalies: DataAppDetectionAnomaly[];
+};
+
+// The model fills an explicit list far more reliably than a dynamic-key
+// record; the rest of the system keys on the record shape.
+const toDimensionValues = (
+    rowIdentity: RawDataAppDetection['anomalies'][number]['rowIdentity'],
+): Record<string, string> =>
+    Object.fromEntries(
+        rowIdentity.map(({ fieldId, value }) => [fieldId, value]),
+    );
 
 const SYSTEM_PROMPT = `You are an analyst reading the query results behind a data app the viewer has open.
 Find what is out of the ordinary and describe it so an executive understands it without the charts.
@@ -87,7 +114,9 @@ Rules:
 - Do not explain causes. Do not speculate about why. That is a separate step.
 - When the data has no comparison period, say so in limitations instead of inferring a trend.
 - When nothing is out of the ordinary, return an empty anomalies list and say so in the headline. That is a valid, useful answer.
-- Each source section starts with "## <label>", a "Query: <uuid>" line and a "Fields:" legend mapping field ids to labels. Use field ids, not labels, in fieldId and in dimensionValues keys. Copy dimension values exactly as they appear in the rows.
+- Each source section starts with "## <label>", a "Query: <uuid>" line and a "Fields:" legend mapping field ids to labels. Use field ids, not labels, in fieldId and in rowIdentity. Copy dimension values exactly as they appear in the rows.
+- A finding about a specific row (a date, a category, a region) must carry that row's rowIdentity so it can be checked against the data and highlighted on the chart. One finding per row; do not merge several rows into one finding.
+- Figures in the headline and summary must match the figures in the anomalies. Never state a number in prose that you have not put in a finding.
 - Sections marked truncated only show part of the rows; say so in limitations and do not claim totals for them.`;
 
 export async function detectDataAppAnomalies(
@@ -127,5 +156,12 @@ export async function detectDataAppAnomalies(
         ],
     });
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
-    return result.object;
+    const { anomalies, ...rest } = result.object;
+    return {
+        ...rest,
+        anomalies: anomalies.map(({ rowIdentity, ...anomaly }) => ({
+            ...anomaly,
+            dimensionValues: toDimensionValues(rowIdentity),
+        })),
+    };
 }
