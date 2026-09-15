@@ -1,3 +1,10 @@
+## [2.217.4](https://github.com/lightdash/lightdash/compare/2.217.3...2.217.4) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** move the AI settings link into the activity header subtitle ([#29253](https://github.com/lightdash/lightdash/issues/29253)) ([929e635](https://github.com/lightdash/lightdash/commit/929e635a2d377883ee4f014ee744b7e57284aad4))
+
 ## [2.217.3](https://github.com/lightdash/lightdash/compare/2.217.2...2.217.3) (2026-09-15)
 
 
