@@ -260,6 +260,8 @@ export class ContentModel {
         };
 
         switch (row.content_type) {
+            case ContentType.DOCUMENT:
+                return { ...base, contentType: ContentType.DOCUMENT };
             case ContentType.CHART: {
                 const source = row.metadata.source as ChartSourceType;
                 const chartBase = {
@@ -306,6 +308,7 @@ export class ContentModel {
                     chartCount: Number(row.metadata.chartCount ?? 0),
                     schedulerCount: Number(row.metadata.schedulerCount ?? 0),
                     appCount: Number(row.metadata.appCount ?? 0),
+                    documentCount: Number(row.metadata.documentCount ?? 0),
                 };
             case ContentType.DATA_APP:
                 return {

@@ -8,7 +8,6 @@ import { applyContentNameSearch } from '../ContentSearchUtils';
 export const documentContentConfiguration: ContentConfiguration = {
     shouldQueryBeIncluded: (filters) =>
         filters.documents !== undefined &&
-        !filters.deleted &&
         !filters.ownerUserUuids &&
         (!filters.contentTypes ||
             filters.contentTypes.includes(ContentType.DOCUMENT)),
@@ -44,6 +43,11 @@ export const documentContentConfiguration: ContentConfiguration = {
                 );
             })
             .leftJoin(
+                'users as deleted_by_user',
+                'deleted_by_user.user_uuid',
+                'documents.deleted_by_user_uuid',
+            )
+            .leftJoin(
                 'users as updater',
                 'updater.user_uuid',
                 'latest.created_by_user_uuid',
@@ -75,10 +79,10 @@ export const documentContentConfiguration: ContentConfiguration = {
                 knex.raw('0::integer as views'),
                 knex.raw('null::timestamp as first_viewed_at'),
                 knex.raw('null::timestamp as last_viewed_at'),
-                knex.raw('null::timestamp as deleted_at'),
-                knex.raw('null::uuid as deleted_by_user_uuid'),
-                knex.raw('null::text as deleted_by_user_first_name'),
-                knex.raw('null::text as deleted_by_user_last_name'),
+                knex.raw('documents.deleted_at::timestamp as deleted_at'),
+                'documents.deleted_by_user_uuid',
+                'deleted_by_user.first_name as deleted_by_user_first_name',
+                'deleted_by_user.last_name as deleted_by_user_last_name',
                 knex.raw('null::timestamp as verified_at'),
                 knex.raw('null::uuid as verified_by_user_uuid'),
                 knex.raw('null::text as verified_by_user_first_name'),
@@ -89,9 +93,19 @@ export const documentContentConfiguration: ContentConfiguration = {
                 knex.raw('null::text as owner_user_email'),
                 knex.raw("'{}'::json as metadata"),
             ])
-            .whereNull('documents.deleted_at')
             .whereNull('spaces.deleted_at')
             .where((builder) => {
+                if (filters.deleted) {
+                    void builder.whereNotNull('documents.deleted_at');
+                    if (filters.deletedByUserUuids) {
+                        void builder.whereIn(
+                            'documents.deleted_by_user_uuid',
+                            filters.deletedByUserUuids,
+                        );
+                    }
+                } else {
+                    void builder.whereNull('documents.deleted_at');
+                }
                 if (filters.projectUuids) {
                     void builder.whereIn(
                         'documents.project_uuid',
@@ -110,12 +124,12 @@ export const documentContentConfiguration: ContentConfiguration = {
                         filters.spaceUuids,
                     );
                 }
-                if (!filters.sharedWithMe) {
+                if (!filters.deleted && !filters.sharedWithMe) {
                     void builder.whereIn(
                         'spaces.space_uuid',
                         filters.documents?.allowedSpaceUuids ?? [],
                     );
-                } else {
+                } else if (!filters.deleted) {
                     void builder.whereIn(
                         'documents.document_uuid',
                         filters.documents?.grantedUuids ?? [],

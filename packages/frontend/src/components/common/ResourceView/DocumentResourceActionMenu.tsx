@@ -5,13 +5,19 @@ import {
     type ResourceViewDocumentItem,
 } from '@lightdash/common';
 import { ActionIcon, Menu, Tooltip } from '@mantine/core';
-import { IconDots, IconFolderSymlink, IconUsers } from '@tabler/icons-react';
+import {
+    IconDots,
+    IconFolderSymlink,
+    IconUsers,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useState } from 'react';
 import {
     DirectAccessModal,
     useCanManageDirectAccess,
     useDirectAccessAvailability,
 } from '../../../features/directAccess';
+import { useCanDeleteDocument } from '../../../features/documents/useCanDeleteDocument';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -30,6 +36,7 @@ const DocumentResourceActionMenu = ({
     onOpen,
     onClose,
     onAction,
+    allowDelete = true,
 }: Props) => {
     const { projectUuid, organizationUuid, spaceUuid, directAccessRoles } =
         item.data;
@@ -58,7 +65,13 @@ const DocumentResourceActionMenu = ({
             }),
         ) === true;
     const canShare = availability.isAvailable && canManageAccess;
-    if (flag.isError || !flag.data?.enabled || (!canMove && !canShare)) {
+    const hasDeleteAccess = useCanDeleteDocument(item.data);
+    const canDelete = allowDelete && hasDeleteAccess;
+    if (
+        flag.isError ||
+        !flag.data?.enabled ||
+        (!canMove && !canShare && !canDelete)
+    ) {
         return null;
     }
     return (
@@ -102,6 +115,20 @@ const DocumentResourceActionMenu = ({
                             onClick={() => setIsShareOpen(true)}
                         >
                             Share
+                        </Menu.Item>
+                    )}
+                    {canDelete && (
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={() =>
+                                onAction({
+                                    type: ResourceViewItemAction.DELETE,
+                                    item,
+                                })
+                            }
+                        >
+                            Delete
                         </Menu.Item>
                     )}
                 </Menu.Dropdown>

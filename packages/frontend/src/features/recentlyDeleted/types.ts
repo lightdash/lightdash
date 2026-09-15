@@ -7,6 +7,7 @@ export type DeletedContentTypeFilter =
     | 'all'
     | ContentType.CHART
     | ContentType.DASHBOARD
+    | ContentType.DOCUMENT
     | ContentType.SPACE
     | ContentType.DATA_APP
     | typeof CHART_TYPES_FILTER_VALUE;

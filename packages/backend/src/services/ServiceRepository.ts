@@ -407,6 +407,7 @@ export class ServiceRepository
             'documentService',
             () =>
                 new DocumentService({
+                    lightdashConfig: this.context.lightdashConfig,
                     directAccessService: this.getDirectAccessService(),
                     documentModel: this.models.getDocumentModel(),
                     projectService: this.getProjectService(),
@@ -1330,6 +1331,7 @@ export class ServiceRepository
             'spaceService',
             () =>
                 new SpaceService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),

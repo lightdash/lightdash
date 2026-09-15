@@ -244,13 +244,16 @@ export type SpaceDeleteImpact = {
         chartCount: number;
         dashboardCount: number;
         appCount: number;
+        documentCount: number;
     }[];
     charts: { uuid: string; name: string; spaceUuid: string }[];
     dashboards: { uuid: string; name: string; spaceUuid: string }[];
+    documents: { uuid: string; name: string; spaceUuid: string }[];
     apps: { uuid: string; spaceUuid: string | null }[];
     chartCount: number;
     dashboardCount: number;
     appCount: number;
+    documentCount: number;
 };
 
 export type ApiSpaceDeleteImpactResponse = {

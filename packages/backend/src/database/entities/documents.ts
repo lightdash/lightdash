@@ -16,6 +16,7 @@ export type DbDocument = {
     updated_at: Date;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
+    deleted_with_space: boolean;
 };
 
 export type DocumentsTable = Knex.CompositeTableType<
@@ -39,6 +40,7 @@ export type DocumentsTable = Knex.CompositeTableType<
             | 'updated_at'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
+            | 'deleted_with_space'
         >
     >
 >;
