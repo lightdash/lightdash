@@ -35,7 +35,8 @@ export type AiCallFeature =
     | 'data-app'
     | 'managed-agent'
     | 'external-connection-config'
-    | 'delivery-summary';
+    | 'delivery-summary'
+    | 'data-app-analysis';
 
 /**
  * Whether the AI call ran on Lightdash's own (instance) provider key or the

@@ -48,6 +48,7 @@ import { AiWritebackRunModel } from './models/AiWritebackRunModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
+import { DataAppAnalysisModel } from './models/DataAppAnalysisModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { ExternalSourceModel } from './models/ExternalSourceModel';
@@ -95,6 +96,7 @@ import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { ContentReviewNotificationService } from './services/ContentReviewNotificationService/ContentReviewNotificationService';
 import { ContentReviewRequestService } from './services/ContentReviewRequestService/ContentReviewRequestService';
+import { DataAppAnalysisService } from './services/DataAppAnalysisService/DataAppAnalysisService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
@@ -883,6 +885,23 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
                 }),
+            dataAppAnalysisService: ({ models, repository }) =>
+                new DataAppAnalysisService({
+                    dataAppAnalysisModel:
+                        models.getDataAppAnalysisModel<DataAppAnalysisModel>(),
+                    appModel: models.getAppModel(),
+                    externalConnectionModel:
+                        models.getExternalConnectionModel<ExternalConnectionModel>(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
+                    asyncQueryService: repository.getAsyncQueryService(),
+                    aiService: repository.getAiService<AiService>(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService<AiOrganizationSettingsService>(),
+                }),
             scimService: ({ models, context, repository }) =>
                 new ScimService({
                     lightdashConfig: context.lightdashConfig,
@@ -1449,6 +1468,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new ProjectContextModel({ database }),
             schedulerAiAugmentationModel: ({ database }) =>
                 new SchedulerAiAugmentationModel({ database }),
+            dataAppAnalysisModel: ({ database }) =>
+                new DataAppAnalysisModel({ database }),
             aiRouterModel: ({ database }) => new AiRouterModel({ database }),
             mcpToolCallModel: ({ database }) =>
                 new McpToolCallModel({ database }),
