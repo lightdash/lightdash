@@ -481,6 +481,44 @@ describe('ExplorerChartTypeGallery', () => {
         setProjectQuery();
     });
 
+    it('surfaces Table first without changing its selection command', async () => {
+        renderGallery();
+
+        const builtIn = screen.getByRole('group', { name: 'Built in' });
+        expect(
+            within(builtIn)
+                .getAllByRole('button')
+                .filter((button) => button.hasAttribute('aria-pressed'))
+                .map((button) => button.textContent),
+        ).toEqual([
+            'Table',
+            'Bar chart',
+            'Horizontal bar chart',
+            'Line chart',
+            'Area chart',
+            'Scatter chart',
+            'Pie chart',
+            'Funnel chart',
+            'Treemap',
+            'Gauge',
+            'Sankey',
+            'Map',
+            'Big value',
+            'Vega (JSON editor)',
+        ]);
+
+        await userEvent.click(
+            within(builtIn).getByRole('button', {
+                name: 'Table',
+                pressed: true,
+            }),
+        );
+
+        expect(mocks.setStacking).toHaveBeenCalledWith(undefined);
+        expect(mocks.setCartesianType).toHaveBeenCalledWith(undefined);
+        expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.TABLE);
+    });
+
     it('uses the shared built-in selection command without closing the chooser', async () => {
         const onConfigure = renderGallery();
 

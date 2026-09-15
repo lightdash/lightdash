@@ -113,6 +113,14 @@ export const useChartTypeOptions = () => {
 
     const options: ChartTypeOption[] = [
         {
+            id: ChartKind.TABLE,
+            label: 'Table',
+            icon: IconTable,
+            rotatedIcon: false,
+            selected: isTableVisualizationConfig(visualizationConfig),
+            select: () => resetCartesian(ChartType.TABLE),
+        },
+        {
             id: ChartKind.VERTICAL_BAR,
             label: 'Bar chart',
             icon: IconChartBar,
@@ -250,14 +258,6 @@ export const useChartTypeOptions = () => {
             rotatedIcon: false,
             selected: isMapVisualizationConfig(visualizationConfig),
             select: () => resetCartesian(ChartType.MAP),
-        },
-        {
-            id: ChartKind.TABLE,
-            label: 'Table',
-            icon: IconTable,
-            rotatedIcon: false,
-            selected: isTableVisualizationConfig(visualizationConfig),
-            select: () => resetCartesian(ChartType.TABLE),
         },
         {
             id: ChartKind.BIG_NUMBER,
