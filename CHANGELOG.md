@@ -1,3 +1,15 @@
+# [2.215.0](https://github.com/lightdash/lightdash/compare/2.214.1...2.215.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* **frontend:** polish Explorer chart type authoring ([#29215](https://github.com/lightdash/lightdash/issues/29215)) ([87d994e](https://github.com/lightdash/lightdash/commit/87d994e4b24b795313437e0742f33a601d5ed7e2))
+
+
+### Features
+
+* **autopilot:** attribute model usage to each run ([#29144](https://github.com/lightdash/lightdash/issues/29144)) ([1226f19](https://github.com/lightdash/lightdash/commit/1226f194a7526c6f5710a0e7a7b0e68403b4541c))
+
 ## [2.214.1](https://github.com/lightdash/lightdash/compare/2.214.0...2.214.1) (2026-09-15)
 
 
