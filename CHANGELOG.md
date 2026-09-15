@@ -1,3 +1,11 @@
+## [2.212.2](https://github.com/lightdash/lightdash/compare/2.212.1...2.212.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* **frontend:** remove duplicate chart configuration header ([#29212](https://github.com/lightdash/lightdash/issues/29212)) ([86beaba](https://github.com/lightdash/lightdash/commit/86beababd87f45eef1670a1b99ade4380e469b5f))
+* reinstalling a chart type revives the uninstalled copy so its charts heal ([#29184](https://github.com/lightdash/lightdash/issues/29184)) ([41fce94](https://github.com/lightdash/lightdash/commit/41fce94260f2a9f099f148527f8f16df99b66296))
+
 ## [2.212.1](https://github.com/lightdash/lightdash/compare/2.212.0...2.212.1) (2026-09-15)
 
 
