@@ -23,6 +23,7 @@ export const HOMEPAGE_CODE_RESOURCE: CodeResourceDefinition<HomepageAsCode> = {
         strategy: 'uriEncodedIdentity',
         fallbackPrefix: 'homepage',
         extension: '.yml',
+        preserveSpaces: true,
     },
     dependencies: ['space', 'chart', 'dashboard'],
     identity: ({ name }) => name,
