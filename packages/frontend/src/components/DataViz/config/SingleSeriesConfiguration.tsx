@@ -1,7 +1,9 @@
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     AxisSide,
+    CartesianSeriesType,
     getEChartsChartTypeFromChartKind,
+    getReadableTextColor,
     ValueLabelPositionOptions,
     type CartesianChartDisplay,
     type ChartKind,
@@ -41,6 +43,7 @@ type SingleSeriesConfigurationProps = {
     type: NonNullable<CartesianChartDisplay['series']>[number]['type'];
     whichYAxis?: number;
     valueLabelPosition: ValueLabelPositionOptions | undefined;
+    valueLabelColor?: string;
     selectedChartType: ChartKind;
     onColorChange: (reference: string, color: string) => void;
     onLabelChange: (reference: string, label: string) => void;
@@ -52,6 +55,10 @@ type SingleSeriesConfigurationProps = {
     onValueLabelPositionChange: (
         reference: string,
         position: ValueLabelPositionOptions,
+    ) => void;
+    onValueLabelColorChange: (
+        reference: string,
+        color: string | undefined,
     ) => void;
 };
 
@@ -65,13 +72,24 @@ export const SingleSeriesConfiguration = ({
     type,
     whichYAxis = 0,
     valueLabelPosition,
+    valueLabelColor,
     selectedChartType,
     onColorChange,
     onLabelChange,
     onTypeChange,
     onAxisChange,
     onValueLabelPositionChange,
+    onValueLabelColorChange,
 }: SingleSeriesConfigurationProps) => {
+    const resolvedType =
+        type ?? getEChartsChartTypeFromChartKind(selectedChartType);
+    const seriesColor = color ?? colors[0];
+    const automaticLabelColor =
+        resolvedType === CartesianSeriesType.BAR &&
+        valueLabelPosition === ValueLabelPositionOptions.INSIDE
+            ? getReadableTextColor(seriesColor)
+            : seriesColor;
+
     return (
         <Stack key={reference} gap="xs">
             <Stack gap="xs" className={classes.seriesCard}>
@@ -123,10 +141,7 @@ export const SingleSeriesConfiguration = ({
                     <Config.Label w={LABEL_WIDTH}>Chart Type</Config.Label>
                     <CartesianChartTypeConfig
                         canSelectDifferentTypeFromBaseChart={true}
-                        type={
-                            type ??
-                            getEChartsChartTypeFromChartKind(selectedChartType)
-                        }
+                        type={resolvedType}
                         onChangeType={(value) => onTypeChange(reference, value)}
                     />
                 </Flex>
@@ -180,12 +195,18 @@ export const SingleSeriesConfiguration = ({
                 <Flex justify="flex-start" align="center" wrap="nowrap">
                     <Config.Label w={LABEL_WIDTH}>Value labels</Config.Label>
                     <CartesianChartValueLabelConfig
+                        colors={colors}
+                        defaultColor={automaticLabelColor}
+                        valueLabelColor={valueLabelColor}
                         valueLabelPosition={
                             valueLabelPosition ??
                             ValueLabelPositionOptions.HIDDEN
                         }
                         onChangeValueLabelPosition={(position) =>
                             onValueLabelPositionChange(reference, position)
+                        }
+                        onChangeValueLabelColor={(nextColor) =>
+                            onValueLabelColorChange(reference, nextColor)
                         }
                     />
                 </Flex>

@@ -403,6 +403,7 @@ export type EChartsSeries = {
     pivotReference?: PivotReference;
     label?: {
         show?: boolean;
+        color?: string;
         fontSize?: number;
         fontWeight?: string;
         position?: EChartsLabelPosition;

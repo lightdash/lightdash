@@ -448,5 +448,21 @@ export const cartesianChartConfigSlice = createSlice({
                 };
             }
         },
+        setSeriesValueLabelColor: (
+            { fieldConfig, display },
+            action: PayloadAction<{
+                reference: string;
+                color: string | undefined;
+            }>,
+        ) => {
+            if (!fieldConfig) return;
+            display = display || {};
+            display.series = display.series || {};
+
+            display.series[action.payload.reference] = {
+                ...display.series[action.payload.reference],
+                valueLabelColor: action.payload.color,
+            };
+        },
     },
 });

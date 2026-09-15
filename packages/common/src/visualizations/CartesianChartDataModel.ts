@@ -687,6 +687,12 @@ export class CartesianChartDataModel {
                 const seriesValueLabelPosition =
                     seriesDisplay?.valueLabelPosition;
                 const seriesType = seriesDisplay?.type ?? defaultSeriesType;
+                const resolvedSeriesColor =
+                    seriesColor ||
+                    CartesianChartDataModel.getDefaultColor(
+                        originalSeriesIndices.get(seriesColumn) ?? 0,
+                        orgColors,
+                    );
 
                 // Any value other than 1 is considered the left axis.
                 const whichYAxis = seriesDisplay?.whichYAxis === 1 ? 1 : 0;
@@ -718,6 +724,8 @@ export class CartesianChartDataModel {
                               | 'bottom'
                               | 'inside',
                           seriesType as CartesianSeriesType,
+                          resolvedSeriesColor,
+                          seriesDisplay?.valueLabelColor,
                       )
                     : {};
 
@@ -792,12 +800,7 @@ export class CartesianChartDataModel {
                     labelLayout: {
                         hideOverlap: true,
                     },
-                    color:
-                        seriesColor ||
-                        CartesianChartDataModel.getDefaultColor(
-                            originalSeriesIndices.get(seriesColumn) ?? 0,
-                            orgColors,
-                        ),
+                    color: resolvedSeriesColor,
                     ...(seriesType === 'bar' ? getBarStyle() : {}),
                     // Apply border radius for non-stacked bars
                     ...(itemStyle ? { itemStyle } : {}),
@@ -1093,6 +1096,7 @@ export type CartesianChartDisplay = {
             type?: CartesianSeriesType.LINE | CartesianSeriesType.BAR;
             // Value labels maps to 'label' in ECharts
             valueLabelPosition?: ValueLabelPositionOptions;
+            valueLabelColor?: string;
             // whichAxis maps to the yAxis index in Echarts.
             whichYAxis?: AxisSide;
         };

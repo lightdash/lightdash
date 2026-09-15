@@ -72,4 +72,27 @@ describe.each([
         );
         expect(reordered.display).toEqual({ seriesOrder: ['sales', 'target'] });
     });
+
+    it('stores and resets a custom value label color', () => {
+        const initial = slice.reducer(undefined, setChartConfig(config));
+        const customized = slice.reducer(
+            initial,
+            slice.actions.setSeriesValueLabelColor({
+                reference: 'sales',
+                color: '#ff00ff',
+            }),
+        );
+        const reset = slice.reducer(
+            customized,
+            slice.actions.setSeriesValueLabelColor({
+                reference: 'sales',
+                color: undefined,
+            }),
+        );
+
+        expect(customized.display?.series?.sales.valueLabelColor).toBe(
+            '#ff00ff',
+        );
+        expect(reset.display?.series?.sales.valueLabelColor).toBeUndefined();
+    });
 });

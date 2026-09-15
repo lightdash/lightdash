@@ -2,6 +2,7 @@
 
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
+    getReadableTextColor,
     type PieChartValueLabel,
     type PieChartValueOptions,
 } from '@lightdash/common';
@@ -39,6 +40,8 @@ type GroupItemProps = {
     valueLabel: PieChartValueLabel;
     showValue: boolean;
     showPercentage: boolean;
+    valueLabelColor?: string;
+    defaultValueLabelColor?: string;
 
     granularityFields?: string[];
 
@@ -71,6 +74,8 @@ export const GroupItem = forwardRef<
             valueLabel,
             showValue,
             showPercentage,
+            valueLabelColor,
+            defaultValueLabelColor,
 
             granularityFields,
 
@@ -141,6 +146,19 @@ export const GroupItem = forwardRef<
                             onToggleShowPercentage={(newValue) =>
                                 onValueOptionsChange(defaultLabel, {
                                     showPercentage: newValue,
+                                })
+                            }
+                            valueLabelColor={valueLabelColor}
+                            defaultValueLabelColor={
+                                defaultValueLabelColor ??
+                                (valueLabel === 'inside' && color
+                                    ? getReadableTextColor(color)
+                                    : color)
+                            }
+                            swatches={swatches}
+                            onValueLabelColorChange={(newColor) =>
+                                onValueOptionsChange(defaultLabel, {
+                                    valueLabelColor: newColor,
                                 })
                             }
                         />
