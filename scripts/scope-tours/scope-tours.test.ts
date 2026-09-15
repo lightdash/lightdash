@@ -122,6 +122,8 @@ To add a metric to Lightdash using the \`meta\` tag, you define it in your dbt p
 ### average
 
 Takes the average (mean) of the values in the given field. Like SQL's \`AVG\` function.
+
+The \`average\` metric can be used on any numeric dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column.
 `,
 );
 writeFileSync(
@@ -185,7 +187,7 @@ const metricsLesson = {
     fileDocs: 'semantic-layer/metrics.mdx#1-using-the-column-meta-tag:1',
     snippet:
         '              average_payment_amount:\n                type: average',
-    snippetDocs: 'semantic-layer/metrics.mdx#average:1-2',
+    snippetDocs: 'semantic-layer/metrics.mdx#average:p2:1',
     command: 'lightdash deploy',
     commandDocs: 'workflow/cli/deploy.mdx#intro:1',
     outputDocs: [
@@ -726,7 +728,7 @@ export const Card = () => (
         assert.strictEqual(tour.steps[2].suggestion, metricsLesson.snippet);
         assert.strictEqual(
             tour.steps[2].body,
-            "Takes the average (mean) of the values in the given field. Like SQL's **AVG** function. Let's add **average_payment_amount**, an **average** of the **amount** column: it goes under that column's metrics, at the end of the file. Type it in, or press Use it to add it for you.",
+            "The **average** metric can be used on any numeric dimension or, [for custom SQL](https://docs.lightdash.com/semantic-layer/metrics#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column. Let's add **average_payment_amount**, an **average** of the **amount** column: it goes under that column's metrics, at the end of the file. Type it in, or press Use it to add it.",
         );
         assert.strictEqual(tour.steps[3].suggestion, 'lightdash deploy');
         assert.strictEqual(
