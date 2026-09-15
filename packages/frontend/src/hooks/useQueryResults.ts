@@ -8,7 +8,6 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
-    sleep,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
@@ -25,7 +24,7 @@ import {
     type ResultRow,
     type UUID,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
@@ -306,6 +305,7 @@ const getResultsPage = async (
     queryUuid: string,
     page: number = 1,
     pageSize: number | null = null,
+    signal?: AbortSignal,
 ): Promise<ApiGetAsyncQueryResults> => {
     const searchParams = new URLSearchParams();
     if (page) {
@@ -322,6 +322,7 @@ const getResultsPage = async (
         }`,
         version: 'v2',
         method: 'GET',
+        signal,
     });
 };
 
@@ -427,10 +428,9 @@ export const useInfiniteQueryResults = (
         dependenciesChanged,
     ]);
 
-    const queryClient = useQueryClient();
-
-    // Initial backoff time in ms
-    const backoffRef = useRef(250);
+    const maxPollingIntervalMs = navigator.userAgent.includes('HeadlessChrome')
+        ? 5000
+        : 1000;
 
     const nextPage = useQuery<
         ApiGetAsyncQueryResults & { clientFetchTimeMs: number },
@@ -438,13 +438,14 @@ export const useInfiniteQueryResults = (
     >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
         queryKey: ['query-page', fetchArgs],
-        queryFn: async () => {
+        queryFn: async ({ signal }) => {
             const startTime = performance.now();
             const results = await getResultsPage(
                 fetchArgs.projectUuid!,
                 fetchArgs.queryUuid!,
                 fetchArgs.page,
                 fetchArgs.pageSize,
+                signal,
             );
 
             const { status } = results;
@@ -454,11 +455,9 @@ export const useInfiniteQueryResults = (
             switch (status) {
                 case QueryHistoryStatus.ERROR:
                 case QueryHistoryStatus.EXPIRED: {
-                    backoffRef.current = 250;
                     throw getAsyncQueryError(results.error);
                 }
                 case QueryHistoryStatus.CANCELLED: {
-                    backoffRef.current = 250;
                     throw <ApiError>{
                         status: 'error',
                         error: {
@@ -472,27 +471,12 @@ export const useInfiniteQueryResults = (
                 case QueryHistoryStatus.PENDING:
                 case QueryHistoryStatus.QUEUED:
                 case QueryHistoryStatus.EXECUTING: {
-                    // Invalidate page. Note we can't use refetch as it bypasses the "enabled" check: https://github.com/TanStack/query/issues/1965
-                    void sleep(backoffRef.current).then(() =>
-                        queryClient.invalidateQueries([
-                            'query-page',
-                            fetchArgs,
-                        ]),
-                    );
-                    // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
-                    if (backoffRef.current < 1000) {
-                        backoffRef.current = Math.min(
-                            backoffRef.current * 2,
-                            1000,
-                        );
-                    }
                     return {
                         ...results,
                         clientFetchTimeMs,
                     };
                 }
                 case QueryHistoryStatus.READY: {
-                    backoffRef.current = 250;
                     return {
                         ...results,
                         clientFetchTimeMs,
@@ -501,6 +485,22 @@ export const useInfiniteQueryResults = (
                 default:
                     return assertUnreachable(status, 'Unknown query status');
             }
+        },
+        refetchIntervalInBackground: true,
+        refetchInterval: (data, query) => {
+            if (query.state.status === 'error' || !data) return false;
+            if (
+                data.status !== QueryHistoryStatus.PENDING &&
+                data.status !== QueryHistoryStatus.QUEUED &&
+                data.status !== QueryHistoryStatus.EXECUTING
+            )
+                return false;
+
+            const backoffExponent = Math.min(
+                Math.max(query.state.dataUpdateCount - 1, 0),
+                5,
+            );
+            return Math.min(250 * 2 ** backoffExponent, maxPollingIntervalMs);
         },
         staleTime: Infinity, // the data will never be considered stale
     });

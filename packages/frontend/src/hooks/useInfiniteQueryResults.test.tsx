@@ -3,7 +3,11 @@ import {
     type ApiGetAsyncQueryResults,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+    focusManager,
+    QueryClient,
+    QueryClientProvider,
+} from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { vi, type Mock } from 'vitest';
@@ -295,5 +299,163 @@ describe('useInfiniteQueryResults', () => {
         });
 
         expect(result.current.rows.length).toBe(3);
+    });
+});
+
+describe('query result polling', () => {
+    let client: QueryClient;
+    const advance = async (ms: number) => {
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(ms);
+        });
+    };
+    const wrapper = ({ children }: PropsWithChildren) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.mocked(lightdashApi).mockReset();
+        client = new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+        });
+    });
+    afterEach(() => {
+        client.clear();
+        focusManager.setFocused(undefined);
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+    it.each([
+        {
+            agent: 'HeadlessChrome/150',
+            delays: [250, 500, 1000, 2000, 4000, 5000, 5000],
+        },
+        {
+            agent: 'Chrome/150',
+            delays: [250, 500, 1000, 1000, 1000, 1000, 1000],
+        },
+    ])(
+        'fetches immediately and caps backoff for $agent',
+        async ({ agent, delays }) => {
+            vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(agent);
+            vi.mocked(lightdashApi).mockResolvedValue({
+                status: QueryHistoryStatus.EXECUTING,
+                queryUuid: 'q1',
+            });
+            const { unmount } = renderHook(
+                () => useInfiniteQueryResults('p1', 'q1'),
+                { wrapper },
+            );
+            await advance(0);
+            expect(lightdashApi).toHaveBeenCalledTimes(1);
+            for (const [index, delay] of delays.entries()) {
+                // eslint-disable-next-line no-await-in-loop
+                await advance(delay - 1);
+                expect(lightdashApi).toHaveBeenCalledTimes(index + 1);
+                // eslint-disable-next-line no-await-in-loop
+                await advance(1);
+                expect(lightdashApi).toHaveBeenCalledTimes(index + 2);
+            }
+            unmount();
+            await advance(10000);
+            expect(lightdashApi).toHaveBeenCalledTimes(delays.length + 1);
+        },
+    );
+    it.each([
+        QueryHistoryStatus.READY,
+        QueryHistoryStatus.ERROR,
+        QueryHistoryStatus.EXPIRED,
+        QueryHistoryStatus.CANCELLED,
+    ] as const)('stops polling at %s', async (status) => {
+        vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+            'HeadlessChrome/150',
+        );
+        vi.mocked(lightdashApi)
+            .mockResolvedValueOnce({
+                status: QueryHistoryStatus.PENDING,
+                queryUuid: 'q1',
+            })
+            .mockResolvedValue(
+                status === QueryHistoryStatus.READY
+                    ? makeReadyPage(1)
+                    : status === QueryHistoryStatus.CANCELLED
+                      ? { status, queryUuid: 'q1' }
+                      : { status, error: 'failed', queryUuid: 'q1' },
+            );
+        const { unmount } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            { wrapper },
+        );
+        await advance(0);
+        await advance(250);
+        expect(lightdashApi).toHaveBeenCalledTimes(2);
+        await advance(10000);
+        expect(lightdashApi).toHaveBeenCalledTimes(2);
+        unmount();
+    });
+    it('resets backoff for a new query and does not refetch the old query', async () => {
+        vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+            'HeadlessChrome/150',
+        );
+        vi.mocked(lightdashApi).mockResolvedValue({
+            status: QueryHistoryStatus.QUEUED,
+            queryUuid: 'q1',
+        });
+        const { rerender, unmount } = renderHook(
+            ({ query }) => useInfiniteQueryResults('p1', query),
+            { wrapper, initialProps: { query: 'q1' } },
+        );
+        await advance(0);
+        await advance(250);
+        await advance(500);
+        expect(lightdashApi).toHaveBeenCalledTimes(3);
+        rerender({ query: 'q2' });
+        await advance(0);
+        expect(lightdashApi).toHaveBeenCalledTimes(4);
+        await advance(250);
+        expect(lightdashApi).toHaveBeenCalledTimes(5);
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.slice(3)
+                .every(([args]) => args.url.includes('/q2?')),
+        ).toBe(true);
+        unmount();
+    });
+    it('continues polling while the rendering page is in the background', async () => {
+        focusManager.setFocused(false);
+        vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+            'HeadlessChrome/150',
+        );
+        vi.mocked(lightdashApi).mockResolvedValue({
+            status: QueryHistoryStatus.PENDING,
+            queryUuid: 'q1',
+        });
+        const { unmount } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            { wrapper },
+        );
+        await advance(0);
+        expect(lightdashApi).toHaveBeenCalledTimes(1);
+        await advance(250);
+        expect(lightdashApi).toHaveBeenCalledTimes(2);
+        unmount();
+    });
+    it('aborts the active fetch when unmounted', async () => {
+        let signal: AbortSignal | undefined;
+        vi.mocked(lightdashApi).mockImplementation(async (args) => {
+            signal = args.signal ?? undefined;
+            return new Promise(() => {});
+        });
+        const { unmount } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            { wrapper },
+        );
+        await advance(0);
+        expect(signal?.aborted).toBe(false);
+        unmount();
+        expect(signal?.aborted).toBe(true);
+        await advance(10000);
+        expect(lightdashApi).toHaveBeenCalledTimes(1);
     });
 });
