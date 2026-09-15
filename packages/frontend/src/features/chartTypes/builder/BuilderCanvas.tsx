@@ -100,7 +100,11 @@ const BuilderCanvas: FC<Props> = ({
                     data-dimmed={isBuilding}
                     inert={isBuilding}
                 >
-                    {configurePanel}
+                    {configurePanel && (
+                        <Box className={classes.configurePanel}>
+                            {configurePanel}
+                        </Box>
+                    )}
                     <Box className={classes.preview}>
                         <AppPreview
                             projectUuid={projectUuid}

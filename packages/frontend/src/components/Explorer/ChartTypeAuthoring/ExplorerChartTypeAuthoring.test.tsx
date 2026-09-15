@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -85,11 +86,13 @@ vi.mock(
     () => ({
         default: ({
             previewContext,
+            configurationSidebar,
         }: {
+            configurationSidebar?: ReactNode;
             previewContext: DataAppVizContext | null;
         }) => {
             previewContexts.push(previewContext);
-            return <div data-testid="workspace" />;
+            return <div data-testid="workspace">{configurationSidebar}</div>;
         },
     }),
 );

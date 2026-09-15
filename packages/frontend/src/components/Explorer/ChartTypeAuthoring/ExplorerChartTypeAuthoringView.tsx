@@ -67,30 +67,26 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
                 onDetailsSaved={onDetailsSaved}
                 onDone={onDone}
             />
-            <Box className={classes.workspace}>
-                <Box className={classes.builderColumn}>
-                    <ChartTypeBuilderWorkspace
-                        projectUuid={projectUuid}
-                        workspace={workspace}
-                        previewContext={previewContext}
-                        syncPreviewUrlState={false}
-                        configurePanel={null}
-                    />
-                </Box>
-                {hasGeneratedConfig && (
-                    /* The chart's real configuration (field mapping + generated
-                    options); the gallery context hides the type picker inside. */
-                    <Box
-                        component="aside"
-                        className={classes.configColumn}
-                        aria-label="Chart type configuration"
-                    >
-                        <ChartGalleryContext.Provider value={true}>
-                            <DataAppVizConfigTabs />
-                        </ChartGalleryContext.Provider>
-                    </Box>
-                )}
-            </Box>
+            <ChartTypeBuilderWorkspace
+                projectUuid={projectUuid}
+                workspace={workspace}
+                previewContext={previewContext}
+                syncPreviewUrlState={false}
+                configurePanel={null}
+                configurationSidebar={
+                    hasGeneratedConfig ? (
+                        <Box
+                            component="aside"
+                            className={classes.configColumn}
+                            aria-label="Chart type configuration"
+                        >
+                            <ChartGalleryContext.Provider value={true}>
+                                <DataAppVizConfigTabs />
+                            </ChartGalleryContext.Provider>
+                        </Box>
+                    ) : null
+                }
+            />
         </Box>
     );
 };

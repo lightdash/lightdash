@@ -589,7 +589,7 @@ describe('ChartTypeGallery', () => {
             await user.click(
                 within(
                     screen.getByRole('dialog', { name: 'Preview in explorer' }),
-                ).getByRole('button', { name: action, exact: true }),
+                ).getByRole('button', { name: action }),
             );
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         },
