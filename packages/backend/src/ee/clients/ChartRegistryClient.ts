@@ -1,6 +1,6 @@
 import {
-    chartRegistryIndexSchema,
     ParameterError,
+    parseChartRegistryIndexTolerant,
     type ChartRegistryEntry,
     type ChartRegistryIndex,
 } from '@lightdash/common';
@@ -10,6 +10,7 @@ import * as dns from 'node:dns/promises';
 import type { LookupFunction } from 'node:net';
 import { Agent } from 'undici';
 import type { LightdashConfig } from '../../config/parseConfig';
+import Logger from '../../logging/logger';
 import {
     isPrivateAddress,
     validatePublicHttpUrl,
@@ -365,7 +366,13 @@ export class ChartRegistryClient {
         }
     }
 
-    /** Parses and validates a raw index.json body; throws on any error. */
+    /**
+     * Parses a raw index.json body. Entries that fail validation are dropped
+     * with a warning instead of failing the index — the registry evolves
+     * independently of deployed instances (e.g. a future channel value), and
+     * one unknown entry must hide that chart, not blank the whole library.
+     * A malformed envelope or invalid JSON still throws.
+     */
     private parseIndex(body: Buffer): ChartRegistryIndex {
         if (body.byteLength > MAX_INDEX_BYTES) {
             throw new ParameterError(
@@ -378,7 +385,15 @@ export class ChartRegistryClient {
         } catch {
             throw new ParameterError('Chart registry index is not valid JSON');
         }
-        return chartRegistryIndexSchema.parse(parsed);
+        const { index, dropped } = parseChartRegistryIndexTolerant(parsed);
+        for (const entry of dropped) {
+            Logger.warn(
+                `Chart registry index entry ${
+                    entry.slug ? `"${entry.slug}"` : '(unknown slug)'
+                } failed validation and was dropped: ${entry.message}`,
+            );
+        }
+        return index;
     }
 
     async getEntry(

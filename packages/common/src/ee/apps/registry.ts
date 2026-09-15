@@ -110,6 +110,61 @@ export const chartRegistryIndexSchema = z.object({
     charts: z.array(registryEntrySchema),
 });
 
+const chartRegistryIndexEnvelopeSchema = z.object({
+    schemaVersion: z.literal(CHART_REGISTRY_INDEX_SCHEMA_VERSION),
+    generatedAt: z.string(),
+    charts: z.array(z.unknown()),
+});
+
+export type ChartRegistryDroppedEntry = {
+    slug: string | null;
+    message: string;
+};
+
+/**
+ * Parses a registry index, dropping entries that fail validation instead of
+ * failing the whole index. The registry evolves independently of deployed
+ * instances — one entry with, say, a channel value this build doesn't know
+ * must hide that chart, not blank the entire library. An invalid envelope
+ * (wrong schemaVersion, charts not an array) still throws: that's an
+ * unusable registry, not a forward-compat entry.
+ */
+export const parseChartRegistryIndexTolerant = (
+    raw: unknown,
+): { index: ChartRegistryIndex; dropped: ChartRegistryDroppedEntry[] } => {
+    const envelope = chartRegistryIndexEnvelopeSchema.parse(raw);
+    const charts: ChartRegistryEntry[] = [];
+    const dropped: ChartRegistryDroppedEntry[] = [];
+    for (const rawEntry of envelope.charts) {
+        const parsed = registryEntrySchema.safeParse(rawEntry);
+        if (parsed.success) {
+            charts.push(parsed.data);
+        } else {
+            const slug =
+                typeof rawEntry === 'object' &&
+                rawEntry !== null &&
+                'slug' in rawEntry &&
+                typeof rawEntry.slug === 'string'
+                    ? rawEntry.slug
+                    : null;
+            dropped.push({
+                slug,
+                message: parsed.error.issues
+                    .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+                    .join('; '),
+            });
+        }
+    }
+    return {
+        index: {
+            schemaVersion: envelope.schemaVersion,
+            generatedAt: envelope.generatedAt,
+            charts,
+        },
+        dropped,
+    };
+};
+
 type AssertMutuallyAssignable<A, B> = [A] extends [B]
     ? [B] extends [A]
         ? true
