@@ -4,7 +4,11 @@ import {
     type ChartType,
 } from '@lightdash/common';
 import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { IconFilePencil, IconSettings, IconX } from '@tabler/icons-react';
+import {
+    IconFilePencil,
+    IconLayoutSidebarRightCollapse,
+    IconSettings,
+} from '@tabler/icons-react';
 import { useEffect, useRef, type FC } from 'react';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
@@ -120,7 +124,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                 aria-label="Close visualization config"
                 onClick={handleClose}
             >
-                <MantineIcon icon={IconX} />
+                <MantineIcon icon={IconLayoutSidebarRightCollapse} />
             </ActionIcon>
         </Tooltip>
     );
