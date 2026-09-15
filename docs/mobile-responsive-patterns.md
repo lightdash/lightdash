@@ -8,7 +8,7 @@ Responsive presentation and product capability use separate signals. Phone layou
 
 | Desktop presentation | Compact presentation | Trigger | Implementation |
 | --- | --- | --- | --- |
-| Full navigation bar | Condensed icon row, then Menu button → right Drawer | Labels condense below 896px; Drawer below `sm` / 768px | [MainNavBarContent](../packages/frontend/src/components/NavBar/MainNavBarContent.tsx) |
+| Full navigation bar | Desktop-like compact row (logo, project switcher, search, Ask AI, account, overflow) → right Drawer | Labels condense below 896px; Drawer below `sm` / 768px | [MainNavBarContent](../packages/frontend/src/components/NavBar/MainNavBarContent.tsx) |
 | Persistent page navigation sidebar | Labeled button → left Drawer, up to 24rem wide | Below `sm` / 768px | [Page](../packages/frontend/src/components/common/Page/Page.tsx) |
 | AI agent settings sidebar | Agent settings button → left Drawer, up to 360px wide | Below `sm`; form remains mounted and drafts survive resizing | [ProjectAiAgentEditPage](../packages/frontend/src/ee/pages/AiAgents/ProjectAiAgentEditPage.tsx) |
 | Page details sidebar | Full-width right Drawer | Below `sm`, when the caller provides a close handler | [Page](../packages/frontend/src/components/common/Page/Page.tsx) |
