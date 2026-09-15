@@ -1,3 +1,10 @@
+## [2.217.1](https://github.com/lightdash/lightdash/compare/2.217.0...2.217.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* show saved chart impact before deleting chart types ([#29182](https://github.com/lightdash/lightdash/issues/29182)) ([2c8a060](https://github.com/lightdash/lightdash/commit/2c8a0603fc74e3e2b634ee312095a8e79c0d1601))
+
 # [2.217.0](https://github.com/lightdash/lightdash/compare/2.216.0...2.217.0) (2026-09-15)
 
 
