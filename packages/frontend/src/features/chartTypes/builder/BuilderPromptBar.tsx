@@ -168,6 +168,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const nextQueueId = useRef(0);
         const editingPrompt = useRef<QueuedPrompt | null>(null);
         const interruptPending = useRef(false);
+        const queuePausedByStop = useRef(false);
         const lastHandledReadyVersion = useRef(latestReadyVersion);
         const [isEmpty, setIsEmpty] = useState(true);
         const [queuedPrompts, setQueuedPrompts] = useState<QueuedPrompt[]>([]);
@@ -243,6 +244,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 setQueuedPrompts((current) => [...current, queuedPrompt]);
                 return;
             }
+            // Sending directly after a stop is an explicit request to resume
+            // the session and lets the queue continue after that build.
+            queuePausedByStop.current = false;
             clarification.send(request);
         };
 
@@ -284,7 +288,12 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
 
         const handleCancelBuild = () => {
             if (!cancelActiveBuild) return;
-            if (!interruptNext) setSendingPrompt(null);
+            if (!interruptNext) {
+                // A direct Stop pauses queued work. "Send now" owns the
+                // interrupt path and deliberately starts its selected prompt.
+                queuePausedByStop.current = true;
+                setSendingPrompt(null);
+            }
             cancelActiveBuild();
         };
 
@@ -293,6 +302,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         useEffect(
             function advanceQueueAfterBuildSettles() {
                 if (isBuilding || isCancelling || buildError !== null) return;
+                if (queuePausedByStop.current) return;
 
                 if (interruptNext) {
                     interruptPending.current = false;
@@ -639,7 +649,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     <MantineIcon icon={IconPaperclip} />
                                 </ActionIcon>
                             </Tooltip>
-                            {isBuilding && isEmpty && cancelActiveBuild ? (
+                            {isBuilding && cancelActiveBuild ? (
                                 <ComposerSubmitButton
                                     icon={IconPlayerStop}
                                     label={
@@ -653,21 +663,16 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     loading={isCancelling}
                                     onClick={handleCancelBuild}
                                 />
-                            ) : (
-                                <ComposerSubmitButton
-                                    icon={IconArrowUp}
-                                    label={
-                                        isBuilding ? 'Queue message' : 'Send'
-                                    }
-                                    size="sm"
-                                    disabled={
-                                        isEmpty ||
-                                        !canSubmit ||
-                                        isComposerLocked
-                                    }
-                                    onClick={handleSubmit}
-                                />
-                            )}
+                            ) : null}
+                            <ComposerSubmitButton
+                                icon={IconArrowUp}
+                                label={isBuilding ? 'Queue message' : 'Send'}
+                                size="sm"
+                                disabled={
+                                    isEmpty || !canSubmit || isComposerLocked
+                                }
+                                onClick={handleSubmit}
+                            />
                         </Group>
                     }
                 />

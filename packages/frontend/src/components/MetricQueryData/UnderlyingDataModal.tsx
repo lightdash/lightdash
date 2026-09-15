@@ -311,7 +311,6 @@ const UnderlyingDataModalContent: FC = () => {
                         <Button
                             leftSection={<MantineIcon icon={IconShare2} />}
                             variant="light"
-                            color="foreground.9"
                             size="compact-sm"
                             disabled={!resultsData}
                         >

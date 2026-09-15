@@ -116,7 +116,7 @@ describe('ExplorerChartTypeAuthoringHeader', () => {
         ).toBeInTheDocument();
     });
 
-    it('always offers a way back and reports whether history is open', async () => {
+    it('keeps Close, Back, and History in the workflow header', async () => {
         const props = renderHeader({ isHistoryOpen: true });
 
         expect(screen.getByRole('button', { name: 'History' })).toHaveAttribute(
@@ -124,8 +124,11 @@ describe('ExplorerChartTypeAuthoringHeader', () => {
             'true',
         );
         await userEvent.click(
+            screen.getByRole('button', { name: 'Close chart type builder' }),
+        );
+        await userEvent.click(
             screen.getByRole('button', { name: 'Back to chart' }),
         );
-        expect(props.onDone).toHaveBeenCalledTimes(1);
+        expect(props.onDone).toHaveBeenCalledTimes(2);
     });
 });

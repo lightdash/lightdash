@@ -231,15 +231,19 @@ export const ConfigTabs: FC = memo(() => {
         const settings = (
             <Stack>
                 {unboundRequired.length > 0 && (
-                    <Callout variant="warning" hideIcon p="xs">
-                        <Text fz="xs">
-                            Map{' '}
-                            {unboundRequired
-                                .map((field) => field.label)
-                                .join(', ')}{' '}
-                            to render this chart type.
-                        </Text>
-                    </Callout>
+                    <Text fz="xs" c="dimmed">
+                        Select{' '}
+                        {unboundRequired.length === 1 ? 'a field' : 'fields'}{' '}
+                        for{' '}
+                        {new Intl.ListFormat('en', {
+                            type: 'conjunction',
+                        }).format(
+                            unboundRequired.map(
+                                (field) => '“' + field.label + '”',
+                            ),
+                        )}{' '}
+                        to display your chart.
+                    </Text>
                 )}
                 <DataAppVizSettings
                     itemsMap={effectiveItemsMap}

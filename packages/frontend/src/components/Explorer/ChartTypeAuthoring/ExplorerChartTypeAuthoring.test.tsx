@@ -309,10 +309,19 @@ describe('ExplorerChartTypeAuthoring', () => {
         } as unknown as ReturnType<typeof useExplorerResultsData>);
     });
 
-    it('opens the builder in a modal with the chart configuration beside it', () => {
+    it('keeps the builder modal named while its workflow header owns the workspace', () => {
         renderAuthoring();
 
-        expect(screen.getByText('Chart type builder')).toBeInTheDocument();
+        expect(
+            screen.getByRole('dialog', {
+                name: 'Chart type builder',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', {
+                name: 'Editing chart type · Grouped bars',
+            }),
+        ).toBeInTheDocument();
         expect(screen.getByTestId('workspace')).toBeInTheDocument();
         expect(screen.getByTestId('config-tabs')).toBeInTheDocument();
     });
