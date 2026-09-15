@@ -34,14 +34,12 @@ type Props = {
     activeProjectUuid: string | undefined;
     activeProjectUrlIdentifier: string | undefined;
     isLoadingActiveProject: boolean;
-    projectName: string | undefined;
 };
 
 export const MainNavBarContent: FC<Props> = ({
     activeProjectUuid,
     activeProjectUrlIdentifier,
     isLoadingActiveProject,
-    projectName,
 }) => {
     const compact = useCompactNavigation();
     const [opened, { toggle, close }] = useDisclosure(false);
@@ -178,7 +176,12 @@ export const MainNavBarContent: FC<Props> = ({
 
     return (
         <>
-            <Group w="100%" gap="sm" wrap="nowrap">
+            <Group
+                className={classes.compactHeader}
+                w="100%"
+                gap="xs"
+                wrap="nowrap"
+            >
                 <ActionIcon
                     component={Link}
                     to={homeUrl}
@@ -188,23 +191,39 @@ export const MainNavBarContent: FC<Props> = ({
                 >
                     <Logo />
                 </ActionIcon>
-                <Text flex={1} miw={0} fw={600} c="white" truncate>
-                    {projectName ?? 'Lightdash'}
-                </Text>
-                {activeProjectUuid && (
-                    <Omnibar projectUuid={activeProjectUuid} />
-                )}
-                <Button
-                    className={classes.menuButton}
-                    variant="default"
-                    leftSection={<IconMenu2 size={20} />}
-                    onClick={toggle}
-                    aria-label={opened ? 'Close navigation' : 'Open navigation'}
-                    aria-expanded={opened}
-                    aria-controls="navbar-navigation-content"
-                >
-                    Menu
-                </Button>
+                <Box className={classes.compactProjectSwitcher}>
+                    <ProjectSwitcher portalTarget="#navbar-header" />
+                </Box>
+                <Group className={classes.compactActions} gap={0} wrap="nowrap">
+                    {activeProjectUuid && (
+                        <>
+                            <Omnibar projectUuid={activeProjectUuid} />
+                            <Suspense fallback={null}>
+                                <Box className={classes.compactAiButton}>
+                                    <AiAgentsButton
+                                        projectUuid={activeProjectUuid}
+                                    />
+                                </Box>
+                            </Suspense>
+                        </>
+                    )}
+                    <Box className={classes.compactAccount}>
+                        <UserMenu />
+                    </Box>
+                    <ActionIcon
+                        className={classes.menuButton}
+                        variant="subtle"
+                        size="lg"
+                        onClick={toggle}
+                        aria-label={
+                            opened ? 'Close navigation' : 'Open navigation'
+                        }
+                        aria-expanded={opened}
+                        aria-controls="navbar-navigation-content"
+                    >
+                        <IconMenu2 size={20} />
+                    </ActionIcon>
+                </Group>
             </Group>
             <Drawer
                 opened={opened}
@@ -232,12 +251,6 @@ export const MainNavBarContent: FC<Props> = ({
                         id="navbar-navigation-content"
                         className={classes.mobileNavigation}
                     >
-                        <Box className={classes.projectSelection}>
-                            <Text className={classes.sectionLabel}>
-                                Project
-                            </Text>
-                            <ProjectSwitcher portalTarget="#navbar-navigation-content" />
-                        </Box>
                         {content}
                     </Box>
                 </NavBarPortalContext.Provider>

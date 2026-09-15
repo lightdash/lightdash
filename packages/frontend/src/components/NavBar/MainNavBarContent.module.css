@@ -23,11 +23,140 @@
     flex-grow: 1;
 }
 
-.menuButton {
-    min-height: 44px;
-    padding-inline: 12px;
+.compactHeader .logoButton {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 6px;
+
+    & svg {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+.compactProjectSwitcher {
+    flex: 1;
+    min-width: 0;
+
+    & :global(.mantine-Button-root) {
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        height: 44px;
+        padding-inline: 10px;
+        overflow: visible;
+        border-color: transparent;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    & :global(.mantine-Button-root)::before {
+        position: absolute;
+        content: '';
+        inset: 6px 0;
+        border: 1px solid var(--mantine-color-default-border);
+        border-radius: var(--mantine-radius-md);
+        background: var(--mantine-color-dark-6);
+        transition:
+            border-color 120ms ease,
+            background-color 120ms ease;
+    }
+
+    & :global(.mantine-Button-root:hover)::before {
+        border-color: var(--mantine-color-ldGray-3);
+        background: var(--mantine-color-dark-5);
+    }
+
+    & :global(.mantine-Button-inner) {
+        position: relative;
+        z-index: 1;
+    }
+}
+
+.compactActions {
     flex-shrink: 0;
-    font-size: 13px;
+}
+
+.compactAiButton {
+    display: flex;
+}
+
+.compactAccount {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+
+    & :global([data-testid='user-avatar']) {
+        position: relative;
+        width: 32px;
+        height: 32px;
+        overflow: visible;
+    }
+
+    & :global([data-testid='user-avatar'])::after {
+        position: absolute;
+        content: '';
+        inset: -6px;
+    }
+}
+
+.compactActions :global([role='search']),
+.compactAiButton :global(.mantine-Button-root),
+.menuButton {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    flex-shrink: 0;
+    position: relative;
+    overflow: visible;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+}
+
+.compactActions :global([role='search'])::before,
+.compactAiButton :global(.mantine-Button-root)::before,
+.menuButton::before {
+    position: absolute;
+    content: '';
+    inset: 6px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-dark-6);
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease;
+}
+
+.compactActions :global([role='search']:hover)::before,
+.compactAiButton :global(.mantine-Button-root:hover)::before,
+.menuButton:hover::before {
+    border-color: var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-dark-5);
+}
+
+.compactActions :global([role='search']) > *,
+.compactAiButton :global(.mantine-Button-inner),
+.menuButton > * {
+    position: relative;
+    z-index: 1;
+}
+
+.compactAiButton :global(.mantine-Button-label) {
+    display: none;
+}
+
+.compactAiButton :global(.mantine-Button-section) {
+    margin: 0;
+}
+
+@media (width < 22.5em) {
+    .compactAccount {
+        display: none;
+    }
 }
 
 .drawerContent {
@@ -62,14 +191,6 @@
     color: var(--mantine-color-dimmed);
     font-size: 12px;
     font-weight: 600;
-}
-
-.projectSelection {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 /* Keep the desktop navigation shape on tablets. Labels condense only where
