@@ -294,7 +294,7 @@ describe('ChartTypeGallery', () => {
             name: 'Installed charts (1)',
         });
         const libraryTab = screen.getByRole('tab', {
-            name: 'Chart library',
+            name: 'Chart library Beta',
         });
 
         expect(chartTypesTab).toHaveAttribute('aria-selected', 'true');
@@ -321,7 +321,7 @@ describe('ChartTypeGallery', () => {
         renderPage('/projects/project-1/gallery?tab=chart-library');
 
         expect(
-            screen.getByRole('tab', { name: 'Chart library' }),
+            screen.getByRole('tab', { name: 'Chart library Beta' }),
         ).toHaveAttribute('aria-selected', 'true');
         expect(
             screen.queryByRole('button', { name: 'Radial gauge' }),
@@ -334,7 +334,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(
-            screen.queryByRole('tab', { name: 'Chart library' }),
+            screen.queryByRole('tab', { name: /Chart library/ }),
         ).not.toBeInTheDocument();
     });
 
