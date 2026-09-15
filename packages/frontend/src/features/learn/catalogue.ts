@@ -8,13 +8,16 @@ import { CURRICULUM } from '../scopeTours/curriculum';
 import { SCOPE_TOURS } from '../scopeTours/generated';
 import { ROLE_LABELS, SYSTEM_ROLE_SCOPES } from './access';
 import { COMING_SOON_SCOPES } from './comingSoon';
+import { SANDBOX_LESSONS } from './sandboxLessons';
 
 /**
  * Foundations contains viewer lessons and is the first library section.
  * Other groups follow the scope registry.
  */
 export const FOUNDATIONS = 'foundations' as const;
-export type LearnGroup = ScopeGroup | typeof FOUNDATIONS;
+/** Docs-page lessons practised in the workspace of a training copy. */
+export const DEVELOPER = 'developer' as const;
+export type LearnGroup = ScopeGroup | typeof FOUNDATIONS | typeof DEVELOPER;
 
 /**
  * What an instance must have for a module's walkthrough to find its controls:
@@ -47,6 +50,8 @@ export const gateFor = (scope: {
     (scope.isEnterprise ? 'enterprise' : null);
 
 export type LearnModule = {
+    /** A scope walkthrough over the product, or a docs-page lesson in the workspace. */
+    kind: 'scope' | 'docs';
     scope: string;
     title: string;
     group: LearnGroup;
@@ -68,6 +73,7 @@ export const GROUP_ORDER: LearnGroup[] = [
     ScopeGroup.PROJECT_MANAGEMENT,
     ScopeGroup.SPOTLIGHT,
     ScopeGroup.ORGANIZATION_MANAGEMENT,
+    DEVELOPER,
 ];
 
 /** The library's one-line purpose per group, as on learn.lightdash.com. */
@@ -83,6 +89,7 @@ export const GROUP_DESCRIPTIONS: Record<LearnGroup, string> = {
     [ScopeGroup.SPOTLIGHT]: 'Learn timely product areas and advanced workflows',
     [ScopeGroup.ORGANIZATION_MANAGEMENT]:
         'Administer people, roles, and organisation settings',
+    [DEVELOPER]: 'Model the semantic layer and ship it with the CLI',
 };
 
 export const GROUP_LABELS: Record<LearnGroup, string> = {
@@ -95,9 +102,27 @@ export const GROUP_LABELS: Record<LearnGroup, string> = {
     [ScopeGroup.PROJECT_MANAGEMENT]: 'Project management',
     [ScopeGroup.SPOTLIGHT]: 'Spotlight',
     [ScopeGroup.ORGANIZATION_MANAGEMENT]: 'Organization',
+    [DEVELOPER]: 'Developer',
 };
 
 const stripBold = (text: string) => text.replace(/\*\*/g, '');
+
+/** One module per lesson, in declaration order; the tour under the lesson id names it. */
+const docsModules = (): LearnModule[] =>
+    SANDBOX_LESSONS.map((lesson) => {
+        const tour = SCOPE_TOURS[lesson.id];
+        return {
+            kind: 'docs',
+            scope: lesson.id,
+            title: tour?.title ?? lesson.id.replace(/^docs:/, ''),
+            group: DEVELOPER,
+            gate: 'sandbox',
+            minRole: null,
+            available: tour !== undefined,
+            blurb: tour ? stripBold(tour.steps[0]?.body ?? '') : '',
+            stepCount: tour?.steps.length ?? 0,
+        };
+    });
 
 /** Walkthroughs and explicit upcoming modules; permissions remain independent. */
 export const buildLearnCatalogue = (): LearnModule[] => {
@@ -106,51 +131,48 @@ export const buildLearnCatalogue = (): LearnModule[] => {
         ...COMING_SOON_SCOPES,
     ]);
     const comingSoon = new Set<string>(COMING_SOON_SCOPES);
-    return (
-        getScopes({ isEnterprise: true })
-            // Base scopes only: a modifier variant (`@self`, `@space`) is the
-            // same feature with a narrower reach, not another lesson.
-            .filter(
-                (scope) =>
-                    trainee.has(scope.name) &&
-                    !scope.name.includes('@') &&
-                    (SCOPE_TOURS[scope.name] !== undefined ||
-                        comingSoon.has(scope.name)),
-            )
-            .map((scope) => {
-                const tour = SCOPE_TOURS[scope.name];
-                const minRole =
-                    SYSTEM_ROLE_SCOPES.find((system) =>
-                        system.held.has(scope.name),
-                    )?.role ?? null;
-                return {
-                    scope: scope.name,
-                    // A built walkthrough names itself (data-tour-title); a
-                    // module still to come keeps the registry's words, minus
-                    // the "all" that reads as a threat on a card.
-                    title:
-                        tour?.title ??
-                        scope.description.replace(/\ball\b /, ''),
-                    // What a viewer already holds is a Foundation; the rest
-                    // sit where the registry puts them.
-                    group:
-                        minRole === ProjectMemberRole.VIEWER
-                            ? FOUNDATIONS
-                            : scope.group,
-                    gate: gateFor(scope),
-                    minRole,
-                    available: tour !== undefined,
-                    blurb: tour ? stripBold(tour.steps[0]?.body ?? '') : '',
-                    stepCount: tour?.steps.length ?? 0,
-                };
-            })
-            .sort(
-                (a, b) =>
-                    Number(b.available) - Number(a.available) ||
-                    taughtAt(a) - taughtAt(b) ||
-                    a.title.localeCompare(b.title),
-            )
-    );
+    const scopeModules = getScopes({ isEnterprise: true })
+        // Base scopes only: a modifier variant (`@self`, `@space`) is the
+        // same feature with a narrower reach, not another lesson.
+        .filter(
+            (scope) =>
+                trainee.has(scope.name) &&
+                !scope.name.includes('@') &&
+                (SCOPE_TOURS[scope.name] !== undefined ||
+                    comingSoon.has(scope.name)),
+        )
+        .map((scope) => {
+            const tour = SCOPE_TOURS[scope.name];
+            const minRole =
+                SYSTEM_ROLE_SCOPES.find((system) => system.held.has(scope.name))
+                    ?.role ?? null;
+            return {
+                kind: 'scope' as const,
+                scope: scope.name,
+                // A built walkthrough names itself (data-tour-title); a
+                // module still to come keeps the registry's words, minus
+                // the "all" that reads as a threat on a card.
+                title: tour?.title ?? scope.description.replace(/\ball\b /, ''),
+                // What a viewer already holds is a Foundation; the rest
+                // sit where the registry puts them.
+                group:
+                    minRole === ProjectMemberRole.VIEWER
+                        ? FOUNDATIONS
+                        : scope.group,
+                gate: gateFor(scope),
+                minRole,
+                available: tour !== undefined,
+                blurb: tour ? stripBold(tour.steps[0]?.body ?? '') : '',
+                stepCount: tour?.steps.length ?? 0,
+            };
+        })
+        .sort(
+            (a, b) =>
+                Number(b.available) - Number(a.available) ||
+                taughtAt(a) - taughtAt(b) ||
+                a.title.localeCompare(b.title),
+        );
+    return [...scopeModules, ...docsModules()];
 };
 
 /**
@@ -159,6 +181,13 @@ export const buildLearnCatalogue = (): LearnModule[] => {
  * no walkthrough exists for it yet, sorts after every one that it does.
  */
 const taughtAt = (module: LearnModule): number => {
+    if (module.kind === 'docs') {
+        // Lessons follow every walkthrough, in the order they are declared.
+        return (
+            CURRICULUM.length +
+            SANDBOX_LESSONS.findIndex((lesson) => lesson.id === module.scope)
+        );
+    }
     const at = CURRICULUM.indexOf(module.scope);
     return at < 0 ? CURRICULUM.length : at;
 };
@@ -201,10 +230,11 @@ export const focusModules = (
 /**
  * Whether the learner holds a module's feature. Membership, not rank: their
  * access is a set of scopes gathered from every role they hold, and a custom
- * role sits nowhere on the system ladder.
+ * role sits nowhere on the system ladder. A docs lesson gates on the sandbox
+ * rather than a scope, so every learner holds it.
  */
 export const holds = (held: Set<string>, module: LearnModule): boolean =>
-    held.has(module.scope);
+    module.kind === 'docs' || held.has(module.scope);
 
 /**
  * What a card says about a module the learner cannot practise yet: the

@@ -1,4 +1,13 @@
-import { Box, Button, Group, Paper, Portal, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Code,
+    Group,
+    Paper,
+    Portal,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { clsx } from 'clsx';
 import type React from 'react';
 import {
@@ -962,6 +971,23 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             step.advanceOnTargetClick ||
             step.advanceOnTargetInput);
 
+    // A suggestion of more than one line (a block of YAML) cannot be read
+    // inside the sentence that offers it: it is printed as code instead.
+    const suggestionIsBlock = !!shownStep.suggestion?.includes('\n');
+    const suggestionButton = (
+        <Button
+            size="compact-xs"
+            variant="default"
+            className={styles.buttonPulse}
+            onClick={() =>
+                shownStep.target &&
+                fillTarget(shownStep.target, shownStep.suggestion!)
+            }
+        >
+            Use it
+        </Button>
+    );
+
     const cardBody = (
         <Paper
             ref={cardRef}
@@ -1065,36 +1091,42 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                             shownStep.advanceOnTargetInput &&
                             spotlightSelector === shownStep.target &&
                             shownStep.suggestion ? (
-                                <Group gap="xs" wrap="nowrap">
-                                    <Text fz="xs" c="dimmed">
-                                        Type here, or use{' '}
-                                        <Text
-                                            component="span"
+                                suggestionIsBlock ? (
+                                    <Stack gap={4} align="flex-start">
+                                        <Text fz="xs" c="dimmed">
+                                            Type here, or use:
+                                        </Text>
+                                        <Code
+                                            block
                                             fz="xs"
-                                            fw={600}
-                                            c="inherit"
+                                            className={styles.suggestionBlock}
                                             data-tour-suggestion={
                                                 shownStep.suggestion
                                             }
                                         >
                                             {shownStep.suggestion}
+                                        </Code>
+                                        {suggestionButton}
+                                    </Stack>
+                                ) : (
+                                    <Group gap="xs" wrap="nowrap">
+                                        <Text fz="xs" c="dimmed">
+                                            Type here, or use{' '}
+                                            <Text
+                                                component="span"
+                                                fz="xs"
+                                                fw={600}
+                                                c="inherit"
+                                                data-tour-suggestion={
+                                                    shownStep.suggestion
+                                                }
+                                            >
+                                                {shownStep.suggestion}
+                                            </Text>
                                         </Text>
-                                    </Text>
-                                    <Button
-                                        size="compact-xs"
-                                        variant="default"
-                                        className={styles.buttonPulse}
-                                        onClick={() =>
-                                            shownStep.target &&
-                                            fillTarget(
-                                                shownStep.target,
-                                                shownStep.suggestion!,
-                                            )
-                                        }
-                                    >
-                                        Use it
-                                    </Button>
-                                </Group>
+                                        {suggestionButton}
+                                    </Group>
+                                )
                             ) : (
                                 <Text fz="xs" c="dimmed">
                                     {shownStep.advanceOnTargetInput &&

@@ -146,6 +146,33 @@ worker never hosts more dbt processes than the cap. `PLAYGROUND_DATA_DIR` contin
 `jaffle_shop.duckdb`, and the sandbox passes it through to the child, since the CLI accepts a local DuckDB
 profile only when the file sits directly inside it.
 
+#### Lessons
+
+A lesson teaches one docs page by having the learner change the project and then look at what changed. Each is
+declared in `features/learn/sandboxLessons.ts`, one entry per page, naming the file to open and the column the
+snippet extends, the snippet to add, the command to run, and the explore and field the learner ends on. Every
+sentence the learner reads is either a cited docs sentence (a step may cite several, read in order) or one of
+two fixed task sentences the template fills from the entry (which metric to add and which column's metrics
+it goes under, and which metric the learner ends on), so the snippet and the entry's facts are
+the only parts written by hand. The library lists each lesson as a module of kind
+`docs` in the Developer group, gated on the sandbox rather than on a permission, so every learner holds it. The
+generated teaching order (`curriculum.ts`) covers permissions and does not name lessons at all, so the library
+sorts them after every walkthrough. Start makes a copy the way a walkthrough does and opens
+`/projects/<copy>/learn/workspace?tour=<id>`.
+
+The tour itself is not authored. `buildLessonTours` in `scripts/scope-tours/lib.ts` turns each entry into the
+same twelve steps: read the page's introduction on a card with nothing spotlit, open the file, add the snippet, type the command, run it, watch the
+output to the end, then New, Chart, search for the table, open it, search for the field, and look at the field
+that now exists. The two searches are not decoration: both lists in Explore are virtualised, so neither the
+table nor the field is on the page until it has been searched for, and they are two different controls, because
+opening a table replaces the table list with the field tree. The snippet is appended to the end of the file, so
+it has to be indented to extend the mapping the file ends in; an entry that would start a new top-level key
+produces YAML the deploy rejects. `pnpm test:learn-lessons` compiles every snippet against the shipped bundle,
+so that mistake fails a build rather than a learner. Use it types the snippet into the editor one character at a time, scrolls
+it into view and highlights the added lines for a moment, so the learner sees what changed and where before the
+tour moves on. A deploy that finishes invalidates the explore list in the
+browser, because the learner walks straight to the new field and a cached list would not have it.
+
 ### Walkthroughs
 
 - **Markers.** A control that a scope unlocks carries `data-tour-scope`, `data-tour-step`, `data-tour-route`,
@@ -177,6 +204,9 @@ profile only when the file sits directly inside it.
   Search runs entirely in the browser, using bundled content, with no API key, model download, outbound request,
   or query telemetry. It is lexical search: paraphrases with no matching words still need better walkthrough
   wording or a future synonym layer.
+- **Lessons.** A developer lesson's tour sits in `SCOPE_TOURS` under its `docs:` id like any other, so the host,
+  progress, library search and the completion dialog handle it with no special case. `curriculum.ts` covers
+  permissions and does not name lessons, so the library sorts them after every walkthrough.
 
 ## Boundaries and invariants
 

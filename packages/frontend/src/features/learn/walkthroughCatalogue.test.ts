@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SCOPE_TOURS } from '../scopeTours/generated';
 import { buildLearnCatalogue, focusModules } from './catalogue';
+import { SANDBOX_LESSONS } from './sandboxLessons';
 describe('walkthrough catalogue', () => {
     it('teaches Browse navigation for Recently deleted without a conflicting settings route', () => {
         const tour = SCOPE_TOURS['manage:DeletedContent'];
@@ -64,10 +65,14 @@ describe('walkthrough catalogue', () => {
             recommended: undefined,
         });
     });
-    it('offers only walkthroughs as available modules', () => {
+    it('offers only walkthroughs as available scope modules', () => {
         const modules = buildLearnCatalogue();
-        expect(modules.filter((m) => m.available)).toHaveLength(42);
-        expect(modules.filter((m) => !m.available)).toHaveLength(21);
+        const scopes = modules.filter((m) => m.kind === 'scope');
+        expect(scopes.filter((m) => m.available)).toHaveLength(42);
+        expect(scopes.filter((m) => !m.available)).toHaveLength(21);
+        expect(modules.filter((m) => m.kind === 'docs')).toHaveLength(
+            SANDBOX_LESSONS.length,
+        );
         expect(
             modules.every(
                 (m) => !m.available || SCOPE_TOURS[m.scope] !== undefined,

@@ -4,11 +4,16 @@ import { heldScopes, ROLE_ORDER, SYSTEM_ROLE_SCOPES } from './access';
 import {
     accessNote,
     buildLearnCatalogue,
+    DEVELOPER,
     gateFor,
+    GROUP_DESCRIPTIONS,
+    GROUP_LABELS,
+    GROUP_ORDER,
     holds,
     sortForLearner,
     type LearnModule,
 } from './catalogue';
+import { SANDBOX_LESSONS } from './sandboxLessons';
 
 /** What a system role holds, the way the library resolves it. */
 const asRole = (role: ProjectMemberRole) =>
@@ -129,8 +134,10 @@ describe('what the learner holds', () => {
         const byRank = (role: ProjectMemberRole, m: LearnModule) =>
             m.minRole !== null &&
             ROLE_ORDER.indexOf(role) >= ROLE_ORDER.indexOf(m.minRole);
+        // Scope modules only: a docs lesson has no scope to hold.
+        const scopeModules = catalogue.filter((m) => m.kind === 'scope');
         ROLE_ORDER.forEach((role) => {
-            catalogue.forEach((m) => {
+            scopeModules.forEach((m) => {
                 expect([role, m.scope, holds(asRole(role), m)]).toEqual([
                     role,
                     m.scope,
@@ -182,5 +189,48 @@ describe('what a card says about a module the learner cannot practise', () => {
         expect(
             accessNote(heldScopes(['manage:PinnedItems'], true), pinning),
         ).toBeNull();
+    });
+});
+
+describe('docs modules', () => {
+    const modules = buildLearnCatalogue();
+
+    it('marks every scope module as kind scope and lists each lesson as a docs module', () => {
+        expect(
+            modules.filter((m) => m.kind === 'docs').map((m) => m.scope),
+        ).toEqual(SANDBOX_LESSONS.map((lesson) => lesson.id));
+        expect(
+            modules
+                .filter((m) => m.kind === 'scope')
+                .every((m) => !m.scope.startsWith('docs:')),
+        ).toBe(true);
+    });
+
+    it('puts docs modules in the Developer group behind the sandbox gate with no role floor', () => {
+        const metrics = modules.find(
+            (m) => m.scope === 'docs:semantic-layer/metrics',
+        )!;
+        expect(metrics).toMatchObject({
+            kind: 'docs',
+            group: DEVELOPER,
+            gate: 'sandbox',
+            minRole: null,
+        });
+    });
+
+    it('is held by every learner and carries no access note', () => {
+        const metrics = modules.find(
+            (m) => m.scope === 'docs:semantic-layer/metrics',
+        )!;
+        expect(holds(new Set(), metrics)).toBe(true);
+        expect(accessNote(new Set(), metrics)).toBeNull();
+    });
+
+    it('names the Developer group', () => {
+        expect(GROUP_ORDER).toContain(DEVELOPER);
+        expect(GROUP_LABELS[DEVELOPER]).toBe('Developer');
+        expect(GROUP_DESCRIPTIONS[DEVELOPER]).toBe(
+            'Model the semantic layer and ship it with the CLI',
+        );
     });
 });
