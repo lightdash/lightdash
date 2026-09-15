@@ -95,6 +95,10 @@ import {
     renderAutopilotAgent,
 } from './config/agent';
 import {
+    composeHeartbeatNarrative,
+    type HeartbeatReportInputs,
+} from './heartbeatNarrative';
+import {
     renderHeartbeatSummary,
     type HeartbeatSummaryContext,
 } from './heartbeatSummary';
@@ -223,6 +227,8 @@ type AutopilotToolCallHandler = (
 type HeartbeatSessionResult = {
     sessionId: string;
     error: string | null;
+    // Present only when a run finished cleanly on the AI SDK runtime.
+    reportInputs: HeartbeatReportInputs | null;
 };
 
 export class ManagedAgentService extends BaseService {
@@ -1861,6 +1867,7 @@ export class ManagedAgentService extends BaseService {
 
         let sessionId = '';
         let runError: string | null = null;
+        let reportInputs: HeartbeatReportInputs | null = null;
 
         const onToolCall: AutopilotToolCallHandler = async (
             toolName,
@@ -1899,6 +1906,7 @@ export class ManagedAgentService extends BaseService {
             );
             sessionId = result.sessionId;
             runError = result.error;
+            reportInputs = result.reportInputs;
             this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
         } catch (error) {
             this.logger.error(
@@ -1930,11 +1938,22 @@ export class ManagedAgentService extends BaseService {
                 : await this.managedAgentModel
                       .getActionCountsByTypeForRun(runUuid)
                       .catch(() => ({}) as Record<string, number>);
+            const narrative =
+                reportInputs !== null &&
+                savedActions !== null &&
+                runError === null
+                    ? await composeHeartbeatNarrative({
+                          ...reportInputs,
+                          notice: ctx.summaryContext.notice,
+                          actions: savedActions,
+                      })
+                    : null;
             const report = renderHeartbeatSummary({
                 actions: savedActions,
                 interrupted: runError !== null,
                 projectName: ctx.projectName,
                 seed: runUuid,
+                narrative,
                 context: ctx.summaryContext,
             });
             const slackSummary = report.text;
@@ -2041,7 +2060,7 @@ export class ManagedAgentService extends BaseService {
             onToolCall,
             onSessionCreated,
         );
-        return { sessionId: result.sessionId, error: null };
+        return { sessionId: result.sessionId, error: null, reportInputs: null };
     }
 
     // The run uuid doubles as the session id: actions and the activity page
@@ -2136,7 +2155,31 @@ export class ManagedAgentService extends BaseService {
             telemetry,
         });
 
-        return { sessionId: runUuid, error: result.error };
+        return {
+            sessionId: runUuid,
+            error: result.error,
+            reportInputs:
+                result.error === null
+                    ? {
+                          model,
+                          callOptions,
+                          providerOptions,
+                          projectName: project.name,
+                          evidence: result.evidence,
+                          telemetry: getAiCallTelemetry({
+                              functionId: 'autopilotHeartbeatReport',
+                              extra: { runUuid },
+                              feature: 'managed-agent',
+                              organizationUuid,
+                              projectUuid,
+                              userUuid: actor.userUuid,
+                              ...getLanguageModelAttribution(model),
+                              keyManagement,
+                              recordIO: copilotConfig.telemetryEnabled,
+                          }),
+                      }
+                    : null,
+        };
     }
 
     // The semantic-layer and content tools Autopilot needs to create and fix
