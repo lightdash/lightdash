@@ -176,7 +176,13 @@ import {
     AiDeepResearchRunsTableName,
 } from '../../ee/database/entities/aiDeepResearch';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
+import {
+    newExploreCacheReadContext,
+    safeGetCachedExploreStorageBytes,
+    summarizeExploreCacheRead,
+} from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
+import { measureTime } from '../../logging/measureTime';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import {
     chunkAsyncRowsByBytes,
@@ -1980,6 +1986,34 @@ export class ProjectModel {
         );
     }
 
+    /**
+     * Sums the on-disk (TOAST) byte size of the `explore` column for the
+     * matched rows via `pg_column_size`, which reads the stored/compressed
+     * size from the TOAST pointer rather than detoasting the full JSONB
+     * value. Used only to bucket request cost for perf instrumentation
+     * (SPK-2121) - never gate behaviour on this value.
+     */
+    async getCachedExploreStorageBytes(
+        projectUuid: string,
+        exploreNamesWithDuplicates?: string[],
+    ): Promise<number> {
+        const exploreNames = exploreNamesWithDuplicates
+            ? [...new Set(exploreNamesWithDuplicates)]
+            : undefined;
+        const query = this.database(CachedExploreTableName)
+            .select<{ totalBytes: string }[]>(
+                this.database.raw(
+                    'COALESCE(SUM(pg_column_size("explore")), 0)::bigint as "totalBytes"',
+                ),
+            )
+            .where('project_uuid', projectUuid);
+        if (exploreNames) {
+            void query.whereIn('name', exploreNames);
+        }
+        const [row] = await query;
+        return Number(row?.totalBytes ?? 0);
+    }
+
     async getCachedExploreNames(projectUuid: string): Promise<string[]> {
         const rows = await this.database(CachedExploreTableName)
             .select<{ name: string }[]>('name')
@@ -2113,9 +2147,27 @@ export class ProjectModel {
         projectUuid: string,
         exploreName: string,
     ): Promise<string[]> {
-        const allCachedExplores = await this.findExploresFromCache(
-            projectUuid,
-            'name',
+        const splitLookupReadContext = newExploreCacheReadContext(
+            'split-lookup',
+            undefined,
+        );
+        const { result: allCachedExplores } = await measureTime(
+            async () => {
+                const [explores, storedExploreBytes] = await Promise.all([
+                    this.findExploresFromCache(projectUuid, 'name'),
+                    safeGetCachedExploreStorageBytes(() =>
+                        this.getCachedExploreStorageBytes(projectUuid),
+                    ),
+                ]);
+                Object.assign(splitLookupReadContext, {
+                    ...summarizeExploreCacheRead(explores),
+                    storedExploreBytes,
+                });
+                return explores;
+            },
+            'ProjectModel.findExploreSplitCandidates.cachedExploreRead',
+            Logger,
+            splitLookupReadContext,
         );
         return getExploreSplitCandidates(
             exploreName,
