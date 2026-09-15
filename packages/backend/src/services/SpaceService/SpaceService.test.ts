@@ -30,6 +30,74 @@ import {
     createTestUser,
 } from './SpaceService.mock';
 
+describe('Document deletion impact', () => {
+    it.each([
+        { enabled: false, canView: true },
+        { enabled: true, canView: false },
+        { enabled: true, canView: true },
+    ])('gates document metadata with %j', async ({ enabled, canView }) => {
+        const user = createTestUser({
+            organizationUuid: 'org',
+            projectUuid: 'project',
+        }) as SessionUser;
+        user.ability.update(
+            canView ? [{ action: 'view', subject: 'Document' }] : [],
+        );
+        const document = {
+            uuid: 'doc',
+            name: 'Private report',
+            spaceUuid: 'space',
+        };
+        const getDocumentsInSpaces = vi
+            .fn()
+            .mockImplementation(async (spaceUuids: string[]) =>
+                spaceUuids.includes('space') ? [document] : [],
+            );
+        const service = new SpaceService({
+            featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
+            spaceModel: {
+                getDescendantSpaceUuids: vi.fn().mockResolvedValue([]),
+                find: vi.fn().mockResolvedValue([
+                    {
+                        uuid: 'space',
+                        name: 'Space',
+                        parentSpaceUuid: null,
+                        chartCount: 0,
+                        dashboardCount: 0,
+                        appCount: 0,
+                    },
+                ]),
+                getSpaceQueries: vi.fn().mockResolvedValue([]),
+                getSpaceSqlCharts: vi.fn().mockResolvedValue([]),
+                getSpaceDashboards: vi.fn().mockResolvedValue([]),
+                getSpaceApps: vi.fn().mockResolvedValue([]),
+                getDocumentsInSpaces,
+            },
+            spacePermissionService: {
+                can: vi.fn().mockResolvedValue(true),
+                resolveAccessBatch: vi.fn().mockResolvedValue([
+                    {
+                        target: { type: 'space', spaceUuid: 'space' },
+                        context: {
+                            organizationUuid: 'org',
+                            projectUuid: 'project',
+                            access: [],
+                            inheritsFromOrgOrProject: true,
+                        },
+                    },
+                ]),
+            },
+        } as unknown as ConstructorParameters<typeof SpaceService>[0]);
+        const result = await service.getDeleteImpact(user, 'space');
+        expect(result.documents).toEqual(enabled && canView ? [document] : []);
+        expect(result.documentCount).toBe(enabled && canView ? 1 : 0);
+        expect(result.spaces[0].documentCount).toBe(result.documentCount);
+        if (!enabled) {
+            expect(getDocumentsInSpaces).not.toHaveBeenCalled();
+        }
+    });
+});
+
 describe('SpaceService', () => {
     let service: SpaceService;
     const mockGetSpaceAccessContext = vi.fn();
@@ -38,6 +106,9 @@ describe('SpaceService', () => {
         mockGetSpaceAccessContext.mockReset();
 
         service = new SpaceService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            } as never,
             analytics: analyticsMock,
             lightdashConfig: lightdashConfigMock,
             projectModel: {} as ProjectModel,
@@ -74,6 +145,9 @@ describe('SpaceService', () => {
                 can: vi.fn(async () => true),
             };
             const moveService = new SpaceService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                } as never,
                 analytics: analyticsMock,
                 lightdashConfig: lightdashConfigMock,
                 projectModel: {} as ProjectModel,
@@ -971,6 +1045,9 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         vi.resetAllMocks();
 
         service = new SpaceService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            } as never,
             analytics: analyticsMock,
             lightdashConfig: lightdashConfigMock,
             projectModel: {} as ProjectModel,
@@ -1049,6 +1126,9 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         } as unknown as SessionUser;
         const withProjectModel = () =>
             new SpaceService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                } as never,
                 analytics: analyticsMock,
                 lightdashConfig: lightdashConfigMock,
                 projectModel: mockProjectModel as unknown as ProjectModel,
@@ -1742,6 +1822,9 @@ describe('SpaceService - space share target validation', () => {
         vi.resetAllMocks();
 
         service = new SpaceService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            } as never,
             analytics: analyticsMock,
             lightdashConfig: lightdashConfigMock,
             projectModel: mockProjectModel as unknown as ProjectModel,

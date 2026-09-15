@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     FeatureFlags,
+    getDocumentDeleteAccess,
     getHighestSpaceRole,
     getOrganizationRoleForRoleSetSpaceAccess,
     getProjectRoleForRoleSetSpaceAccess,
@@ -249,6 +250,14 @@ export class SpacePermissionService extends BaseService {
     /** Returns persisted direct grants without inherited or expanded access. */
     async getRawDirectAccess(spaceUuids: string[]) {
         return this.spacePermissionModel.getRawDirectAccess(spaceUuids);
+    }
+
+    async getDocumentDeleteAccessContext(
+        userUuid: string,
+        target: Extract<AccessTarget, { type: 'document' }>,
+    ): Promise<AccessContextForCasl> {
+        const context = await this.resolveAccess(userUuid, target);
+        return { ...context, access: getDocumentDeleteAccess(context.access) };
     }
 
     /**

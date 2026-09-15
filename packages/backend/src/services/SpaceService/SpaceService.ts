@@ -4,6 +4,7 @@ import {
     ApiSpaceServiceAccountCandidatesResponse,
     BulkActionable,
     CreateSpace,
+    FeatureFlags,
     ForbiddenError,
     getHighestSpaceRole,
     NotFoundError,
@@ -29,6 +30,7 @@ import { toSessionUser } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { ServiceAccountModel } from '../../ee/models/ServiceAccountModel';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -44,6 +46,7 @@ import type {
 import { SpacePermissionService } from './SpacePermissionService';
 
 type SpaceServiceArguments = {
+    featureFlagModel: FeatureFlagModel;
     analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
@@ -90,6 +93,8 @@ export class SpaceService
     extends BaseService
     implements BulkActionable<Knex>, SoftDeletableService
 {
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -116,6 +121,7 @@ export class SpaceService
 
     constructor(args: SpaceServiceArguments) {
         super();
+        this.featureFlagModel = args.featureFlagModel;
         this.analytics = args.analytics;
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
@@ -779,6 +785,32 @@ export class SpaceService
         ]);
 
         const allCharts = [...charts, ...sqlCharts];
+        const { enabled: documentsEnabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.Documents,
+        });
+        const contexts = documentsEnabled
+            ? await this.spacePermissionService.resolveAccessBatch(
+                  user.userUuid,
+                  allUuids.map((uuid) => ({ type: 'space', spaceUuid: uuid })),
+              )
+            : [];
+        const ability = this.createAuditedAbility(user);
+        const documentSpaceUuids = contexts.flatMap(({ target, context }) =>
+            context && ability.can('view', subject('Document', context))
+                ? [target.spaceUuid]
+                : [],
+        );
+        const documents = documentsEnabled
+            ? await this.spaceModel.getDocumentsInSpaces(documentSpaceUuids)
+            : [];
+        const documentCounts = new Map<string, number>();
+        documents.forEach(({ spaceUuid: documentSpaceUuid }) => {
+            documentCounts.set(
+                documentSpaceUuid,
+                (documentCounts.get(documentSpaceUuid) ?? 0) + 1,
+            );
+        });
 
         return {
             spaces: spaces.map((s) => ({
@@ -788,6 +820,7 @@ export class SpaceService
                 chartCount: Number(s.chartCount),
                 dashboardCount: Number(s.dashboardCount),
                 appCount: Number(s.appCount),
+                documentCount: documentCounts.get(s.uuid) ?? 0,
             })),
             charts: allCharts.map((c) => ({
                 uuid: c.uuid,
@@ -806,6 +839,8 @@ export class SpaceService
             chartCount: allCharts.length,
             dashboardCount: dashboards.length,
             appCount: apps.length,
+            documents,
+            documentCount: documents.length,
         };
     }
 

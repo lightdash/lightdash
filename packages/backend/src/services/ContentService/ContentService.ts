@@ -809,7 +809,11 @@ export class ContentService extends BaseService {
     ): Promise<void> {
         switch (item.contentType) {
             case ContentType.DOCUMENT:
-                throw new ParameterError('Document deletion is not available');
+                return this.documentService.delete(
+                    fromSession(user),
+                    projectUuid,
+                    item.uuid,
+                );
             case ContentType.CHART:
                 switch (item.source) {
                     case ChartSourceType.DBT_EXPLORE:
@@ -952,11 +956,16 @@ export class ContentService extends BaseService {
             ? filters.deletedByUserUuids
             : [user.userUuid];
 
+        const { enabled: documentsEnabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.Documents,
+        });
         const contentTypes = filters.contentTypes ?? [
             ContentType.CHART,
             ContentType.DASHBOARD,
             ContentType.SPACE,
             ContentType.DATA_APP,
+            ...(documentsEnabled ? [ContentType.DOCUMENT] : []),
         ];
 
         return this.contentModel.findDeletedContents(
@@ -966,6 +975,9 @@ export class ContentService extends BaseService {
                 search: filters.search,
                 deletedByUserUuids,
                 dataAppVizsFilter: filters.dataAppVizsFilter,
+                documents: documentsEnabled
+                    ? { allowedSpaceUuids: [] }
+                    : undefined,
             },
             paginateArgs,
         );
@@ -1000,6 +1012,12 @@ export class ContentService extends BaseService {
         }
 
         switch (item.contentType) {
+            case ContentType.DOCUMENT:
+                return this.documentService.restore(
+                    fromSession(user),
+                    projectUuid,
+                    item.uuid,
+                );
             case ContentType.CHART:
                 switch (item.source) {
                     case ChartSourceType.DBT_EXPLORE:
@@ -1064,6 +1082,12 @@ export class ContentService extends BaseService {
         }
 
         switch (item.contentType) {
+            case ContentType.DOCUMENT:
+                return this.documentService.permanentDelete(
+                    fromSession(user),
+                    projectUuid,
+                    item.uuid,
+                );
             case ContentType.CHART:
                 switch (item.source) {
                     case ChartSourceType.DBT_EXPLORE:

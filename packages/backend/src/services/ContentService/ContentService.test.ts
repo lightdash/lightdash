@@ -144,6 +144,9 @@ const createService = ({
             }),
     };
     const documentService = {
+        delete: vi.fn().mockResolvedValue(undefined),
+        restore: vi.fn().mockResolvedValue(undefined),
+        permanentDelete: vi.fn().mockResolvedValue(undefined),
         moveToSpace: vi.fn().mockResolvedValue(undefined),
         filterViewableUuids: vi
             .fn()
@@ -185,6 +188,79 @@ const createService = ({
 };
 
 describe('Document discovery', () => {
+    it('bulk deletion reports a denied Document without losing successful deletions', async () => {
+        const deps = createService();
+        deps.documentService.delete.mockRejectedValueOnce(new ForbiddenError());
+        const result = await deps.service.bulkDelete(
+            createUser(),
+            projectUuid,
+            [
+                { contentType: ContentType.DOCUMENT, uuid: 'denied' },
+                { contentType: ContentType.DOCUMENT, uuid: 'deleted' },
+            ],
+        );
+        expect(result).toEqual({
+            deletedCount: 1,
+            skipped: [
+                {
+                    uuid: 'denied',
+                    contentType: ContentType.DOCUMENT,
+                    reason: 'You do not have permission to delete this content',
+                },
+            ],
+        });
+    });
+    it.each(['restoreContent', 'permanentlyDeleteContent'] as const)(
+        'dispatches %s to Document lifecycle authorization',
+        async (method) => {
+            const deps = createService();
+            await deps.service[method](createUser(), projectUuid, {
+                contentType: ContentType.DOCUMENT,
+                uuid: 'document',
+            });
+            const lifecycle =
+                method === 'restoreContent'
+                    ? deps.documentService.restore
+                    : deps.documentService.permanentDelete;
+            expect(lifecycle).toHaveBeenCalledWith(
+                expect.any(Object),
+                projectUuid,
+                'document',
+            );
+        },
+    );
+
+    it.each([true, false])(
+        'gates Recently deleted Documents with flag=%s and scopes nonadmins to their own deletions',
+        async (documentsEnabled) => {
+            const findDeletedContents = vi.fn().mockResolvedValue({ data: [] });
+            const deps = createService({
+                documentsEnabled,
+                contentModel: {
+                    findDeletedContents,
+                } as unknown as ContentModel,
+            });
+            const user = createUser();
+            user.ability.update([{ action: 'view', subject: 'Project' }]);
+            await deps.service.findDeleted(user, {
+                projectUuids: [projectUuid],
+                deletedByUserUuids: ['other-user'],
+            });
+            expect(findDeletedContents).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    deletedByUserUuids: [userUuid],
+                    documents: documentsEnabled
+                        ? { allowedSpaceUuids: [] }
+                        : undefined,
+                }),
+                undefined,
+            );
+            const { contentTypes } = findDeletedContents.mock.calls[0][0];
+            expect(contentTypes.includes(ContentType.DOCUMENT)).toBe(
+                documentsEnabled,
+            );
+        },
+    );
     const page = {
         data: [],
         pagination: {
@@ -360,14 +436,19 @@ describe('Document discovery', () => {
         );
     });
 
-    it('does not offer Document deletion through the generic content API', async () => {
+    it('dispatches Document deletion through the generic content API', async () => {
         const deps = createService();
         await expect(
             deps.service.delete(createUser(), projectUuid, {
                 uuid: 'document',
                 contentType: ContentType.DOCUMENT,
             }),
-        ).rejects.toThrow('Document deletion is not available');
+        ).resolves.toBeUndefined();
+        expect(deps.documentService.delete).toHaveBeenCalledWith(
+            expect.any(Object),
+            projectUuid,
+            'document',
+        );
     });
 
     it('overwrites a caller-supplied Documents filter when the flag is disabled', async () => {

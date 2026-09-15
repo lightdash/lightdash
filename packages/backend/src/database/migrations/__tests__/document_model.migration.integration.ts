@@ -19,6 +19,7 @@ import {
     down as grantsDown,
     up as grantsUp,
 } from '../20260916100000_create_document_access_tables';
+import { up as provenanceUp } from '../20260916110000_add_document_space_deletion_provenance';
 
 describe('DocumentModel PostgreSQL integration', () => {
     let database: Knex;
@@ -68,6 +69,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             SEED_ORG_1_ADMIN.user_uuid,
         ]);
         await up(transaction);
+        await provenanceUp(transaction);
         model = new DocumentModel({ database: transaction });
         const space = await transaction('spaces')
             .join('projects', 'projects.project_id', 'spaces.project_id')
@@ -164,6 +166,186 @@ describe('DocumentModel PostgreSQL integration', () => {
                         : SpaceMemberRole.EDITOR,
                 grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
             });
+
+        test('soft-delete is idempotent, preserves versions/grants and restore recovers the same identity', async () => {
+            const document = await model.create(input);
+            await grant(document.documentUuid);
+            await grant(document.documentUuid, DirectAccessPrincipalType.GROUP);
+            await model.softDelete(
+                input.projectUuid,
+                document.documentUuid,
+                SEED_ORG_1_ADMIN.user_uuid,
+                input.spaceUuid,
+            );
+            const deleted = await model.getLifecycleState(
+                input.projectUuid,
+                document.documentUuid,
+            );
+            expect(
+                await transaction('documents')
+                    .where('document_uuid', document.documentUuid)
+                    .first('deleted_with_space'),
+            ).toEqual({ deleted_with_space: false });
+            await model.softDelete(
+                input.projectUuid,
+                document.documentUuid,
+                randomUUID(),
+                input.spaceUuid,
+            );
+            expect(
+                await model.getLifecycleState(
+                    input.projectUuid,
+                    document.documentUuid,
+                ),
+            ).toEqual(deleted);
+            await expect(
+                model.get(input.projectUuid, document.documentUuid),
+            ).rejects.toThrow('not found');
+            expect(await model.listSpaceUuids(input.projectUuid)).toEqual([]);
+            expect(
+                await accessModel.getUserAccess(
+                    [document.documentUuid],
+                    SEED_ORG_1_ADMIN.user_uuid,
+                    { organizationUuid },
+                ),
+            ).toEqual({});
+            expect(await transaction('document_user_access')).toHaveLength(1);
+            expect(await transaction('document_group_access')).toHaveLength(1);
+            expect(await transaction(DocumentVersionsTableName)).toHaveLength(
+                1,
+            );
+            await model.restore(input.projectUuid, document.documentUuid);
+            expect(
+                await transaction('documents')
+                    .where('document_uuid', document.documentUuid)
+                    .first('deleted_with_space'),
+            ).toEqual({ deleted_with_space: false });
+            expect(
+                await model.get(input.projectUuid, document.documentUuid),
+            ).toMatchObject({
+                documentUuid: document.documentUuid,
+                slug: document.slug,
+                version: document.version,
+            });
+            expect(
+                (
+                    await accessModel.getUserAccess(
+                        [document.documentUuid],
+                        SEED_ORG_1_ADMIN.user_uuid,
+                        { organizationUuid },
+                    )
+                )[document.documentUuid],
+            ).toMatchObject({
+                userRole: SpaceMemberRole.VIEWER,
+                groupRoles: [SpaceMemberRole.EDITOR],
+            });
+        });
+
+        test('permanent deletion purges identity, versions and direct grants atomically', async () => {
+            const document = await model.create(input);
+            await grant(document.documentUuid);
+            await grant(document.documentUuid, DirectAccessPrincipalType.GROUP);
+            await expect(
+                model.permanentDelete(input.projectUuid, document.documentUuid),
+            ).rejects.toThrow('not found');
+            await model.softDelete(
+                input.projectUuid,
+                document.documentUuid,
+                SEED_ORG_1_ADMIN.user_uuid,
+                input.spaceUuid,
+            );
+            await expect(
+                model.permanentDelete(randomUUID(), document.documentUuid),
+            ).rejects.toThrow('not found');
+            await model.permanentDelete(
+                input.projectUuid,
+                document.documentUuid,
+            );
+            expect(await transaction('document_user_access')).toEqual([]);
+            expect(await transaction('document_group_access')).toEqual([]);
+            expect(await transaction(DocumentVersionsTableName)).toEqual([]);
+            await expect(
+                model.getLifecycleState(
+                    input.projectUuid,
+                    document.documentUuid,
+                ),
+            ).rejects.toThrow('not found');
+        });
+
+        test('recovery does not parse version JSON and refuses a deleted parent Space', async () => {
+            const document = await model.create(input);
+            await model.softDelete(
+                input.projectUuid,
+                document.documentUuid,
+                SEED_ORG_1_ADMIN.user_uuid,
+                input.spaceUuid,
+            );
+            await transaction.raw(
+                'UPDATE document_versions SET schema_version=999',
+            );
+            expect(
+                (
+                    await model.getLifecycleState(
+                        input.projectUuid,
+                        document.documentUuid,
+                    )
+                ).deletedAt,
+            ).not.toBeNull();
+            await transaction('spaces')
+                .where('space_uuid', input.spaceUuid)
+                .update({ deleted_at: new Date(), deleted_by_user_uuid: null });
+            await expect(
+                model.restore(input.projectUuid, document.documentUuid),
+            ).rejects.toThrow('Restore the owning Space');
+            expect(
+                (
+                    await model.getLifecycleState(
+                        input.projectUuid,
+                        document.documentUuid,
+                    )
+                ).deletedAt,
+            ).not.toBeNull();
+            await model.permanentDelete(
+                input.projectUuid,
+                document.documentUuid,
+            );
+        });
+
+        test('lifecycle refuses stale Space ownership and wrong project without changing rows', async () => {
+            const document = await model.create(input);
+            await expect(
+                model.softDelete(
+                    input.projectUuid,
+                    document.documentUuid,
+                    SEED_ORG_1_ADMIN.user_uuid,
+                    randomUUID(),
+                ),
+            ).rejects.toThrow('has moved');
+            await expect(
+                model.softDelete(
+                    randomUUID(),
+                    document.documentUuid,
+                    SEED_ORG_1_ADMIN.user_uuid,
+                    input.spaceUuid,
+                ),
+            ).rejects.toThrow('not found');
+            await expect(
+                model.restore(randomUUID(), document.documentUuid),
+            ).rejects.toThrow('not found');
+            expect(
+                (
+                    await model.getLifecycleState(
+                        input.projectUuid,
+                        document.documentUuid,
+                    )
+                ).deletedAt,
+            ).toBeNull();
+            await model.permanentDelete(
+                input.projectUuid,
+                document.documentUuid,
+                { expectedSpaceUuid: input.spaceUuid, requireDeleted: false },
+            );
+        });
 
         test('concrete user/group grants combine roles and stay tenant-scoped', async () => {
             const document = await model.create(input);
