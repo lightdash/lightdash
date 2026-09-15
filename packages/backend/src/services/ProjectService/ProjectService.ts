@@ -262,6 +262,7 @@ import {
     type OrganizationProject,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type PreAggregateDef,
     type RunQueryTags,
     type Tag,
     type UUID,
@@ -280,6 +281,7 @@ import * as Sentry from '@sentry/node';
 import { createHmac, timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
+import { type Knex } from 'knex';
 import { uniq } from 'lodash';
 import fetch from 'node-fetch';
 import { Readable } from 'stream';
@@ -295,6 +297,7 @@ import {
     ProjectEvent,
     type OnboardingFlow,
 } from '../../analytics/LightdashAnalytics';
+import * as AccountFactory from '../../auth/account';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -304,12 +307,22 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { DbTagUpdate } from '../../database/entities/tags';
-import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
+import { deriveBigqueryRefreshGrantExecutionScope } from '../../ee/services/PreAggregateMaterializationService/bigqueryRefreshGrantExecutionScope';
+import {
+    getWarehouseCompatibilityContext,
+    hashPreAggregateCompatibility,
+    prepareMaterializationFingerprint,
+} from '../../ee/services/PreAggregateMaterializationService/preAggregatePreparation';
+import { resolveDatabricksPrincipal } from '../../ee/services/PreAggregateMaterializationService/resolveDatabricksPrincipal';
+import {
+    deriveLegacyExecutionScope,
+    deriveUnverifiedExecutionScope,
+} from '../../ee/services/PreAggregateMaterializationService/unverifiedExecutionScope';
 import { seedMissingTrainingCopyMetricsTrees } from '../../ee/services/ProjectService/seedPlaygroundMetricsTrees';
 import { errorHandler } from '../../errors';
 import {
@@ -364,11 +377,16 @@ import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
 import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
+import { getSqlBuilderForExplore } from '../../utils/QueryBuilder/getSqlBuilderForExplore';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { runWithConcurrency } from '../../utils/runWithConcurrency';
+import {
+    getSecretArtifactKeyId,
+    PRE_AGGREGATE_EXECUTION_SCOPE_ARTIFACT,
+} from '../../utils/secretArtifactKeyId';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
@@ -2442,119 +2460,531 @@ export class ProjectService extends BaseService {
         return { warehouseClient: client, sshTunnel, tunnelConnectMs };
     }
 
-    private async syncPreAggregateDefinitionsRegistry(
-        projectUuid: string,
-    ): Promise<void> {
-        const exploresByUuid =
-            await this.projectModel.getAllExploresFromCache(projectUuid);
-
-        const preAggregateExploreUuidByName = new Map<string, string>(
-            Object.entries(exploresByUuid)
-                .filter(
-                    ([, explore]) =>
-                        !isExploreError(explore) &&
-                        explore.type === ExploreType.PRE_AGGREGATE,
-                )
-                .map(([cachedExploreUuid, explore]) => [
-                    explore.name,
-                    cachedExploreUuid,
-                ]),
+    async prepareRegisteredPreAggregate(args: {
+        account: Account;
+        projectUuid: string;
+        definition: import('@lightdash/common').PreAggregateDefinition;
+        evaluatedAt: Date;
+        expectedPinnedContextHash?: string | null;
+    }) {
+        const sourceName =
+            args.definition.sourceExploreName ??
+            args.definition.materializationMetricQuery?.metricQuery.exploreName;
+        if (!sourceName)
+            throw new ParameterError('Pre-aggregate source is unavailable');
+        const sourceExplore = await this.projectModel.getExploreFromCache(
+            args.projectUuid,
+            sourceName,
         );
+        if (isExploreError(sourceExplore))
+            throw new ParameterError('Pre-aggregate source is invalid');
+        return this.preparePreAggregateMaterialization({
+            ...args,
+            sourceExplore,
+            preAggregateDef: args.definition.preAggregateDefinition,
+        });
+    }
 
-        const definitionRows: DbPreAggregateDefinitionIn[] = [];
-
-        Object.entries(exploresByUuid).forEach(
-            ([sourceCachedExploreUuid, sourceExplore]) => {
-                if (
-                    isExploreError(sourceExplore) ||
-                    !sourceExplore.preAggregates ||
-                    sourceExplore.preAggregates.length === 0
-                ) {
-                    return;
-                }
-
-                sourceExplore.preAggregates.forEach(
-                    (preAggregateDefinition) => {
-                        const preAggregateExploreName =
-                            getPreAggregateExploreName(
-                                sourceExplore.name,
-                                preAggregateDefinition.name,
-                            );
-                        const preAggCachedExploreUuid =
-                            preAggregateExploreUuidByName.get(
-                                preAggregateExploreName,
-                            );
-
-                        if (!preAggCachedExploreUuid) {
-                            this.logger.warn(
-                                `Skipping pre-aggregate definition "${preAggregateDefinition.name}" for source explore "${sourceExplore.name}" in project ${projectUuid}: generated pre-aggregate explore "${preAggregateExploreName}" not found in cache`,
-                            );
-                            return;
-                        }
-
-                        // External pre-aggregates are never materialized: null
-                        // metric query + null cron keep every enqueue/cron path away.
-                        const isExternal =
-                            preAggregateDefinition.table !== undefined;
-
-                        let materializationMetricQuery = null;
-                        let materializationQueryError = null;
-
-                        if (!isExternal) {
-                            try {
-                                materializationMetricQuery =
-                                    preAggregateMaterialization.buildMaterializationMetricQuery(
-                                        {
-                                            sourceExplore,
-                                            preAggregateDef:
-                                                preAggregateDefinition,
-                                            materializationConfig: {
-                                                maxRows:
-                                                    this.lightdashConfig
-                                                        .preAggregates
-                                                        .materializationMaxRows,
-                                            },
-                                        },
-                                    );
-                            } catch (error) {
-                                materializationQueryError =
-                                    getErrorMessage(error);
-                            }
-                        }
-
-                        definitionRows.push({
-                            project_uuid: projectUuid,
-                            source_cached_explore_uuid: sourceCachedExploreUuid,
-                            pre_agg_cached_explore_uuid:
-                                preAggCachedExploreUuid,
-                            pre_aggregate_definition: preAggregateDefinition,
-                            materialization_metric_query:
-                                materializationMetricQuery,
-                            materialization_query_error:
-                                materializationQueryError,
-                            refresh_cron: isExternal
-                                ? null
-                                : (preAggregateDefinition.refresh?.cron ??
-                                  null),
-                        });
-                    },
-                );
-            },
+    /** Fingerprint the same source and access context used to prepare execution. */
+    async preparePreAggregateMaterialization({
+        account,
+        projectUuid,
+        sourceExplore,
+        preAggregateDef,
+        evaluatedAt,
+        expectedPinnedContextHash,
+    }: {
+        account: Account;
+        projectUuid: string;
+        sourceExplore: Explore;
+        preAggregateDef: PreAggregateDef;
+        evaluatedAt: Date;
+        expectedPinnedContextHash?: string | null;
+    }) {
+        assertIsAccountWithOrg(account);
+        const role = preAggregateDef.materializationRole;
+        const access = role
+            ? {
+                  intrinsicUserAttributes: getIntrinsicUserAttributes({
+                      email: role.email,
+                  }),
+                  userAttributes: role.attributes,
+              }
+            : await this.getUserAttributes({ account });
+        const snapshot = structuredClone(sourceExplore);
+        const explore = exploreHasFilteredAttribute(snapshot)
+            ? getFilteredExplore(snapshot, access.userAttributes)
+            : snapshot;
+        const materializationMetricQuery =
+            preAggregateMaterialization.buildMaterializationMetricQuery({
+                sourceExplore: explore,
+                preAggregateDef,
+                materializationConfig: {
+                    maxRows:
+                        this.lightdashConfig.preAggregates
+                            .materializationMaxRows,
+                },
+            });
+        const metricQuery =
+            preAggregateDef.sorts === undefined
+                ? {
+                      ...materializationMetricQuery.metricQuery,
+                      sorts: preAggregateMaterialization.getDefaultMaterializationSorts(
+                          materializationMetricQuery.metricQuery.dimensions,
+                          materializationMetricQuery.timeDimensionFieldId,
+                      ),
+                  }
+                : materializationMetricQuery.metricQuery;
+        const [
+            warehouseCredentials,
+            projectTimezone,
+            projectParameters,
+            useTimezoneAwareDateTrunc,
+        ] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            }),
+            this.getQueryTimezoneForProject(projectUuid),
+            this.projectParametersModel.find(projectUuid),
+            this.isTimezoneSupportEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            }),
+        ]);
+        const availableParameterDefinitions = await this.getAvailableParameters(
+            projectUuid,
+            explore,
+            projectParameters,
         );
-
-        await this.preAggregateModel.upsertPreAggregateDefinitions(
-            definitionRows,
+        const parameters = await this.combineParameters(
+            projectUuid,
+            explore,
+            undefined,
+            undefined,
+            projectParameters,
         );
-
-        const invalidDefinitionsCount = definitionRows.filter(
-            (row) => row.materialization_query_error !== null,
-        ).length;
-        this.logger.info(
-            `Upserted ${definitionRows.length} pre-aggregate definition registry row(s) for project ${projectUuid}`,
+        const queryComposer = new QueryComposer(
+            { metricQuery },
             {
-                invalidDefinitionsCount,
+                explore,
+                warehouseSqlBuilder: getSqlBuilderForExplore(
+                    explore,
+                    warehouseCredentials,
+                ),
+                ...access,
+                timezone: projectTimezone,
+                displayTimezone: useTimezoneAwareDateTrunc
+                    ? projectTimezone
+                    : null,
+                availableParameterDefinitions,
+                parameters,
+                skipModelRequiredFilters: true,
+                useTimezoneAwareDateTrunc,
+                columnTimezone: getColumnTimezone(warehouseCredentials),
+                dataTimezone: warehouseCredentials.dataTimezone,
+                queryExecutionContext:
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
             },
         );
+        const scopeArgs = {
+            warehouseCredentials,
+            actorId: account.user.id,
+            credentialSourceId:
+                warehouseCredentials.userWarehouseCredentialsUuid ??
+                projectUuid,
+        };
+        let resolvedAmbientPrincipal: string | undefined;
+        const bigqueryAuthClient =
+            warehouseCredentials.type === WarehouseTypes.BIGQUERY &&
+            warehouseCredentials.authenticationType ===
+                BigqueryAuthenticationType.ADC
+                ? new BigqueryWarehouseClient(warehouseCredentials).client
+                      .authClient
+                : undefined;
+        if (bigqueryAuthClient) {
+            resolvedAmbientPrincipal = (
+                await bigqueryAuthClient.getCredentials()
+            ).client_email;
+        } else if (
+            warehouseCredentials.type === WarehouseTypes.DATABRICKS &&
+            !getWarehouseCompatibilityContext(warehouseCredentials).verified
+        ) {
+            resolvedAmbientPrincipal =
+                await resolveDatabricksPrincipal(warehouseCredentials);
+        }
+        const prepareWithSecret = async (secret: string) => {
+            const keyedScopeArgs = { ...scopeArgs, secret };
+            let bigqueryRefreshGrantScope: string | undefined;
+            if (bigqueryAuthClient && !resolvedAmbientPrincipal) {
+                const scope = await deriveBigqueryRefreshGrantExecutionScope({
+                    ...keyedScopeArgs,
+                    authClient: bigqueryAuthClient,
+                });
+                if (scope.status === 'proven')
+                    bigqueryRefreshGrantScope = scope.hash;
+            }
+            const unverifiedScope =
+                deriveUnverifiedExecutionScope(keyedScopeArgs);
+            let executionCredentialScope: string | undefined;
+            if (
+                !resolvedAmbientPrincipal &&
+                !getWarehouseCompatibilityContext(warehouseCredentials).verified
+            ) {
+                executionCredentialScope =
+                    unverifiedScope.status === 'proven'
+                        ? unverifiedScope.hash
+                        : deriveLegacyExecutionScope(keyedScopeArgs);
+            }
+            return {
+                queryComposer,
+                warehouseCredentials,
+                evaluatedAt,
+                materializationMetricQuery,
+                ...(executionCredentialScope
+                    ? { executionCredentialScope }
+                    : {}),
+                ...(bigqueryRefreshGrantScope
+                    ? { bigqueryRefreshGrantScope }
+                    : {}),
+                ...(executionCredentialScope || bigqueryRefreshGrantScope
+                    ? {
+                          executionScopeKeyId: getSecretArtifactKeyId(
+                              secret,
+                              PRE_AGGREGATE_EXECUTION_SCOPE_ARTIFACT,
+                          ),
+                      }
+                    : {}),
+                ...(resolvedAmbientPrincipal
+                    ? { resolvedAmbientPrincipal }
+                    : {}),
+                ...prepareMaterializationFingerprint({
+                    composer: queryComposer,
+                    preAggregateDef,
+                    warehouseCredentials,
+                    format: this.lightdashConfig.preAggregates.parquetEnabled
+                        ? 'parquet'
+                        : 'jsonl',
+                    resolvedAmbientPrincipal,
+                    unverifiedExecutionScope: bigqueryRefreshGrantScope
+                        ? hashPreAggregateCompatibility({
+                              executionCredentialScope,
+                              bigqueryRefreshGrantScope,
+                          })
+                        : executionCredentialScope,
+                }),
+            };
+        };
+        const active = await prepareWithSecret(
+            this.lightdashConfig.lightdashSecrets.active,
+        );
+        if (
+            !expectedPinnedContextHash ||
+            active.pinnedContextHash === expectedPinnedContextHash
+        )
+            return active;
+        // New proofs always use the active key. Existing proofs may use any
+        // configured fallback until their materializations have been rebuilt.
+        for (const secret of this.lightdashConfig.lightdashSecrets.fallbacks) {
+            // eslint-disable-next-line no-await-in-loop -- Bounded keyring, same captured compiler and SDK context.
+            const candidate = await prepareWithSecret(secret);
+            if (candidate.pinnedContextHash === expectedPinnedContextHash)
+                return candidate;
+        }
+        return active;
+    }
+
+    protected async getPreAggregateExecutionAccount(userUuid: string) {
+        const sessionUser =
+            await this.userModel.findSessionUserByUUID(userUuid);
+        const serviceAccount = this.lightdashConfig.serviceAccount.enabled
+            ? await this.userModel.findServiceAccountByUserUuid(userUuid)
+            : undefined;
+        return serviceAccount
+            ? AccountFactory.fromServiceAccount(
+                  {
+                      ...sessionUser,
+                      serviceAccount: {
+                          uuid: serviceAccount.uuid,
+                          description: serviceAccount.description,
+                      },
+                  },
+                  '',
+              )
+            : AccountFactory.fromSession(sessionUser);
+    }
+
+    private async preparePreAggregatePublication(
+        args: SaveCompiledExploresArgs,
+    ) {
+        if (!this.lightdashConfig.preAggregates.enabled) return undefined;
+        const [account, project, existing] = await Promise.all([
+            this.getPreAggregateExecutionAccount(args.userUuid),
+            this.projectModel.get(args.projectUuid),
+            this.projectModel.getAllExploresFromCache(args.projectUuid),
+        ]);
+        const userManaged = new Map(
+            Object.values(existing)
+                .filter(isUserManagedExplore)
+                .map((explore) => [explore.name, explore]),
+        );
+        const definitions = new Map<
+            string,
+            Parameters<
+                PreAggregateModel['publishDefinitions']
+            >[0]['definitions']
+        >();
+        let scheduleChanges: string[] = [];
+        const invalidSourceErrors: Record<string, string> = {};
+        const sourceExploreNames = new Set<string>();
+        const sourceFingerprints = new Map<string, string>();
+        const publicationVersion = uuidv4();
+        const observe = async (incoming: Explore | ExploreError) => {
+            const source = userManaged.get(incoming.name) ?? incoming;
+            if (
+                !isExploreError(source) &&
+                source.type === ExploreType.PRE_AGGREGATE
+            )
+                return;
+            sourceExploreNames.add(source.name);
+            sourceFingerprints.set(
+                source.name,
+                hashPreAggregateCompatibility(source),
+            );
+            if (isExploreError(source)) {
+                definitions.delete(source.name);
+                invalidSourceErrors[source.name] = source.errors
+                    .map((error) => error.message)
+                    .join(', ');
+                return;
+            }
+            delete invalidSourceErrors[source.name];
+            const sourceDefinitions: Parameters<
+                PreAggregateModel['publishDefinitions']
+            >[0]['definitions'] = [];
+            for (const definition of source.preAggregates ?? []) {
+                let prepared:
+                    | Awaited<
+                          ReturnType<
+                              ProjectService['preparePreAggregateMaterialization']
+                          >
+                      >
+                    | undefined;
+                let error: string | null = null;
+                let materializationMetricQuery:
+                    | import('@lightdash/common').MaterializationMetricQueryPayload
+                    | null = null;
+                const external = definition.table !== undefined;
+                if (!external) {
+                    try {
+                        materializationMetricQuery =
+                            preAggregateMaterialization.buildMaterializationMetricQuery(
+                                {
+                                    sourceExplore: source,
+                                    preAggregateDef: definition,
+                                    materializationConfig: {
+                                        maxRows:
+                                            this.lightdashConfig.preAggregates
+                                                .materializationMaxRows,
+                                    },
+                                },
+                            );
+                    } catch (cause) {
+                        error = getErrorMessage(cause);
+                    }
+                    if (!error) {
+                        try {
+                            prepared =
+                                // eslint-disable-next-line no-await-in-loop -- Keep credential refresh and per-definition preparation bounded.
+                                await this.preparePreAggregateMaterialization({
+                                    account,
+                                    projectUuid: args.projectUuid,
+                                    sourceExplore: source,
+                                    preAggregateDef: definition,
+                                    evaluatedAt: new Date(),
+                                });
+                        } catch {
+                            this.logger.warn(
+                                'Pre-aggregate compatibility preparation unavailable; deployment will establish a baseline',
+                                {
+                                    projectUuid: args.projectUuid,
+                                    sourceExploreName: source.name,
+                                    preAggregateName: definition.name,
+                                },
+                            );
+                        }
+                    }
+                }
+                let preparationStatus: import('@lightdash/common').PreAggregatePreparationStatus =
+                    error ? 'invalid' : 'unverified';
+                if (prepared?.compatibilityHash) preparationStatus = 'ready';
+                sourceDefinitions.push({
+                    project_uuid: args.projectUuid,
+                    source_explore_name: source.name,
+                    pre_aggregate_name: definition.name,
+                    publication_version: publicationVersion,
+                    compatibility_hash: prepared?.compatibilityHash ?? null,
+                    physical_output_contract:
+                        prepared?.physicalOutputContract ?? null,
+                    preparation_status: preparationStatus,
+                    automatic_eligible:
+                        !external &&
+                        !error &&
+                        project.type !== ProjectType.PREVIEW,
+                    pre_aggregate_definition: definition,
+                    materialization_metric_query:
+                        prepared?.materializationMetricQuery ??
+                        materializationMetricQuery,
+                    materialization_query_error: error,
+                    refresh_cron: external
+                        ? null
+                        : (definition.refresh?.cron ?? null),
+                });
+            }
+            definitions.set(source.name, sourceDefinitions);
+        };
+        // Cache publication preserves these explores even during full replacement.
+        if (args.complete === true) {
+            for (const source of userManaged.values()) {
+                // eslint-disable-next-line no-await-in-loop -- Release each prepared source before processing the next.
+                await observe(source);
+            }
+        }
+        return {
+            observe,
+            publish: async (
+                trx: Knex.Transaction,
+                { deletedExploreNames }: { deletedExploreNames: string[] } = {
+                    deletedExploreNames: [],
+                },
+            ): Promise<void> => {
+                const preparedSourceNames = [...definitions.entries()]
+                    .filter(([, rows]) => rows.length > 0)
+                    .map(([name]) => name);
+                const publishedExplores =
+                    preparedSourceNames.length > 0
+                        ? Object.values(
+                              await this.projectModel.getAllExploresFromCache(
+                                  args.projectUuid,
+                                  trx,
+                                  preparedSourceNames,
+                              ),
+                          )
+                        : [];
+                const changedSources = new Set(
+                    publishedExplores
+                        .filter(
+                            (source) =>
+                                sourceFingerprints.has(source.name) &&
+                                sourceFingerprints.get(source.name) !==
+                                    hashPreAggregateCompatibility(source),
+                        )
+                        .map((source) => source.name),
+                );
+                // User-managed explores win under the cache lock. If one changed
+                // while preparation ran, never attach the old source's proof to
+                // the new serving definition. A subsequent compile can repair it.
+                const preparedDefinitions = [...definitions.values()]
+                    .flat()
+                    .map((definition) =>
+                        changedSources.has(definition.source_explore_name)
+                            ? {
+                                  ...definition,
+                                  compatibility_hash: null,
+                                  preparation_status: 'invalid' as const,
+                                  automatic_eligible: false,
+                                  materialization_metric_query: null,
+                                  materialization_query_error:
+                                      'Source changed during preparation; recompile the project.',
+                              }
+                            : definition,
+                    );
+                const result = await this.preAggregateModel.publishDefinitions(
+                    {
+                        projectUuid: args.projectUuid,
+                        definitions: preparedDefinitions,
+                        scope:
+                            args.complete === true
+                                ? { type: 'full' }
+                                : {
+                                      type: 'partial',
+                                      sourceExploreNames: [
+                                          ...new Set([
+                                              ...sourceExploreNames,
+                                              ...deletedExploreNames,
+                                          ]),
+                                      ],
+                                  },
+                        invalidSourceErrors,
+                        schedulerTimezone: project.schedulerTimezone,
+                    },
+                    trx,
+                );
+                scheduleChanges = result.scheduleChanges;
+            },
+            afterCommit: () =>
+                this.syncAndEnqueuePreAggregateMaterializations({
+                    projectUuid: args.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    userUuid: args.userUuid,
+                    skipMaterialization: project.type === ProjectType.PREVIEW,
+                    scheduleChanges,
+                }),
+        };
+    }
+
+    private async reconcilePreAggregateSchedules(
+        projectUuid: string,
+        definitionUuids: string[],
+    ): Promise<void> {
+        const project = await this.projectModel.get(projectUuid);
+        for (const preAggregateDefinitionUuid of definitionUuids) {
+            // A later publication may have committed before this post-commit
+            // work runs. Reconcile from current state, never the saved payload.
+            const definition =
+                // eslint-disable-next-line no-await-in-loop -- Read and reconcile each revision in order.
+                await this.preAggregateModel.getPreAggregateDefinitionByUuid({
+                    projectUuid,
+                    preAggregateDefinitionUuid,
+                });
+            const schedulable =
+                definition?.automaticEligible &&
+                definition.refreshCron &&
+                definition.scheduleRevision &&
+                project.createdByUserUuid &&
+                project.type !== ProjectType.PREVIEW
+                    ? {
+                          organizationUuid: project.organizationUuid,
+                          projectUuid,
+                          // Match daily cron generation; editing a schedule
+                          // must not change its warehouse execution account.
+                          createdByUserUuid: project.createdByUserUuid,
+                          preAggregateDefinitionUuid,
+                          refreshCron: definition.refreshCron,
+                          scheduleRevision: definition.scheduleRevision,
+                          schedulerTimezone: project.schedulerTimezone,
+                      }
+                    : null;
+            // eslint-disable-next-line no-await-in-loop -- Cancellation must finish before verifying the resulting revision.
+            await this.schedulerClient.reconcilePreAggregateCronSchedule({
+                preAggregateDefinitionUuid,
+                definition: schedulable,
+            });
+            const current =
+                // eslint-disable-next-line no-await-in-loop -- Detect publication races after scheduler side effects.
+                await this.preAggregateModel.getPreAggregateDefinitionByUuid({
+                    projectUuid,
+                    preAggregateDefinitionUuid,
+                });
+            if (current?.scheduleRevision !== definition?.scheduleRevision) {
+                // eslint-disable-next-line no-await-in-loop -- Repair a revision replaced while reconciliation was running.
+                await this.reconcilePreAggregateSchedules(projectUuid, [
+                    preAggregateDefinitionUuid,
+                ]);
+            }
+        }
     }
 
     private async syncAndEnqueuePreAggregateMaterializations(args: {
@@ -2562,28 +2992,26 @@ export class ProjectService extends BaseService {
         organizationUuid: string;
         userUuid: string;
         skipMaterialization: boolean;
+        scheduleChanges: string[];
     }): Promise<void> {
-        try {
-            await this.syncPreAggregateDefinitionsRegistry(args.projectUuid);
-
-            if (args.skipMaterialization) {
-                this.logger.info(
-                    `Skipping pre-aggregate materialization enqueue for preview project ${args.projectUuid}`,
-                );
-                return;
-            }
-
-            const preAggregateDefinitions =
+        const reconcile = this.reconcilePreAggregateSchedules(
+            args.projectUuid,
+            args.scheduleChanges,
+        );
+        const enqueue = async () => {
+            if (args.skipMaterialization) return;
+            const definitions =
                 await this.preAggregateModel.getPreAggregateDefinitionsForProject(
                     args.projectUuid,
                 );
-            const materializableDefinitions = preAggregateDefinitions.filter(
-                (definition) => definition.materializationMetricQuery !== null,
-            );
-
-            if (materializableDefinitions.length > 0) {
-                await Promise.all(
-                    materializableDefinitions.map((definition) =>
+            await Promise.all(
+                definitions
+                    .filter(
+                        (definition) =>
+                            definition.automaticEligible &&
+                            definition.materializationMetricQuery !== null,
+                    )
+                    .map((definition) =>
                         this.schedulerClient.materializePreAggregate({
                             organizationUuid: args.organizationUuid,
                             projectUuid: args.projectUuid,
@@ -2593,34 +3021,18 @@ export class ProjectService extends BaseService {
                             trigger: 'compile',
                         }),
                     ),
-                );
-
-                const { schedulerTimezone } = await this.projectModel.get(
-                    args.projectUuid,
-                );
-
-                await this.schedulerClient.schedulePreAggregateCronJobs(
-                    materializableDefinitions
-                        .filter((definition) => definition.refreshCron !== null)
-                        .map((definition) => ({
-                            organizationUuid: args.organizationUuid,
-                            projectUuid: args.projectUuid,
-                            createdByUserUuid: args.userUuid,
-                            preAggregateDefinitionUuid:
-                                definition.preAggregateDefinitionUuid,
-                            refreshCron: definition.refreshCron!,
-                            schedulerTimezone,
-                            preAggExploreName: undefined,
-                        })),
-                    new Date(),
-                );
-            }
-        } catch (error) {
-            this.logger.error(
-                `Failed to sync/enqueue pre-aggregate materializations for project ${args.projectUuid}: ${getErrorMessage(
-                    error,
-                )}`,
             );
+        };
+        const results = await Promise.allSettled([reconcile, enqueue()]);
+        for (const result of results) {
+            if (result.status === 'rejected')
+                this.logger.error(
+                    'Failed pre-aggregate post-publication reconciliation',
+                    {
+                        projectUuid: args.projectUuid,
+                        error: getErrorMessage(result.reason),
+                    },
+                );
         }
     }
 
@@ -2634,6 +3046,11 @@ export class ProjectService extends BaseService {
             args.dbtModelNames !== undefined &&
             (await this.projectDbtSourcesModel.hasSources(args.projectUuid));
         const dbtModelNames = hasDbtSources ? undefined : args.dbtModelNames;
+        const publication = await this.preparePreAggregatePublication(args);
+        for (const explore of explores) {
+            // eslint-disable-next-line no-await-in-loop -- Bound preparation memory and credential refresh work.
+            await publication?.observe(explore);
+        }
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             saveExplores: async (summary) => {
@@ -2642,7 +3059,9 @@ export class ProjectService extends BaseService {
                     explores,
                     args.complete,
                     dbtModelNames,
+                    publication?.publish,
                 );
+                await publication?.afterCommit();
                 explores.forEach((explore) => summary.add(explore));
                 return saved;
             },
@@ -2657,21 +3076,29 @@ export class ProjectService extends BaseService {
         },
     ) {
         const { exploreStream, onCompiled, ...metadata } = args;
+        const publication = await this.preparePreAggregatePublication({
+            ...metadata,
+            complete: true,
+        });
         return this.saveExploresAndIndexCatalog({
             ...metadata,
             complete: true,
             saveExplores: async (summary) => {
                 async function* observedExplores() {
                     for await (const explore of exploreStream) {
+                        await publication?.observe(explore);
                         summary.add(explore, onCompiled !== undefined);
                         yield explore;
                     }
                     onCompiled?.(summary);
                 }
-                return this.projectModel.saveExploreStreamToCache(
+                const saved = await this.projectModel.saveExploreStreamToCache(
                     args.projectUuid,
                     observedExplores(),
+                    publication?.publish,
                 );
+                await publication?.afterCommit();
+                return saved;
             },
         });
     }
@@ -2824,15 +3251,6 @@ export class ProjectService extends BaseService {
             prevMetricTreeEdges,
             prevMetricsTreeNodes,
         });
-
-        if (this.lightdashConfig.preAggregates.enabled) {
-            await this.syncAndEnqueuePreAggregateMaterializations({
-                projectUuid,
-                organizationUuid,
-                userUuid,
-                skipMaterialization: project.type === ProjectType.PREVIEW,
-            });
-        }
 
         return {
             indexCatalogJobUuid: indexCatalogJob,
@@ -4006,7 +4424,30 @@ export class ProjectService extends BaseService {
             updatedProject.dbtConnection,
         );
 
-        await this.projectModel.update(projectUuid, updatedProject);
+        const materializationContextChanged =
+            !savedProject.warehouseConnection ||
+            hashPreAggregateCompatibility(
+                getWarehouseCompatibilityContext(
+                    savedProject.warehouseConnection,
+                ),
+            ) !==
+                hashPreAggregateCompatibility(
+                    getWarehouseCompatibilityContext(
+                        updatedProject.warehouseConnection,
+                    ),
+                );
+        await this.projectModel.update(
+            projectUuid,
+            updatedProject,
+            this.lightdashConfig.preAggregates.enabled &&
+                materializationContextChanged
+                ? (trx) =>
+                      this.preAggregateModel.invalidateProjectPreparations(
+                          projectUuid,
+                          trx,
+                      )
+                : undefined,
+        );
 
         if (
             savedProject.type !== ProjectType.PREVIEW &&
@@ -4172,7 +4613,30 @@ export class ProjectService extends BaseService {
 
         this.validateConfigSecrets(updatedProject);
 
-        await this.projectModel.update(projectUuid, updatedProject);
+        const materializationContextChanged =
+            !savedProject.warehouseConnection ||
+            hashPreAggregateCompatibility(
+                getWarehouseCompatibilityContext(
+                    savedProject.warehouseConnection,
+                ),
+            ) !==
+                hashPreAggregateCompatibility(
+                    getWarehouseCompatibilityContext(
+                        updatedProject.warehouseConnection,
+                    ),
+                );
+        await this.projectModel.update(
+            projectUuid,
+            updatedProject,
+            this.lightdashConfig.preAggregates.enabled &&
+                materializationContextChanged
+                ? (trx) =>
+                      this.preAggregateModel.invalidateProjectPreparations(
+                          projectUuid,
+                          trx,
+                      )
+                : undefined,
+        );
 
         if (
             savedProject.type !== ProjectType.PREVIEW &&
@@ -12416,12 +12880,31 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const { schedulerTimezone } = settings;
+        let changedSchedules: string[] = [];
         const updatedProject = await this.projectModel.updateSchedulerSettings(
             projectUuid,
             settings,
+            this.lightdashConfig.preAggregates.enabled &&
+                schedulerTimezone !== undefined
+                ? async (trx) => {
+                      changedSchedules =
+                          await this.preAggregateModel.updateScheduleTimezone(
+                              projectUuid,
+                              schedulerTimezone,
+                              trx,
+                          );
+                  }
+                : undefined,
         );
 
         if (settings.schedulerTimezone !== undefined) {
+            if (this.lightdashConfig.preAggregates.enabled) {
+                await this.reconcilePreAggregateSchedules(
+                    projectUuid,
+                    changedSchedules,
+                );
+            }
             this.analytics.track({
                 event: 'default_scheduler_timezone.updated',
                 userId: user.userUuid,
@@ -12526,6 +13009,13 @@ export class ProjectService extends BaseService {
         const updatedProject = await this.projectModel.updateQueryTimezone(
             projectUuid,
             settings,
+            this.lightdashConfig.preAggregates.enabled
+                ? (trx) =>
+                      this.preAggregateModel.invalidateProjectPreparations(
+                          projectUuid,
+                          trx,
+                      )
+                : undefined,
         );
 
         this.analytics.track({
