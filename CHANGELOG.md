@@ -1,3 +1,10 @@
+# [2.222.0](https://github.com/lightdash/lightdash/compare/2.221.2...2.222.0) (2026-09-15)
+
+
+### Features
+
+* **ai-launcher:** make the AI launcher panel resizable ([#29259](https://github.com/lightdash/lightdash/issues/29259)) ([93155d4](https://github.com/lightdash/lightdash/commit/93155d44994541439ac2ce49fb74f202f115cda3))
+
 ## [2.221.2](https://github.com/lightdash/lightdash/compare/2.221.1...2.221.2) (2026-09-15)
 
 
