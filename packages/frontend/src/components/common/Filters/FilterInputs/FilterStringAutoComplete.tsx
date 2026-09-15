@@ -165,11 +165,16 @@ const SearchErrorIndicator: FC<{
             <HoverCard.Target>
                 <ActionIcon
                     size="sm"
-                    aria-label={getUiString(
-                        'filters.autocomplete.error.retryAriaLabel',
-                    )}
+                    aria-label={
+                        canRetry
+                            ? getUiString(
+                                  'filters.autocomplete.error.retryAriaLabel',
+                              )
+                            : getUiString(ERROR_HEADLINE_KEY[kind])
+                    }
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={onRetry}
+                    onClick={canRetry ? onRetry : undefined}
+                    style={{ cursor: canRetry ? 'pointer' : 'default' }}
                 >
                     <MantineIcon icon={IconAlertCircle} color="red" />
                 </ActionIcon>
@@ -564,9 +569,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         <SearchErrorIndicator
                                             error={error}
                                             isRetrying={isFetching}
-                                            onRetry={() => {
-                                                refetch().catch(console.error);
-                                            }}
+                                            onRetry={() => void refetch()}
                                         />
                                     ) : null}
 

@@ -466,15 +466,20 @@ describe('FilterStringAutoComplete', () => {
         };
 
         it('explains a configuration failure without offering a retry', async () => {
+            const refetch = vi.fn();
             renderWithError(
                 apiError('NotFoundError', 'Explore orders does not exist'),
+                refetch,
             );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            fireEvent.mouseEnter(
-                screen.getByRole('button', {
-                    name: 'Retry loading suggestions',
-                }),
-            );
+            const indicator = screen.getByRole('button', {
+                name: "Suggestions unavailable: this field's autocomplete isn't set up correctly.",
+            });
+            await user.click(indicator);
+            expect(refetch).not.toHaveBeenCalled();
+
+            fireEvent.mouseEnter(indicator);
 
             expect(
                 await screen.findByText(
