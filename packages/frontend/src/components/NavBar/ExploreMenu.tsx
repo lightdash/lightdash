@@ -75,6 +75,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                 >
                     <Menu.Target>
                         <Button
+                            aria-label="New"
                             variant="default"
                             size="xs"
                             fz="sm"

@@ -599,6 +599,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
             >
                 <Menu.Target>
                     <Button
+                        aria-label={`Switch project, current: ${activeProject?.name ?? 'none'}`}
                         variant="default"
                         size="xs"
                         className={classes.targetButton}

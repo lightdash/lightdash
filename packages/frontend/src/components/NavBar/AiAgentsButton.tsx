@@ -72,6 +72,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
     if (!showReviews) {
         return (
             <Button
+                aria-label="Ask AI"
                 size="xs"
                 variant="default"
                 fz="sm"
@@ -101,6 +102,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
             >
                 <HoverCard.Target>
                     <Button
+                        aria-label="Ask AI"
                         size="xs"
                         variant="default"
                         fz="sm"
@@ -154,6 +156,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         >
             <HoverCard.Target>
                 <Button
+                    aria-label="Ask AI"
                     size="xs"
                     variant="default"
                     fz="sm"
