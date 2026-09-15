@@ -1,10 +1,5 @@
-import {
-    DeleteObjectCommand,
-    GetObjectCommand,
-    HeadObjectCommand,
-} from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
     getErrorMessage,
     MissingConfigError,
@@ -228,7 +223,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
     }
 
     async getFileUrl(cacheKey: string, fileExtension = 'jsonl') {
-        if (!this.configuration || !this.s3) {
+        if (!this.configuration || !this.s3 || !this.urlSigner) {
             throw new MissingConfigError('S3 configuration is not set');
         }
 
@@ -238,15 +233,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         );
 
         // Get the S3 URL
-        const url = await getSignedUrl(
-            this.s3,
-            new GetObjectCommand({
-                Bucket: this.configuration.bucket,
-                Key: key,
-            }),
-            {
-                expiresIn: this.s3ExpiresIn,
-            },
+        const url = await this.urlSigner.getSignedDownloadUrl(
+            this.configuration.bucket,
+            key,
+            this.s3ExpiresIn,
         );
 
         return url;

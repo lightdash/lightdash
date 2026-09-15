@@ -556,6 +556,7 @@ test('Should default results S3 config to S3 config', () => {
         accessKey: 'mock_access_key',
         secretKey: 'mock_secret_key',
         forcePathStyle: true,
+        authMode: 'default',
     });
 });
 
@@ -575,6 +576,7 @@ test('Should use explicit results S3 config when set', () => {
         accessKey: 'new_access_key',
         secretKey: 'new_secret_key',
         forcePathStyle: false,
+        authMode: 'default',
     });
 });
 
@@ -604,6 +606,7 @@ test('Should prioritize new results S3 config over deprecated config when both a
         accessKey: 'new_access_key',
         secretKey: 'new_secret_key',
         forcePathStyle: false,
+        authMode: 'default',
     });
 });
 
@@ -621,6 +624,7 @@ test('Should fall back to base S3 credentials for pre-aggregate results S3 confi
         accessKey: 'base_access_key',
         secretKey: 'base_secret_key',
         forcePathStyle: false,
+        authMode: 'default',
     });
 });
 
@@ -640,6 +644,7 @@ test('Should use explicit pre-aggregate S3 credentials when set', () => {
         accessKey: 'preagg_access_key',
         secretKey: 'preagg_secret_key',
         forcePathStyle: false,
+        authMode: 'default',
     });
 });
 
@@ -654,6 +659,7 @@ test('Should default apps S3 config to base S3 config', () => {
         accessKey: 'mock_access_key',
         secretKey: 'mock_secret_key',
         forcePathStyle: false,
+        authMode: 'default',
     });
 });
 
@@ -670,6 +676,54 @@ test('Should use explicit apps S3 config when set', () => {
         accessKey: 'apps_access_key',
         secretKey: 'apps_secret_key',
         forcePathStyle: false,
+        authMode: 'default',
+    });
+});
+
+describe('S3_AUTH_MODE', () => {
+    it('defaults to the existing SigV4 behaviour', () => {
+        expect(parseConfig().s3?.authMode).toEqual('default');
+    });
+
+    it('applies gcp_oauth to every storage configuration at once', () => {
+        process.env.S3_AUTH_MODE = 'gcp_oauth';
+        process.env.PRE_AGGREGATE_RESULTS_S3_BUCKET = 'preagg_bucket';
+        process.env.PRE_AGGREGATE_RESULTS_S3_REGION = 'preagg_region';
+
+        const config = parseConfig();
+
+        expect(config.s3?.authMode).toEqual('gcp_oauth');
+        expect(config.results.s3?.authMode).toEqual('gcp_oauth');
+        expect(config.preAggregates.s3?.authMode).toEqual('gcp_oauth');
+        expect(config.appRuntime.s3?.authMode).toEqual('gcp_oauth');
+    });
+
+    it('rejects a mode it does not know', () => {
+        process.env.S3_AUTH_MODE = 'aws_oauth';
+
+        expect(() => parseConfig()).toThrow('Invalid S3_AUTH_MODE');
+    });
+
+    it('rejects an expiration time GCS would refuse to sign', () => {
+        process.env.S3_AUTH_MODE = 'gcp_oauth';
+        process.env.S3_EXPIRATION_TIME = '604801';
+
+        expect(() => parseConfig()).toThrow(
+            'cannot last longer than 604800 seconds',
+        );
+    });
+
+    it('accepts an expiration time at the GCS maximum', () => {
+        process.env.S3_AUTH_MODE = 'gcp_oauth';
+        process.env.S3_EXPIRATION_TIME = '604800';
+
+        expect(parseConfig().s3?.expirationTime).toEqual(604800);
+    });
+
+    it('leaves long expiration times alone in default mode', () => {
+        process.env.S3_EXPIRATION_TIME = '604801';
+
+        expect(parseConfig().s3?.expirationTime).toEqual(604801);
     });
 });
 
