@@ -1,3 +1,4 @@
+import { useUncontrolled } from '@mantine/hooks';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     elementRefKey,
@@ -37,16 +38,24 @@ export type UseElementPickerResult = {
  */
 export const useElementPicker = ({
     identityKey,
+    enabled: enabledProp,
+    onEnabledChange,
     onEnabled,
     onPick,
 }: {
     identityKey: string;
+    enabled?: boolean;
+    onEnabledChange?: (enabled: boolean) => void;
     /** The picker was turned on; hosts use it to leave lineage mode. */
     onEnabled?: () => void;
     /** Receives each picked reference instead of the hook keeping `refs`. */
     onPick?: (ref: ElementRef) => void;
 }): UseElementPickerResult => {
-    const [enabled, setEnabled] = useState(false);
+    const [enabled, setEnabled] = useUncontrolled({
+        value: enabledProp,
+        finalValue: false,
+        onChange: onEnabledChange,
+    });
     const [available, setAvailable] = useState(false);
     const [refs, setRefs] = useState<ElementRef[]>([]);
 
@@ -61,13 +70,13 @@ export const useElementPicker = ({
         previousIdentityKeyRef.current = identityKey;
         setEnabled(false);
         setAvailable(false);
-    }, [identityKey]);
+    }, [identityKey, setEnabled]);
 
     const toggle = useCallback(() => {
         const next = !enabled;
         setEnabled(next);
         if (next) onEnabledRef.current?.();
-    }, [enabled]);
+    }, [enabled, setEnabled]);
 
     const select = useCallback((event: ElementSelectedEvent) => {
         const ref = parseElementRefLabel(event.label);
@@ -95,8 +104,7 @@ export const useElementPicker = ({
         );
     }, []);
 
-    // Stable: `AppIframePreview` re-attaches its Esc listener when it changes.
-    const cancel = useCallback(() => setEnabled(false), []);
+    const cancel = useCallback(() => setEnabled(false), [setEnabled]);
     const clear = useCallback(() => setRefs([]), []);
 
     return {

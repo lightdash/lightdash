@@ -1,4 +1,5 @@
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import nock from 'nock';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,6 +10,14 @@ import {
     clearThreadElementReferences,
     selectThreadElementReferences,
 } from '../../store/aiAgentThreadElementRefsSlice';
+import {
+    startStreaming,
+    stopStreaming,
+} from '../../store/aiAgentThreadStreamSlice';
+import {
+    clearPreview,
+    setElementPickerEnabled,
+} from '../../store/aiArtifactSlice';
 
 type IframePreviewProps = {
     inspectorEnabled?: boolean;
@@ -124,6 +133,8 @@ const renderThread = (showInspector: boolean) => {
 
 describe('AiDataAppPreviewPanel element picker', () => {
     beforeEach(() => {
+        store.dispatch(clearPreview());
+        store.dispatch(stopStreaming({ threadUuid: THREAD_UUID }));
         mocks.latestReadyVersion = 3;
         window.localStorage.clear();
         store.dispatch(
@@ -173,6 +184,7 @@ describe('AiDataAppPreviewPanel element picker', () => {
         fireEvent.click(screen.getByLabelText(`Remove ${HEADING_PILL}`));
 
         expect(screen.queryByText(HEADING_PILL)).not.toBeInTheDocument();
+        expect(latestIframeProps().inspectorEnabled).toBe(true);
     });
 
     it('keeps element references when the panel closes and a new version lands', () => {
@@ -212,37 +224,83 @@ describe('AiDataAppPreviewPanel element picker', () => {
         ]);
     });
 
-    it('sends the element references as context and clears them', () => {
-        const { onSubmit } = renderThread(true);
+    it.each([true, false])(
+        'sends the element references and leaves the picker off (initially enabled: %s)',
+        (pickerEnabled) => {
+            const { onSubmit } = renderThread(true);
+            announcePicker();
+            fireEvent.click(pickerToggle()!);
+            pickElement(HEADING_LABEL);
+            if (!pickerEnabled) fireEvent.click(pickerToggle()!);
+
+            act(() => {
+                store.dispatch(
+                    setElementPickerEnabled({
+                        threadUuid: 'other-thread',
+                        enabled: false,
+                    }),
+                );
+            });
+            expect(latestIframeProps().inspectorEnabled).toBe(pickerEnabled);
+
+            fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+
+            expect(onSubmit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'make it bigger',
+                    context: [
+                        {
+                            type: 'data_app_element',
+                            appUuid: 'app-uuid',
+                            version: 3,
+                            tag: 'h1',
+                            text: 'Revenue',
+                            loc: 'src/App.jsx:14',
+                        },
+                    ],
+                    optimisticContext: [
+                        expect.objectContaining({
+                            type: 'data_app_element',
+                            appSlug: 'sales-app',
+                            displayName: 'Sales app',
+                        }),
+                    ],
+                }),
+            );
+            expect(screen.queryByText(HEADING_PILL)).not.toBeInTheDocument();
+            expect(latestIframeProps().inspectorEnabled).toBe(false);
+            expect(pickerToggle()).toHaveAttribute('aria-pressed', 'false');
+
+            fireEvent.click(pickerToggle()!);
+            expect(latestIframeProps().inspectorEnabled).toBe(true);
+        },
+    );
+
+    it('turns off the picker after sending a steering message without dropping pending references', async () => {
+        store.dispatch(
+            startStreaming({
+                threadUuid: THREAD_UUID,
+                messageUuid: 'active-message',
+            }),
+        );
+        const steerRequest = nock('http://test.lightdash')
+            .post(
+                '/api/v1/projects/project-uuid/aiAgents/agent-uuid/threads/thread-uuid/messages/active-message/steers',
+                { message: 'make it bigger' },
+            )
+            .reply(200, { status: 'ok', results: { steer: {} } });
+        renderThread(true);
         announcePicker();
         fireEvent.click(pickerToggle()!);
         pickElement(HEADING_LABEL);
 
         fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
 
-        expect(onSubmit).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'make it bigger',
-                context: [
-                    {
-                        type: 'data_app_element',
-                        appUuid: 'app-uuid',
-                        version: 3,
-                        tag: 'h1',
-                        text: 'Revenue',
-                        loc: 'src/App.jsx:14',
-                    },
-                ],
-                optimisticContext: [
-                    expect.objectContaining({
-                        type: 'data_app_element',
-                        appSlug: 'sales-app',
-                        displayName: 'Sales app',
-                    }),
-                ],
-            }),
+        await waitFor(() => expect(steerRequest.isDone()).toBe(true));
+        await waitFor(() =>
+            expect(latestIframeProps().inspectorEnabled).toBe(false),
         );
-        expect(screen.queryByText(HEADING_PILL)).not.toBeInTheDocument();
+        expect(screen.getByText(HEADING_PILL)).toBeInTheDocument();
     });
 
     it('leaves the picker on Esc and keeps the element references', () => {
