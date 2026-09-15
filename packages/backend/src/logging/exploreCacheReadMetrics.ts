@@ -15,6 +15,7 @@ const isExploreCacheReadStorageBytesEnabled = () =>
 export type ExploreCacheReadCodePath =
     | 'catalog'
     | 'catalog-browse'
+    | 'catalog-search'
     | 'dbt-exposures'
     | 'split-lookup'
     | 'review-writeback';
@@ -40,11 +41,11 @@ export type ExploreCacheReadContext = {
      */
     storedExploreBytes: number | undefined;
     /**
-     * DB read + driver parse time for the cache read, in ms. Only populated
-     * on codePath 'catalog-browse' (trigger 'page') - the one path that also
-     * does Node-side attribute filtering worth separating out. Best-effort:
-     * measured with performance.now() around the existing read, no extra
-     * queries.
+     * Driver-read time for the cache read, in ms. This includes query
+     * execution, transfer, protocol decoding, driver JSON parsing, scheduling
+     * and GC. It is populated for catalog-browse page reads and catalog-search
+     * count/page reads. Best-effort: measured with performance.now() around
+     * the existing read, with no extra queries.
      */
     dbReadMs: number | undefined;
     /**
@@ -53,6 +54,25 @@ export type ExploreCacheReadContext = {
      * explore). Only populated on codePath 'catalog-browse' (trigger 'page').
      */
     attributeFilterMs: number | undefined;
+};
+
+export type CatalogSearchExploreCacheReadContext = ExploreCacheReadContext & {
+    page: number | undefined;
+    pageSize: number | undefined;
+    /** Total result count returned by the existing pagination count query. */
+    totalResultCount: number | undefined;
+    /** Number of rows materialized by the catalog page query. */
+    returnedSqlRowCount: number | undefined;
+    /** Number of catalog items left after stale catalog rows are removed. */
+    returnedCatalogRowCount: number | undefined;
+    /** Number of distinct explores represented by the materialized SQL page. */
+    distinctExploreCount: number | undefined;
+    /**
+     * UTF-8 bytes after re-serializing every selected row's already-materialized
+     * explore with JSON.stringify in Node. This is a shape proxy, not PostgreSQL
+     * storage size, wire bytes or the exact JSON text emitted by PostgreSQL.
+     */
+    selectedExploreJsonBytes: number | undefined;
 };
 
 export const newExploreCacheReadContext = (
@@ -67,6 +87,20 @@ export const newExploreCacheReadContext = (
     storedExploreBytes: undefined,
     dbReadMs: undefined,
     attributeFilterMs: undefined,
+});
+
+export const newCatalogSearchExploreCacheReadContext = (
+    page: number | undefined,
+    pageSize: number | undefined,
+): CatalogSearchExploreCacheReadContext => ({
+    ...newExploreCacheReadContext('catalog-search', undefined),
+    page,
+    pageSize,
+    totalResultCount: undefined,
+    returnedSqlRowCount: undefined,
+    returnedCatalogRowCount: undefined,
+    distinctExploreCount: undefined,
+    selectedExploreJsonBytes: undefined,
 });
 
 /**
@@ -104,4 +138,39 @@ export const summarizeExploreCacheRead = (
         0,
     );
     return { exploreCount: values.length, tableFanOut };
+};
+
+export const summarizeCatalogSearchExploreRead = (
+    rows: ReadonlyArray<{ explore: Explore }>,
+): Pick<
+    CatalogSearchExploreCacheReadContext,
+    | 'exploreCount'
+    | 'tableFanOut'
+    | 'returnedSqlRowCount'
+    | 'distinctExploreCount'
+    | 'selectedExploreJsonBytes'
+> => {
+    const exploreOccurrences = rows.reduce((occurrences, { explore }) => {
+        const existing = occurrences.get(explore.name);
+        occurrences.set(explore.name, {
+            explore,
+            count: (existing?.count ?? 0) + 1,
+        });
+        return occurrences;
+    }, new Map<string, { explore: Explore; count: number }>());
+    const distinctExplores = Object.fromEntries(
+        [...exploreOccurrences].map(([name, { explore }]) => [name, explore]),
+    );
+
+    return {
+        ...summarizeExploreCacheRead(distinctExplores),
+        returnedSqlRowCount: rows.length,
+        distinctExploreCount: exploreOccurrences.size,
+        selectedExploreJsonBytes: [...exploreOccurrences.values()].reduce(
+            (totalBytes, { explore, count }) =>
+                totalBytes +
+                Buffer.byteLength(JSON.stringify(explore), 'utf8') * count,
+            0,
+        ),
+    };
 };

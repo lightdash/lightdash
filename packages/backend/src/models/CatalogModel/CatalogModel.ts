@@ -67,8 +67,15 @@ import { EmailTableName } from '../../database/entities/emails';
 import { CachedExploreTableName } from '../../database/entities/projects';
 import { DbTag, TagsTableName } from '../../database/entities/tags';
 import { UserTableName } from '../../database/entities/users';
-import KnexPaginate from '../../database/pagination';
+import KnexPaginate, {
+    type KnexPaginateQueryMeasurer,
+} from '../../database/pagination';
+import {
+    newCatalogSearchExploreCacheReadContext,
+    summarizeCatalogSearchExploreRead,
+} from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
+import { measureTime } from '../../logging/measureTime';
 import { wrapSentryTransaction } from '../../utils';
 import {
     getFullTextSearchQuery,
@@ -940,15 +947,82 @@ export class CatalogModel {
             );
         }
 
+        const pageReadContext = newCatalogSearchExploreCacheReadContext(
+            paginateArgs?.page,
+            paginateArgs?.pageSize,
+        );
+        const measureQuery: KnexPaginateQueryMeasurer = async (
+            query,
+            queryType,
+        ) => {
+            const readContext =
+                queryType === 'page'
+                    ? pageReadContext
+                    : newCatalogSearchExploreCacheReadContext(
+                          paginateArgs?.page,
+                          paginateArgs?.pageSize,
+                      );
+            const name = `CatalogModel.search.${queryType}.driverRead`;
+            const { result, durationMs } = await measureTime(
+                () => Promise.resolve(query()),
+                name,
+                Logger,
+                undefined,
+                false,
+            );
+            readContext.dbReadMs = durationMs;
+
+            if (queryType === 'page' && Array.isArray(result)) {
+                Object.assign(
+                    readContext,
+                    summarizeCatalogSearchExploreRead(
+                        result as Array<{ explore: Explore }>,
+                    ),
+                );
+            } else if (
+                queryType === 'count' &&
+                typeof result === 'object' &&
+                result !== null &&
+                'rows' in result &&
+                Array.isArray(result.rows)
+            ) {
+                readContext.totalResultCount =
+                    Number(result.rows[0]?.count) || 0;
+            }
+
+            Logger.info(
+                `${name} - operation completed in ${durationMs.toFixed(
+                    2,
+                )}ms - Context: ${JSON.stringify(readContext)}`,
+                { name, duration: durationMs, context: readContext },
+            );
+
+            return result;
+        };
         const paginatedCatalogItems = await KnexPaginate.paginate(
             catalogItemsQuery.select<
                 (DbCatalog & { explore: Explore; search_rank: number })[]
             >(),
             paginateArgs,
+            undefined,
+            measureQuery,
         );
 
-        const tagsPerItem = await this.getTagsPerItem(
-            paginatedCatalogItems.data.map((item) => item.catalog_search_uuid),
+        Object.assign(
+            pageReadContext,
+            summarizeCatalogSearchExploreRead(paginatedCatalogItems.data),
+        );
+
+        const { result: tagsPerItem } = await measureTime(
+            () =>
+                this.getTagsPerItem(
+                    paginatedCatalogItems.data.map(
+                        (item) => item.catalog_search_uuid,
+                    ),
+                ),
+            'CatalogModel.search.tags',
+            Logger,
+            { ...pageReadContext },
         );
 
         // When using filteredExplores, we need to match each catalog item to the correct explore.
@@ -960,41 +1034,55 @@ export class CatalogModel {
               )
             : undefined;
 
-        const catalog = await wrapSentryTransaction(
-            'CatalogModel.search.parse',
-            {
-                catalogSize: paginatedCatalogItems.data.length,
-            },
-            async () =>
-                paginatedCatalogItems.data
-                    .map((item) => {
-                        // Use the explore from filteredExplores if available, otherwise use from DB.
-                        // We match by explore name (from item.explore) since each catalog entry
-                        // is indexed under a specific explore via cached_explore_uuid.
-                        let explore = exploreByName
-                            ? exploreByName.get(item.explore.name)
-                            : undefined;
+        const itemBuildContext = { ...pageReadContext };
+        const { result: catalog } = await measureTime(
+            () =>
+                wrapSentryTransaction(
+                    'CatalogModel.search.parse',
+                    {
+                        catalogSize: paginatedCatalogItems.data.length,
+                    },
+                    async () => {
+                        const catalogItems = paginatedCatalogItems.data
+                            .map((item) => {
+                                // Use the explore from filteredExplores if available, otherwise use from DB.
+                                // We match by explore name (from item.explore) since each catalog entry
+                                // is indexed under a specific explore via cached_explore_uuid.
+                                let explore = exploreByName
+                                    ? exploreByName.get(item.explore.name)
+                                    : undefined;
 
-                        if (!explore) {
-                            explore = item.explore;
-                        }
+                                if (!explore) {
+                                    explore = item.explore;
+                                }
 
-                        if (!explore) {
-                            throw new Error(
-                                `Explore not found for field ${item.name} in table ${item.table_name}`,
+                                if (!explore) {
+                                    throw new Error(
+                                        `Explore not found for field ${item.name} in table ${item.table_name}`,
+                                    );
+                                }
+
+                                return parseCatalog({
+                                    ...item,
+                                    explore,
+                                    catalog_tags:
+                                        tagsPerItem[item.catalog_search_uuid] ??
+                                        [],
+                                });
+                            })
+                            // Filter out null results from stale catalog entries
+                            // (fields/tables that exist in catalog but were removed from the explore)
+                            .filter(
+                                (item): item is CatalogItem => item !== null,
                             );
-                        }
-
-                        return parseCatalog({
-                            ...item,
-                            explore,
-                            catalog_tags:
-                                tagsPerItem[item.catalog_search_uuid] ?? [],
-                        });
-                    })
-                    // Filter out null results from stale catalog entries
-                    // (fields/tables that exist in catalog but were removed from the explore)
-                    .filter((item): item is CatalogItem => item !== null),
+                        itemBuildContext.returnedCatalogRowCount =
+                            catalogItems.length;
+                        return catalogItems;
+                    },
+                ),
+            'CatalogModel.search.itemBuild',
+            Logger,
+            itemBuildContext,
         );
 
         return {
