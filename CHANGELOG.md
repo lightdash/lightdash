@@ -1,3 +1,10 @@
+## [2.224.1](https://github.com/lightdash/lightdash/compare/2.224.0...2.224.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **content-review:** stop similar content suggestions in the chart save modal ([#29285](https://github.com/lightdash/lightdash/issues/29285)) ([9b4b18d](https://github.com/lightdash/lightdash/commit/9b4b18d397d742be2fbc96bd999b4a7c4f3a6c25))
+
 # [2.224.0](https://github.com/lightdash/lightdash/compare/2.223.0...2.224.0) (2026-09-15)
 
 
