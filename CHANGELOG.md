@@ -1,3 +1,10 @@
+## [2.226.2](https://github.com/lightdash/lightdash/compare/2.226.1...2.226.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* clarify chart picker configuration actions ([#29268](https://github.com/lightdash/lightdash/issues/29268)) ([32d7201](https://github.com/lightdash/lightdash/commit/32d720180e91f4472af2867f1196ddb0d3407526))
+
 ## [2.226.1](https://github.com/lightdash/lightdash/compare/2.226.0...2.226.1) (2026-09-15)
 
 
