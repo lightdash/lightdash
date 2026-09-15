@@ -1,54 +1,61 @@
+import { type DocumentCellV2 } from '@lightdash/common';
 import { getDocumentHeadingId, getDocumentHeadings } from './documentHeadings';
 
 describe('document contents', () => {
-    test('uses the same GFM text as the rendered heading', () => {
-        expect(
-            getDocumentHeadings([
-                { id: 'gfm', type: 'markdown', content: '## ~~Old~~ New' },
-            ])[0].label,
-        ).toBe('Old New');
-    });
-    test('uses Markdown headings, excluding code and lower-level detail', () => {
-        expect(
-            getDocumentHeadings([
-                {
-                    id: 'analysis',
-                    type: 'markdown',
-                    content:
-                        '# Overview\n\n## **Revenue** and `orders`\n\n### Detail\n\n```md\n## Not a heading\n```',
-                },
-            ]).map((heading) => heading.label),
-        ).toEqual(['Overview', 'Revenue and orders']);
-    });
-
-    test('keeps repeated headings distinct within and across cells', () => {
-        const headings = getDocumentHeadings([
+    test('indexes only explicit titles in cell order, not Markdown headings', () => {
+        const cells: DocumentCellV2[] = [
             {
                 id: 'first',
                 type: 'markdown',
-                content: '## Results\n\n## Results',
+                content: { title: 'Summary', markdown: '# Ignored heading' },
             },
-            { id: 'second', type: 'markdown', content: '## Results' },
+            {
+                id: 'untitled',
+                type: 'markdown',
+                content: { markdown: '## Also ignored' },
+            },
+            {
+                id: 'last',
+                type: 'markdown',
+                content: { title: 'Next steps', markdown: '' },
+            },
+        ];
+        expect(getDocumentHeadings(cells)).toEqual([
+            { id: 'document-first', label: 'Summary' },
+            { id: 'document-last', label: 'Next steps' },
         ]);
-        expect(headings.map((heading) => heading.label)).toEqual([
-            'Results',
-            'Results',
-            'Results',
-        ]);
-        expect(new Set(headings.map((heading) => heading.id)).size).toBe(3);
-        expect(headings[2].id).toBe(getDocumentHeadingId('second', 0));
     });
 
-    test('includes nested headings and setext headings in rendered order', () => {
+    test('keeps duplicate titles distinct and anchors stable across content edits and reordering', () => {
+        const first: DocumentCellV2 = {
+            id: 'first / cell',
+            type: 'markdown',
+            content: { title: 'Results', markdown: '' },
+        };
+        const second: DocumentCellV2 = {
+            id: 'second',
+            type: 'markdown',
+            content: { title: 'Results', markdown: '' },
+        };
+        expect(getDocumentHeadings([first, second])).toEqual([
+            { id: getDocumentHeadingId(first.id), label: 'Results' },
+            { id: getDocumentHeadingId(second.id), label: 'Results' },
+        ]);
+        expect(getDocumentHeadingId(first.id)).toBe(
+            'document-first%20%2F%20cell',
+        );
         expect(
             getDocumentHeadings([
+                second,
                 {
-                    id: 'nested',
-                    type: 'markdown',
-                    content:
-                        'Overview\n===\n\n> ## Quoted section\n\nNext\n---',
+                    ...first,
+                    content: { title: 'Updated', markdown: 'More text' },
                 },
-            ]).map((heading) => heading.label),
-        ).toEqual(['Overview', 'Quoted section', 'Next']);
+            ])[1].id,
+        ).toBe(getDocumentHeadingId(first.id));
+    });
+
+    test('returns no contents for an empty document', () => {
+        expect(getDocumentHeadings([])).toEqual([]);
     });
 });

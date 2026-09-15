@@ -1,7 +1,7 @@
 import {
     ChartType,
     ECHARTS_DEFAULT_COLORS,
-    type DocumentCellV1,
+    type DocumentCellV2,
 } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import LightdashVisualization from '../../components/LightdashVisualization';
@@ -18,7 +18,7 @@ type Props = {
     spaceUuid: string;
     documentUuid: string;
     versionUuid: string;
-    cell: Extract<DocumentCellV1, { type: 'chart' }>;
+    cell: Extract<DocumentCellV2, { type: 'chart' }>;
 };
 
 const DocumentChart = ({
@@ -54,7 +54,11 @@ const DocumentChart = ({
         );
     }
     return (
-        <ReportChartFrame title={chart.name} description={chart.description}>
+        <ReportChartFrame
+            title={chart.name === cell.content.title ? undefined : chart.name}
+            description={chart.description}
+            ariaLabel={chart.name}
+        >
             <MetricQueryDataProvider
                 tableName={chart.tableName}
                 explore={undefined}

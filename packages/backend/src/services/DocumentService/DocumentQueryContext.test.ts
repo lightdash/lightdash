@@ -44,7 +44,11 @@ const document = {
                 {
                     id: reference.cellId,
                     type: 'chart',
-                    content: { source: 'semantic', chart },
+                    content: {
+                        title: 'Orders overview',
+                        source: 'semantic',
+                        chart,
+                    },
                 },
             ],
         },
@@ -145,7 +149,11 @@ describe('DocumentQueryContext', () => {
                     ...document.version,
                     content: {
                         cells: [
-                            { id: 'chart', type: 'markdown', content: 'text' },
+                            {
+                                id: 'chart',
+                                type: 'markdown',
+                                content: { markdown: 'text' },
+                            },
                         ],
                     },
                 },
@@ -178,6 +186,7 @@ describe('DocumentQueryContext', () => {
                             id: 'chart',
                             type: 'chart',
                             content: {
+                                title: 'Combined orders',
                                 source: 'merge',
                                 chart: {
                                     ...chart,
