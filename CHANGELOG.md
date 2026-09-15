@@ -1,3 +1,19 @@
+# [2.224.0](https://github.com/lightdash/lightdash/compare/2.223.0...2.224.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* **ai:** disable the data app element picker after sending a message ([#29254](https://github.com/lightdash/lightdash/issues/29254)) ([4f7ef42](https://github.com/lightdash/lightdash/commit/4f7ef4255567a9055b683c99206aece142ec8e25))
+* keep modal footers visible while scrolling ([#29272](https://github.com/lightdash/lightdash/issues/29272)) ([23105bf](https://github.com/lightdash/lightdash/commit/23105bf5a7bbbb631562894330061f67948420c6))
+* mark the chart library as beta ([#29269](https://github.com/lightdash/lightdash/issues/29269)) ([8790bd0](https://github.com/lightdash/lightdash/commit/8790bd06542ef04ac5c32e690192f5dcaee28b04))
+
+
+### Features
+
+* **data-apps:** detect anomalies across a data app view ([#29238](https://github.com/lightdash/lightdash/issues/29238)) ([83dc2a7](https://github.com/lightdash/lightdash/commit/83dc2a745010c350845100d43921452fb2b2eaf1)), closes [#29237](https://github.com/lightdash/lightdash/issues/29237)
+* **data-apps:** investigate a detected anomaly with a bounded read-only agent run ([#29249](https://github.com/lightdash/lightdash/issues/29249)) ([9f364e2](https://github.com/lightdash/lightdash/commit/9f364e2c1e10add7b4441b2ef0b2b74647ab36ec)), closes [#29238](https://github.com/lightdash/lightdash/issues/29238)
+* tolerant chart-registry index parsing — drop unknown entries instead of failing the library ([#29255](https://github.com/lightdash/lightdash/issues/29255)) ([11c2635](https://github.com/lightdash/lightdash/commit/11c2635633bd755b60bd6e038b0b66927cfb5403))
+
 # [2.223.0](https://github.com/lightdash/lightdash/compare/2.222.1...2.223.0) (2026-09-15)
 
 
