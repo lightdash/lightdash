@@ -91,6 +91,8 @@ const setup = () => {
         get: vi.fn().mockResolvedValue(document),
         list: vi.fn().mockResolvedValue([document]),
         listSpaceUuids: vi.fn().mockResolvedValue([spaceUuid]),
+        listSummariesByUuid: vi.fn().mockResolvedValue([]),
+        moveToSpace: vi.fn().mockResolvedValue(document),
     };
     const projectModel = {
         getSummary: vi
@@ -106,7 +108,11 @@ const setup = () => {
             .fn()
             .mockResolvedValue([{ context: makeContext() }]),
     };
+    const directAccessService = {
+        findSharedWithMeUuids: vi.fn().mockResolvedValue({ document: [] }),
+    };
     const service = new DocumentService({
+        directAccessService,
         documentModel,
         projectModel,
         featureFlagModel,
@@ -114,6 +120,7 @@ const setup = () => {
     } as unknown as ConstructorParameters<typeof DocumentService>[0]);
     return {
         service,
+        directAccessService,
         documentModel,
         projectModel,
         featureFlagModel,
@@ -122,6 +129,183 @@ const setup = () => {
 };
 
 describe('DocumentService', () => {
+    test('direct-only access returns only the caller access, never Space membership', async () => {
+        const { service, spacePermissionService } = setup();
+        spacePermissionService.resolveAccess.mockResolvedValue(
+            makeContext(
+                [
+                    {
+                        userUuid,
+                        role: SpaceMemberRole.VIEWER,
+                        grantedVia: 'document',
+                    },
+                    {
+                        userUuid: 'private-space-member',
+                        role: SpaceMemberRole.ADMIN,
+                    },
+                ] as never,
+                false,
+            ),
+        );
+        const result = await service.get(
+            makeAccount(),
+            projectUuid,
+            documentUuid,
+        );
+        expect(result.access).toEqual([
+            { userUuid, role: SpaceMemberRole.VIEWER, grantedVia: 'document' },
+        ]);
+        expect(result.directAccessRoles).toEqual([SpaceMemberRole.VIEWER]);
+    });
+
+    test('authorizes direct-only candidates separately before union pagination', async () => {
+        const {
+            service,
+            documentModel,
+            spacePermissionService,
+            directAccessService,
+        } = setup();
+        directAccessService.findSharedWithMeUuids.mockResolvedValue({
+            document: [documentUuid],
+        } as never);
+        documentModel.listSummariesByUuid.mockResolvedValue([
+            document,
+        ] as never);
+        spacePermissionService.resolveAccessBatch
+            .mockResolvedValueOnce([{ context: makeContext([], false) }])
+            .mockResolvedValueOnce([
+                {
+                    context: makeContext(
+                        [{ userUuid, role: SpaceMemberRole.VIEWER }],
+                        false,
+                    ),
+                },
+            ]);
+        await service.list(makeAccount(), projectUuid, { limit: 1, offset: 3 });
+        expect(documentModel.list).toHaveBeenCalledWith(projectUuid, {
+            spaceUuids: [],
+            documentUuids: [documentUuid],
+            limit: 2,
+            offset: 3,
+        });
+    });
+
+    test('a stored direct grant does not bypass a custom role without Document view', async () => {
+        const {
+            service,
+            documentModel,
+            spacePermissionService,
+            directAccessService,
+        } = setup();
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        builder.can('view', 'Project');
+        directAccessService.findSharedWithMeUuids.mockResolvedValue({
+            document: [documentUuid],
+        } as never);
+        documentModel.listSummariesByUuid.mockResolvedValue([
+            document,
+        ] as never);
+        spacePermissionService.resolveAccessBatch.mockResolvedValue([
+            {
+                context: makeContext(
+                    [{ userUuid, role: SpaceMemberRole.ADMIN }],
+                    false,
+                ),
+            },
+        ]);
+        await service.list(
+            makeAccount(OrganizationMemberRole.MEMBER, builder.build()),
+            projectUuid,
+        );
+        expect(documentModel.list).toHaveBeenCalledWith(projectUuid, {
+            spaceUuids: [],
+            documentUuids: [],
+            limit: 51,
+            offset: 0,
+        });
+    });
+
+    test('direct full access cannot move across Space boundaries even with legacy bypass options', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        spacePermissionService.resolveAccess.mockResolvedValue(
+            makeContext([{ userUuid, role: SpaceMemberRole.ADMIN }], false),
+        );
+        spacePermissionService.resolveAccessBatch.mockResolvedValue([
+            { context: makeContext([], false) },
+            {
+                context: makeContext(
+                    [{ userUuid, role: SpaceMemberRole.EDITOR }],
+                    false,
+                ),
+            },
+        ]);
+        await expect(
+            service.moveToSpace(
+                makeAccount(),
+                {
+                    projectUuid,
+                    itemUuid: documentUuid,
+                    targetSpaceUuid: 'destination',
+                },
+                { checkForAccess: false },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(documentModel.moveToSpace).not.toHaveBeenCalled();
+        expect(spacePermissionService.resolveAccessBatch).toHaveBeenCalledWith(
+            userUuid,
+            [
+                { type: 'space', spaceUuid },
+                { type: 'space', spaceUuid: 'destination' },
+            ],
+            {},
+        );
+    });
+
+    test('move requires update in source and create in destination, not destination update', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        builder.can('view', 'Project');
+        builder.can('view', 'Document');
+        builder.can('update', 'Document', { inheritsFromOrgOrProject: false });
+        builder.can('create', 'Document', { inheritsFromOrgOrProject: true });
+        spacePermissionService.resolveAccessBatch.mockResolvedValue([
+            { context: makeContext([], false) },
+            { context: makeContext([], true) },
+        ]);
+        await service.moveToSpace(
+            makeAccount(OrganizationMemberRole.MEMBER, builder.build()),
+            {
+                projectUuid,
+                itemUuid: documentUuid,
+                targetSpaceUuid: 'destination',
+            },
+        );
+        expect(documentModel.moveToSpace).toHaveBeenCalledWith(
+            {
+                projectUuid,
+                documentUuid,
+                sourceSpaceUuid: spaceUuid,
+                targetSpaceUuid: 'destination',
+            },
+            { tx: undefined },
+        );
+    });
+
+    test('move rejects a cross-project destination', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        spacePermissionService.resolveAccessBatch.mockResolvedValue([
+            { context: makeContext() },
+            { context: { ...makeContext(), projectUuid: 'foreign' } },
+        ]);
+        await expect(
+            service.moveToSpace(makeAccount(OrganizationMemberRole.ADMIN), {
+                projectUuid,
+                itemUuid: documentUuid,
+                targetSpaceUuid: 'destination',
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(documentModel.moveToSpace).not.toHaveBeenCalled();
+    });
     test('returns a document and its latest content to an inherited viewer', async () => {
         const {
             service,
@@ -132,7 +316,7 @@ describe('DocumentService', () => {
 
         await expect(
             service.get(makeAccount(), projectUuid, documentUuid),
-        ).resolves.toEqual(document);
+        ).resolves.toMatchObject(document);
 
         expect(documentModel.get).toHaveBeenCalledWith(
             projectUuid,
@@ -140,7 +324,7 @@ describe('DocumentService', () => {
         );
         expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
             userUuid,
-            { type: 'space', spaceUuid },
+            { type: 'document', documentUuid, spaceUuid },
         );
         expect(featureFlagModel.get).toHaveBeenCalledWith({
             featureFlagId: FeatureFlags.Documents,
@@ -249,7 +433,7 @@ describe('DocumentService', () => {
 
         await expect(
             service.get(makeAccount(), projectUuid, documentUuid),
-        ).resolves.toEqual(document);
+        ).resolves.toMatchObject(document);
     });
 
     test('another user Space access does not authorize this reader', async () => {
@@ -346,6 +530,7 @@ describe('DocumentService', () => {
         );
         expect(documentModel.listSpaceUuids).toHaveBeenCalledWith(projectUuid);
         expect(documentModel.list).toHaveBeenCalledWith(projectUuid, {
+            documentUuids: [],
             spaceUuids: [spaceUuid, 'shared-space'],
             limit: 51,
             offset: 0,
@@ -368,6 +553,7 @@ describe('DocumentService', () => {
             service.list(makeAccount(), projectUuid, { limit: 2, offset: 10 }),
         ).resolves.toEqual({ items: [document, second], nextOffset: 12 });
         expect(documentModel.list).toHaveBeenCalledWith(projectUuid, {
+            documentUuids: [],
             spaceUuids: [spaceUuid],
             limit: 3,
             offset: 10,
@@ -385,6 +571,7 @@ describe('DocumentService', () => {
             { items: [], nextOffset: null },
         );
         expect(documentModel.list).toHaveBeenCalledWith(projectUuid, {
+            documentUuids: [],
             spaceUuids: [],
             limit: 51,
             offset: 0,

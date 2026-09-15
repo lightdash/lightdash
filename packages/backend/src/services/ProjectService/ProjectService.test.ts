@@ -361,6 +361,7 @@ const jobModel = {
     ),
 };
 const spaceModel = {
+    getDocumentCounts: vi.fn<SpaceModel['getDocumentCounts']>(async () => ({})),
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
     find: vi.fn(async () => spacesWithSavedCharts),
 };
@@ -581,6 +582,89 @@ type RefreshForTest = <T>(
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
+
+    describe('Document counts in legacy Space listing', () => {
+        it.each([
+            { enabled: false, canViewDocument: true, expectedCount: 0 },
+            { enabled: true, canViewDocument: false, expectedCount: 0 },
+            { enabled: true, canViewDocument: true, expectedCount: 2 },
+        ])(
+            'flag=$enabled Document permission=$canViewDocument returns $expectedCount',
+            async ({ enabled, canViewDocument, expectedCount }) => {
+                const countUser = {
+                    ...user,
+                    ability: defineUserAbility(
+                        {
+                            userUuid: user.userUuid,
+                            organizationUuid: projectSummary.organizationUuid,
+                            role: OrganizationMemberRole.MEMBER,
+                        },
+                        [],
+                    ),
+                };
+                countUser.ability.update([
+                    { action: 'view', subject: 'Project' },
+                    { action: 'view', subject: 'Space' },
+                    ...(canViewDocument
+                        ? [
+                              {
+                                  action: 'view' as const,
+                                  subject: 'Document' as const,
+                              },
+                          ]
+                        : []),
+                ]);
+                const listedSpace = spacesWithSavedCharts[0];
+                const getDocumentCounts = vi
+                    .spyOn(spaceModel, 'getDocumentCounts')
+                    .mockResolvedValueOnce(
+                        expectedCount ? { [listedSpace.uuid]: 2 } : {},
+                    );
+                getDocumentCounts.mockClear();
+                const countService = getMockedProjectService(
+                    lightdashConfigMock,
+                    {
+                        featureFlagModel: {
+                            get: vi.fn().mockResolvedValue({ enabled }),
+                        } as unknown as FeatureFlagModel,
+                        spacePermissionService: {
+                            resolveAccessBatch: vi.fn().mockResolvedValue([
+                                {
+                                    target: {
+                                        type: 'space',
+                                        spaceUuid: listedSpace.uuid,
+                                    },
+                                    context: {
+                                        organizationUuid:
+                                            projectSummary.organizationUuid,
+                                        projectUuid,
+                                        inheritsFromOrgOrProject: true,
+                                        access: [],
+                                    },
+                                },
+                            ]),
+                            getDirectAccessUserUuids: vi
+                                .fn()
+                                .mockResolvedValue({}),
+                        } as unknown as SpacePermissionService,
+                    },
+                );
+                const result = await countService.getSpaces(
+                    countUser,
+                    projectUuid,
+                );
+                expect(result[0].documentCount).toBe(expectedCount);
+                if (!enabled) {
+                    expect(getDocumentCounts).not.toHaveBeenCalled();
+                } else {
+                    expect(getDocumentCounts).toHaveBeenCalledWith(
+                        canViewDocument ? [listedSpace.uuid] : [],
+                    );
+                }
+                getDocumentCounts.mockReset();
+            },
+        );
+    });
 
     describe('Learn flag guards', () => {
         const learnUser: SessionUser = {

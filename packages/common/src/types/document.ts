@@ -2,6 +2,7 @@ import type { ApiExecuteAsyncMetricQueryResults } from './api';
 import type { ApiSuccess } from './api/success';
 import type { ChartAsCode } from './contentAsCode/charts';
 import type { SavedMergeQuery } from './mergeQuery';
+import type { SpaceAccess, SpaceMemberRole } from './space';
 
 export type SemanticChartAsCode = Pick<
     ChartAsCode,
@@ -56,6 +57,8 @@ export type DocumentCellV3 =
 export type DocumentContentV3 = { cells: DocumentCellV3[] };
 
 export type DocumentSummary = {
+    access?: SpaceAccess[];
+    directAccessRoles?: SpaceMemberRole[];
     documentUuid: string;
     projectUuid: string;
     organizationUuid: string;

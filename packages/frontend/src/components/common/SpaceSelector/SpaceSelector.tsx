@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    type ResourceViewItemType,
+    ResourceViewItemType,
     type SpaceSummary,
 } from '@lightdash/common';
 import { Paper, Stack, TextInput } from '@mantine/core';
@@ -40,6 +40,7 @@ const SpaceSelector = ({
     onSelectSpace,
     children,
     isRootSelectionEnabled,
+    itemType,
 }: React.PropsWithChildren<SpaceSelectorProps>) => {
     const { user } = useApp();
 
@@ -58,14 +59,35 @@ const SpaceSelector = ({
     const filteredSpaces = useMemo(() => {
         if (!user.data) return [];
 
+        const destinationSpaces =
+            itemType === ResourceViewItemType.DOCUMENT
+                ? spaces.map((space) => ({
+                      ...space,
+                      restricted:
+                          space.restricted ||
+                          !user.data?.ability.can(
+                              'create',
+                              subject('Document', {
+                                  organizationUuid: user.data.organizationUuid,
+                                  projectUuid,
+                                  inheritsFromOrgOrProject:
+                                      space.inheritsFromOrgOrProject,
+                                  access: space.userAccess
+                                      ? [space.userAccess]
+                                      : [],
+                              }),
+                          ),
+                  }))
+                : spaces;
+
         switch (selectedAdminContentType) {
             case 'all':
-                return spaces;
+                return destinationSpaces;
             case 'shared': {
                 // Instead of dropping inaccessible spaces, keep them in the
                 // tree as non-selectable placeholders so hierarchy is preserved
                 // and same-named children remain visually distinguishable.
-                return spaces.map((space) => {
+                return destinationSpaces.map((space) => {
                     const isAccessible = space.userAccess;
                     if (isAccessible) return space;
                     return { ...space, restricted: true };
@@ -77,7 +99,7 @@ const SpaceSelector = ({
                     `Invalid admin content type when filtering spaces: ${selectedAdminContentType}`,
                 );
         }
-    }, [user.data, selectedAdminContentType, spaces]);
+    }, [user.data, selectedAdminContentType, spaces, itemType, projectUuid]);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 200);

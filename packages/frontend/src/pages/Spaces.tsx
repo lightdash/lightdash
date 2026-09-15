@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ContentType, LightdashMode } from '@lightdash/common';
+import { ContentType, FeatureFlags, LightdashMode } from '@lightdash/common';
 import { Group, Stack, Button } from '@mantine/core';
 import { IconFolderPlus, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -15,6 +15,7 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useDirectAccessAvailability } from '../features/directAccess';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import useSearchParams from '../hooks/useSearchParams';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import styles from './Spaces.module.css';
@@ -26,6 +27,7 @@ const Spaces: FC = () => {
     const navigate = useNavigate();
     const viewParam = useSearchParams('view');
     const directAccessAvailability = useDirectAccessAvailability();
+    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
@@ -137,6 +139,10 @@ const Spaces: FC = () => {
                                     ContentType.DASHBOARD,
                                     ContentType.CHART,
                                     ContentType.DATA_APP,
+                                    ...(documentsFlag.data?.enabled &&
+                                    !documentsFlag.isError
+                                        ? [ContentType.DOCUMENT]
+                                        : []),
                                 ],
                                 sharedWithMe: true,
                             }}

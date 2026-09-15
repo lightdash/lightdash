@@ -51,6 +51,7 @@ import classes from './DraggableItem.module.css';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
 import ResourceViewGridDashboardItem from './ResourceViewGridDashboardItem';
 import ResourceViewGridDataAppItem from './ResourceViewGridDataAppItem';
+import ResourceViewGridDocumentItem from './ResourceViewGridDocumentItem';
 import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
 
 export interface ResourceViewGridCommonProps {
@@ -95,6 +96,10 @@ const ResourceCard: FC<ResourceCardProps> = ({
     dragIcon,
 }) => {
     switch (item.type) {
+        case ResourceViewItemType.DOCUMENT:
+            return (
+                <ResourceViewGridDocumentItem item={item} onAction={onAction} />
+            );
         case ResourceViewItemType.SPACE:
             return (
                 <ResourceViewGridSpaceItem
@@ -261,6 +266,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             ResourceViewItemType.SPACE,
             ResourceViewItemType.DASHBOARD,
             ResourceViewItemType.CHART,
+            ResourceViewItemType.DOCUMENT,
         ],
     ],
     onAction,

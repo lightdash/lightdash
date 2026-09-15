@@ -88,15 +88,39 @@ export class DocumentModel {
         return rows.map((row) => row.space_uuid);
     }
 
+    async listSummariesByUuid(
+        projectUuid: string,
+        documentUuids: string[],
+    ): Promise<DocumentSummary[]> {
+        if (documentUuids.length === 0) return [];
+        const rows = await this.activeDocuments(
+            this.database,
+            projectUuid,
+        ).whereIn('documents.document_uuid', documentUuids);
+        return rows.map(toSummary);
+    }
+
     async list(
         projectUuid: string,
-        options: { spaceUuids: string[]; limit: number; offset: number },
+        options: {
+            spaceUuids: string[];
+            documentUuids?: string[];
+            limit: number;
+            offset: number;
+        },
     ): Promise<DocumentSummary[]> {
-        if (options.spaceUuids.length === 0) {
+        if (options.spaceUuids.length === 0 && !options.documentUuids?.length) {
             return [];
         }
         const rows = await this.activeDocuments(this.database, projectUuid)
-            .whereIn('spaces.space_uuid', options.spaceUuids)
+            .where((builder) =>
+                builder
+                    .whereIn('spaces.space_uuid', options.spaceUuids)
+                    .orWhereIn(
+                        'documents.document_uuid',
+                        options.documentUuids ?? [],
+                    ),
+            )
             .orderBy('documents.updated_at', 'desc')
             .orderBy('documents.document_uuid')
             .limit(options.limit)
@@ -106,6 +130,60 @@ export class DocumentModel {
 
     async get(projectUuid: string, documentUuid: string): Promise<Document> {
         return this.getWithDatabase(this.database, projectUuid, documentUuid);
+    }
+
+    async moveToSpace(
+        {
+            projectUuid,
+            documentUuid,
+            sourceSpaceUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            documentUuid: string;
+            sourceSpaceUuid: string;
+            targetSpaceUuid: string;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<Document> {
+        return tx.transaction(async (trx) => {
+            const spaces = await trx(SpaceTableName)
+                .join(
+                    ProjectTableName,
+                    'projects.project_id',
+                    'spaces.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .whereIn('spaces.space_uuid', [
+                    sourceSpaceUuid,
+                    targetSpaceUuid,
+                ])
+                .whereNull('spaces.deleted_at')
+                .orderBy('spaces.space_uuid')
+                .select('spaces.space_id', 'spaces.space_uuid')
+                .forShare('spaces');
+            const target = spaces.find(
+                (space) => space.space_uuid === targetSpaceUuid,
+            );
+            if (
+                !target ||
+                !spaces.some((space) => space.space_uuid === sourceSpaceUuid)
+            )
+                throw new NotFoundError('Space not found');
+            const document = await this.activeDocuments(trx, projectUuid)
+                .where('documents.document_uuid', documentUuid)
+                .forUpdate('documents')
+                .first();
+            if (!document) throw new NotFoundError('Document not found');
+            if (document.space_uuid !== sourceSpaceUuid)
+                throw new ConflictError(
+                    'Document has moved. Reload it and retry',
+                );
+            await trx(DocumentsTableName)
+                .where('document_id', document.document_id)
+                .update({ space_id: target.space_id, updated_at: new Date() });
+            return this.getWithDatabase(trx, projectUuid, documentUuid);
+        });
     }
 
     private async getWithDatabase(

@@ -11422,6 +11422,25 @@ export class ProjectService extends BaseService {
             ),
         );
 
+        const { enabled: documentsEnabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.Documents,
+        });
+        const documentCounts = documentsEnabled
+            ? await this.spaceModel.getDocumentCounts(
+                  spacesWithContext
+                      .filter(
+                          ({ ctx }, index) =>
+                              accessResults[index] &&
+                              auditedAbility.can(
+                                  'view',
+                                  subject('Document', ctx),
+                              ),
+                      )
+                      .map(({ space }) => space.uuid),
+              )
+            : {};
+
         return spacesWithContext
             .filter((_, index) => accessResults[index])
             .map(({ space: spaceSummary, ctx }) => {
@@ -11429,6 +11448,7 @@ export class ProjectService extends BaseService {
                     directAccessMap[spaceSummary.uuid] ?? [];
                 return {
                     ...spaceSummary,
+                    documentCount: documentCounts[spaceSummary.uuid] ?? 0,
                     inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
                     access: directAccessUuids,
                     userAccess: ctx?.access.find(

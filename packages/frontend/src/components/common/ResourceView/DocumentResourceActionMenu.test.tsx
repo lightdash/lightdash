@@ -1,0 +1,202 @@
+import { Ability } from '@casl/ability';
+import {
+    DirectAccessResourceType,
+    ResourceViewItemType,
+    SpaceMemberRole,
+    type PossibleAbilities,
+    type ResourceViewDocumentItem,
+} from '@lightdash/common';
+import { MantineProvider } from '@mantine/core';
+import { fireEvent, render, screen } from '@testing-library/react';
+import DocumentResourceActionMenu from './DocumentResourceActionMenu';
+import {
+    getResourceName,
+    getResourceTypeName,
+    getResourceUrl,
+    getViewStatsResourceType,
+} from './resourceUtils';
+import { ResourceViewItemAction } from './types';
+
+const mocks = vi.hoisted(() => ({
+    enabled: true,
+    flagError: false,
+    available: true,
+    spaceRole: 'editor' as string | undefined,
+    modal: vi.fn(),
+}));
+const ability = new Ability<PossibleAbilities>([
+    {
+        action: 'update',
+        subject: 'Document',
+        conditions: {
+            organizationUuid: 'org',
+            projectUuid: 'project',
+            access: {
+                $elemMatch: {
+                    userUuid: 'user',
+                    role: { $in: ['editor', 'admin'] },
+                },
+            },
+        },
+    },
+    {
+        action: 'manage',
+        subject: 'Space',
+        conditions: {
+            organizationUuid: 'org',
+            projectUuid: 'project',
+            access: { $elemMatch: { userUuid: 'user', role: 'admin' } },
+        },
+    },
+]);
+vi.mock('../../../providers/App/useApp', () => ({
+    default: () => ({
+        user: { data: { userUuid: 'user', organizationUuid: 'org', ability } },
+    }),
+}));
+vi.mock('../../../providers/Ability/useAbilityContext', () => ({
+    useAbilityContext: () => ability,
+}));
+vi.mock('../../../hooks/useSpaces', () => ({
+    useSpaceSummaries: () => ({
+        data: mocks.spaceRole
+            ? [
+                  {
+                      uuid: 'space',
+                      inheritsFromOrgOrProject: false,
+                      userAccess: { userUuid: 'user', role: mocks.spaceRole },
+                  },
+              ]
+            : [],
+    }),
+}));
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { enabled: mocks.enabled },
+        isError: mocks.flagError,
+    }),
+}));
+vi.mock('../../../features/directAccess/hooks/useDirectAccess', () => ({
+    useDirectAccessAvailability: () => ({ isAvailable: mocks.available }),
+}));
+vi.mock('../../../features/directAccess/components/DirectAccessModal', () => ({
+    default: (props: unknown) => {
+        mocks.modal(props);
+        return <div>Access assignments</div>;
+    },
+}));
+
+const item: ResourceViewDocumentItem = {
+    type: ResourceViewItemType.DOCUMENT,
+    data: {
+        uuid: 'document',
+        projectUuid: 'project',
+        organizationUuid: 'org',
+        spaceUuid: 'space',
+        name: 'Weekly review',
+        description: 'Analysis',
+        slug: 'weekly-review',
+        createdByUserUuid: null,
+        directAccessRoles: [],
+        updatedAt: new Date('2026-09-15'),
+        updatedByUser: undefined,
+        views: 0,
+        firstViewedAt: null,
+        pinnedListUuid: null,
+        pinnedListOrder: null,
+        verification: null,
+    },
+};
+
+describe('Document resource actions', () => {
+    beforeEach(() => {
+        mocks.enabled = true;
+        mocks.flagError = false;
+        mocks.available = true;
+        mocks.spaceRole = 'editor';
+        mocks.modal.mockReset();
+    });
+    const renderMenu = (roles: SpaceMemberRole[] = []) => {
+        const onAction = vi.fn();
+        render(
+            <MantineProvider>
+                <DocumentResourceActionMenu
+                    item={{
+                        ...item,
+                        data: { ...item.data, directAccessRoles: roles },
+                    }}
+                    onAction={onAction}
+                    isOpen
+                />
+            </MantineProvider>,
+        );
+        return onAction;
+    };
+    it('moves with inherited editor access and never offers unsupported actions', () => {
+        const onAction = renderMenu();
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Move' }));
+        expect(onAction).toHaveBeenCalledWith({
+            type: ResourceViewItemAction.TRANSFER_TO_SPACE,
+            item,
+        });
+        for (const name of [
+            'Share',
+            'Delete',
+            'Edit',
+            'Duplicate',
+            'Add to favorites',
+            'Pin to homepage',
+            'Verify',
+        ]) {
+            expect(
+                screen.queryByRole('menuitem', { name }),
+            ).not.toBeInTheDocument();
+        }
+    });
+    it('full direct access shares the Document but cannot move it', () => {
+        mocks.spaceRole = undefined;
+        renderMenu([SpaceMemberRole.ADMIN]);
+        expect(
+            screen.queryByRole('menuitem', { name: 'Move' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Share' }));
+        expect(mocks.modal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project',
+                resource: {
+                    resourceType: DirectAccessResourceType.DOCUMENT,
+                    resourceUuid: 'document',
+                    name: 'Weekly review',
+                },
+            }),
+        );
+    });
+    it.each([SpaceMemberRole.VIEWER, SpaceMemberRole.EDITOR])(
+        'direct %s access cannot share or move',
+        (role) => {
+            mocks.spaceRole = undefined;
+            renderMenu([role]);
+            expect(
+                screen.queryByRole('button', { name: 'Document actions' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+    it.each([
+        { enabled: false, flagError: false },
+        { enabled: true, flagError: true },
+    ])('fails closed for unavailable flag %j', (flag) => {
+        Object.assign(mocks, flag);
+        renderMenu([SpaceMemberRole.ADMIN]);
+        expect(
+            screen.queryByRole('button', { name: 'Document actions' }),
+        ).not.toBeInTheDocument();
+    });
+    it('has canonical links and a Document label without view statistics', () => {
+        expect(getResourceUrl('project', item, 'project-slug')).toBe(
+            '/projects/project/documents/document',
+        );
+        expect(getResourceName(item.type)).toBe('Document');
+        expect(getResourceTypeName(item)).toBe('Document');
+        expect(getViewStatsResourceType(item)).toBeUndefined();
+    });
+});

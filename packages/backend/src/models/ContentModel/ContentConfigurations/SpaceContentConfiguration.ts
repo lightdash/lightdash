@@ -23,6 +23,7 @@ type SpaceContentRow = SummaryContentRow<{
     chartCount: number;
     childSpaceCount: number;
     appCount: number;
+    documentCount: number;
     nestedSpaceCount: number;
     schedulerCount: number;
     parentSpaceUuid: string | null;
@@ -124,7 +125,8 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     knex.raw(`null as owner_user_first_name`),
                     knex.raw(`null as owner_user_last_name`),
                     knex.raw(`null as owner_user_email`),
-                    knex.raw(`json_build_object(
+                    knex.raw(
+                        `json_build_object(
                         'dashboardCount', (${
                             filters.includeDescendantCounts
                                 ? `SELECT count(*) FROM ${DashboardsTableName} d
@@ -172,6 +174,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                     WHERE ${AppsTableName}.space_uuid = ${SpaceTableName}.space_uuid
                                     AND ${AppsTableName}.deleted_at IS NULL`
                         }),
+                        'documentCount', ?::bigint,
                         'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                         'path', ${SpaceTableName}.path,
                         'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
@@ -199,7 +202,23 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                 )`
                                 : ''
                         }
-                    ) as metadata`),
+                    ) as metadata`,
+                        [
+                            filters.documents &&
+                            filters.documents.allowedSpaceUuids.length > 0
+                                ? knex('documents')
+                                      .count('*')
+                                      .whereRaw(
+                                          `documents.space_id = ${SpaceTableName}.space_id`,
+                                      )
+                                      .whereNull('documents.deleted_at')
+                                      .whereIn(
+                                          `${SpaceTableName}.space_uuid`,
+                                          filters.documents.allowedSpaceUuids,
+                                      )
+                                : 0,
+                        ],
+                    ),
                 ])
                 .where((builder) => {
                     if (filters.projectUuids) {
@@ -331,6 +350,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                 chartCount: value.metadata.chartCount,
                 childSpaceCount: value.metadata.childSpaceCount,
                 appCount: value.metadata.appCount,
+                documentCount: value.metadata.documentCount ?? 0,
                 verification: null,
             };
         },

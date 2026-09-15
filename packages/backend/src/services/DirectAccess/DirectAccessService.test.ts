@@ -166,8 +166,13 @@ const buildService = ({
         resolveAccess: vi.fn().mockResolvedValue(context),
     };
     const grantReadModel = { getUserAccess: vi.fn().mockResolvedValue({}) };
+    const featureFlagModel = {
+        get: vi.fn().mockResolvedValue({ enabled: true }),
+    };
 
     const service = new DirectAccessService({
+        documentAccessModel: grantReadModel as never,
+        featureFlagModel: featureFlagModel as never,
         directAccessModel: directAccessModel as unknown as DirectAccessModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
@@ -184,10 +189,97 @@ const buildService = ({
         directAccessFeatureGate,
         spacePermissionService,
         grantReadModel,
+        featureFlagModel,
     };
 };
 
 describe('DirectAccessService', () => {
+    it.each(['listAssignments', 'listGroups', 'resetAssignments'] as const)(
+        'document %s fails closed while flag disabled',
+        async (method) => {
+            const { service, featureFlagModel, directAccessModel } =
+                buildService({ enabled: true });
+            featureFlagModel.get.mockResolvedValue({ enabled: false });
+            await expect(
+                service[method](
+                    buildAccount(OrganizationMemberRole.ADMIN),
+                    PROJECT_UUID,
+                    DirectAccessResourceType.DOCUMENT,
+                    DASHBOARD_UUID,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                directAccessModel.findResourceLocation,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it('disabled documents contribute no grants, discovery, or export while other content remains enabled', async () => {
+        const { service, featureFlagModel, directAccessModel, grantReadModel } =
+            buildService({ enabled: true });
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        const requester = {
+            userUuid: USER_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+        };
+        await expect(
+            service.findGrantedRoles(requester, [
+                {
+                    resourceType: DirectAccessResourceType.DOCUMENT,
+                    uuids: [DASHBOARD_UUID],
+                },
+            ]),
+        ).resolves.toEqual({});
+        expect(grantReadModel.getUserAccess).not.toHaveBeenCalled();
+        const shared = await service.findSharedWithMeUuids(requester, [
+            PROJECT_UUID,
+        ]);
+        expect(shared.document).toEqual([]);
+        expect(
+            directAccessModel.findCandidateResourceUuidsForUser,
+        ).not.toHaveBeenCalledWith(
+            DirectAccessResourceType.DOCUMENT,
+            USER_UUID,
+        );
+        await expect(
+            service.listPoliciesForExport(
+                requester,
+                DirectAccessResourceType.DOCUMENT,
+                [DASHBOARD_UUID],
+            ),
+        ).resolves.toEqual({});
+    });
+
+    it.each([
+        SpaceMemberRole.VIEWER,
+        SpaceMemberRole.EDITOR,
+        SpaceMemberRole.ADMIN,
+    ])(
+        'document sharing requires full access, not %s editing rights',
+        async (role) => {
+            const { service, spacePermissionService } = buildService({
+                enabled: true,
+                context: spaceContext([{ userUuid: USER_UUID, role }]),
+            });
+            const request = service.listAssignments(
+                buildAccount(OrganizationMemberRole.INTERACTIVE_VIEWER),
+                PROJECT_UUID,
+                DirectAccessResourceType.DOCUMENT,
+                DASHBOARD_UUID,
+            );
+            if (role === SpaceMemberRole.ADMIN)
+                await expect(request).resolves.toEqual([]);
+            else await expect(request).rejects.toThrow(ForbiddenError);
+            expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+                USER_UUID,
+                {
+                    type: 'document',
+                    documentUuid: DASHBOARD_UUID,
+                    spaceUuid: SPACE_UUID,
+                },
+            );
+        },
+    );
     beforeEach(() => {
         vi.mocked(logAuditEvent).mockClear();
     });
@@ -701,6 +793,7 @@ describe('DirectAccessService.findSharedWithMeUuids', () => {
         await expect(
             service.findSharedWithMeUuids(requester, [PROJECT_UUID]),
         ).resolves.toEqual({
+            document: [],
             dashboard: [],
             chart: [],
             sqlChart: [],
@@ -716,6 +809,7 @@ describe('DirectAccessService.findSharedWithMeUuids', () => {
         await expect(
             service.findSharedWithMeUuids(requester, []),
         ).resolves.toEqual({
+            document: [],
             dashboard: [],
             chart: [],
             sqlChart: [],
@@ -752,6 +846,7 @@ describe('DirectAccessService.findSharedWithMeUuids', () => {
         await expect(
             service.findSharedWithMeUuids(requester, [PROJECT_UUID]),
         ).resolves.toEqual({
+            document: [],
             dashboard: ['dashboard-live'],
             chart: [],
             sqlChart: [],
@@ -808,6 +903,7 @@ describe('DirectAccessService.findSharedWithMeAccess', () => {
 
             expect(access).toEqual({
                 uuidsByType: {
+                    document: [],
                     dashboard: [],
                     chart: [],
                     sqlChart: [],
@@ -815,6 +911,7 @@ describe('DirectAccessService.findSharedWithMeAccess', () => {
                     [resourceType]: ['live', 'group-only'],
                 },
                 rolesByType: {
+                    document: {},
                     dashboard: {},
                     chart: {},
                     sqlChart: {},
@@ -840,8 +937,20 @@ describe('DirectAccessService.findSharedWithMeAccess', () => {
         await expect(
             service.findSharedWithMeAccess(requester, [PROJECT_UUID]),
         ).resolves.toEqual({
-            uuidsByType: { dashboard: [], chart: [], sqlChart: [], app: [] },
-            rolesByType: { dashboard: {}, chart: {}, sqlChart: {}, app: {} },
+            uuidsByType: {
+                document: [],
+                dashboard: [],
+                chart: [],
+                sqlChart: [],
+                app: [],
+            },
+            rolesByType: {
+                document: {},
+                dashboard: {},
+                chart: {},
+                sqlChart: {},
+                app: {},
+            },
         });
         expect(
             directAccessModel.findCandidateResourceUuidsForUser,

@@ -46,6 +46,7 @@ import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
 import MantineIcon from '../MantineIcon';
+import DocumentResourceActionMenu from './DocumentResourceActionMenu';
 import { ResourceActionMenuItems } from './ResourceActionMenuItems';
 import { type ResourceViewItemActionState } from './types';
 
@@ -53,7 +54,7 @@ export interface ResourceViewActionMenuCommonProps {
     onAction: (newAction: ResourceViewItemActionState) => void;
 }
 
-interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps {
+export interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps {
     disabled?: boolean;
     item: ResourceViewItem;
     /** Roles the viewer holds on this item through direct grants. */
@@ -65,6 +66,11 @@ interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps 
     onClose?: () => void;
 }
 
+type ExistingResourceViewItem = Exclude<
+    ResourceViewItem,
+    { type: ResourceViewItemType.DOCUMENT }
+>;
+
 type ResourceAccessContext = {
     spaces: SpaceSummary[];
     grantAccess: Array<{ userUuid: string; role: SpaceMemberRole }>;
@@ -74,7 +80,7 @@ type ResourceAccessContext = {
 };
 
 const getResourceUserCanManage = (
-    item: ResourceViewItem,
+    item: ExistingResourceViewItem,
     {
         isSqlChart,
         spaces,
@@ -193,7 +199,7 @@ const getResourceUserCanManage = (
 };
 
 const getResourceUserCanDelete = (
-    item: ResourceViewItem,
+    item: ExistingResourceViewItem,
     {
         spaces,
         grantAccess,
@@ -225,7 +231,11 @@ const getResourceUserCanDelete = (
     );
 };
 
-const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
+const ExistingResourceViewActionMenu: FC<
+    Omit<ResourceViewActionMenuProps, 'item'> & {
+        item: ExistingResourceViewItem;
+    }
+> = ({
     disabled = false,
     item,
     grantRoles = [],
@@ -576,5 +586,12 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
         </>
     );
 };
+
+const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = (props) =>
+    props.item.type === ResourceViewItemType.DOCUMENT ? (
+        <DocumentResourceActionMenu {...props} item={props.item} />
+    ) : (
+        <ExistingResourceViewActionMenu {...props} item={props.item} />
+    );
 
 export default ResourceViewActionMenu;

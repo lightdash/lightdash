@@ -88,16 +88,19 @@ const toFavoriteType = (
             return ResourceViewItemType.DASHBOARD;
         case ContentType.SPACE:
         case ContentType.DATA_APP:
+        case ContentType.DOCUMENT:
             return null;
         default:
             return assertUnreachable(content, 'Unknown collection content');
     }
 };
 
-const toItemRef = (content: SummaryContent): HomepageCollectionItemRef => ({
-    contentType: content.contentType,
-    uuid: content.uuid,
-});
+const toItemRef = (content: SummaryContent): HomepageCollectionItemRef => {
+    if (content.contentType === ContentType.DOCUMENT) {
+        throw new Error('Documents are not supported in homepage collections');
+    }
+    return { contentType: content.contentType, uuid: content.uuid };
+};
 
 type SortKey = 'name' | 'updated' | 'type';
 

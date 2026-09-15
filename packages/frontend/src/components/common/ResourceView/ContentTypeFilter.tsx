@@ -1,6 +1,7 @@
-import { ContentType } from '@lightdash/common';
+import { ContentType, FeatureFlags } from '@lightdash/common';
 import { Center, SegmentedControl, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 interface OptionProps {
     label: string;
@@ -16,6 +17,10 @@ const ContentTypeSelectOption = ({ label }: OptionProps) => (
 );
 
 const ContentTypeOptions = [
+    {
+        value: ContentType.DOCUMENT,
+        label: <ContentTypeSelectOption label="Documents" />,
+    },
     {
         value: ContentType.DASHBOARD,
         label: <ContentTypeSelectOption label={'Dashboards'} />,
@@ -40,6 +45,7 @@ const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
     onChange,
     options,
 }) => {
+    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
     return (
         <SegmentedControl
             size="xs"
@@ -54,8 +60,12 @@ const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                     value: 'all',
                     label: <ContentTypeSelectOption label={'All'} />,
                 },
-                ...ContentTypeOptions.filter((option) =>
-                    options?.includes(option.value),
+                ...ContentTypeOptions.filter(
+                    (option) =>
+                        options?.includes(option.value) &&
+                        (option.value !== ContentType.DOCUMENT ||
+                            (documentsFlag.data?.enabled === true &&
+                                !documentsFlag.isError)),
                 ),
             ]}
         />

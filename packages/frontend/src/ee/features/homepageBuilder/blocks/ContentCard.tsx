@@ -67,6 +67,7 @@ const CONTENT_KIND_LABEL: Record<SummaryContent['contentType'], string> = {
     [ContentType.DASHBOARD]: 'Dashboard',
     [ContentType.SPACE]: 'Space',
     [ContentType.DATA_APP]: 'App',
+    [ContentType.DOCUMENT]: 'Document',
 };
 
 const ViewsCount: FC<{ content: SummaryContent; projectUuid: string }> = ({
@@ -74,6 +75,9 @@ const ViewsCount: FC<{ content: SummaryContent; projectUuid: string }> = ({
     projectUuid,
 }) => {
     const item = contentToResourceViewItem(content);
+    if (item.type === ResourceViewItemType.DOCUMENT) {
+        return null;
+    }
     return (
         <ViewsCountPopover
             resourceType={getViewStatsResourceType(item)}

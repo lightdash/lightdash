@@ -112,6 +112,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         },
                     });
                 case ResourceViewItemType.DASHBOARD:
+                case ResourceViewItemType.DOCUMENT:
                     return contentAction({
                         action: {
                             type: 'move',
@@ -119,7 +120,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         },
                         item: {
                             uuid: item.data.uuid,
-                            contentType: ContentType.DASHBOARD,
+                            contentType: item.type,
                         },
                     });
                 case ResourceViewItemType.SPACE:
@@ -168,6 +169,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         if (action.type !== ResourceViewItemAction.PIN_TO_HOMEPAGE) return;
 
         switch (action.item.type) {
+            case ResourceViewItemType.DOCUMENT:
+                return undefined;
             case ResourceViewItemType.CHART:
                 return pinChart({ uuid: action.item.data.uuid });
             case ResourceViewItemType.DASHBOARD:
@@ -202,6 +205,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     switch (action.type) {
         case ResourceViewItemAction.UPDATE:
             switch (action.item.type) {
+                case ResourceViewItemType.DOCUMENT:
+                    return null;
                 case ResourceViewItemType.CHART:
                     return (
                         <ChartUpdateModal
@@ -258,6 +263,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
             }
         case ResourceViewItemAction.DELETE:
             switch (action.item.type) {
+                case ResourceViewItemType.DOCUMENT:
+                    return null;
                 case ResourceViewItemType.CHART:
                     if (action.item.data.source === ChartSourceType.SQL) {
                         return (

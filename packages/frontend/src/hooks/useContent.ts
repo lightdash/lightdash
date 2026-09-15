@@ -131,6 +131,8 @@ export const invalidateContent = async (
 ) => {
     await Promise.all([
         queryClient.invalidateQueries(['content']),
+        queryClient.invalidateQueries(['documents', projectUuid]),
+        queryClient.invalidateQueries(['document', projectUuid]),
         queryClient.invalidateQueries(['dashboards']),
         queryClient.invalidateQueries(['most-popular-and-recently-updated']),
         queryClient.invalidateQueries(['pinned_items']),
