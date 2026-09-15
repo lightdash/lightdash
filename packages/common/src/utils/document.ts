@@ -1,6 +1,6 @@
 import Ajv, { type ValidateFunction } from 'ajv';
 import chartAsCodeSchema from '../schemas/json/chart-as-code-1.0.json';
-import type { DocumentContentV1 } from '../types/document';
+import type { DocumentContentV1, DocumentContentV2 } from '../types/document';
 import { ParameterError } from '../types/errors';
 import {
     parseSavedMergeQuery,
@@ -8,7 +8,7 @@ import {
 } from '../types/mergeQuery';
 import { ChartType } from '../types/savedCharts';
 
-export const DOCUMENT_SCHEMA_VERSION = 1;
+export const DOCUMENT_SCHEMA_VERSION = 2;
 
 const chartProperties = {
     name: chartAsCodeSchema.properties.name,
@@ -37,91 +37,133 @@ const chartSchema = (merge: boolean) => ({
     ],
 });
 
-let validator: ValidateFunction<DocumentContentV1> | undefined;
+let legacyValidator: ValidateFunction<DocumentContentV1> | undefined;
+let currentValidator: ValidateFunction<DocumentContentV2> | undefined;
 
-const getValidator = () => {
-    if (!validator) {
-        // Lazy compilation keeps importing common safe under browser CSP.
-        validator = new Ajv({
-            strict: false,
-            validateFormats: false,
-        }).compile<DocumentContentV1>({
-            $defs: chartAsCodeSchema.$defs,
-            type: 'object',
-            additionalProperties: false,
-            required: ['cells'],
-            properties: {
-                cells: {
-                    type: 'array',
-                    items: {
-                        type: 'object',
-                        additionalProperties: false,
-                        required: ['id', 'type', 'content'],
-                        properties: {
-                            id: {
-                                type: 'string',
-                                minLength: 1,
-                                pattern: '\\S',
-                            },
-                            type: { enum: ['markdown', 'chart'] },
-                            content: {},
+// Lazy compilation keeps importing common safe under browser CSP.
+const createValidator = <T>(schemaVersion: 1 | 2): ValidateFunction<T> =>
+    new Ajv({
+        strict: false,
+        validateFormats: false,
+    }).compile<T>({
+        $defs: chartAsCodeSchema.$defs,
+        type: 'object',
+        additionalProperties: false,
+        required: ['cells'],
+        properties: {
+            cells: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['id', 'type', 'content'],
+                    properties: {
+                        id: {
+                            type: 'string',
+                            minLength: 1,
+                            pattern: '\\S',
                         },
-                        oneOf: [
-                            {
-                                properties: {
-                                    type: { const: 'markdown' },
-                                    content: { type: 'string' },
-                                },
-                            },
-                            {
-                                properties: {
-                                    type: { const: 'chart' },
-                                    content: {
-                                        oneOf: [false, true].map((merge) => ({
-                                            type: 'object',
-                                            additionalProperties: false,
-                                            required: ['source', 'chart'],
-                                            properties: {
-                                                source: {
-                                                    const: merge
-                                                        ? 'merge'
-                                                        : 'semantic',
-                                                },
-                                                chart: chartSchema(merge),
-                                            },
-                                        })),
-                                    },
-                                },
-                            },
-                        ],
+                        type: { enum: ['markdown', 'chart'] },
+                        content: {},
                     },
+                    oneOf: [
+                        {
+                            properties: {
+                                type: { const: 'markdown' },
+                                content:
+                                    schemaVersion === 1
+                                        ? { type: 'string' }
+                                        : {
+                                              type: 'object',
+                                              additionalProperties: false,
+                                              required: ['markdown'],
+                                              properties: {
+                                                  markdown: { type: 'string' },
+                                                  title: {
+                                                      type: 'string',
+                                                      pattern: '\\S',
+                                                  },
+                                              },
+                                          },
+                            },
+                        },
+                        {
+                            properties: {
+                                type: { const: 'chart' },
+                                content: {
+                                    oneOf: [false, true].map((merge) => ({
+                                        type: 'object',
+                                        additionalProperties: false,
+                                        required: ['source', 'chart'],
+                                        properties: {
+                                            ...(schemaVersion === 2
+                                                ? {
+                                                      title: {
+                                                          type: 'string',
+                                                          pattern: '\\S',
+                                                      },
+                                                  }
+                                                : {}),
+                                            source: {
+                                                const: merge
+                                                    ? 'merge'
+                                                    : 'semantic',
+                                            },
+                                            chart: chartSchema(merge),
+                                        },
+                                    })),
+                                },
+                            },
+                        },
+                    ],
                 },
             },
-        });
-    }
-    return validator;
-};
+        },
+    });
 
-export const parseDocumentContent = (
-    schemaVersion: number,
-    raw: unknown,
-): DocumentContentV1 => {
-    if (schemaVersion !== DOCUMENT_SCHEMA_VERSION) {
-        throw new ParameterError(
-            `Unsupported Document schema version: ${schemaVersion}`,
-        );
-    }
-    const validate = getValidator();
+const validateContent = <T>(validate: ValidateFunction<T>, raw: unknown): T => {
     if (!validate(raw)) {
         throw new ParameterError(
             `Invalid Document content: ${validate.errors?.map((error) => `${error.instancePath} ${error.message}`).join('; ')}`,
         );
     }
-    const ids = raw.cells.map((cell) => cell.id);
+    return raw;
+};
+
+const readContent = (
+    schemaVersion: number,
+    raw: unknown,
+): DocumentContentV2 => {
+    if (schemaVersion === 1) {
+        legacyValidator ??= createValidator<DocumentContentV1>(1);
+        const legacy = validateContent(legacyValidator, raw);
+        return {
+            cells: legacy.cells.map((cell) =>
+                cell.type === 'markdown'
+                    ? { ...cell, content: { markdown: cell.content } }
+                    : { ...cell, content: { ...cell.content } },
+            ),
+        };
+    }
+    if (schemaVersion === DOCUMENT_SCHEMA_VERSION) {
+        currentValidator ??= createValidator<DocumentContentV2>(2);
+        return validateContent(currentValidator, raw);
+    }
+    throw new ParameterError(
+        `Unsupported Document schema version: ${schemaVersion}`,
+    );
+};
+
+export const parseDocumentContent = (
+    schemaVersion: number,
+    raw: unknown,
+): DocumentContentV2 => {
+    const content = readContent(schemaVersion, raw);
+    const ids = content.cells.map((cell) => cell.id);
     if (new Set(ids).size !== ids.length) {
         throw new ParameterError('Document cell IDs must be unique');
     }
-    raw.cells.forEach((cell) => {
+    content.cells.forEach((cell) => {
         if (cell.type !== 'chart') {
             return;
         }
@@ -145,7 +187,7 @@ export const parseDocumentContent = (
         }
         if (chart.chartConfig.type === ChartType.DATA_APP_VIZ) {
             throw new ParameterError(
-                'Custom chart types are not supported in Document schema version 1',
+                'Custom chart types are not supported in Documents',
             );
         }
         if (cell.content.source === 'merge') {
@@ -161,5 +203,5 @@ export const parseDocumentContent = (
             }
         }
     });
-    return raw;
+    return content;
 };

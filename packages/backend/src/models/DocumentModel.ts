@@ -1,7 +1,8 @@
 import {
     ConflictError,
     Document,
-    DocumentContentV1,
+    DOCUMENT_SCHEMA_VERSION,
+    DocumentContentV2,
     DocumentSummary,
     NotFoundError,
     parseDocumentContent,
@@ -26,7 +27,7 @@ export type CreateDocument = {
     name: string;
     slug?: string;
     description: string;
-    content: DocumentContentV1;
+    content: DocumentContentV2;
     createdByUserUuid: string | null;
 };
 
@@ -128,7 +129,7 @@ export class DocumentModel {
             version: {
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,
-                schemaVersion: 1,
+                schemaVersion: DOCUMENT_SCHEMA_VERSION,
                 content: parseDocumentContent(
                     version.schema_version,
                     version.content,
@@ -140,7 +141,10 @@ export class DocumentModel {
     }
 
     async create(input: CreateDocument): Promise<Document> {
-        const content = parseDocumentContent(1, input.content);
+        const content = parseDocumentContent(
+            DOCUMENT_SCHEMA_VERSION,
+            input.content,
+        );
         return this.database.transaction(async (transaction) => {
             const space = await transaction(SpaceTableName)
                 .join(
@@ -193,7 +197,7 @@ export class DocumentModel {
             await transaction(DocumentVersionsTableName).insert({
                 document_id: document.document_id,
                 version_number: 1,
-                schema_version: 1,
+                schema_version: DOCUMENT_SCHEMA_VERSION,
                 content,
                 created_by_user_uuid: input.createdByUserUuid,
             });

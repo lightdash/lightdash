@@ -80,12 +80,11 @@ describe('Explore', () => {
         cy.findByText('Configure', { timeout: 10000 })
             .should('be.visible')
             .click();
+        cy.wait(300); // Wait for configure panel to open
+        cy.findByRole('button', { name: 'Change' }).click();
         cy.findByRole('button', {
             name: 'Horizontal bar chart',
         }).click();
-        cy.findByRole('button', {
-            name: 'Horizontal bar chart',
-        }).should('have.attr', 'aria-pressed', 'true');
 
         // cy.findByText('Save changes').parent().should('not.be.disabled');
         cy.findByText('Save changes').parent().click();

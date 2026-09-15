@@ -33,9 +33,15 @@ const document: Document = {
     version: {
         versionUuid: 'version-uuid',
         versionNumber: 1,
-        schemaVersion: 1,
+        schemaVersion: 2,
         content: {
-            cells: [{ id: 'intro', type: 'markdown', content: '# Findings' }],
+            cells: [
+                {
+                    id: 'intro',
+                    type: 'markdown',
+                    content: { markdown: '# Findings' },
+                },
+            ],
         },
         createdByUserUuid: userUuid,
         createdAt: new Date('2026-09-15'),
