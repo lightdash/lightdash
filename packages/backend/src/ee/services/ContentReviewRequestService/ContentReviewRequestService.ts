@@ -1373,9 +1373,15 @@ export class ContentReviewRequestService extends BaseService {
         } catch (error) {
             // Ambient AI is advisory. Provider failures must not prevent saving
             // or submitting a review. Omit suggestions when the check fails.
-            this.logger.debug(
-                `Chart similarity AI unavailable: ${getErrorMessage(error)}`,
-            );
+            if (error instanceof Error && error.name === 'KnexTimeoutError') {
+                this.logger.warn(
+                    `Chart similarity lookup timed out for project ${projectUuid}`,
+                );
+            } else {
+                this.logger.debug(
+                    `Chart similarity AI unavailable: ${getErrorMessage(error)}`,
+                );
+            }
             return [];
         }
     }

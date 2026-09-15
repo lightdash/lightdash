@@ -140,6 +140,9 @@ type SimilarSource = {
     contentType: ContentReviewContentType;
     table: string;
     uuidColumn: string;
+    spaceColumn: 'space_id' | 'space_uuid';
+    ownerColumn: 'dashboard_uuid' | null;
+    versionKeyColumn: 'saved_query_id' | null;
 };
 
 const SIMILAR_SOURCES: Record<
@@ -150,16 +153,25 @@ const SIMILAR_SOURCES: Record<
         contentType: ContentReviewContentType.CHART,
         table: SavedChartsTableName,
         uuidColumn: 'saved_query_uuid',
+        spaceColumn: 'space_id',
+        ownerColumn: 'dashboard_uuid',
+        versionKeyColumn: 'saved_query_id',
     },
     sqlChart: {
         contentType: ContentReviewContentType.SQL_CHART,
         table: SavedSqlTableName,
         uuidColumn: 'saved_sql_uuid',
+        spaceColumn: 'space_uuid',
+        ownerColumn: 'dashboard_uuid',
+        versionKeyColumn: null,
     },
     dashboard: {
         contentType: ContentReviewContentType.DASHBOARD,
         table: DashboardsTableName,
         uuidColumn: 'dashboard_uuid',
+        spaceColumn: 'space_id',
+        ownerColumn: null,
+        versionKeyColumn: null,
     },
 };
 
@@ -173,6 +185,9 @@ type SimilarContentScope = {
     excludeContentUuid: string | null;
     accessibleSpaceUuids: string[];
 };
+
+// Cancels the server-side statement too, so slow lookups cannot pile up.
+const SIMILARITY_QUERY_TIMEOUT_MS = 5_000;
 
 const escapeLikeWildcards = (value: string): string =>
     value.replace(/[%_\\]/g, '\\$&');
@@ -558,6 +573,7 @@ export class ContentReviewRequestModel {
         );
     }
 
+    // UNION ALL keeps each branch on a space index; OR/coalesce joins seq-scan.
     private getSimilarityContentQuery(
         source: SimilarSource,
         {
@@ -566,78 +582,80 @@ export class ContentReviewRequestModel {
             accessibleSpaceUuids,
         }: SimilarContentScope,
     ): Knex.QueryBuilder<SimilarContentRow, SimilarContentRow[]> {
+        const candidates = (
+            spaceJoin: (query: Knex.QueryBuilder) => Knex.QueryBuilder,
+        ) =>
+            spaceJoin(
+                this.database
+                    .from({ content: source.table })
+                    .select([
+                        `content.${source.uuidColumn}`,
+                        'content.name',
+                        'content.slug',
+                        ...(source.versionKeyColumn === null
+                            ? []
+                            : [`content.${source.versionKeyColumn}`]),
+                        { space_uuid: 'spaces.space_uuid' },
+                        { space_name: 'spaces.name' },
+                    ]),
+            )
+                .join(
+                    { projects: ProjectTableName },
+                    'projects.project_id',
+                    'spaces.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .whereIn('spaces.space_uuid', accessibleSpaceUuids)
+                .where('spaces.is_default_user_space', false)
+                .whereNull('spaces.deleted_at')
+                .whereNull('content.deleted_at')
+                .modify((query) => {
+                    if (excludeContentUuid !== null) {
+                        void query.whereNot(
+                            `content.${source.uuidColumn}`,
+                            excludeContentUuid,
+                        );
+                    }
+                });
+        const inOwnSpace = candidates((query) =>
+            query.join(
+                { spaces: SpaceTableName },
+                `spaces.${source.spaceColumn}`,
+                `content.${source.spaceColumn}`,
+            ),
+        );
+        const inOwnerSpace =
+            source.ownerColumn === null
+                ? null
+                : candidates((query) =>
+                      query
+                          .whereNull(`content.${source.spaceColumn}`)
+                          .join({ owner: DashboardsTableName }, (join) => {
+                              join.on(
+                                  'owner.dashboard_uuid',
+                                  `content.${source.ownerColumn}`,
+                              ).onNull('owner.deleted_at');
+                          })
+                          .join(
+                              { spaces: SpaceTableName },
+                              'spaces.space_id',
+                              'owner.space_id',
+                          ),
+                  );
+        const branches =
+            inOwnerSpace === null
+                ? inOwnSpace
+                : this.database.unionAll([inOwnSpace, inOwnerSpace], true);
         return this.database
-            .from({ content: source.table })
             .select<SimilarContentRow[]>({
                 uuid: `content.${source.uuidColumn}`,
                 name: 'content.name',
                 slug: 'content.slug',
-                spaceUuid: 'spaces.space_uuid',
-                spaceName: 'spaces.name',
+                spaceUuid: 'content.space_uuid',
+                spaceName: 'content.space_name',
             })
-            .modify((query) => {
-                if (source.contentType === ContentReviewContentType.DASHBOARD) {
-                    void query.join(
-                        { spaces: SpaceTableName },
-                        'spaces.space_id',
-                        'content.space_id',
-                    );
-                    return;
-                }
-                const spaceKey =
-                    source.contentType === ContentReviewContentType.SQL_CHART
-                        ? 'space_uuid'
-                        : 'space_id';
-                void query
-                    .leftJoin({ owner: DashboardsTableName }, (join) => {
-                        join.on(
-                            'owner.dashboard_uuid',
-                            'content.dashboard_uuid',
-                        ).onNull('owner.deleted_at');
-                    })
-                    .join({ spaces: SpaceTableName }, (join) => {
-                        if (
-                            source.contentType ===
-                            ContentReviewContentType.CHART
-                        ) {
-                            join.on(
-                                'spaces.space_id',
-                                this.database.raw('coalesce(??, ??)', [
-                                    'content.space_id',
-                                    'owner.space_id',
-                                ]),
-                            );
-                            return;
-                        }
-                        join.on(
-                            `spaces.${spaceKey}`,
-                            `content.${spaceKey}`,
-                        ).orOn(function dashboardSpace() {
-                            this.onNull(`content.${spaceKey}`).andOn(
-                                'spaces.space_id',
-                                'owner.space_id',
-                            );
-                        });
-                    });
-            })
-            .join(
-                { projects: ProjectTableName },
-                'projects.project_id',
-                'spaces.project_id',
-            )
-            .where('projects.project_uuid', projectUuid)
-            .whereIn('spaces.space_uuid', accessibleSpaceUuids)
-            .where('spaces.is_default_user_space', false)
-            .whereNull('spaces.deleted_at')
-            .whereNull('content.deleted_at')
-            .modify((query) => {
-                if (excludeContentUuid !== null) {
-                    void query.whereNot(
-                        `content.${source.uuidColumn}`,
-                        excludeContentUuid,
-                    );
-                }
-            });
+            .timeout(SIMILARITY_QUERY_TIMEOUT_MS, { cancel: true })
+            .from(branches.as('content'));
     }
 
     // Two bounded searches: exact query fields first, then name tokens.
