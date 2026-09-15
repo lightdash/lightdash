@@ -122,22 +122,28 @@ describe('Explore', () => {
         // open the chart gallery and change chart types
         cy.findByText('Configure').click();
         cy.findByRole('button', { name: 'Change' }).click();
+        cy.findByRole('button', { name: 'Bar chart', pressed: true }).should(
+            'be.visible',
+        );
 
         const selectChartType = (chartType: string) => {
-            cy.findByRole('button', { name: chartType }).click();
+            cy.findByRole('button', {
+                name: chartType,
+                pressed: false,
+            }).click();
             cy.findByRole('button', { name: chartType, pressed: true }).should(
                 'be.visible',
             );
             cy.findByText('Choose chart type').should('be.visible');
         };
 
+        selectChartType('Table');
         selectChartType('Bar chart');
         selectChartType('Horizontal bar chart');
         selectChartType('Line chart');
         selectChartType('Area chart');
         selectChartType('Scatter chart');
         selectChartType('Pie chart');
-        selectChartType('Table');
         selectChartType('Big value');
     });
 
