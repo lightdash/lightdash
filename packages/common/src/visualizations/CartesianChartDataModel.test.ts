@@ -1,6 +1,9 @@
 import { DimensionType, Format } from '../types/field';
 import { CartesianSeriesType, ChartKind } from '../types/savedCharts';
-import { CartesianChartDataModel } from './CartesianChartDataModel';
+import {
+    CartesianChartDataModel,
+    ValueLabelPositionOptions,
+} from './CartesianChartDataModel';
 import {
     VizAggregationOptions,
     VizIndexType,
@@ -147,6 +150,38 @@ describe('CartesianChartDataModel series draw order', () => {
                 .getSpec()
                 .series.map((s: { encode: { y: string } }) => s.encode.y),
         ).toEqual(columns);
+    });
+
+    test('uses readable bar label colors by default and allows an override', async () => {
+        const model = await getModel();
+        const display = {
+            series: {
+                sales: {
+                    type: CartesianSeriesType.BAR as const,
+                    color: '#00171f',
+                    valueLabelPosition: ValueLabelPositionOptions.INSIDE,
+                },
+            },
+        };
+
+        const automatic = model.getSpec(display).series[1].label;
+        const overridden = model.getSpec({
+            series: {
+                sales: {
+                    ...display.series.sales,
+                    valueLabelColor: '#ff00ff',
+                },
+            },
+        }).series[1].label;
+        expect(automatic).toMatchObject({
+            color: 'white',
+            backgroundColor: '#00171f',
+            borderRadius: 4,
+            padding: [1, 2],
+        });
+        expect(overridden).toMatchObject({
+            color: '#ff00ff',
+        });
     });
 });
 

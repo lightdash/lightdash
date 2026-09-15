@@ -47,6 +47,8 @@ type PieChartConfig = {
 
     valueLabel: PieChartValueOptions['valueLabel'];
     valueLabelChange: (valueLabel: PieChartValueOptions['valueLabel']) => void;
+    valueLabelColor: PieChartValueOptions['valueLabelColor'];
+    valueLabelColorChange: (color: string | undefined) => void;
     showValue: PieChartValueOptions['showValue'];
     toggleShowValue: () => void;
     showPercentage: PieChartValueOptions['showPercentage'];
@@ -130,6 +132,9 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const [showPercentage, setShowPercentage] = useState(
         pieChartConfig?.showPercentage ?? true,
+    );
+    const [valueLabelColor, setValueLabelColor] = useState(
+        pieChartConfig?.valueLabelColor,
     );
 
     const [groupLabelOverrides, setGroupLabelOverrides] = useState(
@@ -435,6 +440,19 @@ const usePieChartConfig: PieChartConfigFn = (
         );
     }, []);
 
+    const handleValueLabelColorChange = useCallback(
+        (color: string | undefined) => {
+            setValueLabelColor(color);
+
+            setGroupValueOptionOverrides((prev) =>
+                mapValues(prev, ({ valueLabelColor: _, ...rest }) => ({
+                    ...rest,
+                })),
+            );
+        },
+        [],
+    );
+
     const handleGroupLabelChange = useCallback((key: string, value: string) => {
         setGroupLabelOverrides(({ [key]: _, ...rest }) => {
             return value === '' ? rest : { ...rest, [key]: value };
@@ -450,7 +468,17 @@ const usePieChartConfig: PieChartConfigFn = (
     const handleGroupValueOptionChange = useCallback(
         (label: string, value: Partial<PieChartValueOptions>) => {
             setGroupValueOptionOverrides((prev) => {
-                return { ...prev, [label]: { ...prev[label], ...value } };
+                const nextOptions = omitBy(
+                    { ...prev[label], ...value },
+                    (option) => option === undefined,
+                );
+
+                if (isEmpty(nextOptions)) {
+                    const { [label]: _, ...rest } = prev;
+                    return rest;
+                }
+
+                return { ...prev, [label]: nextOptions };
             });
         },
         [],
@@ -492,6 +520,7 @@ const usePieChartConfig: PieChartConfigFn = (
             valueLabel,
             showValue,
             showPercentage,
+            valueLabelColor,
             groupLabelOverrides: pick(
                 debouncedGroupLabelOverrides,
                 groupLabels,
@@ -518,6 +547,7 @@ const usePieChartConfig: PieChartConfigFn = (
             valueLabel,
             showValue,
             showPercentage,
+            valueLabelColor,
             groupLabels,
             debouncedGroupLabelOverrides,
             debouncedGroupColorOverrides,
@@ -546,6 +576,8 @@ const usePieChartConfig: PieChartConfigFn = (
 
         valueLabel,
         valueLabelChange: handleValueLabelChange,
+        valueLabelColor,
+        valueLabelColorChange: handleValueLabelColorChange,
         showValue,
         toggleShowValue: handleToggleShowValue,
         showPercentage,

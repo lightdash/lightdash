@@ -1,3 +1,4 @@
+import { getReadableTextColor } from '../../../utils/colors';
 import { BACKGROUND, GRAY_3, GRAY_6, GRAY_7 } from './themeColors';
 
 /**
@@ -36,19 +37,19 @@ export const getPieSliceStyle = (isDonut: boolean) =>
 /**
  * Get external label styling for pie charts
  */
-export const getPieExternalLabelStyle = () => ({
+export const getPieExternalLabelStyle = (color?: string) => ({
     fontSize: 12,
     lineHeight: 18,
     // Rich text styles for different parts of the label
     rich: {
         name: {
-            color: GRAY_6,
+            color: color ?? GRAY_6,
             fontWeight: 500,
             fontSize: 12,
             lineHeight: 18,
         },
         value: {
-            color: GRAY_7,
+            color: color ?? GRAY_7,
             fontWeight: 600,
             fontSize: 12,
             lineHeight: 18,
@@ -68,7 +69,17 @@ export const getPieLabelLineStyle = () => ({
 /**
  * Get internal label styling for pie charts (labels inside slices)
  */
-export const getPieInternalLabelStyle = () => ({
+export const getPieInternalLabelStyle = (
+    sliceColor?: string,
+    color?: string,
+) => ({
     fontWeight: 500,
     fontSize: 12,
+    ...(color || sliceColor
+        ? {
+              color:
+                  color ??
+                  (sliceColor ? getReadableTextColor(sliceColor) : undefined),
+          }
+        : {}),
 });

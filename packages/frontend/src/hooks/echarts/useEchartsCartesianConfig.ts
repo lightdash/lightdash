@@ -1242,6 +1242,7 @@ const getPivotSeries = ({
                         series.label.position,
                         series.type,
                         series.color,
+                        series.label.color,
                     )),
                 ...(itemsMap &&
                     itemsMap[series.encode.yRef.field] && {
@@ -1426,7 +1427,10 @@ const getSimpleSeries = ({
                 series.label.position,
                 series.type,
                 series.color,
+                series.label.color,
             ),
+            // Defer automatic label colors until the palette color is resolved.
+            color: series.label.color,
             ...(itemsMap &&
                 itemsMap[yFieldHash] && {
                     formatter: (param: any) => {
@@ -3660,6 +3664,7 @@ const useEchartsCartesianConfig = (
                                 labelPosition,
                                 serie.type,
                                 computedColor,
+                                serie.label.color,
                             ),
                         },
                         labelLayout: getCartesianLabelLayout({

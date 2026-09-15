@@ -2,6 +2,7 @@ import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     CartesianSeriesType,
     ChartType,
+    getReadableTextColor,
     type CartesianChartLayout,
     type Series,
 } from '@lightdash/common';
@@ -11,9 +12,9 @@ import {
     Checkbox,
     Collapse,
     Group,
-    Stack,
-    Select,
     Popover,
+    Select,
+    Stack,
 } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
@@ -71,6 +72,12 @@ const SingleSeriesConfiguration: FC<Props> = ({
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
             ? CartesianSeriesType.AREA
             : series.type;
+    const seriesColor = getSeriesColor(series);
+    const automaticLabelColor =
+        series.type === CartesianSeriesType.BAR &&
+        series.label?.position === 'inside'
+            ? getReadableTextColor(seriesColor)
+            : seriesColor;
     const [seriesValue, setSeriesValue] = useDebouncedState(
         getSingleSeries(series)?.name || seriesLabel,
         200,
@@ -90,7 +97,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     )}
                     {isGrouped && (
                         <ColorSelector
-                            color={getSeriesColor(series)}
+                            color={seriesColor}
                             swatches={colorPalette}
                             withAlpha
                             onColorChange={(color) => {
@@ -306,8 +313,12 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     ...series,
                                     label:
                                         value === 'hidden'
-                                            ? { show: false }
+                                            ? {
+                                                  ...series.label,
+                                                  show: false,
+                                              }
                                             : {
+                                                  ...series.label,
                                                   show: true,
                                                   position: value as any,
                                                   showValue:
@@ -328,6 +339,40 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 });
                             }}
                         />
+                        {series.label?.show && (
+                            <Box mt={!isGrouped ? 'lg' : undefined}>
+                                <ColorSelector
+                                    color={series.label.color}
+                                    defaultColor={automaticLabelColor}
+                                    swatches={colorPalette}
+                                    withAlpha
+                                    ariaLabel="Select value label color"
+                                    onColorChange={(color) => {
+                                        updateSingleSeries({
+                                            ...series,
+                                            label: {
+                                                ...series.label,
+                                                color,
+                                            },
+                                        });
+                                    }}
+                                    onColorReset={
+                                        series.label.color
+                                            ? () => {
+                                                  updateSingleSeries({
+                                                      ...series,
+                                                      label: {
+                                                          ...series.label,
+                                                          color: undefined,
+                                                      },
+                                                  });
+                                              }
+                                            : undefined
+                                    }
+                                    resetLabel="Use automatic color"
+                                />
+                            </Box>
+                        )}
                     </Group>
                     {(type === CartesianSeriesType.LINE ||
                         type === CartesianSeriesType.AREA) && (

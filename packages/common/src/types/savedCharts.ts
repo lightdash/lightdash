@@ -100,6 +100,7 @@ export type PieChartValueOptions = {
     valueLabel: PieChartValueLabel;
     showValue: boolean;
     showPercentage: boolean;
+    valueLabelColor?: string;
 };
 
 export const PieChartLegendPositions = {
@@ -131,6 +132,8 @@ export type PieChart = {
     showValue?: PieChartValueOptions['showValue'];
     /** Show percentage on slices */
     showPercentage?: PieChartValueOptions['showPercentage'];
+    /** Custom color for value labels */
+    valueLabelColor?: PieChartValueOptions['valueLabelColor'];
     /** Custom labels for each group/slice */
     groupLabelOverrides?: Record<string, string>;
     /** Custom colors for each group/slice */
@@ -564,6 +567,8 @@ export type Series = {
     label?: {
         /** Show data labels on points */
         show?: boolean;
+        /** Custom data label color (hex code) */
+        color?: string;
         /** Position of data labels */
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
         /** Show labels even when they overlap */
