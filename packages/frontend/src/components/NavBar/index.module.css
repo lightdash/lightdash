@@ -16,9 +16,11 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-/* Avoid press-time stacking changes inside the forced-dark navbar. */
-.header :global(.mantine-active):active {
+/* Use immediate color feedback instead of press-time stacking changes. */
+.header :global(.mantine-active):active:not(:disabled, [data-disabled]) {
     transform: none;
+    background-color: var(--mantine-color-ldGray-3);
+    transition-duration: 0s;
 }
 
 .headerEditingDashboardChart {
