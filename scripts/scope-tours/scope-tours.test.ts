@@ -677,6 +677,15 @@ export const Card = () => (
             docsCardTitle('workflow/cli/deploy.mdx'),
             'Deploy changes to production',
         );
+        // An empty `sidebarTitle:` is not a title: the page's title stands.
+        writeFileSync(
+            path.join(docs, 'workflow/cli/empty-sidebar.mdx'),
+            '---\nsidebarTitle: ""\ntitle: Foo\n---\n\nBody.\n',
+        );
+        assert.strictEqual(
+            docsCardTitle('workflow/cli/empty-sidebar.mdx'),
+            'Foo',
+        );
         assert.strictEqual(
             tour.steps.map((s) => s.title).join(' > '),
             'Metrics > Open models/payments.yml > Edit the file > Type the command > Run the command > See the result > Click New > Choose Chart > Search for the table > Open Payments > Find Average payment amount > Using the column meta tag',
@@ -711,7 +720,8 @@ export const Card = () => (
         // can be clicked.
         assert.strictEqual(tour.steps[8].suggestion, 'Payments');
         // Titled from the anchor's own hint, like every other click or
-        // typed step; only the two look steps carry a literal title.
+        // typed step; only the closing look at the output carries a literal
+        // title.
         assert.strictEqual(tour.steps[8].title, 'Search for the table');
         assert.strictEqual(
             tour.steps[8].target,
@@ -822,6 +832,32 @@ export const Card = () => (
         assert.throws(
             () => buildLessonTours([metricsLesson], [files[0]]),
             /\[data-tour-anchor="explore-search"\] must be a typed anchor/,
+        );
+        // The field search is titled from the field row's own named hint, so
+        // losing the row's declaration fails the build instead of leaving the
+        // step pointing at a row nothing describes.
+        assert.throws(
+            () =>
+                buildLessonTours(
+                    [metricsLesson],
+                    [
+                        files[0],
+                        write(
+                            'ExploreNoMetric.tsx',
+                            explore.replace(
+                                /^.*data-tour-hint-named="Find \{value\}".*$/m,
+                                '',
+                            ),
+                        ),
+                    ],
+                ),
+            /explore-metric/,
+        );
+        // Two lessons cannot share an id: the second would overwrite the
+        // first in the generated map.
+        assert.throws(
+            () => buildLessonTours([metricsLesson, metricsLesson], files),
+            /duplicate lesson id/,
         );
     }
 

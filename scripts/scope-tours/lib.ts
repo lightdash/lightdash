@@ -541,7 +541,8 @@ export const docsCardTitle = (relative: string): string => {
             ?.replace(`${key}:`, '')
             .trim()
             .replace(/^["']|["']$/g, '');
-    const title = read('sidebarTitle') ?? read('title');
+    // An empty `sidebarTitle:` is a page with no sidebar title, not a title.
+    const title = read('sidebarTitle') || read('title');
     if (!title) throw new Error(`Docs page has no title: ${relative}`);
     return title;
 };
@@ -659,6 +660,13 @@ export const buildLessonTours = (
     files: string[],
 ): ScopeTourDefinition[] => {
     if (lessons.length === 0) return [];
+    const seen = new Set<string>();
+    lessons.forEach(({ id }) => {
+        if (seen.has(id)) {
+            throw new Error(`${LESSON_SOURCE}: duplicate lesson id ${id}`);
+        }
+        seen.add(id);
+    });
     const bundlePaths = learnBundlePaths();
     return lessons.map((lesson) => {
         validateLesson(lesson, bundlePaths);
@@ -723,21 +731,27 @@ export const buildLessonTours = (
             ]),
             // The table list is virtualised, so the lesson's table is not on
             // the page until it is searched for.
-            typed(search, EXPLORE_ROUTE, hintFor(search, files), '', exploreLabel, [
-                newMenu,
-                newChart,
-            ]),
+            typed(
+                search,
+                EXPLORE_ROUTE,
+                hintFor(search, files),
+                '',
+                exploreLabel,
+                [newMenu, newChart],
+            ),
             click(table, EXPLORE_ROUTE, hintFor(table, files), [
                 newMenu,
                 newChart,
                 search,
             ]),
             // The field tree has its own search, and the table list's has
-            // gone by now: the explore replaces it.
+            // gone by now: the explore replaces it. The search is titled from
+            // the field row's own named hint, so the step and the row it
+            // leads to say the same thing and a missing row fails the build.
             typed(
                 fieldSearch,
                 EXPLORE_ROUTE,
-                `Find ${fieldLabel}`,
+                hintFor(fieldRow, files),
                 '',
                 fieldLabel,
                 [newMenu, newChart, search, table],
