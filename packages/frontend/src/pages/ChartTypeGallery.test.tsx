@@ -9,6 +9,7 @@ import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../features/apps/hooks/useDeleteApp';
 import { useDuplicateApp } from '../features/apps/hooks/useDuplicateApp';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
+import { useDataAppVizDeleteImpact } from '../features/chartTypes/hooks/useDataAppVizDeleteImpact';
 import { useInstallRegistryChartType } from '../features/chartTypes/hooks/useInstallRegistryChartType';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { useExplores } from '../hooks/useExplores';
@@ -26,6 +27,10 @@ vi.mock('../hooks/useProjectUuid', () => ({
 
 vi.mock('../features/chartTypes/hooks/useDataAppVisualizations', () => ({
     useDataAppVisualizations: vi.fn(),
+}));
+
+vi.mock('../features/chartTypes/hooks/useDataAppVizDeleteImpact', () => ({
+    useDataAppVizDeleteImpact: vi.fn(),
 }));
 
 vi.mock('../features/apps/hooks/useAppVersionHistory', () => ({
@@ -218,6 +223,12 @@ describe('ChartTypeGallery', () => {
             mutateAsync: mockedDeleteApp,
             isLoading: false,
         } as unknown as ReturnType<typeof useDeleteApp>);
+        vi.mocked(useDataAppVizDeleteImpact).mockReturnValue({
+            data: { chartCount: 3 },
+            isFetching: false,
+            isError: false,
+            refetch: vi.fn(),
+        } as unknown as ReturnType<typeof useDataAppVizDeleteImpact>);
         setRegistryCharts([]);
         vi.mocked(useExplores).mockReturnValue({
             data: [
@@ -381,7 +392,18 @@ describe('ChartTypeGallery', () => {
 
         expect(screen.getByText('Delete chart type')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+        expect(
+            screen.getByText(
+                '3 saved charts are built on this chart type and will show an error.',
+            ),
+        ).toBeInTheDocument();
+        expect(useDataAppVizDeleteImpact).toHaveBeenCalledWith(
+            'project-1',
+            'data-app-viz-1',
+        );
+        const confirmButton = screen.getByRole('button', { name: 'Delete' });
+        await waitFor(() => expect(confirmButton).toBeEnabled());
+        fireEvent.click(confirmButton);
 
         await waitFor(() =>
             expect(mockedDeleteApp).toHaveBeenCalledWith({
@@ -421,12 +443,11 @@ describe('ChartTypeGallery', () => {
 
         expect(screen.getByText('Uninstall chart type')).toBeInTheDocument();
 
-        // Both modals are open and both buttons say Uninstall; the confirm
-        // modal portals in after the detail modal, so its CTA is last.
-        const uninstallButtons = screen.getAllByRole('button', {
-            name: 'Uninstall',
-        });
-        fireEvent.click(uninstallButtons[uninstallButtons.length - 1]);
+        const confirmButton = within(
+            screen.getByRole('dialog', { name: 'Uninstall chart type' }),
+        ).getByRole('button', { name: 'Uninstall' });
+        await waitFor(() => expect(confirmButton).toBeEnabled());
+        fireEvent.click(confirmButton);
 
         await waitFor(() =>
             expect(mockedDeleteApp).toHaveBeenCalledWith({
