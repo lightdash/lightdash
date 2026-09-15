@@ -152,7 +152,12 @@ describe('AiDataAppBuildCard', () => {
         mockedLightdashApi.mockReset();
     });
 
-    afterEach(() => {
+    // Drain React Query's queued notifications before RTL unmounts, so no
+    // listener fires after the jsdom window is torn down.
+    afterEach(async () => {
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
         vi.restoreAllMocks();
     });
 
