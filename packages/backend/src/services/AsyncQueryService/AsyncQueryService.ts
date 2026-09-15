@@ -59,6 +59,7 @@ import {
     getMetrics,
     getMetricsWithValidParameters,
     getPivotValueColumnName,
+    getPreAggregateExploreName,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isCartesianChartConfig,
@@ -158,7 +159,11 @@ import {
     type WarehouseResults,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { DuckdbWarehouseClient, SshTunnel } from '@lightdash/warehouses';
+import {
+    BigqueryWarehouseClient,
+    DuckdbWarehouseClient,
+    SshTunnel,
+} from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { Readable, Writable } from 'stream';
 import {
@@ -180,6 +185,16 @@ import {
     findSqlScopeViolations,
     formatSqlScopeError,
 } from '../../ee/services/ai/utils/sqlScope';
+import { deriveBigqueryRefreshGrantExecutionScope } from '../../ee/services/PreAggregateMaterializationService/bigqueryRefreshGrantExecutionScope';
+import {
+    getWarehouseCompatibilityContext,
+    hashPreAggregateCompatibility,
+} from '../../ee/services/PreAggregateMaterializationService/preAggregatePreparation';
+import { resolveDatabricksPrincipal } from '../../ee/services/PreAggregateMaterializationService/resolveDatabricksPrincipal';
+import {
+    deriveLegacyExecutionScope,
+    deriveUnverifiedExecutionScope,
+} from '../../ee/services/PreAggregateMaterializationService/unverifiedExecutionScope';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { getAppContext, getSchedulerContext } from '../../logging/winston';
@@ -455,6 +470,7 @@ type ExecuteAsyncQueryArgs = Pick<
     'account' | 'projectUuid' | 'invalidateCache' | 'context'
 > & {
     queryTags: RunQueryTags;
+    onQueryCreated?: (queryUuid: string) => Promise<void>;
     // Saved chart (metric or SQL) the query was executed from, for analytics attribution
     chart?: { uuid: string };
     // Single SQL seam: metric paths pass a QueryComposer, SQL-chart
@@ -888,7 +904,9 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    private getPreAggregationRoutingDecision({
+    private async getPreAggregationRoutingDecision({
+        account,
+        projectUuid,
         metricQuery,
         explore,
         context,
@@ -898,15 +916,78 @@ export class AsyncQueryService extends ProjectService {
         explore: Explore;
         context: QueryExecutionContext;
         forceWarehouse: boolean;
-    }): PreAggregationRoutingDecision {
+        account: Account;
+        projectUuid: string;
+    }): Promise<PreAggregationRoutingDecision> {
         if (forceWarehouse) {
             return { target: 'warehouse' };
         }
-        return this.preAggregateStrategy.getRoutingDecision({
+        const decision = this.preAggregateStrategy.getRoutingDecision({
             metricQuery,
             explore,
             context,
         });
+        if (decision.target === 'pre_aggregate') {
+            const route = {
+                ...decision.route,
+                routingSnapshot: {
+                    exploreName: explore.name,
+                    fingerprint: hashPreAggregateCompatibility(explore),
+                },
+            };
+            if (route.externalTable) return { ...decision, route };
+            const { phase } = await this.preAggregateModel.getReuseState();
+            if (phase === 'compatibility') return { ...decision, route };
+            try {
+                const snapshot =
+                    await this.preAggregateModel.getServingSnapshot(
+                        projectUuid,
+                        getPreAggregateExploreName(
+                            route.sourceExploreName,
+                            route.preAggregateName,
+                        ),
+                    );
+                if (snapshot) {
+                    // Settings, organization credentials and access attributes
+                    // can change without a deploy. Verify effective context at
+                    // routing time as well as at refresh time.
+                    const prepared = await this.prepareRegisteredPreAggregate({
+                        account,
+                        projectUuid,
+                        definition: snapshot.definition,
+                        evaluatedAt: new Date(),
+                        expectedPinnedContextHash:
+                            snapshot.activeMaterialization?.pinnedContextHash,
+                    });
+                    if (prepared.pinnedContextHash)
+                        return {
+                            ...decision,
+                            route: {
+                                ...route,
+                                compatibilityCheck: {
+                                    status: 'prepared',
+                                    publicationVersion:
+                                        snapshot.definition.publicationVersion,
+                                    compatibilityHash:
+                                        prepared.compatibilityHash,
+                                    pinnedContextHash:
+                                        prepared.pinnedContextHash,
+                                },
+                            },
+                        };
+                }
+            } catch {
+                // Resolution owns ordinary fallback vs required-route errors.
+            }
+            return {
+                ...decision,
+                route: {
+                    ...route,
+                    compatibilityCheck: { status: 'unavailable' },
+                },
+            };
+        }
+        return decision;
     }
 
     private getResultsStorageClientForContext(
@@ -3434,6 +3515,33 @@ export class AsyncQueryService extends ProjectService {
         let queryStartTime = Date.now();
 
         try {
+            const pinnedMaterialization =
+                queryTags.query_context ===
+                QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                    ? await this.assertMaterializationExecutionContext({
+                          queryUuid,
+                          projectUuid,
+                          userUuid,
+                      })
+                    : undefined;
+            if (
+                pinnedMaterialization &&
+                hashPreAggregateCompatibility(
+                    warehouseCredentialsOverrides ?? {},
+                ) !==
+                    hashPreAggregateCompatibility({
+                        snowflakeVirtualWarehouse:
+                            pinnedMaterialization.queryComposer.getExplore()
+                                .warehouse,
+                        databricksCompute:
+                            pinnedMaterialization.queryComposer.getExplore()
+                                .databricksCompute,
+                    })
+            ) {
+                throw new ParameterError(
+                    'Warehouse execution target changed before submission; prepare a new refresh.',
+                );
+            }
             if (warehouseClientOverride) {
                 warehouseClient = warehouseClientOverride;
                 warehouseCredentialsType =
@@ -3450,6 +3558,55 @@ export class AsyncQueryService extends ProjectService {
                 );
 
                 warehouseCredentialsType = warehouseCredentials.type;
+                if (
+                    pinnedMaterialization &&
+                    hashPreAggregateCompatibility(
+                        getWarehouseCompatibilityContext(warehouseCredentials),
+                    ) !==
+                        hashPreAggregateCompatibility(
+                            getWarehouseCompatibilityContext(
+                                pinnedMaterialization.warehouseCredentials,
+                            ),
+                        )
+                ) {
+                    throw new ParameterError(
+                        'Warehouse identity changed before submission; prepare a new refresh.',
+                    );
+                }
+                if (pinnedMaterialization?.executionCredentialScope) {
+                    const scopeArgs = {
+                        warehouseCredentials,
+                        actorId: userUuid,
+                        credentialSourceId:
+                            warehouseCredentials.userWarehouseCredentialsUuid ??
+                            projectUuid,
+                    };
+                    const matchesScope =
+                        this.lightdashConfig.lightdashSecrets.all.some(
+                            (secret) => {
+                                const keyedScopeArgs = { ...scopeArgs, secret };
+                                const scope =
+                                    deriveUnverifiedExecutionScope(
+                                        keyedScopeArgs,
+                                    );
+                                const currentScope =
+                                    scope.status === 'proven'
+                                        ? scope.hash
+                                        : deriveLegacyExecutionScope(
+                                              keyedScopeArgs,
+                                          );
+                                return (
+                                    currentScope ===
+                                    pinnedMaterialization.executionCredentialScope
+                                );
+                            },
+                        );
+                    if (!matchesScope) {
+                        throw new ParameterError(
+                            'Warehouse credential scope changed before submission; prepare a new refresh.',
+                        );
+                    }
+                }
 
                 // Get warehouse client using the projectService
                 const warehouseConnection = await this._getWarehouseClient(
@@ -3462,11 +3619,76 @@ export class AsyncQueryService extends ProjectService {
                 tunnelConnectMs = warehouseConnection.tunnelConnectMs;
             }
 
+            if (pinnedMaterialization?.resolvedAmbientPrincipal) {
+                let actualPrincipal: string | undefined;
+                if (warehouseClient instanceof BigqueryWarehouseClient) {
+                    actualPrincipal = (
+                        await warehouseClient.client.authClient.getCredentials()
+                    ).client_email;
+                } else if (
+                    warehouseClient.credentials.type ===
+                    WarehouseTypes.DATABRICKS
+                ) {
+                    actualPrincipal = await resolveDatabricksPrincipal(
+                        warehouseClient.credentials,
+                    );
+                }
+                if (
+                    actualPrincipal !==
+                    pinnedMaterialization.resolvedAmbientPrincipal
+                ) {
+                    throw new ParameterError(
+                        'Warehouse client principal changed before submission; prepare a new refresh.',
+                    );
+                }
+            }
+            if (pinnedMaterialization?.bigqueryRefreshGrantScope) {
+                let matchesGrant = false;
+                if (warehouseClient instanceof BigqueryWarehouseClient) {
+                    for (const secret of this.lightdashConfig.lightdashSecrets
+                        .all) {
+                        const scope =
+                            // eslint-disable-next-line no-await-in-loop -- Resolve the same SDK client against the bounded verification keyring.
+                            await deriveBigqueryRefreshGrantExecutionScope({
+                                authClient: warehouseClient.client.authClient,
+                                actorId: userUuid,
+                                credentialSourceId:
+                                    pinnedMaterialization.warehouseCredentials
+                                        .userWarehouseCredentialsUuid ??
+                                    projectUuid,
+                                secret,
+                            });
+                        if (
+                            scope.status === 'proven' &&
+                            scope.hash ===
+                                pinnedMaterialization.bigqueryRefreshGrantScope
+                        ) {
+                            matchesGrant = true;
+                            break;
+                        }
+                    }
+                }
+                if (!matchesGrant) {
+                    throw new ParameterError(
+                        'Warehouse ADC grant changed before submission; prepare a new refresh.',
+                    );
+                }
+            }
+
             const isTimezoneSupportEnabled =
                 await this.isTimezoneSupportEnabled({
                     userUuid,
                     organizationUuid,
                 });
+            if (
+                pinnedMaterialization &&
+                pinnedMaterialization.queryComposer.getUseTimezoneAwareDateTrunc() !==
+                    isTimezoneSupportEnabled
+            ) {
+                throw new ParameterError(
+                    'Query timezone semantics changed before submission; prepare a new refresh.',
+                );
+            }
             const resolvedDataTimezone = isTimezoneSupportEnabled
                 ? warehouseClient.credentials.dataTimezone
                 : undefined;
@@ -4401,7 +4623,7 @@ export class AsyncQueryService extends ProjectService {
             // every viewer — they must compile against the project timezone,
             // not the triggering user's profile preference.
             userTimezone:
-                materializationRole !== undefined
+                context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
                     ? null
                     : getAccountUserTimezone(account),
             sessionTimezone: sessionTimezone ?? null,
@@ -4630,6 +4852,9 @@ export class AsyncQueryService extends ProjectService {
                             pivotConfiguration: pivotConfiguration ?? null,
                             originalColumns: originalColumns ?? null,
                         });
+                    // Register immutable provenance before either NATS or the
+                    // in-process worker can submit this query.
+                    await args.onQueryCreated?.(queryHistoryUuid);
                     const historyCreateMs = Date.now() - historyCreateStart;
                     this.prometheusMetrics?.trackQueryStateTransition(
                         'new',
@@ -5154,6 +5379,192 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    async executePreAggregateMaterialization({
+        account,
+        projectUuid,
+        prepared,
+        materializationUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        prepared: Awaited<
+            ReturnType<ProjectService['preparePreAggregateMaterialization']>
+        >;
+        materializationUuid: string;
+    }) {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const metricQuery = prepared.queryComposer.getMetricQuery();
+        const ability = this.createAuditedAbility(account);
+        if (
+            ability.cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    exploreNames: [metricQuery.exploreName],
+                    metadata: { exploreName: metricQuery.exploreName },
+                }),
+            )
+        )
+            throw new ForbiddenError();
+        await this.assertCustomSqlAuthorizedForQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            exploreName: metricQuery.exploreName,
+            metricQuery,
+        });
+        const context = QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
+        const queryTags = AsyncQueryService.addUserAttributeQueryTags(
+            {
+                ...this.getUserQueryTags(account),
+                ...AsyncQueryService.getSchedulerQueryTags(),
+                ...AsyncQueryService.getAppQueryTags(),
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+                explore_name: metricQuery.exploreName,
+                query_context: context,
+            },
+            prepared.queryComposer.getUserAccessControls(),
+        );
+        return this.executeAsyncQuery(
+            {
+                account,
+                projectUuid,
+                organizationUuid,
+                context,
+                queryTags,
+                invalidateCache: true,
+                routingTarget: 'materialization',
+                queryComposer: prepared.queryComposer,
+                warehouseCredentials: prepared.warehouseCredentials,
+                onQueryCreated: (queryUuid) =>
+                    this.preAggregateModel.attachQueryUuid({
+                        materializationUuid,
+                        queryUuid,
+                    }),
+            },
+            { context, query: metricQuery },
+        );
+    }
+
+    /** Secrets may rotate while a query waits; effective identity may not. */
+    private async assertMaterializationExecutionContext({
+        queryUuid,
+        projectUuid,
+        userUuid,
+    }: {
+        queryUuid: string;
+        projectUuid: string;
+        userUuid: string;
+    }) {
+        const attempt =
+            await this.preAggregateModel.getMaterializationByQueryUuid(
+                queryUuid,
+            );
+        if (
+            !attempt?.publicationVersion ||
+            !attempt.evaluatedAt ||
+            !attempt.pinnedContextHash
+        ) {
+            const { phase } = await this.preAggregateModel.getReuseState();
+            if (phase === 'active')
+                throw new ParameterError(
+                    'Materialization was prepared by an older worker; refresh it again.',
+                );
+            return undefined;
+        }
+        const definition =
+            await this.preAggregateModel.getPreAggregateDefinitionByUuid({
+                projectUuid,
+                preAggregateDefinitionUuid: attempt.preAggregateDefinitionUuid,
+            });
+        const { phase } = await this.preAggregateModel.getReuseState();
+        const sourceExploreName =
+            definition?.sourceExploreName ??
+            (phase === 'compatibility'
+                ? definition?.materializationMetricQuery?.metricQuery
+                      .exploreName
+                : undefined);
+        if (!sourceExploreName || !definition?.materializationMetricQuery)
+            throw new ParameterError(
+                'Pre-aggregate definition is no longer available; prepare a new refresh.',
+            );
+        if (attempt.trigger === 'cron') {
+            const automaticEligible =
+                definition.automaticEligible ||
+                (phase === 'compatibility' &&
+                    (await this.preAggregateModel.isLegacyDefinitionAutomaticallyEligible(
+                        definition,
+                    )));
+            if (
+                (!attempt.scheduleRevision && phase === 'active') ||
+                (attempt.scheduleRevision &&
+                    attempt.scheduleRevision !== definition.scheduleRevision) ||
+                !automaticEligible ||
+                !definition.refreshCron
+            ) {
+                throw new ParameterError(
+                    'Pre-aggregate cron schedule changed while queued; obsolete_schedule',
+                );
+            }
+        }
+        const sourceExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            sourceExploreName,
+        );
+        if (isExploreError(sourceExplore))
+            throw new ParameterError(
+                'Pre-aggregate source is invalid; prepare a new refresh.',
+            );
+        const account = await this.getPreAggregateExecutionAccount(userUuid);
+        const prepared = await this.preparePreAggregateMaterialization({
+            account,
+            projectUuid,
+            sourceExplore,
+            preAggregateDef: definition.preAggregateDefinition,
+            evaluatedAt: attempt.evaluatedAt,
+            expectedPinnedContextHash: attempt.pinnedContextHash,
+        });
+        // Permissions can change while an authorized refresh waits in the queue.
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const metricQuery = prepared.queryComposer.getMetricQuery();
+        if (
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    exploreNames: [metricQuery.exploreName],
+                    metadata: { exploreName: metricQuery.exploreName },
+                }),
+            )
+        )
+            throw new ForbiddenError();
+        await this.assertCustomSqlAuthorizedForQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            exploreName: metricQuery.exploreName,
+            metricQuery,
+        });
+        if (
+            prepared.pinnedContextHash !== attempt.pinnedContextHash ||
+            (definition.publicationVersion !== attempt.publicationVersion &&
+                (!attempt.compatibilityHash ||
+                    prepared.compatibilityHash !== attempt.compatibilityHash))
+        ) {
+            throw new ParameterError(
+                'Pre-aggregate execution context changed while queued; prepare a new refresh.',
+            );
+        }
+        return prepared;
+    }
+
     // execute
     async executeAsyncMetricQuery(
         args: ExecuteAsyncMetricQueryArgs,
@@ -5378,7 +5789,9 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
         };
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            account,
+            projectUuid,
             metricQuery: effectiveMetricQuery,
             explore,
             context,
@@ -6107,7 +6520,9 @@ export class AsyncQueryService extends ProjectService {
         });
         const fieldsWithOverrides = queryComposer.getFields();
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            account,
+            projectUuid,
             metricQuery: metricQueryWithLimit,
             explore,
             context,
@@ -6887,7 +7302,9 @@ export class AsyncQueryService extends ProjectService {
         const fieldsWithOverrides = queryComposer.getFields();
         const parameterReferences = queryComposer.getParameterReferences();
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            account,
+            projectUuid,
             metricQuery: metricQueryWithLimit,
             explore,
             context,
@@ -10265,7 +10682,9 @@ export class AsyncQueryService extends ProjectService {
         });
         const fields = queryComposer.getFields();
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            account,
+            projectUuid,
             metricQuery,
             explore,
             context,
