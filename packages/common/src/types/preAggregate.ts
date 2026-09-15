@@ -325,6 +325,18 @@ export const computePreAggregateWarnings = (
     return warnings;
 };
 
+export type PreAggregateMaterializationAttemptSummary = {
+    materializationUuid: string;
+    status: PreAggregateMaterializationStatus;
+    materializedAt: Date | null;
+    durationMs: number | null;
+    rowCount: number | null;
+    columns: ResultColumns | null;
+    totalBytes: number | null;
+    errorMessage: string | null;
+    trigger: PreAggregateMaterializationTrigger;
+};
+
 export type PreAggregateMaterializationSummary = {
     preAggregateDefinitionUuid: string;
     preAggregateName: string;
@@ -341,17 +353,9 @@ export type PreAggregateMaterializationSummary = {
     definitionError: string | null;
     resolvedMaxRows: number | null;
     warnings: PreAggregateMaterializationWarning[];
-    materialization: {
-        materializationUuid: string;
-        status: PreAggregateMaterializationStatus;
-        materializedAt: Date | null;
-        durationMs: number | null;
-        rowCount: number | null;
-        columns: ResultColumns | null;
-        totalBytes: number | null;
-        errorMessage: string | null;
-        trigger: PreAggregateMaterializationTrigger;
-    } | null;
+    activeMaterialization: PreAggregateMaterializationAttemptSummary | null;
+    preparationStatus: PreAggregatePreparationStatus;
+    materialization: PreAggregateMaterializationAttemptSummary | null;
 };
 
 export type ApiPreAggregateMaterializationsResults = {
