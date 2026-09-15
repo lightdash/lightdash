@@ -511,7 +511,7 @@ jobs:
 
   update-homebrew-formula:
     name: Update Homebrew Formula
-    needs: build-macos-binaries
+    needs: [build-macos-binaries, build-linux-binary]
     runs-on: depot-ubuntu-24.04-4
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -534,64 +534,54 @@ jobs:
 
           echo "Updating Homebrew formula for version $VERSION"
 
-          # Download the checksums file from the release
+          # Download the checksum files from the release
           gh release download "$TAG" \
             --repo lightdash/lightdash \
             --pattern "checksums-macos-sha256.txt" \
+            --pattern "checksums-linux-sha256.txt" \
             --dir .
 
-          # Extract SHA256 checksums
-          ARM64_SHA=$(grep "macos-arm64" checksums-macos-sha256.txt | awk '{print $1}')
-          X64_SHA=$(grep "macos-x64" checksums-macos-sha256.txt | awk '{print $1}')
+          # Combined "<sha>  <archive>" lines for every published binary
+          cat checksums-macos-sha256.txt checksums-linux-sha256.txt > checksums-all.txt
+          cat checksums-all.txt
 
-          if [ -z "$ARM64_SHA" ] || [ -z "$X64_SHA" ]; then
-            echo "Error: Failed to extract SHA256 checksums"
-            exit 1
-          fi
-
-          echo "ARM64 SHA: $ARM64_SHA"
-          echo "X64 SHA: $X64_SHA"
+          for asset in macos-arm64 macos-x64 linux-x64; do
+            if ! grep -q "lightdash-cli-${TAG}-${asset}.tar.gz" checksums-all.txt; then
+              echo "Error: missing checksum for ${asset}"
+              exit 1
+            fi
+          done
 
           # Update the formula
           FORMULA_PATH="homebrew-tap/Formula/lightdash.rb"
 
           # Export for Ruby script
-          export VERSION TAG ARM64_SHA X64_SHA
+          export VERSION TAG
 
+          # For each `url` line, rewrite it for the new tag (keeping the
+          # platform suffix, e.g. macos-arm64 / linux-x64) and replace the
+          # following `sha256` line with the checksum for that asset.
           ruby -i -pe '
             version = ENV["VERSION"]
             tag = ENV["TAG"]
-            arm64_sha = ENV["ARM64_SHA"]
-            x64_sha = ENV["X64_SHA"]
+            @shas ||= File.readlines("checksums-all.txt").each_with_object({}) do |line, acc|
+              sha, file = line.split
+              next unless file
+              suffix = file[/lightdash-cli-.+-(macos-arm64|macos-x64|linux-x64)\.tar\.gz\z/, 1]
+              acc[suffix] = sha if suffix
+            end
 
-            # Update version line
             if /^\s*version\s+"/
               gsub(/version\s+"[^"]+"/, "version \"#{version}\"")
             end
 
-            # Update ARM64 URL (in on_arm block)
-            if /on_arm/ .. /end/ and /url\s+".*macos-arm64/
-              gsub(/url\s+"[^"]+"/, "url \"https://github.com/lightdash/lightdash/releases/download/#{tag}/lightdash-cli-#{tag}-macos-arm64.tar.gz\"")
-            end
-
-            # Update ARM64 SHA (line after ARM64 URL)
-            if $_.include?("macos-arm64")
-              @next_sha_is_arm64 = true
-            elsif @next_sha_is_arm64 and /sha256/
-              gsub(/sha256\s+"[^"]+"/, "sha256 \"#{arm64_sha}\"")
-              @next_sha_is_arm64 = false
-            end
-
-            # Update x64 URL (in on_intel block)
-            if /on_intel/ .. /end/ and /url\s+".*macos-x64/
-              gsub(/url\s+"[^"]+"/, "url \"https://github.com/lightdash/lightdash/releases/download/#{tag}/lightdash-cli-#{tag}-macos-x64.tar.gz\"")
-            end
-
-            # Update x64 SHA (line after x64 URL)
-            if $_.include?("macos-x64") and @next_sha_is_x64 = true
-            elsif @next_sha_is_x64 and /sha256/
-              gsub(/sha256\s+"[^"]+"/, "sha256 \"#{x64_sha}\"")
-              @next_sha_is_x64 = false
+            if (m = $_.match(/url\s+".*lightdash-cli-[^"]+-(macos-arm64|macos-x64|linux-x64)\.tar\.gz"/))
+              @pending_suffix = m[1]
+              gsub(/url\s+"[^"]+"/, "url \"https://github.com/lightdash/lightdash/releases/download/#{tag}/lightdash-cli-#{tag}-#{@pending_suffix}.tar.gz\"")
+            elsif @pending_suffix && /sha256\s+"/
+              sha = @shas.fetch(@pending_suffix)
+              gsub(/sha256\s+"[^"]+"/, "sha256 \"#{sha}\"")
+              @pending_suffix = nil
             end
           ' "$FORMULA_PATH"
 
