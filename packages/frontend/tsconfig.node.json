@@ -17,7 +17,7 @@
     ],
     "references": [
         {
-            "path": "../common"
+            "path": "../common/tsconfig.types.json"
         }
     ]
 }
