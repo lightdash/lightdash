@@ -60,15 +60,15 @@
 @mixin smaller-than $mantine-breakpoint-sm {
     .root[data-mobile-layout='content'] {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-areas: 'title actions' 'metadata metadata';
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: 'title' 'metadata' 'actions';
         align-items: center;
         gap: 4px 8px;
         padding: 12px 16px;
     }
 
     .root[data-mobile-layout='content']:has([data-header-breadcrumbs]) {
-        grid-template-areas: 'breadcrumbs breadcrumbs' 'title actions' 'metadata metadata';
+        grid-template-areas: 'breadcrumbs' 'title' 'metadata' 'actions';
     }
 
     .root [data-header-main] {
@@ -103,17 +103,50 @@
 
     .root [data-header-title] :global(.mantine-Title-root) {
         min-width: 0;
-        font-size: 16px;
-        line-height: 1.4;
+        font-size: 18px;
+        line-height: 25px;
         overflow-wrap: anywhere;
     }
 
     .root [data-header-actions] {
         grid-area: actions;
-        justify-self: end;
-        align-self: start;
-        flex-wrap: nowrap;
-        gap: 0;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 4px;
+        width: 100%;
+        margin-top: 10px;
+        padding-top: 4px;
+        border-top: 1px solid var(--mantine-color-default-border);
+    }
+
+    .root [data-header-actions] > *,
+    .root [data-header-actions] :global(.mantine-Button-root) {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .root [data-header-actions] :global(.mantine-Button-root) {
+        height: 48px;
+        min-height: 48px;
+        padding-inline: 6px;
+        border: 0;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--mantine-color-text);
+        background: transparent;
+    }
+
+    .root
+        [data-header-actions]
+        :global(.mantine-Button-section[data-position='left']) {
+        margin-inline-end: 8px;
+    }
+
+    @media (hover: hover) {
+        .root [data-header-actions] :global(.mantine-Button-root:hover) {
+            background: var(--mantine-color-default-hover);
+        }
     }
 
     .root [data-header-metadata] {

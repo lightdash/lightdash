@@ -17,6 +17,7 @@ import {
     IconMaximize,
     IconMinimize,
     IconPencil,
+    IconInfoCircle,
     IconStar,
     IconStarFilled,
 } from '@tabler/icons-react';
@@ -71,7 +72,10 @@ import MantineModal from '../../common/MantineModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import PageHeader from '../../common/Page/PageHeader';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
-import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
+import {
+    ResourceInfoPopup,
+    ResourceInfoPopupContent,
+} from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import ChartActionsMenu from './ChartActionsMenu';
@@ -147,6 +151,7 @@ const verifiedTourProps = {
 };
 
 const SavedChartsHeader: FC = () => {
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -524,25 +529,34 @@ const SavedChartsHeader: FC = () => {
                                 >
                                     <UpdatedInfo
                                         updatedAt={savedChart.updatedAt}
-                                        user={savedChart.updatedByUser}
+                                        user={
+                                            compact
+                                                ? undefined
+                                                : savedChart.updatedByUser
+                                        }
                                         partiallyBold={false}
                                     />
-                                    <ResourceInfoPopup
-                                        resourceUuid={savedChart.uuid}
-                                        projectUuid={projectUuid}
-                                        title={savedChart.name}
-                                        description={savedChart.description}
-                                        slug={savedChart.slug}
-                                        updatedAt={savedChart.updatedAt}
-                                        spaceName={savedChart.spaceName}
-                                        spaceUuid={savedChart.spaceUuid}
-                                        viewStats={chartViewStats.data?.views}
-                                        viewStatsResourceType="chart"
-                                        firstViewedAt={
-                                            chartViewStats.data?.firstViewedAt
-                                        }
-                                        withChartData={true}
-                                    />
+                                    {!compact && (
+                                        <ResourceInfoPopup
+                                            resourceUuid={savedChart.uuid}
+                                            projectUuid={projectUuid}
+                                            title={savedChart.name}
+                                            description={savedChart.description}
+                                            slug={savedChart.slug}
+                                            updatedAt={savedChart.updatedAt}
+                                            spaceName={savedChart.spaceName}
+                                            spaceUuid={savedChart.spaceUuid}
+                                            viewStats={
+                                                chartViewStats.data?.views
+                                            }
+                                            viewStatsResourceType="chart"
+                                            firstViewedAt={
+                                                chartViewStats.data
+                                                    ?.firstViewedAt
+                                            }
+                                            withChartData={true}
+                                        />
+                                    )}
                                 </Group>
                             )}
                         </>
@@ -579,6 +593,7 @@ const SavedChartsHeader: FC = () => {
                                                 Edit chart
                                             </Button>
                                             <ShareShortLinkButton
+                                                withLabel={compact}
                                                 disabled={!isValidQuery}
                                             />
                                         </>
@@ -631,6 +646,29 @@ const SavedChartsHeader: FC = () => {
                             )}
                         </>
                     )}
+                    {compact && savedChart && (
+                        <Button
+                            variant="subtle"
+                            aria-pressed={isChartFavorited}
+                            leftSection={
+                                <MantineIcon
+                                    icon={
+                                        isChartFavorited
+                                            ? IconStarFilled
+                                            : IconStar
+                                    }
+                                />
+                            }
+                            onClick={() =>
+                                toggleFavorite({
+                                    contentType: ContentType.CHART,
+                                    contentUuid: savedChart.uuid,
+                                })
+                            }
+                        >
+                            {isChartFavorited ? 'Favorited' : 'Favorite'}
+                        </Button>
+                    )}
                     {showFullscreenToggle && (!compact || isFullscreen) && (
                         <Tooltip
                             label={
@@ -664,9 +702,10 @@ const SavedChartsHeader: FC = () => {
                             </ActionIcon>
                         </Tooltip>
                     )}
-                    {showChartActions && (
+                    {(showChartActions || (compact && !isFullscreen)) && (
                         <ChartActionsMenu
                             host="page"
+                            withLabel={compact}
                             schedulerDeepLink={schedulerDeepLink}
                             onOpenVersionHistory={() =>
                                 navigate({
@@ -700,27 +739,14 @@ const SavedChartsHeader: FC = () => {
                                 );
                             }}
                         >
-                            {compact && savedChart && (
+                            {compact && (
                                 <Menu.Item
                                     leftSection={
-                                        <MantineIcon
-                                            icon={
-                                                isChartFavorited
-                                                    ? IconStarFilled
-                                                    : IconStar
-                                            }
-                                        />
+                                        <MantineIcon icon={IconInfoCircle} />
                                     }
-                                    onClick={() =>
-                                        toggleFavorite({
-                                            contentType: ContentType.CHART,
-                                            contentUuid: savedChart.uuid,
-                                        })
-                                    }
+                                    onClick={() => setIsDetailsOpen(true)}
                                 >
-                                    {isChartFavorited
-                                        ? 'Remove from favorites'
-                                        : 'Add to favorites'}
+                                    Details
                                 </Menu.Item>
                             )}
                             {compact && showFullscreenToggle && (
@@ -738,6 +764,28 @@ const SavedChartsHeader: FC = () => {
                 </Group>
             </PageHeader>
 
+            {isDetailsOpen && savedChart && projectUuid && (
+                <MantineModal
+                    opened
+                    title="Chart details"
+                    onClose={() => setIsDetailsOpen(false)}
+                >
+                    <ResourceInfoPopupContent
+                        resourceUuid={savedChart.uuid}
+                        projectUuid={projectUuid}
+                        title={savedChart.name}
+                        description={savedChart.description}
+                        slug={savedChart.slug}
+                        updatedAt={savedChart.updatedAt}
+                        spaceName={savedChart.spaceName}
+                        spaceUuid={savedChart.spaceUuid}
+                        viewStats={chartViewStats.data?.views}
+                        viewStatsResourceType="chart"
+                        firstViewedAt={chartViewStats.data?.firstViewedAt}
+                        withChartData={true}
+                    />
+                </MantineModal>
+            )}
             {savedChart?.draftOverlayError ? (
                 <DraftOverlayFailureAlert
                     error={savedChart.draftOverlayError}
