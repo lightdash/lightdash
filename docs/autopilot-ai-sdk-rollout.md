@@ -51,6 +51,25 @@ This runs against a synthetic empty-project fixture. It exercises real action sc
 
 The per-step report records input/output tokens, cumulative input tokens and tool-result bytes. Peak per-call input is the prompt footprint; cumulative input sums every call and must not be compared with a context window. `get_broken_content` returns every root-cause group, so group count and error strings still grow with the project; only samples, detail pages and per-item errors are capped. Decide on compaction from representative full-checklist runs, not from this intake pass.
 
+### Real chart workflow
+
+`AUTOPILOT_CONTENT_EVAL=true` runs one chart repair and one chart creation through the real services against a dedicated local PostgreSQL database and the three-row `content-eval` dbt fixture next to the service. The test refuses non-local databases and names outside `autopilot_eval_*`; never point it at an existing application database.
+
+```sh
+export PGDATABASE=autopilot_eval_chart_workflow
+export PGCONNECTIONURI="postgresql://$USER@127.0.0.1:5432/$PGDATABASE"
+export DBT_DEMO_DIR="$PWD/packages/backend/src/ee/services/ManagedAgentService/content-eval"
+export DBT_PROJECT_DIR="$DBT_DEMO_DIR/dbt" DBT_PROFILES_DIR="$DBT_DEMO_DIR/profiles"
+export DBT_PROFILE=autopilot_eval DBT_TARGET=dev
+export NATS_ENABLED=false SCHEDULER_ENABLED=false USAGE_EVENTS_ENABLED=false RUDDERSTACK_ANALYTICS_DISABLED=true
+export MANAGED_AGENT_RUNTIME=ai-sdk LIGHTDASH_ENABLE_FEATURE_FLAGS=ai-autopilot
+createdb && pnpm -F backend migrate
+dbt run --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" --profile autopilot_eval
+AUTOPILOT_CONTENT_EVAL=true AUTOPILOT_CONTENT_SEED=true AUTOPILOT_EVAL_PROVIDER=openai pnpm -F backend test:autopilot
+```
+
+`AUTOPILOT_CONTENT_SEED=true` seeds the empty database with the standard development organisation, project and cached explores; omit it on later runs. The test executes the persisted charts and asserts their results (total revenue 150; `new=25`, `paid=125`), checks version history and the restricted suggestions space, and probes that protected and out-of-scope charts are refused. Passing it does not qualify cleanup mode or any provider.
+
 ## Acceptance before switching the default
 
 Run each promised provider in all three modes on both a seeded project and a representative large/broken project. Use isolated, disposable content. Do not reset a shared developer or customer database to obtain fixtures.

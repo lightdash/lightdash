@@ -5,6 +5,8 @@ description: Use when reading, creating, and editing Lightdash dashboards and ch
 
 # Developing in Lightdash
 
+For in-process agents and MCP clients working with JSON content tools; Autopilot reuses the chart references with its own workflow.
+
 Use this skill when working with Lightdash dashboards and charts.
 
 ## MCP tool names

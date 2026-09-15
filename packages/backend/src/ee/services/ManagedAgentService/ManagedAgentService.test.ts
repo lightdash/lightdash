@@ -1066,3 +1066,36 @@ describe('ManagedAgentService broken-content pagination', () => {
         expect((await readPage('chart-9999')).items).toEqual([]);
     });
 });
+
+describe('Autopilot chart payload validation', () => {
+    it.each([undefined, null, [], ''])(
+        'rejects invalid filters before chart persistence: %s',
+        (filters) => {
+            expect(() =>
+                ManagedAgentService['validateChartPayload'](
+                    {
+                        dimensions: [],
+                        metrics: ['orders_total_revenue'],
+                        filters,
+                    },
+                    { type: 'big_number' },
+                ),
+            ).toThrow(
+                'metric_query.filters must be an object; use {} when no filters apply',
+            );
+        },
+    );
+
+    it('accepts an explicitly unfiltered query', () => {
+        expect(() =>
+            ManagedAgentService['validateChartPayload'](
+                {
+                    dimensions: [],
+                    metrics: ['orders_total_revenue'],
+                    filters: {},
+                },
+                { type: 'big_number' },
+            ),
+        ).not.toThrow();
+    });
+});

@@ -1,0 +1,8 @@
+name: autopilot_eval
+version: '1.0'
+config-version: 2
+profile: autopilot_eval
+model-paths: [models]
+models:
+    autopilot_eval:
+        +materialized: table
