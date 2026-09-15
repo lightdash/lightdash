@@ -1,4 +1,12 @@
-import { FieldType, MetricType, type Metric } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    MetricType,
+    TimeFrames,
+    timeFrameConfigs,
+    type Dimension,
+    type Metric,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { describe, expect, it, vi } from 'vitest';
@@ -54,16 +62,42 @@ const METRIC: Metric = {
     hidden: false,
 };
 
-const KEY = 'payments_average_payment_amount';
+// A date dimension at a time interval: the row shows the interval's name,
+// not the field's own label.
+const MONTH_DIMENSION: Dimension = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.DATE,
+    name: 'order_date_month',
+    label: 'Order date month',
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: '${TABLE}.order_date',
+    hidden: false,
+    timeInterval: TimeFrames.MONTH,
+};
 
-const renderMetricRow = () => {
+// Nothing in the dbt project named it, so the row falls back to the field
+// name as written.
+const UNLABELLED_DIMENSION: Dimension = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name: 'payment_method',
+    label: '',
+    table: 'payments',
+    tableLabel: 'Payments',
+    sql: '${TABLE}.payment_method',
+    hidden: false,
+};
+
+const renderRow = (item: Dimension | Metric) => {
+    const key = `${item.table}_${item.name}`;
     const context: TableTreeContext = {
-        itemsMap: { [KEY]: METRIC },
+        itemsMap: { [key]: item },
         nodeMap: {},
         isSearching: false,
         searchResults: [],
         onItemClick: vi.fn(),
-        tableName: 'payments',
+        tableName: item.table,
         treeSectionType: TreeSection.Metrics,
         expandedGroups: new Set<string>(),
         onToggleGroup: vi.fn(),
@@ -71,26 +105,42 @@ const renderMetricRow = () => {
     renderWithProviders(
         <Provider store={createExplorerStore()}>
             <TreeContext.Provider value={context}>
-                <TreeSingleNode
-                    node={{ key: KEY, label: METRIC.label, index: 0 }}
-                />
+                <TreeSingleNode node={{ key, label: item.label, index: 0 }} />
             </TreeContext.Provider>
         </Provider>,
     );
 };
 
-// The generated walkthroughs point at one field by name, so the row has to
-// carry the name the step was written against.
-describe('TreeSingleNode tour anchors', () => {
-    it('names the field the walkthrough is looking for', () => {
-        renderMetricRow();
+/**
+ * A walkthrough step is written from what the learner can see, so the row
+ * has to be named after the text it renders, whatever that text came from.
+ */
+const expectRowNamed = (anchor: string, onScreen: string) => {
+    const row = document.querySelector('[data-tour-anchor]');
+    expect(row).toHaveAttribute('data-tour-anchor', anchor);
+    expect(row).toHaveAttribute('data-tour-value', onScreen);
+    expect(screen.getByText(onScreen)).toBeInTheDocument();
+};
 
-        const row = document.querySelector('[data-tour-anchor]');
-        expect(row).toHaveAttribute('data-tour-anchor', 'explore-metric');
-        expect(row).toHaveAttribute(
-            'data-tour-value',
-            'Average payment amount',
+describe('TreeSingleNode tour anchors', () => {
+    it('names a metric after its label', () => {
+        renderRow(METRIC);
+
+        expectRowNamed('explore-metric', 'Average payment amount');
+    });
+
+    it('names a time-interval dimension after the interval, not the field label', () => {
+        renderRow(MONTH_DIMENSION);
+
+        expectRowNamed(
+            'explore-dimension',
+            timeFrameConfigs[TimeFrames.MONTH].getLabel(),
         );
-        expect(screen.getByText('Average payment amount')).toBeInTheDocument();
+    });
+
+    it('names an unlabelled field after the name the row falls back to', () => {
+        renderRow(UNLABELLED_DIMENSION);
+
+        expectRowNamed('explore-dimension', 'payment_method');
     });
 });

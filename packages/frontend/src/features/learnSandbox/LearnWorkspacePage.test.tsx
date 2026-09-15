@@ -587,12 +587,51 @@ describe('LearnWorkspacePage', () => {
         );
     });
 
-    it('is busy while the save in front of a run is still in flight', () => {
+    it('is busy from the click that starts a run, over the save in front of it', async () => {
+        const user = userEvent.setup();
+        let releaseSave = () => {};
+        state.saveMutateAsync = vi.fn(
+            () =>
+                new Promise<undefined>((resolve) => {
+                    releaseSave = () => {
+                        state.calls.push('save');
+                        resolve(undefined);
+                    };
+                }),
+        );
+        renderPage();
+        await selectOrders(user);
+        await screen.findByTestId('editor');
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.type(screen.getByLabelText('File'), 'x');
+        // fireEvent, not userEvent: a real click would blur the editor and
+        // start the autosave before Run ever asked for one.
+        fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(screen.getByTestId('terminal')).toHaveAttribute(
+                'data-busy',
+                'true',
+            ),
+        );
+
+        releaseSave();
+        await waitFor(() => expect(state.calls).toEqual(['save', 'run']));
+    });
+
+    // Nothing is running: a step waiting on the terminal would otherwise be
+    // held by an edit the learner made on the way past.
+    it('is not busy while the editor blur autosave is the only thing in flight', () => {
         state.saveIsLoading = true;
         renderPage();
 
         expect(screen.getByTestId('terminal')).toHaveAttribute(
             'data-busy',
+            'false',
+        );
+        expect(screen.getByTestId('terminal')).toHaveAttribute(
+            'data-disabled',
             'true',
         );
     });

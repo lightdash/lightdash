@@ -494,7 +494,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 : 'explore-metric'
                             : undefined
                     }
-                    data-tour-value={isField(item) ? item.label : undefined}
+                    // What the row shows, which is not always item.label: a time
+                    // interval reads as its interval, an unlabelled field as its name.
+                    data-tour-value={isField(item) ? label : undefined}
                     className={styles.root}
                     style={
                         {
