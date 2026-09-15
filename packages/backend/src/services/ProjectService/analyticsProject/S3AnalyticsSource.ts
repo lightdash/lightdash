@@ -56,8 +56,8 @@ export const createS3AnalyticsSourceResolver = ({
     };
     return async () => {
         const client = createS3ClientFromConfig(config);
+        const tables = new Map<string, string[]>();
         try {
-            const tables = new Map<string, string[]>();
             let continuationToken: string | undefined;
             let pages = 0;
             let fileCount = 0;
@@ -107,17 +107,6 @@ export const createS3AnalyticsSourceResolver = ({
                 if (page.IsTruncated && (!continuationToken || pages >= 100))
                     throw new Error('Analytics listing cannot be completed');
             } while (continuationToken);
-            if (tables.size === 0) {
-                throw new Error('No compacted analytics files found');
-            }
-            return {
-                scope,
-                signedUrls: true,
-                tables: [...tables].map(([name, urls]) => ({
-                    name,
-                    urls: urls.sort(),
-                })),
-            };
         } catch {
             // SDK errors may contain credentials, signatures, or object contents.
             throw new Error(
@@ -126,5 +115,18 @@ export const createS3AnalyticsSourceResolver = ({
         } finally {
             client.destroy();
         }
+        if (tables.size === 0) {
+            throw new ParameterError(
+                'No analytics data is available yet. Newly captured events become available after daily processing. Try again after the next daily update.',
+            );
+        }
+        return {
+            scope,
+            signedUrls: true,
+            tables: [...tables].map(([name, urls]) => ({
+                name,
+                urls: urls.sort(),
+            })),
+        };
     };
 };
