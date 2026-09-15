@@ -1,3 +1,10 @@
+# [2.226.0](https://github.com/lightdash/lightdash/compare/2.225.1...2.226.0) (2026-09-15)
+
+
+### Features
+
+* **autopilot:** redesign the activity page ([#29293](https://github.com/lightdash/lightdash/issues/29293)) ([5147374](https://github.com/lightdash/lightdash/commit/514737416079dba92e80254f90182af2efc8d674))
+
 ## [2.225.1](https://github.com/lightdash/lightdash/compare/2.225.0...2.225.1) (2026-09-15)
 
 
