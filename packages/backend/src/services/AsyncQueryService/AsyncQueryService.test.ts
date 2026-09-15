@@ -3,6 +3,8 @@ import {
     Account,
     AnyType,
     assertUnreachable,
+    AthenaAuthenticationType,
+    BigqueryAuthenticationType,
     ChartType,
     CreateWarehouseCredentials,
     DimensionType,
@@ -32,11 +34,17 @@ import {
     QueryHistoryWindow,
     QuerySourceType,
     QueryTrigger,
+    RedshiftAuthenticationType,
     ResultColumns,
+    SnowflakeAuthenticationType,
     VizAggregationOptions,
     VizIndexType,
     WarehouseClient,
     WarehouseTypes,
+    type CreateAthenaCredentials,
+    type CreateBigqueryCredentials,
+    type CreateRedshiftCredentials,
+    type CreateSnowflakeCredentials,
     type Document,
     type DocumentQueryReference,
     type Explore,
@@ -47,15 +55,18 @@ import {
     type MetricQuery,
     type ParameterDefinitions,
     type PivotConfiguration,
+    type PreAggregateDef,
+    type PreAggregateDefinition,
+    type PreAggregateMaterialization,
     type ProjectDefaults,
     type RegisteredAccount,
     type UserAccessControls,
 } from '@lightdash/common';
-import type { SshTunnel } from '@lightdash/warehouses';
+import { BigqueryWarehouseClient, type SshTunnel } from '@lightdash/warehouses';
 import ExecutionContext from 'node-execution-context';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { fromJwt } from '../../auth/account/account';
+import { fromJwt, fromSession } from '../../auth/account/account';
 import { defaultJwtToken } from '../../auth/account/account.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -130,6 +141,7 @@ import {
     sessionAccount,
     spacesWithSavedCharts,
     tablesConfiguration,
+    user,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
 import { QuerySourceRegistry } from '../QuerySourceService/QuerySourceRegistry';
@@ -2649,6 +2661,9 @@ describe('AsyncQueryService', () => {
                     enabled: true,
                 },
             });
+            service.preAggregateModel.getReuseState = vi.fn<
+                PreAggregateModel['getReuseState']
+            >(async () => ({ phase: 'compatibility', reuseEnabled: false }));
             (service as AnyType).preAggregateStrategy = mockStrategy;
             service.getExploreWithUserAccessControls = vi
                 .fn()
@@ -2707,6 +2722,10 @@ describe('AsyncQueryService', () => {
                         sourceExploreName: 'valid_explore',
                         preAggregateName: 'rollup',
                         mode: 'required',
+                        routingSnapshot: {
+                            exploreName: preAggregateExplore.name,
+                            fingerprint: expect.any(String),
+                        },
                     },
                 }),
                 expect.any(Object),
@@ -10042,4 +10061,758 @@ describe('chart embed token query history access', () => {
             );
         },
     );
+});
+
+describe('prepared pre-aggregate materialization execution', () => {
+    const evaluatedAt = new Date('2026-09-14T08:00:00Z');
+    const executionAccount = fromSession({
+        ...user,
+        organizationUuid: projectSummary.organizationUuid,
+        organizationName: 'Test organization',
+        organizationCreatedAt: evaluatedAt,
+    });
+    const credentials: CreateWarehouseCredentials & {
+        userWarehouseCredentialsUuid: undefined;
+    } = {
+        userWarehouseCredentialsUuid: undefined,
+        type: WarehouseTypes.POSTGRES,
+        host: 'warehouse.example.test',
+        port: 5432,
+        dbname: 'analytics',
+        schema: 'public',
+        user: 'materializer',
+        password: 'original-test-password',
+    };
+    const preAggregateDef: PreAggregateDef = {
+        name: 'daily_orders',
+        dimensions: ['a.dim1'],
+        metrics: ['a.met1'],
+    };
+    const sourceExplore: Explore = {
+        ...validExplore,
+        joinedTables: [],
+        tables: {
+            a: {
+                ...validExplore.tables.a,
+                dimensions: {
+                    dim1: {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        compiledSql: '"a"."status"',
+                    },
+                },
+                metrics: {
+                    met1: {
+                        ...validExplore.tables.a.metrics.met1,
+                        type: MetricType.COUNT,
+                        compiledSql: 'COUNT(*)',
+                    },
+                },
+            },
+        },
+        preAggregates: [preAggregateDef],
+    };
+
+    beforeEach(() => {
+        projectModel.getQueryTimezone.mockReset().mockResolvedValue('UTC');
+        projectModel.getExploreFromCache
+            .mockReset()
+            .mockResolvedValue(sourceExplore);
+        userAttributesModel.getAttributeValuesForOrgMember
+            .mockReset()
+            .mockResolvedValue({});
+    });
+    afterEach(() => {
+        vi.restoreAllMocks();
+        projectModel.getQueryTimezone.mockReset().mockResolvedValue('UTC');
+        projectModel.getExploreFromCache
+            .mockReset()
+            .mockResolvedValue(validExplore);
+        userAttributesModel.getAttributeValuesForOrgMember
+            .mockReset()
+            .mockResolvedValue({});
+    });
+
+    const setup = async (
+        natsEnabled = false,
+        configuredCredentials: CreateWarehouseCredentials = credentials,
+    ) => {
+        const resolvedCredentials = {
+            ...configuredCredentials,
+            userWarehouseCredentialsUuid: undefined,
+        };
+        const service = getMockedAsyncQueryService({
+            ...lightdashConfigMock,
+            preAggregates: {
+                ...lightdashConfigMock.preAggregates,
+                parquetEnabled: false,
+            },
+            natsWorker: {
+                ...lightdashConfigMock.natsWorker,
+                enabled: natsEnabled,
+            },
+        });
+        const getCredentials = vi
+            .fn(service['getWarehouseCredentials'].bind(service))
+            .mockResolvedValue(resolvedCredentials);
+        service['getWarehouseCredentials'] = getCredentials;
+        const prepared = await service.preparePreAggregateMaterialization({
+            account: sessionAccount,
+            projectUuid,
+            sourceExplore,
+            preAggregateDef,
+            evaluatedAt,
+        });
+        const definition: PreAggregateDefinition = {
+            preAggregateDefinitionUuid: 'definition-1',
+            projectUuid,
+            sourceCachedExploreUuid: 'source-cache-1',
+            preAggCachedExploreUuid: null,
+            sourceExploreName: sourceExplore.name,
+            preAggregateName: preAggregateDef.name,
+            publicationVersion: 'publication-1',
+            compatibilityHash: prepared.compatibilityHash,
+            scheduleRevision: null,
+            schedulerTimezone: 'UTC',
+            physicalOutputContract: prepared.physicalOutputContract,
+            preparationStatus: 'ready',
+            automaticEligible: true,
+            preAggregateDefinition: preAggregateDef,
+            materializationMetricQuery: prepared.materializationMetricQuery,
+            materializationQueryError: null,
+            refreshCron: null,
+            createdAt: evaluatedAt,
+            updatedAt: evaluatedAt,
+        };
+        const attempt: PreAggregateMaterialization = {
+            materializationUuid: 'materialization-1',
+            projectUuid,
+            scheduleRevision: null,
+            preAggregateDefinitionUuid: definition.preAggregateDefinitionUuid,
+            publicationVersion: definition.publicationVersion,
+            compatibilityHash: prepared.compatibilityHash,
+            evaluatedAt,
+            physicalOutputContract: prepared.physicalOutputContract,
+            pinnedContextHash: prepared.pinnedContextHash,
+            status: 'in_progress',
+            trigger: 'compile',
+            queryUuid: 'queryUuid',
+            materializationUri: null,
+            materializedAt: null,
+            rowCount: null,
+            columns: null,
+            errorMessage: null,
+            createdAt: evaluatedAt,
+            updatedAt: evaluatedAt,
+        };
+        const model = service.preAggregateModel;
+        model.attachQueryUuid = vi.fn<PreAggregateModel['attachQueryUuid']>(
+            async () => undefined,
+        );
+        model.getMaterializationByQueryUuid = vi.fn<
+            PreAggregateModel['getMaterializationByQueryUuid']
+        >(async () => attempt);
+        model.getPreAggregateDefinitionByUuid = vi.fn<
+            PreAggregateModel['getPreAggregateDefinitionByUuid']
+        >(async () => definition);
+        model.getReuseState = vi.fn<PreAggregateModel['getReuseState']>(
+            async () => ({ phase: 'active', reuseEnabled: true }),
+        );
+        service['getPreAggregateExecutionAccount'] = vi.fn(
+            async () => executionAccount,
+        );
+        const warehouseClient = {
+            ...warehouseClientMock,
+            credentials: configuredCredentials,
+        };
+        const connect = vi
+            .spyOn(service, '_getWarehouseClient')
+            .mockResolvedValue({
+                warehouseClient,
+                sshTunnel: mockSshTunnel,
+                tunnelConnectMs: null,
+            });
+        const submit = vi
+            .spyOn(AsyncQueryService, 'runQueryAndTransformRows')
+            .mockResolvedValue({
+                columns: {},
+                unpivotedColumns: {},
+                pivotDetails: null,
+                warehouseResults: {
+                    queryId: 'warehouse-query-1',
+                    queryMetadata: null,
+                    totalRows: 1,
+                    durationMs: 1,
+                    phaseTimings: {},
+                },
+            });
+        const query = prepared.queryComposer.getSql({
+            columnLimit: lightdashConfigMock.pivotTable.maxColumnLimit,
+        });
+        const runArgs: RunAsyncWarehouseQueryArgs & { rethrowOnError: true } = {
+            userUuid: sessionAccount.user.id,
+            organizationUuid: projectSummary.organizationUuid,
+            isPreviewProject: false,
+            isRegisteredUser: true,
+            onboardingFlow: 'legacy',
+            projectUuid,
+            query,
+            fieldsMap: {},
+            usedParameters: null,
+            queryTags: {
+                query_context:
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            },
+            warehouseCredentialsOverrides: undefined,
+            queryUuid: 'queryUuid',
+            cacheKey: 'test-materialization-cache',
+            pivotConfiguration: undefined,
+            originalColumns: undefined,
+            queryCreatedAt: evaluatedAt,
+            displayTimezone: null,
+            rethrowOnError: true,
+        };
+        return {
+            service,
+            prepared,
+            definition,
+            attempt,
+            model,
+            getCredentials,
+            connect,
+            submit,
+            runArgs,
+        };
+    };
+
+    test('keeps the Explore ability check before creating or submitting a materialization query', async () => {
+        const { service, prepared, model, submit } = await setup();
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([]);
+        await expect(
+            service.executePreAggregateMaterialization({
+                account,
+                projectUuid,
+                prepared,
+                materializationUuid: 'materialization-1',
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+        expect(model.attachQueryUuid).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    test('keeps custom SQL authoring and saved-chart provenance checks', async () => {
+        const { service, prepared, model } = await setup();
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'view', subject: 'Explore' },
+        ]);
+        vi.spyOn(prepared.queryComposer, 'getMetricQuery').mockReturnValue({
+            ...prepared.queryComposer.getMetricQuery(),
+            tableCalculations: [
+                {
+                    name: 'unapproved_sql',
+                    displayName: 'Unapproved SQL',
+                    sql: 'SELECT secret FROM private_table',
+                },
+            ],
+        });
+        service.savedChartModel.findCustomSqlProvenance = vi.fn<
+            SavedChartModel['findCustomSqlProvenance']
+        >(async () => ({
+            tableCalculations: [],
+            customSqlDimensions: [],
+            additionalMetrics: [],
+        }));
+        await expect(
+            service.executePreAggregateMaterialization({
+                account,
+                projectUuid,
+                prepared,
+                materializationUuid: 'materialization-1',
+            }),
+        ).rejects.toThrow(
+            'User cannot run queries with custom SQL table calculations',
+        );
+        expect(
+            service.savedChartModel.findCustomSqlProvenance,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tableCalculationSqls: ['SELECT secret FROM private_table'],
+            }),
+        );
+        expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+        expect(model.attachQueryUuid).not.toHaveBeenCalled();
+    });
+
+    test.each([false, true])(
+        'attaches the query UUID before submission and keeps the prepared SQL (NATS=%s)',
+        async (natsEnabled) => {
+            const { service, prepared, model, runArgs } =
+                await setup(natsEnabled);
+            const dispatch = natsEnabled
+                ? vi.mocked(service.natsClient.enqueueMaterializationQuery)
+                : vi
+                      .spyOn(service, 'runAsyncWarehouseQuery')
+                      .mockResolvedValue(undefined);
+            await service.executePreAggregateMaterialization({
+                account: sessionAccount,
+                projectUuid,
+                prepared,
+                materializationUuid: 'materialization-1',
+            });
+            expect(model.attachQueryUuid).toHaveBeenCalledExactlyOnceWith({
+                materializationUuid: 'materialization-1',
+                queryUuid: 'queryUuid',
+            });
+            expect(
+                vi.mocked(model.attachQueryUuid).mock.invocationCallOrder[0],
+            ).toBeLessThan(dispatch.mock.invocationCallOrder[0]);
+            expect(dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    queryUuid: 'queryUuid',
+                    ...(natsEnabled
+                        ? {
+                              queryTags: expect.objectContaining({
+                                  query_context:
+                                      QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                              }),
+                          }
+                        : { query: runArgs.query }),
+                }),
+            );
+            expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({ compiledSql: runArgs.query }),
+            );
+        },
+    );
+
+    test.each([false, true])(
+        'does not dispatch if recording the durable query link fails (NATS=%s)',
+        async (natsEnabled) => {
+            const { service, prepared, model } = await setup(natsEnabled);
+            vi.mocked(model.attachQueryUuid).mockRejectedValueOnce(
+                new Error('Cannot record query link'),
+            );
+            const direct = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+            await expect(
+                service.executePreAggregateMaterialization({
+                    account: sessionAccount,
+                    projectUuid,
+                    prepared,
+                    materializationUuid: 'materialization-1',
+                }),
+            ).rejects.toThrow('Cannot record query link');
+            expect(direct).not.toHaveBeenCalled();
+            expect(
+                service.natsClient.enqueueMaterializationQuery,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.natsClient.enqueueWarehouseQuery,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    test('revalidates with the stored evaluation clock and executes the exact prepared query', async () => {
+        const { service, runArgs, submit } = await setup();
+        const reprepare = vi.spyOn(
+            service,
+            'preparePreAggregateMaterialization',
+        );
+        await service.runAsyncWarehouseQuery(runArgs);
+        expect(reprepare).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ evaluatedAt }),
+        );
+        expect(submit).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ query: runArgs.query }),
+        );
+        expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+            'queryUuid',
+            projectUuid,
+            expect.objectContaining({ status: QueryHistoryStatus.READY }),
+            expect.anything(),
+        );
+    });
+
+    test('permits password rotation for the same verified warehouse principal', async () => {
+        const { service, runArgs, getCredentials, submit } = await setup();
+        const rotated = { ...credentials, password: 'rotated-test-password' };
+        getCredentials.mockResolvedValue(rotated);
+        await service.runAsyncWarehouseQuery(runArgs);
+        expect(submit).toHaveBeenCalledOnce();
+    });
+
+    test('permits an equivalent publication while a materialization waits', async () => {
+        const { service, definition, runArgs, submit } = await setup();
+        definition.publicationVersion = 'publication-2';
+        await service.runAsyncWarehouseQuery(runArgs);
+        expect(submit).toHaveBeenCalledOnce();
+    });
+
+    test('rejects a changed definition publication before opening the warehouse', async () => {
+        const { service, definition, runArgs, connect, submit } = await setup();
+        definition.publicationVersion = 'publication-2';
+        const changed = structuredClone(sourceExplore);
+        changed.tables.a.dimensions.dim1.sql = '${TABLE}.different_status';
+        changed.tables.a.dimensions.dim1.compiledSql = '"a"."different_status"';
+        projectModel.getExploreFromCache.mockResolvedValue(changed);
+        await expect(service.runAsyncWarehouseQuery(runArgs)).rejects.toThrow(
+            'execution context changed while queued',
+        );
+        expect(connect).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    test('rejects project timezone changes before opening the warehouse', async () => {
+        const { service, runArgs, connect, submit } = await setup();
+        projectModel.getQueryTimezone.mockResolvedValue('Asia/Tokyo');
+        await expect(service.runAsyncWarehouseQuery(runArgs)).rejects.toThrow(
+            'execution context changed while queued',
+        );
+        expect(connect).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    test('rejects a warehouse override change before opening the warehouse', async () => {
+        const { service, runArgs, connect, submit } = await setup();
+        await expect(
+            service.runAsyncWarehouseQuery({
+                ...runArgs,
+                warehouseCredentialsOverrides: {
+                    snowflakeVirtualWarehouse: 'different-compute',
+                },
+            }),
+        ).rejects.toThrow('Warehouse execution target changed');
+        expect(connect).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    test('rejects identity drift between revalidation and credential resolution', async () => {
+        const { service, runArgs, getCredentials, connect, submit } =
+            await setup();
+        getCredentials
+            .mockResolvedValueOnce(credentials)
+            .mockResolvedValueOnce({
+                ...credentials,
+                user: 'different-principal',
+            });
+        await expect(service.runAsyncWarehouseQuery(runArgs)).rejects.toThrow(
+            'Warehouse identity changed before submission',
+        );
+        expect(connect).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    test('rejects timezone feature changes between revalidation and execution', async () => {
+        const { service, runArgs, submit } = await setup();
+        vi.spyOn(service, 'isTimezoneSupportEnabled')
+            .mockResolvedValueOnce(false)
+            .mockResolvedValueOnce(true);
+        await expect(service.runAsyncWarehouseQuery(runArgs)).rejects.toThrow(
+            'Query timezone semantics changed',
+        );
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    const ambientCredentials: (
+        | CreateAthenaCredentials
+        | CreateRedshiftCredentials
+    )[] = [
+        {
+            type: WarehouseTypes.ATHENA,
+            authenticationType: AthenaAuthenticationType.IAM_ROLE,
+            region: 'us-east-1',
+            database: 'AwsDataCatalog',
+            schema: 'analytics',
+            s3StagingDir: 's3://test-results/',
+        },
+        {
+            type: WarehouseTypes.REDSHIFT,
+            authenticationType: RedshiftAuthenticationType.IAM,
+            region: 'us-east-1',
+            host: 'redshift.example.test',
+            port: 5439,
+            dbname: 'analytics',
+            schema: 'public',
+            user: '',
+            isServerless: true,
+            workgroupName: 'analytics',
+        },
+    ];
+    test.each(ambientCredentials)(
+        'executes an ambient $type refresh in the same configured context without enabling reuse',
+        async (warehouseCredentials) => {
+            const { service, prepared, runArgs, submit } = await setup(
+                false,
+                warehouseCredentials,
+            );
+            expect(prepared.compatibilityHash).toBeNull();
+            expect(prepared.pinnedContextHash).toEqual(expect.any(String));
+            expect(prepared.executionCredentialScope).toEqual(
+                expect.any(String),
+            );
+            await service.runAsyncWarehouseQuery(runArgs);
+            expect(submit).toHaveBeenCalledOnce();
+        },
+    );
+
+    test.each([true, false])(
+        'accepts queued opaque proof after active-key switch only with retained fallback: %s',
+        async (keepFallback) => {
+            const { service, prepared, runArgs, submit } = await setup(
+                false,
+                ambientCredentials[0],
+            );
+            const oldSecret = service.lightdashConfig.lightdashSecrets.active;
+            const newSecret = 'preaggregate-rotated-execution-secret';
+            service.lightdashConfig.lightdashSecrets = {
+                active: newSecret,
+                fallbacks: keepFallback ? [oldSecret] : [],
+                all: keepFallback ? [newSecret, oldSecret] : [newSecret],
+            };
+            expect(prepared.executionScopeKeyId).toEqual(expect.any(String));
+            if (keepFallback) {
+                await service.runAsyncWarehouseQuery(runArgs);
+                expect(submit).toHaveBeenCalledOnce();
+            } else {
+                await expect(
+                    service.runAsyncWarehouseQuery(runArgs),
+                ).rejects.toThrow(
+                    'Pre-aggregate execution context changed while queued',
+                );
+                expect(submit).not.toHaveBeenCalled();
+            }
+        },
+    );
+
+    test('rejects a configured ambient credential change between preparation and the final lookup', async () => {
+        const warehouseCredentials = {
+            ...ambientCredentials[0],
+            userWarehouseCredentialsUuid: undefined,
+        };
+        const { service, runArgs, getCredentials, connect, submit } =
+            await setup(false, warehouseCredentials);
+        getCredentials
+            .mockResolvedValueOnce(warehouseCredentials)
+            .mockResolvedValueOnce({
+                ...warehouseCredentials,
+                requireUserCredentials: true,
+            });
+        await expect(service.runAsyncWarehouseQuery(runArgs)).rejects.toThrow(
+            'Warehouse credential scope changed before submission',
+        );
+        expect(connect).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    test('rejects replacement of an opaque SSO grant between preparation and the final lookup', async () => {
+        const warehouseCredentials: CreateSnowflakeCredentials & {
+            userWarehouseCredentialsUuid: undefined;
+        } = {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            account: 'account',
+            user: 'ignored-configured-user',
+            database: 'analytics',
+            schema: 'public',
+            warehouse: 'SMALL',
+            token: 'old-access-token',
+            refreshToken: 'original-grant',
+            userWarehouseCredentialsUuid: undefined,
+        };
+        const { service, runArgs, getCredentials, connect, submit } =
+            await setup(false, warehouseCredentials);
+        getCredentials
+            .mockResolvedValueOnce(warehouseCredentials)
+            .mockResolvedValueOnce({
+                ...warehouseCredentials,
+                token: 'new-access-token',
+                refreshToken: 'replacement-grant',
+            });
+        await expect(service.runAsyncWarehouseQuery(runArgs)).rejects.toThrow(
+            'Warehouse credential scope changed before submission',
+        );
+        expect(connect).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        { changed: false, rotated: false },
+        { changed: true, rotated: false },
+        { changed: false, rotated: true },
+    ])(
+        'compares the actual BigQuery SDK grant (changed=$changed, secret rotated=$rotated)',
+        async ({ changed, rotated }) => {
+            const warehouseCredentials: CreateBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.ADC,
+                project: 'test-project',
+                dataset: 'analytics',
+                keyfileContents: {},
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+            };
+            const grant = {
+                type: 'authorized_user',
+                client_id: 'test-application',
+                client_secret: 'test-client-secret',
+                refresh_token: 'original-sdk-grant',
+            };
+            const executionClient = new BigqueryWarehouseClient(
+                warehouseCredentials,
+            );
+            // Keep the real SDK auth object and JSON parser. Replace ADC discovery
+            // with local grants so no token request or warehouse request is made.
+            const authPrototype = Object.getPrototypeOf(
+                executionClient.client.authClient,
+            );
+            vi.spyOn(authPrototype, 'getCredentials').mockResolvedValue({});
+            vi.spyOn(authPrototype, 'getClient').mockImplementation(
+                async function getClient(
+                    this: typeof executionClient.client.authClient,
+                ) {
+                    this.jsonContent ??= grant;
+                    return this.fromJSON(this.jsonContent);
+                },
+            );
+            const { service, prepared, runArgs, connect, submit } = await setup(
+                false,
+                warehouseCredentials,
+            );
+            expect(prepared.compatibilityHash).toBeNull();
+            expect(prepared.bigqueryRefreshGrantScope).toEqual(
+                expect.any(String),
+            );
+            if (rotated) {
+                const oldSecret =
+                    service.lightdashConfig.lightdashSecrets.active;
+                const newSecret = 'preaggregate-rotated-adc-secret';
+                service.lightdashConfig.lightdashSecrets = {
+                    active: newSecret,
+                    fallbacks: [oldSecret],
+                    all: [newSecret, oldSecret],
+                };
+            }
+            executionClient.client.authClient.jsonContent = {
+                ...grant,
+                refresh_token: changed
+                    ? 'replacement-sdk-grant'
+                    : grant.refresh_token,
+            };
+            connect.mockResolvedValue({
+                warehouseClient: executionClient,
+                sshTunnel: mockSshTunnel,
+                tunnelConnectMs: null,
+            });
+            if (changed) {
+                await expect(
+                    service.runAsyncWarehouseQuery(runArgs),
+                ).rejects.toThrow(
+                    'Warehouse ADC grant changed before submission',
+                );
+                expect(submit).not.toHaveBeenCalled();
+            } else {
+                await service.runAsyncWarehouseQuery(runArgs);
+                expect(submit).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        warehouseClient: executionClient,
+                        query: runArgs.query,
+                    }),
+                );
+            }
+        },
+    );
+
+    test('rejects revoked Explore access while a materialization waits for a worker', async () => {
+        const { service, runArgs, connect, submit } = await setup();
+        vi.mocked(
+            service['getPreAggregateExecutionAccount'],
+        ).mockResolvedValueOnce({
+            ...executionAccount,
+            user: {
+                ...executionAccount.user,
+                ability: new Ability<PossibleAbilities>([]),
+            },
+        });
+        await expect(
+            service.runAsyncWarehouseQuery(runArgs),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(connect).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    test('rejects a cancelled cron revision after it has reached query execution', async () => {
+        const { service, attempt, definition, runArgs, connect, submit } =
+            await setup();
+        attempt.trigger = 'cron';
+        attempt.scheduleRevision = 'old-schedule';
+        definition.scheduleRevision = 'replacement-schedule';
+        await expect(service.runAsyncWarehouseQuery(runArgs)).rejects.toThrow(
+            'schedule',
+        );
+        expect(connect).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    test('refuses old attempts without execution proof after activation', async () => {
+        const { service, attempt, runArgs, connect, submit } = await setup();
+        attempt.pinnedContextHash = null;
+        await expect(service.runAsyncWarehouseQuery(runArgs)).rejects.toThrow(
+            'prepared by an older worker',
+        );
+        expect(connect).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
+
+    test.each(['compatibility', 'active'] as const)(
+        'accepts a legacy unstamped cron only before activation: %s',
+        async (phase) => {
+            const { service, attempt, definition, runArgs, submit } =
+                await setup();
+            attempt.trigger = 'cron';
+            definition.refreshCron = '0 * * * *';
+            vi.mocked(
+                service.preAggregateModel.getReuseState,
+            ).mockResolvedValue({
+                phase,
+                reuseEnabled: phase === 'active',
+            });
+            if (phase === 'compatibility') {
+                await expect(
+                    service.runAsyncWarehouseQuery(runArgs),
+                ).resolves.toBeUndefined();
+                expect(submit).toHaveBeenCalledOnce();
+            } else {
+                await expect(
+                    service.runAsyncWarehouseQuery(runArgs),
+                ).rejects.toThrow('obsolete_schedule');
+                expect(submit).not.toHaveBeenCalled();
+            }
+        },
+    );
+
+    test('executes an eligible old-writer cron during compatibility', async () => {
+        const { service, attempt, definition, runArgs, submit } = await setup();
+        attempt.trigger = 'cron';
+        definition.refreshCron = '0 * * * *';
+        definition.sourceExploreName = null;
+        definition.preAggregateName = null;
+        definition.automaticEligible = false;
+        vi.mocked(service.preAggregateModel.getReuseState).mockResolvedValue({
+            phase: 'compatibility',
+            reuseEnabled: false,
+        });
+        service.preAggregateModel.isLegacyDefinitionAutomaticallyEligible =
+            vi.fn(async () => true);
+        await expect(
+            service.runAsyncWarehouseQuery(runArgs),
+        ).resolves.toBeUndefined();
+        expect(submit).toHaveBeenCalledOnce();
+    });
 });

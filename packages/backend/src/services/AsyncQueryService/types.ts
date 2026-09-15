@@ -178,6 +178,15 @@ export type PreAggregationRouteMode = 'required' | 'opportunistic';
 export type { PreAggregateExecutionEngine };
 
 export type PreAggregationRoute = {
+    routingSnapshot?: { exploreName: string; fingerprint: string };
+    compatibilityCheck?:
+        | { status: 'unavailable' }
+        | {
+              status: 'prepared';
+              publicationVersion: string | null;
+              compatibilityHash: string | null;
+              pinnedContextHash: string;
+          };
     sourceExploreName: string;
     preAggregateName: string;
     mode: PreAggregationRouteMode;

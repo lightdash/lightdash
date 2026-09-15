@@ -2,14 +2,15 @@ import { DimensionType, type WarehouseClient } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import Logger from '../../../logging/logger';
-import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import {
     metricQueryMock,
     preAggregateExplore,
+    validExplore,
 } from '../../../services/ProjectService/ProjectService.mock';
 import { warehouseClientMock } from '../../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
+import { hashPreAggregateCompatibility } from '../PreAggregateMaterializationService/preAggregatePreparation';
 import {
     PreAggregationDuckDbClient,
     PreAggregationDuckDbResolveReason,
@@ -28,6 +29,7 @@ const QueryComposerMock = vi.mocked(QueryComposer);
 describe('PreAggregationDuckDbClient', () => {
     const getClient = ({
         lightdashConfig,
+        materializationUri = 's3://mock_preagg_bucket/abc123.jsonl',
         activeMaterialization = {
             publicationVersion: 'publication',
             compatibilityHash: 'hash',
@@ -36,7 +38,7 @@ describe('PreAggregationDuckDbClient', () => {
             pinnedContextHash: null,
             materializationUuid: 'mat-1',
             queryUuid: 'mat-query-1',
-            materializationUri: 's3://mock_preagg_bucket/abc123.jsonl',
+            materializationUri,
             format: 'jsonl' as const,
             columns: null,
             materializedAt: new Date('2024-01-01T00:00:00.000Z'),
@@ -44,6 +46,7 @@ describe('PreAggregationDuckDbClient', () => {
         },
     }: {
         lightdashConfig?: typeof lightdashConfigMock;
+        materializationUri?: string;
         activeMaterialization?: Awaited<
             ReturnType<PreAggregateModel['getActiveMaterialization']>
         >;
@@ -58,12 +61,14 @@ describe('PreAggregationDuckDbClient', () => {
             },
         };
         const preAggregateModel = {
-            getActiveMaterialization: vi
-                .fn()
-                .mockResolvedValue(activeMaterialization),
+            getServingSnapshot: vi.fn().mockResolvedValue({
+                activeMaterialization,
+                sourceExplore: validExplore,
+                preAggExplore: preAggregateExplore,
+            }),
         };
-        const projectModel = {
-            getExploreFromCache: vi.fn().mockResolvedValue(preAggregateExplore),
+        const preAggregateResultsStorageClient = {
+            getFileSize: vi.fn().mockResolvedValue(987654),
         };
         const createDuckdbWarehouseClient = vi
             .fn()
@@ -73,7 +78,7 @@ describe('PreAggregationDuckDbClient', () => {
             lightdashConfig: resolvedLightdashConfig,
             preAggregateModel:
                 preAggregateModel as unknown as PreAggregateModel,
-            projectModel: projectModel as unknown as ProjectModel,
+            preAggregateResultsStorageClient,
             sharedResourceLimits: resolvedLightdashConfig.preAggregates
                 .duckdbQueryMemoryLimit
                 ? {
@@ -88,7 +93,7 @@ describe('PreAggregationDuckDbClient', () => {
         return {
             client,
             preAggregateModel,
-            projectModel,
+            preAggregateResultsStorageClient,
             createDuckdbWarehouseClient,
         };
     };
@@ -132,8 +137,8 @@ describe('PreAggregationDuckDbClient', () => {
     });
 
     test('returns unresolved when no active materialization exists', async () => {
-        const { client, preAggregateModel, projectModel } = getClient();
-        preAggregateModel.getActiveMaterialization.mockResolvedValue(undefined);
+        const { client, preAggregateModel } = getClient();
+        preAggregateModel.getServingSnapshot.mockResolvedValue(undefined);
 
         const result = await client.resolve(baseResolveArgs);
 
@@ -141,11 +146,12 @@ describe('PreAggregationDuckDbClient', () => {
             resolved: false,
             reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
         });
-        expect(preAggregateModel.getActiveMaterialization).toHaveBeenCalledWith(
+        expect(
+            preAggregateModel.getServingSnapshot,
+        ).toHaveBeenCalledExactlyOnceWith(
             'projectUuid',
             '__preagg__valid_explore__rollup',
         );
-        expect(projectModel.getExploreFromCache).not.toHaveBeenCalled();
     });
 
     test('returns unresolved when pre-aggregate S3 config is missing', async () => {
@@ -166,9 +172,77 @@ describe('PreAggregationDuckDbClient', () => {
             resolved: false,
             reason: PreAggregationDuckDbResolveReason.MISSING_PRE_AGGREGATE_S3_CONFIG,
         });
+        expect(preAggregateModel.getServingSnapshot).not.toHaveBeenCalled();
+    });
+
+    test.each(['missing', 'unreadable'])(
+        'returns the ordinary fallback when the managed object is %s',
+        async (failure) => {
+            const {
+                client,
+                preAggregateResultsStorageClient,
+                createDuckdbWarehouseClient,
+            } = getClient();
+            if (failure === 'missing') {
+                preAggregateResultsStorageClient.getFileSize.mockResolvedValue(
+                    null,
+                );
+            } else {
+                preAggregateResultsStorageClient.getFileSize.mockRejectedValue(
+                    new Error('Storage unavailable'),
+                );
+            }
+
+            expect(await client.resolve(baseResolveArgs)).toEqual({
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+            });
+            expect(
+                preAggregateResultsStorageClient.getFileSize,
+            ).toHaveBeenCalledWith('abc123.jsonl', 'jsonl');
+            expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
+            expect(QueryComposerMock).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([
+        's3://foreign-bucket/abc123.jsonl',
+        'https://mock_preagg_bucket/abc123.jsonl',
+        'invalid-uri',
+        's3://mock_preagg_bucket/%invalid.jsonl',
+    ])(
+        'rejects unsupported managed object URI %s before storage access',
+        async (materializationUri) => {
+            const {
+                client,
+                preAggregateResultsStorageClient,
+                createDuckdbWarehouseClient,
+            } = getClient({ materializationUri });
+            expect(await client.resolve(baseResolveArgs)).toEqual({
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+            });
+            expect(
+                preAggregateResultsStorageClient.getFileSize,
+            ).not.toHaveBeenCalled();
+            expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+
+    test('accepts a zero-byte managed object and checks its decoded durable key', async () => {
+        const { client, preAggregateResultsStorageClient } = getClient({
+            materializationUri:
+                's3://mock_preagg_bucket/folder/empty%20result.jsonl',
+        });
+        preAggregateResultsStorageClient.getFileSize.mockResolvedValue(0);
+        expect(await client.resolve(baseResolveArgs)).toEqual({
+            resolved: true,
+            query: 'SELECT * FROM test',
+            warehouseClient: warehouseClientMock,
+        });
         expect(
-            preAggregateModel.getActiveMaterialization,
-        ).not.toHaveBeenCalled();
+            preAggregateResultsStorageClient.getFileSize,
+        ).toHaveBeenCalledWith('folder/empty result.jsonl', 'jsonl');
     });
 
     test('creates the pre-aggregate DuckDB client from the pre-aggregate S3 config', () => {
@@ -185,10 +259,10 @@ describe('PreAggregationDuckDbClient', () => {
                 },
             },
             preAggregateModel: {
-                getActiveMaterialization: vi.fn(),
+                getServingSnapshot: vi.fn(),
             },
-            projectModel: {
-                getExploreFromCache: vi.fn(),
+            preAggregateResultsStorageClient: {
+                getFileSize: vi.fn(),
             },
         });
 
@@ -271,6 +345,54 @@ describe('PreAggregationDuckDbClient', () => {
                 instanceCacheKey: 'pre-aggregate-query-instance',
             }),
         );
+    });
+
+    test('rejects routing prepared from an obsolete source snapshot', async () => {
+        const { client, createDuckdbWarehouseClient } = getClient();
+        const result = await client.resolve({
+            ...baseResolveArgs,
+            preAggregationRoute: {
+                ...baseResolveArgs.preAggregationRoute,
+                routingSnapshot: {
+                    exploreName: validExplore.name,
+                    fingerprint: 'obsolete',
+                },
+            },
+        });
+        expect(result).toEqual({
+            resolved: false,
+            reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+        });
+        expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
+    });
+
+    test('resolves the current source and generated explore from one snapshot', async () => {
+        const { client, preAggregateModel } = getClient();
+        const result = await client.resolve({
+            ...baseResolveArgs,
+            preAggregationRoute: {
+                ...baseResolveArgs.preAggregationRoute,
+                routingSnapshot: {
+                    exploreName: validExplore.name,
+                    fingerprint: hashPreAggregateCompatibility(validExplore),
+                },
+            },
+        });
+        expect(result.resolved).toBe(true);
+        expect(preAggregateModel.getServingSnapshot).toHaveBeenCalledOnce();
+    });
+
+    test('rejects a materialization whose effective context cannot be verified', async () => {
+        const { client, createDuckdbWarehouseClient } = getClient();
+        const result = await client.resolve({
+            ...baseResolveArgs,
+            preAggregationRoute: {
+                ...baseResolveArgs.preAggregationRoute,
+                compatibilityCheck: { status: 'unavailable' },
+            },
+        });
+        expect(result.resolved).toBe(false);
+        expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
     });
 
     test('logs selected materialization metadata for debugging', async () => {

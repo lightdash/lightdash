@@ -2988,6 +2988,7 @@ export default class SchedulerTask {
                         preAggregateDefinitionUuid:
                             payload.preAggregateDefinitionUuid,
                         trigger: payload.trigger,
+                        scheduleRevision: payload.scheduleRevision,
                     },
                 );
 
@@ -3000,9 +3001,13 @@ export default class SchedulerTask {
                     preAggregateDefinitionUuid:
                         payload.preAggregateDefinitionUuid,
                     trigger: payload.trigger,
-                    materializationUuid: result.materializationUuid,
                     materializationStatus: result.status,
-                    queryUuid: result.queryUuid,
+                    ...(result.status === 'skipped'
+                        ? { skipReason: result.reason }
+                        : {
+                              materializationUuid: result.materializationUuid,
+                              queryUuid: result.queryUuid,
+                          }),
                 },
                 status: SchedulerJobStatus.COMPLETED,
             });

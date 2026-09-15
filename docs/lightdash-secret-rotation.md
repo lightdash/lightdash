@@ -4,8 +4,9 @@
 root secret: AES-256-GCM ciphertext at rest (warehouse credentials, dbt
 connections, SSH keys, embed secrets, OAuth tokens, AI provider keys, and
 more), session cookies, app-preview and persistent-download JWTs,
-headless-browser HMAC authentication, and the deterministic bcrypt hashes
-used to look up personal access tokens and service accounts.
+headless-browser HMAC authentication, pre-aggregate execution-scope proofs,
+and the deterministic bcrypt hashes used to look up personal access tokens
+and service accounts.
 
 This document describes how to change the active secret without downtime
 using the fallback keyring, and every condition that must hold before the old
@@ -28,7 +29,8 @@ Behavior:
 - **Reads try the active secret first, then each fallback in order.**
   Persisted ciphertext, session cookies, Lightdash-issued JWTs,
   headless-browser HMACs, and PAT/service-account lookups all accept values
-  produced under any configured secret.
+  produced under any configured secret. Pre-aggregate execution-scope proofs
+  also verify against every configured secret.
 - Values are parsed as exact JSON strings: no trimming, no delimiter
   splitting. Secrets containing commas or leading/trailing whitespace
   round-trip unchanged.
@@ -78,6 +80,16 @@ re-encrypts fallback-encrypted values with the active secret:
   produced under a fallback keep verifying only while that fallback stays
   configured; the affected credentials must be reissued or revoked before
   the fallback is removed.
+- Live pre-aggregate materializations with secret-dependent execution scopes
+  are scanned in bounded UUID batches and classified as active, per-fallback,
+  or unknown. Only `active` and `in_progress` materializations with a non-null
+  `execution_scope_key_id` are eligible; secret-independent scopes and
+  superseded or failed materializations do not block removal. Missing tables
+  or columns are reported and skipped for releases predating this feature.
+  The command never rewrites these one-way proofs, including with `--execute`.
+  It reports up to 100 blocking materialization and definition UUIDs while
+  counting every eligible row. Resolve the listed blockers and rerun if the
+  list is truncated. This scan always runs, including with `--table`.
 - Signed download links are not scanned or reported: a link stops working
   once the secret that signed it is no longer in the configured secrets.
   Links are time-bounded (default expiry 3 days via
@@ -86,7 +98,8 @@ re-encrypts fallback-encrypted values with the active secret:
   so the time-based removal gate below covers them.
 - Unreadable values (decryptable by no configured secret) are reported with
   their primary keys, never modified or deleted, and cause a non-zero exit
-  after the full report completes.
+  after the full report completes. Execution scopes whose key ID matches no
+  configured secret also cause a non-zero exit.
 
 The command prints an explicit blocker list. **A successful exit does not
 mean the old secret can be removed** — only an empty blocker list plus the
@@ -134,6 +147,14 @@ time-based gates below mean that.
    Repeat after any run that reports concurrent skips or when new
    fallback-encrypted work appears (for example a queued project creation
    from just before the rollout).
+8. For each pre-aggregate definition reported with a fallback or unknown
+   execution-scope key, request a **manual refresh** through the normal
+   pre-aggregate UI/API after every worker uses the active secret. Compile
+   alone can reuse the old active materialization. Confirm the refresh
+   becomes active, then drain or cancel any older in-progress attempts through
+   the normal job-management process. An old attempt that completes after
+   the refresh can require another refresh; rerun the report after all such
+   attempts have settled. Do not change stored key IDs or proofs directly.
 
 ### Phase 3 — old-secret removal gates
 
@@ -148,6 +169,13 @@ Remove the old fallback only when **all** of the following hold:
   owner) or revoked, and that decision recorded. A token whose hash still
   depends on the old secret stops working the moment the old secret is
   removed.
+- **Zero live pre-aggregate execution scopes** are classified under the old
+  fallback, and **zero unknown execution-scope keys** remain. Active
+  materializations have no fixed expiry and can be reused indefinitely, so
+  waiting alone cannot satisfy this gate. Manually refresh affected
+  definitions under the active secret and drain or cancel old attempts until
+  a fresh dry run reports zero. Check the reported UUIDs and statuses rather
+  than assuming a successful refresh has retired every old attempt.
 - At least the configured session-cookie lifetime (`COOKIES_MAX_AGE_HOURS`,
   default 24h) has elapsed since the rollout-completion timestamp, so no
   valid session cookie signed with the old secret remains.
@@ -172,7 +200,9 @@ each other's output, so this is safe at any point before the fallback is
 removed. If new-active ciphertext was already written or migrated, keep the
 new secret configured as the fallback and rerun the maintenance command to
 converge back toward the restored old active secret before removing the new
-one.
+one. The ordering swap also reclassifies pre-aggregate execution scopes:
+materializations made under the formerly active new secret now block its
+removal and require manual refreshes under the restored active secret.
 
 ## Compromised-secret rotation
 
@@ -185,12 +215,17 @@ When the old secret must be retired as fast as possible:
    old-active replica stops — do not wait for natural convergence.
 3. Rotate or revoke every PAT and service account still classified under the
    compromised fallback.
-4. Decide explicitly which time-based artifacts to preserve. Waiting the full
+4. Manually refresh every affected pre-aggregate definition under the active
+   secret and drain or cancel old in-progress attempts. If the fallback must
+   be removed before this completes, its proofs will no longer verify and
+   those materializations cannot be used until refreshed. Record and accept
+   that interruption explicitly.
+5. Decide explicitly which time-based artifacts to preserve. Waiting the full
    session lifetime keeps users logged in but extends the window in which a
    stolen old secret can forge session cookies; removing the fallback early
    logs those sessions out. The same tradeoff applies to signed download
    links.
-5. Remove the compromised fallback and roll every replica.
+6. Remove the compromised fallback and roll every replica.
 
 The command remains report-only toward credentials in this scenario:
 revocation is an operator action through the normal credential-management

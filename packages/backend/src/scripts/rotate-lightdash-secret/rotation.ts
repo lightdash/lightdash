@@ -2,6 +2,10 @@ import { Knex } from 'knex';
 import { LightdashSecrets } from '../../config/parseConfig';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { hashWithSecret } from '../../utils/hash';
+import {
+    getSecretArtifactKeyId,
+    PRE_AGGREGATE_EXECUTION_SCOPE_ARTIFACT,
+} from '../../utils/secretArtifactKeyId';
 import { CIPHERTEXT_REGISTRY, CiphertextRegistryEntry } from './registry';
 
 export type RotationOptions = {
@@ -46,11 +50,32 @@ export type TokenHashClassification = {
     unknown: number;
 };
 
+export type PreAggregateExecutionScopeScanResult = {
+    tablePresent: boolean;
+    columnPresent: boolean;
+    scanned: number;
+    active: number;
+    /** Count per configured fallback, in keyring order */
+    fallback: number[];
+    unknown: number;
+    /** At most 100 live rows; rerun after refreshing the listed definitions. */
+    blockingMaterializations: {
+        materializationUuid: string;
+        definitionUuid: string;
+        status: 'active' | 'in_progress';
+        keySource:
+            | { type: 'fallback'; fallbackIndex: number }
+            | { type: 'unknown' };
+    }[];
+    blockingMaterializationsTruncated: boolean;
+};
+
 export type SecretRotationReport = {
     mode: 'dry-run' | 'execute';
     ciphertext: CiphertextScanResult[];
     graphileJobs: GraphileJobsScanResult;
     tokenHashes: TokenHashClassification[];
+    preAggregateExecutionScopes: PreAggregateExecutionScopeScanResult;
     blockers: string[];
     hasUnreadableValues: boolean;
 };
@@ -65,6 +90,8 @@ const CREATE_PROJECT_TASK = 'createProjectWithCompile';
 const LEGACY_SHA256_PATTERN = /^[0-9a-f]{64}$/;
 const BCRYPT_PREFIX_LENGTH = '$2b$10$'.length + 22;
 const CLASSIFICATION_SENTINEL = 'lightdash-secret-rotation-sentinel';
+const PRE_AGGREGATE_MATERIALIZATIONS_TABLE = 'pre_aggregate_materializations';
+const MAX_REPORTED_MATERIALIZATIONS = 100;
 
 // Both bounds stay small so combined connection demand (table scans times
 // per-page updates) never exhausts the default knex pool.
@@ -112,13 +139,13 @@ async function mapWithBoundedConcurrency<Item, Result>(
 // Async cursor pagination: fetches pages of at most `batchSize` rows ordered
 // by a stable key and handles each page before fetching the next, keeping
 // memory and query duration bounded on large tables.
-async function forEachPage<Row>(
+async function forEachPage<Row, Cursor = unknown>(
     batchSize: number,
-    fetchPage: (cursor: unknown) => Promise<Row[]>,
-    getCursor: (row: Row) => unknown,
+    fetchPage: (cursor: Cursor | null) => Promise<Row[]>,
+    getCursor: (row: Row) => Cursor,
     handlePage: (rows: Row[]) => Promise<void>,
 ): Promise<void> {
-    const step = async (cursor: unknown): Promise<void> => {
+    const step = async (cursor: Cursor | null): Promise<void> => {
         const rows = await fetchPage(cursor);
         if (rows.length === 0) {
             return;
@@ -402,6 +429,113 @@ export async function classifyTokenHashes(
     );
 }
 
+export async function scanPreAggregateExecutionScopes(
+    {
+        database,
+        lightdashSecrets,
+    }: Pick<RotationContext, 'database' | 'lightdashSecrets'>,
+    options: Pick<RotationOptions, 'batchSize'>,
+): Promise<PreAggregateExecutionScopeScanResult> {
+    const tablePresent = await database.schema.hasTable(
+        PRE_AGGREGATE_MATERIALIZATIONS_TABLE,
+    );
+    const columnPresent =
+        tablePresent &&
+        (await database.schema.hasColumn(
+            PRE_AGGREGATE_MATERIALIZATIONS_TABLE,
+            'execution_scope_key_id',
+        ));
+    const result: PreAggregateExecutionScopeScanResult = {
+        tablePresent,
+        columnPresent,
+        scanned: 0,
+        active: 0,
+        fallback: lightdashSecrets.fallbacks.map(() => 0),
+        unknown: 0,
+        blockingMaterializations: [],
+        blockingMaterializationsTruncated: false,
+    };
+    if (!columnPresent) {
+        return result;
+    }
+
+    const candidateKeyIds = lightdashSecrets.all.map((secret) =>
+        getSecretArtifactKeyId(secret, PRE_AGGREGATE_EXECUTION_SCOPE_ARTIFACT),
+    );
+    type ExecutionScopeRow = {
+        pre_aggregate_materialization_uuid: string;
+        pre_aggregate_definition_uuid: string;
+        status: 'active' | 'in_progress';
+        execution_scope_key_id: string;
+    };
+    await forEachPage<ExecutionScopeRow, string>(
+        options.batchSize,
+        async (cursor) => {
+            const query = database<ExecutionScopeRow>(
+                PRE_AGGREGATE_MATERIALIZATIONS_TABLE,
+            )
+                .select(
+                    'pre_aggregate_materialization_uuid',
+                    'pre_aggregate_definition_uuid',
+                    'status',
+                    'execution_scope_key_id',
+                )
+                .whereIn('status', ['active', 'in_progress'])
+                .whereNotNull('execution_scope_key_id')
+                .orderBy('pre_aggregate_materialization_uuid', 'asc')
+                .limit(options.batchSize);
+            if (cursor !== null) {
+                void query.where(
+                    'pre_aggregate_materialization_uuid',
+                    '>',
+                    cursor,
+                );
+            }
+            return query;
+        },
+        (row) => row.pre_aggregate_materialization_uuid,
+        async (rows) => {
+            rows.forEach((row) => {
+                result.scanned += 1;
+                const candidateIndex = candidateKeyIds.indexOf(
+                    row.execution_scope_key_id,
+                );
+                if (candidateIndex === 0) {
+                    result.active += 1;
+                    return;
+                }
+                if (candidateIndex > 0) {
+                    result.fallback[candidateIndex - 1] += 1;
+                } else {
+                    result.unknown += 1;
+                }
+                // Proofs are one-way; only a new materialization can replace them.
+                if (
+                    result.blockingMaterializations.length <
+                    MAX_REPORTED_MATERIALIZATIONS
+                ) {
+                    result.blockingMaterializations.push({
+                        materializationUuid:
+                            row.pre_aggregate_materialization_uuid,
+                        definitionUuid: row.pre_aggregate_definition_uuid,
+                        status: row.status,
+                        keySource:
+                            candidateIndex > 0
+                                ? {
+                                      type: 'fallback',
+                                      fallbackIndex: candidateIndex - 1,
+                                  }
+                                : { type: 'unknown' },
+                    });
+                } else {
+                    result.blockingMaterializationsTruncated = true;
+                }
+            });
+        },
+    );
+    return result;
+}
+
 const collectBlockers = (
     report: Omit<SecretRotationReport, 'blockers' | 'hasUnreadableValues'>,
 ): string[] => {
@@ -453,6 +587,21 @@ const collectBlockers = (
             `${fallbackTokenHashes} token hash(es) still derive from a fallback secret; reissue or revoke the credentials before removing the fallback`,
         );
     }
+    const fallbackExecutionScopes =
+        report.preAggregateExecutionScopes.fallback.reduce(
+            (sum, count) => sum + count,
+            0,
+        );
+    if (fallbackExecutionScopes > 0) {
+        blockers.push(
+            `${fallbackExecutionScopes} live pre-aggregate materialization(s) still require a fallback secret; manually refresh affected definitions under the active secret and drain or cancel old attempts before removing the fallback`,
+        );
+    }
+    if (report.preAggregateExecutionScopes.unknown > 0) {
+        blockers.push(
+            `${report.preAggregateExecutionScopes.unknown} live pre-aggregate materialization(s) have execution scopes from no configured secret; manually refresh affected definitions and drain or cancel old attempts`,
+        );
+    }
     return blockers;
 };
 
@@ -463,17 +612,23 @@ export async function runSecretRotation(
     const ciphertext = await rotateRegisteredCiphertext(context, options);
     const graphileJobs = await rotateQueuedCreateProjectJobs(context, options);
     const tokenHashes = await classifyTokenHashes(context, options);
+    const preAggregateExecutionScopes = await scanPreAggregateExecutionScopes(
+        context,
+        options,
+    );
     const partialReport = {
         mode: options.execute ? ('execute' as const) : ('dry-run' as const),
         ciphertext,
         graphileJobs,
         tokenHashes,
+        preAggregateExecutionScopes,
     };
     return {
         ...partialReport,
         blockers: collectBlockers(partialReport),
         hasUnreadableValues:
             ciphertext.some((r) => r.unreadablePrimaryKeys.length > 0) ||
-            graphileJobs.unreadableJobIds.length > 0,
+            graphileJobs.unreadableJobIds.length > 0 ||
+            preAggregateExecutionScopes.unknown > 0,
     };
 }
