@@ -1,3 +1,10 @@
+## [2.215.3](https://github.com/lightdash/lightdash/compare/2.215.2...2.215.3) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** enforce heartbeat safety and record provider evals ([#29166](https://github.com/lightdash/lightdash/issues/29166)) ([fbec8bc](https://github.com/lightdash/lightdash/commit/fbec8bc12cc0f22e7f2c181e527edf2e3afe6cf5))
+
 ## [2.215.2](https://github.com/lightdash/lightdash/compare/2.215.1...2.215.2) (2026-09-15)
 
 
