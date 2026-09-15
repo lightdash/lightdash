@@ -25,7 +25,10 @@ import {
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
-import { filterOperatorDescriptionKey } from '../../../components/common/Filters/FilterInputs/constants';
+import {
+    filterOperatorDescriptionKey,
+    filterOperatorDropdownLabelKey,
+} from '../../../components/common/Filters/FilterInputs/constants';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -208,6 +211,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         const description = descriptionKey
                             ? getUiString(descriptionKey)
                             : undefined;
+                        const dropdownLabelKey =
+                            filterOperatorDropdownLabelKey[
+                                option.value as FilterOperator
+                            ];
+                        const dropdownLabel = dropdownLabelKey
+                            ? getUiString(dropdownLabelKey)
+                            : option.label;
                         if (description) {
                             return (
                                 <Tooltip
@@ -215,11 +225,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                     position="right"
                                     maw={300}
                                 >
-                                    <div>{option.label}</div>
+                                    <Box w="100%">{dropdownLabel}</Box>
                                 </Tooltip>
                             );
                         }
-                        return <div>{option.label}</div>;
+                        return <Box>{dropdownLabel}</Box>;
                     }}
                     rightSectionWidth={140}
                     rightSectionPointerEvents="all"
