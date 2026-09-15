@@ -45,7 +45,9 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
         return (
             <Select
                 aria-label="Content view"
-                w="100%"
+                miw={112}
+                maw={160}
+                flex="1 1 112px"
                 value={value}
                 allowDeselect={false}
                 onChange={(next) => {

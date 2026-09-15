@@ -27,6 +27,7 @@ import {
     Stack,
     Text,
     Tooltip,
+    useMatches,
 } from '@mantine/core';
 import {
     IconAppsOff,
@@ -321,6 +322,10 @@ const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
 );
 
 const AppGenerate: FC = () => {
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
     const { appUuid: urlAppUuid } = useParams();
     const projectUuid = useProjectUuid();
     const navigate = useNavigate();
@@ -2525,7 +2530,7 @@ const AppGenerate: FC = () => {
                                 >
                                     <PromptComposer
                                         ref={promptEditorRef}
-                                        size="md"
+                                        size={compact ? 'sm' : 'md'}
                                         placeholder="Describe the app you want to build..."
                                         autoFocus
                                         // Editable while the agent works so the next prompt
@@ -2920,6 +2925,11 @@ const AppGenerate: FC = () => {
                                                     <ComposerSubmitButton
                                                         icon={IconPlayerStop}
                                                         label="Stop generation"
+                                                        size={
+                                                            compact
+                                                                ? 'sm'
+                                                                : 'lg'
+                                                        }
                                                         onClick={handleCancel}
                                                         loading={isCancelling}
                                                     />
@@ -2927,6 +2937,11 @@ const AppGenerate: FC = () => {
                                                     <ComposerSubmitButton
                                                         icon={IconArrowUp}
                                                         label="Send message"
+                                                        size={
+                                                            compact
+                                                                ? 'sm'
+                                                                : 'lg'
+                                                        }
                                                         // Walkthrough look for
                                                         // create:DataApp: the
                                                         // build starts here;
