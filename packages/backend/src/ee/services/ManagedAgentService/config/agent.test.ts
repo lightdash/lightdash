@@ -286,7 +286,7 @@ describe('renderAutopilotAgent', () => {
             `Call loadSkill with name "${AUTOPILOT_CHART_SKILL_NAME}"`,
         );
         expect(system).toContain(
-            'The application generates the factual report from saved actions',
+            'The published report is written afterwards from the evidence you gathered',
         );
         expect(tools.map((tool) => tool.name)).toContain('write_slack_summary');
         expect(

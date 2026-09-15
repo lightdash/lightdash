@@ -160,20 +160,21 @@ const buildSegments = (active: SummaryAction[]): Segment[] => {
 };
 
 // Built only from saved actions: one snapshot feeds the stored run summary,
-// the activity page and the Slack thread. Standard markdown: the page
-// renders it and Slack accepts it in markdown blocks. The voice follows the
-// Slack messaging skill; the ledger at the end keeps every count exact.
+// the activity page and the Slack thread. A grounded narrative, when one was
+// composed, replaces the templated story; the ledger always keeps counts exact.
 export const renderHeartbeatSummary = ({
     actions,
     interrupted,
     projectName,
     seed,
+    narrative,
     context = { attribution: null, notice: null },
 }: {
     actions: SummaryAction[] | null;
     interrupted: boolean;
     projectName: string | null;
     seed: string;
+    narrative: string | null;
     context?: HeartbeatSummaryContext;
 }): { text: string; compactSummary: string } => {
     const title = `**${projectName ?? 'Your project'}: Autopilot update**`;
@@ -195,6 +196,47 @@ export const renderHeartbeatSummary = ({
     const changes = segments
         .filter((segment) => segment.segment !== null)
         .reduce((sum, segment) => sum + segment.count, 0);
+
+    const ledger = ['**By the numbers**', ''];
+    const headline: string[] = [];
+    for (const [type, label] of ledgerLabels) {
+        const group = active.filter((action) => action.actionType === type);
+        const names = uniqueNames(group);
+        const more =
+            names.length > 3 ? `; ${names.length - 3} more targets` : '';
+        const shown = examples(names, 3);
+        ledger.push(
+            `- ${label}: ${group.length}${shown ? ` (${shown}${more})` : ''}`,
+        );
+        if (group.length) headline.push(`${label}: ${group.length}`);
+    }
+    ledger.push(
+        `- Insights for review: ${insights}`,
+        `- Refused attempts: ${blocked}`,
+    );
+    if (reversed) ledger.push(`- Reversed or dismissed actions: ${reversed}`);
+    if (context.attribution?.model) {
+        const { provider, model, keySource } = context.attribution;
+        const key =
+            keySource === 'organization'
+                ? "your organisation's key"
+                : 'the instance key';
+        ledger.push(
+            `- Ran on: ${provider ? `${provider} / ` : ''}${model} with ${key}`,
+        );
+    }
+    if (insights) headline.push(`Insights: ${insights}`);
+    if (blocked) headline.push(`Refused attempts: ${blocked}`);
+    if (reversed) headline.push(`Reversed or dismissed: ${reversed}`);
+    const compactSummary = headline.join(' · ') || 'No saved actions';
+    if (narrative !== null) {
+        return {
+            text: [narrative, context.notice, ledger.join('\n')]
+                .filter((part): part is string => Boolean(part))
+                .join('\n\n'),
+            compactSummary,
+        };
+    }
 
     const paragraphs: string[] = [title];
     if (interrupted) {
@@ -229,41 +271,7 @@ export const renderHeartbeatSummary = ({
         paragraphs.push(...namedSegments);
     }
 
-    const ledger = ['**By the numbers**', ''];
-    const headline: string[] = [];
-    for (const [type, label] of ledgerLabels) {
-        const group = active.filter((action) => action.actionType === type);
-        const names = uniqueNames(group);
-        const more =
-            names.length > 3 ? `; ${names.length - 3} more targets` : '';
-        const shown = examples(names, 3);
-        ledger.push(
-            `- ${label}: ${group.length}${shown ? ` (${shown}${more})` : ''}`,
-        );
-        if (group.length) headline.push(`${label}: ${group.length}`);
-    }
-    ledger.push(
-        `- Insights for review: ${insights}`,
-        `- Refused attempts: ${blocked}`,
-    );
-    if (reversed) ledger.push(`- Reversed or dismissed actions: ${reversed}`);
-    if (context.attribution?.model) {
-        const { provider, model, keySource } = context.attribution;
-        const key =
-            keySource === 'organization'
-                ? "your organisation's key"
-                : 'the instance key';
-        ledger.push(
-            `- Ran on: ${provider ? `${provider} / ` : ''}${model} with ${key}`,
-        );
-    }
     paragraphs.push(ledger.join('\n'));
     paragraphs.push(pick(signOffs, seed));
-    if (insights) headline.push(`Insights: ${insights}`);
-    if (blocked) headline.push(`Refused attempts: ${blocked}`);
-    if (reversed) headline.push(`Reversed or dismissed: ${reversed}`);
-    return {
-        text: paragraphs.join('\n\n'),
-        compactSummary: headline.join(' · ') || 'No saved actions',
-    };
+    return { text: paragraphs.join('\n\n'), compactSummary };
 };

@@ -116,6 +116,7 @@ import {
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
 import { ManagedAgentRunModel } from './ManagedAgentRunModel';
+import { ManagedAgentRunSummary } from './ManagedAgentRunSummary';
 import { ManagedAgentRuntimeAlerts } from './ManagedAgentRuntimeDetails';
 import { SuggestionsSpaceAccess } from './SuggestionsSpaceAccess';
 import { ToolActivityBadge } from './ToolActivityBadge';
@@ -2131,9 +2132,7 @@ const RunRow: FC<{
                 <Table.Tr>
                     <Table.Td colSpan={3}>
                         <Box px="md" py="xs" className={classes.runSummary}>
-                            <AiMarkdown className={classes.runSummaryMarkdown}>
-                                {run.summary}
-                            </AiMarkdown>
+                            <ManagedAgentRunSummary summary={run.summary} />
                         </Box>
                     </Table.Td>
                 </Table.Tr>
@@ -2269,11 +2268,7 @@ const QuietRunsGroup: FC<{
                         </Group>
                         {run.summary && (
                             <Box mt="xs" className={classes.runSummary}>
-                                <AiMarkdown
-                                    className={classes.runSummaryMarkdown}
-                                >
-                                    {run.summary}
-                                </AiMarkdown>
+                                <ManagedAgentRunSummary summary={run.summary} />
                             </Box>
                         )}
                     </Table.Td>

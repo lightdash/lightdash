@@ -5,6 +5,7 @@ import {
     DEFAULT_MANAGED_AGENT_POLICY,
     ManagedAgentActionType,
     ManagedAgentRunStatus,
+    ManagedAgentTargetType,
     ProjectMemberRole,
     ServiceAccountScope,
     ValidationErrorType,
@@ -839,11 +840,14 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             managedAgentModel.getActions.mockResolvedValue([
                 {
                     actionType: ManagedAgentActionType.CREATED_CONTENT,
+                    targetType: ManagedAgentTargetType.CHART,
                     targetName: 'Saved chart',
+                    description: 'Built from popular fields.',
                     reversedAt: null,
                 },
             ] as AnyType);
             let calls = 0;
+            let reportCalls = 0;
             const model = new MockLanguageModelV3({
                 provider: 'openai.responses',
                 modelId: 'unscored-model',
@@ -853,8 +857,37 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                         { provider: 'openai', name: 'unscored-model' },
                     );
                     expect(managedAgentModel.finishRun).not.toHaveBeenCalled();
+                    if (options.tools === undefined) {
+                        reportCalls += 1;
+                        expect(JSON.stringify(options.prompt)).toContain(
+                            'created_content on',
+                        );
+                        return {
+                            content: [
+                                {
+                                    type: 'text',
+                                    text: '**Jaffle shop**\n\nGrounded story about Saved chart.',
+                                },
+                            ],
+                            finishReason: { unified: 'stop', raw: undefined },
+                            usage: {
+                                inputTokens: {
+                                    total: 10,
+                                    noCache: 10,
+                                    cacheRead: 0,
+                                    cacheWrite: 0,
+                                },
+                                outputTokens: {
+                                    total: 2,
+                                    text: 2,
+                                    reasoning: 0,
+                                },
+                            },
+                            warnings: [],
+                        };
+                    }
                     expect(
-                        options.tools?.some(
+                        options.tools.some(
                             (tool) =>
                                 tool.type === 'function' &&
                                 tool.name === 'soft_delete_content',
@@ -924,9 +957,15 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             const { summary } = managedAgentModel.finishRun.mock.calls[0][1];
             expect(summary).not.toContain('I flagged');
             expect(summary).toContain('Created content: 1 (`Saved chart`)');
-            if (fail) expect(summary).toContain('cut short');
-            else expect(summary).not.toContain('cut short');
-            expect(summary).toContain('Agent Suggestions');
+            if (fail) {
+                expect(summary).toContain('cut short');
+                expect(summary).toContain('Agent Suggestions');
+                expect(reportCalls).toBe(0);
+            } else {
+                expect(summary).toContain('Grounded story about Saved chart.');
+                expect(summary).not.toContain('cut short');
+                expect(reportCalls).toBe(1);
+            }
             expect(managedAgentModel.getActions).toHaveBeenCalledTimes(1);
             expect(slackClient.postMessage).toHaveBeenCalledWith(
                 expect.objectContaining({

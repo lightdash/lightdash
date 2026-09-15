@@ -78,7 +78,7 @@ const buildChecklistTailSections = (
         },
         {
             title: 'Slack Summary',
-            body: 'After the run is complete, call write_slack_summary exactly once with a short completion note. The application generates the factual report from saved actions; do not draft a narrative or invent counts. The completion note is not published.',
+            body: 'After the run is complete, call write_slack_summary exactly once with a short completion note. The published report is written afterwards from the evidence you gathered and the actions you saved, so do not draft the report in the note or invent counts. The completion note is not published.',
         },
     ];
 
@@ -761,7 +761,7 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
     },
     {
         description:
-            'Finish reporting for this run. Call exactly once with a short completion note after your work. The application renders the published report from saved actions; the completion note is not published.',
+            'Finish reporting for this run. Call exactly once with a short completion note after your work. The published report is written afterwards from the evidence you gathered and the actions you saved; the completion note is not published.',
         inputSchema: {
             properties: {
                 summary: {

@@ -822,6 +822,27 @@
     min-width: 0;
 }
 
+/* The shared markdown styles zero block margins; run reports need paragraphs. */
+.runSummaryMarkdown > div > :is(p, ul, ol, pre, blockquote) {
+    margin-bottom: var(--mantine-spacing-xs);
+}
+
+.runSummaryMarkdown > div > :last-child {
+    margin-bottom: 0;
+}
+
+.runSummarySpoiler[data-has-spoiler]:has(
+        .runSummaryControl[aria-expanded='false']
+    )
+    .runSummaryContent {
+    mask-image: linear-gradient(to bottom, black 55%, transparent);
+}
+
+.runSummaryControl {
+    font-size: var(--mantine-font-size-xs);
+    margin-top: var(--mantine-spacing-xs);
+}
+
 .aiSettingsLink {
     display: inline-flex;
     align-items: center;

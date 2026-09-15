@@ -22,8 +22,16 @@ export type AutopilotStopReason = 'end_turn' | 'step_cap' | 'timeout' | 'error';
 
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
 
+// A checklist tool result the report writer can cite.
+export type AutopilotToolEvidence = {
+    toolName: string;
+    input: unknown;
+    output: unknown;
+};
+
 export type AutopilotAgentRunResult = {
     slackSummary: string | null;
+    evidence: AutopilotToolEvidence[];
     stepCount: number;
     stopReason: AutopilotStopReason;
     error: string | null;
@@ -66,6 +74,7 @@ export const runAutopilotAgent = async ({
     onStepFinish,
 }: RunAutopilotAgentArgs): Promise<AutopilotAgentRunResult> => {
     let slackSummary: string | null = null;
+    const evidence: AutopilotToolEvidence[] = [];
     let stepCount = 0;
     const controller = new AbortController();
     const timer = setTimeout(
@@ -75,6 +84,7 @@ export const runAutopilotAgent = async ({
     const { signal: abortSignal } = controller;
     const timeoutResult = (): AutopilotAgentRunResult => ({
         slackSummary,
+        evidence,
         stepCount,
         stopReason: 'timeout',
         error: `Autopilot timed out after ${Math.round(timeoutMs / 1000)} seconds at step ${stepCount}`,
@@ -116,6 +126,15 @@ export const runAutopilotAgent = async ({
                 step.toolCalls.forEach((toolCall) => {
                     Logger.info(`[Autopilot] Tool call: ${toolCall.toolName}`);
                 });
+                step.toolResults.forEach((toolResult) => {
+                    if (toolResult.toolName.startsWith('get_')) {
+                        evidence.push({
+                            toolName: toolResult.toolName,
+                            input: toolResult.input,
+                            output: toolResult.output,
+                        });
+                    }
+                });
             },
         });
 
@@ -124,6 +143,7 @@ export const runAutopilotAgent = async ({
             case 'stop':
                 return {
                     slackSummary,
+                    evidence,
                     stepCount,
                     stopReason: 'end_turn',
                     error: null,
@@ -131,6 +151,7 @@ export const runAutopilotAgent = async ({
             case 'tool-calls':
                 return {
                     slackSummary,
+                    evidence,
                     stepCount,
                     stopReason: 'step_cap',
                     error: `Autopilot stopped after ${stepCount} steps before finishing its checklist`,
@@ -141,6 +162,7 @@ export const runAutopilotAgent = async ({
             case 'other':
                 return {
                     slackSummary,
+                    evidence,
                     stepCount,
                     stopReason: 'error',
                     error: `Autopilot did not finish its checklist (provider finish reason: ${result.finishReason})`,
@@ -155,6 +177,7 @@ export const runAutopilotAgent = async ({
         if (abortSignal.aborted) return timeoutResult();
         return {
             slackSummary,
+            evidence,
             stepCount,
             stopReason: 'error',
             error:
