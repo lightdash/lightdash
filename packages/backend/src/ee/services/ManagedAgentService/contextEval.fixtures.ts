@@ -5,13 +5,14 @@ import {
 } from '@lightdash/common';
 import { ValidationService } from '../../../services/ValidationService/ValidationService';
 import {
+    formatManagedAgentBrokenContentPage,
     formatManagedAgentToolListResult,
     MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT,
     summarizeManagedAgentBrokenContent,
 } from './toolResults';
 
 export const createAutopilotContextFixture = (
-    scenario: 'shared-model' | 'many-models',
+    scenario: 'shared-model' | 'many-models' | 'pagination',
 ) => {
     const validations = Array.from({ length: 350 }, (_, chart) =>
         Array.from(
@@ -26,7 +27,7 @@ export const createAutopilotContextFixture = (
                 chartUuid: `chart-${chart}`,
                 chartViews: 0,
                 tableName:
-                    scenario === 'shared-model' ? 'orders' : `orders_${chart}`,
+                    scenario === 'many-models' ? `orders_${chart}` : 'orders',
                 fieldName: `legacy_revenue_${field}`,
                 errorType: ValidationErrorType.Dimension,
                 error: `Dimension error: the field legacy_revenue_${field} no longer exists in the compiled model. Review the semantic definition before replacing or removing this field.`,
@@ -64,8 +65,8 @@ export const createAutopilotContextFixture = (
         })),
         note: 'Complete set of validation error groups. Use table_name for capped content details. This synthetic fixture grants visibility to every item.',
     });
-    const detail = (tableName: string) =>
-        formatManagedAgentToolListResult(
+    const detail = (tableName: string, cursor: string | null = null) =>
+        formatManagedAgentBrokenContentPage(
             summarizeManagedAgentBrokenContent(
                 validations
                     .filter((row) => row.tableName === tableName)
@@ -78,6 +79,8 @@ export const createAutopilotContextFixture = (
                         source: row.source,
                     })),
             ),
+            100,
+            cursor,
         );
     const staleDashboards = formatManagedAgentToolListResult(
         Array.from({ length: 12 }, (_, index) => ({
@@ -95,6 +98,6 @@ export const createAutopilotContextFixture = (
         broken,
         detail,
         staleDashboards,
-        detailTable: scenario === 'shared-model' ? 'orders' : 'orders_0',
+        detailTable: scenario === 'many-models' ? 'orders_0' : 'orders',
     };
 };

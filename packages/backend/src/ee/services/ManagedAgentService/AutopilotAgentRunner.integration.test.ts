@@ -17,6 +17,8 @@ import { createAutopilotContextFixture } from './contextEval.fixtures';
 
 const provider = process.env.AUTOPILOT_EVAL_PROVIDER;
 const contextBenchmark = process.env.AUTOPILOT_EVAL_SCENARIO === 'context';
+const paginationBenchmark =
+    process.env.AUTOPILOT_EVAL_SCENARIO === 'pagination';
 const supportedProvider =
     provider === 'anthropic' ||
     provider === 'openai' ||
@@ -26,7 +28,7 @@ const supportedProvider =
         : null;
 
 // Schema/loop smoke test against a real provider; no application data or writes.
-describe.skipIf(!provider || contextBenchmark)(
+describe.skipIf(!provider || contextBenchmark || paginationBenchmark)(
     'Autopilot provider contract smoke',
     () => {
         it.each(['observe', 'flag', 'cleanup'] as const)(
@@ -189,7 +191,13 @@ Do not repair, create, flag, delete, or inspect other content. This benchmarks i
                         if (name === 'get_broken_content')
                             return typeof input.table_name === 'string' &&
                                 input.table_name.length > 0
-                                ? fixture.detail(input.table_name)
+                                ? fixture.detail(
+                                      input.table_name,
+                                      typeof input.cursor === 'string' &&
+                                          input.cursor.length > 0
+                                          ? input.cursor
+                                          : null,
+                                  )
                                 : fixture.broken;
                         if (name === 'get_stale_dashboards')
                             return fixture.staleDashboards;
@@ -251,5 +259,107 @@ Do not repair, create, flag, delete, or inspect other content. This benchmarks i
             },
             100_000,
         );
+    },
+);
+
+describe.skipIf(!provider || !paginationBenchmark)(
+    'Autopilot detail pagination',
+    () => {
+        it('follows cursors to read all 350 broken charts exactly once', async () => {
+            if (!supportedProvider)
+                throw new Error('Unsupported AUTOPILOT_EVAL_PROVIDER');
+            const fixture = createAutopilotContextFixture('pagination');
+            const { model, callOptions, providerOptions, keyManagement } =
+                getModel(parseConfig().ai.copilot, {
+                    provider: supportedProvider,
+                    modelName: process.env.AUTOPILOT_EVAL_MODEL,
+                    enableReasoning: true,
+                });
+            const agent = renderAutopilotAgent({
+                runtime: 'ai-sdk',
+                policy: {
+                    ...DEFAULT_MANAGED_AGENT_POLICY,
+                    aggression: 'observe',
+                },
+            });
+            const visited: string[] = [];
+            const steps: AutopilotContextStep[] = [];
+            let reachedEnd = false;
+            const result = await runAutopilotAgent({
+                model,
+                callOptions: { ...callOptions, maxRetries: 0 },
+                providerOptions,
+                agent: {
+                    ...agent,
+                    system: `${agent.system}
+For this synthetic pagination benchmark only, replace the maintenance checklist with reading every broken chart on table_name "orders". Request detail pages with limit 100. Follow next_cursor using cursor and the same table_name until next_cursor is null. Do not repeat pages. Then write_slack_summary with the total chart count and finish. Do not call other tools or modify content.`,
+                },
+                dataTools: {},
+                availableExplores: [],
+                projectName: 'Synthetic pagination fixture',
+                maxSteps: 12,
+                timeoutMs: 90_000,
+                telemetry: getAiCallTelemetry({
+                    functionId: 'autopilotPaginationBenchmark',
+                    feature: 'managed-agent',
+                    keyManagement,
+                    ...getLanguageModelAttribution(model),
+                }),
+                executeTool: async (name, input) => {
+                    if (
+                        name !== 'get_broken_content' ||
+                        input.table_name !== 'orders'
+                    )
+                        throw new Error('Only orders detail is available');
+                    const response = fixture.detail(
+                        'orders',
+                        typeof input.cursor === 'string' &&
+                            input.cursor.length > 0
+                            ? input.cursor
+                            : null,
+                    );
+                    try {
+                        const page: {
+                            items: { uuid: string }[];
+                            next_cursor: string | null;
+                        } = JSON.parse(response);
+                        visited.push(...page.items.map(({ uuid }) => uuid));
+                        reachedEnd = page.next_cursor === null;
+                    } catch {
+                        throw new Error('Invalid fixture JSON');
+                    }
+                    return response;
+                },
+                onStepFinish: (step) => recordAutopilotContextStep(steps, step),
+            });
+            const report = {
+                kind: 'synthetic-detail-pagination',
+                provider: supportedProvider,
+                model: model.modelId,
+                visitedCount: visited.length,
+                uniqueCount: new Set(visited).size,
+                reachedEnd,
+                result,
+                steps,
+            };
+            const directory = process.env.AUTOPILOT_EVAL_OUTPUT_DIR;
+            if (directory) {
+                await mkdir(directory, { recursive: true });
+                await writeFile(
+                    path.join(
+                        directory,
+                        `${supportedProvider}-pagination.json`,
+                    ),
+                    JSON.stringify(report, null, 2),
+                );
+            }
+            expect(result.stopReason).toBe('end_turn');
+            expect(result.slackSummary).toContain('350');
+            expect(report).toMatchObject({
+                visitedCount: 350,
+                uniqueCount: 350,
+                reachedEnd: true,
+            });
+        }, 100_000);
     },
 );

@@ -105,6 +105,23 @@ describe('Autopilot context fixtures', () => {
         });
         expect(detail.items[0].errors).toHaveLength(10);
     });
+    it('provides multiple pages of low-error detail for the cursor benchmark', () => {
+        const fixture = createAutopilotContextFixture('pagination');
+        let page;
+        try {
+            page = JSON.parse(fixture.detail('orders'));
+        } catch {
+            throw new Error('Fixture must produce valid JSON');
+        }
+        expect(page).toMatchObject({
+            total_count: 350,
+            returned_count: 100,
+            truncated: true,
+        });
+        expect(page.next_cursor).toBeTruthy();
+        expect(page.items[0].error_count).toBe(1);
+    });
+
     it('exercises the unbounded group list separately from capped detail', () => {
         const fixture = createAutopilotContextFixture('many-models');
         let summary;
