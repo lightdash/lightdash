@@ -4,10 +4,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { useStartWalkthrough } from './useStartWalkthrough';
 
-const { track, openInCopy, navigate } = vi.hoisted(() => ({
-    track: vi.fn(),
-    navigate: vi.fn(),
-    openInCopy: vi.fn(),
+const { track, openInCopy, navigate, markScopeStarted, progressState } =
+    vi.hoisted(() => ({
+        track: vi.fn(),
+        navigate: vi.fn(),
+        openInCopy: vi.fn(),
+        markScopeStarted: vi.fn(),
+        progressState: { completed: [] as string[] },
+    }));
+
+vi.mock('./progress', () => ({
+    useLearnProgress: () => ({
+        completed: progressState.completed,
+        started: [],
+        lastStarted: null,
+        isSettled: true,
+    }),
+    useLearnProgressActions: () => ({
+        markScopeStarted,
+        markScopeCompleted: vi.fn(),
+    }),
 }));
 
 vi.mock('react-router', () => ({
@@ -34,11 +50,12 @@ vi.mock('../scopeTours/trainingCopy', () => ({
 
 describe('useStartWalkthrough', () => {
     beforeEach(() => {
-        localStorage.clear();
         sessionStorage.clear();
+        progressState.completed = [];
         navigate.mockClear();
         track.mockClear();
         openInCopy.mockClear();
+        markScopeStarted.mockClear();
     });
 
     it('does not start an unsupported module or open its old reader', () => {
@@ -47,7 +64,7 @@ describe('useStartWalkthrough', () => {
         expect(navigate).not.toHaveBeenCalled();
         expect(openInCopy).not.toHaveBeenCalled();
         expect(track).not.toHaveBeenCalled();
-        expect(localStorage.getItem('lightdash.learn.started')).toBeNull();
+        expect(markScopeStarted).not.toHaveBeenCalled();
     });
 
     it('records the start, where it came from, and opens the copy', () => {
@@ -55,6 +72,7 @@ describe('useStartWalkthrough', () => {
 
         act(() => result.current.start('manage:PinnedItems', 'card'));
 
+        expect(markScopeStarted).toHaveBeenCalledWith('manage:PinnedItems');
         expect(track).toHaveBeenCalledTimes(1);
         expect(track).toHaveBeenCalledWith({
             name: EventName.LEARN_WALKTHROUGH_STARTED,
@@ -85,10 +103,7 @@ describe('useStartWalkthrough', () => {
     );
 
     it('marks a walkthrough the learner has already finished as a restart', () => {
-        localStorage.setItem(
-            'lightdash.learn.completed',
-            JSON.stringify(['manage:PinnedItems']),
-        );
+        progressState.completed = ['manage:PinnedItems'];
         const { result } = renderHook(() => useStartWalkthrough('training-1'));
 
         act(() => result.current.start('manage:PinnedItems', 'card'));
