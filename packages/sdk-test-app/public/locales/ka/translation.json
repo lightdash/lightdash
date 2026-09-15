@@ -288,7 +288,7 @@
         "filters.autocomplete.error.warehouse": "შემოთავაზებები მიუწვდომელია: მონაცემთა საწყობის მოთხოვნა ვერ შესრულდა.",
         "filters.autocomplete.error.unknown": "შემოთავაზებების ჩატვირთვა ვერ მოხერხდა.",
         "filters.autocomplete.error.filterStillApplies": "თქვენი ფილტრი კვლავ მოქმედებს. ჩაწერეთ მნიშვნელობა და დააჭირეთ Enter-ს.",
-        "filters.autocomplete.error.retry": "დააწკაპუნეთ ხელახლა საცდელად.",
+        "filters.autocomplete.error.tryAgain": "ხელახლა ცდა",
         "filters.autocomplete.error.retryAriaLabel": "შემოთავაზებების ხელახლა ჩატვირთვა",
         "filters.manageValues.title": "მნიშვნელობების მართვა",
         "filters.manageValues.filterValuesTitle": "ფილტრის მნიშვნელობების მართვა",

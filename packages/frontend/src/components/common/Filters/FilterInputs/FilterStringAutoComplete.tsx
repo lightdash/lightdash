@@ -8,8 +8,10 @@ import {
 import {
     ActionIcon,
     Box,
+    Button,
     Group,
     Highlight,
+    HoverCard,
     Loader,
     Pill,
     Stack,
@@ -148,19 +150,33 @@ const SearchErrorIndicator: FC<{
         () => classifyFieldValueSearchError(error),
         [error],
     );
-    const hintKey = RETRYABLE_ERROR_KINDS.includes(kind)
-        ? 'filters.autocomplete.error.retry'
-        : 'filters.autocomplete.error.filterStillApplies';
+    const canRetry = RETRYABLE_ERROR_KINDS.includes(kind);
 
     if (isRetrying) return <Loader size="xs" color="gray" />;
 
     return (
-        <Tooltip
-            multiline
-            w={280}
-            label={
-                <Stack gap="xxs">
-                    <Text fz="xs" fw={500}>
+        <HoverCard
+            width={300}
+            position="bottom-end"
+            withArrow
+            shadow="md"
+            openDelay={150}
+        >
+            <HoverCard.Target>
+                <ActionIcon
+                    size="sm"
+                    aria-label={getUiString(
+                        'filters.autocomplete.error.retryAriaLabel',
+                    )}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={onRetry}
+                >
+                    <MantineIcon icon={IconAlertCircle} color="red" />
+                </ActionIcon>
+            </HoverCard.Target>
+            <HoverCard.Dropdown p="sm">
+                <Stack gap="xs">
+                    <Text fz="sm" fw={500}>
                         {getUiString(ERROR_HEADLINE_KEY[kind])}
                     </Text>
                     {detail ? (
@@ -168,21 +184,28 @@ const SearchErrorIndicator: FC<{
                             {detail}
                         </Text>
                     ) : null}
-                    <Text fz="xs">{getUiString(hintKey)}</Text>
+                    <Text fz="xs">
+                        {getUiString(
+                            'filters.autocomplete.error.filterStillApplies',
+                        )}
+                    </Text>
+                    {canRetry ? (
+                        <Group justify="flex-end">
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={onRetry}
+                            >
+                                {getUiString(
+                                    'filters.autocomplete.error.tryAgain',
+                                )}
+                            </Button>
+                        </Group>
+                    ) : null}
                 </Stack>
-            }
-        >
-            <ActionIcon
-                size="sm"
-                aria-label={getUiString(
-                    'filters.autocomplete.error.retryAriaLabel',
-                )}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={onRetry}
-            >
-                <MantineIcon icon={IconAlertCircle} color="red" />
-            </ActionIcon>
-        </Tooltip>
+            </HoverCard.Dropdown>
+        </HoverCard>
     );
 };
 

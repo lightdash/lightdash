@@ -465,7 +465,7 @@ describe('FilterStringAutoComplete', () => {
             );
         };
 
-        it('explains a configuration failure and says the filter still applies', async () => {
+        it('explains a configuration failure without offering a retry', async () => {
             renderWithError(
                 apiError('NotFoundError', 'Explore orders does not exist'),
             );
@@ -489,6 +489,12 @@ describe('FilterStringAutoComplete', () => {
                     'Your filter still applies. Type a value and press Enter.',
                 ),
             ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Try again',
+                    hidden: true,
+                }),
+            ).not.toBeInTheDocument();
         });
 
         it('offers a retry for warehouse failures and refetches on click', async () => {
@@ -505,10 +511,16 @@ describe('FilterStringAutoComplete', () => {
             fireEvent.mouseEnter(retryButton);
 
             expect(
-                await screen.findByText('Click to try again.'),
+                await screen.findByText(
+                    'Suggestions unavailable: the warehouse query failed.',
+                ),
             ).toBeInTheDocument();
-
-            await user.click(retryButton);
+            await user.click(
+                await screen.findByRole('button', {
+                    name: 'Try again',
+                    hidden: true,
+                }),
+            );
 
             expect(refetch).toHaveBeenCalledTimes(1);
         });

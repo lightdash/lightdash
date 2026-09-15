@@ -288,7 +288,7 @@
         "filters.autocomplete.error.warehouse": "Sugerencias no disponibles: la consulta al almacén de datos falló.",
         "filters.autocomplete.error.unknown": "No se pudieron cargar las sugerencias.",
         "filters.autocomplete.error.filterStillApplies": "Tu filtro sigue aplicándose. Escribe un valor y pulsa Intro.",
-        "filters.autocomplete.error.retry": "Haz clic para volver a intentarlo.",
+        "filters.autocomplete.error.tryAgain": "Volver a intentar",
         "filters.autocomplete.error.retryAriaLabel": "Reintentar la carga de sugerencias",
         "filters.manageValues.title": "Gestionar valores",
         "filters.manageValues.filterValuesTitle": "Gestionar valores del filtro",

@@ -231,7 +231,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.autocomplete.error.unknown': "Suggestions couldn't be loaded.",
     'filters.autocomplete.error.filterStillApplies':
         'Your filter still applies. Type a value and press Enter.',
-    'filters.autocomplete.error.retry': 'Click to try again.',
+    'filters.autocomplete.error.tryAgain': 'Try again',
     'filters.autocomplete.error.retryAriaLabel': 'Retry loading suggestions',
     'filters.manageValues.title': 'Manage values',
     'filters.manageValues.filterValuesTitle': 'Manage filter values',
