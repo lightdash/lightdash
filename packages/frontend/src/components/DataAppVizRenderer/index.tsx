@@ -44,6 +44,7 @@ import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryData
 import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
 import classes from './DataAppVizRenderer.module.css';
 import { resolveVizDrillDownConfig } from './vizDrillDownConfig';
+import { resolveVizUnderlyingDataConfig } from './vizUnderlyingDataConfig';
 import { buildVizUnderlyingDataRequest } from './vizUnderlyingDataRequest';
 
 type Props = {
@@ -277,6 +278,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     // mounted) simply report drill-down as unavailable.
     const metricQueryData = useMetricQueryDataContext(true);
     const openDrillDownModal = metricQueryData?.openDrillDownModal;
+    const openUnderlyingDataModal = metricQueryData?.openUnderlyingDataModal;
     const { showToastError } = useToaster();
 
     // Same shape as underlyingDataPreconditions plus the drill permission and
@@ -334,6 +336,53 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     const underlyingDataEnabled =
         underlyingDataPreconditions && !!explore && !!reconciledFieldMapping;
+    const underlyingDataOpenEnabled =
+        underlyingDataEnabled && !!openUnderlyingDataModal;
+
+    const onVizUnderlyingDataIntent = useMemo(() => {
+        if (
+            !underlyingDataOpenEnabled ||
+            !openUnderlyingDataModal ||
+            !reconciledFieldMapping
+        ) {
+            return undefined;
+        }
+        return (intentBody: unknown) => {
+            try {
+                openUnderlyingDataModal(
+                    resolveVizUnderlyingDataConfig(intentBody, {
+                        fieldMapping: reconciledFieldMapping,
+                        itemsMap: itemsMap ?? {},
+                        dateZoom,
+                    }),
+                );
+                trackingContext?.track({
+                    name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                    properties: {
+                        organizationId: user?.data?.organizationUuid,
+                        userId: user?.data?.userUuid,
+                        projectId: projectUuid,
+                    },
+                });
+            } catch (err) {
+                showToastError({
+                    title: 'Could not open underlying data',
+                    subtitle: err instanceof Error ? err.message : undefined,
+                });
+                throw err;
+            }
+        };
+    }, [
+        underlyingDataOpenEnabled,
+        openUnderlyingDataModal,
+        reconciledFieldMapping,
+        itemsMap,
+        dateZoom,
+        trackingContext,
+        user,
+        projectUuid,
+        showToastError,
+    ]);
 
     // enabled:false ⇒ callback undefined ⇒ the bridge answers the virtual
     // route with an error — enforcement is structural, not menu-side.
@@ -388,7 +437,10 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             colorPalette,
             ...resolvedColors,
             pivotDetails,
-            underlyingData: { enabled: underlyingDataEnabled },
+            underlyingData: {
+                enabled: underlyingDataEnabled,
+                openEnabled: underlyingDataOpenEnabled,
+            },
             drillDown: { enabled: drillDownEnabled },
         };
     }, [
@@ -400,6 +452,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         resolvedColors,
         pivotDetails,
         underlyingDataEnabled,
+        underlyingDataOpenEnabled,
         drillDownEnabled,
     ]);
 
@@ -566,6 +619,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                     rewriteVizUnderlyingDataRequest={
                         rewriteVizUnderlyingDataRequest
                     }
+                    onVizUnderlyingDataIntent={onVizUnderlyingDataIntent}
                     onVizDrillDownIntent={onVizDrillDownIntent}
                 />
             </Box>

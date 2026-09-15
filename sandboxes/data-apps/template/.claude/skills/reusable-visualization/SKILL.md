@@ -176,9 +176,10 @@ action menu. This is part of the component contract, not an optional nicety — 
 item shows; you always write the wiring, and it costs nothing visually when disabled.
 
 When `underlyingData.enabled` is true, viewers get the standard Lightdash action on
-chart marks: click a data point → small action menu → "View underlying data" → a dialog
-listing the raw rows behind that point, with a Download button. When it is false (host
-too old, viewer lacks permission, embed), render no menu item — never a disabled one.
+chart marks: click a data point → small action menu → "View underlying data" → the
+standard Lightdash dialog listing the raw rows behind that point, with its Download
+button. When it is false (host too old, viewer lacks permission, embed), render no menu
+item — never a disabled one.
 
 Provenance is the contract: **every interactive datum keeps a reference to its
 untransformed source row.** When mapping `rows` into chart data, carry the row:
@@ -195,33 +196,17 @@ Only attach the action where one mark maps to exactly ONE source row and ONE met
 field. A mark that aggregates several rows (a binned bucket, a "top N + other" slice)
 gets no underlying-data item.
 
-On click, fetch and render in a dialog themed like the rest of the viz:
+On click, send the intent and render nothing else. Lightdash opens the dialog outside
+the viz and owns its table, loading, error, sorting, and download controls:
 
 ```tsx
-const result = await underlyingData.get({ row: datum.sourceRow, metric: 'value' });
-// result.rows / result.columns / result.format — render as a table
-// Download button:
-// await underlyingData.download({ row: datum.sourceRow, metric: 'value', fileType: 'csv' });
+underlyingData.open({ row: datum.sourceRow, metric: 'value' }).catch(() => {});
 ```
 
 `metric` is the declared field NAME from your `fields` (the same key you read from
-`fieldMapping`), not a query field id. Show `get()`/`download()` rejection messages in
-the dialog — they are written for viewers.
-
-Keep the dialog table dense — underlying data is often wide and long. Compact cell
-padding (the table is for scanning, not presenting). If the header is sticky: pin it
-flush at `top: 0` with an opaque background, and put NO padding on the scroll
-container itself — pad the cells, not the scroller. A sticky header pins to the
-container's content edge, so any container padding becomes a strip that rows
-visibly scroll through above the header.
-
-The table must scroll BOTH ways: `overflow: auto` on ONE wrapper directly around the
-`<table>`, and every element between that wrapper and the dialog body a plain block
-that can shrink (`min-width: 0`; no `display: table`, no `w-max`/`width:
-max-content`). A wrapper that sizes to the table's intrinsic width makes the
-overflow container's horizontal scroll dead — the table looks clipped and viewers
-cannot reach the right-hand columns. Verify by scrolling right in the rendered
-dialog with more columns than fit.
+`fieldMapping`), not a query field id. The custom chart type owns only its data-point
+action menu. It never renders an underlying-data dialog, table, loading state, error
+state, or download control inside the iframe.
 
 ### Drill into a data point
 

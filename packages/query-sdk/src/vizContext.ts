@@ -110,7 +110,7 @@ export type DataAppVizContextMessage = {
     /** Null for unpivoted rows; absent when the installed host predates pivot metadata delivery. */
     pivotDetails?: VizContextPivotDetails | null;
     /** Absent when the installed host predates underlying-data delivery. */
-    underlyingData?: { enabled?: boolean };
+    underlyingData?: { enabled?: boolean; openEnabled?: boolean };
     /** Absent when the installed host predates drill-down delivery. */
     drillDown?: { enabled?: boolean };
 };
@@ -188,11 +188,15 @@ export const getRaw = (
  */
 export type VizUnderlyingData = {
     enabled: boolean;
+    /** Ask Lightdash to open its standard underlying-data dialog. */
+    open: (opts: { row: VizContextRow; metric: string }) => Promise<void>;
+    /** Legacy bundle compatibility. New visualizations should call `open`. */
     get: (opts: {
         row: VizContextRow;
         metric: string;
         limit?: number;
     }) => Promise<UnderlyingDataResult>;
+    /** Legacy bundle compatibility. Lightdash owns download UI after `open`. */
     download: (
         opts: { row: VizContextRow; metric: string } & DownloadResultsOptions,
     ) => Promise<DownloadResultsResult>;
@@ -234,6 +238,7 @@ type VizContextValue = {
     valueColors: Record<string, Record<string, string>>;
     pivotDetails: VizContextPivotDetails | null;
     underlyingDataEnabled: boolean;
+    underlyingDataOpenEnabled: boolean;
     drillDownEnabled: boolean;
 };
 
@@ -347,26 +352,38 @@ export function toVizContextState(
         pivotDetails: message.pivotDetails ?? null,
         // Strict boolean check — non-boolean payloads read as disabled.
         underlyingDataEnabled: message.underlyingData?.enabled === true,
+        underlyingDataOpenEnabled: message.underlyingData?.openEnabled === true,
         drillDownEnabled: message.drillDown?.enabled === true,
     };
 }
 
 /**
- * Builds the `underlyingData` surface from the host's availability flag and
- * the mounted transport (null when no `LightdashProvider` is present, e.g.
- * standalone `useVizContext` usage). Exported for tests.
+ * Builds the `underlyingData` surface from separate legacy-fetch and current
+ * host-dialog flags plus the mounted transport. Keeping the flags independent
+ * lets already-published bundles use get/download while current bundles expose
+ * `enabled` only when `open` can delegate the dialog to Lightdash.
  */
 export function buildVizUnderlyingData(
     hostEnabled: boolean,
+    hostOpenEnabled: boolean,
     transport: Transport | null,
 ): VizUnderlyingData {
-    // Atomic capability: the generated menu promises Download whenever
-    // `enabled` is true, so a transport must implement both methods.
-    const supported =
-        typeof transport?.getVizUnderlyingData === 'function' &&
-        typeof transport?.downloadVizUnderlyingData === 'function';
+    const supported = typeof transport?.openVizUnderlyingData === 'function';
     return {
-        enabled: hostEnabled && supported,
+        enabled: hostOpenEnabled && supported,
+        open: async ({ row, metric }) => {
+            if (!hostOpenEnabled) {
+                throw new Error(
+                    'Underlying data is not enabled for this visualization.',
+                );
+            }
+            if (!transport?.openVizUnderlyingData) {
+                throw new Error(
+                    'This SDK build predates host-owned underlying data. Rebuild the app on the current template.',
+                );
+            }
+            return transport.openVizUnderlyingData({ row, metric });
+        },
         get: async ({ row, metric, limit }) => {
             if (!hostEnabled) {
                 throw new Error(
@@ -551,10 +568,11 @@ export function useVizContext(): VizContext {
     // working, with underlying data reported as unavailable.
     const transport = useOptionalTransport();
     const hostEnabled = context?.underlyingDataEnabled === true;
+    const hostOpenEnabled = context?.underlyingDataOpenEnabled === true;
 
     const underlyingData = useMemo<VizUnderlyingData>(
-        () => buildVizUnderlyingData(hostEnabled, transport),
-        [hostEnabled, transport],
+        () => buildVizUnderlyingData(hostEnabled, hostOpenEnabled, transport),
+        [hostEnabled, hostOpenEnabled, transport],
     );
 
     const drillHostEnabled = context?.drillDownEnabled === true;

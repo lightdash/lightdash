@@ -1,4 +1,4 @@
-import { DimensionType, FieldType } from '@lightdash/common';
+import { DimensionType, FieldType, MetricType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
                       fields: Array<{
                           name: string;
                           label: string;
-                          type: 'dimension';
+                          type: 'dimension' | 'metric';
                           required: boolean;
                       }>;
                       configOptions: Array<{
@@ -66,6 +66,12 @@ const mocks = vi.hoisted(() => ({
     previewTokenHook: vi.fn(),
     setFetchAll: vi.fn(),
     canViewUnderlyingData: { current: true },
+    openUnderlyingDataModal: vi.fn(),
+    metricQueryData: {
+        current: undefined as
+            | { openUnderlyingDataModal: (...args: unknown[]) => void }
+            | undefined,
+    },
     isLoading: { current: false },
     explore: { current: undefined as { name: string } | undefined },
     exploreHook: vi.fn(),
@@ -113,6 +119,7 @@ vi.mock('../../features/apps/previewOrigin', () => ({
 vi.mock('../../hooks/useContextMenuPermissions', () => ({
     useContextMenuPermissions: () => ({
         canViewUnderlyingData: mocks.canViewUnderlyingData.current,
+        canDrillInto: false,
     }),
 }));
 vi.mock('../../hooks/useExplore', () => ({
@@ -183,11 +190,24 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
                 hidden: false,
                 colors: { Hardware: '#00ff00' },
             },
+            orders_count: {
+                fieldType: FieldType.METRIC,
+                type: MetricType.COUNT,
+                name: 'count',
+                label: 'Count',
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: '${TABLE}.count',
+                hidden: false,
+            },
         },
         colorPalette: ['#7162FF'],
         isLoading: mocks.isLoading.current,
         ...mocks.vizContextOverrides.current,
     }),
+}));
+vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({
+    useMetricQueryDataContext: () => mocks.metricQueryData.current,
 }));
 
 import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
@@ -268,6 +288,8 @@ describe('DataAppVizRenderer', () => {
         mocks.previewTokenHook.mockClear();
         mocks.setFetchAll.mockClear();
         mocks.canViewUnderlyingData.current = true;
+        mocks.openUnderlyingDataModal.mockClear();
+        mocks.metricQueryData.current = undefined;
         mocks.isLoading.current = false;
         mocks.explore.current = undefined;
         mocks.exploreHook.mockClear();
@@ -960,13 +982,31 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         )?.[0] as {
             dataAppVizContext?: {
                 pivotDetails: unknown;
-                underlyingData: { enabled: boolean };
+                underlyingData: {
+                    enabled: boolean;
+                    openEnabled?: boolean;
+                };
             };
             rewriteVizUnderlyingDataRequest?: (intent: unknown) => unknown;
+            onVizUnderlyingDataIntent?: (intent: unknown) => void;
         };
 
     beforeEach(() => {
-        mocks.metadata.current = readyMetadata();
+        mocks.metadata.current = {
+            ...readyMetadata(),
+            schema: {
+                ...readyMetadata().schema,
+                fields: [
+                    ...readyMetadata().schema.fields,
+                    {
+                        name: 'value',
+                        label: 'Value',
+                        type: 'metric' as const,
+                        required: true,
+                    },
+                ],
+            },
+        };
         mocks.metadataError.current = undefined;
         mocks.token.current = 'preview-token';
         mocks.tokenError.current = undefined;
@@ -975,6 +1015,10 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         mocks.iframePreview.mockClear();
         mocks.exploreHook.mockClear();
         mocks.canViewUnderlyingData.current = true;
+        mocks.openUnderlyingDataModal.mockClear();
+        mocks.metricQueryData.current = {
+            openUnderlyingDataModal: mocks.openUnderlyingDataModal,
+        };
         mocks.explore.current = { name: 'orders' };
         mocks.vizContextOverrides.current = { resultsData: happyResultsData() };
         mocks.track.mockClear();
@@ -986,8 +1030,62 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         const props = lastIframeProps();
         expect(props.dataAppVizContext?.underlyingData).toEqual({
             enabled: true,
+            openEnabled: true,
         });
         expect(props.rewriteVizUnderlyingDataRequest).toBeTypeOf('function');
+        expect(props.onVizUnderlyingDataIntent).toBeTypeOf('function');
+    });
+
+    it('opens the host underlying-data modal from a viz intent', () => {
+        renderRenderer();
+
+        act(() => {
+            lastIframeProps().onVizUnderlyingDataIntent?.({
+                row: {
+                    orders_category: {
+                        value: { raw: 'Hardware', formatted: 'Hardware' },
+                    },
+                    orders_count: {
+                        value: { raw: 12, formatted: '12' },
+                    },
+                },
+                metric: 'value',
+            });
+        });
+
+        expect(mocks.openUnderlyingDataModal).toHaveBeenCalledWith({
+            item: expect.objectContaining({
+                fieldType: FieldType.METRIC,
+                name: 'count',
+            }),
+            value: { raw: 12, formatted: '12' },
+            fieldValues: {
+                orders_category: { raw: 'Hardware', formatted: 'Hardware' },
+                orders_count: { raw: 12, formatted: '12' },
+            },
+        });
+        expect(mocks.track).toHaveBeenCalledWith({
+            name: 'view_underlying_data.clicked',
+            properties: {
+                organizationId: 'organization-uuid',
+                userId: 'user-uuid',
+                projectId: 'project-uuid',
+            },
+        });
+    });
+
+    it('keeps legacy fetching enabled when the host modal provider is absent', () => {
+        mocks.metricQueryData.current = undefined;
+
+        renderRenderer();
+
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext?.underlyingData).toEqual({
+            enabled: true,
+            openEnabled: false,
+        });
+        expect(props.rewriteVizUnderlyingDataRequest).toBeTypeOf('function');
+        expect(props.onVizUnderlyingDataIntent).toBeUndefined();
     });
 
     it('forwards pivot metadata and disables underlying data for pivoted rows', () => {
@@ -1006,8 +1104,10 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         expect(props.dataAppVizContext?.pivotDetails).toBe(pivotDetails);
         expect(props.dataAppVizContext?.underlyingData).toEqual({
             enabled: false,
+            openEnabled: false,
         });
         expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
+        expect(props.onVizUnderlyingDataIntent).toBeUndefined();
     });
 
     it.each([
@@ -1073,8 +1173,10 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         const props = lastIframeProps();
         expect(props.dataAppVizContext?.underlyingData).toEqual({
             enabled: false,
+            openEnabled: false,
         });
         expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
+        expect(props.onVizUnderlyingDataIntent).toBeUndefined();
     });
 
     it('gated surfaces disable the explore fetch itself', () => {

@@ -124,6 +124,8 @@ type Props = {
         path: string;
         body: unknown;
     };
+    /** Opens Lightdash's underlying-data dialog for a viz click intent. */
+    onVizUnderlyingDataIntent?: (intentBody: unknown) => void;
     /** Handles the viz drill-down virtual route. Only set by
      *  DataAppVizRenderer when the capability is on. */
     onVizDrillDownIntent?: (intentBody: unknown) => void;
@@ -188,6 +190,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             capabilities,
             dataAppVizContext,
             rewriteVizUnderlyingDataRequest,
+            onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             urlStateSync,
             onSdkManifest,
@@ -288,6 +291,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onExternalRequestEvent,
             dataAppVizContext,
             rewriteVizUnderlyingDataRequest,
+            onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,

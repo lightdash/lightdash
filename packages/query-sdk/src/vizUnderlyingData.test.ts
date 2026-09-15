@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createApiTransport, type FetchAdapter } from './apiTransport';
-import { VIZ_DRILL_DOWN_PATH, VIZ_UNDERLYING_DATA_PATH } from './types';
+import {
+    VIZ_DRILL_DOWN_PATH,
+    VIZ_UNDERLYING_DATA_OPEN_PATH,
+    VIZ_UNDERLYING_DATA_PATH,
+} from './types';
 
 const CONFIG = { baseUrl: '', projectUuid: 'p1', apiKey: 'key' };
 
@@ -117,6 +121,40 @@ describe('openVizDrillDown', () => {
         const transport = createApiTransport(CONFIG, fetchFn);
         await expect(transport.openVizDrillDown!(INTENT)).rejects.toThrow(
             'Drill-down is not available for this visualization.',
+        );
+    });
+});
+
+describe('openVizUnderlyingData', () => {
+    it('POSTs the intent to the host-owned dialog path and resolves void', async () => {
+        const fetchFn = vi.fn(async (method: string, path: string) => {
+            if (method === 'POST' && path === VIZ_UNDERLYING_DATA_OPEN_PATH) {
+                return {};
+            }
+            throw new Error(`Unexpected request: ${method} ${path}`);
+        }) as FetchAdapter;
+
+        const transport = createApiTransport(CONFIG, fetchFn);
+        const result = await transport.openVizUnderlyingData!(INTENT);
+
+        expect(fetchFn).toHaveBeenCalledWith(
+            'POST',
+            VIZ_UNDERLYING_DATA_OPEN_PATH,
+            INTENT,
+        );
+        expect(result).toBeUndefined();
+    });
+
+    it('surfaces the bridge error message when the host rejects the intent', async () => {
+        const fetchFn = vi.fn(async () => {
+            throw new Error(
+                'Underlying data is not available for this visualization.',
+            );
+        }) as FetchAdapter;
+
+        const transport = createApiTransport(CONFIG, fetchFn);
+        await expect(transport.openVizUnderlyingData!(INTENT)).rejects.toThrow(
+            'Underlying data is not available for this visualization.',
         );
     });
 });

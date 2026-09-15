@@ -248,6 +248,14 @@ export type UnderlyingDataResult = {
 export const VIZ_UNDERLYING_DATA_PATH = '/__sdk/viz/underlying-data';
 
 /**
+ * Bridge-only virtual route for opening the host's underlying-data dialog.
+ * Separate from `VIZ_UNDERLYING_DATA_PATH` so deployed bundles can keep using
+ * the legacy fetch/download contract while current bundles delegate the UI to
+ * Lightdash.
+ */
+export const VIZ_UNDERLYING_DATA_OPEN_PATH = '/__sdk/viz/underlying-data/open';
+
+/**
  * Semantic click intent a viz sends to the host: the untransformed source row
  * (as received from `useVizContext().rows`) and the declared field NAME bound
  * to the clicked metric slot. The host resolves everything else.
@@ -376,6 +384,13 @@ export type Transport = {
         intent: Omit<VizUnderlyingDataIntent, 'limit'>,
         options?: DownloadResultsOptions,
     ) => Promise<DownloadResultsResult>;
+    /**
+     * Fire an underlying-data intent for a viz data point. One-way: the host
+     * opens its standard dialog and the resolved promise is only an ack.
+     */
+    openVizUnderlyingData?: (
+        intent: Omit<VizUnderlyingDataIntent, 'limit'>,
+    ) => Promise<void>;
     /**
      * Fire the drill-down intent for a viz data point via the host bridge.
      * One-way: the host opens its drill dialog; the resolved promise is only
