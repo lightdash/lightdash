@@ -1,4 +1,3 @@
-import { useUncontrolled } from '@mantine/hooks';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     elementRefKey,
@@ -51,13 +50,19 @@ export const useElementPicker = ({
     /** Receives each picked reference instead of the hook keeping `refs`. */
     onPick?: (ref: ElementRef) => void;
 }): UseElementPickerResult => {
-    const [enabled, setEnabled] = useUncontrolled({
-        value: enabledProp,
-        finalValue: false,
-        onChange: onEnabledChange,
-    });
+    const [uncontrolledEnabled, setUncontrolledEnabled] = useState(false);
+    const enabled = enabledProp ?? uncontrolledEnabled;
     const [available, setAvailable] = useState(false);
     const [refs, setRefs] = useState<ElementRef[]>([]);
+
+    const onEnabledChangeRef = useRef(onEnabledChange);
+    onEnabledChangeRef.current = onEnabledChange;
+    // Stable setter: hosts put `cancel` in effect deps, so a per-render
+    // identity (as Mantine's useUncontrolled returns) loops them.
+    const setEnabled = useCallback((next: boolean) => {
+        setUncontrolledEnabled(next);
+        onEnabledChangeRef.current?.(next);
+    }, []);
 
     const onEnabledRef = useRef(onEnabled);
     onEnabledRef.current = onEnabled;
@@ -104,6 +109,7 @@ export const useElementPicker = ({
         );
     }, []);
 
+    // Stable: `AppIframePreview` re-attaches its Esc listener when it changes.
     const cancel = useCallback(() => setEnabled(false), [setEnabled]);
     const clear = useCallback(() => setRefs([]), []);
 
