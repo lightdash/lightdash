@@ -167,6 +167,35 @@ describe('ProjectModel', () => {
         expect(result).toEqual(expectedTablesConfiguration);
         expect(tracker.history.select).toHaveLength(1);
     });
+    describe('getCachedExploreStorageBytes', () => {
+        test('sums pg_column_size across the matched rows', async () => {
+            tracker.on
+                .select(queryMatcher(CachedExploreTableName, [projectUuid]))
+                .response([{ totalBytes: '4096' }]);
+
+            await expect(
+                model.getCachedExploreStorageBytes(projectUuid),
+            ).resolves.toBe(4096);
+            expect(tracker.history.select).toHaveLength(1);
+        });
+        test('scopes to deduplicated explore names when provided', async () => {
+            tracker.on
+                .select(
+                    queryMatcher(CachedExploreTableName, [
+                        projectUuid,
+                        'orders',
+                    ]),
+                )
+                .response([{ totalBytes: '0' }]);
+
+            await expect(
+                model.getCachedExploreStorageBytes(projectUuid, [
+                    'orders',
+                    'orders',
+                ]),
+            ).resolves.toBe(0);
+        });
+    });
     describe('getExploreFromCache', () => {
         const createQualifiedExplore = (name: string) => ({
             ...exploreWithMetricFilters,

@@ -307,6 +307,11 @@ import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentSer
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { seedMissingTrainingCopyMetricsTrees } from '../../ee/services/ProjectService/seedPlaygroundMetricsTrees';
 import { errorHandler } from '../../errors';
+import {
+    newExploreCacheReadContext,
+    safeGetCachedExploreStorageBytes,
+    summarizeExploreCacheRead,
+} from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -9903,9 +9908,32 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const cachedExplores = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
+        const catalogReadContext = newExploreCacheReadContext(
+            'catalog',
+            undefined,
+        );
+        const { result: cachedExplores } = await measureTime(
+            async () => {
+                const [explores, storedExploreBytes] = await Promise.all([
+                    this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                    ),
+                    safeGetCachedExploreStorageBytes(() =>
+                        this.projectModel.getCachedExploreStorageBytes(
+                            projectUuid,
+                        ),
+                    ),
+                ]);
+                Object.assign(catalogReadContext, {
+                    ...summarizeExploreCacheRead(explores),
+                    storedExploreBytes,
+                });
+                return explores;
+            },
+            'ProjectService.getCatalog.cachedExploreRead',
+            this.logger,
+            catalogReadContext,
         );
         const explores = Object.values(cachedExplores);
 
@@ -11820,9 +11848,32 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const cachedExplores = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
+        const dbtExposuresReadContext = newExploreCacheReadContext(
+            'dbt-exposures',
+            undefined,
+        );
+        const { result: cachedExplores } = await measureTime(
+            async () => {
+                const [explores, storedExploreBytes] = await Promise.all([
+                    this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                    ),
+                    safeGetCachedExploreStorageBytes(() =>
+                        this.projectModel.getCachedExploreStorageBytes(
+                            projectUuid,
+                        ),
+                    ),
+                ]);
+                Object.assign(dbtExposuresReadContext, {
+                    ...summarizeExploreCacheRead(explores),
+                    storedExploreBytes,
+                });
+                return explores;
+            },
+            'ProjectService.getDbtExposures.cachedExploreRead',
+            this.logger,
+            dbtExposuresReadContext,
         );
         const allExplores = Object.values(cachedExplores);
 
