@@ -46,6 +46,7 @@ import {
     type AppVersionNarrationData,
 } from '../../apps/utils/versionNarration';
 import { useAppExternalConnections } from '../../externalConnections/hooks/useAppExternalConnections';
+import { ThemePicker } from '../../organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../../organizationDesigns/hooks/useOrganizationDesigns';
 import {
     type DataAppVizBuildState,
@@ -56,7 +57,6 @@ import classes from './BuilderPromptBar.module.css';
 import ChartTypeComposerActions, {
     type ComposerPanel,
 } from './ChartTypeComposerActions';
-import ChartTypeThemePicker from './ChartTypeThemePicker';
 import ClarifyingQuestions from './ClarifyingQuestions';
 
 type Props = {
@@ -664,10 +664,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 disabled={isComposerLocked}
                                 themeDisabled={themePickerDisabled}
                                 themeName={themeName}
-                                selectedThemeUuid={selectedThemeUuid}
-                                themes={themes}
                                 isNewChart={isNewChart}
-                                onThemeChange={handleThemeChange}
                                 onAttach={() => fileInputRef.current?.click()}
                                 selectedConnections={selectedConnections}
                                 onSelectConnection={(connection) =>
@@ -686,11 +683,32 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 role="group"
                                 aria-label="Selected chart context"
                             >
-                                <ChartTypeThemePicker
-                                    themeName={themeName}
-                                    pickerOpened={composerPanel !== null}
+                                <ThemePicker
+                                    compact
+                                    value={
+                                        isNewChart && !themesQuery.isSuccess
+                                            ? null
+                                            : selectedThemeUuid
+                                    }
+                                    fallbackLabel={
+                                        selectedThemeUuid !== null ||
+                                        !themesQuery.isSuccess
+                                            ? themeName
+                                            : undefined
+                                    }
                                     disabled={themePickerDisabled}
-                                    onClick={() => setComposerPanel('theme')}
+                                    opened={composerPanel === 'theme'}
+                                    onOpenedChange={(opened) =>
+                                        setComposerPanel(
+                                            opened ? 'theme' : null,
+                                        )
+                                    }
+                                    onChange={handleThemeChange}
+                                    selectionHint={
+                                        isNewChart
+                                            ? undefined
+                                            : 'Selecting a theme rebuilds this chart type.'
+                                    }
                                 />
                                 {themesQuery.isError && (
                                     <Button
@@ -776,8 +794,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     }
                     attachments={
                         attachments.attachments.length > 0 ||
-                        questions !== null ||
-                        (isBuilding && !isEmpty) ? (
+                        questions !== null ? (
                             <Stack gap="xs" pb="xs">
                                 <SelectedAttachmentSection
                                     attachments={attachments.attachments.map(
@@ -793,10 +810,6 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 {questions !== null ? (
                                     <Text size="xs" c="dimmed">
                                         Answer or skip first
-                                    </Text>
-                                ) : isBuilding && !isEmpty ? (
-                                    <Text size="xs" c="dimmed">
-                                        Enter to queue
                                     </Text>
                                 ) : null}
                             </Stack>
@@ -817,7 +830,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 visibleModels={modelSelection.visibleModels}
                                 codingAgent={modelSelection.codingAgent}
                             />
-                            {isBuilding && cancelActiveBuild ? (
+                            {isBuilding && isEmpty ? (
                                 <ComposerSubmitButton
                                     icon={IconPlayerStop}
                                     label={
@@ -827,20 +840,27 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     }
                                     size="sm"
                                     destructive
-                                    disabled={isCancelling}
+                                    disabled={
+                                        isCancelling || !cancelActiveBuild
+                                    }
                                     loading={isCancelling}
                                     onClick={handleCancelBuild}
                                 />
-                            ) : null}
-                            <ComposerSubmitButton
-                                icon={IconArrowUp}
-                                label={isBuilding ? 'Queue message' : 'Send'}
-                                size="sm"
-                                disabled={
-                                    isEmpty || !canSubmit || isComposerLocked
-                                }
-                                onClick={handleSubmit}
-                            />
+                            ) : (
+                                <ComposerSubmitButton
+                                    icon={IconArrowUp}
+                                    label={
+                                        isBuilding ? 'Queue message' : 'Send'
+                                    }
+                                    size="sm"
+                                    disabled={
+                                        isEmpty ||
+                                        !canSubmit ||
+                                        isComposerLocked
+                                    }
+                                    onClick={handleSubmit}
+                                />
+                            )}
                         </Group>
                     }
                 />

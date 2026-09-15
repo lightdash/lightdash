@@ -7,6 +7,7 @@ import {
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { forwardRef, useImperativeHandle, useRef, type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
@@ -232,23 +233,25 @@ const promptBar = ({
     narration?: { reasoning: string[]; activity: string[] };
     clarification?: ClarificationRound<VizBuildRequest>;
 } = {}) => (
-    <BuilderPromptBar
-        projectUuid="p1"
-        composerAppUuid="draft-1"
-        sessionKey="session-1"
-        hasVersions={hasVersions}
-        isNewChart={isNewChart}
-        latestVersion={latestVersion}
-        isBuilding={isBuilding}
-        buildingPrompt={isBuilding ? 'make it teal' : null}
-        elapsed={isBuilding ? '0:07' : null}
-        latestReadyVersion={latestReadyVersion}
-        build={build}
-        onCancelBuild={onCancelBuild}
-        narration={narration}
-        modelSelection={model}
-        clarification={clarification}
-    />
+    <MemoryRouter>
+        <BuilderPromptBar
+            projectUuid="p1"
+            composerAppUuid="draft-1"
+            sessionKey="session-1"
+            hasVersions={hasVersions}
+            isNewChart={isNewChart}
+            latestVersion={latestVersion}
+            isBuilding={isBuilding}
+            buildingPrompt={isBuilding ? 'make it teal' : null}
+            elapsed={isBuilding ? '0:07' : null}
+            latestReadyVersion={latestReadyVersion}
+            build={build}
+            onCancelBuild={onCancelBuild}
+            narration={narration}
+            modelSelection={model}
+            clarification={clarification}
+        />
+    </MemoryRouter>
 );
 
 describe('BuilderPromptBar', () => {
@@ -272,7 +275,7 @@ describe('BuilderPromptBar', () => {
             screen.queryByRole('button', { name: 'Back to composer options' }),
         ).not.toBeInTheDocument();
         await userEvent.click(
-            screen.getByRole('button', { name: 'Fake NVIDIA' }),
+            screen.getByRole('menuitem', { name: 'Fake NVIDIA' }),
         );
         expect(
             screen.getByRole('button', { name: 'Theme: Fake NVIDIA' }),
@@ -426,7 +429,7 @@ describe('BuilderPromptBar', () => {
             screen.getByRole('button', { name: 'Theme: Brand' }),
         );
         await userEvent.click(
-            screen.getByRole('button', { name: 'Fake NVIDIA' }),
+            screen.getByRole('menuitem', { name: 'Fake NVIDIA' }),
         );
         expect(send).not.toHaveBeenCalled();
         await userEvent.type(
@@ -450,9 +453,11 @@ describe('BuilderPromptBar', () => {
         await userEvent.click(
             screen.getByRole('button', { name: 'Theme: Brand' }),
         );
-        await userEvent.click(screen.getByRole('button', { name: 'No theme' }));
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: /^No theme/ }),
+        );
         expect(
-            screen.getByRole('button', { name: 'Theme: No theme' }),
+            screen.getByRole('button', { name: 'Apply theme' }),
         ).toBeInTheDocument();
         await userEvent.type(
             screen.getByPlaceholderText('Describe a new chart type…'),
@@ -480,7 +485,7 @@ describe('BuilderPromptBar', () => {
             screen.getByRole('button', { name: 'Theme: Brand' }),
         );
         await userEvent.click(
-            screen.getByRole('button', { name: 'Fake NVIDIA' }),
+            screen.getByRole('menuitem', { name: 'Fake NVIDIA' }),
         );
         expect(send).toHaveBeenCalledWith({
             description: 'Apply theme: Fake NVIDIA',
@@ -504,7 +509,7 @@ describe('BuilderPromptBar', () => {
             }),
         );
         expect(
-            screen.getByRole('button', { name: 'Theme: No theme' }),
+            screen.getByRole('button', { name: 'Apply theme' }),
         ).toBeInTheDocument();
         await userEvent.type(
             screen.getByPlaceholderText('Ask for a change…'),
@@ -525,7 +530,9 @@ describe('BuilderPromptBar', () => {
         await userEvent.click(
             screen.getByRole('button', { name: 'Theme: Brand' }),
         );
-        await userEvent.click(screen.getByRole('button', { name: 'No theme' }));
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: /^No theme/ }),
+        );
         expect(send).toHaveBeenCalledWith(
             expect.objectContaining({
                 description: 'Remove theme',
@@ -644,7 +651,7 @@ describe('BuilderPromptBar', () => {
             screen.getByRole('button', { name: 'Theme: Brand' }),
         );
         await userEvent.click(
-            screen.getByRole('button', { name: /Brand Default/ }),
+            screen.getByRole('menuitem', { name: /Brand Default/ }),
         );
         expect(send).not.toHaveBeenCalled();
     });
@@ -668,10 +675,10 @@ describe('BuilderPromptBar', () => {
             }),
         );
         expect(
-            screen.getByRole('button', { name: 'Fake NVIDIA' }),
+            screen.getByRole('menuitem', { name: 'Fake NVIDIA' }),
         ).toBeDisabled();
         await userEvent.click(
-            screen.getByRole('button', { name: 'Fake NVIDIA' }),
+            screen.getByRole('menuitem', { name: 'Fake NVIDIA' }),
         );
         expect(send).not.toHaveBeenCalled();
     });
@@ -881,6 +888,39 @@ describe('BuilderPromptBar', () => {
         );
     });
 
+    it('switches a single build action between stop and queue as the draft changes', async () => {
+        const cancel = vi.fn();
+        renderWithProviders(
+            promptBar({ isBuilding: true, onCancelBuild: cancel }),
+        );
+        const input = screen.getByPlaceholderText('Ask for another change…');
+        expect(
+            screen.getByRole('button', { name: 'Stop generation' }),
+        ).toBeEnabled();
+        expect(
+            screen.queryByRole('button', { name: 'Queue message' }),
+        ).not.toBeInTheDocument();
+        await userEvent.type(input, 'Make it green');
+        expect(
+            screen.queryByRole('button', { name: 'Stop generation' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Queue message' }),
+        ).toBeEnabled();
+        expect(screen.queryByText('Enter to queue')).not.toBeInTheDocument();
+        await userEvent.clear(input);
+        expect(
+            screen.getByRole('button', { name: 'Stop generation' }),
+        ).toBeEnabled();
+        expect(
+            screen.queryByRole('button', { name: 'Queue message' }),
+        ).not.toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Stop generation' }),
+        );
+        expect(cancel).toHaveBeenCalledOnce();
+    });
+
     it('preserves the existing first-build cancel behavior with queued prompts', async () => {
         const interrupt = vi.fn();
         const discard = vi.fn();
@@ -901,8 +941,8 @@ describe('BuilderPromptBar', () => {
         );
 
         expect(
-            screen.getByRole('button', { name: 'Stop generation' }),
-        ).toBeEnabled();
+            screen.queryByRole('button', { name: 'Stop generation' }),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Queue message' }),
         ).toBeEnabled();
@@ -910,6 +950,12 @@ describe('BuilderPromptBar', () => {
         await userEvent.click(
             screen.getByRole('button', { name: 'Queue message' }),
         );
+        expect(
+            screen.getByRole('button', { name: 'Stop generation' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Queue message' }),
+        ).not.toBeInTheDocument();
 
         await userEvent.click(screen.getByText('Cancel'));
 
