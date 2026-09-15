@@ -192,6 +192,7 @@ export const createTemporaryVirtualView = (
         getStringQuoteChar: () => "'",
         getEscapeStringQuoteChar: () => "''",
         getFieldQuoteChar: () => '"',
+        getUnnestSql: () => null,
         getFloatingType: () => 'FLOAT',
         getNullSafeEqualSql: defaultNullSafeEqualSql,
         getNullSafeEqualJoinSql: defaultNullSafeEqualSql,

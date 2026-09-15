@@ -39,6 +39,35 @@ afterAll(async () => {
 });
 
 describe('cleanupInvalidMigrationIndexes', () => {
+    test('discovers the content recency indexes from their pending migration files', async () => {
+        const names = [
+            'analytics_chart_views_chart_uuid_timestamp_index',
+            'analytics_dashboard_views_dashboard_uuid_timestamp_index',
+        ];
+        tracker.on.any(/FROM pg_index/).response({
+            rows: names.map((name) => ({ name })),
+        });
+        tracker.on.any(/^DROP INDEX/).response({});
+
+        await cleanupInvalidMigrationIndexes({
+            database,
+            migrationConfig: {
+                directory: path.resolve(__dirname, '../../database/migrations'),
+                loadExtensions: ['.ts'],
+            },
+            pendingMigrationNames: [
+                '20260914120000_index_analytics_chart_views_content_timestamp.ts',
+                '20260914120100_index_analytics_dashboard_views_content_timestamp.ts',
+            ],
+            log: vi.fn(),
+        });
+
+        expect(tracker.history.all[0].bindings).toEqual(names);
+        expect(tracker.history.all.slice(1).map(({ sql }) => sql)).toEqual(
+            names.map((name) => `DROP INDEX CONCURRENTLY IF EXISTS "${name}"`),
+        );
+    });
+
     test('drops deduplicated invalid indexes declared by pending migrations', async () => {
         await Promise.all([
             fs.writeFile(

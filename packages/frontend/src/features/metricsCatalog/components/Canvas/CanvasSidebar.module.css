@@ -24,6 +24,12 @@
     background-color: var(--mantine-color-ldGray-1);
 }
 
-.resizeHandle[data-resize-handle-state='drag'] {
+.resizeHandle[data-active] {
     background-color: var(--mantine-color-ldGray-2);
+}
+
+@media (width < $mantine-breakpoint-md) {
+    .resizeHandle {
+        display: none;
+    }
 }

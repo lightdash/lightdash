@@ -380,6 +380,25 @@ describe('DataAppVizConfigTabs', () => {
         ]);
     });
 
+    it('explains a removed chart type instead of empty settings', () => {
+        // The schema fetch 404s once the type is uninstalled/deleted; the
+        // panel must not read that as a type with no fields.
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+            error: { error: { statusCode: 404 } },
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            screen.getByText(
+                'This chart type has been removed. Pick another chart type above.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('This chart type has no fields to map.'),
+        ).not.toBeInTheDocument();
+    });
+
     it('stays quiet about a slot the user can still fill by hand', () => {
         vi.mocked(useDataAppVisualization).mockReturnValue({
             data: {

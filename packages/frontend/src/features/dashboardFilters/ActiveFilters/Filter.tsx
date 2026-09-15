@@ -1,7 +1,6 @@
 import {
     applyDefaultTileTargets,
     DimensionType,
-    FeatureFlags,
     getFilterTypeFromItemType,
     isEmptyDashboardFilterRule,
     isFilterLockedOnTab,
@@ -36,7 +35,6 @@ import {
 } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -89,11 +87,6 @@ const Filter: FC<Props> = ({
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
-    const { data: lockDashboardFiltersFlag } = useServerFeatureFlag(
-        FeatureFlags.LockDashboardFilters,
-    );
-    const isLockFilterEnabled =
-        lockDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
     const isLocked = isFilterLockedOnTab(filterRule, activeTabUuid, hasTabs);
     const { track } = useTracking();
     const handleLockToggle = useCallback(
@@ -346,8 +339,7 @@ const Filter: FC<Props> = ({
                             }
                             rightSection={
                                 <Group gap={2} wrap="nowrap">
-                                    {isLockFilterEnabled &&
-                                        isEditMode &&
+                                    {isEditMode &&
                                         !isTemporary &&
                                         (hasTabs
                                             ? activeTabUuid

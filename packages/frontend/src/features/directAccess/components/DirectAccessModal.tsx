@@ -26,14 +26,13 @@ import {
     getInitials,
     getUserNameOrEmail,
 } from '../../../components/common/ShareSpaceModal/Utils';
-import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import useApp from '../../../providers/App/useApp';
-import { useProjectGroupAccessList } from '../../projectGroupAccess/hooks/useProjectGroupAccess';
 import { type DirectAccessResourceRef } from '../api';
 import {
     useDirectAccessAssignments,
     useDirectAccessAvailability,
+    useDirectAccessGroups,
     useResetDirectAccess,
     useRevokeDirectAccessAssignment,
     useUpsertDirectAccessAssignment,
@@ -168,6 +167,7 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
 
 type AddDirectAccessProps = {
     projectUuid: string;
+    resource: DirectAccessResourceRef;
     assignedKeys: Set<string>;
     isMutating: boolean;
     onAdd: (
@@ -179,6 +179,7 @@ type AddDirectAccessProps = {
 
 const AddDirectAccess: FC<AddDirectAccessProps> = ({
     projectUuid,
+    resource,
     assignedKeys,
     isMutating,
     onAdd,
@@ -190,16 +191,9 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
         SpaceMemberRole.VIEWER,
     );
     const organizationUsers = useOrganizationUsers({ projectUuid });
-    const groupAccess = useProjectGroupAccessList(projectUuid);
-    const organizationGroups = useOrganizationGroups({});
+    const groups = useDirectAccessGroups(projectUuid, resource);
 
     const options = useMemo(() => {
-        const groupNamesByUuid = new Map(
-            (organizationGroups.data ?? []).map((group) => [
-                group.uuid,
-                group.name,
-            ]),
-        );
         const userOptions = (organizationUsers.data ?? [])
             .map((member) => ({
                 value: `${DirectAccessPrincipalType.USER}:${member.userUuid}`,
@@ -213,22 +207,17 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
                     ) ?? member.email,
             }))
             .filter((option) => !assignedKeys.has(option.value));
-        const groupOptions = (groupAccess.data ?? [])
-            .map((access) => ({
-                value: `${DirectAccessPrincipalType.GROUP}:${access.groupUuid}`,
-                label: groupNamesByUuid.get(access.groupUuid) ?? 'Group',
+        const groupOptions = (groups.data ?? [])
+            .map((group) => ({
+                value: `${DirectAccessPrincipalType.GROUP}:${group.groupUuid}`,
+                label: group.name,
             }))
             .filter((option) => !assignedKeys.has(option.value));
         return [
             { group: 'Users', items: userOptions },
             { group: 'Groups', items: groupOptions },
         ].filter((section) => section.items.length > 0);
-    }, [
-        organizationUsers.data,
-        groupAccess.data,
-        organizationGroups.data,
-        assignedKeys,
-    ]);
+    }, [organizationUsers.data, groups.data, assignedKeys]);
 
     const handleAdd = () => {
         if (!selectedPrincipal) return;
@@ -250,6 +239,11 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
                 clearable
                 aria-label="Select a user or group to share with"
                 nothingFoundMessage="No matching users or groups"
+                error={
+                    groups.isError
+                        ? 'Unable to load groups. Close and reopen this dialog to retry.'
+                        : undefined
+                }
                 data={options}
                 value={selectedPrincipal}
                 disabled={isMutating}
@@ -417,6 +411,7 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                     {canManageAssignments && (
                         <AddDirectAccess
                             projectUuid={projectUuid}
+                            resource={ref}
                             assignedKeys={assignedKeys}
                             isMutating={isMutating}
                             onAdd={(principalType, uuid, role) =>

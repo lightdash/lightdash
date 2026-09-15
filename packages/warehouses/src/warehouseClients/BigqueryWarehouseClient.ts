@@ -22,6 +22,7 @@ import {
     BigqueryTokenError,
     CreateBigqueryCredentials,
     DimensionType,
+    getBigqueryUnnestSql,
     getErrorMessage,
     getWarehouseTableType,
     Metric,
@@ -34,6 +35,8 @@ import {
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
+    UnnestSql,
+    UnnestSqlArgs,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -385,6 +388,10 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
             return `ARRAY_AGG(${expression} ORDER BY ${orderBy})`;
         }
         return `ARRAY_AGG(${expression})`;
+    }
+
+    getUnnestSql(args: UnnestSqlArgs): UnnestSql {
+        return getBigqueryUnnestSql(args);
     }
 }
 

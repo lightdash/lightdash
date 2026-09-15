@@ -2,8 +2,8 @@ import { Box, LoadingOverlay, Text } from '@mantine/core';
 import { useTimeout } from '@mantine/hooks';
 import { IconGripHorizontal } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
+import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import { useAppSelector } from '../store/hooks';
 import styles from './ResizeHandle.module.css';
 import { TableFields } from './TableFields';
@@ -40,7 +40,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
     }, [isLoading, start, clear]);
 
     return (
-        <Box pos="relative" flex={1}>
+        <Box pos="relative" flex={1} mih={0}>
             <LoadingOverlay visible={isLoading} />
 
             {error && (
@@ -54,10 +54,22 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
             )}
 
             {!isLoading && !error && (
-                <PanelGroup direction="vertical">
-                    <Panel
+                <ResizableSplitter
+                    orientation="vertical"
+                    withHandle
+                    lineSize={6}
+                    handleColor="ldGray.1"
+                    handleIcon={
+                        <MantineIcon
+                            color="gray"
+                            icon={IconGripHorizontal}
+                            size={8}
+                        />
+                    }
+                    classNames={{ handle: styles.resizeHandle }}
+                >
+                    <ResizableSplitter.Pane
                         id="sql-runner-tables"
-                        order={1}
                         defaultSize={initialPanelSizes[0]}
                         style={{
                             display: 'flex',
@@ -65,36 +77,21 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
                         }}
                     >
                         <Tables />
-                    </Panel>
+                    </ResizableSplitter.Pane>
 
                     {activeTable && (
-                        <>
-                            <Box
-                                component={PanelResizeHandle}
-                                bg="ldGray.1"
-                                h={6}
-                                className={styles.resizeHandle}
-                            >
-                                <MantineIcon
-                                    color="gray"
-                                    icon={IconGripHorizontal}
-                                    size={8}
-                                />
-                            </Box>
-                            <Panel
-                                id="sql-runner-table-fields"
-                                order={2}
-                                defaultSize={initialPanelSizes[1]}
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                }}
-                            >
-                                <TableFields />
-                            </Panel>
-                        </>
+                        <ResizableSplitter.Pane
+                            id="sql-runner-table-fields"
+                            defaultSize={initialPanelSizes[1]}
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                            }}
+                        >
+                            <TableFields />
+                        </ResizableSplitter.Pane>
                     )}
-                </PanelGroup>
+                </ResizableSplitter>
             )}
         </Box>
     );

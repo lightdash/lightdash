@@ -96,11 +96,11 @@ export const ConfigTabs: FC = memo(() => {
     const schemaVersion = isAuthoringSelectedType
         ? authoring.viewedVersion
         : selectedVersion;
-    const { data: dataAppViz } = useDataAppVisualization(
-        projectUuid,
-        dataAppVizUuid,
-        schemaVersion,
-    );
+    const { data: dataAppViz, error: dataAppVizError } =
+        useDataAppVisualization(projectUuid, dataAppVizUuid, schemaVersion);
+    // The selected type was uninstalled or deleted; showing its (empty)
+    // settings would read as "no fields to map", which is not what happened.
+    const selectedTypeRemoved = dataAppVizError?.error.statusCode === 404;
     // Legacy unpinned charts follow latest already, and a type being authored
     // in place is moving under the chart anyway.
     const { data: latestRenderMetadata } = useDataAppVizRenderMetadata(
@@ -328,7 +328,7 @@ export const ConfigTabs: FC = memo(() => {
                             setPivotDimensions(undefined);
                         }}
                         onCreateNew={
-                            canCreateApp
+                            canCreateApp && dataAppsEnabled
                                 ? () =>
                                       void navigate({
                                           pathname: chartTypeBuilderPath(
@@ -346,7 +346,16 @@ export const ConfigTabs: FC = memo(() => {
 
                 {/* With nothing selected the tabs would only be an empty row. */}
                 {selected !== null ? (
-                    selectedTypeTabs(selected)
+                    selectedTypeRemoved ? (
+                        <Callout variant="warning" hideIcon p="xs">
+                            <Text fz="xs">
+                                This chart type has been removed. Pick another
+                                chart type above.
+                            </Text>
+                        </Callout>
+                    ) : (
+                        selectedTypeTabs(selected)
+                    )
                 ) : isAuthoring ? (
                     <Text size="xs" c="dimmed">
                         Describe the chart type you need. Its bindings and
@@ -355,7 +364,7 @@ export const ConfigTabs: FC = memo(() => {
                 ) : (
                     <Text size="xs" c="dimmed">
                         Pick a chart type above
-                        {canCreateApp ? (
+                        {canCreateApp && dataAppsEnabled ? (
                             <>
                                 , or create a new one in the{' '}
                                 {isInsideChartGallery && dataAppsEnabled ? (

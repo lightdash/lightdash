@@ -116,6 +116,7 @@ const buildService = ({
         findResourceLocation: vi.fn().mockResolvedValue(location ?? undefined),
         findCandidateResourceUuidsForUser: vi.fn().mockResolvedValue([]),
         listAssignments: vi.fn().mockResolvedValue([]),
+        listGroups: vi.fn().mockResolvedValue([]),
         upsertAccess: vi.fn().mockResolvedValue({
             organizationId: 1,
             organizationUuid: ORGANIZATION_UUID,
@@ -859,5 +860,76 @@ describe('DirectAccessService.findSharedWithMeAccess', () => {
         await expect(
             service.findSharedWithMeAccess(requester, [PROJECT_UUID]),
         ).rejects.toThrow('Database unavailable');
+    });
+});
+
+describe('DirectAccessService.listGroups', () => {
+    it.each(Object.values(DirectAccessResourceType))(
+        'allows a content admin without project administration to discover named groups for %s',
+        async (resourceType) => {
+            const { service, directAccessModel } = buildService({
+                context: spaceContext([
+                    { userUuid: USER_UUID, role: SpaceMemberRole.ADMIN },
+                ]),
+            });
+            const account = buildAccount(
+                OrganizationMemberRole.INTERACTIVE_VIEWER,
+            );
+            const groups = [
+                {
+                    type: DirectAccessPrincipalType.GROUP,
+                    groupUuid: 'group-uuid',
+                    name: 'Analysts',
+                },
+            ];
+            directAccessModel.listGroups.mockResolvedValue(groups);
+            await expect(
+                service.listGroups(
+                    account,
+                    PROJECT_UUID,
+                    resourceType,
+                    DASHBOARD_UUID,
+                ),
+            ).resolves.toEqual(groups);
+            expect(directAccessModel.listGroups).toHaveBeenCalledWith({
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+            });
+        },
+    );
+
+    it.each([SpaceMemberRole.VIEWER, SpaceMemberRole.EDITOR])(
+        'denies a content %s',
+        async (role) => {
+            const { service, directAccessModel } = buildService({
+                context: spaceContext([{ userUuid: USER_UUID, role }]),
+            });
+            await expect(
+                service.listGroups(
+                    buildAccount(OrganizationMemberRole.INTERACTIVE_VIEWER),
+                    PROJECT_UUID,
+                    DirectAccessResourceType.DASHBOARD,
+                    DASHBOARD_UUID,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(directAccessModel.listGroups).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        { enabled: false },
+        { location: null },
+        { location: { ...dashboardLocation, projectUuid: 'other-project' } },
+    ])('rejects unavailable groups before querying: %j', async (options) => {
+        const { service, directAccessModel } = buildService(options);
+        await expect(
+            service.listGroups(
+                buildAccount(OrganizationMemberRole.ADMIN),
+                PROJECT_UUID,
+                DirectAccessResourceType.DASHBOARD,
+                DASHBOARD_UUID,
+            ),
+        ).rejects.toThrow();
+        expect(directAccessModel.listGroups).not.toHaveBeenCalled();
     });
 });

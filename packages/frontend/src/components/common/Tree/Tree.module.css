@@ -4,16 +4,13 @@
     content-visibility: auto;
     contain-intrinsic-size: auto 32px;
 
-    &::before {
-        position: absolute;
-        z-index: 1;
-        left: calc(var(--label-offset) - 10.5px);
-        top: 0;
-        content: '';
-        width: 1px;
-        height: 100%;
-        background-color: var(--mantine-color-ldGray-1);
+    &:not([data-level='1'])::before {
+        top: 16px;
     }
+}
+
+.subtree > .node:last-child::after {
+    height: 16px;
 }
 
 .label {

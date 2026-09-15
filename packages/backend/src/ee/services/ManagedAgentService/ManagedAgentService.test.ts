@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
     AnyType,
+    ConflictError,
+    ManagedAgentRunStatus,
     ProjectMemberRole,
     ServiceAccountScope,
     type PossibleAbilities,
@@ -65,6 +67,8 @@ const buildService = ({
 } = {}) => {
     const managedAgentModel = {
         getSettings: vi.fn().mockResolvedValue(settings),
+        getLatestRun: vi.fn().mockResolvedValue(null),
+        createRunIfIdle: vi.fn().mockResolvedValue(null),
         upsertSettings: vi.fn().mockResolvedValue(settings),
         getServiceAccountToken: vi
             .fn()
@@ -105,6 +109,7 @@ const buildService = ({
     };
     const schedulerClient = {
         scheduleManagedAgentHeartbeat: vi.fn().mockResolvedValue(undefined),
+        triggerManagedAgentHeartbeat: vi.fn().mockResolvedValue(undefined),
     };
 
     const managedAgentClient = {
@@ -143,10 +148,58 @@ const buildService = ({
         managedAgentClient,
         managedAgentModel,
         projectModel,
+        schedulerClient,
         service,
         serviceAccountModel,
     };
 };
+
+const startedRun = {
+    runUuid: 'run-uuid',
+    projectUuid: PROJECT_UUID,
+    triggeredBy: 'cron',
+    status: ManagedAgentRunStatus.STARTED,
+};
+
+describe('ManagedAgentService run locking', () => {
+    it('starts a run only when the project has no live run', async () => {
+        const { managedAgentModel, service } = buildService();
+        managedAgentModel.createRunIfIdle.mockResolvedValueOnce(startedRun);
+
+        await expect(service.startRun(PROJECT_UUID, 'cron')).resolves.toBe(
+            startedRun,
+        );
+        await expect(service.startRun(PROJECT_UUID, 'manual')).rejects.toThrow(
+            ConflictError,
+        );
+    });
+
+    it('refuses run now while a run is live and does not enqueue a job', async () => {
+        const { managedAgentModel, schedulerClient, service } = buildService();
+        managedAgentModel.getLatestRun.mockResolvedValue(startedRun);
+
+        await expect(
+            service.startHeartbeat(user, PROJECT_UUID),
+        ).rejects.toThrow(ConflictError);
+        expect(
+            schedulerClient.triggerManagedAgentHeartbeat,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('enqueues run now once the latest run has finished', async () => {
+        const { managedAgentModel, schedulerClient, service } = buildService();
+        managedAgentModel.getLatestRun.mockResolvedValue({
+            ...startedRun,
+            status: ManagedAgentRunStatus.ERROR,
+        });
+
+        await service.startHeartbeat(user, PROJECT_UUID);
+
+        expect(
+            schedulerClient.triggerManagedAgentHeartbeat,
+        ).toHaveBeenCalledWith(PROJECT_UUID, 'manual');
+    });
+});
 
 describe('ManagedAgentService.updateSettings', () => {
     it('creates a project-scoped service account for MCP authentication', async () => {

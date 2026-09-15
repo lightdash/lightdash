@@ -1,5 +1,12 @@
 import type { CatalogMetricsTreeEdge } from '@lightdash/common';
-import { Box, Group, Stack, Button, useMantineTheme } from '@mantine/core';
+import {
+    Box,
+    Group,
+    Stack,
+    Button,
+    useMantineTheme,
+    useMatches,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconLayoutGridRemove } from '@tabler/icons-react';
 import {
@@ -13,13 +20,14 @@ import {
 } from '@xyflow/react';
 import { useMemo, type FC } from 'react';
 import '@xyflow/react/dist/style.css';
-import { Panel, PanelGroup } from 'react-resizable-panels';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import ResizableSplitter from '../../../../components/common/ResizableSplitter';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { CanvasTimeFramePicker } from '../visualization/CanvasTimeFramePicker';
 import styles from './Canvas.module.css';
 import { CanvasConnectionModal } from './CanvasConnectionModal';
 import { type CanvasMetric } from './canvasLayoutUtils';
+import sidebarStyles from './CanvasSidebar.module.css';
 import {
     CanvasYamlDriversContext,
     type CanvasYamlDriversContextValue,
@@ -63,6 +71,10 @@ const SavedTreeCanvasFlow: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
     const getUiString = useUiStrings();
+    const compact = useMatches(
+        { base: true, md: false },
+        { getInitialValueInEffect: false },
+    );
     const { deleteElements } = useReactFlow();
     const [metricsOpened, { open: openMetrics, close: closeMetrics }] =
         useDisclosure(false);
@@ -144,32 +156,47 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                         </Group>
                     )}
                 </Group>
-                <PanelGroup
-                    direction="horizontal"
+                <ResizableSplitter
+                    orientation="horizontal"
+                    withHandle
+                    lineSize={compact ? 0 : 2}
+                    resizable={!compact}
+                    sizes={compact && !viewOnly ? [0, 100] : undefined}
+                    classNames={{ handle: sidebarStyles.resizeHandle }}
                     style={{ flex: 1, minHeight: 0 }}
                 >
                     {!viewOnly && (
-                        <MetricsSidebar
-                            opened={metricsOpened}
-                            onClose={closeMetrics}
-                            nodes={flow.sidebarNodes}
-                            onAddMetric={(node) =>
-                                flow.addMetricsToCanvas([
-                                    {
-                                        catalogSearchUuid: node.id,
-                                        name: node.data.metricName,
-                                        label: node.data.label,
-                                        tableName: node.data.tableName,
-                                    },
-                                ])
-                            }
-                            yamlDriversByTarget={yamlDriversByTarget}
-                            hasMore={hasMoreMetrics}
-                            isLoadingMore={isLoadingMoreMetrics}
-                            onLoadMore={onLoadMoreMetrics}
-                        />
+                        <ResizableSplitter.Pane
+                            id="metrics-sidebar"
+                            defaultSize={20}
+                            min={compact ? 0 : 15}
+                            max={40}
+                        >
+                            <MetricsSidebar
+                                opened={metricsOpened}
+                                onClose={closeMetrics}
+                                nodes={flow.sidebarNodes}
+                                onAddMetric={(node) =>
+                                    flow.addMetricsToCanvas([
+                                        {
+                                            catalogSearchUuid: node.id,
+                                            name: node.data.metricName,
+                                            label: node.data.label,
+                                            tableName: node.data.tableName,
+                                        },
+                                    ])
+                                }
+                                yamlDriversByTarget={yamlDriversByTarget}
+                                hasMore={hasMoreMetrics}
+                                isLoadingMore={isLoadingMoreMetrics}
+                                onLoadMore={onLoadMoreMetrics}
+                            />
+                        </ResizableSplitter.Pane>
                     )}
-                    <Panel id="metrics-canvas" order={2}>
+                    <ResizableSplitter.Pane
+                        id="metrics-canvas"
+                        defaultSize={80}
+                    >
                         <Stack h="100%" gap={0}>
                             <Box style={{ flex: 1, minHeight: 0 }}>
                                 <ReactFlow
@@ -266,8 +293,8 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                                 />
                             </Group>
                         </Stack>
-                    </Panel>
-                </PanelGroup>
+                    </ResizableSplitter.Pane>
+                </ResizableSplitter>
             </Stack>
         </CanvasYamlDriversContext.Provider>
     );

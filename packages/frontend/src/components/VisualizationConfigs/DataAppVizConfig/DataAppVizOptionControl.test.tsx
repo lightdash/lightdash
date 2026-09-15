@@ -1,7 +1,8 @@
 import { type DataAppVizConfigOption } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { installFakeTimerBridge } from '../../../testing/fakeTimerBridge';
 import { renderWithProviders } from '../../../testing/testUtils';
 import DataAppVizOptionControl from './DataAppVizOptionControl';
 
@@ -13,6 +14,16 @@ const textOption: DataAppVizConfigOption = {
 };
 
 describe('DataAppVizOptionControl', () => {
+    let removeFakeTimerBridge: () => void;
+
+    beforeAll(() => {
+        removeFakeTimerBridge = installFakeTimerBridge();
+    });
+
+    afterAll(() => {
+        removeFakeTimerBridge();
+    });
+
     it('debounces text edits rather than pushing every keystroke', async () => {
         vi.useFakeTimers();
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

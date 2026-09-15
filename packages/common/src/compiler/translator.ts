@@ -56,6 +56,7 @@ import { OrderFieldsByStrategy, type FieldGroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import {
     getCatalogNestedColumnShape,
+    getCatalogNestedColumnsUnavailableReason,
     getCatalogTimestampDomain,
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
     type WarehouseCatalog,
@@ -804,7 +805,12 @@ export const convertTable = (
                                     startOfWeek,
                                     'isAdditionalDimension' in dim &&
                                         dim.isAdditionalDimension,
-                                    disableTimestampConversion,
+                                    // Additional-dim children derive from the
+                                    // parent's compiled sql, which already
+                                    // carries the timestamp conversion.
+                                    dim.isAdditionalDimension
+                                        ? true
+                                        : disableTimestampConversion,
                                     undefined,
                                     granularityLabels,
                                 ),
@@ -1043,6 +1049,13 @@ export const convertTable = (
         tableWarnings.push(...warnings);
     }
 
+    if (model.nested_columns_unavailable) {
+        tableWarnings.push({
+            type: InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+            message: `Nested columns in model "${model.name}" compile as plain columns: ${model.nested_columns_unavailable}`,
+        });
+    }
+
     const sqlTable = meta.sql_from || model.relation_name;
     if (sqlTable === null || sqlTable === undefined || sqlTable === '') {
         throw new Error(`Model "${model.name}" is missing a table reference.`);
@@ -1170,29 +1183,6 @@ export type ExplorePostProcessor = (
 export const getNestedTableName = (modelName: string, columnPath: string) =>
     `${modelName}__${columnPath.split('.').join('__')}`;
 
-const getOffsetColumnSql = (quoteChar: string, tableName: string) =>
-    `${quoteChar}${tableName}__offset${quoteChar}`;
-
-// The full FROM item, alias included, because the offset alias has to follow
-// the table alias and the join renderer only appends an ON clause.
-const getUnnestFromSql = (
-    adapterType: SupportedDbtAdapter,
-    quoteChar: string,
-    parentTable: string,
-    columnSegment: string,
-    tableName: string,
-): string => {
-    const q = quoteChar;
-    switch (adapterType) {
-        case SupportedDbtAdapter.BIGQUERY:
-            return `UNNEST(${q}${parentTable}${q}.${columnSegment}) AS ${q}${tableName}${q} WITH OFFSET AS ${q}${tableName}__offset${q}`;
-        default:
-            throw new NotSupportedError(
-                `Repeated column "${columnSegment}" can't be unnested on ${adapterType}. Unnesting repeated columns is only supported on BigQuery.`,
-            );
-    }
-};
-
 type NestedTableTemplate = {
     nodePath: string;
     segment: string;
@@ -1312,13 +1302,13 @@ export const getNestedTableTemplates = (
 
 type InstantiateNestedTablesArgs = {
     adapterType: SupportedDbtAdapter;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     model: DbtModelNode;
     templates: NestedTableTemplate[];
     /** Name the parent model has in the explore: its own name or its join alias. */
     parentAlias: string;
     parentLabel: string;
     reservedTableNames: Set<string>;
-    fieldQuoteChar: string;
     spotlightConfig: LightdashProjectConfig['spotlight'];
     startOfWeek?: WeekDay | null;
     disableTimestampConversion?: boolean;
@@ -1331,18 +1321,18 @@ type InstantiateNestedTablesArgs = {
 /**
  * Turns a model's templates into virtual tables for one parent alias. Each is
  * a synthetic model run through convertTable, so leaves keep every column
- * feature; its FROM item is the UNNEST of the parent's column and it is
- * joined ON TRUE as one-to-many. Field ids follow the alias, exactly as an
+ * feature; its FROM item is the warehouse's unnest of the parent's column and
+ * it is joined as one-to-many. Field ids follow the alias, exactly as an
  * aliased join renames its own fields.
  */
 export const instantiateNestedTables = ({
     adapterType,
+    warehouseSqlBuilder,
     model,
     templates,
     parentAlias,
     parentLabel,
     reservedTableNames,
-    fieldQuoteChar,
     spotlightConfig,
     startOfWeek,
     disableTimestampConversion,
@@ -1354,7 +1344,11 @@ export const instantiateNestedTables = ({
     tables: Omit<Table, 'lineageGraph'>[];
     joins: NonNullable<DbtModelNode['meta']['joins']>;
 } => {
+    const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     const labelsByPath = new Map<string, string>();
+    // A chained unnest explodes a column of the parent element, so it has to
+    // reference the parent the way that warehouse addresses elements.
+    const elementSqlByPath = new Map<string, string>();
     return templates.reduce<{
         tables: Omit<Table, 'lineageGraph'>[];
         joins: NonNullable<DbtModelNode['meta']['joins']>;
@@ -1378,6 +1372,20 @@ export const instantiateNestedTables = ({
                 ].join(': ');
             labelsByPath.set(nodePath, label);
 
+            const unnest = warehouseSqlBuilder.getUnnestSql({
+                parentElementSql:
+                    elementSqlByPath.get(parentPath) ??
+                    `${fieldQuoteChar}${parentTable}${fieldQuoteChar}`,
+                columnSegment: segment,
+                alias: tableName,
+            });
+            if (unnest === null) {
+                throw new NotSupportedError(
+                    `Repeated column "${nodePath}" in model "${model.name}" can't be unnested: ${adapterType} doesn't support unnesting repeated columns yet.`,
+                );
+            }
+            elementSqlByPath.set(nodePath, unnest.elementSql);
+
             const offsetColumn: DbtModelColumn = {
                 name: 'offset',
                 description: `Position of the element within ${nodePath}, starting at 0`,
@@ -1385,7 +1393,7 @@ export const instantiateNestedTables = ({
                 meta: {
                     dimension: {
                         type: DimensionType.NUMBER,
-                        sql: getOffsetColumnSql(fieldQuoteChar, tableName),
+                        sql: unnest.offsetSql,
                     },
                 },
             };
@@ -1397,13 +1405,7 @@ export const instantiateNestedTables = ({
                 description:
                     template.description ??
                     `Elements of ${nodePath} in ${parentAlias}`,
-                relation_name: getUnnestFromSql(
-                    adapterType,
-                    fieldQuoteChar,
-                    parentTable,
-                    segment,
-                    tableName,
-                ),
+                relation_name: unnest.fromSql,
                 columns: Object.fromEntries(
                     [...template.columns, offsetColumn].map((column) => [
                         column.name,
@@ -1426,7 +1428,13 @@ export const instantiateNestedTables = ({
                     granularityLabels,
                     true,
                 ),
-                nestedFrom: { parentTable, columnPath: nodePath },
+                nestedFrom: {
+                    parentTable,
+                    columnPath: nodePath,
+                    elementSql: unnest.elementSql,
+                    offsetSql: unnest.offsetSql,
+                    joinCondition: unnest.joinCondition,
+                },
             };
             return {
                 tables: [...acc.tables, table],
@@ -1682,6 +1690,7 @@ export async function* iterateExplores(
             if (!entry) return [];
             const nested = instantiateNestedTables({
                 adapterType,
+                warehouseSqlBuilder,
                 model: entry.model,
                 templates: entry.templates,
                 parentAlias,
@@ -1690,7 +1699,6 @@ export async function* iterateExplores(
                     exploreTables[modelName]?.label ??
                     friendlyName(parentAlias),
                 reservedTableNames,
-                fieldQuoteChar: warehouseSqlBuilder.getFieldQuoteChar(),
                 spotlightConfig: lightdashProjectConfig.spotlight,
                 startOfWeek: warehouseSqlBuilder.getStartOfWeek(),
                 disableTimestampConversion,
@@ -2199,9 +2207,36 @@ export const attachTypesToModels = (
         return undefined;
     };
 
+    const getNestedColumnsUnavailableReason = (
+        model: DbtModelNode,
+    ): string | undefined => {
+        if (!Object.keys(model.columns).some((name) => name.includes('.'))) {
+            return undefined;
+        }
+        const hit = lookup(
+            model.database,
+            model.schema,
+            model.alias || model.name,
+        );
+        return hit
+            ? getCatalogNestedColumnsUnavailableReason(
+                  warehouseCatalog,
+                  hit.location.database,
+                  hit.location.schema,
+                  hit.location.table,
+              )
+            : undefined;
+    };
+
     // Update the dbt models with type info
     const typedModels = models.map((model) => ({
         ...model,
+        ...(getNestedColumnsUnavailableReason(model)
+            ? {
+                  nested_columns_unavailable:
+                      getNestedColumnsUnavailableReason(model),
+              }
+            : {}),
         columns: Object.fromEntries(
             Object.entries(model.columns).map(([column_name, column]) => {
                 columnCount += 1;

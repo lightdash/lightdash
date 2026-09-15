@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
+import SaveChartSuggestions from '../../../../ee/features/contentReview/components/SaveChartSuggestions';
 import {
     appendNewTilesToBottom,
     useDashboardQuery,
@@ -210,6 +211,15 @@ export const SaveToDashboard: FC<Props> = ({
                         autosize
                         maxRows={3}
                         {...form.getInputProps('description')}
+                    />
+                    <SaveChartSuggestions
+                        chart={{
+                            metricQuery: savedData.metricQuery,
+                            parameters: savedData.parameters,
+                            merge: savedData.merge,
+                        }}
+                        projectUuid={projectUuid ?? null}
+                        name={form.values.name ?? ''}
                     />
                 </Stack>
                 <Stack gap={4}>

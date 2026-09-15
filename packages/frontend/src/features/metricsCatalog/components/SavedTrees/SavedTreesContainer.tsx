@@ -1,19 +1,24 @@
-import { Button } from '@mantine/core';
+import { Button, useMatches } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useEffect, type FC } from 'react';
-import { Panel, PanelGroup } from 'react-resizable-panels';
 import { useParams } from 'react-router';
+import ResizableSplitter from '../../../../components/common/ResizableSplitter';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useMetricsTreeDetails } from '../../hooks/useSavedMetricsTrees';
 import { setActiveTreeUuid } from '../../store/metricsCatalogSlice';
+import sidebarStyles from '../Canvas/CanvasSidebar.module.css';
 import { CanvasViewport } from '../Canvas/CanvasViewport';
 import SavedTreeCanvas from './SavedTreeCanvas';
 import TreeListSidebar from './TreeListSidebar';
 
 const SavedTreesContainer: FC = () => {
     const getUiString = useUiStrings();
+    const compact = useMatches(
+        { base: true, md: false },
+        { getInitialValueInEffect: false },
+    );
     const [treesOpened, { open: openTrees, close: closeTrees }] =
         useDisclosure(false);
     const dispatch = useAppDispatch();
@@ -54,20 +59,35 @@ const SavedTreesContainer: FC = () => {
                 </Button>
             }
         >
-            <PanelGroup
-                direction="horizontal"
+            <ResizableSplitter
+                orientation="horizontal"
+                withHandle
+                lineSize={compact ? 0 : 2}
+                resizable={!compact}
+                sizes={compact ? [0, 100] : undefined}
+                classNames={{ handle: sidebarStyles.resizeHandle }}
                 style={{ flex: 1, minHeight: 0 }}
             >
-                <TreeListSidebar opened={treesOpened} onClose={closeTrees} />
-                <Panel id="saved-tree-canvas" order={2}>
+                <ResizableSplitter.Pane
+                    id="tree-list-sidebar"
+                    defaultSize={20}
+                    min={compact ? 0 : 15}
+                    max={40}
+                >
+                    <TreeListSidebar
+                        opened={treesOpened}
+                        onClose={closeTrees}
+                    />
+                </ResizableSplitter.Pane>
+                <ResizableSplitter.Pane id="saved-tree-canvas" defaultSize={80}>
                     <ReactFlowProvider key={`${editMode}-${activeTreeUuid}`}>
                         <SavedTreeCanvas
                             mode={editMode}
                             treeUuid={activeTreeUuid}
                         />
                     </ReactFlowProvider>
-                </Panel>
-            </PanelGroup>
+                </ResizableSplitter.Pane>
+            </ResizableSplitter>
         </CanvasViewport>
     );
 };

@@ -18,7 +18,12 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import {
+    IconCheck,
+    IconHelpCircle,
+    IconPlus,
+    IconTrash,
+} from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { z } from 'zod';
@@ -190,7 +195,7 @@ const AllowedDomainsPanel: FC = () => {
         if (!isValidEmailDomain(value)) {
             form.setFieldError(
                 'emailDomains',
-                `${value} should not contain @, eg: (lightdash.com)`,
+                `${value} is not a valid email domain, e.g. lightdash.com`,
             );
             return;
         }
@@ -247,6 +252,7 @@ const AllowedDomainsPanel: FC = () => {
                         );
                     }}
                     onCreate={handleAddEmailDomain}
+                    clearSearchOnCreate={false}
                     shouldCreate={(query) =>
                         query.trim().length > 0 &&
                         !form.values.emailDomains.some(
@@ -278,15 +284,32 @@ const AllowedDomainsPanel: FC = () => {
                             placeholder="Organization viewer"
                             disabled={isLoading}
                             data={roleOptions}
-                            renderOption={({ option }) => {
+                            renderOption={({ option, checked }) => {
                                 const role = roleOptions.find(
                                     ({ value }) => value === option.value,
                                 );
                                 return (
-                                    <Stack gap="xs" p="xs">
-                                        <Text size="sm">{option.label}</Text>
-                                        <Text size="xs">{role?.subLabel}</Text>
-                                    </Stack>
+                                    <Group
+                                        flex={1}
+                                        justify="space-between"
+                                        wrap="nowrap"
+                                        gap="xs"
+                                    >
+                                        <Stack gap={0}>
+                                            <Text size="sm" fw={500}>
+                                                {option.label}
+                                            </Text>
+                                            <Text size="xs" c="dimmed">
+                                                {role?.subLabel}
+                                            </Text>
+                                        </Stack>
+                                        {checked && (
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size="sm"
+                                            />
+                                        )}
+                                    </Group>
                                 );
                             }}
                             defaultValue={OrganizationMemberRole.VIEWER}

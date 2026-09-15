@@ -54,7 +54,6 @@ const TreeListSidebar: FC<{ opened: boolean; onClose: () => void }> = ({
 
     return (
         <CanvasSidebar
-            id="tree-list-sidebar"
             title={getUiString('metrics.savedTrees')}
             opened={opened}
             onClose={onClose}

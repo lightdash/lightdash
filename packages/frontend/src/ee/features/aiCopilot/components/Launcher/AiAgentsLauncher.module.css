@@ -10,6 +10,41 @@
     max-width: calc(100vw - var(--mantine-spacing-md) * 2);
 }
 
+.portalContainer {
+    display: contents;
+}
+
+.modalHost {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    container-type: size;
+}
+
+.modalHost .root {
+    pointer-events: auto;
+}
+
+.modalHost .panel {
+    width: min(rem(440px), calc(100cqw - var(--mantine-spacing-xl)));
+    max-height: min(rem(640px), calc(100cqh - rem(128px)));
+}
+
+.modalHost .previewPanel {
+    right: calc(rem(440px) + var(--mantine-spacing-xs));
+    width: min(rem(620px), calc(100cqw - rem(488px)));
+    max-height: min(rem(640px), calc(100cqh - rem(128px)));
+}
+
+@media (max-width: 64em) {
+    .modalHost .previewPanel {
+        right: 0;
+        width: min(rem(440px), calc(100cqw - var(--mantine-spacing-xl)));
+        z-index: 1;
+    }
+}
+
 .dock {
     display: flex;
     flex-direction: row;

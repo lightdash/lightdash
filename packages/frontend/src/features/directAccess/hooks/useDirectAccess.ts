@@ -1,8 +1,8 @@
 import {
-    CommercialFeatureFlags,
     DirectAccessResourceType,
     type ApiError,
     type DirectAccessAssignment,
+    type DirectAccessGroupPrincipal,
     type DirectAccessPrincipalType,
     type SpaceMemberRole,
 } from '@lightdash/common';
@@ -14,10 +14,10 @@ import {
 } from '@tanstack/react-query';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
     getDirectAccessAssignments,
+    getDirectAccessGroups,
     resetDirectAccess,
     revokeDirectAccessAssignment,
     upsertDirectAccessAssignment,
@@ -29,17 +29,11 @@ const directAccessQueryKey = (
     ref: DirectAccessResourceRef,
 ) => ['direct-access', projectUuid, ref.resourceType, ref.resourceUuid];
 
-/**
- * Direct access mirrors the backend gate: the commercial flag plus a valid
- * license. Everything the feature renders should hide behind this.
- */
 export const useDirectAccessAvailability = () => {
     const { health } = useApp();
-    const flagQuery = useServerFeatureFlag(CommercialFeatureFlags.DirectAccess);
-    const licenseValid = health.data?.license?.valid ?? false;
     return {
-        isAvailable: (flagQuery.data?.enabled ?? false) && licenseValid,
-        isLoading: flagQuery.isInitialLoading || health.isInitialLoading,
+        isAvailable: health.data?.license?.valid ?? false,
+        isLoading: health.isInitialLoading,
     };
 };
 
@@ -53,6 +47,16 @@ export const useDirectAccessAssignments = (
         queryFn: () => getDirectAccessAssignments(projectUuid, ref),
         retry: false,
         ...queryOptions,
+    });
+
+export const useDirectAccessGroups = (
+    projectUuid: string,
+    ref: DirectAccessResourceRef,
+) =>
+    useQuery<DirectAccessGroupPrincipal[], ApiError>({
+        queryKey: [...directAccessQueryKey(projectUuid, ref), 'groups'],
+        queryFn: () => getDirectAccessGroups(projectUuid, ref),
+        retry: false,
     });
 
 const useInvalidateAfterDirectAccessMutation = (

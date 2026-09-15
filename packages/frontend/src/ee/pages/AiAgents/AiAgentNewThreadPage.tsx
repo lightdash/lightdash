@@ -384,12 +384,14 @@ const AiAgentNewThreadPage: FC = () => {
                                 name={agent.name || 'AI'}
                                 src={agent.imageUrl}
                             />
-                            <DefaultAgentButton
-                                projectUuid={projectUuid}
-                                agentUuid={agent.uuid}
-                                size="xs"
-                                className={styles.defaultAgentBadge}
-                            />
+                            {!isEmbed && (
+                                <DefaultAgentButton
+                                    projectUuid={projectUuid}
+                                    agentUuid={agent.uuid}
+                                    size="xs"
+                                    className={styles.defaultAgentBadge}
+                                />
+                            )}
                         </Box>
                         <Group justify="center" gap={4}>
                             <Title order={4} ta="center" {...agentTourProps}>
@@ -520,7 +522,7 @@ const AiAgentNewThreadPage: FC = () => {
                         }
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
-                        agents={agents}
+                        agents={isEmbed ? undefined : agents}
                         selectedAgent={agent}
                         models={isBattle ? undefined : modelOptions}
                         selectedModelId={selectedModelKey}

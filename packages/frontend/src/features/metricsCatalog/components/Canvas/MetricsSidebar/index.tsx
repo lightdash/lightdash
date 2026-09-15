@@ -165,7 +165,6 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
 
         return (
             <CanvasSidebar
-                id="metrics-sidebar"
                 title={getUiString('metrics.addMetrics')}
                 opened={opened}
                 onClose={onClose}

@@ -41,6 +41,7 @@ const fakeWarehouseClient: WarehouseClient = {
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "''",
     getFieldQuoteChar: () => '"',
+    getUnnestSql: () => null,
     getFloatingType: () => 'FLOAT',
     getNullSafeEqualSql: defaultNullSafeEqualSql,
     getNullSafeEqualJoinSql: defaultNullSafeEqualSql,

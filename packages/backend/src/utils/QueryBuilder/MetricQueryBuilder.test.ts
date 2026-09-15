@@ -2098,6 +2098,9 @@ LIMIT 10`;
                         nestedFrom: {
                             parentTable: 'sessions',
                             columnPath: 'hits',
+                            elementSql: '"sessions__hits"',
+                            offsetSql: '"sessions__hits__offset"',
+                            joinCondition: 'TRUE',
                         },
                         dimensions: {
                             'page.pagePath': {
@@ -2162,6 +2165,101 @@ LIMIT 10`;
             ).toBe(false);
         });
 
+        test('Should render a lateral unnest without an ON clause when the warehouse plans it that way', () => {
+            const explore: Explore = {
+                ...EXPLORE,
+                name: 'sessions',
+                baseTable: 'sessions',
+                tables: {
+                    sessions: {
+                        ...emptyTable('sessions'),
+                        primaryKey: ['id'],
+                        dimensions: {
+                            id: {
+                                type: DimensionType.NUMBER,
+                                name: 'id',
+                                label: 'Id',
+                                table: 'sessions',
+                                tableLabel: 'Sessions',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.id',
+                                compiledSql: '"sessions".id',
+                                tablesReferences: ['sessions'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                    sessions__hits: {
+                        ...emptyTable('sessions__hits'),
+                        sqlTable:
+                            'LATERAL posexplode_outer("sessions".hits) AS "sessions__hits"("sessions__hits__offset", col)',
+                        nestedFrom: {
+                            parentTable: 'sessions',
+                            columnPath: 'hits',
+                            elementSql: '"sessions__hits".col',
+                            offsetSql: '"sessions__hits__offset"',
+                            joinCondition: null,
+                        },
+                        dimensions: {
+                            'page.pagePath': {
+                                type: DimensionType.STRING,
+                                name: 'page.pagePath',
+                                label: 'Page path',
+                                table: 'sessions__hits',
+                                tableLabel: 'Sessions: Hits',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.page.pagePath',
+                                compiledSql:
+                                    '"sessions__hits".col.page.pagePath',
+                                tablesReferences: ['sessions__hits'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'sessions__hits',
+                        sqlOn: 'TRUE',
+                        compiledSqlOn: 'TRUE',
+                        type: 'left',
+                        relationship: JoinRelationship.ONE_TO_MANY,
+                        tablesReferences: ['sessions'],
+                    },
+                ],
+            };
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: {
+                    exploreName: 'sessions',
+                    dimensions: [
+                        'sessions_id',
+                        'sessions__hits_page__pagePath',
+                    ],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 10,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    compiledAdditionalMetrics: [],
+                    compiledCustomDimensions: [],
+                    compiledTableCalculations: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'LEFT OUTER JOIN LATERAL posexplode_outer("sessions".hits) AS "sessions__hits"("sessions__hits__offset", col)\n',
+            );
+            expect(result.query).not.toContain('ON TRUE');
+            expect(result.query).toContain(
+                '"sessions__hits".col.page.pagePath AS "sessions__hits_page__pagePath"',
+            );
+        });
+
         test('Should warn when two independent repeated columns are unnested together', () => {
             const unnestedTable = (
                 tableName: string,
@@ -2170,7 +2268,13 @@ LIMIT 10`;
             ): CompiledTable => ({
                 ...emptyTable(tableName),
                 sqlTable: `UNNEST("sessions".${columnPath}) AS "${tableName}" WITH OFFSET AS "${tableName}__offset"`,
-                nestedFrom: { parentTable: 'sessions', columnPath },
+                nestedFrom: {
+                    parentTable: 'sessions',
+                    columnPath,
+                    elementSql: `"${tableName}"`,
+                    offsetSql: `"${tableName}__offset"`,
+                    joinCondition: 'TRUE',
+                },
                 dimensions: {
                     [dimensionName]: {
                         type: DimensionType.STRING,
@@ -2278,6 +2382,9 @@ LIMIT 10`;
                         nestedFrom: {
                             parentTable: 'sessions',
                             columnPath: 'hits',
+                            elementSql: '"sessions__hits"',
+                            offsetSql: '"sessions__hits__offset"',
+                            joinCondition: 'TRUE',
                         },
                         metrics: {
                             hit_count: {
@@ -2302,6 +2409,9 @@ LIMIT 10`;
                         nestedFrom: {
                             parentTable: 'sessions__hits',
                             columnPath: 'hits.product',
+                            elementSql: '"sessions__hits__product"',
+                            offsetSql: '"sessions__hits__product__offset"',
+                            joinCondition: 'TRUE',
                         },
                         dimensions: {
                             productSKU: {

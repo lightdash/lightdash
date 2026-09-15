@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/cli",
-  "version": "2.206.2",
+  "version": "2.212.1",
   "description": "Lightdash CLI tool",
   "license": "MIT",
   "repository": {
@@ -55,7 +55,7 @@
     "google-auth-library": "10.7.0",
     "inquirer": "8.2.7",
     "inquirer-autocomplete-prompt": "2.0.1",
-    "js-yaml": "4.3.0",
+    "js-yaml": "4.3.2",
     "lodash": "4.18.1",
     "node-fetch": "2.7.0",
     "nunjucks": "3.2.4",
@@ -85,6 +85,6 @@
     "oxlint-tsgolint": "7.0.2001",
     "tsx": "4.19.4",
     "typescript": "7.0.2",
-    "vitest": "4.1.6"
+    "vitest": "4.1.11"
   }
 }

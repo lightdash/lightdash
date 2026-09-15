@@ -2,8 +2,16 @@
 import StatusError from '@databricks/sql/dist/errors/StatusError';
 import { TStatusCode } from '@databricks/sql/thrift/TCLIService_types';
 import {
+    DimensionType,
+    getCatalogNestedColumnShape,
+    getCatalogNestedColumnsUnavailableReason,
+    getCatalogTimestampDomain,
+} from '@lightdash/common';
+import {
+    DatabricksErrorCondition,
     DatabricksSqlBuilder,
     DatabricksWarehouseClient,
+    getDatabricksErrorCondition,
 } from './DatabricksWarehouseClient';
 import { credentials, rows, schema } from './DatabricksWarehouseClient.mock';
 import { expectedFields } from './WarehouseClient.mock';
@@ -247,6 +255,20 @@ describe('DatabricksWarehouseClient', () => {
         const columns = (name: string, type: string) => [
             { COLUMN_NAME: name, TYPE_NAME: type },
         ];
+        const describedTable = (sql: string) =>
+            /`([^`]+)` AS JSON$/.exec(sql)?.[1] ?? '';
+        const jsonDescription = (
+            cols: { COLUMN_NAME: string; TYPE_NAME: string }[],
+        ) => [
+            {
+                json_metadata: JSON.stringify({
+                    columns: cols.map((col) => ({
+                        name: col.COLUMN_NAME,
+                        type: { name: col.TYPE_NAME.toLowerCase() },
+                    })),
+                }),
+            },
+        ];
         const columnsSession = (
             resolve: (
                 table: string,
@@ -254,17 +276,358 @@ describe('DatabricksWarehouseClient', () => {
             lostTables: Set<string>,
         ) =>
             createSession({
-                getColumns: vi.fn(
-                    async ({ tableName }: { tableName: string }) =>
-                        lostTables.has(tableName)
-                            ? Promise.reject(sessionLostError())
-                            : createOperation({
-                                  fetchAll: vi.fn(async () =>
-                                      resolve(tableName),
-                                  ),
-                              }),
+                executeStatement: vi.fn(async (sql: string) => {
+                    const table = describedTable(sql);
+                    return lostTables.has(table)
+                        ? Promise.reject(sessionLostError())
+                        : createOperation({
+                              fetchAll: vi.fn(async () =>
+                                  jsonDescription(resolve(table)),
+                              ),
+                          });
+                }),
+            });
+
+        // Captured from DESCRIBE TABLE EXTENDED ... AS JSON on a serverless warehouse.
+        const describedTransactions = {
+            columns: [
+                {
+                    name: 'order_id',
+                    type: { name: 'string', collation: 'UTF8_BINARY' },
+                    nullable: true,
+                },
+                { name: 'amount', type: { name: 'double' }, nullable: true },
+                {
+                    name: 'created_at',
+                    type: { name: 'timestamp_ltz' },
+                    nullable: true,
+                },
+                {
+                    name: 'updated_at',
+                    type: { name: 'timestamp_ntz' },
+                    nullable: true,
+                },
+                {
+                    name: 'customer',
+                    type: {
+                        name: 'struct',
+                        fields: [
+                            {
+                                name: 'id',
+                                type: { name: 'string' },
+                                nullable: true,
+                            },
+                            {
+                                name: 'location',
+                                type: { name: 'string' },
+                                nullable: true,
+                            },
+                        ],
+                    },
+                    nullable: true,
+                },
+                {
+                    name: 'product',
+                    type: {
+                        name: 'array',
+                        element_type: {
+                            name: 'struct',
+                            fields: [
+                                {
+                                    name: 'sku',
+                                    type: { name: 'string' },
+                                    nullable: true,
+                                },
+                                {
+                                    name: 'price',
+                                    type: { name: 'double' },
+                                    nullable: true,
+                                },
+                                {
+                                    name: 'attributes',
+                                    type: {
+                                        name: 'struct',
+                                        fields: [
+                                            {
+                                                name: 'colour',
+                                                type: { name: 'string' },
+                                                nullable: true,
+                                            },
+                                        ],
+                                    },
+                                    nullable: true,
+                                },
+                                {
+                                    name: 'variants',
+                                    type: {
+                                        name: 'array',
+                                        element_type: {
+                                            name: 'struct',
+                                            fields: [
+                                                {
+                                                    name: 'size',
+                                                    type: { name: 'string' },
+                                                    nullable: true,
+                                                },
+                                                {
+                                                    name: 'stock',
+                                                    type: { name: 'int' },
+                                                    nullable: true,
+                                                },
+                                            ],
+                                        },
+                                        element_nullable: true,
+                                    },
+                                    nullable: true,
+                                },
+                            ],
+                        },
+                        element_nullable: true,
+                    },
+                    nullable: true,
+                },
+                {
+                    name: 'tags',
+                    type: {
+                        name: 'array',
+                        element_type: { name: 'string' },
+                        element_nullable: true,
+                    },
+                    nullable: true,
+                },
+                {
+                    name: 'scores',
+                    type: { name: 'array', element_type: { name: 'int' } },
+                    nullable: true,
+                },
+                {
+                    name: 'matrix',
+                    type: {
+                        name: 'array',
+                        element_type: {
+                            name: 'array',
+                            element_type: { name: 'int' },
+                        },
+                    },
+                    nullable: true,
+                },
+                {
+                    name: 'labels',
+                    type: {
+                        name: 'map',
+                        key_type: { name: 'string' },
+                        value_type: { name: 'string' },
+                        value_nullable: true,
+                    },
+                    nullable: true,
+                },
+            ],
+        };
+        const describeSession = (
+            describe: (sql: string) => Promise<Record<string, unknown>[]>,
+            flatColumns: { COLUMN_NAME: string; TYPE_NAME: string }[] = [],
+        ) =>
+            createSession({
+                executeStatement: vi.fn(async (sql: string) =>
+                    createOperation({ fetchAll: vi.fn(() => describe(sql)) }),
+                ),
+                getColumns: vi.fn(async () =>
+                    createOperation({
+                        fetchAll: vi.fn(async () => flatColumns),
+                    }),
                 ),
             });
+
+        it('reads dotted paths and nested shapes from the JSON table description', async () => {
+            const session = describeSession(async () => [
+                { json_metadata: JSON.stringify(describedTransactions) },
+            ]);
+            mocks.openSession.mockResolvedValue(session);
+            const warehouse = new DatabricksWarehouseClient(credentials);
+
+            const catalog = await warehouse.getCatalog([
+                tableRequest('transactions'),
+            ]);
+
+            const table =
+                catalog[credentials.catalog ?? 'DEFAULT'].schema.transactions;
+            expect(session.executeStatement).toHaveBeenCalledWith(
+                'DESCRIBE TABLE EXTENDED `database`.`schema`.`transactions` AS JSON',
+            );
+            expect(session.getColumns).not.toHaveBeenCalled();
+            expect(table).toEqual({
+                order_id: DimensionType.STRING,
+                amount: DimensionType.NUMBER,
+                created_at: DimensionType.TIMESTAMP,
+                updated_at: DimensionType.TIMESTAMP,
+                customer: DimensionType.STRING,
+                'customer.id': DimensionType.STRING,
+                'customer.location': DimensionType.STRING,
+                product: DimensionType.STRING,
+                'product.sku': DimensionType.STRING,
+                'product.price': DimensionType.NUMBER,
+                'product.attributes': DimensionType.STRING,
+                'product.attributes.colour': DimensionType.STRING,
+                'product.variants': DimensionType.STRING,
+                'product.variants.size': DimensionType.STRING,
+                'product.variants.stock': DimensionType.NUMBER,
+                tags: DimensionType.STRING,
+                scores: DimensionType.NUMBER,
+                matrix: DimensionType.STRING,
+                labels: DimensionType.STRING,
+            });
+            const shape = (path: string) =>
+                getCatalogNestedColumnShape(
+                    catalog,
+                    credentials.catalog ?? 'DEFAULT',
+                    'schema',
+                    'transactions',
+                    path,
+                );
+            expect(shape('customer')).toEqual({
+                repeated: false,
+                record: true,
+            });
+            expect(shape('product')).toEqual({ repeated: true, record: true });
+            expect(shape('product.attributes')).toEqual({
+                repeated: false,
+                record: true,
+            });
+            expect(shape('product.variants')).toEqual({
+                repeated: true,
+                record: true,
+            });
+            expect(shape('tags')).toEqual({ repeated: true, record: false });
+            expect(shape('scores')).toEqual({ repeated: true, record: false });
+            expect(shape('matrix')).toBeUndefined();
+            expect(shape('labels')).toBeUndefined();
+            expect(shape('product.sku')).toBeUndefined();
+            const domain = (path: string) =>
+                getCatalogTimestampDomain(
+                    catalog,
+                    credentials.catalog ?? 'DEFAULT',
+                    'schema',
+                    'transactions',
+                    path,
+                );
+            expect(domain('created_at')).toEqual('aware');
+            expect(domain('updated_at')).toEqual('naive');
+            expect(
+                getCatalogNestedColumnsUnavailableReason(
+                    catalog,
+                    credentials.catalog ?? 'DEFAULT',
+                    'schema',
+                    'transactions',
+                ),
+            ).toBeUndefined();
+        });
+
+        it('keeps the flat column list and records why when the JSON description is refused', async () => {
+            const session = describeSession(
+                () =>
+                    Promise.reject(
+                        statusError(
+                            "[PARSE_SYNTAX_ERROR] Syntax error at or near 'JSON'. SQLSTATE: 42601",
+                        ),
+                    ),
+                [
+                    { COLUMN_NAME: 'order_id', TYPE_NAME: 'STRING' },
+                    {
+                        COLUMN_NAME: 'product',
+                        TYPE_NAME: 'ARRAY<STRUCT<sku: STRING>>',
+                    },
+                ],
+            );
+            mocks.openSession.mockResolvedValue(session);
+            const warehouse = new DatabricksWarehouseClient(credentials);
+
+            const catalog = await warehouse.getCatalog([
+                tableRequest('transactions'),
+            ]);
+
+            const database = credentials.catalog ?? 'DEFAULT';
+            expect(catalog[database].schema.transactions).toEqual({
+                order_id: DimensionType.STRING,
+                product: DimensionType.STRING,
+            });
+            expect(
+                getCatalogNestedColumnShape(
+                    catalog,
+                    database,
+                    'schema',
+                    'transactions',
+                    'product',
+                ),
+            ).toBeUndefined();
+            expect(
+                getCatalogNestedColumnsUnavailableReason(
+                    catalog,
+                    database,
+                    'schema',
+                    'transactions',
+                ),
+            ).toEqual(
+                "Databricks did not describe transactions as JSON ([PARSE_SYNTAX_ERROR] Syntax error at or near 'JSON'. SQLSTATE: 42601); nested columns need a SQL warehouse or Databricks Runtime 16.2 or newer.",
+            );
+        });
+
+        it('reports no columns, and no reason, for a table that does not exist', async () => {
+            const session = describeSession(() =>
+                Promise.reject(
+                    statusError(
+                        '[TABLE_OR_VIEW_NOT_FOUND] The table or view `database`.`schema`.`missing` cannot be found.',
+                    ),
+                ),
+            );
+            mocks.openSession.mockResolvedValue(session);
+            const warehouse = new DatabricksWarehouseClient(credentials);
+
+            const catalog = await warehouse.getCatalog([
+                tableRequest('missing'),
+            ]);
+
+            const database = credentials.catalog ?? 'DEFAULT';
+            expect(catalog[database].schema.missing).toEqual({});
+            expect(session.getColumns).not.toHaveBeenCalled();
+            expect(
+                getCatalogNestedColumnsUnavailableReason(
+                    catalog,
+                    database,
+                    'schema',
+                    'missing',
+                ),
+            ).toBeUndefined();
+        });
+
+        it('fails the fetch on errors that are not the missing JSON form', async () => {
+            const session = describeSession(() =>
+                Promise.reject(
+                    statusError(
+                        '[INSUFFICIENT_PERMISSIONS] User does not have USE SCHEMA on Schema `schema`.',
+                    ),
+                ),
+            );
+            mocks.openSession.mockResolvedValue(session);
+            const warehouse = new DatabricksWarehouseClient(credentials);
+
+            await expect(
+                warehouse.getCatalog([tableRequest('transactions')]),
+            ).rejects.toThrow('INSUFFICIENT_PERMISSIONS');
+            expect(session.getColumns).not.toHaveBeenCalled();
+        });
+
+        it('fails the fetch when the JSON description cannot be read', async () => {
+            const session = describeSession(async () => [
+                { json_metadata: 'not json' },
+            ]);
+            mocks.openSession.mockResolvedValue(session);
+            const warehouse = new DatabricksWarehouseClient(credentials);
+
+            await expect(
+                warehouse.getCatalog([tableRequest('transactions')]),
+            ).rejects.toThrow('Could not read the description of');
+            expect(session.getColumns).not.toHaveBeenCalled();
+        });
 
         it('resumes the remaining tables on a replacement session', async () => {
             const firstSession = columnsSession(
@@ -293,11 +656,11 @@ describe('DatabricksWarehouseClient', () => {
                 table_two: { name: 'string' },
                 table_three: { name: 'string' },
             });
-            expect(firstSession.getColumns).toHaveBeenCalledTimes(3);
+            expect(firstSession.executeStatement).toHaveBeenCalledTimes(3);
             expect(firstSession.close).toHaveBeenCalledOnce();
             expect(
-                secondSession.getColumns.mock.calls.map(
-                    (call) => (call[0] as { tableName: string }).tableName,
+                secondSession.executeStatement.mock.calls.map((call) =>
+                    describedTable(call[0] as string),
                 ),
             ).toEqual(['table_two', 'table_three']);
         });
@@ -305,25 +668,25 @@ describe('DatabricksWarehouseClient', () => {
         it('lets the in-flight batch settle before closing the lost session', async () => {
             const order: string[] = [];
             const firstSession = createSession({
-                getColumns: vi.fn(
-                    ({ tableName }: { tableName: string }) =>
-                        new Promise((resolve, reject) => {
-                            setTimeout(
-                                () => {
-                                    order.push(`getColumns:${tableName}`);
-                                    reject(sessionLostError());
-                                },
-                                tableName === 'table_one' ? 10 : 100,
-                            );
-                        }),
-                ),
+                executeStatement: vi.fn((sql: string) => {
+                    const tableName = describedTable(sql);
+                    return new Promise((resolve, reject) => {
+                        setTimeout(
+                            () => {
+                                order.push(`describe:${tableName}`);
+                                reject(sessionLostError());
+                            },
+                            tableName === 'table_one' ? 10 : 100,
+                        );
+                    });
+                }),
             });
             firstSession.close.mockImplementation(async () => {
                 order.push('close');
             });
             mocks.openSession
                 .mockResolvedValueOnce(firstSession)
-                .mockResolvedValueOnce(createSession());
+                .mockResolvedValueOnce(columnsSession(() => [], new Set()));
             const warehouse = new DatabricksWarehouseClient(credentials);
 
             await withTimers(() =>
@@ -334,8 +697,8 @@ describe('DatabricksWarehouseClient', () => {
             );
 
             expect(order).toEqual([
-                'getColumns:table_one',
-                'getColumns:table_two',
+                'describe:table_one',
+                'describe:table_two',
                 'close',
             ]);
         });
@@ -356,13 +719,14 @@ describe('DatabricksWarehouseClient', () => {
 
         it('fails fast on errors that are not warehouse startup errors', async () => {
             const session = createSession({
-                getColumns: vi.fn(
-                    async ({ tableName }: { tableName: string }) =>
-                        tableName === 'table_two'
-                            ? Promise.reject(
-                                  statusError('PERMISSION_DENIED on table_two'),
-                              )
-                            : createOperation(),
+                executeStatement: vi.fn(async (sql: string) =>
+                    describedTable(sql) === 'table_two'
+                        ? Promise.reject(
+                              statusError('PERMISSION_DENIED on table_two'),
+                          )
+                        : createOperation({
+                              fetchAll: vi.fn(async () => jsonDescription([])),
+                          }),
                 ),
             });
             mocks.openSession.mockResolvedValueOnce(session);
@@ -381,6 +745,48 @@ describe('DatabricksWarehouseClient', () => {
             expect(mocks.openSession).toHaveBeenCalledOnce();
             expect(session.close).toHaveBeenCalledOnce();
         });
+    });
+});
+
+describe('getDatabricksErrorCondition', () => {
+    // Messages as a serverless SQL warehouse returned them on 2026-09-14.
+    test('reads the condition Databricks prefixes to SQL errors', () => {
+        expect(
+            getDatabricksErrorCondition(
+                statusError(
+                    '[TABLE_OR_VIEW_NOT_FOUND] The table or view `lightdash_staging`.`nested`.`odd_names` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42P01; line 1 pos 24',
+                ),
+            ),
+        ).toBe(DatabricksErrorCondition.TableOrViewNotFound);
+        expect(
+            getDatabricksErrorCondition(
+                statusError(
+                    "[PARSE_SYNTAX_ERROR] Syntax error at or near 'JSON'. SQLSTATE: 42601 (line 1, pos 37)",
+                ),
+            ),
+        ).toBe(DatabricksErrorCondition.ParseSyntaxError);
+    });
+
+    test('ignores conditions we do not handle and messages without a prefix', () => {
+        expect(
+            getDatabricksErrorCondition(
+                statusError(
+                    '[INSUFFICIENT_PERMISSIONS] User does not have USE SCHEMA on Schema `schema`.',
+                ),
+            ),
+        ).toBeUndefined();
+        expect(
+            getDatabricksErrorCondition(
+                statusError(
+                    'Query could not be scheduled: TEMPORARILY_UNAVAILABLE',
+                ),
+            ),
+        ).toBeUndefined();
+        expect(
+            getDatabricksErrorCondition(
+                new Error('mentions TABLE_OR_VIEW_NOT_FOUND mid-sentence'),
+            ),
+        ).toBeUndefined();
     });
 });
 

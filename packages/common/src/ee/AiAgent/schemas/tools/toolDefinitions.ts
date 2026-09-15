@@ -30,6 +30,7 @@ import {
     toolRunQueryExpressionArgsSchemaV2RejectingMerge,
     type toolRunQueryExpressionArgsSchemaV2FormulaOnly,
 } from '../filterExpressions';
+import { MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION } from '../filterExpressions/mcpGuidance';
 import {
     MCP_TOOL_LIST_EXPLORES_DESCRIPTION,
     mcpToolListExploresArgsSchema,
@@ -562,12 +563,15 @@ export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput
     agent: { outputSchema: toolRunQueryOutputSchema },
 });
 
+const queryFilterGuidanceByRuntime = {
+    agent: `Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability; for supported operators, quoting, arity, connectors, and examples, follow ${modelGuidanceSourceByRuntime.agent}.`,
+    mcp: `Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability. Each category uses AND or OR, never both; categories combine with AND. Conditional custom metric filters are AND-only. ${MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION}`,
+} satisfies Record<ToolDescriptionContext['runtime'], string>;
+
 const TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION = (
     context: ToolDescriptionContext,
 ): string =>
-    `${TOOL_RUN_QUERY_DESCRIPTION(
-        context,
-    )}\nFilter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability; for supported operators, quoting, arity, connectors, and examples, follow ${modelGuidanceSourceByRuntime[context.runtime]}.`;
+    `${TOOL_RUN_QUERY_DESCRIPTION(context)}\n${queryFilterGuidanceByRuntime[context.runtime]}`;
 
 export const generateVisualizationFilterExpressionToolDefinition: ToolDefinitionWithoutMcpOutput<
     'generateVisualization',
@@ -1528,7 +1532,7 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'getContext',
     title: 'Get context',
     description:
-        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.',
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable or full project scope is desired, omit agentUuid; use set_agent for manual selection. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: {

@@ -134,16 +134,6 @@ export enum FeatureFlags {
     ResultsCacheEnabled = 'results-cache-enabled',
 
     /**
-     * Allow dashboard editors to mark individual dashboard filters as locked.
-     * Locked filters are visible to viewers but cannot be edited from view
-     * mode, and URL/embed filter overrides targeting a locked filter's field
-     * are ignored. Gates the authoring UI; the override-stripping behaviour
-     * always runs regardless of the flag so saved-locked filters stay safe
-     * if the flag is later turned off.
-     */
-    LockDashboardFilters = 'lock-dashboard-filters',
-
-    /**
      * Show a persistent trial warning banner for an organization on shared
      * instances. This does not block product access.
      */
@@ -311,8 +301,11 @@ export enum FeatureFlags {
     AiDisableThreadDeletion = 'ai-disable-thread-deletion',
 
     /**
-     * Enables the chart type library tab: browsing and installing official
-     * chart types from the configured chart registry. Default: off.
+     * Enables the chart type library — browsing and installing official
+     * chart types from the configured chart registry — and, together with
+     * `EnableDataApps` as an either/or gate, usage of installed chart types
+     * (picking, configuring, rendering). Authoring, editing, and forking
+     * chart types stay behind `EnableDataApps`. Default: off.
      */
     ChartTypeRegistry = 'chart-type-registry',
 

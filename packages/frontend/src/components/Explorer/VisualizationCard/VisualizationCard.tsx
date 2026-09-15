@@ -19,12 +19,14 @@ import {
     memo,
     Suspense,
     useCallback,
+    useEffect,
     useLayoutEffect,
     useMemo,
     useState,
     type FC,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
@@ -205,6 +207,17 @@ const VisualizationCard: FC<Props> = memo((props) => {
         () => dispatch(explorerActions.closeVisualizationConfig()),
         [dispatch],
     );
+
+    // Deep link (e.g. the removed-chart-type recovery hint): arrive in edit
+    // mode with the config sidebar already open, then drop the param.
+    const [searchParams, setSearchParams] = useSearchParams();
+    useEffect(() => {
+        if (!isEditMode || searchParams.get('openVizConfig') !== 'true') return;
+        openVisualizationConfig();
+        const next = new URLSearchParams(searchParams);
+        next.delete('openVizConfig');
+        setSearchParams(next, { replace: true });
+    }, [isEditMode, searchParams, setSearchParams, openVisualizationConfig]);
 
     const { target: portalTarget, ref: visualizationConfigButtonRef } =
         useVisualizationConfigPortalTarget(isVisualizationConfigOpen);

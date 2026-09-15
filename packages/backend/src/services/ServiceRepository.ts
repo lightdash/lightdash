@@ -1265,11 +1265,7 @@ export class ServiceRepository
     public getDirectAccessFeatureGate(): DirectAccessFeatureGate {
         return this.getService(
             'directAccessFeatureGate',
-            () =>
-                new DirectAccessFeatureGate(
-                    this.models.getFeatureFlagModel(),
-                    this.getLicenseService(),
-                ),
+            () => new DirectAccessFeatureGate(this.getLicenseService()),
         );
     }
 

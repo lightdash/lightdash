@@ -30,6 +30,7 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
+import SaveChartSuggestions from '../../../../ee/features/contentReview/components/SaveChartSuggestions';
 import {
     appendNewTilesToBottom,
     useCreateMutation as useCreateDashboardMutation,
@@ -648,6 +649,15 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                             maxRows={3}
                             {...form.getInputProps('description')}
                             value={form.values.description ?? ''}
+                        />
+                        <SaveChartSuggestions
+                            chart={{
+                                metricQuery: savedData.metricQuery,
+                                parameters: savedData.parameters,
+                                merge: savedData.merge,
+                            }}
+                            projectUuid={projectUuid ?? null}
+                            name={form.values.name ?? ''}
                         />
 
                         {!forcedSpaceUuid && (

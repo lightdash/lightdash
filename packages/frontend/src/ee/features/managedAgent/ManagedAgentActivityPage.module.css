@@ -250,7 +250,7 @@
 }
 
 .resizeHandle:hover,
-.resizeHandle[data-resize-handle-state='drag'] {
+.resizeHandle[data-active] {
     background-color: var(--mantine-color-ldGray-3);
 }
 

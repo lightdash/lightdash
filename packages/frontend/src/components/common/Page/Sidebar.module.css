@@ -14,6 +14,10 @@
     width: var(--sidebar-width);
 }
 
+.floatContainer:has(.resizeHandle[data-resizing='true']) {
+    transition: none;
+}
+
 .floatContainer:has(.floatingPanel[data-collapsed='true']) {
     width: 0;
     z-index: calc(var(--mantine-z-index-popover) + 1);
@@ -121,27 +125,38 @@
     left: calc(-1 * var(--sidebar-resize-handle-width));
 }
 
-.resizeHandle[data-resizing='true'] {
-    background: linear-gradient(
-        90deg,
-        light-dark(var(--mantine-color-blue-3), var(--mantine-color-blue-5)),
-        transparent
+.resizeHandle::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    width: 1px;
+    background-color: light-dark(
+        var(--mantine-color-ldGray-4),
+        var(--mantine-color-ldDark-3)
     );
+    opacity: 0;
+    transition: opacity 120ms ease;
 }
 
-.resizeHandle[data-resizing='false']:hover {
-    background: linear-gradient(
-        90deg,
-        light-dark(var(--mantine-color-blue-1), var(--mantine-color-blue-7)),
-        transparent
-    );
+.resizeHandle[data-position='left']::after {
+    left: 0;
+}
+
+.resizeHandle[data-position='right']::after {
+    right: 0;
+}
+
+.resizeHandle:hover::after,
+.resizeHandle[data-resizing='true']::after {
+    opacity: 1;
 }
 
 .sidebarContainer {
     position: relative;
     height: 100%;
     max-height: 100%;
-    z-index: 1;
+    /* Keep the resize edge above adjacent page headers. */
+    z-index: 3;
     /* Sized by the paper, so the page content moves with its sliding margin,
        yet free to yield down to the configured minimum before the page row
        overflows. `width` only feeds the flex automatic minimum size (the

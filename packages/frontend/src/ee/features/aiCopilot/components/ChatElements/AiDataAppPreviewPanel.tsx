@@ -1,4 +1,8 @@
-import { getAppDisplayName, isAppVersionInProgress } from '@lightdash/common';
+import {
+    getAppDisplayName,
+    getSdkFeatureTargetForTemplate,
+    isAppVersionInProgress,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -8,27 +12,26 @@ import {
     Menu,
     Stack,
     Text,
-    Tooltip,
 } from '@mantine/core';
-import {
-    IconArrowsUpDown,
-    IconDots,
-    IconExternalLink,
-    IconX,
-} from '@tabler/icons-react';
-import { useCallback, useState, type FC, type ReactNode } from 'react';
+import { IconExternalLink, IconX } from '@tabler/icons-react';
+import { useCallback, useRef, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
-import AppIframePreview from '../../../../../features/apps/AppIframePreview';
+import AppIframePreview, {
+    type AppIframePreviewHandle,
+} from '../../../../../features/apps/AppIframePreview';
 import AppInspectorPanel from '../../../../../features/apps/AppInspectorPanel';
+import AppActionsMenu from '../../../../../features/apps/components/AppActionsMenu';
 import { ElementPickerButton } from '../../../../../features/apps/components/ElementPickerButton';
 import { RestoreAppVersionModal } from '../../../../../features/apps/components/RestoreAppVersionModal';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppInspector } from '../../../../../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../../../../../features/apps/hooks/useAppPreviewToken';
 import { useCanEditDataApp } from '../../../../../features/apps/hooks/useCanEditDataApp';
+import { useCaptureThumbnail } from '../../../../../features/apps/hooks/useCaptureThumbnail';
 import { useElementPicker } from '../../../../../features/apps/hooks/useElementPicker';
 import { useGetApp } from '../../../../../features/apps/hooks/useGetApp';
+import { useSdkUpgradeStatus } from '../../../../../features/apps/hooks/useSdkUpgradeStatus';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
 import { type ElementRef } from '../../../../../features/apps/utils/elementRefs';
 import { useRestoreAiAgentThreadDataAppVersionMutation } from '../../hooks/useProjectAiAgents';
@@ -106,6 +109,17 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     };
     const { onLineageCancelled } = inspector.iframeProps;
 
+    // Bumping the key reloads the iframe so queries re-fire; `invalidateCache`
+    // latches on with the first refresh so they bypass the warehouse cache.
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [invalidateCache, setInvalidateCache] = useState(false);
+    const { rolloverLogs } = inspector;
+    const handleRefresh = useCallback(() => {
+        setRefreshKey((k) => k + 1);
+        setInvalidateCache(true);
+        rolloverLogs();
+    }, [rolloverLogs]);
+
     // Picked references go to the thread's composer state, not the hook's own
     // list, so they outlive closing the panel and the next version. They
     // always name the latest ready version, which is what the coding agent
@@ -168,8 +182,49 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
 
     const previewUrl =
         token && effectiveVersion !== null
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${effectiveVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${effectiveVersion}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
+
+    const isPreviewMounted = !isTokenLoading && !!previewUrl && !!token;
+
+    // Same offer the builder derives: keyed to the latest ready bundle (the
+    // one an upgrade rebuilds from), not to the version on screen.
+    const { offer: sdkUpgradeOffer, onSdkManifest: handleSdkManifest } =
+        useSdkUpgradeStatus({
+            target: getSdkFeatureTargetForTemplate(app?.template),
+            bundleKey:
+                latestReadyVersion !== null
+                    ? `${appUuid}:${latestReadyVersion}`
+                    : null,
+            renderedKey: isPreviewMounted ? identityKey : null,
+            isRendering:
+                isPreviewMounted &&
+                latestReadyVersion !== null &&
+                effectiveVersion === latestReadyVersion,
+        });
+    const { onSdkManifest: onInspectorSdkManifest } = inspector.iframeProps;
+    const handleIframeSdkManifest = useCallback<typeof handleSdkManifest>(
+        (manifest) => {
+            onInspectorSdkManifest(manifest);
+            handleSdkManifest(manifest);
+        },
+        [onInspectorSdkManifest, handleSdkManifest],
+    );
+
+    const previewRef = useRef<AppIframePreviewHandle>(null);
+    const [screenshotAvailable, setScreenshotAvailable] = useState(false);
+    const capturePreviewScreenshot = useCallback(async () => {
+        const capture = previewRef.current?.captureScreenshot;
+        if (!capture) {
+            throw new Error('Screenshot capture is not available');
+        }
+        return capture();
+    }, []);
+    const { captureThumbnail, isCapturing: isCapturingThumbnail } =
+        useCaptureThumbnail({
+            app: { projectUuid, appUuid },
+            capture: capturePreviewScreenshot,
+        });
 
     const returnToLatest = () =>
         dispatch(
@@ -296,6 +351,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         body = (
             <>
                 <AppIframePreview
+                    ref={previewRef}
                     src={previewUrl}
                     previewToken={token}
                     expectedPreviewOrigin={previewOrigin}
@@ -303,9 +359,16 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                     appUuid={appUuid}
                     identityKey={identityKey}
                     capabilities={{ gsheetExport: true }}
+                    invalidateCache={invalidateCache}
+                    onScreenshotAvailabilityChange={setScreenshotAvailable}
                     {...(showInspector
                         ? { ...inspector.iframeProps, ...picker.iframeProps }
                         : {})}
+                    onSdkManifest={
+                        showInspector
+                            ? handleIframeSdkManifest
+                            : handleSdkManifest
+                    }
                 />
                 {showInspector && !inspector.hidden && (
                     <AppInspectorPanel
@@ -339,18 +402,18 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                     </Stack>
 
                     <Group gap={2} className={artifactStyles.headRight}>
-                        <Menu position="bottom-end">
-                            <Menu.Target>
-                                <Tooltip label="More options">
-                                    <ActionIcon
-                                        size="sm"
-                                        aria-label="More options"
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Menu.Target>
-                            <Menu.Dropdown>
+                        <AppActionsMenu
+                            projectUuid={projectUuid}
+                            appUuid={appUuid}
+                            appName={app.name}
+                            appDescription={app.description || null}
+                            appSpaceUuid={app.spaceUuid}
+                            appCreatedByUserUuid={app.createdByUserUuid}
+                            latestVersionNumber={latestReadyVersion}
+                            latestVersionStatus={
+                                latestReadyVersion !== null ? 'ready' : null
+                            }
+                            navItem={
                                 <Menu.Item
                                     component="a"
                                     href={appUrl}
@@ -359,29 +422,61 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                     leftSection={
                                         <MantineIcon
                                             icon={IconExternalLink}
-                                            size="sm"
+                                            size={14}
                                         />
                                     }
                                 >
                                     Open in new tab
                                 </Menu.Item>
-                                {showInspector && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconArrowsUpDown}
-                                                size="sm"
-                                            />
-                                        }
-                                        onClick={toggleInspector}
-                                    >
-                                        {isInspectorVisible
-                                            ? 'Hide network'
-                                            : 'Show network'}
-                                    </Menu.Item>
-                                )}
-                            </Menu.Dropdown>
-                        </Menu>
+                            }
+                            askAiItem={null}
+                            viewNetwork={
+                                showInspector
+                                    ? {
+                                          label: isInspectorVisible
+                                              ? 'Hide network'
+                                              : 'Show network',
+                                          onClick: toggleInspector,
+                                      }
+                                    : null
+                            }
+                            onRefresh={handleRefresh}
+                            capturedQueryCount={
+                                showInspector
+                                    ? inspector.readyQueryCount
+                                    : undefined
+                            }
+                            onDuplicated={({ appUuid: newAppUuid }) =>
+                                window.open(
+                                    `/projects/${projectUuid}/apps/${newAppUuid}`,
+                                    '_blank',
+                                )
+                            }
+                            onDeleted={() => dispatch(clearPreview())}
+                            captureThumbnail={{
+                                onCapture: () => void captureThumbnail(),
+                                disabled:
+                                    !isPreviewMounted ||
+                                    !screenshotAvailable ||
+                                    isCapturingThumbnail,
+                            }}
+                            capturePreviewScreenshot={
+                                screenshotAvailable
+                                    ? capturePreviewScreenshot
+                                    : null
+                            }
+                            upgrade={{
+                                ...sdkUpgradeOffer,
+                                disabled:
+                                    !isPreviewMounted || isBuildInProgress,
+                            }}
+                            target={{
+                                size: 'sm',
+                                variant: 'subtle',
+                                ariaLabel: 'More options',
+                                tooltip: 'More options',
+                            }}
+                        />
                         {showInspector &&
                             picker.available &&
                             !isViewingOlderVersion && (

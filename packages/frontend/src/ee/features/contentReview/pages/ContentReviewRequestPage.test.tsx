@@ -149,3 +149,35 @@ describe('ContentReviewRequestDetailView', () => {
         expect(screen.getByText('Not yet')).toBeInTheDocument();
     });
 });
+
+it.each([
+    ['potential_duplicate', 'Potential duplicate'],
+    ['related', 'Related analysis'],
+    ['same_name', 'Same name'],
+    ['similar_name', 'Similar name'],
+] as const)(
+    'shows the %s verdict and explanation to reviewers',
+    async (matchReason, label) => {
+        renderView({
+            similarContent: [
+                {
+                    contentType: ContentReviewContentType.CHART,
+                    contentUuid: 'copy',
+                    name: 'Delivery analysis',
+                    slug: 'copy',
+                    spaceUuid: 'finance',
+                    spaceName: 'Finance',
+                    isVerified: false,
+                    score: 100,
+                    matchReason,
+                    explanation: 'Same shipping analysis.',
+                },
+            ],
+        });
+        await userEvent.click(screen.getByRole('button', { name: 'Show' }));
+        expect(
+            await screen.findByText(`${label} · in Finance`),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Same shipping analysis.')).toBeInTheDocument();
+    },
+);

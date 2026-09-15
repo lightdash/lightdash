@@ -9,6 +9,7 @@ import {
     type ContentReviewRequestStatus,
     type ContentReviewRequestView,
     type CreateContentReviewRequestBody,
+    type FindSimilarContentBody,
     type RejectContentReviewRequestBody,
     type UpdateContentReviewSettings,
 } from '@lightdash/common';
@@ -123,20 +124,12 @@ export const updateContentReviewSettings = (
 
 export const getSimilarContentForReview = (
     projectUuid: string,
-    params: {
-        contentType: ContentReviewContentType;
-        name: string;
-        excludeContentUuid: string;
-    },
-) => {
-    const search = new URLSearchParams({
-        contentType: params.contentType,
-        name: params.name,
-        excludeContentUuid: params.excludeContentUuid,
+    params: FindSimilarContentBody,
+    signal?: AbortSignal,
+) =>
+    lightdashApi<ApiContentReviewSimilarContentResponse['results']>({
+        url: `${contentReviewBasePath(projectUuid)}/similar`,
+        method: 'POST',
+        body: JSON.stringify(params),
+        signal,
     });
-    return lightdashApi<ApiContentReviewSimilarContentResponse['results']>({
-        url: `${contentReviewBasePath(projectUuid)}/similar?${search.toString()}`,
-        method: 'GET',
-        body: undefined,
-    });
-};

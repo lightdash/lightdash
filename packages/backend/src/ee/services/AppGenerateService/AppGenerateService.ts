@@ -1229,6 +1229,58 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Usage of chart types — listing, configuring, rendering — is available
+     * wherever data apps are on OR the chart type library is on, so a
+     * customer without data apps can still install and use library chart
+     * types. Authoring stays behind `assertDataAppsEnabled`.
+     */
+    private async assertChartTypesEnabled(user: SessionUser): Promise<void> {
+        if (await this.dataAppsEnabledFor(user)) {
+            return;
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ChartTypeRegistry,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Chart types are not enabled');
+        }
+    }
+
+    /**
+     * The library surface — browsing, installing, registry assets — follows
+     * the `ChartTypeRegistry` flag alone, independent of data apps.
+     */
+    private async assertChartTypeLibraryEnabled(
+        user: SessionUser,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ChartTypeRegistry,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('The chart type library is not enabled');
+        }
+    }
+
+    /**
+     * Chart types are offered to whoever can build a chart in an explore:
+     * picking, configuring, and previewing a renderer is part of chart
+     * building, not app access. Registry-installed chart types are space-less,
+     * so a `view:DataApp` check here would deny everyone but the installer
+     * and admins.
+     */
+    private assertCanUseChartTypes(
+        user: SessionUser,
+        context: { organizationUuid: string; projectUuid: string },
+    ): void {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (auditedAbility.cannot('manage', subject('Explore', context))) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+    }
+
+    /**
      * Link the given external connections to the app before its catalog stage,
      * so the generated app can call them via client.externalFetch. A connection
      * from another project is never linked (that would expose its credentialed
@@ -2032,12 +2084,20 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<{ thumbnailUrl: string }> {
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        // Viewing a thumbnail is a read: anyone who can view the app can see it
-        // (e.g. on a project homepage), not just those who can manage it.
-        await this.assertCanViewApp(user, app);
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            await this.assertChartTypesEnabled(user);
+            this.assertCanUseChartTypes(user, {
+                organizationUuid: app.organization_uuid,
+                projectUuid,
+            });
+        } else {
+            await this.assertDataAppsEnabled(user);
+            // Viewing a thumbnail is a read: anyone who can view the app can
+            // see it (e.g. on a project homepage), not just those who can
+            // manage it.
+            await this.assertCanViewApp(user, app);
+        }
 
         const { client: s3Client, bucket } = this.getS3Client();
         const key = AppGenerateService.appThumbnailKey(appUuid);
@@ -8676,20 +8736,10 @@ export class AppGenerateService extends BaseService {
         paginateArgs?: KnexPaginateArgs,
         search?: string,
     ): Promise<KnexPaginatedData<DataAppViz[]>> {
-        await this.assertDataAppsEnabled(user);
+        await this.assertChartTypesEnabled(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        // The library is offered to whoever can build a chart in an explore:
-        // picking a renderer is part of configuring a chart, not app access.
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError('Insufficient permissions');
-        }
+        this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
         const { data, pagination } =
             await this.appModel.listDataAppVisualizations(
                 projectUuid,
@@ -8712,10 +8762,9 @@ export class AppGenerateService extends BaseService {
 
     /**
      * The catalog of installable chart types from the configured chart
-     * registry, merged with this project's install state. Gated behind
-     * both the data-apps flag and the `ChartTypeRegistry` rollout flag; the
-     * library is offered to whoever can build a chart in an explore, same as
-     * `listDataAppVisualizations`.
+     * registry, merged with this project's install state. Gated behind the
+     * `ChartTypeRegistry` flag; the library is offered to whoever can build
+     * a chart in an explore, same as `listDataAppVisualizations`.
      */
     async listRegistryChartTypes(
         user: SessionUser,
@@ -8724,26 +8773,10 @@ export class AppGenerateService extends BaseService {
         registryEnabled: boolean;
         charts: RegistryChartTypeListItem[];
     }> {
-        await this.assertDataAppsEnabled(user);
-        const { enabled: registryFlagEnabled } =
-            await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ChartTypeRegistry,
-            });
-        if (!registryFlagEnabled) {
-            throw new ForbiddenError('The chart type library is not enabled');
-        }
+        await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError('Insufficient permissions');
-        }
+        this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
 
         if (!this.chartRegistryClient.isEnabled()) {
             return { registryEnabled: false, charts: [] };
@@ -8801,15 +8834,7 @@ export class AppGenerateService extends BaseService {
         version: number;
         action: 'installed' | 'upgraded' | 'unchanged';
     }> {
-        await this.assertDataAppsEnabled(user);
-        const { enabled: registryFlagEnabled } =
-            await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ChartTypeRegistry,
-            });
-        if (!registryFlagEnabled) {
-            throw new ForbiddenError('The chart type library is not enabled');
-        }
+        await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -8987,24 +9012,15 @@ export class AppGenerateService extends BaseService {
      * Thin pass-through to the chart registry's index-listed images
      * (thumbnails/screenshots). No ability check beyond route auth — these
      * are catalog metadata, not project data — but gated the same way as
-     * `listRegistryChartTypes`: the data-apps flag, then the
-     * `ChartTypeRegistry` rollout flag, before falling back to the registry
-     * client's own enabled check (`chartRegistryClient.getAsset` throws when
-     * it isn't).
+     * `listRegistryChartTypes`: the `ChartTypeRegistry` flag, before falling
+     * back to the registry client's own enabled check
+     * (`chartRegistryClient.getAsset` throws when it isn't).
      */
     async getRegistryAsset(
         user: SessionUser,
         path: string,
     ): Promise<{ buffer: Buffer; contentType: string } | undefined> {
-        await this.assertDataAppsEnabled(user);
-        const { enabled: registryFlagEnabled } =
-            await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ChartTypeRegistry,
-            });
-        if (!registryFlagEnabled) {
-            throw new ForbiddenError('The chart type library is not enabled');
-        }
+        await this.assertChartTypeLibraryEnabled(user);
         if (!this.chartRegistryClient.isEnabled()) {
             return undefined;
         }
@@ -9023,7 +9039,7 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version?: number,
     ): Promise<DataAppViz> {
-        await this.assertDataAppsEnabled(user);
+        await this.assertChartTypesEnabled(user);
         const dataAppViz = await this.appModel.findVisualizationApp(
             dataAppVizUuid,
             projectUuid,
@@ -9033,12 +9049,9 @@ export class AppGenerateService extends BaseService {
                 `Data app visualization not found: ${dataAppVizUuid}`,
             );
         }
-        await this.assertCanViewApp(user, {
-            app_id: dataAppViz.app_id,
-            project_uuid: dataAppViz.project_uuid,
-            space_uuid: dataAppViz.space_uuid,
-            organization_uuid: dataAppViz.organization_uuid,
-            created_by_user_uuid: dataAppViz.created_by_user_uuid,
+        this.assertCanUseChartTypes(user, {
+            organizationUuid: dataAppViz.organization_uuid,
+            projectUuid: dataAppViz.project_uuid,
         });
         if (version === undefined) {
             return AppGenerateService.mapDataAppViz(dataAppViz);
@@ -9070,20 +9083,12 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await this.assertDataAppsEnabled(user);
+        await this.assertChartTypesEnabled(user);
 
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', {
-                    organizationUuid: dataAppViz.organization_uuid,
-                    projectUuid: dataAppViz.project_uuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError('Insufficient permissions');
-        }
+        this.assertCanUseChartTypes(user, {
+            organizationUuid: dataAppViz.organization_uuid,
+            projectUuid: dataAppViz.project_uuid,
+        });
 
         return dataAppViz;
     }
@@ -9106,7 +9111,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await this.assertDataAppsEnabled(user);
+        await this.assertChartTypesEnabled(user);
 
         await this.savedChartService.hasAccess(
             'view',
@@ -9570,7 +9575,13 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            await this.assertDataAppsEnabled(user);
+            if (app.registry_slug !== null) {
+                // Uninstalling a library chart type must work wherever the
+                // library does, even with data apps off.
+                await this.assertChartTypesEnabled(user);
+            } else {
+                await this.assertDataAppsEnabled(user);
+            }
             await this.assertCanManageApp(
                 user,
                 app,
@@ -9625,7 +9636,13 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            await this.assertDataAppsEnabled(user);
+            if (app.registry_slug !== null) {
+                // Restoring an uninstalled library chart type must work
+                // wherever uninstalling it does, even with data apps off.
+                await this.assertChartTypesEnabled(user);
+            } else {
+                await this.assertDataAppsEnabled(user);
+            }
             await this.assertCanManageApp(
                 user,
                 app,

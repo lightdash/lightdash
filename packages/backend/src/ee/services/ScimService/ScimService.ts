@@ -39,7 +39,7 @@ import {
 import * as Sentry from '@sentry/node';
 import { groupBy } from 'lodash';
 import {
-    InvalidScimPatchRequest,
+    InvalidScimPatch,
     ScimResource as PatchLibScimResource,
     ScimPatch,
     scimPatch,
@@ -1167,14 +1167,18 @@ export class ScimService extends BaseService {
             return patchedUser;
         } catch (error) {
             if (error instanceof Error) {
+                // scim-patch throws several InvalidScimPatch subclasses (bad path, forbidden key, ...)
+                if (
+                    error instanceof ParameterError ||
+                    error instanceof InvalidScimPatch
+                ) {
+                    throw new ScimError({
+                        detail: error.message,
+                        status: 400,
+                        scimType: 'invalidValue',
+                    });
+                }
                 switch (error.constructor) {
-                    case ParameterError:
-                    case InvalidScimPatchRequest:
-                        throw new ScimError({
-                            detail: error.message,
-                            status: 400,
-                            scimType: 'invalidValue',
-                        });
                     case NotFoundError:
                         this.logger.warn(
                             'SCIM: user lookup failed — possible IdP cache drift',
@@ -1898,7 +1902,7 @@ export class ScimService extends BaseService {
             }
             if (
                 error instanceof ParameterError ||
-                error instanceof InvalidScimPatchRequest
+                error instanceof InvalidScimPatch
             ) {
                 this.logger.error('SCIM: Invalid group patch request', {
                     organizationUuid,

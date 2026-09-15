@@ -212,7 +212,6 @@ const mcpTextConfigurations = mcpOptionCombinations.map((options) => ({
     ...registrationOnlyFeatures,
     ...options,
 }));
-const warnedInstructionLengths = new Set<number>();
 
 const inputSchemaRequirements = z.object({
     required: z.array(z.string()).optional(),
@@ -294,10 +293,46 @@ describe('MCP tool contracts', () => {
                 filterExpressionsEnabled: true,
             }),
         );
-        expect(getLatestMcpServerInstructions()).toContain(
+        expect(getLatestMcpServerInstructions()).not.toContain(
             MCP_FILTER_EXPRESSION_GUIDANCE_SECTION,
         );
+        expect(getLatestMcpServerInstructions()).toContain(
+            'read the shared skill',
+        );
     });
+
+    it.each([false, true])(
+        'links both expression-enabled tools to the shared skill: expressions=%s',
+        async (filterExpressionsEnabled) => {
+            const mcpService = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await mcpService.createServer(
+                makeMcpServerOptions({
+                    runMetricQueryEnabled: true,
+                    filterExpressionsEnabled,
+                }),
+            );
+            for (const name of [
+                McpToolName.RUN_METRIC_QUERY,
+                McpToolName.SEARCH_FIELD_VALUES,
+            ]) {
+                const tool = mockRegisteredMcpTools.find(
+                    (registered) => registered.name === name,
+                );
+                expect(tool).toBeDefined();
+                expect(
+                    tool?.config.description.includes(
+                        'read the `filter-expressions` skill',
+                    ),
+                ).toBe(filterExpressionsEnabled);
+            }
+            const skill =
+                await BuiltInSkills.readSkillTool('filter-expressions');
+            expect(skill?.body).toContain(
+                'Each category is flat and uses AND or OR, never both.',
+            );
+        },
+    );
 
     it.each([
         {
@@ -360,38 +395,136 @@ describe('MCP tool contracts', () => {
     );
 
     it.each(mcpTextConfigurations)(
-        'ratchets MCP server instruction lengths: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+        'keeps pagination guidance on registered input fields: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+        async (options) => {
+            const service = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(makeMcpServerOptions(options));
+            const paginatedTools = mockRegisteredMcpTools.filter(
+                ({ config }) => config.inputSchema.page !== undefined,
+            );
+            expect(paginatedTools.map(({ name }) => name)).toContain(
+                McpToolName.LIST_CONTENT,
+            );
+            for (const { config } of paginatedTools) {
+                expect(schemaToJson(config.inputSchema, 'input')).toMatchObject(
+                    {
+                        properties: {
+                            page: {
+                                description:
+                                    'Paginate results starting at 1. Pass a positive number (e.g. 1), never NaN or the string "null".',
+                            },
+                        },
+                    },
+                );
+            }
+            const instructions = getLatestMcpServerInstructions();
+            expect(instructions).not.toContain('### Pagination');
+            expect(instructions).not.toContain('Page parameters');
+            expect(instructions).not.toContain('NaN');
+        },
+    );
+
+    it.each(mcpTextConfigurations)(
+        'keeps registered MCP server instructions within the client text limit: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
         async (options) => {
             const configuration = JSON.stringify(options);
             const mcpService = makeMcpService();
             await mcpService.createServer(makeMcpServerOptions(options));
-            // Existing instruction overages cannot grow; lower these as text shrinks.
-            const instructionCeilings = options.runSqlEnabled
-                ? { structured: 5483, expression: 9192 }
-                : { structured: 4659, expression: 8368 };
-            const instructionCeiling = options.runMetricQueryEnabled
-                ? instructionCeilings[
-                      options.filterExpressionsEnabled
-                          ? 'expression'
-                          : 'structured'
-                  ]
-                : MCP_CLIENT_TEXT_MAX_CHARS;
-            const { length } = getLatestMcpServerInstructions();
-
-            if (
-                length > MCP_CLIENT_TEXT_MAX_CHARS &&
-                !warnedInstructionLengths.has(length)
-            ) {
-                // Report a distinct length once, while asserting every combination.
-                warnedInstructionLengths.add(length);
-                process.stderr.write(
-                    `[MCP client text limit: ${configuration}]\nserver instructions: ${length} chars (+${length - MCP_CLIENT_TEXT_MAX_CHARS} over ${MCP_CLIENT_TEXT_MAX_CHARS})\n`,
-                );
-            }
             expect(
-                length,
-                `${configuration}: server instructions exceed their text ceiling; shorten the text instead of updating snapshots`,
-            ).toBeLessThanOrEqual(instructionCeiling);
+                getLatestMcpServerInstructions().length,
+                `${configuration}: server instructions exceed the client text limit; shorten the text instead of updating snapshots`,
+            ).toBeLessThanOrEqual(MCP_CLIENT_TEXT_MAX_CHARS);
+        },
+    );
+
+    it.each([false, true])(
+        'keeps workflow details on their registered tools: expressions=%s',
+        async (filterExpressionsEnabled) => {
+            const service = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(
+                makeMcpServerOptions({
+                    runSqlEnabled: true,
+                    runMetricQueryEnabled: true,
+                    filterExpressionsEnabled,
+                }),
+            );
+            const guidance = [
+                {
+                    name: McpToolName.RUN_METRIC_QUERY,
+                    details: [
+                        'If the user mentions any time period, add an explicit date filter; never use sort + limit instead.',
+                        'Use inThePast for relative windows.',
+                        'Date fields from joined tables work identically in filters.',
+                        'Add a customMetrics entry only after grep_fields / get_metadata confirm no existing metric fits.',
+                    ],
+                },
+                {
+                    name: McpToolName.GREP_FIELDS,
+                    details: [
+                        '1–5 patterns in a SINGLE call',
+                        'long natural-language phrases',
+                        'right grain',
+                    ],
+                },
+                {
+                    name: McpToolName.GET_METADATA,
+                    details: [
+                        'required filters',
+                        'filter type, case-sensitivity',
+                        'batch everything you need at once',
+                    ],
+                },
+                {
+                    name: McpToolName.GET_CONTEXT,
+                    details: [
+                        'use route_agent',
+                        'returned agentUuid explicitly',
+                        'omit agentUuid; use set_agent for manual selection',
+                    ],
+                },
+                {
+                    name: McpToolName.SEARCH_FIELD_VALUES,
+                    details: [
+                        'dimension before building a filter',
+                        'use it directly instead of searching',
+                    ],
+                },
+                {
+                    name: McpToolName.GET_QUERY_RESULT,
+                    details: [
+                        'until done, error, cancelled, or expired',
+                        'same queryUuid',
+                        'never resubmit the query',
+                    ],
+                },
+                {
+                    name: McpToolName.RENDER_CHART,
+                    details: [
+                        'Pass the exact queryUuid',
+                        'run_metric_query or get_query_result',
+                        'SQL Runner/run_sql results are not supported',
+                    ],
+                },
+                {
+                    name: McpToolName.LIST_CONTENT,
+                    details: ['direct children and content inside that space'],
+                },
+                {
+                    name: McpToolName.FIND_CONTENT,
+                    details: ['dashboards', 'Data Apps'],
+                },
+            ];
+            for (const { name, details } of guidance) {
+                const tool = mockRegisteredMcpTools.find(
+                    (registered) => registered.name === name,
+                );
+                expect(tool).toBeDefined();
+                for (const detail of details) {
+                    expect(tool?.config.description).toContain(detail);
+                }
+            }
         },
     );
 
@@ -433,6 +566,50 @@ describe('MCP tool contracts', () => {
                 expect(config.description).toContain('same queryUuid');
                 expect(config.description).toContain('Stop on terminal errors');
             }
+        },
+    );
+
+    it.each([false, true])(
+        'keeps calculation and visualization guidance on MCP tools: expressions=%s',
+        async (filterExpressionsEnabled) => {
+            const service = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(
+                makeMcpServerOptions({
+                    runSqlEnabled: true,
+                    runMetricQueryEnabled: true,
+                    filterExpressionsEnabled,
+                }),
+            );
+            const query = mockRegisteredMcpTools.find(
+                ({ name }) => name === McpToolName.RUN_METRIC_QUERY,
+            );
+            expect(query?.config.description).toContain(
+                'Before authoring table calculations, read the `table-calculations` skill. Use type `formula`.',
+            );
+            const sql = mockRegisteredMcpTools.find(
+                ({ name }) => name === McpToolName.RUN_SQL,
+            );
+            expect(sql).toBeDefined();
+            expect(sql?.config.description).not.toContain('table-calculations');
+            const render = mockRegisteredMcpTools.find(
+                ({ name }) => name === McpToolName.RENDER_CHART,
+            );
+            for (const detail of [
+                'Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel',
+                "For time series: use `line` with `xAxisType: 'time'`",
+                'For categorical comparisons: use `bar` or `horizontal_bar`',
+                'For single values or detailed data: use `table`',
+                'Always provide axis labels',
+            ]) {
+                expect(render?.config.description).toContain(detail);
+            }
+            expect(mockRegisteredMcpResourceUris).toContain(
+                'skill://lightdash/table-calculations/SKILL.md',
+            );
+            expect(
+                (await BuiltInSkills.readSkillTool('table-calculations'))?.body,
+            ).toContain('MOVING_AVG(m, 2, ORDER BY date)');
         },
     );
 

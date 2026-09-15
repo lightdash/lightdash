@@ -26,12 +26,36 @@ const EmbedBackgroundColorSync: FC<React.PropsWithChildren> = ({
 
     useEffect(() => {
         if (backgroundColor) {
+            const alphaHex =
+                backgroundColor.length === 5
+                    ? backgroundColor.slice(-1).repeat(2)
+                    : backgroundColor.length === 9
+                      ? backgroundColor.slice(-2)
+                      : 'ff';
             document.documentElement.style.backgroundColor = backgroundColor;
             document.body.style.backgroundColor = backgroundColor;
+            // Alpha colors show the page behind the header without another tint.
+            document.documentElement.style.setProperty(
+                '--ld-embed-header-background-color',
+                alphaHex.toLowerCase() === 'ff'
+                    ? backgroundColor
+                    : 'transparent',
+            );
+            // Let tabs and actions show the header background beneath them.
+            document.documentElement.style.setProperty(
+                '--ld-embed-header-surface-color',
+                'transparent',
+            );
         }
         return () => {
             document.documentElement.style.backgroundColor = '';
             document.body.style.backgroundColor = '';
+            document.documentElement.style.removeProperty(
+                '--ld-embed-header-background-color',
+            );
+            document.documentElement.style.removeProperty(
+                '--ld-embed-header-surface-color',
+            );
         };
     }, [backgroundColor]);
 

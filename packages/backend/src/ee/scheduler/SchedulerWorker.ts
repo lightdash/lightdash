@@ -1,4 +1,5 @@
 import {
+    ConflictError,
     EE_SCHEDULER_TASKS,
     getErrorMessage,
     getManagedAgentScheduleCron,
@@ -662,6 +663,18 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     return;
                 }
 
+                // Re-arm before running so a worker crash mid-run cannot drop
+                // the schedule; the locked job is left alone by the same key.
+                if (triggeredBy === 'cron') {
+                    const schedule =
+                        getManagedAgentScheduleCron(settings.schedule) ??
+                        this.lightdashConfig.managedAgent.schedule;
+                    await this.schedulerClient.scheduleManagedAgentHeartbeat(
+                        schedule,
+                        projectUuid,
+                    );
+                }
+
                 const aiAutopilotEnabled =
                     await this.managedAgentService.isAiAutopilotEnabledForProject(
                         settings,
@@ -677,10 +690,21 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     `Running managed agent heartbeat for project ${projectUuid} (${triggeredBy})`,
                 );
 
-                const { runUuid } = await this.managedAgentService.startRun(
-                    projectUuid,
-                    triggeredBy,
-                );
+                let runUuid: string;
+                try {
+                    ({ runUuid } = await this.managedAgentService.startRun(
+                        projectUuid,
+                        triggeredBy,
+                    ));
+                } catch (error) {
+                    if (error instanceof ConflictError) {
+                        Logger.info(
+                            `Managed agent heartbeat already running for project ${projectUuid}, skipping (${triggeredBy})`,
+                        );
+                        return;
+                    }
+                    throw error;
+                }
 
                 try {
                     await this.managedAgentService.runHeartbeat(
@@ -695,16 +719,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         `Error during heartbeat for project ${projectUuid}:`,
                         error,
                     );
-                } finally {
-                    if (triggeredBy === 'cron') {
-                        const schedule =
-                            getManagedAgentScheduleCron(settings.schedule) ??
-                            this.lightdashConfig.managedAgent.schedule;
-                        await this.schedulerClient.scheduleManagedAgentHeartbeat(
-                            schedule,
-                            projectUuid,
-                        );
-                    }
                 }
             },
             [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: async (

@@ -835,6 +835,7 @@ const generateContentMentionSuggestion = ({
             },
             onKeyDown: (props) => {
                 if (props.event.key === 'Escape') {
+                    props.event.stopPropagation();
                     dismissed = true;
                     onMenuStateChange?.({ status: 'dismissed' });
                     popup?.hide();

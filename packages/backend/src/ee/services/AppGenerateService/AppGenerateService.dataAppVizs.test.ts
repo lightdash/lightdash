@@ -2,8 +2,10 @@
 import {
     ChartType,
     DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
     ForbiddenError,
     getUserAbilityBuilder,
+    MissingConfigError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
@@ -71,6 +73,7 @@ function buildService(
     overrides: {
         savedChartModel?: unknown;
         savedChartService?: unknown;
+        featureFlags?: Record<string, boolean>;
     } = {},
 ) {
     const service = new AppGenerateService({
@@ -87,7 +90,14 @@ function buildService(
         userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
+            get: vi
+                .fn()
+                .mockImplementation(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        enabled:
+                            overrides.featureFlags?.[featureFlagId] ?? true,
+                    }),
+                ),
         } as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
@@ -300,6 +310,150 @@ describe('AppGenerateService data app vizs', () => {
             await expect(listed(OrganizationMemberRole.VIEWER)).rejects.toThrow(
                 ForbiddenError,
             );
+        });
+    });
+
+    describe('who can read a chart type schema', () => {
+        // Registry installs are space-less and authored by the installer, so
+        // the schema read must follow the listing's manage:Explore gate —
+        // a view:DataApp check would deny everyone but installer and admins.
+        const someoneElsesViz = makeDataAppVizRow({
+            space_uuid: null,
+            created_by_user_uuid: 'someone-else',
+        });
+        const readSchema = async (role: OrganizationMemberRole) => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(someoneElsesViz),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                role,
+                'editor-1',
+            );
+            return service.getDataAppVisualization(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            );
+        };
+
+        it.each([
+            OrganizationMemberRole.INTERACTIVE_VIEWER,
+            OrganizationMemberRole.EDITOR,
+            OrganizationMemberRole.DEVELOPER,
+            OrganizationMemberRole.ADMIN,
+        ])('lets a %s read a schema they did not author', async (role) => {
+            const result = await readSchema(role);
+            expect(result.dataAppVizUuid).toBe('data-app-viz-1');
+        });
+
+        it('refuses a viewer the schema', async () => {
+            await expect(
+                readSchema(OrganizationMemberRole.VIEWER),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    describe('who can see a chart type thumbnail', () => {
+        const chartTypeApp = {
+            app_id: 'data-app-viz-1',
+            project_uuid: 'project-1',
+            organization_uuid: 'org-1',
+            space_uuid: null,
+            created_by_user_uuid: 'someone-else',
+            template: DATA_APP_VIZ_TEMPLATE,
+        };
+        const getThumbnail = async (role: OrganizationMemberRole) => {
+            const appModel = {
+                getApp: vi.fn().mockResolvedValue(chartTypeApp),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                role,
+                'editor-1',
+            );
+            return service.getThumbnailUrl(user, 'project-1', 'data-app-viz-1');
+        };
+
+        it('gates a chart type thumbnail on the explore, not app view', async () => {
+            // Passing the ability gate surfaces the fixture's missing
+            // app-runtime storage instead of a ForbiddenError.
+            await expect(
+                getThumbnail(OrganizationMemberRole.EDITOR),
+            ).rejects.toThrow(MissingConfigError);
+        });
+
+        it('refuses a viewer the thumbnail', async () => {
+            await expect(
+                getThumbnail(OrganizationMemberRole.VIEWER),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    describe('the chart type usage flag gate', () => {
+        // Usage follows either flag: the library flag alone is enough to
+        // pick, configure, and render installed chart types.
+        const libraryOnly = {
+            [FeatureFlags.EnableDataApps]: false,
+            [FeatureFlags.ChartTypeRegistry]: true,
+        };
+        const bothOff = {
+            [FeatureFlags.EnableDataApps]: false,
+            [FeatureFlags.ChartTypeRegistry]: false,
+        };
+
+        it('lists the picker with data apps off when the library is on', async () => {
+            const appModel = {
+                listDataAppVisualizations: vi.fn().mockResolvedValue({
+                    data: [makeDataAppVizRow()],
+                    pagination: undefined,
+                }),
+            };
+            const service = buildService(appModel, {
+                featureFlags: libraryOnly,
+            });
+
+            await expect(
+                service.listDataAppVisualizations(USER, 'project-1'),
+            ).resolves.toBeDefined();
+        });
+
+        it('reads a schema with data apps off when the library is on', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            };
+            const service = buildService(appModel, {
+                featureFlags: libraryOnly,
+            });
+
+            const result = await service.getDataAppVisualization(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+            );
+
+            expect(result.dataAppVizUuid).toBe('data-app-viz-1');
+        });
+
+        it('refuses usage when both flags are off', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            };
+            const service = buildService(appModel, { featureFlags: bothOff });
+
+            await expect(
+                service.getDataAppVisualization(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 
@@ -840,14 +994,18 @@ describe('AppGenerateService data app vizs', () => {
             expect(dataAppsEnabledFor).not.toHaveBeenCalled();
         });
 
-        it('rejects a real viz when data apps are disabled', async () => {
+        it('rejects a real viz when chart types are disabled', async () => {
             const appModel = {
                 findVisualizationApp: vi
                     .fn()
                     .mockResolvedValue(makeDataAppVizRow()),
             };
-            const service = buildService(appModel);
-            vi.spyOn(service, 'dataAppsEnabledFor').mockResolvedValue(false);
+            const service = buildService(appModel, {
+                featureFlags: {
+                    [FeatureFlags.EnableDataApps]: false,
+                    [FeatureFlags.ChartTypeRegistry]: false,
+                },
+            });
 
             await expect(
                 service.getDataAppVizRenderMetadata(

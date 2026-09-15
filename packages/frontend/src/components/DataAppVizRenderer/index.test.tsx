@@ -79,6 +79,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('react-router', () => ({
     useParams: () => ({ projectUuid: 'project-uuid' }),
+    Link: ({ to, children }: { to: string; children: React.ReactNode }) => (
+        <a href={to}>{children}</a>
+    ),
 }));
 vi.mock('../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
@@ -126,6 +129,9 @@ vi.mock('../../providers/App/useApp', () => ({
                 organizationUuid: 'organization-uuid',
                 userUuid: 'user-uuid',
             },
+        },
+        health: {
+            data: { softDelete: { enabled: true, retentionDays: 30 } },
         },
     }),
 }));
@@ -386,6 +392,71 @@ describe('DataAppVizRenderer', () => {
         },
     );
 
+    it('offers view-mode recovery guidance with the removed message', () => {
+        mocks.metadata.current = undefined;
+        mocks.metadataError.current = apiError(404);
+
+        renderRenderer();
+
+        expect(
+            screen.getByText(
+                'Edit the chart to choose another chart type, or restore the chart type from Recently deleted.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Edit chart' }),
+        ).toHaveAttribute(
+            'href',
+            '/projects/project-uuid/saved/saved-chart-uuid/edit?openVizConfig=true',
+        );
+    });
+
+    it('points at Configure when the removed message shows in edit mode', () => {
+        mocks.metadata.current = undefined;
+        mocks.metadataError.current = apiError(404);
+        mocks.vizContextOverrides.current = { isEditMode: true };
+
+        renderRenderer();
+
+        expect(
+            screen.getByText(
+                'Open Configure and choose another chart type, or restore the chart type from Recently deleted.',
+            ),
+        ).toBeInTheDocument();
+        // Configure is adjacent in edit mode; no navigation link needed.
+        expect(
+            screen.queryByRole('link', { name: 'Edit chart' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('keeps the removed message hint-free for embed viewers', () => {
+        mocks.metadata.current = undefined;
+        mocks.metadataError.current = apiError(404);
+        mocks.embedToken.current = 'embed-token';
+
+        renderRenderer();
+
+        expect(
+            screen.getByText(
+                'The chart type this chart was based on has been removed.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/choose another chart type/),
+        ).not.toBeInTheDocument();
+    });
+
+    it('keeps the no-access message hint-free', () => {
+        mocks.metadata.current = undefined;
+        mocks.metadataError.current = apiError(403);
+
+        renderRenderer();
+
+        expect(
+            screen.queryByText(/choose another chart type/),
+        ).not.toBeInTheDocument();
+    });
+
     it('shows a load failure for an unexpected request error', () => {
         mocks.token.current = undefined;
         mocks.tokenError.current = apiError(500);
@@ -429,12 +500,30 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: false,
                 savedChartUuid: 'saved-chart-uuid',
             },
+            7,
         );
         expect(mocks.iframePreview).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 src: 'https://preview.example.com/api/apps/viz-uuid/versions/7/t/preview-token/?r=0#transport=postMessage&projectUuid=project-uuid',
             }),
             undefined,
+        );
+    });
+
+    it('refreshes the render binding when the saved chart is repinned', () => {
+        const view = renderRenderer();
+
+        mocks.dataAppVizVersion.current = 8;
+        view.rerender(rendererElement());
+
+        expect(mocks.renderMetadataHook).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: 'saved-chart-uuid',
+            },
+            8,
         );
     });
 
@@ -476,6 +565,7 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: false,
                 savedChartUuid: 'saved-chart-uuid',
             },
+            undefined,
         );
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
     });
@@ -508,6 +598,7 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: false,
                 savedChartUuid: 'saved-chart-uuid',
             },
+            3,
         );
 
         announceIframeAvailable();
@@ -543,6 +634,7 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: false,
                 savedChartUuid: undefined,
             },
+            undefined,
         );
         expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
     });
@@ -588,6 +680,7 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: true,
                 savedChartUuid: 'saved-chart-uuid',
             },
+            7,
         );
     });
 });

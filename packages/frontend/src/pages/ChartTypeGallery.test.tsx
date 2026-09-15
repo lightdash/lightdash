@@ -634,12 +634,29 @@ describe('ChartTypeGallery', () => {
         );
     });
 
-    it('redirects home when data apps are disabled', () => {
+    it('redirects home when both chart type flags are disabled', () => {
         setData([]);
-        setFlags({ dataApps: false });
+        setFlags({ dataApps: false, chartTypeRegistry: false });
         renderPage();
 
         expect(screen.getByText('home')).toBeInTheDocument();
+    });
+
+    it('stays open with data apps off when the library flag is on', () => {
+        setData([]);
+        setFlags({ dataApps: false, chartTypeRegistry: true });
+        renderPage();
+
+        expect(screen.queryByText('home')).not.toBeInTheDocument();
+        expect(screen.getByText('Installed charts')).toBeInTheDocument();
+    });
+
+    it('hides the new-chart-type button with data apps off', () => {
+        setData([makeDataAppViz({})]);
+        setFlags({ dataApps: false, chartTypeRegistry: true });
+        renderPage();
+
+        expect(screen.queryByText('New chart type')).not.toBeInTheDocument();
     });
 
     describe('official (registry-installed) chart types', () => {

@@ -1,8 +1,9 @@
+import { useMediaQuery } from '@mantine/hooks';
 import { act, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { Panel, PanelGroup } from 'react-resizable-panels';
 import { describe, expect, it, vi } from 'vitest';
+import ResizableSplitter from '../../../../components/common/ResizableSplitter';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { CanvasSidebar } from './CanvasSidebar';
 
@@ -19,24 +20,37 @@ const DraftCanvas = () => {
 
 const CanvasWithSidebar = () => {
     const [opened, setOpened] = useState(false);
+    const compact = useMediaQuery('(width < 62em)', undefined, {
+        getInitialValueInEffect: false,
+    });
     return (
         <>
             <button onClick={() => setOpened(true)}>Open trees</button>
-            <PanelGroup direction="horizontal">
-                <CanvasSidebar
+            <ResizableSplitter
+                orientation="horizontal"
+                sizes={compact ? [0, 100] : undefined}
+                resizable={!compact}
+            >
+                <ResizableSplitter.Pane
                     id="trees"
-                    title="Saved trees"
-                    opened={opened}
-                    onClose={() => setOpened(false)}
+                    defaultSize={20}
+                    min={compact ? 0 : 15}
+                    max={40}
                 >
-                    <button onClick={() => setOpened(false)}>
-                        Revenue tree
-                    </button>
-                </CanvasSidebar>
-                <Panel id="canvas" order={2} defaultSize={80}>
+                    <CanvasSidebar
+                        title="Saved trees"
+                        opened={opened}
+                        onClose={() => setOpened(false)}
+                    >
+                        <button onClick={() => setOpened(false)}>
+                            Revenue tree
+                        </button>
+                    </CanvasSidebar>
+                </ResizableSplitter.Pane>
+                <ResizableSplitter.Pane id="canvas" defaultSize={80}>
                     <DraftCanvas />
-                </Panel>
-            </PanelGroup>
+                </ResizableSplitter.Pane>
+            </ResizableSplitter>
         </>
     );
 };

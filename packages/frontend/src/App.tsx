@@ -1,6 +1,7 @@
 import { ModalsProvider } from '@mantine/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
 import { lazy, Suspense } from 'react';
+import { flushSync } from 'react-dom';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { DocumentTitle } from './components/common/DocumentTitle';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
@@ -90,6 +91,12 @@ const router = sentryCreateBrowserRouter([
         children: [...Routes, ...CommercialWebAppRoutes],
     },
 ]);
+
+const flushRouterUpdate = (callback: () => unknown) => {
+    flushSync(callback);
+    return undefined;
+};
+
 const App = () => (
     <>
         <DocumentTitle />
@@ -97,7 +104,10 @@ const App = () => (
         <ReactQueryProvider>
             <MantineProvider forceColorScheme={embedForcedColorScheme}>
                 <ModalsProvider>
-                    <RouterProvider router={router} />
+                    <RouterProvider
+                        router={router}
+                        flushSync={flushRouterUpdate}
+                    />
                 </ModalsProvider>
             </MantineProvider>
         </ReactQueryProvider>

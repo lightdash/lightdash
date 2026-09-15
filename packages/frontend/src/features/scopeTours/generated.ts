@@ -2241,6 +2241,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         title: 'Verify a chart',
         sources: [
             'packages/frontend/src/components/Explorer/SavedChartsHeader/index.tsx',
+            'packages/frontend/src/components/Explorer/SavedChartsHeader/ChartActionsMenu.tsx',
         ],
         steps: [
             {
@@ -3949,7 +3950,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             'packages/frontend/src/features/apps/AppIframePreview.tsx',
             'packages/frontend/src/features/apps/AppInspectorPanel.tsx',
             'packages/frontend/src/pages/AppPreviewTest.tsx',
-            'packages/frontend/src/features/apps/components/AppHeaderActions.tsx',
+            'packages/frontend/src/features/apps/components/AppActionsMenu.tsx',
         ],
         steps: [
             {
@@ -4218,7 +4219,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         title: 'Share a data app with your team',
         sources: [
             'packages/frontend/src/features/apps/components/AppHeader.tsx',
-            'packages/frontend/src/features/apps/components/AppHeaderActions.tsx',
+            'packages/frontend/src/features/apps/components/AppActionsMenu.tsx',
         ],
         steps: [
             {
@@ -5276,6 +5277,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         title: 'Verify a chart',
         sources: [
             'packages/frontend/src/components/Explorer/SavedChartsHeader/index.tsx',
+            'packages/frontend/src/components/Explorer/SavedChartsHeader/ChartActionsMenu.tsx',
         ],
         steps: [
             {

@@ -27,11 +27,11 @@ import {
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import {
     markdownSanitizeRehypePlugins,
     rehypeRemoveHeaderLinks,
@@ -314,11 +314,16 @@ export const AgentOnboardingFileBrowser: FC<{
 
     return (
         <>
-            <PanelGroup direction="horizontal" className={classes.fileBrowser}>
-                <Panel
+            <ResizableSplitter
+                handleLabel="Resize file tree and preview"
+                classNames={{ handle: classes.fileResizeHandle }}
+                orientation="horizontal"
+                className={classes.fileBrowser}
+            >
+                <ResizableSplitter.Pane
                     id="onboarding-file-tree"
                     defaultSize={32}
-                    minSize={18}
+                    min={18}
                     className={classes.filePanel}
                 >
                     <Box className={classes.fileTree}>
@@ -331,14 +336,12 @@ export const AgentOnboardingFileBrowser: FC<{
                             renderNode={renderTreeNode}
                         />
                     </Box>
-                </Panel>
-                <PanelResizeHandle
-                    className={classes.fileResizeHandle}
-                    aria-label="Resize file tree and preview"
-                />
-                <Panel
+                </ResizableSplitter.Pane>
+
+                <ResizableSplitter.Pane
                     id="onboarding-file-preview"
-                    minSize={30}
+                    defaultSize={68}
+                    min={30}
                     className={classes.filePanel}
                 >
                     <Box className={classes.filePreview}>
@@ -397,8 +400,8 @@ export const AgentOnboardingFileBrowser: FC<{
                             {preview}
                         </Box>
                     </Box>
-                </Panel>
-            </PanelGroup>
+                </ResizableSplitter.Pane>
+            </ResizableSplitter>
             <MantineModal
                 opened={isExpanded}
                 onClose={() => setIsExpanded(false)}

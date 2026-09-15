@@ -1,0 +1,13 @@
+.sidebar {
+    overflow-y: hidden;
+    padding-bottom: var(--mantine-spacing-md);
+}
+
+.versionList {
+    overflow-y: auto;
+}
+
+.versionLink {
+    flex: 1;
+    min-width: 0;
+}

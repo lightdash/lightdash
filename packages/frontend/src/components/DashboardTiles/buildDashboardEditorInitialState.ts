@@ -2,6 +2,7 @@ import {
     ChartType,
     mergeDashboardCustomMetrics,
     type AdditionalMetric,
+    type CreateSavedChartVersion,
     type SavedChart,
 } from '@lightdash/common';
 import { buildInitialExplorerState } from '../../features/explorer/store';
@@ -13,15 +14,20 @@ import { ExplorerSection } from '../../providers/Explorer/types';
  * seeding never reads as an unsaved user edit. The palette must be seeded
  * explicitly: the custom-initial-state path of buildInitialExplorerState
  * does not derive unsavedColorPaletteUuid from savedChart.
+ *
+ * An override handed over in the url replaces the draft wholesale: it comes
+ * from this same modal, so it already carries the seeded metrics.
  */
 export const buildDashboardEditorInitialState = ({
     exploreId,
     editChart,
     seededMetrics,
+    unsavedChartVersionOverride,
 }: {
     exploreId: string;
     editChart: SavedChart | undefined;
     seededMetrics: AdditionalMetric[];
+    unsavedChartVersionOverride?: CreateSavedChartVersion;
 }) => {
     const seededMetricQuery = editChart
         ? {
@@ -45,7 +51,7 @@ export const buildDashboardEditorInitialState = ({
                 editChart && seededMetricQuery
                     ? { ...editChart, metricQuery: seededMetricQuery }
                     : editChart,
-            unsavedChartVersion: {
+            unsavedChartVersion: unsavedChartVersionOverride ?? {
                 tableName: exploreId,
                 metricQuery: seededMetricQuery ?? {
                     exploreName: exploreId,

@@ -55,7 +55,6 @@ import {
     type FC,
 } from 'react';
 import { flushSync } from 'react-dom';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
     Link,
     Navigate,
@@ -72,6 +71,7 @@ import {
     PromptComposer,
     type PromptComposerHandle,
 } from '../components/common/PromptComposer';
+import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
@@ -106,8 +106,12 @@ import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
-import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
+import {
+    getBuildOutcome,
+    useBuildNotification,
+} from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
+import { useCaptureThumbnail } from '../features/apps/hooks/useCaptureThumbnail';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useElementPicker } from '../features/apps/hooks/useElementPicker';
@@ -653,7 +657,7 @@ const AppGenerate: FC = () => {
         number | null
     >(null);
     const { mutateAsync: uploadFile } = useAppFileUpload();
-    const { showToastError, showToastSuccess, showToastWarning } = useToaster();
+    const { showToastError, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
 
     // Raw live-preview capture handed to the move modal (via header actions
@@ -667,6 +671,16 @@ const AppGenerate: FC = () => {
         }
         return capture();
     }, []);
+    // Header-menu "Capture thumbnail": saves the preview as the app thumbnail
+    // without attaching a screenshot to the next prompt.
+    const { captureThumbnail, isCapturing: isCapturingThumbnail } =
+        useCaptureThumbnail({
+            app:
+                projectUuid && activeAppUuid
+                    ? { projectUuid, appUuid: activeAppUuid }
+                    : null,
+            capture: capturePreviewScreenshot,
+        });
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
@@ -762,11 +776,20 @@ const AppGenerate: FC = () => {
     const isLoading = isSubmitting || isAgentWorking || hasPendingClarification;
 
     // OS notification when a build finishes (only fires when tab is in background)
-    const notifyBuildDone = useBuildNotification(appName, isLoading);
+    const notifyBuildDone = useBuildNotification({
+        appUuid: activeAppUuid ?? null,
+        appName,
+        shouldRequestPermission: isLoading,
+    });
+    const onBuildDone = useCallback(
+        (summary: ApiAppVersionSummary) =>
+            notifyBuildDone(getBuildOutcome(summary)),
+        [notifyBuildDone],
+    );
 
     // Web Worker that polls the API while a version is building.
     // Workers aren't throttled in background tabs, unlike main-thread timers.
-    useAppBuildPoller(projectUuid, activeAppUuid, isBuilding, notifyBuildDone);
+    useAppBuildPoller(projectUuid, activeAppUuid, isBuilding, onBuildDone);
 
     // Clear local messages once server data takes over (avoids duplicates).
     // Use the version count as dependency so this doesn't fire on every poll.
@@ -1419,33 +1442,6 @@ const AppGenerate: FC = () => {
         );
     };
 
-    // Header-menu "Capture thumbnail": saves the preview as the app thumbnail
-    // without attaching a screenshot to the next prompt.
-    const handleCaptureThumbnail = async () => {
-        const capture = previewRef.current?.captureScreenshot;
-        if (!capture || !projectUuid || !activeAppUuid) return;
-        setIsCapturingScreenshot(true);
-        try {
-            const file = await capture();
-            await uploadThumbnail({
-                projectUuid,
-                appUuid: activeAppUuid,
-                file,
-            });
-            void queryClient.invalidateQueries({
-                queryKey: ['app-thumbnail', projectUuid, activeAppUuid],
-            });
-            showToastSuccess({ title: 'Thumbnail updated' });
-        } catch (err) {
-            showToastError({
-                title: 'Failed to capture thumbnail',
-                subtitle: err instanceof Error ? err.message : 'Unknown error',
-            });
-        } finally {
-            setIsCapturingScreenshot(false);
-        }
-    };
-
     const handleCaptureScreenshot = async () => {
         const capture = previewRef.current?.captureScreenshot;
         if (!capture) return;
@@ -1750,16 +1746,20 @@ const AppGenerate: FC = () => {
                     ]}
                 />
             )}
-            <PanelGroup
-                key={newAppLanding ? 'compose' : 'split'}
-                direction="horizontal"
+            <ResizableSplitter
                 className={classes.panels}
+                handleLabel="Resize chat and preview"
+                classNames={{ handle: classes.resizeHandle }}
+                resizable={!isChatPanelCollapsed}
+                key={newAppLanding ? 'compose' : 'split'}
+                orientation="horizontal"
             >
                 {/* Chat Panel */}
-                <Panel
+                <ResizableSplitter.Pane
+                    id="app-chat"
                     defaultSize={newAppLanding ? 100 : 30}
-                    minSize={newAppLanding ? 100 : 22}
-                    maxSize={newAppLanding ? 100 : 50}
+                    min={newAppLanding ? 100 : '300px'}
+                    max={newAppLanding ? 100 : 50}
                     data-collapsed={isChatPanelCollapsed || undefined}
                     className={`${classes.chatPanelOuter}${
                         newAppLanding ? ` ${classes.chatPanelOuterCompose}` : ''
@@ -2819,7 +2819,8 @@ const AppGenerate: FC = () => {
                                                                     MAX_APP_FILES_PER_VERSION
                                                             }
                                                             loading={
-                                                                isCapturingScreenshot
+                                                                isCapturingScreenshot ||
+                                                                isCapturingThumbnail
                                                             }
                                                         />
                                                     )}
@@ -2964,18 +2965,16 @@ const AppGenerate: FC = () => {
                     {newAppLanding && (
                         <RecentAppSuggestions projectUuid={projectUuid} />
                     )}
-                </Panel>
-
-                {!newAppLanding && (
-                    <PanelResizeHandle
-                        className={classes.resizeHandle}
-                        disabled={isChatPanelCollapsed}
-                    />
-                )}
+                </ResizableSplitter.Pane>
 
                 {/* Preview Panel */}
                 {!newAppLanding && (
-                    <Panel minSize={40} className={classes.previewPanelOuter}>
+                    <ResizableSplitter.Pane
+                        id="app-preview"
+                        className={classes.previewPanelOuter}
+                        defaultSize={70}
+                        min={40}
+                    >
                         <Box className={classes.previewPanel}>
                             {activeAppUuid && (
                                 <AppHeader
@@ -3028,11 +3027,12 @@ const AppGenerate: FC = () => {
                                             refreshDisabled={!previewApp}
                                             captureThumbnail={{
                                                 onCapture: () =>
-                                                    void handleCaptureThumbnail(),
+                                                    void captureThumbnail(),
                                                 disabled:
                                                     !previewApp ||
                                                     !screenshotAvailable ||
-                                                    isCapturingScreenshot,
+                                                    isCapturingScreenshot ||
+                                                    isCapturingThumbnail,
                                             }}
                                             capturePreviewScreenshot={
                                                 screenshotAvailable
@@ -3193,9 +3193,9 @@ const AppGenerate: FC = () => {
                                 )}
                             </Box>
                         </Box>
-                    </Panel>
+                    </ResizableSplitter.Pane>
                 )}
-            </PanelGroup>
+            </ResizableSplitter>
         </Box>
     );
 };

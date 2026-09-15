@@ -1067,6 +1067,9 @@ export class ManagedAgentModel {
     // locked forever.
     private static readonly STALE_RUN_THRESHOLD_MS = 15 * 60 * 1000;
 
+    private static readonly STALE_RUN_ERROR =
+        'Run timed out. The worker may have crashed';
+
     // Backfilled historical runs (see 20260507114958_backfill_managed_agent_runs.ts)
     // tag `error` with this sentinel so the down migration can distinguish them
     // from future legitimate runs that happen to share the same fingerprint.
@@ -1111,24 +1114,56 @@ export class ManagedAgentModel {
                 {},
             summary: row.summary,
             error: isStale
-                ? (cleanError ?? 'Run timed out. The worker may have crashed')
+                ? (cleanError ?? ManagedAgentModel.STALE_RUN_ERROR)
                 : cleanError,
             currentActivity: row.current_activity,
         };
     }
 
-    async createRun(input: {
+    // One live run per project: the advisory lock serialises concurrent starts
+    // and runs older than the stale threshold are closed first, so a crashed
+    // worker never blocks the next heartbeat. Returns null while a run is live.
+    async createRunIfIdle(input: {
         projectUuid: string;
         triggeredBy: ManagedAgentRunTriggeredBy;
-    }): Promise<ManagedAgentRun> {
-        const [row] = await this.database(ManagedAgentRunsTableName)
-            .insert({
-                project_uuid: input.projectUuid,
-                triggered_by: input.triggeredBy,
-                status: ManagedAgentRunStatus.STARTED,
-            })
-            .returning('*');
-        return ManagedAgentModel.mapDbRun(row);
+    }): Promise<ManagedAgentRun | null> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `managed-agent-run:${input.projectUuid}`,
+            ]);
+            await trx.raw(
+                `UPDATE ${ManagedAgentRunsTableName}
+                 SET status = ?,
+                     finished_at = started_at + interval '1 millisecond' * ?,
+                     error = COALESCE(error, ?)
+                 WHERE project_uuid = ? AND status = ? AND started_at < ?`,
+                [
+                    ManagedAgentRunStatus.ERROR,
+                    ManagedAgentModel.STALE_RUN_THRESHOLD_MS,
+                    ManagedAgentModel.STALE_RUN_ERROR,
+                    input.projectUuid,
+                    ManagedAgentRunStatus.STARTED,
+                    new Date(
+                        Date.now() - ManagedAgentModel.STALE_RUN_THRESHOLD_MS,
+                    ),
+                ],
+            );
+            const live = await trx(ManagedAgentRunsTableName)
+                .where({
+                    project_uuid: input.projectUuid,
+                    status: ManagedAgentRunStatus.STARTED,
+                })
+                .first('managed_agent_run_uuid');
+            if (live) return null;
+            const [row] = await trx(ManagedAgentRunsTableName)
+                .insert({
+                    project_uuid: input.projectUuid,
+                    triggered_by: input.triggeredBy,
+                    status: ManagedAgentRunStatus.STARTED,
+                })
+                .returning('*');
+            return ManagedAgentModel.mapDbRun(row);
+        });
     }
 
     async setRunSessionId(runUuid: string, sessionId: string): Promise<void> {

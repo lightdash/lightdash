@@ -6,7 +6,6 @@ import {
     CompiledDimension,
     CompiledExploreJoin,
     CompiledMetric,
-    CompiledTable,
     convertFieldRefToFieldId,
     CustomBinDimension,
     CustomDimension,
@@ -38,6 +37,7 @@ import {
     lightdashVariablePattern,
     MetricQuery,
     MetricType,
+    NestedTableProvenance,
     parseAllReferences,
     QueryWarning,
     SupportedDbtAdapter,
@@ -1118,7 +1118,14 @@ export const findMetricInflationWarnings = ({
 };
 
 type FindUnnestCrossProductWarningsProps = {
-    tables: { [tableName: string]: Pick<CompiledTable, 'nestedFrom'> };
+    tables: {
+        [tableName: string]: {
+            nestedFrom?: Pick<
+                NestedTableProvenance,
+                'parentTable' | 'columnPath'
+            >;
+        };
+    };
     joinedTables: Set<string>;
 };
 
