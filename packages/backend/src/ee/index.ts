@@ -889,11 +889,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
                 }),
-            dataAppAnalysisService: ({ models, repository }) =>
+            dataAppAnalysisService: ({ models, repository, clients }) =>
                 new DataAppAnalysisService({
                     dataAppAnalysisModel:
                         models.getDataAppAnalysisModel<DataAppAnalysisModel>(),
                     appModel: models.getAppModel(),
+                    userModel: models.getUserModel(),
+                    schedulerService: repository.getSchedulerService(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
                     externalConnectionModel:
                         models.getExternalConnectionModel<ExternalConnectionModel>(),
                     featureFlagModel: models.getFeatureFlagModel(),
@@ -1550,6 +1554,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 schedulerAiAugmentation:
                     context.serviceRepository.getSchedulerAiAugmentationService<SchedulerAiAugmentationService>(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
+                dataAppAnalysisService:
+                    context.serviceRepository.getDataAppAnalysisService<DataAppAnalysisService>(),
                 aiAgentMemoryService:
                     context.serviceRepository.getAiAgentMemoryService<AiAgentMemoryService>(),
                 aiWritebackService:

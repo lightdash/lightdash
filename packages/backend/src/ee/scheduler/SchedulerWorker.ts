@@ -39,6 +39,7 @@ import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { type AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
 import type { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
+import type { DataAppAnalysisService } from '../services/DataAppAnalysisService/DataAppAnalysisService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import type { ExternalSourceService } from '../services/ExternalSourceService/ExternalSourceService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
@@ -56,6 +57,7 @@ const AI_THREAD_RETENTION_CLEANUP_BATCH_SIZE = 500;
 export const AI_DEEP_RESEARCH_REPORT_CLEANUP_BATCH_SIZE = 100;
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const DATA_APP_INVESTIGATE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const AI_AGENT_MEMORY_LLM_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
@@ -116,6 +118,7 @@ export const cleanAiDeepResearchReports = async ({
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
+    dataAppAnalysisService: DataAppAnalysisService;
     aiAgentMemoryService: AiAgentMemoryService;
     aiWritebackService: AiWritebackService;
     aiDeepResearchService: AiDeepResearchService;
@@ -157,6 +160,8 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentService: AiAgentService;
+
+    protected readonly dataAppAnalysisService: DataAppAnalysisService;
 
     protected readonly aiAgentMemoryService: AiAgentMemoryService;
 
@@ -215,6 +220,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
+        this.dataAppAnalysisService = args.dataAppAnalysisService;
         this.aiAgentMemoryService = args.aiAgentMemoryService;
         this.aiWritebackService = args.aiWritebackService;
         this.aiDeepResearchService = args.aiDeepResearchService;
@@ -467,6 +473,44 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             ) => {
                 await this.aiAgentAdminService.pollReviewRemediationCompile(
                     payload,
+                );
+            },
+            [EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.dataAppAnalysisService.runInvestigation(
+                                payload,
+                                helpers.job.id,
+                                helpers.job.run_at,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    DATA_APP_INVESTIGATE_TIMEOUT_MS,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                                analysisId: payload.analysisId,
+                                anomalyId: payload.anomalyId,
+                            },
+                        });
+                    },
                 );
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: async (

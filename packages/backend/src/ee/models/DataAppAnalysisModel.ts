@@ -1,6 +1,7 @@
 import type {
     DataAppAnalysisSource,
     DataAppDetectResult,
+    DataAppInvestigateResult,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -12,18 +13,29 @@ type Dependencies = {
     database: Knex;
 };
 
-export type CreateDataAppAnalysis = {
+type CreateBase = {
     organizationUuid: string;
     projectUuid: string;
     appUuid: string;
     appVersion: number;
     createdByUserUuid: string;
-    operation: 'detect';
     sources: DataAppAnalysisSource[];
     instructions: string | null;
-    result: DataAppDetectResult;
     modelId: string | null;
 };
+
+export type CreateDataAppAnalysis = CreateBase &
+    (
+        | { operation: 'detect'; result: DataAppDetectResult }
+        | {
+              operation: 'investigate';
+              result: DataAppInvestigateResult;
+              parentAnalysisUuid: string;
+              anomalyId: string;
+              agentUuid: string;
+              threadUuid: string;
+          }
+    );
 
 export class DataAppAnalysisModel {
     private readonly database: Knex;
@@ -45,6 +57,16 @@ export class DataAppAnalysisModel {
                 instructions: data.instructions,
                 result: JSON.stringify(data.result),
                 model_id: data.modelId,
+                parent_analysis_uuid:
+                    data.operation === 'investigate'
+                        ? data.parentAnalysisUuid
+                        : null,
+                anomaly_id:
+                    data.operation === 'investigate' ? data.anomalyId : null,
+                agent_uuid:
+                    data.operation === 'investigate' ? data.agentUuid : null,
+                thread_uuid:
+                    data.operation === 'investigate' ? data.threadUuid : null,
             })
             .returning('*');
         return row;

@@ -156,6 +156,8 @@ export type AiAgentExecutionConfig =
     | {
           mode: 'standard';
           maxSteps: number;
+          /** Registered tool names the run may use; everything else is dropped. */
+          toolAllowlist?: ReadonlySet<string>;
           budget?: never;
           onStepUsage?: never;
           research?: never;

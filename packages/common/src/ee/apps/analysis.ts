@@ -1,4 +1,5 @@
 import type { ApiSuccess } from '../../types/api/success';
+import type { TraceTaskBase } from '../../types/scheduler';
 
 /** One query the host captured for the viewer's current view of a data app. */
 export type DataAppAnalysisSource = {
@@ -50,3 +51,45 @@ export type DataAppAnalysis = DataAppDetectResult & {
 };
 
 export type ApiDataAppDetectResponse = ApiSuccess<DataAppAnalysis>;
+
+export type DataAppInvestigateRequest = {
+    anomalyId: string;
+    agentUuid: string;
+};
+
+/**
+ * An agent's take on one anomaly: possible drivers and the evidence behind
+ * them, never a causal claim. `partial` is set when the query budget ran out.
+ */
+export type DataAppInvestigateResult = {
+    explanation: string;
+    anomaly: DataAppAnomaly;
+    agentUuid: string;
+    threadUuid: string;
+    queriesRun: number;
+    partial: boolean;
+};
+
+export type DataAppInvestigation = DataAppInvestigateResult & {
+    investigationId: string;
+    analysisId: string;
+    appUuid: string;
+    appVersion: number;
+    generatedAt: Date;
+};
+
+/** Job that runs an investigation off the request path; poll by jobId. */
+export type DataAppInvestigateJobPayload = TraceTaskBase & {
+    appUuid: string;
+    analysisId: string;
+    anomalyId: string;
+    agentUuid: string;
+};
+
+export type ApiDataAppInvestigateResponse = ApiSuccess<{ jobId: string }>;
+
+export type DataAppAnalysisRecord =
+    | ({ operation: 'detect' } & DataAppAnalysis)
+    | ({ operation: 'investigate' } & DataAppInvestigation);
+
+export type ApiDataAppAnalysisResponse = ApiSuccess<DataAppAnalysisRecord>;
