@@ -5,3 +5,27 @@
     flex-direction: row;
     align-items: center;
 }
+
+@mixin smaller-than $mantine-breakpoint-md {
+    .root {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--mantine-spacing-sm);
+        overflow: visible;
+        padding-block: var(--mantine-spacing-sm);
+    }
+
+    .root > * {
+        min-width: 0;
+        flex-shrink: 0;
+    }
+
+    .root :global(.mantine-ActionIcon-root) {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .root :global(.mantine-Button-root) {
+        min-height: 44px;
+    }
+}

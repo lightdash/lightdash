@@ -76,9 +76,9 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
     return (
         <PageHeader
             cardProps={{
-                px: 'xl',
+                px: { base: 'sm', md: 'xl' },
                 py: 0,
-                h: DASHBOARD_HEADER_HEIGHT,
+                h: { base: 'auto', md: DASHBOARD_HEADER_HEIGHT },
                 className: classes.header,
             }}
         >
@@ -100,12 +100,15 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                     }}
                 >
                     <Popover.Target>
-                        <ActionIcon size="md">
+                        <ActionIcon size="md" aria-label="App information">
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Popover.Target>
 
-                    <Popover.Dropdown maw={500} p={0}>
+                    <Popover.Dropdown
+                        maw="min(500px, calc(100vw - 32px))"
+                        p={0}
+                    >
                         <AppInfoOverlay
                             projectUuid={projectUuid}
                             displayName={displayName}
@@ -138,7 +141,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                 />
             </Group>
 
-            <Group gap="sm" wrap="nowrap">
+            <Group gap="sm" wrap="wrap">
                 {rightSection}
             </Group>
 

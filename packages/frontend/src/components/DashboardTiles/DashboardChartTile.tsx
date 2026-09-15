@@ -44,7 +44,7 @@ import {
     Stack,
     Text,
     Badge,
-    HoverCard,
+    Popover,
     Portal,
     Tooltip,
     useComputedColorScheme,
@@ -1170,13 +1170,17 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             {/* Dashboard comments button only appears on hover if there are no comments yet */}
                             {tileHasComments ? undefined : dashboardComments}
                             {hasFiltersToShow && (
-                                <HoverCard
+                                <Popover
                                     withArrow
                                     position="bottom-end"
                                     offset={4}
                                     arrowOffset={10}
                                 >
-                                    <HoverCard.Dropdown>
+                                    <Popover.Dropdown
+                                        maw="calc(100vw - 24px)"
+                                        mah="calc(100dvh - 24px)"
+                                        style={{ overflowY: 'auto' }}
+                                    >
                                         <Stack gap="xs" align="flex-start">
                                             {appliedFilterItems.length > 0 && (
                                                 <>
@@ -1247,6 +1251,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                 );
                                                             return (
                                                                 <Badge
+                                                                    maw="100%"
+                                                                    h="auto"
+                                                                    style={{
+                                                                        whiteSpace:
+                                                                            'normal',
+                                                                    }}
                                                                     key={`${sourceId ?? ''}:${filterRule.id}`}
                                                                     variant="outline"
                                                                     color="ldGray.4"
@@ -1379,6 +1389,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     : undefined;
                                                             return (
                                                                 <Badge
+                                                                    maw="100%"
+                                                                    h="auto"
                                                                     key={
                                                                         filterRule.id
                                                                     }
@@ -1388,6 +1400,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     fz="xs"
                                                                     fw="normal"
                                                                     style={{
+                                                                        whiteSpace:
+                                                                            'normal',
                                                                         textTransform:
                                                                             'none',
                                                                         color: 'black',
@@ -1475,25 +1489,34 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                 </>
                                             )}
                                         </Stack>
-                                    </HoverCard.Dropdown>
+                                    </Popover.Dropdown>
 
-                                    <HoverCard.Target>
-                                        <ActionIcon size="sm">
+                                    <Popover.Target>
+                                        <ActionIcon
+                                            aria-label={getUiString(
+                                                'tileMenu.filters',
+                                            )}
+                                            size="sm"
+                                        >
                                             <MantineIcon icon={IconFilter} />
                                         </ActionIcon>
-                                    </HoverCard.Target>
-                                </HoverCard>
+                                    </Popover.Target>
+                                </Popover>
                             )}
                             {usedParametersValues &&
                                 Object.keys(usedParametersValues).length >
                                     0 && (
-                                    <HoverCard
+                                    <Popover
                                         withArrow
                                         position="bottom-end"
                                         offset={4}
                                         arrowOffset={10}
                                     >
-                                        <HoverCard.Dropdown>
+                                        <Popover.Dropdown
+                                            maw="calc(100vw - 24px)"
+                                            mah="calc(100dvh - 24px)"
+                                            style={{ overflowY: 'auto' }}
+                                        >
                                             <Text c="ldGray.7" fw={500} mb="xs">
                                                 Parameters
                                             </Text>
@@ -1522,16 +1545,21 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                     </Text>
                                                 ))}
                                             </Stack>
-                                        </HoverCard.Dropdown>
+                                        </Popover.Dropdown>
 
-                                        <HoverCard.Target>
-                                            <ActionIcon size="sm">
+                                        <Popover.Target>
+                                            <ActionIcon
+                                                aria-label={getUiString(
+                                                    'tileMenu.parameters',
+                                                )}
+                                                size="sm"
+                                            >
                                                 <MantineIcon
                                                     icon={IconVariable}
                                                 />
                                             </ActionIcon>
-                                        </HoverCard.Target>
-                                    </HoverCard>
+                                        </Popover.Target>
+                                    </Popover>
                                 )}
                             <TileTimezoneInfo
                                 resolvedTimezone={resolvedTimezone}

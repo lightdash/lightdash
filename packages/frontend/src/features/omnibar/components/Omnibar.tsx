@@ -17,6 +17,7 @@ import {
     Text,
     TextInput,
     Transition,
+    useMatches,
 } from '@mantine/core';
 import {
     useDebouncedValue,
@@ -73,6 +74,11 @@ interface Props {
 }
 
 const Omnibar: FC<Props> = ({ projectUuid }) => {
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
+    const [previewItem, setPreviewItem] = useState<SearchItem | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
     const { data: projectData } = useProject(projectUuid);
@@ -193,12 +199,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     );
 
     const handleQuickAction = (pathname: string) => {
+        setPreviewItem(null);
         closeOmnibar();
         setQuery(undefined);
         void navigate(pathname);
     };
 
     const handleOmnibarClose = () => {
+        setPreviewItem(null);
         track({
             name: EventName.GLOBAL_SEARCH_CLOSED,
             properties: {
@@ -213,6 +221,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     };
 
     const handleItemClick = (item: SearchItem, redirect = true) => {
+        setPreviewItem(null);
         track({
             name: EventName.SEARCH_RESULT_CLICKED,
             properties: {
@@ -367,7 +376,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     return (
         <OmnibarKeyboardNav
-            groupedItems={displayGroups}
+            groupedItems={compact && previewItem ? [] : displayGroups}
             onEnterPressed={handleItemClick}
             onFocusedItemChange={(index) =>
                 setFocusedItemIndex(index ?? 'input')
@@ -396,13 +405,15 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 the page instead of the navbar. */}
             <MantineBaseProvider withCssVariables={false}>
                 <Modal
+                    fullScreen={compact}
+                    aria-label="Search content and settings"
                     withCloseButton={false}
                     size={rem(960)}
                     closeOnClickOutside
                     closeOnEscape
                     opened={isOmnibarOpen}
                     onClose={handleOmnibarClose}
-                    yOffset={100}
+                    yOffset={compact ? 0 : 100}
                     classNames={{
                         content: classes.modalContent,
                         body: classes.modalBody,
@@ -424,6 +435,8 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 />
                             )}
                             <TextInput
+                                aria-label="Search content and settings"
+                                miw={0}
                                 variant="unstyled"
                                 size="md"
                                 data-autofocus
@@ -437,27 +450,75 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 value={query ?? ''}
                                 onChange={(
                                     e: React.ChangeEvent<HTMLInputElement>,
-                                ) => setQuery(e.currentTarget.value)}
+                                ) => {
+                                    setPreviewItem(null);
+                                    setQuery(e.currentTarget.value);
+                                }}
                             />
                             {query ? (
                                 <ActionIcon
-                                    size="sm"
+                                    aria-label="Clear search"
+                                    size={compact ? 'lg' : 'sm'}
                                     onClick={() => setQuery('')}
                                 >
                                     <MantineIcon icon={IconX} size="md" />
                                 </ActionIcon>
                             ) : null}
+                            {compact && (
+                                <Button
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={handleOmnibarClose}
+                                >
+                                    Close
+                                </Button>
+                            )}
                         </Group>
 
                         <OmnibarFilters
                             filters={searchFilters}
                             onSearchFilterChange={(filters) => {
+                                setPreviewItem(null);
                                 setSearchFilters(filters);
                             }}
                         />
 
                         <Box className={classes.resultsArea}>
-                            {displayGroups.length === 0 ? (
+                            {compact && previewItem ? (
+                                <Stack gap={0}>
+                                    <Group justify="space-between" p="xs">
+                                        <Button
+                                            variant="subtle"
+                                            onClick={() => setPreviewItem(null)}
+                                        >
+                                            Back to results
+                                        </Button>
+                                        <Button
+                                            onClick={() =>
+                                                handleItemClick(
+                                                    previewItem,
+                                                    false,
+                                                )
+                                            }
+                                        >
+                                            Open
+                                        </Button>
+                                    </Group>
+                                    <OmnibarPreview
+                                        item={previewItem}
+                                        spaceName={
+                                            previewItem.item &&
+                                            'spaceUuid' in previewItem.item &&
+                                            previewItem.item.spaceUuid
+                                                ? spaceNamesByUuid.get(
+                                                      previewItem.item
+                                                          .spaceUuid,
+                                                  )
+                                                : undefined
+                                        }
+                                    />
+                                </Stack>
+                            ) : displayGroups.length === 0 ? (
                                 !hasEnteredQuery &&
                                 !hasActiveFilters &&
                                 isLoadingRecentContent ? (
@@ -508,6 +569,11 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                                 canUserManageValidation
                                             }
                                             onClick={handleItemClick}
+                                            onPreview={
+                                                compact
+                                                    ? setPreviewItem
+                                                    : undefined
+                                            }
                                             focusedItemIndex={highlightedIndex}
                                             onFocusedItemChange={
                                                 setFocusedItemIndex
@@ -517,19 +583,22 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                             scrollRef={scrollRef}
                                         />
                                     </Box>
-                                    <OmnibarPreview
-                                        item={focusedItem}
-                                        spaceName={
-                                            focusedItem?.item &&
-                                            'spaceUuid' in focusedItem.item &&
-                                            focusedItem.item.spaceUuid
-                                                ? spaceNamesByUuid.get(
-                                                      focusedItem.item
-                                                          .spaceUuid,
-                                                  )
-                                                : undefined
-                                        }
-                                    />
+                                    {!compact && (
+                                        <OmnibarPreview
+                                            item={focusedItem}
+                                            spaceName={
+                                                focusedItem?.item &&
+                                                'spaceUuid' in
+                                                    focusedItem.item &&
+                                                focusedItem.item.spaceUuid
+                                                    ? spaceNamesByUuid.get(
+                                                          focusedItem.item
+                                                              .spaceUuid,
+                                                      )
+                                                    : undefined
+                                            }
+                                        />
+                                    )}
                                 </Group>
                             )}
                         </Box>
@@ -540,7 +609,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             justify="space-between"
                             wrap="nowrap"
                         >
-                            <Group gap="lg" wrap="nowrap">
+                            <Group gap="lg" wrap="nowrap" visibleFrom="sm">
                                 <Group gap="xxs">
                                     <Kbd size="xs">↑</Kbd>
                                     <Kbd size="xs">↓</Kbd>

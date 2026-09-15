@@ -47,4 +47,14 @@
    Select wrapper can't reflow the modal, whatever Mantine renders inside. */
 .filtersRow {
     height: 38px;
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        height: auto;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+
+        button {
+            min-height: 44px;
+        }
+    }
 }

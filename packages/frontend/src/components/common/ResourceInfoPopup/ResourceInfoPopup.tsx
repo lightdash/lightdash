@@ -13,7 +13,11 @@ import {
     Text,
     Tooltip,
     UnstyledButton,
+    ActionIcon,
+    Popover,
+    useMatches,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconCheck,
     IconClock,
@@ -241,7 +245,43 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
 };
 
 export const ResourceInfoPopup: FC<ResourceInfoPopupProps> = (props) => {
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
+    const [opened, { toggle, close }] = useDisclosure(false);
     if (!hasResourceInfoContent(props)) return null;
+
+    if (compact)
+        return (
+            <Popover
+                opened={opened}
+                onClose={close}
+                width="min(320px, calc(100vw - 24px))"
+                position="bottom"
+                withArrow
+            >
+                <Popover.Target>
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="lg"
+                        aria-label="Content details"
+                        aria-expanded={opened}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            toggle();
+                        }}
+                    >
+                        <MantineIcon icon={IconInfoCircle} />
+                    </ActionIcon>
+                </Popover.Target>
+                <Popover.Dropdown>
+                    <ResourceInfoPopupContent {...props} />
+                </Popover.Dropdown>
+            </Popover>
+        );
 
     return (
         <HoverCard offset={-1} position="bottom">

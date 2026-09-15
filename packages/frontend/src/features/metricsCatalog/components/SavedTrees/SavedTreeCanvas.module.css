@@ -8,3 +8,24 @@
     flex: 1;
     min-height: 0;
 }
+
+@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+    .header {
+        padding: var(--mantine-spacing-xs);
+        gap: var(--mantine-spacing-xs);
+    }
+
+    .header :global(.mantine-Button-root),
+    .header :global(.mantine-Input-input) {
+        min-height: 44px;
+    }
+
+    .header :global(.mantine-Input-input) {
+        font-size: 16px;
+    }
+
+    .header :global(.mantine-ActionIcon-root) {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}

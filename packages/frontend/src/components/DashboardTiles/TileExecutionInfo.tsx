@@ -4,7 +4,7 @@ import {
     type QueryResultsPerformance,
     type QueryResultsPreAggregate,
 } from '@lightdash/common';
-import { ActionIcon, Divider, Stack, HoverCard } from '@mantine/core';
+import { ActionIcon, Divider, Stack, Popover } from '@mantine/core';
 import {
     IconClock,
     IconClockBolt,
@@ -16,6 +16,7 @@ import {
     IconServer,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../common/MantineIcon';
 import InfoRow from '../common/PageHeader/InfoRow';
@@ -61,6 +62,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
     totalClientFetchTimeMs,
     totalResults,
 }) => {
+    const getUiString = useUiStrings();
     const { data: showExecutionTimeFlag } = useServerFeatureFlag(
         FeatureFlags.ShowExecutionTime,
     );
@@ -80,8 +82,12 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
         (performance.queueTimeMs ?? 0);
 
     return (
-        <HoverCard withArrow position="bottom-end" offset={4} arrowOffset={10}>
-            <HoverCard.Dropdown>
+        <Popover withArrow position="bottom-end" offset={4} arrowOffset={10}>
+            <Popover.Dropdown
+                maw="calc(100vw - 24px)"
+                mah="calc(100dvh - 24px)"
+                style={{ overflowY: 'auto' }}
+            >
                 <Stack gap={10} w={240} p={4}>
                     <InfoRow icon={IconLayoutRows} label="Rows">
                         {(totalResults ?? 0).toLocaleString()}
@@ -117,9 +123,12 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
                         {totalClientFetchTimeMs}ms
                     </InfoRow>
                 </Stack>
-            </HoverCard.Dropdown>
-            <HoverCard.Target>
-                <ActionIcon size="sm">
+            </Popover.Dropdown>
+            <Popover.Target>
+                <ActionIcon
+                    aria-label={getUiString('tileMenu.execution')}
+                    size="sm"
+                >
                     <MantineIcon
                         icon={
                             isServedFromPreAggregate(
@@ -131,8 +140,8 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
                         }
                     />
                 </ActionIcon>
-            </HoverCard.Target>
-        </HoverCard>
+            </Popover.Target>
+        </Popover>
     );
 };
 

@@ -986,6 +986,7 @@ const Settings: FC = () => {
             withFixedContent={isFixedContent}
             withPaddedContent
             title="Settings"
+            sidebarTitle="Settings"
             sidebarWidthProps={{ defaultWidth: 300, minWidth: 260 }}
             isSidebarCollapsed={isSidebarCollapsed}
             isSidebarCollapsible

@@ -31,3 +31,11 @@
     color: var(--mantine-color-placeholder);
     user-select: none;
 }
+
+@media (max-width: $mantine-breakpoint-lg) {
+    .container {
+        width: 44px;
+        height: 44px;
+        justify-content: center;
+    }
+}

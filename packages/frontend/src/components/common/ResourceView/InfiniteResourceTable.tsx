@@ -28,6 +28,8 @@ import {
     Anchor,
     Tooltip,
     useMantineTheme,
+    useMatches,
+    Menu,
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import {
@@ -39,6 +41,8 @@ import {
     IconLayoutDashboard,
     IconSearch,
     IconX,
+    IconColumns,
+    IconCheck,
 } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -147,11 +151,13 @@ const DebouncedSearchInput = memo(
             <Tooltip label="Search by name">
                 <TextInput
                     size="xs"
+                    w={{ base: '100%', sm: 309 }}
+                    aria-label="Search by name"
                     classNames={{ input: classes.searchInput }}
                     styles={(inputTheme) => ({
                         input: {
                             height: 32,
-                            width: 309,
+                            width: '100%',
                             textOverflow: 'ellipsis',
                             fontSize: inputTheme.fontSizes.sm,
                             fontWeight: 400,
@@ -207,6 +213,11 @@ const InfiniteResourceTable = ({
     errorStateTitle,
     ...contentTableProps
 }: ResourceView2Props) => {
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
+    const [mobileColumns, setMobileColumns] = useState<string[]>([]);
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? filters.projectUuid;
@@ -258,7 +269,7 @@ const InfiniteResourceTable = ({
             header: capitalize(ColumnVisibility.NAME),
             enableSorting: true,
             enableEditing: false,
-            size: 300,
+            size: compact ? 220 : 300,
             Cell: ({ row }) => {
                 return (
                     <InfiniteResourceTableColumnName
@@ -689,7 +700,7 @@ const InfiniteResourceTable = ({
             ref: tableContainerRef,
             sx: {
                 maxHeight: 'calc(100dvh - 350px)',
-                minHeight: '600px',
+                minHeight: compact ? '240px' : '600px',
                 display: 'flex',
                 flexDirection: 'column',
             },
@@ -842,9 +853,82 @@ const InfiniteResourceTable = ({
 
             return (
                 <Box>
-                    <Group p={`${theme.spacing.lg} ${theme.spacing.xl}`}>
-                        <Group gap="xs">
+                    <Group
+                        p={{
+                            base: 'sm',
+                            sm: `${theme.spacing.lg} ${theme.spacing.xl}`,
+                        }}
+                    >
+                        <Group gap="xs" w={{ base: '100%', sm: 'auto' }}>
                             <DebouncedSearchInput onSearch={setSearch} />
+
+                            {compact && (
+                                <Menu closeOnItemClick={false}>
+                                    <Menu.Target>
+                                        <Button
+                                            variant="default"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconColumns}
+                                                />
+                                            }
+                                        >
+                                            Columns
+                                        </Button>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                        {Object.entries(defaultColumnVisibility)
+                                            .filter(
+                                                ([key, visible]) =>
+                                                    visible &&
+                                                    key !==
+                                                        ColumnVisibility.NAME,
+                                            )
+                                            .map(([key]) => (
+                                                <Menu.Item
+                                                    key={key}
+                                                    role="menuitemcheckbox"
+                                                    aria-checked={mobileColumns.includes(
+                                                        key,
+                                                    )}
+                                                    leftSection={
+                                                        mobileColumns.includes(
+                                                            key,
+                                                        ) ? (
+                                                            <MantineIcon
+                                                                icon={IconCheck}
+                                                            />
+                                                        ) : null
+                                                    }
+                                                    onClick={() =>
+                                                        setMobileColumns(
+                                                            (current) =>
+                                                                current.includes(
+                                                                    key,
+                                                                )
+                                                                    ? current.filter(
+                                                                          (
+                                                                              column,
+                                                                          ) =>
+                                                                              column !==
+                                                                              key,
+                                                                      )
+                                                                    : [
+                                                                          ...current,
+                                                                          key,
+                                                                      ],
+                                                        )
+                                                    }
+                                                >
+                                                    {key ===
+                                                    ColumnVisibility.UPDATED_AT
+                                                        ? 'Last updated'
+                                                        : capitalize(key)}
+                                                </Menu.Item>
+                                            ))}
+                                    </Menu.Dropdown>
+                                </Menu>
+                            )}
 
                             {contentTypeFilter &&
                             contentTypeFilter.options.length > 1 ? (
@@ -984,6 +1068,18 @@ const InfiniteResourceTable = ({
             );
         },
         state: {
+            columnVisibility: compact
+                ? Object.fromEntries(
+                      Object.entries(defaultColumnVisibility).map(
+                          ([key, visible]) => [
+                              key,
+                              visible &&
+                                  (key === ColumnVisibility.NAME ||
+                                      mobileColumns.includes(key)),
+                          ],
+                      ),
+                  )
+                : defaultColumnVisibility,
             sorting,
             showProgressBars: false,
             showSkeletons: isInitialLoading, // loading for the first time with no data
@@ -1004,6 +1100,7 @@ const InfiniteResourceTable = ({
         displayColumnDefOptions: {
             'content-table-row-actions': {
                 header: '',
+                size: compact ? 44 : 72,
             },
             'content-table-row-select': {
                 size: 20,

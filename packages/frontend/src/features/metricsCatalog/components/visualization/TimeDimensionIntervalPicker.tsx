@@ -3,6 +3,7 @@ import { Select } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import selectStyles from '../../styles/selectStyles.module.css';
 
 type Props = {
@@ -14,11 +15,13 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
     dimension,
     onChange,
 }) => {
+    const getUiString = useUiStrings();
     const [optimisticInterval, setOptimisticInterval] = useState(
         dimension.interval,
     );
     return (
         <Select
+            aria-label={getUiString('metrics.granularity')}
             allowDeselect={false}
             w={100}
             size="xs"

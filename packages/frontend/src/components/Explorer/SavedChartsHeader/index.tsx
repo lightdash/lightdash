@@ -4,9 +4,11 @@ import {
     Badge,
     Button,
     Group,
+    Menu,
     Text,
     Title,
     Tooltip,
+    useMatches,
 } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -143,6 +145,10 @@ const verifiedTourProps = {
 };
 
 const SavedChartsHeader: FC = () => {
+    const compact = useMatches(
+        { base: true, md: false },
+        { getInitialValueInEffect: false },
+    );
     const { search } = useLocation();
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
@@ -522,6 +528,7 @@ const SavedChartsHeader: FC = () => {
                                             <Button
                                                 variant="default"
                                                 size="xs"
+                                                visibleFrom="md"
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={IconPencil}
@@ -591,7 +598,7 @@ const SavedChartsHeader: FC = () => {
                             )}
                         </>
                     )}
-                    {showFullscreenToggle && (
+                    {showFullscreenToggle && (!compact || isFullscreen) && (
                         <Tooltip
                             label={
                                 isFullscreen
@@ -659,7 +666,35 @@ const SavedChartsHeader: FC = () => {
                                     { replace: true },
                                 );
                             }}
-                        />
+                        >
+                            {compact &&
+                                !isEditMode &&
+                                savedChart &&
+                                userCanManageChart && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconPencil} />
+                                        }
+                                        onClick={() =>
+                                            navigate(
+                                                `/projects/${projectUrlIdentifier}/saved/${savedChart.slug}/edit`,
+                                            )
+                                        }
+                                    >
+                                        Edit chart
+                                    </Menu.Item>
+                                )}
+                            {compact && showFullscreenToggle && (
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon icon={IconMaximize} />
+                                    }
+                                    onClick={handleToggleFullscreen}
+                                >
+                                    Enter fullscreen
+                                </Menu.Item>
+                            )}
+                        </ChartActionsMenu>
                     )}
                 </Group>
             </PageHeader>

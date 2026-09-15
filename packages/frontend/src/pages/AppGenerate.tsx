@@ -23,6 +23,7 @@ import {
     Image,
     Loader,
     Menu,
+    SegmentedControl,
     Stack,
     Text,
     Tooltip,
@@ -395,6 +396,7 @@ const AppGenerate: FC = () => {
     // — the panel-group layout is never touched, so expanding restores the
     // exact pre-collapse width.
     const [isChatPanelCollapsed, setIsChatPanelCollapsed] = useState(false);
+    const [mobilePanel, setMobilePanel] = useState('build');
     const handleToggleChatPanel = useCallback(() => {
         setIsChatPanelCollapsed((collapsed) => !collapsed);
     }, []);
@@ -460,7 +462,10 @@ const AppGenerate: FC = () => {
     // at submit time. Picker and lineage modes are mutually exclusive.
     const elementPicker = useElementPicker({
         identityKey: activeAppUuid ?? '',
-        onEnabled: handleLineageCancelled,
+        onEnabled: () => {
+            handleLineageCancelled();
+            setMobilePanel('preview');
+        },
     });
     const cancelElementPicker = elementPicker.cancel;
     const clearElementRefs = elementPicker.clear;
@@ -1150,6 +1155,7 @@ const AppGenerate: FC = () => {
     const pinPreviewToVersion = useCallback(
         (version: number) => {
             if (!activeAppUuid) return;
+            setMobilePanel('preview');
             setPin({
                 appUuid: activeAppUuid,
                 version,
@@ -1481,6 +1487,12 @@ const AppGenerate: FC = () => {
         if (!capture) return;
         setIsCapturingScreenshot(true);
         try {
+            flushSync(() => setMobilePanel('preview'));
+            await new Promise<void>((resolve) => {
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => resolve()),
+                );
+            });
             const file = await capture();
             if (projectUuid && activeAppUuid) {
                 try {
@@ -1503,6 +1515,7 @@ const AppGenerate: FC = () => {
                 }
             }
             void handleFileAttach(file, 'screenshot');
+            setMobilePanel('build');
         } catch (err) {
             showToastError({
                 title: 'Screenshot failed',
@@ -1754,8 +1767,27 @@ const AppGenerate: FC = () => {
     };
 
     return (
-        <Box className={newAppLanding ? classes.composeLayout : classes.layout}>
+        <Box
+            className={newAppLanding ? classes.composeLayout : classes.layout}
+            data-mobile-panel={mobilePanel}
+        >
+            {!newAppLanding && (
+                <SegmentedControl
+                    hiddenFrom="md"
+                    fullWidth
+                    size="md"
+                    m="xs"
+                    aria-label="App builder view"
+                    value={mobilePanel}
+                    onChange={setMobilePanel}
+                    data={[
+                        { label: 'Build', value: 'build' },
+                        { label: 'Preview', value: 'preview' },
+                    ]}
+                />
+            )}
             <ResizableSplitter
+                className={classes.panels}
                 handleLabel="Resize chat and preview"
                 classNames={{ handle: classes.resizeHandle }}
                 resizable={!isChatPanelCollapsed}
@@ -1779,7 +1811,10 @@ const AppGenerate: FC = () => {
                         }`}
                     >
                         {!newAppLanding && (
-                            <Box className={classes.sidebarHeader}>
+                            <Box
+                                className={classes.sidebarHeader}
+                                visibleFrom="md"
+                            >
                                 <AppBuilderSidebarToggle
                                     collapsed={isChatPanelCollapsed}
                                     onToggle={handleToggleChatPanel}
@@ -2976,6 +3011,7 @@ const AppGenerate: FC = () => {
                 {!newAppLanding && (
                     <ResizableSplitter.Pane
                         id="app-preview"
+                        className={classes.previewPanelOuter}
                         defaultSize={70}
                         min={40}
                     >
@@ -3134,6 +3170,10 @@ const AppGenerate: FC = () => {
                                             handleExternalRequestEvent
                                         }
                                         {...elementPicker.iframeProps}
+                                        onElementSelected={(event) => {
+                                            elementPicker.select(event);
+                                            setMobilePanel('build');
+                                        }}
                                         onScreenshotAvailabilityChange={
                                             setScreenshotAvailable
                                         }

@@ -95,12 +95,18 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             )}
             justify="space-between"
             align="flex-start"
-            wrap="nowrap"
+            wrap="wrap"
             gap="sm"
             px="lg"
             py="xs"
         >
-            <Group align="flex-start" wrap="wrap" gap="xs" flex={1} miw={0}>
+            <Group
+                align="flex-start"
+                wrap="wrap"
+                gap="xs"
+                flex="1 1 24rem"
+                miw={0}
+            >
                 {shouldShowFilters && (
                     <EmbedDashboardFilters canAddFilters={canAddFilters} />
                 )}

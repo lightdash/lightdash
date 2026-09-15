@@ -25,6 +25,7 @@ import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import AppColorSchemeScope from './AppColorSchemeScope';
 import classes from './AutopilotNavButton.module.css';
+import { useNavBarPortalTarget } from './NavBarPortalContext';
 
 const resumeSettings = async (projectUuid: string, schedule: string) =>
     lightdashApi({
@@ -35,6 +36,7 @@ const resumeSettings = async (projectUuid: string, schedule: string) =>
 
 type Props = {
     projectUuid: string;
+    withLabel?: boolean;
 };
 
 const formatRelative = (dateInput: Date | string) => {
@@ -82,7 +84,11 @@ const CAPABILITIES = [
  * - Active: hovering opens a compact status card (status, last-run action
  *   summary, link to the full activity page).
  */
-export const AutopilotNavButton = ({ projectUuid }: Props) => {
+export const AutopilotNavButton = ({
+    projectUuid,
+    withLabel = false,
+}: Props) => {
+    const portalTarget = useNavBarPortalTarget();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { user } = useApp();
@@ -137,7 +143,7 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
                 offset={8}
                 openDelay={120}
                 closeDelay={80}
-                portalProps={{ target: '#navbar-header' }}
+                portalProps={{ target: portalTarget }}
             >
                 <HoverCard.Target>
                     <Button
@@ -160,6 +166,7 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
                             size={16}
                             color="dimmed"
                         />
+                        {withLabel && 'Autopilot'}
                     </Button>
                 </HoverCard.Target>
                 <HoverCard.Dropdown className={classes.promoDropdown}>
@@ -242,7 +249,7 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
             offset={8}
             openDelay={120}
             closeDelay={80}
-            portalProps={{ target: '#navbar-header' }}
+            portalProps={{ target: portalTarget }}
         >
             <HoverCard.Target>
                 <Button
@@ -262,6 +269,7 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
                             aria-hidden="true"
                         />
                     </span>
+                    {withLabel && 'Autopilot'}
                 </Button>
             </HoverCard.Target>
             <HoverCard.Dropdown className={classes.promoDropdown}>

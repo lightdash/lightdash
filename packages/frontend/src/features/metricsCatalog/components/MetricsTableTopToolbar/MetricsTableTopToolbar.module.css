@@ -9,3 +9,31 @@
 .searchInput:focus-visible {
     border-color: var(--mantine-color-blue-5);
 }
+
+.columnDropdown {
+    overflow-y: auto;
+}
+
+@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+    .columnRow {
+        min-height: 44px;
+    }
+
+    .columnRow :global(.mantine-ActionIcon-root),
+    .columnTrigger {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .columnDropdown :global(.mantine-Button-root),
+    .viewLabel {
+        min-height: 44px;
+    }
+
+    .viewLabel {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+    }
+}

@@ -84,4 +84,8 @@
     &[data-expanded] {
         opacity: 1;
     }
+
+    @media (hover: none) {
+        opacity: 1;
+    }
 }

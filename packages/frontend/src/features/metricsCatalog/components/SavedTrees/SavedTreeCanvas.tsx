@@ -35,6 +35,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ShareLinkButton } from '../../../../components/common/ShareLinkButton';
 import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../../providers/App/useApp';
 import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../../hooks/useMetricsCatalog';
@@ -70,6 +71,7 @@ type SavedTreeCanvasProps = {
 };
 
 const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
+    const getUiString = useUiStrings();
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { user } = useApp();
@@ -386,7 +388,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     // Empty state: no tree selected and not in edit mode
     if (treeUuid === null && mode === SavedTreeEditMode.VIEW) {
         return (
-            <Center h="100%">
+            <Center h={{ base: 180, md: '100%' }} px="xs">
                 <SuboptimalState
                     title="No tree selected"
                     description="Select a tree from the sidebar or create a new one"
@@ -399,16 +401,13 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     if (isEditMode) {
         return (
             <Stack h="100%" gap={0}>
-                <Group
-                    className={classes.header}
-                    justify="space-between"
-                    wrap="nowrap"
-                >
-                    <Group gap="sm" wrap="nowrap" flex={1}>
+                <Group className={classes.header} justify="space-between">
+                    <Group gap="sm" wrap="nowrap" flex={1} miw={0}>
                         <TextInput
                             required
                             variant="subtle"
                             placeholder="Tree name"
+                            aria-label="Tree name"
                             data-tour-anchor="tree-name"
                             data-tour-hint="Name your tree"
                             data-tour-input="true"
@@ -515,8 +514,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                 <Group
                     className={classes.header}
                     justify="space-between"
-                    wrap="nowrap"
-                    h="60px"
+                    mih={60}
                 >
                     <Group gap="sm" wrap="nowrap">
                         <Text fz="sm" fw={600} c="ldGray.7">
@@ -551,7 +549,12 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         {canManageMetricsTree && (
                             <Menu position="bottom-end" withArrow>
                                 <Menu.Target>
-                                    <ActionIcon loading={isAcquiringLock}>
+                                    <ActionIcon
+                                        loading={isAcquiringLock}
+                                        aria-label={getUiString(
+                                            'metrics.treeActions',
+                                        )}
+                                    >
                                         <MantineIcon icon={IconDotsVertical} />
                                     </ActionIcon>
                                 </Menu.Target>

@@ -2,8 +2,10 @@ import {
     Center,
     Divider,
     SegmentedControl,
+    Select,
     Text,
     Tooltip,
+    useMatches,
     type SegmentedControlProps,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
@@ -35,6 +37,37 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
     withSharedWithMe = false,
     withAdminView = true,
 }) => {
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
+    if (compact) {
+        return (
+            <Select
+                aria-label="Content view"
+                w="100%"
+                value={value}
+                allowDeselect={false}
+                onChange={(next) => {
+                    if (
+                        next === 'shared' ||
+                        next === 'shared-with-me' ||
+                        next === 'all'
+                    )
+                        onChange(next);
+                }}
+                data={[
+                    { value: 'shared', label: 'Spaces' },
+                    ...(withSharedWithMe
+                        ? [{ value: 'shared-with-me', label: 'Shared with me' }]
+                        : []),
+                    ...(withAdminView
+                        ? [{ value: 'all', label: 'Admin Content View' }]
+                        : []),
+                ]}
+            />
+        );
+    }
     return (
         <>
             {withDivider && (

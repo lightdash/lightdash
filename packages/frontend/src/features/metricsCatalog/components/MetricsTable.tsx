@@ -539,11 +539,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
-        displayColumnDefOptions: {
-            'content-table-row-actions': {
-                header: '',
-            },
-        },
         enableEditing: true,
     });
 

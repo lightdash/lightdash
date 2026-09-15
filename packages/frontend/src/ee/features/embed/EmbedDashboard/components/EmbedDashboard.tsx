@@ -12,7 +12,7 @@ import {
 import { Box, Button, Group, Tabs, TextInput } from '@mantine/core';
 import { IconCheck, IconPencil, IconUnlink, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
+import { type Layout } from 'react-grid-layout';
 import { useLocation } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -27,10 +27,12 @@ import GuidedFilterSetupOverlay from '../../../../../features/dashboardFilters/F
 import {
     convertLayoutToBaseCoordinates,
     GRID_CONTAINER_PADDING,
-    getReactGridLayoutConfig,
+    getDashboardLayouts,
+    type DashboardLayouts,
     getResponsiveGridLayoutProps,
     type ResponsiveGridLayoutProps,
 } from '../../../../../features/dashboardTabs/gridUtils';
+import { ResponsiveGridLayout } from '../../../../../features/dashboardTabs/ResponsiveGridLayout';
 // eslint-disable-next-line css-modules/no-unused-class
 import tabStyles from '../../../../../features/dashboardTabs/tabs.module.css';
 import {
@@ -56,8 +58,6 @@ import EmbedDataAppTile from './EmbedDataAppTile';
 import { EmbedHeadingTile } from './EmbedHeadingTile';
 import { EmbedMarkdownTile } from './EmbedMarkdownTile';
 import '../../../../../styles/react-grid.css';
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const EMBED_EDIT_TILE_TYPES = [
     DashboardTileTypes.SAVED_CHART,
@@ -91,7 +91,7 @@ const EmbedTileLoadTracker: FC<{
 
 const EmbedDashboardGrid: FC<{
     filteredTiles: DashboardTile[];
-    layouts: { lg: Layout[]; md: Layout[]; sm: Layout[] };
+    layouts: DashboardLayouts;
     dashboard: any;
     projectUuid: string;
     paletteColors?: string[];
@@ -551,19 +551,12 @@ const EmbedDashboard: FC<{
         visibleTabs,
     });
 
-    const gridProps = getResponsiveGridLayoutProps({ enableAnimation: false });
+    const gridProps = getResponsiveGridLayoutProps({
+        enableAnimation: false,
+        isEditMode,
+    });
     const layouts = useMemo(
-        () => ({
-            lg: filteredTiles.map<Layout>((tile) =>
-                getReactGridLayoutConfig(tile, isEditMode, gridProps.cols.lg),
-            ),
-            md: filteredTiles.map<Layout>((tile) =>
-                getReactGridLayoutConfig(tile, isEditMode, gridProps.cols.md),
-            ),
-            sm: filteredTiles.map<Layout>((tile) =>
-                getReactGridLayoutConfig(tile, isEditMode, gridProps.cols.sm),
-            ),
-        }),
+        () => getDashboardLayouts(filteredTiles, isEditMode, gridProps.cols),
         [filteredTiles, gridProps.cols, isEditMode],
     );
 

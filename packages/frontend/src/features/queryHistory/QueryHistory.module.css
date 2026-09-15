@@ -13,6 +13,10 @@
     display: flex;
     align-items: center;
     height: calc(var(--mantine-font-size-sm) * var(--mantine-line-height-sm));
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        height: auto;
+    }
 }
 
 /* ---------- table ---------- */
@@ -32,6 +36,20 @@
 
 .toolbar {
     border-bottom: 1px solid var(--mantine-color-default-border);
+
+    @mixin smaller-than $mantine-breakpoint-lg {
+        flex-wrap: wrap;
+    }
+}
+
+.toolbarFilters {
+    @mixin smaller-than $mantine-breakpoint-lg {
+        flex-wrap: wrap;
+    }
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        width: 100%;
+    }
 }
 
 /* One step darker than the header and hover grey so groups read as bands. */
@@ -115,6 +133,10 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     overflow: hidden;
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .timingCell + .timingCell {

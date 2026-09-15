@@ -287,6 +287,8 @@ export const QueryHistoryPage: FC = () => {
                 ) : undefined
             }
             isRightSidebarOpen={isPanelOpen}
+            onRightSidebarClose={() => setSelectedItem(null)}
+            rightSidebarTitle="Query details"
             noRightSidebarPadding
             rightSidebarWidthProps={{
                 defaultWidth: DETAIL_PANEL_WIDTH,

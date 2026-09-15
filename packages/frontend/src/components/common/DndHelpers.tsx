@@ -22,7 +22,12 @@ export const DraggableItem: FC<{
         : undefined;
 
     return (
-        <Box ref={setNodeRef} style={style} {...listeners} {...attributes}>
+        <Box
+            ref={setNodeRef}
+            style={style}
+            {...(disabled ? {} : listeners)}
+            {...(disabled ? {} : attributes)}
+        >
             {children}
         </Box>
     );

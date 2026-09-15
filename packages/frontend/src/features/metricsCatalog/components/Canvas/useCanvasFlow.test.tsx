@@ -1,4 +1,4 @@
-import { type CatalogMetricsTreeEdge } from '@lightdash/common';
+import { TimeFrames, type CatalogMetricsTreeEdge } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -25,6 +25,58 @@ const metrics: CanvasMetric[] = [
 const edges: CatalogMetricsTreeEdge[] = [];
 
 describe('useCanvasFlow click-to-add', () => {
+    it('applies the first period change after saved metrics load or refetch', () => {
+        const savedMetrics = metrics.map((metric, i) => ({
+            ...metric,
+            xPosition: i * 200,
+            yPosition: 0,
+        }));
+        const { result, rerender } = renderHook(
+            ({ loadedMetrics }: { loadedMetrics: CanvasMetric[] }) =>
+                useCanvasFlow({
+                    metrics: loadedMetrics,
+                    edges,
+                    viewOnly: true,
+                }),
+            {
+                initialProps: { loadedMetrics: [] as CanvasMetric[] },
+                wrapper: ReactFlowProvider,
+            },
+        );
+        rerender({ loadedMetrics: savedMetrics });
+        act(() =>
+            result.current.setCanvasTimeOption({
+                type: 'calendar',
+                timeFrame: TimeFrames.YEAR,
+                label: 'Current year to date',
+            }),
+        );
+        expect(result.current.currentNodes).toHaveLength(2);
+        expect(
+            result.current.currentNodes.map((node) => node.data.timeFrame),
+        ).toEqual([TimeFrames.YEAR, TimeFrames.YEAR]);
+
+        rerender({
+            loadedMetrics: savedMetrics.map((metric) => ({ ...metric })),
+        });
+        act(() =>
+            result.current.setCanvasTimeOption({
+                type: 'rolling',
+                rollingDays: 7,
+                label: 'Last 7 days',
+            }),
+        );
+        expect(
+            result.current.currentNodes.map((node) => ({
+                timeFrame: node.data.timeFrame,
+                rollingDays: node.data.rollingDays,
+            })),
+        ).toEqual([
+            { timeFrame: TimeFrames.DAY, rollingDays: 7 },
+            { timeFrame: TimeFrames.DAY, rollingDays: 7 },
+        ]);
+    });
+
     it('adds distinct metrics without overlapping and removes them from the sidebar', () => {
         const { result } = renderHook(
             () => useCanvasFlow({ metrics, edges, viewOnly: false }),

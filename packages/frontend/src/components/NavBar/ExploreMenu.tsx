@@ -23,6 +23,7 @@ import DashboardCreateModal from '../common/modal/DashboardCreateModal';
 import SpaceActionModal from '../common/SpaceActionModal';
 import { ActionType } from '../common/SpaceActionModal/types';
 import AppColorSchemeScope from './AppColorSchemeScope';
+import { useNavBarPortalTarget } from './NavBarPortalContext';
 
 type Props = {
     projectUuid: string;
@@ -30,6 +31,7 @@ type Props = {
 };
 
 const ExploreMenu: FC<Props> = memo((props) => {
+    const portalTarget = useNavBarPortalTarget();
     const { projectUuid, projectUrlIdentifier: projectUrlIdentifierProp } =
         props;
     const projectRoute = useOptionalProjectRoute();
@@ -69,7 +71,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                     opened={isOpen}
                     onChange={setIsOpen}
                     zIndex={getDefaultZIndex('max')}
-                    portalProps={{ target: '#navbar-header' }}
+                    portalProps={{ target: portalTarget }}
                 >
                     <Menu.Target>
                         <Button

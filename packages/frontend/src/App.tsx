@@ -5,10 +5,7 @@ import { flushSync } from 'react-dom';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { DocumentTitle } from './components/common/DocumentTitle';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
-import {
-    CommercialMobileRoutes,
-    CommercialWebAppRoutes,
-} from './ee/CommercialRoutes';
+import { CommercialWebAppRoutes } from './ee/CommercialRoutes';
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
 import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher';
@@ -17,7 +14,6 @@ import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBou
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
 import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
-import MobileRoutes from './MobileRoutes';
 import AbilityProvider from './providers/Ability/AbilityProvider';
 import ActiveJobProvider from './providers/ActiveJob/ActiveJobProvider';
 import AppProvider from './providers/App/AppProvider';
@@ -28,7 +24,6 @@ import SchedulerJobsProvider from './providers/SchedulerJobs/SchedulerJobsProvid
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import TrackingProvider from './providers/Tracking/TrackingProvider';
 import Routes from './Routes';
-import { IS_MOBILE } from './utils/isMobile';
 
 installChunkLoadErrorHandler();
 
@@ -40,13 +35,6 @@ const AgentOnboardingCompletionWatcher = lazy(() =>
         (module) => ({ default: module.AgentOnboardingCompletionWatcher }),
     ),
 );
-
-// const isMobile =
-//     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-//         navigator.userAgent,
-//     ) || window.innerWidth < 768;
-
-const isMobile = IS_MOBILE;
 
 const isMinimalPage = window.location.pathname.startsWith('/minimal');
 
@@ -68,14 +56,12 @@ const router = sentryCreateBrowserRouter([
         errorElement: <ChunkErrorRouteBoundary />,
         element: (
             <AppProvider>
-                <FullscreenProvider enabled={isMobile || !isMinimalPage}>
+                <FullscreenProvider enabled={!isMinimalPage}>
                     <VersionAutoUpdater />
                     <BuildSkewRefresher />
-                    <ThirdPartyProvider enabled={isMobile || !isMinimalPage}>
+                    <ThirdPartyProvider enabled={!isMinimalPage}>
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                            <TrackingProvider
-                                enabled={isMobile || !isMinimalPage}
-                            >
+                            <TrackingProvider enabled={!isMinimalPage}>
                                 <AbilityProvider>
                                     <ActiveJobProvider>
                                         <SchedulerJobsProvider>
@@ -102,9 +88,7 @@ const router = sentryCreateBrowserRouter([
                 </FullscreenProvider>
             </AppProvider>
         ),
-        children: isMobile
-            ? [...MobileRoutes, ...CommercialMobileRoutes]
-            : [...Routes, ...CommercialWebAppRoutes],
+        children: [...Routes, ...CommercialWebAppRoutes],
     },
 ]);
 

@@ -15,7 +15,7 @@ import {
     ActionIcon,
     Badge,
     Box,
-    HoverCard,
+    Popover,
     Loader,
     Stack,
     Text,
@@ -80,8 +80,12 @@ const DashboardFiltersIndicator: FC<{
     } available to this Data App`;
 
     return (
-        <HoverCard withArrow position="bottom-end" offset={4} arrowOffset={10}>
-            <HoverCard.Dropdown>
+        <Popover withArrow position="bottom-end" offset={4} arrowOffset={10}>
+            <Popover.Dropdown
+                maw="calc(100vw - 24px)"
+                mah="calc(100dvh - 24px)"
+                style={{ overflowY: 'auto' }}
+            >
                 <Stack gap="xs" align="flex-start">
                     <Text c="ldGray.7" fw={500} fz="xs">
                         Dashboard filter{filterRules.length === 1 ? '' : 's'}{' '}
@@ -89,6 +93,9 @@ const DashboardFiltersIndicator: FC<{
                     </Text>
                     {labelledRules.map(({ filterRule, labels }) => (
                         <Badge
+                            maw="100%"
+                            h="auto"
+                            style={{ whiteSpace: 'normal' }}
                             key={filterRule.id}
                             variant="outline"
                             color="ldGray.4"
@@ -116,13 +123,13 @@ const DashboardFiltersIndicator: FC<{
                         </Badge>
                     ))}
                 </Stack>
-            </HoverCard.Dropdown>
-            <HoverCard.Target>
+            </Popover.Dropdown>
+            <Popover.Target>
                 <ActionIcon aria-label={availableFiltersLabel} size="sm">
                     <MantineIcon icon={IconFilter} />
                 </ActionIcon>
-            </HoverCard.Target>
-        </HoverCard>
+            </Popover.Target>
+        </Popover>
     );
 };
 

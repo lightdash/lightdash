@@ -12,6 +12,7 @@ import { useAiAgentOrgPermission } from '../../ee/features/aiCopilot/hooks/useAi
 import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import MantineIcon from '../common/MantineIcon';
+import { useNavBarPortalTarget } from './NavBarPortalContext';
 
 const PREVIEW_LIMIT = 3;
 const PROMPT_TREND_DAYS = 30;
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export const AiAgentsButton = ({ projectUuid }: Props) => {
+    const portalTarget = useNavBarPortalTarget();
     const navigate = useNavigate();
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const isVisible = useAiAgentButtonVisibility();
@@ -95,7 +97,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                 offset={6}
                 openDelay={120}
                 closeDelay={80}
-                portalProps={{ target: '#navbar-header' }}
+                portalProps={{ target: portalTarget }}
             >
                 <HoverCard.Target>
                     <Button
@@ -146,7 +148,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
             offset={6}
             openDelay={120}
             closeDelay={80}
-            portalProps={{ target: '#navbar-header' }}
+            portalProps={{ target: portalTarget }}
             onOpen={() => setIsPreviewOpen(true)}
             onClose={() => setIsPreviewOpen(false)}
         >

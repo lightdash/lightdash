@@ -93,3 +93,13 @@
         transition: none;
     }
 }
+
+@mixin smaller-than $mantine-breakpoint-sm {
+    .paper {
+        min-height: 44px;
+    }
+    .actionIcon {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}

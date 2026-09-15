@@ -25,6 +25,7 @@ import {
     Stack,
     Text,
     Tooltip,
+    useMatches,
     type ModalProps,
 } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
@@ -39,6 +40,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import LightdashVisualization from '../../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../../../../components/MetricQueryData/MetricQueryDataProvider';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
@@ -77,6 +79,8 @@ type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
  * MetricExploreModal implementation using echarts via VisualizationProvider
  */
 export const MetricExploreModal: FC<Props> = (props) => {
+    const getUiString = useUiStrings();
+    const compact = useMatches({ base: true, lg: false });
     const { opened, onClose, metrics } = props;
     const { track } = useTracking();
     const { data: organization } = useOrganization();
@@ -472,11 +476,15 @@ export const MetricExploreModal: FC<Props> = (props) => {
             onClose={handleClose}
             scrollAreaComponent={undefined}
             size="auto"
+            fullScreen={compact}
             centered
         >
             <Modal.Overlay />
             <Modal.Content className={styles.modalContent} radius={12} w="100%">
-                <Modal.Header h={52} className={styles.modalHeader}>
+                <Modal.Header
+                    h={compact ? 'auto' : 52}
+                    className={styles.modalHeader}
+                >
                     <Group gap="xs">
                         <Group gap="xxs">
                             <Tooltip
@@ -490,6 +498,7 @@ export const MetricExploreModal: FC<Props> = (props) => {
                                 position="bottom"
                             >
                                 <ActionIcon
+                                    aria-label={getUiString('metrics.previous')}
                                     variant="outline"
                                     size="sm"
                                     radius="sm"
@@ -514,6 +523,7 @@ export const MetricExploreModal: FC<Props> = (props) => {
                                 position="bottom"
                             >
                                 <ActionIcon
+                                    aria-label={getUiString('metrics.next')}
                                     variant="outline"
                                     size="sm"
                                     radius="sm"
@@ -555,12 +565,18 @@ export const MetricExploreModal: FC<Props> = (props) => {
                             unsavedChartVersion={unsavedChartVersion}
                             canExplore={canExploreFromHere}
                         />
-                        <Modal.CloseButton />
+                        <Modal.CloseButton
+                            aria-label={getUiString('metrics.closeExploration')}
+                        />
                     </Group>
                 </Modal.Header>
 
-                <Modal.Body p={0} className={styles.modalBody} miw={800}>
-                    <Stack w={460}>
+                <Modal.Body
+                    p={0}
+                    className={styles.modalBody}
+                    miw={compact ? 0 : 800}
+                >
+                    <Stack w={compact ? '100%' : 460}>
                         <Box
                             px="lg"
                             py="md"
@@ -629,9 +645,19 @@ export const MetricExploreModal: FC<Props> = (props) => {
                         </Box>
                     </Stack>
 
-                    <Divider orientation="vertical" color="ldGray.2" />
+                    <Divider
+                        orientation={compact ? 'horizontal' : 'vertical'}
+                        color="ldGray.2"
+                    />
 
-                    <Stack w="100%" py="xl" px="xxl" pos="relative" gap="md">
+                    <Stack
+                        className={styles.visualization}
+                        w="100%"
+                        py="xl"
+                        px={compact ? 'md' : 'xxl'}
+                        pos="relative"
+                        gap="md"
+                    >
                         <LoadingOverlay visible={isLoading} />
 
                         {/* Granularity picker */}

@@ -10,3 +10,26 @@
 .categoryList {
     overflow-y: auto;
 }
+
+.dropdown {
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+}
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--mantine-color-body);
+}
+
+@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+    .dropdown :global(.mantine-Button-root),
+    .dropdown :global(.mantine-Input-input) {
+        min-height: 44px;
+    }
+
+    .dropdown :global(input) {
+        font-size: 16px;
+    }
+}

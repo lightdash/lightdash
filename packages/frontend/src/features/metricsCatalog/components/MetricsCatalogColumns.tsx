@@ -1,4 +1,8 @@
-import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
+import {
+    interpolateUiString,
+    SpotlightTableColumns,
+    type CatalogField,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -7,11 +11,11 @@ import {
     Text,
     useComputedColorScheme,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
 import { IconPlus, IconUser } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { type ContentTableColumnDef } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import {
     createMetricPreviewUnsavedChartVersion,
     getExplorerUrlFromCreateSavedChartVersion,
@@ -158,9 +162,12 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                 {column.columnDef.header}
             </MetricCatalogColumnHeaderCell>
         ),
-        Cell: ({ row, table }) => {
-            return <MetricsCatalogColumnDescription row={row} table={table} />;
-        },
+        Cell: ({ row }) => (
+            <MetricsCatalogColumnDescription
+                description={row.original.description}
+                metricLabel={row.original.label}
+            />
+        ),
     },
     {
         accessorKey: SpotlightTableColumns.CATEGORIES,
@@ -247,7 +254,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
             );
         },
         Cell: ({ row, table, cell }) => {
-            const { hovered, ref } = useHover();
+            const getUiString = useUiStrings();
             const isCategoryPopoverClosing = useAppSelector(
                 (state) => state.metricsCatalog.popovers.category.isClosing,
             );
@@ -265,7 +272,15 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
 
             return (
                 <Flex
-                    ref={ref}
+                    component="button"
+                    type="button"
+                    disabled={!canManageTags}
+                    aria-label={interpolateUiString(
+                        getUiString('metrics.editCategories'),
+                        { metric: row.original.label },
+                    )}
+                    aria-haspopup="dialog"
+                    className={styles.categoryCell}
                     pos="absolute"
                     py={6}
                     px="md"
@@ -294,15 +309,15 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                         cursor: canManageTags ? 'pointer' : 'default',
                     }}
                 >
-                    {categories.length === 0 && hovered && canManageTags ? (
-                        <Group gap={2}>
+                    {categories.length === 0 && canManageTags ? (
+                        <Group gap={2} className={styles.categoryPlaceholder}>
                             <MantineIcon
                                 color="ldGray.4"
                                 icon={IconPlus}
                                 size={12}
                             />
                             <Text span fz="sm" c="ldGray.4">
-                                Click to add
+                                {getUiString('metrics.addCategory')}
                             </Text>
                         </Group>
                     ) : (

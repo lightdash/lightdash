@@ -1,7 +1,24 @@
 .comparisonPaper {
-    cursor: pointer;
     background-color: var(--mantine-color-background-0);
     transition: all 200ms ease-in-out;
+}
+
+.radioBody {
+    align-items: center;
+    justify-content: space-between;
+}
+
+.radioLabel {
+    flex: 1;
+    cursor: pointer;
+}
+
+@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+    .radioLabel {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
 }
 
 .comparisonPaper[data-with-border] {

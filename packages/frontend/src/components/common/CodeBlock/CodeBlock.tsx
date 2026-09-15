@@ -2,7 +2,7 @@ import {
     CodeHighlight,
     type CodeHighlightProps,
 } from '@mantine/code-highlight';
-import { Box, CopyButton, Tooltip } from '@mantine/core';
+import { Box, CopyButton } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { type CSSProperties, type FC } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -30,17 +30,16 @@ const CodeBlockCopyControl: FC<{
             const label = copied ? copiedLabel : copyLabel;
 
             return (
-                <Tooltip label={label}>
-                    <CodeHighlight.Control
-                        aria-label={label}
-                        onClick={() => {
-                            copy();
-                            onCopy?.();
-                        }}
-                    >
-                        <MantineIcon icon={copied ? IconCheck : IconCopy} />
-                    </CodeHighlight.Control>
-                </Tooltip>
+                <CodeHighlight.Control
+                    aria-label={label}
+                    tooltipLabel={label}
+                    onClick={() => {
+                        copy();
+                        onCopy?.();
+                    }}
+                >
+                    <MantineIcon icon={copied ? IconCheck : IconCopy} />
+                </CodeHighlight.Control>
             );
         }}
     </CopyButton>
@@ -67,6 +66,9 @@ const CodeBlock: FC<Props> = ({
         <Box
             className={classes.wrapper}
             data-with-line-numbers={withLineNumbers || undefined}
+            data-with-controls={
+                withCopyButton || props.withExpandButton || undefined
+            }
             style={
                 {
                     '--code-block-line-numbers-width': `${String(lineCount).length}ch`,

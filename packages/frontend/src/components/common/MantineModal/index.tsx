@@ -8,6 +8,7 @@ import {
     ScrollArea,
     Stack,
     Text,
+    useMatches,
     type FlexProps,
     type ModalBodyProps,
     type ModalContentProps,
@@ -307,6 +308,10 @@ const MantineModal: React.FC<MantineModalProps> = ({
     modalActionsProps,
     bodyScrollAreaMaxHeight = 'calc(80vh - 140px)',
 }) => {
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
     const [
         isConfirmCloseOpen,
         { open: openConfirmClose, close: closeConfirmClose },
@@ -336,6 +341,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
     const config = VARIANT_CONFIG[variant];
 
     const isAlertDialog = role === 'alertdialog';
+    const mobileFullScreen = compact && !isAlertDialog;
 
     // Mantine gives every open modal its own window Escape listener, so a
     // nested dialog (ours or a plain Mantine one) would close this modal too.
@@ -364,12 +370,12 @@ const MantineModal: React.FC<MantineModalProps> = ({
     const confirmButtonColor = config.color;
 
     const renderBody = () => {
-        if (fullScreen) {
+        if (fullScreen || mobileFullScreen) {
             // Fullscreen mode: no ScrollArea, body fills available space
             return (
                 <Modal.Body p={0} className={classes.fullScreenBody}>
                     <Box
-                        px={modalBodyProps?.px ?? 'xl'}
+                        px={modalBodyProps?.px ?? { base: 'md', sm: 'xl' }}
                         py={modalBodyProps?.py ?? 'md'}
                         h="100%"
                     >
@@ -412,34 +418,43 @@ const MantineModal: React.FC<MantineModalProps> = ({
                 opened={opened}
                 onClose={handleClose}
                 size={fullScreen ? 'auto' : size}
-                yOffset={fullScreen ? 24 : undefined}
-                xOffset={fullScreen ? 24 : undefined}
                 centered
                 closeOnClickOutside={isAlertDialog ? false : undefined}
                 {...rootProps}
                 closeOnEscape={false}
+                fullScreen={mobileFullScreen || rootProps.fullScreen}
+                yOffset={
+                    mobileFullScreen
+                        ? 0
+                        : (rootProps.yOffset ?? (fullScreen ? 24 : undefined))
+                }
+                xOffset={
+                    mobileFullScreen
+                        ? 0
+                        : (rootProps.xOffset ?? (fullScreen ? 24 : undefined))
+                }
             >
                 <Modal.Overlay />
                 <Modal.Content
                     {...modalContentProps}
                     ref={contentRef}
                     role={isAlertDialog ? 'alertdialog' : undefined}
-                    className={
-                        fullScreen
-                            ? classes.fullScreenContent
-                            : clsx(
-                                  classes.content,
-                                  modalContentProps?.className,
-                              )
-                    }
+                    className={clsx(
+                        !fullScreen && !mobileFullScreen && classes.content,
+                        modalContentProps?.className,
+                        mobileFullScreen
+                            ? classes.mobileContent
+                            : fullScreen && classes.fullScreenContent,
+                    )}
                 >
                     <Modal.Header
                         className={classes.header}
-                        px="xl"
+                        px={{ base: 'md', sm: 'xl' }}
                         py="md"
                         {...modalHeaderProps}
                     >
                         <Group
+                            className={classes.titleGroup}
                             gap="sm"
                             flex={1}
                             // Shrinkable, so long titles truncate instead of
@@ -473,12 +488,17 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             </Stack>
                         </Group>
                         {headerActions ? (
-                            <Group gap="sm" mr="md">
+                            <Group
+                                className={classes.headerActions}
+                                gap="sm"
+                                mr={{ base: 0, sm: 'md' }}
+                            >
                                 {headerActions}
                             </Group>
                         ) : null}
                         {withCloseButton && (
                             <Modal.CloseButton
+                                className={classes.closeButton}
                                 aria-label="Close"
                                 // Anchor for scope walkthroughs (data-tour-via)
                                 data-tour-anchor="modal-close"

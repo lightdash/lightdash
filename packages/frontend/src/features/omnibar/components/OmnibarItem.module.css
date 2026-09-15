@@ -7,6 +7,17 @@
     border-radius: var(--mantine-radius-sm);
     cursor: pointer;
 
+    @mixin smaller-than $mantine-breakpoint-sm {
+        height: auto;
+        min-height: 52px;
+
+        .content {
+            flex-direction: column;
+            gap: 0;
+            align-items: stretch;
+        }
+    }
+
     /* Highlight is driven ONLY by the focused-item state (data-hovered) so
        mouse and keyboard can never highlight two rows at once. */
     &[data-hovered] {

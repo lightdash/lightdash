@@ -7,8 +7,9 @@ import { type FC, type ReactNode } from 'react';
 export const FloatingActionsPill: FC<{
     className?: string;
     children: ReactNode;
+    visible?: boolean;
     compact?: boolean;
-}> = ({ className, children, compact = false }) => (
+}> = ({ className, children, visible = true, compact = false }) => (
     <Paper
         p={compact ? 2 : 5}
         shadow="sm"
@@ -16,6 +17,7 @@ export const FloatingActionsPill: FC<{
         top={-6}
         right={-2}
         className={className}
+        data-visible={visible}
     >
         <Group gap={compact ? 2 : 5} wrap="nowrap">
             {children}

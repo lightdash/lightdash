@@ -244,7 +244,7 @@ const ContentReviewRequestsPage: FC = () => {
             withCenteredContent
             withXLargePaddedContent
         >
-            <Stack gap="lg">
+            <Stack gap="lg" w="100%" maw={1200} miw={0}>
                 <Group justify="space-between" align="flex-start">
                     <Stack gap={4}>
                         <Title order={3}>Review requests</Title>
@@ -289,6 +289,7 @@ const ContentReviewRequestsPage: FC = () => {
                         ]}
                     />
                     <Select
+                        aria-label="Review status"
                         size="xs"
                         w={160}
                         value={status}

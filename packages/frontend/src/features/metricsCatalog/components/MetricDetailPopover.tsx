@@ -1,5 +1,6 @@
 import {
     friendlyName,
+    interpolateUiString,
     type MetricExplorerDateRange,
     type MetricTotalComparisonType,
     type MetricWithAssociatedTimeDimension,
@@ -11,7 +12,9 @@ import {
     Button,
     Divider,
     Group,
-    HoverCard,
+    Popover,
+    CloseButton,
+    UnstyledButton,
     Loader,
     Stack,
     Text,
@@ -21,6 +24,7 @@ import { IconCode, IconTable } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useExploreMetric } from '../hooks/useExploreMetric';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useCompileMetricTotalQuery } from '../hooks/useRunMetricExplorerQuery';
@@ -37,6 +41,7 @@ export type CompiledQueryConfig = {
 type Props = {
     tableName: string;
     metricName: string;
+    metricLabel: string;
     projectUuid: string;
     showExploreButton: boolean;
     children: ReactNode;
@@ -74,8 +79,9 @@ const CompiledQuerySection: FC<{
                     <Text size="xs" c="dimmed" fw={500}>
                         How's total calculated?
                     </Text>
-                    <Group
-                        gap={4}
+                    <UnstyledButton
+                        type="button"
+                        aria-pressed={showSql}
                         className={classes.compiledToggle}
                         onClick={() => setShowSql((prev) => !prev)}
                     >
@@ -91,7 +97,7 @@ const CompiledQuerySection: FC<{
                         >
                             {showSql ? 'Hide SQL' : 'Show SQL'}
                         </Text>
-                    </Group>
+                    </UnstyledButton>
                 </Group>
                 {showSql &&
                     (isLoading ? (
@@ -142,7 +148,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
     const sqlToShow = showCompiled ? metric.compiledSql : metric.sql;
 
     return (
-        <Stack gap="xs" w={compiledQueryConfig ? 400 : 300}>
+        <Stack gap="xs" w="100%">
             <Group gap="xs" wrap="nowrap" justify="space-between">
                 <Group gap="xs" wrap="nowrap">
                     <MantineIcon icon={IconTable} color="gray.6" size={14} />
@@ -163,8 +169,9 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                         {compiledQueryConfig ? 'Metric SQL' : 'SQL'}
                     </Text>
                     <Tooltip label="Show compiled SQL">
-                        <Group
-                            gap={4}
+                        <UnstyledButton
+                            type="button"
+                            aria-pressed={showCompiled}
                             className={classes.compiledToggle}
                             onClick={() => setShowCompiled((prev) => !prev)}
                         >
@@ -180,7 +187,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                             >
                                 Compiled SQL
                             </Text>
-                        </Group>
+                        </UnstyledButton>
                     </Tooltip>
                 </Group>
                 <CodeBlock
@@ -227,7 +234,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                     size="xs"
                     fullWidth
                     onClick={() => {
-                        // Close the hover card before opening the modal,
+                        // Close the popover before opening the modal,
                         // otherwise its dropdown floats above the modal.
                         onExplore();
                         exploreMetric({ tableName, metricName });
@@ -243,15 +250,14 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
 export const MetricDetailPopover: FC<Props> = ({
     tableName,
     metricName,
+    metricLabel,
     projectUuid,
     showExploreButton,
     children,
     compiledQueryConfig,
 }) => {
     const [opened, setOpened] = useState(false);
-    // Mantine v8 HoverCard omits the `opened` prop (no controlled mode), so
-    // we remount via this key to force the dropdown closed when exploring.
-    const [instanceKey, setInstanceKey] = useState(0);
+    const getUiString = useUiStrings();
 
     const { data: metric, isLoading } = useMetric({
         projectUuid,
@@ -261,20 +267,41 @@ export const MetricDetailPopover: FC<Props> = ({
     });
 
     return (
-        <HoverCard
-            key={instanceKey}
+        <Popover
+            opened={opened}
+            onChange={setOpened}
             position="bottom-start"
+            width={`min(${compiledQueryConfig ? 432 : 332}px, calc(100vw - 24px))`}
+            floatingStrategy="fixed"
+            middlewares={{ shift: { crossAxis: true, padding: 12 } }}
+            trapFocus
             withArrow
             offset={8}
-            openDelay={300}
-            closeDelay={200}
-            onOpen={() => setOpened(true)}
-            onClose={() => setOpened(false)}
         >
-            <HoverCard.Target>
-                <Box className={classes.target}>{children}</Box>
-            </HoverCard.Target>
-            <HoverCard.Dropdown>
+            <Popover.Target>
+                <UnstyledButton
+                    className={classes.target}
+                    aria-label={interpolateUiString(
+                        getUiString('metrics.details'),
+                        { metric: metricLabel },
+                    )}
+                    aria-expanded={opened}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        setOpened((value) => !value);
+                    }}
+                >
+                    {children}
+                </UnstyledButton>
+            </Popover.Target>
+            <Popover.Dropdown className={classes.dropdown}>
+                <Group justify="flex-end" className={classes.closeRow}>
+                    <CloseButton
+                        aria-label={getUiString('metrics.closeDetails')}
+                        size={44}
+                        onClick={() => setOpened(false)}
+                    />
+                </Group>
                 {isLoading && (
                     <Group justify="center" p="md">
                         <Loader size="sm" />
@@ -289,10 +316,10 @@ export const MetricDetailPopover: FC<Props> = ({
                         projectUuid={projectUuid}
                         compiledQueryConfig={compiledQueryConfig}
                         isOpen={opened}
-                        onExplore={() => setInstanceKey((key) => key + 1)}
+                        onExplore={() => setOpened(false)}
                     />
                 )}
-            </HoverCard.Dropdown>
-        </HoverCard>
+            </Popover.Dropdown>
+        </Popover>
     );
 };

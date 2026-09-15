@@ -18,8 +18,10 @@ import useApp from '../../providers/App/useApp';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
+import { useNavBarPortalTarget } from './NavBarPortalContext';
 
-const HelpMenu: FC = () => {
+const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
+    const portalTarget = useNavBarPortalTarget();
     const health = useHealth();
     const { user } = useApp();
     const canViewRoadmap = user.data?.ability.can(
@@ -48,6 +50,7 @@ const HelpMenu: FC = () => {
                 rel="noopener noreferrer"
             >
                 <MantineIcon icon={IconHelp} />
+                {withLabel && ' Help'}
             </Button>
         );
     }
@@ -59,11 +62,12 @@ const HelpMenu: FC = () => {
             arrowOffset={16}
             offset={-2}
             zIndex={getDefaultZIndex('max')}
-            portalProps={{ target: '#navbar-header' }}
+            portalProps={{ target: portalTarget }}
         >
             <Menu.Target>
                 <Button aria-label="Help" variant="default" size="xs">
                     <MantineIcon icon={IconHelp} />
+                    {withLabel && ' Help'}
                 </Button>
             </Menu.Target>
 
