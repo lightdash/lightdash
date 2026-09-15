@@ -88,7 +88,10 @@ import {
 import type { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import type { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { runAutopilotAgent } from './AutopilotAgentRunner';
-import { renderAutopilotAgent } from './config/agent';
+import {
+    AUTOPILOT_MANAGED_MODEL_ID,
+    renderAutopilotAgent,
+} from './config/agent';
 import { pickAutopilotModel } from './modelSelection';
 import { buildPreAggCandidateSuggestion } from './preAggCandidates';
 import { loadAutopilotSkill } from './skills';
@@ -1316,8 +1319,9 @@ export class ManagedAgentService extends BaseService {
             return {
                 runtime: 'anthropic-managed',
                 provider: 'anthropic',
-                model: 'claude-opus-4-6',
+                model: AUTOPILOT_MANAGED_MODEL_ID,
                 keySource: 'instance',
+                keyManagement: null,
                 requestedCleanupMode: policy.aggression,
                 effectiveCleanupMode: policy.aggression,
                 notice: null,
@@ -1333,6 +1337,7 @@ export class ManagedAgentService extends BaseService {
                 provider: null,
                 model: null,
                 keySource: null,
+                keyManagement: null,
                 requestedCleanupMode: policy.aggression,
                 effectiveCleanupMode: 'observe',
                 notice: null,
@@ -1358,6 +1363,7 @@ export class ManagedAgentService extends BaseService {
         );
         return {
             runtime: 'ai-sdk',
+            keyManagement: resolved.keyManagement,
             provider,
             model,
             keySource: resolved.copilotConfig.byoProviders.some(
@@ -1890,6 +1896,7 @@ export class ManagedAgentService extends BaseService {
             case 'anthropic-managed':
                 return this.runManagedAgentSession(
                     ctx.projectUuid,
+                    ctx.runUuid,
                     onToolCall,
                     onSessionCreated,
                 );
@@ -1905,6 +1912,7 @@ export class ManagedAgentService extends BaseService {
 
     private async runManagedAgentSession(
         projectUuid: string,
+        runUuid: string,
         onToolCall: AutopilotToolCallHandler,
         onSessionCreated: (sessionId: string) => void,
     ): Promise<HeartbeatSessionResult> {
@@ -1919,6 +1927,10 @@ export class ManagedAgentService extends BaseService {
             projectUuid,
             serviceAccountToken,
         );
+        await this.managedAgentModel.setRunModel(runUuid, {
+            provider: 'anthropic',
+            name: AUTOPILOT_MANAGED_MODEL_ID,
+        });
         const result = await this.managedAgentClient.runSession(
             sessionConfig,
             projectUuid,
@@ -1952,6 +1964,12 @@ export class ManagedAgentService extends BaseService {
                 this.resolveAutopilotModel(organizationUuid),
             ]);
         const runtimeInfo = this.describeAiSdkRuntime(policy, resolvedModel);
+        // Persist before tools or model execution: a crash must not erase the
+        // selected model, and later configuration changes must not rewrite it.
+        await this.managedAgentModel.setRunModel(runUuid, {
+            provider: runtimeInfo.provider,
+            name: runtimeInfo.model,
+        });
         const agent = renderAutopilotAgent({
             toolSettings,
             policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
