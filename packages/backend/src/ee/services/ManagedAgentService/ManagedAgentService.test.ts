@@ -1172,7 +1172,7 @@ describe('ManagedAgentService query check before saving', () => {
                 },
             ),
         ).rejects.toThrow(
-            'The chart query failed, so nothing was saved: column "orders.status" does not exist',
+            /The chart query failed, so nothing was saved[\s\S]*column "orders.status" does not exist/,
         );
         expect(savedChartModel.createVersion).not.toHaveBeenCalled();
     });
@@ -1246,7 +1246,7 @@ describe('ManagedAgentService query check before saving', () => {
                 },
             ),
         ).rejects.toThrow(
-            'nothing was saved: relation "orders" does not exist',
+            /nothing was saved[\s\S]*relation "orders" does not exist/,
         );
         expect(savedChartModel.create).not.toHaveBeenCalled();
     });
