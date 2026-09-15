@@ -37,6 +37,7 @@ import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../hooks/useContent';
+import { useContentAuthoringEnabled } from '../hooks/useContentAuthoringEnabled';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -64,6 +65,7 @@ const Space: FC = () => {
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
     const { track } = useTracking();
+    const contentAuthoringEnabled = useContentAuthoringEnabled();
 
     const userCanManageSpace = user.data?.ability?.can(
         'create',
@@ -269,8 +271,9 @@ const Space: FC = () => {
 
                         <Group gap="xs">
                             {!isDemo &&
-                                (userCanCreateDashboards ||
-                                    userCanCreateCharts ||
+                                ((contentAuthoringEnabled &&
+                                    (userCanCreateDashboards ||
+                                        userCanCreateCharts)) ||
                                     userCanCreateDataApps ||
                                     userCanManageSpace) && (
                                     <Menu
@@ -316,9 +319,9 @@ const Space: FC = () => {
                                                 </>
                                             )}
 
-                                            {userCanCreateDashboards ? (
+                                            {contentAuthoringEnabled &&
+                                            userCanCreateDashboards ? (
                                                 <Menu.Item
-                                                    visibleFrom="sm"
                                                     leftSection={
                                                         <MantineIcon
                                                             icon={IconPlus}
@@ -334,9 +337,9 @@ const Space: FC = () => {
                                                 </Menu.Item>
                                             ) : null}
 
-                                            {userCanCreateCharts ? (
+                                            {contentAuthoringEnabled &&
+                                            userCanCreateCharts ? (
                                                 <Menu.Item
-                                                    visibleFrom="sm"
                                                     leftSection={
                                                         <MantineIcon
                                                             icon={IconPlus}
