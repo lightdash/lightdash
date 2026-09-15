@@ -16,13 +16,20 @@ export const deleteTrainingPreviews = (trainingProjectUuid: string) =>
         body: undefined,
     });
 
+/** Docs lessons run on the workspace page; scope walkthroughs start at home. */
+export const isDocsModule = (scope: string) => scope.startsWith('docs:');
+
 /** The URL that opens a walkthrough inside a copy, straight from anywhere. */
 export const tourUrlInCopy = (
     copyProjectUuid: string,
     scope: string,
     from: 'learn' | 'home',
 ) =>
-    `/projects/${copyProjectUuid}/home?tour=${encodeURIComponent(scope)}&copy=1${from === 'learn' ? '&from=learn' : ''}`;
+    `/projects/${copyProjectUuid}/${
+        isDocsModule(scope) ? 'learn/workspace' : 'home'
+    }?tour=${encodeURIComponent(scope)}&copy=1${
+        from === 'learn' ? '&from=learn' : ''
+    }`;
 
 /**
  * Router state on the navigations that leave a copy about to be removed.

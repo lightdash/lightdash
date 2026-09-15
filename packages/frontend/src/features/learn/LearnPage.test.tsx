@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
 import LearnPage from './LearnPage';
+import { SANDBOX_LESSONS } from './sandboxLessons';
 
 const {
     track,
@@ -277,6 +278,10 @@ describe('LearnPage analytics', () => {
 
 describe('LearnPage access', () => {
     const catalogueScopes = catalogue.map((module) => module.scope);
+    /** Docs lessons need no scope, so every learner is shown them. */
+    const lessons = SANDBOX_LESSONS.map((lesson) => lesson.id);
+    const sorted = (scopes: (string | null)[]) =>
+        [...scopes].sort((a, b) => (a ?? '').localeCompare(b ?? ''));
 
     beforeEach(() => {
         progressState.current = {
@@ -307,12 +312,8 @@ describe('LearnPage access', () => {
     it('shows what the learner can do, and nothing else', () => {
         const { container } = renderPage();
 
-        expect(
-            shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
-        ).toEqual(
-            ['manage:Validation', 'view:Dashboard'].sort((a, b) =>
-                a.localeCompare(b),
-            ),
+        expect(sorted(shown(container))).toEqual(
+            sorted(['manage:Validation', 'view:Dashboard', ...lessons]),
         );
     });
 
@@ -358,9 +359,9 @@ describe('LearnPage access', () => {
         await userEvent.type(input, 'dashboard');
         expect(shown(container)).toEqual(['view:Dashboard']);
         await userEvent.clear(input);
-        expect(
-            shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
-        ).toEqual(['manage:Validation', 'view:Dashboard']);
+        expect(sorted(shown(container))).toEqual(
+            sorted(['manage:Validation', 'view:Dashboard', ...lessons]),
+        );
     });
 });
 
