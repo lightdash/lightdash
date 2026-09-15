@@ -1,0 +1,77 @@
+name: Verify static asset publication on staging
+
+on:
+    push:
+        branches: [prod-8618]
+        paths:
+            - '.github/workflows/static-assets-staging-verification.yml'
+            - '.github/scripts/upload-static-assets.mts'
+
+permissions:
+    contents: read
+
+concurrency:
+    group: static-assets-staging-verification
+    cancel-in-progress: false
+
+jobs:
+    verify:
+        if: github.repository == 'lightdash/lightdash'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        env:
+            IMAGE: us-docker.pkg.dev/lightdash-containers/lightdash/lightdash@sha256:ff38090217a7877a634efcf1e05024b3b6bef614b02fca97663d2dc1449e7ec2
+            BUCKET: lightdash-static-assets-staging
+        steps:
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              with:
+                  persist-credentials: false
+            - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+              with:
+                  credentials_json: '${{ secrets.GCP_CREDENTIALS_IMAGE_DEPLOY }}'
+            - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+            - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+              with:
+                  node-version: '24'
+            - name: Publish pinned release assets to staging
+              run: |
+                  gcloud auth configure-docker us-docker.pkg.dev --quiet
+                  node .github/scripts/upload-static-assets.mts --image "$IMAGE" --bucket "$BUCKET"
+            - name: Download and verify published assets
+              run: |
+                  node <<'NODE'
+                  const assert = require('node:assert/strict');
+                  const { execFileSync } = require('node:child_process');
+                  const { createHash } = require('node:crypto');
+                  const { appendFileSync, mkdirSync, readFileSync, readdirSync } = require('node:fs');
+                  const { join } = require('node:path');
+                  const image = process.env.IMAGE;
+                  const bucket = process.env.BUCKET;
+                  const destination = join(process.env.RUNNER_TEMP, 'verify-static-assets');
+                  mkdirSync(destination);
+                  const digest = createHash('sha256').update(image).digest('hex');
+                  const manifestPath = join(destination, 'manifest.json');
+                  const manifestUrl = `gs://${bucket}/releases/${digest}.json`;
+                  execFileSync('gsutil', ['cp', manifestUrl, manifestPath], { stdio: 'inherit' });
+                  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+                  assert.equal(manifest.image, image);
+                  const imageId = execFileSync('docker', ['image', 'inspect', '--format', '{{.Id}}', image], { encoding: 'utf8' }).trim();
+                  assert.equal(manifest.imageId, imageId);
+                  assert.ok(manifest.assets.length > 0);
+                  assert.ok(manifest.assets.some(asset => asset.path.endsWith('.js')));
+                  execFileSync('gsutil', ['-m', 'cp', '-r', `gs://${bucket}/assets`, destination], { stdio: 'inherit' });
+                  for (const asset of manifest.assets) {
+                    const bytes = readFileSync(join(destination, 'assets', asset.path));
+                    assert.equal(createHash('sha256').update(bytes).digest('hex'), asset.sha256, asset.path);
+                  }
+                  const files = readdirSync(join(destination, 'assets'), { recursive: true });
+                  assert.ok(files.every(path => !/\.(map|gzip|gz|br)$/.test(path)));
+                  const assetUrl = `gs://${bucket}/assets/${manifest.assets[0].path}`;
+                  const assetMetadata = execFileSync('gsutil', ['stat', assetUrl], { encoding: 'utf8' });
+                  assert.match(assetMetadata, /Cache-Control:\s+public, max-age=31536000, immutable/);
+                  const manifestMetadata = execFileSync('gsutil', ['stat', manifestUrl], { encoding: 'utf8' });
+                  assert.match(manifestMetadata, /Cache-Control:\s+no-store/);
+                  const summary = `Verified ${manifest.assets.length} uploaded assets against their SHA-256 hashes. Image identity, completion manifest, cache headers, and debug-file exclusions all passed.\n`;
+                  console.log(summary);
+                  appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+                  NODE
