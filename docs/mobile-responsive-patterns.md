@@ -65,6 +65,9 @@ Theme breakpoints are `sm=48em`, `md=62em`, `lg=75em` (768/992/1200px at the def
 
 ## Shared ownership
 
+- `PageHeader.module.css` owns header dimensions and spacing. `PageHeader` selects a default, query or dashboard variant without subscribing to viewport size. Query headers grow above their minimum height when titles wrap. App headers customize CSS variables for their panel layout.
+- Canvas splitter owners pass their compact decision through the saved-tree/metric sidebars into `CanvasSidebar`; the drawer does not independently query the viewport.
+- `packages/e2e/cypress/e2e/app/responsiveHeaders.cy.ts` exercises real-browser resizing across the 640px header threshold, checks control bounds and overlap, and preserves viewer URLs, an open dashboard menu and an unsaved details draft.
 - Chart/dashboard headers compose `HeaderTitle`, `HeaderHeading`, `HeaderMetadata` and `HeaderActions` from `HeaderSlots`; saved charts also use `HeaderMain` and `HeaderBreadcrumbs`. The slots own layout classes rather than requiring callers to know CSS data attributes. Keep title semantics and feature actions with their callers.
 - Derive action availability once from permissions, authoring capability and content state, then reuse it with the same handler in desktop buttons and compact menu items. Layout flags choose placement, not availability. Conditionally render unavailable actions rather than CSS-hiding them or leaving empty menu sections.
 - `src/styles/responsiveBreakpoints.json` owns custom navigation and content-header thresholds. PostCSS and React hooks consume the same values; standard layout thresholds use Mantine's theme variables.

@@ -20,10 +20,11 @@ import { SavedTreeEditMode } from '../../types';
 import { CanvasSidebar } from '../Canvas/CanvasSidebar';
 import classes from './TreeListSidebar.module.css';
 
-const TreeListSidebar: FC<{ opened: boolean; onClose: () => void }> = ({
-    opened,
-    onClose,
-}) => {
+const TreeListSidebar: FC<{
+    compact: boolean;
+    opened: boolean;
+    onClose: () => void;
+}> = ({ compact, opened, onClose }) => {
     const getUiString = useUiStrings();
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
@@ -54,6 +55,7 @@ const TreeListSidebar: FC<{ opened: boolean; onClose: () => void }> = ({
 
     return (
         <CanvasSidebar
+            compact={compact}
             title={getUiString('metrics.savedTrees')}
             opened={opened}
             onClose={onClose}

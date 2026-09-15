@@ -372,9 +372,7 @@ const SavedChartsHeader: FC = () => {
 
             <PageHeader
                 mobileLayout={!isEditMode ? 'content' : undefined}
-                cardProps={{
-                    py: 'xs',
-                }}
+                variant="query"
             >
                 <HeaderMain>
                     {savedChart && projectUuid && (

@@ -6,7 +6,6 @@ import {
 import { ActionIcon, Group, Popover, Title } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
-import { DASHBOARD_HEADER_HEIGHT } from '../../../components/common/Dashboard/dashboard.constants';
 import { FavoriteActionIcon } from '../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import PageHeader from '../../../components/common/Page/PageHeader';
@@ -75,10 +74,8 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
 
     return (
         <PageHeader
+            variant="dashboard"
             cardProps={{
-                px: { base: 'sm', md: 'xl' },
-                py: 0,
-                h: { base: 'auto', md: DASHBOARD_HEADER_HEIGHT },
                 className: classes.header,
             }}
         >

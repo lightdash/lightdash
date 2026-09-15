@@ -1,44 +1,31 @@
-import { Card, Flex, useMatches, type CardProps } from '@mantine/core';
+import { Card, Flex, type CardProps } from '@mantine/core';
 import { type FC, type PropsWithChildren } from 'react';
-import { PAGE_HEADER_HEIGHT } from './constants';
 import classes from './PageHeader.module.css';
-import { useCompactContentHeader } from './useCompactContentHeader';
 
 type Props = PropsWithChildren<{
     cardProps?: Omit<CardProps, 'children'>;
     mobileLayout?: 'content';
+    variant?: 'default' | 'query' | 'dashboard';
 }>;
 
-const PageHeader: FC<Props> = ({ cardProps, children, mobileLayout }) => {
-    const compactContentHeader = useCompactContentHeader();
-    const compactPageHeader = useMatches(
-        { base: true, sm: false },
-        { getInitialValueInEffect: false },
-    );
-    const compact =
-        mobileLayout === 'content' ? compactContentHeader : compactPageHeader;
+const PageHeader: FC<Props> = ({
+    cardProps,
+    children,
+    mobileLayout,
+    variant = 'default',
+}) => {
     return (
         <Card
             component={Flex}
+            data-testid="page-header"
             data-mobile-layout={mobileLayout}
+            data-header-variant={variant}
             bg="background"
             withBorder={false}
             shadow="bottomFade"
             radius="unset"
             classNames={{ root: classes.root }}
             {...cardProps}
-            px={
-                compact && mobileLayout === 'content'
-                    ? 16
-                    : (cardProps?.px ?? 'lg')
-            }
-            py={
-                compact && mobileLayout === 'content'
-                    ? 8
-                    : (cardProps?.py ?? 'md')
-            }
-            h={compact ? 'auto' : (cardProps?.h ?? PAGE_HEADER_HEIGHT)}
-            mih={compact ? PAGE_HEADER_HEIGHT : cardProps?.mih}
         >
             {children}
         </Card>

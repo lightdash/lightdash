@@ -75,6 +75,7 @@ const SavedTreesContainer: FC = () => {
                     max={40}
                 >
                     <TreeListSidebar
+                        compact={compact}
                         opened={treesOpened}
                         onClose={closeTrees}
                     />

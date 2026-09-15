@@ -32,6 +32,7 @@ import { type ExpandedNodeData } from '../TreeComponents/nodes/ExpandedNode';
 import classes from './MetricsSidebar.module.css';
 
 type MetricsSidebarProps = {
+    compact: boolean;
     opened: boolean;
     onClose: () => void;
     nodes: ExpandedNodeData[];
@@ -137,6 +138,7 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
 const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
     ({
         nodes,
+        compact,
         opened,
         onClose,
         yamlDriversByTarget,
@@ -165,6 +167,7 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
 
         return (
             <CanvasSidebar
+                compact={compact}
                 title={getUiString('metrics.addMetrics')}
                 opened={opened}
                 onClose={onClose}
