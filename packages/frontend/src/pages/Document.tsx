@@ -7,6 +7,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageHeader from '../components/common/Page/PageHeader';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import DocumentActions from '../features/documents/DocumentActions';
 import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
 import reportStyles from '../features/documents/presentation/ReportPresentation.module.css';
@@ -71,6 +72,7 @@ const DocumentContent = ({
                             >
                                 Back
                             </Button>
+                            <DocumentActions document={document} />
                         </Group>
                     </PageHeader>
                 }

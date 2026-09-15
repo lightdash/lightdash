@@ -14,6 +14,7 @@ import {
 import {
     IconAppWindow,
     IconFolder,
+    IconFileText,
     IconLayoutDashboard,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
@@ -85,6 +86,8 @@ export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
             return <ChartIcon chartKind={item.data.chartKind} />;
         case ResourceViewItemType.DATA_APP:
             return <IconBox icon={IconAppWindow} color="orange.6" />;
+        case ResourceViewItemType.DOCUMENT:
+            return <IconBox icon={IconFileText} color="dimmed" />;
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }

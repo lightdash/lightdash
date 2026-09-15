@@ -1200,6 +1200,7 @@ export class SpaceModel {
                                 `${AppsTableName}.space_uuid = ${SpaceTableName}.space_uuid`,
                             )
                             .whereNull(`${AppsTableName}.deleted_at`),
+                        documentCount: trx.raw('0::integer'),
                         slug: `${SpaceTableName}.slug`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
@@ -1280,6 +1281,25 @@ export class SpaceModel {
                     }),
                 );
             },
+        );
+    }
+
+    async getDocumentCounts(
+        spaceUuids: string[],
+    ): Promise<Record<string, number>> {
+        if (spaceUuids.length === 0) {
+            return {};
+        }
+        const rows = await this.database('documents')
+            .innerJoin('spaces', 'spaces.space_id', 'documents.space_id')
+            .whereIn('spaces.space_uuid', spaceUuids)
+            .whereNull('documents.deleted_at')
+            .whereNull('spaces.deleted_at')
+            .groupBy('spaces.space_uuid')
+            .select('spaces.space_uuid')
+            .count<{ space_uuid: string; count: string }[]>('* as count');
+        return Object.fromEntries(
+            rows.map((row) => [row.space_uuid, Number(row.count)]),
         );
     }
 

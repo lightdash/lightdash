@@ -104,6 +104,7 @@ export type SpaceSummaryBase = Pick<
     dashboardCount: number;
     childSpaceCount: number;
     appCount: number;
+    documentCount: number;
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;
@@ -157,7 +158,12 @@ export type SpaceInheritanceChain = {
 
 // Which content type's direct grant synthesized an access row. Grows one
 // member per content type that ships direct grants.
-export type GrantSource = 'app' | 'dashboard' | 'saved_chart' | 'sql_chart';
+export type GrantSource =
+    | 'app'
+    | 'dashboard'
+    | 'saved_chart'
+    | 'sql_chart'
+    | 'document';
 
 // Access data for checking Space access permissions with CASL where only the role/access data matters.
 export type SpaceAccess = {

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    FeatureFlags,
     getHighestSpaceRole,
     getOrganizationRoleForRoleSetSpaceAccess,
     getProjectRoleForRoleSetSpaceAccess,
@@ -27,6 +28,8 @@ import { Knex } from 'knex';
 import { type AppAccessModel } from '../../models/AppAccessModel';
 import { type DashboardAccessModel } from '../../models/DashboardAccessModel';
 import { type DirectAccess } from '../../models/directAccessModelUtils';
+import { type DocumentAccessModel } from '../../models/DocumentAccessModel';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type SavedChartAccessModel } from '../../models/SavedChartAccessModel';
 import { type SavedSqlAccessModel } from '../../models/SavedSqlAccessModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -55,6 +58,7 @@ export type SpaceAccessContextForCasl = {
 
 export type AccessTarget =
     | { type: 'space'; spaceUuid: string }
+    | { type: 'document'; documentUuid: string; spaceUuid: string }
     | { type: 'dashboard'; dashboardUuid: string; spaceUuid: string }
     | {
           type: 'chart';
@@ -122,6 +126,9 @@ export class SpacePermissionService extends BaseService {
 
     private readonly appAccessModel: AppAccessModel;
 
+    private readonly documentAccessModel: DocumentAccessModel;
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly dashboardAccessModel: DashboardAccessModel;
 
     private readonly savedChartAccessModel: SavedChartAccessModel;
@@ -134,6 +141,8 @@ export class SpacePermissionService extends BaseService {
         spaceModel,
         spacePermissionModel,
         appAccessModel,
+        documentAccessModel,
+        featureFlagModel,
         dashboardAccessModel,
         savedChartAccessModel,
         savedSqlAccessModel,
@@ -142,6 +151,8 @@ export class SpacePermissionService extends BaseService {
         spaceModel: SpaceModel;
         spacePermissionModel: SpacePermissionModel;
         appAccessModel: AppAccessModel;
+        documentAccessModel: DocumentAccessModel;
+        featureFlagModel: FeatureFlagModel;
         dashboardAccessModel: DashboardAccessModel;
         savedChartAccessModel: SavedChartAccessModel;
         savedSqlAccessModel: SavedSqlAccessModel;
@@ -151,6 +162,8 @@ export class SpacePermissionService extends BaseService {
         this.spaceModel = spaceModel;
         this.spacePermissionModel = spacePermissionModel;
         this.appAccessModel = appAccessModel;
+        this.documentAccessModel = documentAccessModel;
+        this.featureFlagModel = featureFlagModel;
         this.dashboardAccessModel = dashboardAccessModel;
         this.savedChartAccessModel = savedChartAccessModel;
         this.savedSqlAccessModel = savedSqlAccessModel;
@@ -317,6 +330,13 @@ export class SpacePermissionService extends BaseService {
         switch (target.type) {
             case 'space':
                 return undefined;
+            case 'document':
+                return {
+                    source: 'document',
+                    resourceUuid: target.documentUuid,
+                    resourceLabel: 'Document',
+                    spaceUuid: target.spaceUuid,
+                };
             case 'dashboard':
                 return {
                     source: 'dashboard',
@@ -362,6 +382,23 @@ export class SpacePermissionService extends BaseService {
 
     private getGrantLookup(userUuid: string, source: GrantSource): GrantLookup {
         switch (source) {
+            case 'document':
+                return async (resourceUuids, opts) => {
+                    const flag = await this.featureFlagModel.get({
+                        featureFlagId: FeatureFlags.Documents,
+                        user: {
+                            userUuid,
+                            organizationUuid: opts.organizationUuid,
+                        },
+                    });
+                    return flag.enabled
+                        ? this.documentAccessModel.getUserAccess(
+                              resourceUuids,
+                              userUuid,
+                              opts,
+                          )
+                        : {};
+                };
             case 'dashboard':
                 return (resourceUuids, opts) =>
                     this.dashboardAccessModel.getUserAccess(

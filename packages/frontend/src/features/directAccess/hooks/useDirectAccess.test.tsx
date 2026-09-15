@@ -149,6 +149,28 @@ describe('direct access resource permission refresh', () => {
     );
     it.each([
         {
+            resourceType: DirectAccessResourceType.DOCUMENT,
+            key: ['document', 'project', 'document-uuid'],
+            otherKey: ['document', 'other-project', 'document-uuid'],
+        },
+        {
+            resourceType: DirectAccessResourceType.DOCUMENT,
+            key: [
+                'document-cell-query',
+                'project',
+                'document-uuid',
+                'version',
+                'cell',
+            ],
+            otherKey: [
+                'document-cell-query',
+                'other-project',
+                'document-uuid',
+                'version',
+                'cell',
+            ],
+        },
+        {
             resourceType: DirectAccessResourceType.CHART,
             key: ['saved_query', 'chart-slug', 'project', false],
             otherKey: ['saved_query', 'chart-slug', 'other-project', false],

@@ -2,6 +2,7 @@ import {
     FeatureFlags,
     getResourceViewItemName,
     isResourceViewDataAppItem,
+    isResourceViewDocumentItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
@@ -188,7 +189,9 @@ const InfiniteResourceTableColumnName = ({
         // If there is no description, don't show the info icon on dashboards or data apps.
         // For charts we still show it for the dashboard list
         (item.data.description || isResourceViewItemChart(item)) &&
-        (isChartOrDashboard || isResourceViewDataAppItem(item));
+        (isChartOrDashboard ||
+            isResourceViewDataAppItem(item) ||
+            isResourceViewDocumentItem(item));
 
     const renderContent = (hideInlineInfo = false) => (
         <Anchor
@@ -237,6 +240,11 @@ const InfiniteResourceTableColumnName = ({
                             </Box>
                         )}
                     </Group>
+                    {isResourceViewDocumentItem(item) && (
+                        <Text fz="xs" c="dimmed">
+                            Document
+                        </Text>
+                    )}
                     {showTypeAndViews && (
                         <Group gap="xs" wrap="nowrap">
                             <Text fz="xs" c="dimmed">

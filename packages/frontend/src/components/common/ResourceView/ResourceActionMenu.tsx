@@ -65,6 +65,7 @@ import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
 import MantineIcon from '../MantineIcon';
+import DocumentResourceActionMenu from './DocumentResourceActionMenu';
 import {
     ResourceViewItemAction,
     type ResourceViewItemActionState,
@@ -74,7 +75,7 @@ export interface ResourceViewActionMenuCommonProps {
     onAction: (newAction: ResourceViewItemActionState) => void;
 }
 
-interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps {
+export interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps {
     disabled?: boolean;
     item: ResourceViewItem;
     /** Roles the viewer holds on this item through direct grants. */
@@ -86,7 +87,14 @@ interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps 
     onClose?: () => void;
 }
 
-const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
+const ExistingResourceViewActionMenu: FC<
+    Omit<ResourceViewActionMenuProps, 'item'> & {
+        item: Exclude<
+            ResourceViewItem,
+            { type: ResourceViewItemType.DOCUMENT }
+        >;
+    }
+> = ({
     disabled = false,
     item,
     grantRoles = [],
@@ -922,5 +930,12 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
         </>
     );
 };
+
+const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = (props) =>
+    props.item.type === ResourceViewItemType.DOCUMENT ? (
+        <DocumentResourceActionMenu {...props} item={props.item} />
+    ) : (
+        <ExistingResourceViewActionMenu {...props} item={props.item} />
+    );
 
 export default ResourceViewActionMenu;
