@@ -26,6 +26,7 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
             wrap="nowrap"
             w={{
                 base: 44,
+                sm: 180,
                 lg: 220,
                 xl: 260,
             }}
@@ -33,11 +34,11 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
         >
             <MantineIcon icon={IconSearch} size="sm" className={classes.icon} />
 
-            <Text size="sm" truncate className={classes.text} visibleFrom="lg">
+            <Text size="sm" truncate className={classes.text} visibleFrom="sm">
                 {placeholder}
             </Text>
 
-            <Kbd size="xs" visibleFrom="lg">
+            <Kbd size="xs" visibleFrom="sm">
                 {os === 'macos' || os === 'ios' ? '⌘' : 'Ctrl'}K
             </Kbd>
         </PolymorphicGroupButton>

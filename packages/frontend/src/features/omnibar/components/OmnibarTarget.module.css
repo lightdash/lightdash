@@ -14,7 +14,7 @@
         border-color: var(--mantine-color-ldGray-3);
     }
 
-    @media (min-width: 75em) {
+    @media (min-width: 48em) {
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
@@ -32,7 +32,7 @@
     user-select: none;
 }
 
-@media (max-width: $mantine-breakpoint-lg) {
+@media (width < 48em) {
     .container {
         width: 44px;
         height: 44px;
