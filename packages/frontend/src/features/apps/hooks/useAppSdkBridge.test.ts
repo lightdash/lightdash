@@ -1932,3 +1932,104 @@ describe('viz drill-down virtual route', () => {
         expect(fetch).not.toHaveBeenCalled();
     });
 });
+
+describe('viz underlying-data host dialog virtual route', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    const VIRTUAL_PATH = '/__sdk/viz/underlying-data/open';
+    const INTENT = { row: {}, metric: 'x' };
+
+    function renderBridge(
+        onVizUnderlyingDataIntent?: (intentBody: unknown) => void,
+    ) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onVizUnderlyingDataIntent,
+            }),
+        );
+    }
+
+    function postVirtualRoute() {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: VIRTUAL_PATH,
+            body: INTENT,
+        });
+    }
+
+    it('answers with an error when no host dialog handler is mounted', async () => {
+        renderBridge();
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: 'Underlying data is not available for this visualization.',
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('invokes the host handler and acks without forwarding to the API', async () => {
+        const handler = vi.fn();
+        renderBridge(handler);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    result: {},
+                }),
+                '*',
+            ),
+        );
+        expect(handler).toHaveBeenCalledWith(INTENT);
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('answers with the thrown validation message', async () => {
+        renderBridge(() => {
+            throw new Error('Invalid underlying-data request.');
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: 'Invalid underlying-data request.',
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+});

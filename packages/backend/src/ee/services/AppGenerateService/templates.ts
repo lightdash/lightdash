@@ -43,7 +43,7 @@ Before you write any code, use the \`reusable-visualization\` skill. It is the c
 
 Build the chart type the user asked for; only if they did not name one, pick what best fits the fields (bars to compare categories, a line for a trend over time).
 
-Wire the standard data-point action: when \`useVizContext().underlyingData.enabled\` is true, clicking a mark opens a small action menu with "View underlying data", which fetches \`underlyingData.get({ row, metric })\` and renders the rows in a dialog with a Download button. Keep the untransformed source row on every interactive datum so the click can reference it; skip the menu on marks that aggregate multiple rows. The \`reusable-visualization\` skill has the full contract.
+Wire the standard data-point action: when \`useVizContext().underlyingData.enabled\` is true, clicking a mark opens a small action menu with "View underlying data", which calls \`underlyingData.open({ row, metric })\`. Lightdash opens and owns the dialog, including its table, loading, error, and download controls; the reusable visualization renders no dialog of its own. Keep the untransformed source row on every interactive datum so the click can reference it; skip the menu on marks that aggregate multiple rows. The \`reusable-visualization\` skill has the full contract.
 
 You are done when the chart renders for real and the declaration you emit is the one that skill describes: every field and every config option the component reads, and nothing a viewer would plausibly want different left hardcoded.`;
 

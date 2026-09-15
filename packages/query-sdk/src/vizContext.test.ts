@@ -249,6 +249,7 @@ describe('toVizContextState', () => {
             valueColors: {},
             pivotDetails: null,
             underlyingDataEnabled: false,
+            underlyingDataOpenEnabled: false,
             drillDownEnabled: false,
         });
     });
@@ -314,7 +315,9 @@ describe('resolveVizFixtureUrl', () => {
 
     it('resolves a relative path against the page origin', () => {
         expect(
-            resolveVizFixtureUrl(at({ search: '?vizFixture=/my-fixture.json' })),
+            resolveVizFixtureUrl(
+                at({ search: '?vizFixture=/my-fixture.json' }),
+            ),
         ).toBe('http://127.0.0.1:5173/my-fixture.json');
     });
 
@@ -342,7 +345,9 @@ describe('resolveVizFixtureUrl', () => {
             ),
         ).toBeNull();
         expect(
-            resolveVizFixtureUrl(at({ search: '?vizFixture=//evil.example/x' })),
+            resolveVizFixtureUrl(
+                at({ search: '?vizFixture=//evil.example/x' }),
+            ),
         ).toBeNull();
     });
 });
@@ -404,15 +409,21 @@ describe('resolved color helpers', () => {
 });
 
 describe('toVizContextState — underlyingData', () => {
-    it('reads enabled:true from the host push', () => {
-        expect(
-            toVizContextState(message({ underlyingData: { enabled: true } }))
-                .underlyingDataEnabled,
-        ).toBe(true);
+    it('reads legacy fetch and host-dialog availability independently', () => {
+        const state = toVizContextState(
+            message({
+                underlyingData: { enabled: true, openEnabled: true },
+            }),
+        );
+        expect(state.underlyingDataEnabled).toBe(true);
+        expect(state.underlyingDataOpenEnabled).toBe(true);
     });
 
     it('defaults to disabled when the host omits underlyingData (old host)', () => {
         expect(toVizContextState(message({})).underlyingDataEnabled).toBe(
+            false,
+        );
+        expect(toVizContextState(message({})).underlyingDataOpenEnabled).toBe(
             false,
         );
     });
@@ -432,6 +443,7 @@ describe('toVizContextState — underlyingData', () => {
 
 describe('buildVizUnderlyingData', () => {
     const supportedTransport = {
+        openVizUnderlyingData: vi.fn(async () => undefined),
         getVizUnderlyingData: vi.fn(async () => ({
             rows: [],
             columns: [],
@@ -455,23 +467,27 @@ describe('buildVizUnderlyingData', () => {
     } as unknown as Transport;
 
     it('enabled only when the host pushed enabled AND the transport supports it', () => {
-        expect(buildVizUnderlyingData(true, supportedTransport).enabled).toBe(
-            true,
-        );
-        expect(buildVizUnderlyingData(false, supportedTransport).enabled).toBe(
-            false,
-        );
-        expect(buildVizUnderlyingData(true, legacyTransport).enabled).toBe(
-            false,
-        );
-        expect(buildVizUnderlyingData(true, partialTransport).enabled).toBe(
-            false,
-        );
-        expect(buildVizUnderlyingData(true, null).enabled).toBe(false);
+        expect(
+            buildVizUnderlyingData(true, true, supportedTransport).enabled,
+        ).toBe(true);
+        expect(
+            buildVizUnderlyingData(true, false, supportedTransport).enabled,
+        ).toBe(false);
+        expect(
+            buildVizUnderlyingData(true, true, legacyTransport).enabled,
+        ).toBe(false);
+        expect(
+            buildVizUnderlyingData(true, true, partialTransport).enabled,
+        ).toBe(false);
+        expect(buildVizUnderlyingData(true, true, null).enabled).toBe(false);
     });
 
     it('get() delegates to the transport with { row, metric, limit }', async () => {
-        const underlyingData = buildVizUnderlyingData(true, supportedTransport);
+        const underlyingData = buildVizUnderlyingData(
+            true,
+            true,
+            supportedTransport,
+        );
         await underlyingData.get({ row, metric: 'value', limit: 100 });
         expect(supportedTransport.getVizUnderlyingData).toHaveBeenCalledWith({
             row,
@@ -480,8 +496,29 @@ describe('buildVizUnderlyingData', () => {
         });
     });
 
+    it('keeps legacy get() available when the host cannot open its dialog', async () => {
+        const underlyingData = buildVizUnderlyingData(
+            true,
+            false,
+            supportedTransport,
+        );
+        expect(underlyingData.enabled).toBe(false);
+
+        await underlyingData.get({ row, metric: 'value' });
+
+        expect(supportedTransport.getVizUnderlyingData).toHaveBeenCalledWith({
+            row,
+            metric: 'value',
+            limit: undefined,
+        });
+    });
+
     it('download() splits the intent from the download options', async () => {
-        const underlyingData = buildVizUnderlyingData(true, supportedTransport);
+        const underlyingData = buildVizUnderlyingData(
+            true,
+            true,
+            supportedTransport,
+        );
         await underlyingData.download({
             row,
             metric: 'value',
@@ -496,9 +533,22 @@ describe('buildVizUnderlyingData', () => {
         );
     });
 
+    it('open() delegates the semantic click intent to the host', async () => {
+        const underlyingData = buildVizUnderlyingData(
+            true,
+            true,
+            supportedTransport,
+        );
+        await underlyingData.open({ row, metric: 'value' });
+        expect(supportedTransport.openVizUnderlyingData).toHaveBeenCalledWith({
+            row,
+            metric: 'value',
+        });
+    });
+
     it('get() rejects with an actionable message when the host disabled it', async () => {
         await expect(
-            buildVizUnderlyingData(false, supportedTransport).get({
+            buildVizUnderlyingData(false, true, supportedTransport).get({
                 row,
                 metric: 'value',
             }),
@@ -507,11 +557,20 @@ describe('buildVizUnderlyingData', () => {
 
     it('get() rejects with an upgrade hint on a legacy transport', async () => {
         await expect(
-            buildVizUnderlyingData(true, legacyTransport).get({
+            buildVizUnderlyingData(true, true, legacyTransport).get({
                 row,
                 metric: 'value',
             }),
         ).rejects.toThrow(/rebuild the app/i);
+    });
+
+    it('open() rejects when the host cannot own the dialog', async () => {
+        await expect(
+            buildVizUnderlyingData(true, false, supportedTransport).open({
+                row,
+                metric: 'value',
+            }),
+        ).rejects.toThrow(/not enabled/i);
     });
 });
 
