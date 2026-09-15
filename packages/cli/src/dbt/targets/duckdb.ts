@@ -1,12 +1,15 @@
 import {
     CreateDuckdbCredentials,
     CreateDuckdbDucklakeCredentials,
+    CreateDuckdbEmbeddedCredentials,
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
+import { realpathSync, statSync } from 'node:fs';
+import path from 'node:path';
 import { Target } from '../types';
 
 type DucklakeAttachOptions = {
@@ -80,8 +83,8 @@ const validateDuckdbTarget = (target: Target): DuckdbTarget => {
 };
 
 const parseMotherDuck = (target: DuckdbTarget): CreateDuckdbCredentials => {
-    const path = target.path ?? '';
-    const motherduckPath = path.slice(3);
+    const targetPath = target.path ?? '';
+    const motherduckPath = targetPath.slice(3);
     const [database, queryString = ''] = motherduckPath.split('?', 2);
     const motherduckToken =
         target.settings?.motherduck_token ||
@@ -246,6 +249,42 @@ const parseDucklake = (target: DuckdbTarget): CreateDuckdbCredentials => {
     };
 };
 
+// Keep identical to EMBEDDED_DATASET_PATTERN in packages/warehouses/src/warehouseClients/DuckdbWarehouseClient.ts
+const EMBEDDED_DATASET_PATTERN = /^[a-z0-9_-]+$/;
+
+/**
+ * A plain file path is accepted only when it names a `.duckdb` file that sits
+ * directly inside PLAYGROUND_DATA_DIR (the directory the server's embedded
+ * DuckDB client reads). The result is an embedded dataset reference, which the
+ * warehouse client opens read-only, so no user-supplied path is ever opened.
+ */
+const parseEmbeddedLocalPath = (
+    target: DuckdbTarget,
+    filePath: string,
+): CreateDuckdbEmbeddedCredentials | undefined => {
+    const dataDirectory = process.env.PLAYGROUND_DATA_DIR;
+    if (!dataDirectory) return undefined;
+    let realDirectory: string;
+    let realFile: string;
+    try {
+        realDirectory = realpathSync(dataDirectory);
+        realFile = realpathSync(path.resolve(filePath));
+        if (!statSync(realFile).isFile()) return undefined;
+    } catch {
+        return undefined;
+    }
+    if (path.dirname(realFile) !== realDirectory) return undefined;
+    if (path.extname(realFile) !== '.duckdb') return undefined;
+    const dataset = path.basename(realFile, '.duckdb');
+    if (!EMBEDDED_DATASET_PATTERN.test(dataset)) return undefined;
+    return {
+        type: WarehouseTypes.DUCKDB,
+        connectionType: DuckdbConnectionType.EMBEDDED,
+        dataset,
+        schema: target.schema,
+    };
+};
+
 export const convertDuckdbSchema = (
     target: Target,
 ): CreateDuckdbCredentials => {
@@ -263,8 +302,13 @@ export const convertDuckdbSchema = (
         return parseMotherDuck(t);
     }
 
+    if (t.path) {
+        const embedded = parseEmbeddedLocalPath(t, t.path);
+        if (embedded) return embedded;
+    }
+
     return fail(
         target,
-        "Lightdash supports MotherDuck targets (path starting with 'md:') and DuckLake targets (attach entry with a 'ducklake:' path).",
+        "Lightdash supports MotherDuck targets (path starting with 'md:'), DuckLake targets (attach entry with a 'ducklake:' path), and a local .duckdb file inside PLAYGROUND_DATA_DIR.",
     );
 };
