@@ -7,16 +7,17 @@ import { type FC, type ReactNode } from 'react';
 export const FloatingActionsPill: FC<{
     className?: string;
     children: ReactNode;
-}> = ({ className, children }) => (
+    compact?: boolean;
+}> = ({ className, children, compact = false }) => (
     <Paper
-        p={5}
+        p={compact ? 2 : 5}
         shadow="sm"
         pos="absolute"
         top={-6}
         right={-2}
         className={className}
     >
-        <Group gap={5} wrap="nowrap">
+        <Group gap={compact ? 2 : 5} wrap="nowrap">
             {children}
         </Group>
     </Paper>

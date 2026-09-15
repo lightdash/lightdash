@@ -22,6 +22,7 @@ import {
     IconFilePencil,
     IconPlus,
     IconSearch,
+    IconSettings,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useId, useMemo, useRef, useState, type FC } from 'react';
@@ -36,6 +37,7 @@ import {
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryContext';
+import { FloatingActionsPill } from '../../common/FloatingActionsPill';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -58,7 +60,9 @@ export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     disabled: boolean;
     /** Shown as the card's tooltip; null shows none. */
     description: string | null;
-    /** Opens the chart type builder for this item; null hides the action. */
+    /** Selects this type, then opens its configuration; null hides the action. */
+    onConfigure: (() => void) | null;
+    /** Opens the builder directly; null hides the action. */
     onEdit: (() => void) | null;
 };
 
@@ -167,16 +171,41 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     </Text>
                 </UnstyledButton>
             </Tooltip>
-            {item.onEdit !== null ? (
-                <ActionIcon
-                    className={classes.cardEdit}
-                    variant="default"
-                    size="sm"
-                    aria-label={`Edit ${item.label}`}
-                    onClick={item.onEdit}
-                >
-                    <MantineIcon icon={IconFilePencil} size={14} />
-                </ActionIcon>
+            {item.onEdit !== null || item.onConfigure !== null ? (
+                <FloatingActionsPill className={classes.cardActions} compact>
+                    {item.onEdit !== null ? (
+                        <Tooltip
+                            label={'Edit ' + item.label}
+                            position="top"
+                            openDelay={500}
+                        >
+                            <ActionIcon
+                                size="sm"
+                                aria-label={'Edit ' + item.label}
+                                disabled={item.disabled}
+                                onClick={item.onEdit}
+                            >
+                                <MantineIcon icon={IconFilePencil} size={14} />
+                            </ActionIcon>
+                        </Tooltip>
+                    ) : null}
+                    {item.onConfigure !== null ? (
+                        <Tooltip
+                            label={`Configure ${item.label}`}
+                            position="top"
+                            openDelay={500}
+                        >
+                            <ActionIcon
+                                size="sm"
+                                aria-label={`Configure ${item.label}`}
+                                disabled={item.disabled}
+                                onClick={item.onConfigure}
+                            >
+                                <MantineIcon icon={IconSettings} size={14} />
+                            </ActionIcon>
+                        </Tooltip>
+                    ) : null}
+                </FloatingActionsPill>
             ) : null}
         </Box>
     );
@@ -371,11 +400,11 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
 );
 
 type ExplorerChartTypeGalleryProps = {
-    onSelected: () => void;
+    onConfigure: () => void;
 };
 
 const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
-    onSelected,
+    onConfigure,
 }) => {
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
@@ -424,15 +453,25 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             disabled,
             description: null,
             onEdit: null,
-            select: () => {
-                option.select();
-                onSelected();
+            select: option.select,
+            onConfigure: () => {
+                // Configuring the active chart must keep its existing axes,
+                // stacking, and other local options intact.
+                if (!option.selected) option.select();
+                onConfigure();
             },
         }));
     const projectItems = projectTypes.map(
         (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
             const { label, icon, rotatedIcon } =
                 projectChartTypeItem(dataAppViz);
+            const select = () => {
+                // Re-selecting the active type must not overwrite the
+                // chart's local bindings with a fresh automap.
+                if (selectedProjectUuid !== dataAppViz.dataAppVizUuid) {
+                    selectProjectChartType(dataAppViz, itemsMap ?? {});
+                }
+            };
             return {
                 key: dataAppViz.dataAppVizUuid,
                 label,
@@ -443,16 +482,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                 rotatedIcon,
                 selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,
                 disabled,
-                select: () => {
-                    // Re-selecting the active type must not overwrite the
-                    // chart's local bindings with a fresh automap.
-                    if (selectedProjectUuid !== dataAppViz.dataAppVizUuid) {
-                        selectProjectChartType(dataAppViz, itemsMap ?? {});
-                    }
-                    onSelected();
-                },
-                // Official (registry-installed) types are read-only; forking
-                // them lives in the gallery page, not this inline picker.
+                select,
                 onEdit:
                     dataAppsEnabled &&
                     canEditChartType(dataAppViz) &&
@@ -464,6 +494,10 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                                   }),
                               )
                         : null,
+                onConfigure: () => {
+                    select();
+                    onConfigure();
+                },
             };
         },
     );
