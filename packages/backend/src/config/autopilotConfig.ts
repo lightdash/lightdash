@@ -15,6 +15,11 @@ export type AutopilotValidatedModel = z.infer<typeof validatedModelSchema>;
 // Provider ids match runtime attribution; model ids match the preset modelId.
 export const DEFAULT_AUTOPILOT_VALIDATED_MODELS: AutopilotValidatedModel[] = [
     { provider: 'anthropic', model: 'claude-opus-4-7', mode: 'cleanup' },
+    {
+        provider: 'bedrock',
+        model: 'anthropic.claude-opus-4-7',
+        mode: 'cleanup',
+    },
     { provider: 'anthropic', model: 'claude-sonnet-5', mode: 'cleanup' },
     { provider: 'openai', model: 'gpt-5.4-2026-03-05', mode: 'cleanup' },
 ];
@@ -41,8 +46,15 @@ export const getAutopilotCleanupMode = (
     model: string | null,
     validatedModels: AutopilotValidatedModel[],
 ): ManagedAgentAggression => {
+    // Bedrock reports the cross-region inference profile id (us., eu., apac.,
+    // jp.); entries are written without the region prefix.
+    const candidates =
+        provider === 'bedrock' && model
+            ? [model, model.replace(/^[a-z]+\.(?=anthropic\.)/, '')]
+            : [model];
     const matches = validatedModels.filter(
-        (entry) => entry.provider === provider && entry.model === model,
+        (entry) =>
+            entry.provider === provider && candidates.includes(entry.model),
     );
     const approved =
         matches.length > 0

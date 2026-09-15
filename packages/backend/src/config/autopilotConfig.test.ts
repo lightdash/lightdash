@@ -78,6 +78,22 @@ describe('Autopilot model qualification', () => {
                 defaults,
             ),
         ).toBe('observe');
+        expect(
+            getAutopilotCleanupMode(
+                'cleanup',
+                'bedrock',
+                'us.anthropic.claude-opus-4-7',
+                defaults,
+            ),
+        ).toBe('cleanup');
+        expect(
+            getAutopilotCleanupMode(
+                'cleanup',
+                'bedrock',
+                'eu.anthropic.claude-opus-4-7',
+                defaults,
+            ),
+        ).toBe('cleanup');
     });
     it('replaces the defaults when the variable is set', () => {
         expect(parseAutopilotValidatedModels('')).toEqual([]);

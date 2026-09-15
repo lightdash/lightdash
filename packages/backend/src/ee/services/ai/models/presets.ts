@@ -299,6 +299,18 @@ export const MODEL_PRESETS: {
     ],
     bedrock: [
         {
+            name: 'claude-opus-4-7',
+            provider: 'bedrock',
+            modelId: 'anthropic.claude-opus-4-7',
+            displayName: 'Claude Opus 4.7',
+            description: 'Most intelligent model for complex tasks',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            callOptions: {},
+            providerOptions: undefined,
+        },
+        {
             name: 'claude-sonnet-5',
             provider: 'bedrock',
             modelId: 'anthropic.claude-sonnet-5',
