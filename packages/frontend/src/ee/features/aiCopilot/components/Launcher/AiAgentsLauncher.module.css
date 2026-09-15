@@ -190,6 +190,29 @@
     outline-offset: -2px;
 }
 
+/* Three diagonal grip lines in the corner, only while the handle is hovered. */
+.resizeHandle::before {
+    content: '';
+    position: absolute;
+    top: rem(4px);
+    left: rem(4px);
+    width: rem(12px);
+    height: rem(12px);
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent 0 rem(2px),
+        var(--mantine-color-dimmed) rem(2px) rem(3px)
+    );
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.resizeHandle:hover::before,
+.resizeHandle:focus-visible::before {
+    opacity: 1;
+}
+
 .panelHeader {
     display: flex;
     align-items: center;
