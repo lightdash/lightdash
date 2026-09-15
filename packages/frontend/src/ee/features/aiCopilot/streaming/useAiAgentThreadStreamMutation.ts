@@ -14,6 +14,7 @@ import {
     addReasoning,
     addToolCall,
     appendStepProgress,
+    markSteersConsumed,
     markFirstToken,
     markStreamRecovering,
     markToolCallDecided,
@@ -284,6 +285,25 @@ export const getStepProgressFromChunk = (
     return null;
 };
 
+const getConsumedSteerUuidsFromChunk = (
+    chunk: UIMessageChunk,
+): string[] | null => {
+    if (
+        chunk.type !== 'data-steer-consumed' ||
+        !('data' in chunk) ||
+        !chunk.data ||
+        typeof chunk.data !== 'object' ||
+        !('steerUuids' in chunk.data) ||
+        !Array.isArray(chunk.data.steerUuids)
+    ) {
+        return null;
+    }
+    const steerUuids = chunk.data.steerUuids.filter(
+        (uuid): uuid is string => typeof uuid === 'string',
+    );
+    return steerUuids.length > 0 ? steerUuids : null;
+};
+
 const FIRST_TOKEN_CHUNK_TYPES = new Set<UIMessageChunk['type']>([
     'text-start',
     'text-delta',
@@ -408,6 +428,18 @@ export function useAiAgentThreadStreamMutation() {
                                     toolName: stepProgress.toolName,
                                     progressId: stepProgress.progressId,
                                     progressStatus: stepProgress.progressStatus,
+                                }),
+                            );
+                            continue;
+                        }
+
+                        const consumedSteerUuids =
+                            getConsumedSteerUuidsFromChunk(value);
+                        if (consumedSteerUuids) {
+                            dispatch(
+                                markSteersConsumed({
+                                    threadUuid,
+                                    steerUuids: consumedSteerUuids,
                                 }),
                             );
                             continue;

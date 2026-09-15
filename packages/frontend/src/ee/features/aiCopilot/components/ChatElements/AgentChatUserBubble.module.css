@@ -41,17 +41,89 @@
 }
 
 .steerCard {
+    position: relative;
+    overflow: hidden;
     max-width: min(100%, rem(520px));
-    border-style: dashed;
+    border-style: solid;
+    transition:
+        opacity 200ms ease,
+        background-color 200ms ease;
 
     @mixin light {
-        background-color: transparent;
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-ldGray-1) 45%,
+            transparent
+        );
         border-color: var(--mantine-color-ldGray-3);
     }
 
     @mixin dark {
-        background-color: transparent;
+        background-color: var(--mantine-color-ldGray-4);
+        border-color: var(--mantine-color-ldGray-9);
+    }
+}
+
+.steerCard[data-state='pending'],
+.steerCard[data-state='dropped'] {
+    border-style: dashed;
+    background-color: transparent;
+
+    @mixin dark {
         border-color: var(--mantine-color-ldGray-7);
+    }
+}
+
+.steerCard[data-state='dropped'] {
+    opacity: 0.5;
+}
+
+.steerCard[data-state='applying']::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        110deg,
+        transparent 0%,
+        var(--mantine-color-ldGray-2) 50%,
+        transparent 100%
+    );
+    background-size: 220% 100%;
+    opacity: 0;
+    animation: steerShimmer 2.4s ease-in-out infinite;
+    pointer-events: none;
+
+    @mixin dark {
+        background: linear-gradient(
+            110deg,
+            transparent 0%,
+            var(--mantine-color-ldGray-6) 50%,
+            transparent 100%
+        );
+        background-size: 220% 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .steerCard[data-state='applying']::before {
+        animation: none;
+        opacity: 0.25;
+    }
+}
+
+@keyframes steerShimmer {
+    0% {
+        background-position: -25% 0;
+        opacity: 0;
+    }
+    20%,
+    80% {
+        opacity: 0.45;
+    }
+    100% {
+        background-position: 125% 0;
+        opacity: 0;
     }
 }
 

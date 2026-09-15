@@ -5,6 +5,7 @@ import {
     addToolCall,
     aiAgentThreadStreamSlice,
     appendStepProgress,
+    markSteersConsumed,
     markStreamPolling,
     markStreamRecovering,
     setError,
@@ -401,5 +402,44 @@ describe('aiAgentThreadStreamSlice', () => {
             },
             { type: 'text', text: 'after' },
         ]);
+    });
+
+    it('records consumed steers once per uuid for the streaming thread', () => {
+        const startedState = aiAgentThreadStreamSlice.reducer(
+            {},
+            startStreaming({
+                threadUuid: 'thread-1',
+                messageUuid: 'message-1',
+            }),
+        );
+
+        const afterFirst = aiAgentThreadStreamSlice.reducer(
+            startedState,
+            markSteersConsumed({
+                threadUuid: 'thread-1',
+                steerUuids: ['steer-1', 'steer-2'],
+            }),
+        );
+        const afterRepeat = aiAgentThreadStreamSlice.reducer(
+            afterFirst,
+            markSteersConsumed({
+                threadUuid: 'thread-1',
+                steerUuids: ['steer-2', 'steer-3'],
+            }),
+        );
+        const afterUnknownThread = aiAgentThreadStreamSlice.reducer(
+            afterRepeat,
+            markSteersConsumed({
+                threadUuid: 'thread-2',
+                steerUuids: ['steer-9'],
+            }),
+        );
+
+        expect(afterUnknownThread['thread-1']?.consumedSteerUuids).toEqual([
+            'steer-1',
+            'steer-2',
+            'steer-3',
+        ]);
+        expect(afterUnknownThread['thread-2']).toBeUndefined();
     });
 });

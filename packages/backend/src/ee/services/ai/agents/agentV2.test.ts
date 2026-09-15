@@ -727,6 +727,37 @@ describe('getStepBudgetOverride', () => {
     });
 });
 
+describe('buildPrepareStep steers', () => {
+    it('injects consumed guidance and asks the model to account for it', async () => {
+        const consumePromptSteers = vi
+            .fn()
+            .mockResolvedValue([
+                { message: 'break it down by payment method' },
+            ]);
+        const prepareStep = buildPrepareStep({
+            args: buildAgentArgs(),
+            dependencies: {
+                ...buildAgentDependencies(vi.fn()),
+                consumePromptSteers,
+            },
+            tools: {},
+            mcpToolNames: [],
+            logger: vi.fn(),
+            invalidToolCallIds: new Set(),
+        });
+
+        const result = await prepareStep({ stepNumber: 2, messages: [] });
+
+        expect(consumePromptSteers).toHaveBeenCalledWith({
+            promptUuid: 'prompt-1',
+            stepNumber: 2,
+        });
+        const injected = JSON.stringify(result);
+        expect(injected).toContain('break it down by payment method');
+        expect(injected).toContain('whether you followed each item');
+    });
+});
+
 describe('buildPrepareStep worker isolation', () => {
     it('does not consume or inject prompt-wide steers for a worker', async () => {
         const args = buildAgentArgs({

@@ -119,6 +119,12 @@ export interface AiAgentThreadStreamingState {
      * hover, etc.) without changing the wire protocol.
      */
     stepProgressMessages: StepProgressMessage[];
+    /**
+     * Steers (mid-run guidance) the agent has already been handed during
+     * this stream. The thread query only learns `consumedAt` on refetch, so
+     * this is what lets the guidance bubble move to "applying" live.
+     */
+    consumedSteerUuids: string[];
     timing: StreamTiming;
 }
 
@@ -136,6 +142,7 @@ const initialThread: Omit<
     reasoning: [],
     decidedToolCallIds: [],
     stepProgressMessages: [],
+    consumedSteerUuids: [],
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -405,6 +412,27 @@ export const aiAgentThreadStreamSlice = createSlice({
                 progressStatus?: 'in_progress' | 'complete' | 'error' | null;
             }>(),
         },
+        markSteersConsumed: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    steerUuids: string[];
+                }>,
+            ) => {
+                const { threadUuid, steerUuids } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (!streamingThread) return;
+                const known = new Set(streamingThread.consumedSteerUuids);
+                streamingThread.consumedSteerUuids.push(
+                    ...steerUuids.filter((uuid) => !known.has(uuid)),
+                );
+            },
+            prepare: prepareAutoBatched<{
+                threadUuid: string;
+                steerUuids: string[];
+            }>(),
+        },
     },
 });
 
@@ -421,4 +449,5 @@ export const {
     addToolCall,
     addReasoning,
     appendStepProgress,
+    markSteersConsumed,
 } = aiAgentThreadStreamSlice.actions;

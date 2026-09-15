@@ -1,5 +1,6 @@
 import { shallowEqual } from 'react-redux';
 import {
+    isAiAgentThreadStreamActive,
     isAiAgentThreadStreamRecoveryActive,
     type StreamPart,
 } from '../store/aiAgentThreadStreamSlice';
@@ -38,6 +39,31 @@ export const useActiveAiAgentThreadStreamParts = (): StreamPart[] =>
                     ? threadStream.parts
                     : [],
             ),
+        shallowEqual,
+    );
+
+const EMPTY_STEER_UUIDS: string[] = [];
+
+/** True while the run for this user message is still going (including
+ *  recovery/polling), so late guidance isn't judged as dropped too early. */
+export const useAiAgentThreadMessageActive = (
+    threadUuid: string,
+    messageUuid: string,
+) =>
+    useAiAgentStoreSelector((state) => {
+        const threadStream = state.aiAgentThreadStream[threadUuid];
+        return (
+            threadStream !== undefined &&
+            threadStream.messageUuid === messageUuid &&
+            isAiAgentThreadStreamActive(threadStream.connection)
+        );
+    });
+
+export const useAiAgentThreadConsumedSteerUuids = (threadUuid: string) =>
+    useAiAgentStoreSelector(
+        (state) =>
+            state.aiAgentThreadStream[threadUuid]?.consumedSteerUuids ??
+            EMPTY_STEER_UUIDS,
         shallowEqual,
     );
 

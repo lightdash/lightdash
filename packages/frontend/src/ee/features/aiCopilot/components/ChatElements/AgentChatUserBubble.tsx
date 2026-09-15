@@ -1,4 +1,8 @@
-import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
+import {
+    type AiAgentMessageUser,
+    type AiAgentUser,
+    type AiPromptSteer,
+} from '@lightdash/common';
 import { Anchor, Box, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconWindowMaximize } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
@@ -8,6 +12,10 @@ import { Link, useParams } from 'react-router';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
+import {
+    useAiAgentThreadConsumedSteerUuids,
+    useAiAgentThreadMessageActive,
+} from '../../streaming/useAiAgentThreadStreamQuery';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntityCard';
 import { isReviewEntityItem } from '../PinnedContextCard/reviewEntityItem';
@@ -31,6 +39,22 @@ type Props = {
     agentUuid?: string;
 };
 
+type SteerState = 'pending' | 'applying' | 'applied' | 'dropped';
+
+// Waiting = dashed, applying = shimmer, applied = solid, dropped = dashed and
+// faded. A steer sent after the agent's last step is never consumed.
+const getSteerState = (
+    steer: AiPromptSteer,
+    isRunActive: boolean,
+    liveConsumedSteerUuids: string[],
+): SteerState => {
+    const isConsumed =
+        steer.consumedAt !== null ||
+        liveConsumedSteerUuids.includes(steer.uuid);
+    if (isRunActive) return isConsumed ? 'applying' : 'pending';
+    return isConsumed ? 'applied' : 'dropped';
+};
+
 const getVisibleUserName = (name: string) => {
     const trimmedName = name.trim();
     if (!trimmedName || trimmedName.toLowerCase() === 'undefined undefined') {
@@ -51,6 +75,13 @@ export const UserBubble: FC<Props> = ({
     const projectUuid = projectUuidProp ?? paramsProjectUuid;
     const agentUuid = agentUuidProp ?? paramsAgentUuid;
     const openChartEditor = useAiThreadChartEdit();
+    const isRunActive = useAiAgentThreadMessageActive(
+        message.threadUuid,
+        message.uuid,
+    );
+    const liveConsumedSteerUuids = useAiAgentThreadConsumedSteerUuids(
+        message.threadUuid,
+    );
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);
     const app = useApp();
@@ -222,6 +253,11 @@ export const UserBubble: FC<Props> = ({
                             py={4}
                             px="xs"
                             className={styles.steerCard}
+                            data-state={getSteerState(
+                                steer,
+                                isRunActive,
+                                liveConsumedSteerUuids,
+                            )}
                         >
                             <MDEditor.Markdown
                                 source={steer.message}

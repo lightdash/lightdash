@@ -10161,6 +10161,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 progressId?: string,
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void | Promise<void>;
+            // Fired when mid-run guidance is handed to the model, so the web
+            // client can move the guidance bubble from waiting to applying.
+            onSteersConsumed?: (steerUuids: string[]) => void;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             suppressWritebackPreview?: boolean;
             dbtSourceUuid?: string;
@@ -10923,14 +10926,22 @@ Use your existing tools to inspect them when relevant to the user's question (re
             storeReasoning,
             isPromptInterrupted: (promptUuid: string) =>
                 this.aiAgentModel.hasAiPromptInterrupt(promptUuid),
-            consumePromptSteers: (args: {
+            consumePromptSteers: async (args: {
                 promptUuid: string;
                 stepNumber: number;
-            }) =>
-                this.aiAgentModel.consumeUnconsumedPromptSteers({
-                    promptUuid: args.promptUuid,
-                    stepNumber: args.stepNumber,
-                }),
+            }) => {
+                const steers =
+                    await this.aiAgentModel.consumeUnconsumedPromptSteers({
+                        promptUuid: args.promptUuid,
+                        stepNumber: args.stepNumber,
+                    });
+                if (steers.length > 0) {
+                    options?.onSteersConsumed?.(
+                        steers.map((steer) => steer.uuid),
+                    );
+                }
+                return steers;
+            },
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             editProjectContext,
@@ -11160,6 +11171,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                           });
                       }
                     : undefined),
+            onSteersConsumed: stepProgressEmitter
+                ? (steerUuids) => {
+                      stepProgressEmitter.emit('steersConsumed', {
+                          steerUuids,
+                      });
+                  }
+                : undefined,
             runtimeOptions: options.runtimeOptions,
             suppressWritebackPreview: options.suppressWritebackPreview,
             dbtSourceUuid: options.dbtSourceUuid,
@@ -12029,6 +12047,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                     progressStatus:
                                         event.progressStatus ?? null,
                                 },
+                                transient: true,
+                            });
+                        },
+                    );
+                    stepProgressEmitter.on(
+                        'steersConsumed',
+                        (event: { steerUuids: string[] }) => {
+                            writer.write({
+                                type: 'data-steer-consumed',
+                                data: { steerUuids: event.steerUuids },
                                 transient: true,
                             });
                         },
