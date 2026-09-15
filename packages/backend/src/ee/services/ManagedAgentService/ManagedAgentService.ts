@@ -3707,9 +3707,6 @@ chartConfig:
         abortSignal?: AbortSignal,
     ): Promise<string> {
         const { table_name: tableName, reason } = input;
-        if (!tableName.trim() || !reason.trim()) {
-            throw new Error('table_name and reason are required');
-        }
         if ((await this.getPolicy(projectUuid)).aggression === 'observe') {
             return JSON.stringify({
                 blocked: true,

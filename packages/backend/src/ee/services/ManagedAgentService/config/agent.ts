@@ -262,6 +262,9 @@ const optionalNumber = (description: string) =>
 
 const jsonObject = () => z.record(z.string(), z.unknown());
 
+// Trims before the length check so whitespace-only values fail validation.
+const nonEmptyString = () => z.string().trim().min(1);
+
 const optionalMetadata = (description: string) =>
     jsonObject().optional().describe(description);
 
@@ -328,12 +331,9 @@ const autopilotToolDefinitionList = [
         description:
             'Flag a chart, dashboard, or project in the action log. Does NOT delete or modify the content, only records an observation. Use for stale content, broken content, or old preview projects. Idempotent: flagging an already-flagged target returns the existing flag without creating a duplicate, and deleted targets are skipped — so never re-flag a list you have already processed this run.',
         inputSchema: z.object({
-            description: z
-                .string()
-                .min(1)
-                .describe(
-                    'Human-readable explanation of WHY you are flagging this content',
-                ),
+            description: nonEmptyString().describe(
+                'Human-readable explanation of WHY you are flagging this content',
+            ),
             flag_type: z
                 .enum([
                     ManagedAgentActionType.FLAGGED_STALE,
@@ -343,7 +343,7 @@ const autopilotToolDefinitionList = [
             metadata: optionalMetadata(
                 'Additional data (e.g., last_viewed_at, views_count, errors)',
             ),
-            target_name: z.string().min(1).describe('Name of the content'),
+            target_name: nonEmptyString().describe('Name of the content'),
             target_type: z
                 .enum([
                     ManagedAgentTargetType.CHART,
@@ -351,10 +351,9 @@ const autopilotToolDefinitionList = [
                     ManagedAgentTargetType.PROJECT,
                 ])
                 .describe('Type of content'),
-            target_uuid: z
-                .string()
-                .min(1)
-                .describe('UUID of the content to flag'),
+            target_uuid: nonEmptyString().describe(
+                'UUID of the content to flag',
+            ),
         }),
         name: 'flag_content',
     },
@@ -363,35 +362,29 @@ const autopilotToolDefinitionList = [
         description:
             'Flag all visible, in-scope charts whose underlying model was deleted. Flag affected dashboards individually. Use the table_name from a model-level get_broken_content group. One call processes the whole group, including items beyond detail pages; do not enumerate individual UUIDs. Existing active flags are preserved without resetting escalation. Protected or verified content is skipped. Reports created, already-flagged and blocked counts. Does not modify or delete content. Safe to retry after interruption.',
         inputSchema: z.object({
-            table_name: z
-                .string()
-                .min(1)
-                .describe('Deleted model name from get_broken_content'),
-            reason: z
-                .string()
-                .min(1)
-                .describe('Why this model-level group needs review'),
+            table_name: nonEmptyString().describe(
+                'Deleted model name from get_broken_content',
+            ),
+            reason: nonEmptyString().describe(
+                'Why this model-level group needs review',
+            ),
         }),
     },
     {
         description:
             'Soft-delete a chart or dashboard. The content can be restored by an admin. Only usable on content that was flagged more than the escalation window ago and not dismissed; unflagged content is blocked, so flag_content it first. Do NOT use for content created in the last 30 days. Do NOT use for agent-created content (slug starts with agent-). Do NOT use if the chart is the only chart on a dashboard. At most 25 individual soft-deletes are allowed per run; further calls are blocked, so flag the remainder instead.',
         inputSchema: z.object({
-            description: z
-                .string()
-                .min(1)
-                .describe(
-                    'Human-readable explanation of WHY you are deleting this content',
-                ),
+            description: nonEmptyString().describe(
+                'Human-readable explanation of WHY you are deleting this content',
+            ),
             metadata: optionalMetadata(
                 'Additional data (e.g., last_viewed_at, views_count)',
             ),
-            target_name: z.string().min(1).describe('Name of the content'),
+            target_name: nonEmptyString().describe('Name of the content'),
             target_type: contentTargetType,
-            target_uuid: z
-                .string()
-                .min(1)
-                .describe('UUID of the chart or dashboard'),
+            target_uuid: nonEmptyString().describe(
+                'UUID of the chart or dashboard',
+            ),
         }),
         name: 'soft_delete_content',
     },
@@ -399,18 +392,12 @@ const autopilotToolDefinitionList = [
         description:
             'Soft-delete charts whose underlying model was deleted, within the run cap. Only use when get_broken_content shows a model-level group (the whole model no longer exists). Charts are individually recoverable; dashboards referencing the model are never deleted by this tool, flag them instead. Deletes at most 25 charts per run across all bulk calls and reports the remainder. Per-chart guardrails still apply and skipped charts are reported with reasons.',
         inputSchema: z.object({
-            reason: z
-                .string()
-                .min(1)
-                .describe(
-                    'Human-readable explanation of WHY this cleanup is safe (e.g. which model was removed and when)',
-                ),
-            table_name: z
-                .string()
-                .min(1)
-                .describe(
-                    'The deleted model name, exactly as returned by get_broken_content',
-                ),
+            reason: nonEmptyString().describe(
+                'Human-readable explanation of WHY this cleanup is safe (e.g. which model was removed and when)',
+            ),
+            table_name: nonEmptyString().describe(
+                'The deleted model name, exactly as returned by get_broken_content',
+            ),
         }),
         name: 'bulk_delete_broken_content',
     },
@@ -418,18 +405,15 @@ const autopilotToolDefinitionList = [
         description:
             'Log an actionable observation about a specific chart or dashboard returned by tools. Use log_project_insight for a whole-project or model-level finding; never invent a content UUID.',
         inputSchema: z.object({
-            description: z
-                .string()
-                .min(1)
-                .describe(
-                    'The insight: what is noteworthy and what should the admin consider doing',
-                ),
+            description: nonEmptyString().describe(
+                'The insight: what is noteworthy and what should the admin consider doing',
+            ),
             metadata: optionalMetadata(
                 'Supporting data (e.g., views_count, unique_viewers, space_name)',
             ),
-            target_name: z.string().min(1).describe('Name of the content'),
+            target_name: nonEmptyString().describe('Name of the content'),
             target_type: contentTargetType,
-            target_uuid: z.string().min(1).describe('UUID of the content'),
+            target_uuid: nonEmptyString().describe('UUID of the content'),
         }),
         name: 'log_insight',
     },
@@ -438,10 +422,9 @@ const autopilotToolDefinitionList = [
         description:
             'Record a project-wide observation, model-level finding, or maintenance backlog summary. Automatically targets the current project; no UUID is needed. Reporting only, available in every cleanup mode.',
         inputSchema: z.object({
-            description: z
-                .string()
-                .min(1)
-                .describe('The finding and recommended admin follow-up'),
+            description: nonEmptyString().describe(
+                'The finding and recommended admin follow-up',
+            ),
             metadata: optionalMetadata(
                 'Supporting counts, model names, or other evidence',
             ),
@@ -451,7 +434,7 @@ const autopilotToolDefinitionList = [
         description:
             'Get the full details of a chart including its metricQuery, chartConfig, and tableName. Use this to understand a chart before fixing it.',
         inputSchema: z.object({
-            chart_uuid: z.string().min(1).describe('UUID of the chart'),
+            chart_uuid: nonEmptyString().describe('UUID of the chart'),
         }),
         name: 'get_chart_details',
     },
@@ -462,15 +445,13 @@ const autopilotToolDefinitionList = [
             chart_config: jsonObject().describe(
                 'The corrected chartConfig object. Remove references to fields that no longer exist.',
             ),
-            chart_name: z
-                .string()
-                .min(1)
-                .describe('Name of the chart (for logging)'),
-            chart_uuid: z.string().min(1).describe('UUID of the chart to fix'),
-            description: z
-                .string()
-                .min(1)
-                .describe('What was wrong and what you fixed'),
+            chart_name: nonEmptyString().describe(
+                'Name of the chart (for logging)',
+            ),
+            chart_uuid: nonEmptyString().describe('UUID of the chart to fix'),
+            description: nonEmptyString().describe(
+                'What was wrong and what you fixed',
+            ),
             metric_query: jsonObject().describe(
                 'The corrected metricQuery object. Remove invalid field references.',
             ),
@@ -493,10 +474,9 @@ const autopilotToolDefinitionList = [
             chart_as_code: jsonObject().describe(
                 'The full chart-as-code JSON definition. Must match the schema from get_chart_schema. Key: chartConfig.type must be "cartesian" for line/bar/area charts, "table" for tables, "big_number" for big numbers, "pie" for pie charts.',
             ),
-            description: z
-                .string()
-                .min(1)
-                .describe('Why this chart is useful and what gap it fills'),
+            description: nonEmptyString().describe(
+                'Why this chart is useful and what gap it fills',
+            ),
         }),
         name: 'create_content_from_code',
     },
@@ -513,18 +493,12 @@ const autopilotToolDefinitionList = [
         description:
             'Reverse an action from this run that was incorrect. Use this to restore content you wrongly soft-deleted, or dismiss flags you wrongly applied. For example if you deleted a chart that was created less than 30 days ago, or flagged your own agent-created content as stale, reverse it. Actions from earlier runs cannot be reversed here; admins handle those from the activity page. Check get_recent_actions to find the action_uuid.',
         inputSchema: z.object({
-            action_uuid: z
-                .string()
-                .min(1)
-                .describe(
-                    'UUID of the action to reverse (from get_recent_actions)',
-                ),
-            reason: z
-                .string()
-                .min(1)
-                .describe(
-                    'Why this action was incorrect and should be reversed',
-                ),
+            action_uuid: nonEmptyString().describe(
+                'UUID of the action to reverse (from get_recent_actions)',
+            ),
+            reason: nonEmptyString().describe(
+                'Why this action was incorrect and should be reversed',
+            ),
         }),
         name: 'reverse_own_action',
     },
