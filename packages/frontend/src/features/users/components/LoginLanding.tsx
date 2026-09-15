@@ -172,6 +172,14 @@ export const LoginForm: FC<{
 }) => {
     const isNewLayout = layout === 'new';
     const isFormLoading = formStatus === 'loading';
+    const passwordInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (availability.email && formStage === 'login' && !isFormLoading) {
+            passwordInputRef.current?.focus();
+        }
+    }, [availability.email, formStage, isFormLoading]);
+
     const ssoButtons = ssoOptions.length > 0 && (
         <Stack>
             {ssoOptions.map((providerName) => (
@@ -245,7 +253,7 @@ export const LoginForm: FC<{
                             placeholder="Your password"
                             autoComplete="current-password"
                             required
-                            autoFocus
+                            ref={passwordInputRef}
                             {...form.getInputProps('password')}
                             disabled={isFormLoading}
                         />
