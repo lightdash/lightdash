@@ -19,11 +19,11 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconArrowRight,
     IconDots,
     IconFilePencil,
     IconPlus,
     IconSearch,
-    IconSettings,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useId, useMemo, useRef, useState, type FC } from 'react';
@@ -60,7 +60,6 @@ export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     disabled: boolean;
     /** Shown as the card's tooltip; null shows none. */
     description: string | null;
-    /** Selects this type, then opens its configuration; null hides the action. */
     onConfigure: (() => void) | null;
     /** Opens the builder directly; null hides the action. */
     onEdit: (() => void) | null;
@@ -130,8 +129,10 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
     return (
         <Box
             className={classes.cardWrapper}
-            data-configurable={item.onConfigure !== null && !item.disabled}
             data-menu-open={isMenuOpened}
+            data-configurable={
+                item.selected && item.onConfigure !== null && !item.disabled
+            }
         >
             <Tooltip
                 label={
@@ -178,23 +179,23 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     </Text>
                 </UnstyledButton>
             </Tooltip>
-            {item.onConfigure !== null ? (
-                <Tooltip
-                    label={`Configure ${item.label}`}
-                    position="top"
-                    openDelay={500}
+            {item.selected && item.onConfigure !== null ? (
+                <Button
+                    className={classes.cardConfigureAction}
+                    variant="subtle"
+                    color="blue"
+                    size="compact-xs"
+                    h={28}
+                    px={4}
+                    rightSection={
+                        <MantineIcon icon={IconArrowRight} size={12} />
+                    }
+                    aria-label={`Configure ${item.label}`}
+                    disabled={item.disabled}
+                    onClick={item.onConfigure}
                 >
-                    <ActionIcon
-                        className={classes.cardConfigureAction}
-                        variant="default"
-                        size={32}
-                        aria-label={`Configure ${item.label}`}
-                        disabled={item.disabled}
-                        onClick={item.onConfigure}
-                    >
-                        <MantineIcon icon={IconSettings} size={18} />
-                    </ActionIcon>
-                </Tooltip>
+                    Configure
+                </Button>
             ) : null}
             {item.onEdit !== null ? (
                 <Menu
@@ -495,12 +496,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             description: null,
             onEdit: null,
             select: option.select,
-            onConfigure: () => {
-                // Configuring the active chart must keep its existing axes,
-                // stacking, and other local options intact.
-                if (!option.selected) option.select();
-                onConfigure();
-            },
+            onConfigure: option.selected ? onConfigure : null,
         }));
     const projectItems = projectTypes.map(
         (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
@@ -524,6 +520,10 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                 selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,
                 disabled,
                 select,
+                onConfigure:
+                    selectedProjectUuid === dataAppViz.dataAppVizUuid
+                        ? onConfigure
+                        : null,
                 onEdit:
                     dataAppsEnabled &&
                     canEditChartType(dataAppViz) &&
@@ -535,10 +535,6 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                                   }),
                               )
                         : null,
-                onConfigure: () => {
-                    select();
-                    onConfigure();
-                },
             };
         },
     );

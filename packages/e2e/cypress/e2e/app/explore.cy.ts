@@ -125,11 +125,10 @@ describe('Explore', () => {
 
         const selectChartType = (chartType: string) => {
             cy.findByRole('button', { name: chartType }).click();
-            cy.findByRole('button', { name: chartType }).should(
-                'have.attr',
-                'aria-pressed',
-                'true',
+            cy.findByRole('button', { name: chartType, pressed: true }).should(
+                'be.visible',
             );
+            cy.findByText('Choose chart type').should('be.visible');
         };
 
         selectChartType('Bar chart');

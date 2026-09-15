@@ -29,29 +29,17 @@
 }
 
 /* Keep secondary actions quiet until hover or keyboard focus reveals them. */
-.cardConfigureAction,
 .cardMoreActions {
     opacity: 0;
     pointer-events: none;
     transition: opacity 100ms ease-out;
 }
 
-.cardWrapper:hover .cardConfigureAction:not(:disabled),
 .cardWrapper:hover .cardMoreActions:not(:disabled),
-.cardWrapper:has(:focus-visible) .cardConfigureAction,
 .cardWrapper:has(:focus-visible) .cardMoreActions,
-.cardWrapper[data-menu-open='true'] .cardConfigureAction,
 .cardWrapper[data-menu-open='true'] .cardMoreActions {
     opacity: 1;
     pointer-events: auto;
-}
-
-.cardConfigureAction {
-    position: absolute;
-    top: calc(var(--mantine-spacing-sm) + 1px);
-    inset-inline: 0;
-    margin-inline: auto;
-    z-index: 1;
 }
 
 .cardWrapper .cardMoreActions {
@@ -98,8 +86,8 @@
    where the scroll viewport cannot clip it. */
 .card[data-selected='true'] {
     border-color: light-dark(
-        var(--mantine-color-blue-5),
-        var(--mantine-color-blue-7)
+        var(--mantine-color-blue-6),
+        var(--mantine-color-blue-5)
     );
     background: light-dark(
         var(--mantine-color-blue-0),
@@ -139,11 +127,42 @@
 
 .cardLabel {
     min-height: 2lh;
+    transition: opacity 100ms ease-out;
+}
+
+.cardConfigureAction {
+    color: light-dark(var(--mantine-color-blue-9), var(--mantine-color-blue-3));
+    position: absolute;
+    inset-inline: var(--mantine-spacing-xs);
+    bottom: var(--mantine-spacing-sm);
+    z-index: 1;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 100ms ease-out;
+}
+
+.cardConfigureAction:hover:not(:disabled) {
+    background-color: light-dark(
+        var(--mantine-color-blue-1),
+        var(--button-hover)
+    );
+}
+
+.cardWrapper[data-configurable='true']:is(:hover, :has(:focus-visible))
+    .cardConfigureAction {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.cardWrapper[data-configurable='true']:is(:hover, :has(:focus-visible))
+    .cardLabel {
+    opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
     .card,
     .cardConfigureAction,
+    .cardLabel,
     .cardMoreActions,
     .cardIcon {
         transition: none;
@@ -158,17 +177,7 @@
     opacity: 0.5;
 }
 
-.cardWrapper[data-configurable='true']:is(
-        :hover,
-        :has(:focus-visible),
-        [data-menu-open='true']
-    )
-    .cardIcon {
-    opacity: 0;
-}
-
-/* Touch users cannot reveal an invisible control by hovering, so preserve a
-   direct configuration target on devices without hover. */
+/* Keep editing available on devices without hover. */
 @media (hover: none) {
     .cardWrapper[data-configurable='true'] .cardConfigureAction,
     .cardMoreActions:not(:disabled) {
@@ -176,7 +185,7 @@
         pointer-events: auto;
     }
 
-    .cardWrapper[data-configurable='true'] .cardIcon {
+    .cardWrapper[data-configurable='true'] .cardLabel {
         opacity: 0;
     }
 }

@@ -111,8 +111,8 @@ const galleryItem = (
     selected: false,
     disabled: false,
     select: vi.fn(),
-    onConfigure: null,
     onEdit: null,
+    onConfigure: null,
 });
 
 const gallerySection = (
@@ -137,6 +137,7 @@ const KeyboardSelectionHarness = () => {
         ...galleryItem(label),
         selected: selectedLabel === label,
         select: () => setSelectedLabel(label),
+        onConfigure: vi.fn(),
     });
 
     return (
@@ -154,8 +155,32 @@ const KeyboardSelectionHarness = () => {
 };
 
 describe('ChartTypeGallery', () => {
-    it('renders a separate Configure action only where it is offered', () => {
-        const onConfigure = vi.fn();
+    it('moves a single configuration button with the selected tile', async () => {
+        renderWithProviders(<KeyboardSelectionHarness />);
+        expect(
+            screen.getAllByRole('button', { name: /^Configure/ }),
+        ).toHaveLength(1);
+        expect(
+            screen.getByRole('button', { name: 'Configure Bar chart' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Configure Line chart' }),
+        ).not.toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Line chart' }),
+        );
+        expect(
+            screen.getAllByRole('button', { name: /^Configure/ }),
+        ).toHaveLength(1);
+        expect(
+            screen.getByRole('button', { name: 'Configure Line chart' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Configure Bar chart' }),
+        ).not.toBeInTheDocument();
+    });
+    it('keeps chart tiles dedicated to selection without configuration actions', () => {
         renderWithProviders(
             <ChartTypeGallery
                 search=""
@@ -173,7 +198,6 @@ describe('ChartTypeGallery', () => {
                                     'Event pulse',
                                     'Reusable ranked bars',
                                 ),
-                                onConfigure,
                             },
                         ],
                     }),
@@ -192,14 +216,42 @@ describe('ChartTypeGallery', () => {
         expect(
             screen.queryByText('Reusable ranked bars'),
         ).not.toBeInTheDocument();
-        // Configure names its card so repeated cogs stay distinguishable.
+        // Configuration is offered once by the sidebar, outside the gallery.
         expect(
-            screen.getByRole('button', { name: 'Configure Event pulse' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('button', { name: /Configure/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('disables the selected tile configuration action when picking is unavailable', async () => {
+        const onConfigure = vi.fn();
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                disabledReason="Run your query to pick a chart type"
+                sections={[
+                    gallerySection({
+                        items: [
+                            {
+                                ...galleryItem('Bar chart'),
+                                selected: true,
+                                disabled: true,
+                                onConfigure,
+                            },
+                        ],
+                    }),
+                ]}
+            />,
+        );
+        const configure = screen.getByRole('button', {
+            name: 'Configure Bar chart',
+        });
+        expect(configure).toBeDisabled();
+        await userEvent.click(configure);
+        expect(onConfigure).not.toHaveBeenCalled();
     });
 
     it('marks the selected grid card and disables cards that cannot be picked', async () => {
-        const onConfigure = vi.fn();
         const onEdit = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
@@ -213,7 +265,6 @@ describe('ChartTypeGallery', () => {
                             {
                                 ...galleryItem('Line chart'),
                                 disabled: true,
-                                onConfigure,
                                 onEdit,
                             },
                         ],
@@ -228,30 +279,21 @@ describe('ChartTypeGallery', () => {
         const lineChart = screen.getByRole('button', { name: 'Line chart' });
         expect(lineChart).toHaveAttribute('data-selected', 'false');
         expect(lineChart).toBeDisabled();
-        expect(
-            screen.getByRole('button', { name: 'Configure Line chart' }),
-        ).toBeDisabled();
         const moreActions = screen.getByRole('button', {
             name: 'More actions for Line chart',
         });
         expect(moreActions).toBeDisabled();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Configure Line chart' }),
-        );
         await userEvent.click(moreActions);
-        expect(onConfigure).not.toHaveBeenCalled();
         expect(onEdit).not.toHaveBeenCalled();
         expect(
             screen.queryByRole('menuitem', {
                 name: 'Edit chart type',
-                exact: true,
             }),
         ).not.toBeInTheDocument();
     });
 
     it('keeps selecting a tile separate from configuring it', async () => {
         const select = vi.fn();
-        const onConfigure = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
                 search=""
@@ -263,7 +305,6 @@ describe('ChartTypeGallery', () => {
                             {
                                 ...galleryItem('Pie chart'),
                                 select,
-                                onConfigure,
                             },
                         ],
                     }),
@@ -275,14 +316,6 @@ describe('ChartTypeGallery', () => {
             screen.getByRole('button', { name: 'Pie chart' }),
         );
 
-        expect(select).toHaveBeenCalledOnce();
-        expect(onConfigure).not.toHaveBeenCalled();
-
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Configure Pie chart' }),
-        );
-
-        expect(onConfigure).toHaveBeenCalledOnce();
         expect(select).toHaveBeenCalledOnce();
     });
 
@@ -317,7 +350,6 @@ describe('ChartTypeGallery', () => {
         expect(
             await screen.findByRole('menuitem', {
                 name: 'Edit chart type',
-                exact: true,
             }),
         ).toBeInTheDocument();
 
@@ -325,7 +357,6 @@ describe('ChartTypeGallery', () => {
         expect(
             screen.queryByRole('menuitem', {
                 name: 'Edit chart type',
-                exact: true,
             }),
         ).not.toBeInTheDocument();
         expect(menuButton).toHaveFocus();
@@ -334,7 +365,6 @@ describe('ChartTypeGallery', () => {
         await userEvent.click(
             await screen.findByRole('menuitem', {
                 name: 'Edit chart type',
-                exact: true,
             }),
         );
 
@@ -627,7 +657,7 @@ describe('ExplorerChartTypeGallery', () => {
     });
 
     it('uses the shared built-in selection command without closing the chooser', async () => {
-        const onConfigure = renderGallery();
+        renderGallery();
 
         await userEvent.click(
             screen.getByRole('button', { name: 'Pie chart' }),
@@ -636,7 +666,6 @@ describe('ExplorerChartTypeGallery', () => {
         expect(mocks.setStacking).toHaveBeenCalledWith(undefined);
         expect(mocks.setCartesianType).toHaveBeenCalledWith(undefined);
         expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.PIE);
-        expect(onConfigure).not.toHaveBeenCalled();
     });
 
     it('filters built-in choices using the gallery search', async () => {
@@ -686,7 +715,7 @@ describe('ExplorerChartTypeGallery', () => {
     });
 
     it('uses the existing project chart-type selection handler', async () => {
-        const onConfigure = renderGallery();
+        renderGallery();
 
         await userEvent.click(
             screen.getByRole('button', { name: 'Event pulse' }),
@@ -696,46 +725,45 @@ describe('ExplorerChartTypeGallery', () => {
             projectChartType,
             itemsMap,
         );
-        expect(onConfigure).not.toHaveBeenCalled();
     });
 
-    it('configures a built-in type only after its tile action selects it', async () => {
-        const onConfigure = renderGallery();
-
+    it('keeps the selected custom type bindings when selecting it again', async () => {
+        visualizationConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: projectChartType.dataAppVizUuid },
+        };
+        renderGallery();
         await userEvent.click(
-            screen.getByRole('button', { name: 'Configure Pie chart' }),
+            screen.getByRole('button', { name: 'Event pulse' }),
         );
-
-        expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.PIE);
-        expect(onConfigure).toHaveBeenCalledOnce();
+        expect(mocks.selectProjectChartType).not.toHaveBeenCalled();
     });
 
-    it('keeps the selected built-in chart configuration intact', async () => {
+    it('configures the selected built-in chart without resetting its options', async () => {
         const onConfigure = renderGallery();
-
         await userEvent.click(
             screen.getByRole('button', { name: 'Configure Table' }),
         );
-
+        expect(onConfigure).toHaveBeenCalledOnce();
         expect(mocks.setChartType).not.toHaveBeenCalled();
         expect(mocks.setCartesianType).not.toHaveBeenCalled();
         expect(mocks.setStacking).not.toHaveBeenCalled();
-        expect(onConfigure).toHaveBeenCalledOnce();
+        expect(
+            screen.queryByRole('button', { name: 'Configure Pie chart' }),
+        ).not.toBeInTheDocument();
     });
 
-    it('keeps the selected custom type bindings when configuring it', async () => {
+    it('configures the selected custom chart without resetting its bindings', async () => {
         visualizationConfig.current = {
             chartType: ChartType.DATA_APP_VIZ,
             chartConfig: { dataAppVizUuid: projectChartType.dataAppVizUuid },
         };
         const onConfigure = renderGallery();
-
         await userEvent.click(
             screen.getByRole('button', { name: 'Configure Event pulse' }),
         );
-
-        expect(mocks.selectProjectChartType).not.toHaveBeenCalled();
         expect(onConfigure).toHaveBeenCalledOnce();
+        expect(mocks.selectProjectChartType).not.toHaveBeenCalled();
     });
 
     it('hides the builder action without edit permission', () => {
@@ -750,7 +778,7 @@ describe('ExplorerChartTypeGallery', () => {
 
     it('opens the custom chart builder directly from the overflow menu', async () => {
         mocks.canEditChartType.mockReturnValue(true);
-        const onConfigure = renderGallery();
+        renderGallery();
 
         await userEvent.click(
             screen.getByRole('button', {
@@ -760,7 +788,6 @@ describe('ExplorerChartTypeGallery', () => {
         await userEvent.click(
             await screen.findByRole('menuitem', {
                 name: 'Edit chart type',
-                exact: true,
             }),
         );
 
@@ -769,11 +796,14 @@ describe('ExplorerChartTypeGallery', () => {
             payload: { dataAppVizUuid: projectChartType.dataAppVizUuid },
         });
         expect(mocks.selectProjectChartType).not.toHaveBeenCalled();
-        expect(onConfigure).not.toHaveBeenCalled();
     });
 
     it('keeps official chart types read-only even with edit permission', () => {
         mocks.canEditChartType.mockReturnValue(true);
+        visualizationConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: projectChartType.dataAppVizUuid },
+        };
         mockedUseDataAppVisualizations.mockReturnValue({
             data: {
                 pages: [

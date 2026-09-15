@@ -1,8 +1,8 @@
 import { ChartKind, ChartType } from '@lightdash/common';
 import { IconTable } from '@tabler/icons-react';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,20 +30,10 @@ vi.mock('./ChartTypeGallery', () => ({
                 aria-label="Search chart types"
             />
             <button>Select chart</button>
-            <button
-                onClick={() => {
-                    onConfigure();
-                    galleryAfterConfigure.current?.();
-                }}
-            >
-                Configure Table
-            </button>
+            <button onClick={onConfigure}>Configure Table</button>
         </>
     ),
     ChartTypeThumbnail: () => <span>Table thumbnail</span>,
-}));
-const { galleryAfterConfigure } = vi.hoisted(() => ({
-    galleryAfterConfigure: { current: null as (() => void) | null },
 }));
 const { dataAppsFlagEnabled } = vi.hoisted(() => ({
     dataAppsFlagEnabled: { current: true },
@@ -85,7 +75,9 @@ const { getSelectedChartTypeItem } = vi.hoisted(() => ({
 }));
 
 vi.mock('./useChartTypeOptions', () => ({
-    useChartTypeOptions: () => ({ getSelectedChartTypeItem }),
+    useChartTypeOptions: () => ({
+        getSelectedChartTypeItem,
+    }),
 }));
 
 const renderSidebar = (ui: ReactNode, store = createExplorerStore()) =>
@@ -111,33 +103,54 @@ const ReopenHarness = () => {
     );
 };
 
-const RemountOnConfigureHarness = () => {
-    const [sidebarKey, setSidebarKey] = useState(0);
-    useEffect(() => {
-        const remount = () => setSidebarKey((key) => key + 1);
-        galleryAfterConfigure.current = remount;
-        return () => {
-            if (galleryAfterConfigure.current === remount) {
-                galleryAfterConfigure.current = null;
-            }
-        };
-    }, []);
-
-    return (
-        <ExplorerChartSidebar
-            key={sidebarKey}
-            chartType={ChartType.TABLE}
-            onClose={vi.fn()}
-        />
-    );
-};
-
 describe('ExplorerChartSidebar', () => {
     beforeEach(() => {
         selectedProjectType.current = undefined;
         vizConfig.current = { chartType: ChartType.TABLE, chartConfig: {} };
         dataAppsFlagEnabled.current = true;
-        galleryAfterConfigure.current = null;
+    });
+
+    it('offers one labeled configuration action for the current selection', async () => {
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={vi.fn()}
+            />,
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+
+        expect(screen.queryByText('Selected:')).not.toBeInTheDocument();
+        expect(
+            screen.getAllByRole('button', {
+                name: 'Configure Table',
+                exact: true,
+            }),
+        ).toHaveLength(1);
+    });
+
+    it('configures the selected chart without changing its state and restores focus', async () => {
+        const store = createExplorerStore();
+        const onClose = vi.fn();
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={onClose}
+            />,
+            store,
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+        const previousChart = store.getState().explorer.unsavedChartVersion;
+        screen
+            .getByRole('button', { name: 'Configure Table', exact: true })
+            .focus();
+        await userEvent.keyboard('{Enter}');
+
+        expect(screen.getByText('Configure controls')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Change' })).toHaveFocus();
+        expect(store.getState().explorer.unsavedChartVersion).toEqual(
+            previousChart,
+        );
+        expect(onClose).not.toHaveBeenCalled();
     });
 
     it('hides the edit entry entirely while data-apps is disabled', () => {
@@ -258,7 +271,7 @@ describe('ExplorerChartSidebar', () => {
         ).toBeInTheDocument();
     });
 
-    it('keeps Choose open after selection until a tile Configure action is requested', async () => {
+    it('keeps Choose open after selection until the configuration action is requested', async () => {
         renderSidebar(
             <ExplorerChartSidebar
                 chartType={ChartType.TABLE}
@@ -315,7 +328,7 @@ describe('ExplorerChartSidebar', () => {
         );
     });
 
-    it('opens Configure from Choose through a tile action', async () => {
+    it('opens Configure from Choose through the selected tile action', async () => {
         renderSidebar(
             <ExplorerChartSidebar
                 chartType={ChartType.TABLE}
@@ -356,17 +369,6 @@ describe('ExplorerChartSidebar', () => {
             screen.getByRole('button', { name: 'Configure Table' }),
         );
         expect(screen.getByText('Change')).toHaveFocus();
-    });
-
-    it('restores Change focus when selecting a tile remounts the sidebar', async () => {
-        renderSidebar(<RemountOnConfigureHarness />);
-
-        await userEvent.click(screen.getByText('Change'));
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Configure Table' }),
-        );
-
-        await waitFor(() => expect(screen.getByText('Change')).toHaveFocus());
     });
 
     it('falls back to the panel title when Change is not on screen', async () => {
