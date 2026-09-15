@@ -1,6 +1,5 @@
 import {
     Badge,
-    Box,
     Button,
     Group,
     Paper,
@@ -9,18 +8,23 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconGripVertical, IconLock, IconPlus } from '@tabler/icons-react';
+import { IconLock, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useMetricsTrees } from '../../hooks/useSavedMetricsTrees';
 import { setSavedTreeEditMode } from '../../store/metricsCatalogSlice';
 import { SavedTreeEditMode } from '../../types';
+import { CanvasSidebar } from '../Canvas/CanvasSidebar';
 import classes from './TreeListSidebar.module.css';
 
-const TreeListSidebar: FC = () => {
+const TreeListSidebar: FC<{ opened: boolean; onClose: () => void }> = ({
+    opened,
+    onClose,
+}) => {
+    const getUiString = useUiStrings();
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const projectUuid = useAppSelector(
@@ -37,151 +41,147 @@ const TreeListSidebar: FC = () => {
     const trees = treesData?.data ?? [];
 
     const handleSelectTree = (slug: string) => {
+        onClose();
         dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
         void navigate(`/projects/${projectUuid}/metrics/canvas/${slug}`);
     };
 
     const handleNewTree = () => {
+        onClose();
         dispatch(setSavedTreeEditMode(SavedTreeEditMode.EDIT));
         void navigate(`/projects/${projectUuid}/metrics/canvas`);
     };
 
     return (
-        <>
-            <Panel
-                id="tree-list-sidebar"
-                order={1}
-                defaultSize={20}
-                minSize={15}
-                maxSize={40}
+        <CanvasSidebar
+            id="tree-list-sidebar"
+            title={getUiString('metrics.savedTrees')}
+            opened={opened}
+            onClose={onClose}
+        >
+            <Paper
+                h="100%"
+                p="xs"
+                className={classes.sidebar}
+                radius={0}
+                pr={0}
             >
-                <Paper
-                    h="100%"
-                    p="xs"
-                    className={classes.sidebar}
-                    radius={0}
-                    pr={0}
-                >
-                    <Stack gap="sm" h="100%">
-                        <Group
-                            gap="sm"
-                            justify="space-between"
-                            px="xs"
-                            wrap="nowrap"
-                        >
-                            <Text fz="sm" fw={600} c="ldGray.7">
-                                Saved Trees
-                            </Text>
-                            {canManageMetricsTree && (
-                                <Button
-                                    variant="subtle"
-                                    size="compact-xs"
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconPlus}
-                                            size={14}
-                                        />
-                                    }
-                                    data-tour-anchor="tree-new"
-                                    data-tour-hint="Start a new tree"
-                                    data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#creating-a-saved-tree:li1"
-                                    onClick={handleNewTree}
-                                >
-                                    New
-                                </Button>
-                            )}
-                        </Group>
+                <Stack gap="sm" h="100%">
+                    <Group
+                        gap="sm"
+                        justify="space-between"
+                        px="xs"
+                        wrap="nowrap"
+                    >
+                        <Text visibleFrom="md" fz="sm" fw={600} c="ldGray.7">
+                            Saved Trees
+                        </Text>
+                        {canManageMetricsTree && (
+                            <Button
+                                variant="subtle"
+                                size="compact-xs"
+                                leftSection={
+                                    <MantineIcon icon={IconPlus} size={14} />
+                                }
+                                data-tour-anchor="tree-new"
+                                data-tour-hint="Start a new tree"
+                                data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#creating-a-saved-tree:li1"
+                                onClick={handleNewTree}
+                            >
+                                New
+                            </Button>
+                        )}
+                    </Group>
 
-                        <ScrollArea flex={1} offsetScrollbars>
-                            {isLoading ? (
-                                <Text fz="xs" c="dimmed" ta="center" mt="md">
-                                    Loading trees...
-                                </Text>
-                            ) : trees.length > 0 ? (
-                                <Stack gap="xs">
-                                    {trees.map((tree) => (
-                                        <Paper
-                                            data-tour-anchor="saved-tree"
-                                            data-tour-hint="Open {value}"
-                                            data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#intro:p3:2"
-                                            data-tour-value={tree.name}
-                                            key={tree.metricsTreeUuid}
-                                            p="xs"
-                                            className={`${classes.treeItem} ${
-                                                activeTreeUuid ===
-                                                tree.metricsTreeUuid
-                                                    ? classes.treeItemActive
-                                                    : ''
-                                            }`}
-                                            onClick={() =>
-                                                handleSelectTree(tree.slug)
-                                            }
+                    <ScrollArea flex={1} offsetScrollbars>
+                        {isLoading ? (
+                            <Text fz="xs" c="dimmed" ta="center" mt="md">
+                                Loading trees...
+                            </Text>
+                        ) : trees.length > 0 ? (
+                            <Stack gap="xs">
+                                {trees.map((tree) => (
+                                    <Paper
+                                        data-tour-anchor="saved-tree"
+                                        data-tour-hint="Open {value}"
+                                        data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#intro:p3:2"
+                                        data-tour-value={tree.name}
+                                        key={tree.metricsTreeUuid}
+                                        component="button"
+                                        type="button"
+                                        w="100%"
+                                        aria-pressed={
+                                            activeTreeUuid ===
+                                            tree.metricsTreeUuid
+                                        }
+                                        p="xs"
+                                        className={`${classes.treeItem} ${
+                                            activeTreeUuid ===
+                                            tree.metricsTreeUuid
+                                                ? classes.treeItemActive
+                                                : ''
+                                        }`}
+                                        onClick={() =>
+                                            handleSelectTree(tree.slug)
+                                        }
+                                    >
+                                        <Group
+                                            gap="xs"
+                                            justify="space-between"
+                                            wrap="nowrap"
                                         >
                                             <Group
-                                                gap="xs"
-                                                justify="space-between"
+                                                gap={4}
                                                 wrap="nowrap"
+                                                flex={1}
                                             >
-                                                <Group
-                                                    gap={4}
-                                                    wrap="nowrap"
-                                                    flex={1}
-                                                >
-                                                    <Text
-                                                        fz="xs"
-                                                        fw={500}
-                                                        c="ldGray.7"
-                                                        truncate
-                                                        flex={1}
-                                                    >
-                                                        {tree.name}
-                                                    </Text>
-                                                    {tree.lock && (
-                                                        <Tooltip
-                                                            label={`Editing by ${tree.lock.lockedByUserName}`}
-                                                        >
-                                                            <MantineIcon
-                                                                icon={IconLock}
-                                                                size={12}
-                                                                color="foreground"
-                                                            />
-                                                        </Tooltip>
-                                                    )}
-                                                </Group>
-                                                <Badge size="xs">
-                                                    {tree.nodeCount}
-                                                </Badge>
-                                            </Group>
-                                            {tree.description && (
                                                 <Text
                                                     fz="xs"
-                                                    c="dimmed"
+                                                    fw={500}
+                                                    c="ldGray.7"
                                                     truncate
-                                                    mt={2}
+                                                    flex={1}
                                                 >
-                                                    {tree.description}
+                                                    {tree.name}
                                                 </Text>
-                                            )}
-                                        </Paper>
-                                    ))}
-                                </Stack>
-                            ) : (
-                                <Text fz="xs" c="dimmed" ta="center" mt="md">
-                                    No saved trees yet
-                                </Text>
-                            )}
-                        </ScrollArea>
-                    </Stack>
-                </Paper>
-            </Panel>
-            <Box component={PanelResizeHandle} className={classes.resizeHandle}>
-                <MantineIcon
-                    icon={IconGripVertical}
-                    size={12}
-                    color="ldGray.5"
-                />
-            </Box>
-        </>
+                                                {tree.lock && (
+                                                    <Tooltip
+                                                        label={`Editing by ${tree.lock.lockedByUserName}`}
+                                                    >
+                                                        <MantineIcon
+                                                            icon={IconLock}
+                                                            size={12}
+                                                            color="foreground"
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                            </Group>
+                                            <Badge size="xs">
+                                                {tree.nodeCount}
+                                            </Badge>
+                                        </Group>
+                                        {tree.description && (
+                                            <Text
+                                                fz="xs"
+                                                c="dimmed"
+                                                truncate
+                                                mt={2}
+                                            >
+                                                {tree.description}
+                                            </Text>
+                                        )}
+                                    </Paper>
+                                ))}
+                            </Stack>
+                        ) : (
+                            <Text fz="xs" c="dimmed" ta="center" mt="md">
+                                No saved trees yet
+                            </Text>
+                        )}
+                    </ScrollArea>
+                </Stack>
+            </Paper>
+        </CanvasSidebar>
     );
 };
 

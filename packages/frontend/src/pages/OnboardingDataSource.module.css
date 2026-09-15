@@ -1,5 +1,5 @@
 .page {
-    min-height: calc(100vh - var(--navbar-height));
+    min-height: calc(100dvh - var(--navbar-height));
     background-color: var(--mantine-color-white);
     display: flex;
     flex-direction: column;
@@ -63,4 +63,32 @@
     max-width: 52rem;
     margin: 0 auto;
     padding: var(--mantine-spacing-xl) var(--mantine-spacing-sm);
+}
+
+@media (width < $mantine-breakpoint-md) {
+    .column {
+        padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
+    }
+}
+
+.heroCard,
+.warehouseCard {
+    font: inherit;
+    color: inherit;
+    text-align: left;
+}
+
+@media (width < $mantine-breakpoint-md) {
+    .connectColumn :global(.mantine-Input-input) {
+        min-height: 44px;
+        font-size: 16px;
+    }
+
+    .connectColumn :global(.mantine-PasswordInput-innerInput) {
+        font-size: 16px;
+    }
+
+    .connectColumn :global(.mantine-Button-root) {
+        min-height: 44px;
+    }
 }

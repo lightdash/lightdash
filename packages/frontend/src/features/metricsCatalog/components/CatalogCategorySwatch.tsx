@@ -1,13 +1,15 @@
+import { interpolateUiString } from '@lightdash/common';
 import { Center } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { type CSSProperties, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useCategoryColors } from '../styles/useCategoryColors';
 import styles from './CatalogCategorySwatch.module.css';
 
 type Props = {
     color: string;
-    onClick: React.MouseEventHandler<HTMLDivElement>;
+    onClick: React.MouseEventHandler<HTMLButtonElement>;
     selected: boolean;
 };
 
@@ -17,6 +19,7 @@ export const CatalogCategorySwatch: FC<Props> = ({
     selected,
 }: Props) => {
     const colors = useCategoryColors(color);
+    const getUiString = useUiStrings();
 
     const categoryVars = {
         '--category-text-color': colors.textColor,
@@ -27,6 +30,13 @@ export const CatalogCategorySwatch: FC<Props> = ({
 
     return (
         <Center
+            component="button"
+            type="button"
+            aria-label={interpolateUiString(
+                getUiString('metrics.categoryColor'),
+                { color },
+            )}
+            aria-pressed={selected}
             h={18}
             w={18}
             className={styles.swatch}

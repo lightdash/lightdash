@@ -50,6 +50,7 @@ const SavedExplorerContent = memo(() => {
                 </Suspense>
             }
             isSidebarOpen={isEditMode}
+            sidebarTitle="Fields"
             {...rightSidebarProps}
             withFullHeight
             withPaddedContent

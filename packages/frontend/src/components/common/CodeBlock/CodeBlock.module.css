@@ -25,3 +25,22 @@
     pointer-events: none;
     user-select: none;
 }
+
+@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+    .wrapper :global(.mantine-CodeHighlight-controls) {
+        position: static;
+        display: flex;
+        justify-content: flex-end;
+        border-radius: 0;
+    }
+
+    .wrapper :global(.mantine-CodeHighlight-control) {
+        width: 44px;
+        height: 44px;
+        opacity: 1;
+    }
+
+    .wrapper[data-with-controls] .lineNumbers {
+        top: calc(44px + var(--mantine-spacing-xs));
+    }
+}

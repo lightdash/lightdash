@@ -23,3 +23,14 @@
     background-color: var(--mantine-color-orange-5);
     flex-shrink: 0;
 }
+
+@media (width < $mantine-breakpoint-md) {
+    .root {
+        margin-inline: calc(-1 * var(--mantine-spacing-sm));
+        padding-inline: var(--mantine-spacing-sm);
+    }
+
+    .root :global(button) {
+        min-height: 44px;
+    }
+}

@@ -22,6 +22,7 @@ import {
     Title,
     Tooltip,
     UnstyledButton,
+    useMatches,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -179,6 +180,10 @@ const DashboardHeader = memo(
         onEditClicked,
         className,
     }: DashboardHeaderProps) => {
+        const compact = useMatches(
+            { base: true, md: false },
+            { getInitialValueInEffect: false },
+        );
         const performanceWarning = useDashboardPerformanceWarning(
             dashboardTiles,
             dashboardTabs,
@@ -514,7 +519,10 @@ const DashboardHeader = memo(
                         }}
                     >
                         <Popover.Target>
-                            <ActionIcon size="md">
+                            <ActionIcon
+                                size="md"
+                                aria-label="Dashboard information"
+                            >
                                 <MantineIcon icon={IconInfoCircle} />
                             </ActionIcon>
                         </Popover.Target>
@@ -728,39 +736,41 @@ const DashboardHeader = memo(
                         </Button>
                     </Group>
                 ) : (
-                    <Group gap="sm">
-                        {!!userCanManageDashboard && !isFullscreen && (
-                            <Tooltip
-                                label="Edit dashboard"
-                                position="bottom"
-                                openDelay={200}
-                                transitionProps={{
-                                    transition: 'fade',
-                                    duration: 150,
-                                }}
-                            >
-                                <ActionIcon
-                                    aria-label="Edit dashboard"
-                                    onClick={onEditClicked}
-                                    bg="foreground"
-                                    c="background"
-                                    size="md"
+                    <Group gap={compact ? 'xs' : 'sm'}>
+                        {!!userCanManageDashboard &&
+                            !isFullscreen &&
+                            !compact && (
+                                <Tooltip
+                                    label="Edit dashboard"
+                                    position="bottom"
+                                    openDelay={200}
+                                    transitionProps={{
+                                        transition: 'fade',
+                                        duration: 150,
+                                    }}
                                 >
-                                    <MantineIcon
-                                        icon={IconPencil}
-                                        color="background"
+                                    <ActionIcon
+                                        aria-label="Edit dashboard"
+                                        onClick={onEditClicked}
+                                        bg="foreground"
+                                        c="background"
                                         size="md"
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
+                                    >
+                                        <MantineIcon
+                                            icon={IconPencil}
+                                            color="background"
+                                            size="md"
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
 
                         {(userCanExportData ||
                             (!isEditMode &&
                                 document.fullscreenEnabled &&
                                 isFullScreenFeatureEnabled) ||
                             !isFullscreen) && (
-                            <Divider orientation="vertical" />
+                            <Divider orientation="vertical" visibleFrom="md" />
                         )}
 
                         {oldestCacheTime && (
@@ -802,6 +812,7 @@ const DashboardHeader = memo(
                         )}
 
                         {!isEditMode &&
+                            (!compact || isFullscreen) &&
                             document.fullscreenEnabled &&
                             isFullScreenFeatureEnabled && (
                                 <Tooltip
@@ -820,6 +831,11 @@ const DashboardHeader = memo(
                                     <ActionIcon
                                         variant="default"
                                         size="md"
+                                        aria-label={
+                                            isFullscreen
+                                                ? 'Exit fullscreen'
+                                                : 'Enter fullscreen'
+                                        }
                                         onClick={onToggleFullscreen}
                                     >
                                         <MantineIcon
@@ -887,7 +903,12 @@ const DashboardHeader = memo(
                                     !userCanManageDashboard &&
                                     !userCanExportData &&
                                     !userCanViewContentAsCode &&
-                                    !canViewDashboardComments
+                                    !canViewDashboardComments &&
+                                    !(
+                                        compact &&
+                                        document.fullscreenEnabled &&
+                                        isFullScreenFeatureEnabled
+                                    )
                                 }
                             >
                                 <Menu.Target>
@@ -911,13 +932,46 @@ const DashboardHeader = memo(
                                                 />
                                             </Box>
                                         )}
-                                        <ActionIcon variant="default" size="md">
+                                        <ActionIcon
+                                            variant="default"
+                                            size="md"
+                                            aria-label="Dashboard actions"
+                                        >
                                             <MantineIcon icon={IconDots} />
                                         </ActionIcon>
                                     </Box>
                                 </Menu.Target>
 
-                                <Menu.Dropdown>
+                                <Menu.Dropdown
+                                    mah="calc(100dvh - 24px)"
+                                    style={{ overflowY: 'auto' }}
+                                >
+                                    {compact && userCanManageDashboard && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPencil}
+                                                />
+                                            }
+                                            onClick={onEditClicked}
+                                        >
+                                            Edit dashboard
+                                        </Menu.Item>
+                                    )}
+                                    {compact &&
+                                        document.fullscreenEnabled &&
+                                        isFullScreenFeatureEnabled && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconMaximize}
+                                                    />
+                                                }
+                                                onClick={onToggleFullscreen}
+                                            >
+                                                Enter fullscreen
+                                            </Menu.Item>
+                                        )}
                                     <AskAiAgentMenuItem
                                         projectUuid={projectUuid}
                                         dashboardUuid={dashboard.uuid}

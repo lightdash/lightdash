@@ -1,6 +1,6 @@
 import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
-import { IconAppsOff, IconMaximize } from '@tabler/icons-react';
+import { IconAppsOff, IconMaximize, IconMinimize } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
@@ -169,7 +169,7 @@ export default function AppPreviewTest() {
 
     if (appQuery.isLoading) {
         return (
-            <Stack align="center" justify="center" h="calc(100vh - 50px)">
+            <Stack align="center" justify="center" h="calc(100dvh - 50px)">
                 <Loader size="md" />
                 <Text size="sm" c="dimmed">
                     Loading app...
@@ -180,7 +180,7 @@ export default function AppPreviewTest() {
 
     if (error) {
         return (
-            <Stack align="center" justify="center" h="calc(100vh - 50px)">
+            <Stack align="center" justify="center" h="calc(100dvh - 50px)">
                 <Text c="red" size="sm">
                     Failed to load app:{' '}
                     {error instanceof Error ? error.message : 'Unknown error'}
@@ -254,6 +254,17 @@ export default function AppPreviewTest() {
             }
         >
             <DocumentTitle title={appName} />
+            {isFullscreen && (
+                <ActionIcon
+                    className={classes.exitFullscreen}
+                    variant="default"
+                    size={44}
+                    onClick={handleToggleFullscreen}
+                    aria-label="Exit fullscreen"
+                >
+                    <MantineIcon icon={IconMinimize} />
+                </ActionIcon>
+            )}
             {firstPage && (
                 <DataAppAiAgentContextBridge
                     projectUuid={projectUuid}

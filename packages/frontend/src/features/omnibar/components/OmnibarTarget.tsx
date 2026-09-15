@@ -20,13 +20,12 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
             px="xs"
             gap="xs"
             role="search"
+            aria-label="Search content and settings"
             onClick={onOpen}
             style={style}
             wrap="nowrap"
             w={{
-                xs: 120,
-                sm: 150,
-                md: 180,
+                base: 44,
                 lg: 220,
                 xl: 260,
             }}
@@ -34,11 +33,11 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
         >
             <MantineIcon icon={IconSearch} size="sm" className={classes.icon} />
 
-            <Text size="sm" truncate className={classes.text}>
+            <Text size="sm" truncate className={classes.text} visibleFrom="lg">
                 {placeholder}
             </Text>
 
-            <Kbd size="xs">
+            <Kbd size="xs" visibleFrom="lg">
                 {os === 'macos' || os === 'ios' ? '⌘' : 'Ctrl'}K
             </Kbd>
         </PolymorphicGroupButton>

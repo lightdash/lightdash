@@ -4,6 +4,7 @@ import {
     Collapse,
     Divider,
     Drawer,
+    useMatches,
     Group,
     Paper,
     Stack,
@@ -176,14 +177,15 @@ const SectionList: FC<{
             const canSelect = tabUuid !== null && !isActive;
             return (
                 <div
-                    key={section.tabUuid ?? 'removed'}
+                    key={
+                        section.tabUuid ??
+                        (section.isRemoved ? 'removed' : 'untabbed')
+                    }
                     className={classes.section}
                 >
-                    {(showSectionHeaders || tabUuid === null) && (
+                    {(showSectionHeaders || section.isRemoved) && (
                         <PolymorphicGroupButton
-                            component="div"
-                            role={canSelect ? 'button' : undefined}
-                            tabIndex={canSelect ? 0 : undefined}
+                            component={canSelect ? 'button' : 'div'}
                             className={classes.sectionHeader}
                             data-active={isActive || undefined}
                             gap="xs"
@@ -233,6 +235,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
     dashboardTabs,
     onSwitchTab,
 }) => {
+    const isCompact = useMatches({ base: true, md: false });
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
@@ -292,6 +295,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
 
     const handleGoToTile = useCallback(
         (group: TileCommentGroup) => {
+            if (isCompact) onClose();
             if (group.tabUuid && group.tabUuid !== activeTabUuid) {
                 handleSelectTab(group.tabUuid);
                 setTimeout(
@@ -302,7 +306,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
             }
             scrollToDashboardTile(group.tileUuid);
         },
-        [activeTabUuid, handleSelectTab],
+        [activeTabUuid, handleSelectTab, isCompact, onClose],
     );
 
     if (!projectUuid || !dashboardUuid) return null;
@@ -342,7 +346,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
                             </div>
                         </Group>
                     </Drawer.Title>
-                    <Drawer.CloseButton />
+                    <Drawer.CloseButton aria-label="Close comments" size={44} />
                 </Drawer.Header>
                 <Drawer.Body className={classes.body}>
                     <div className={classes.list}>
@@ -354,7 +358,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
                                     </Text>
                                     <Text fz="xs" c="dimmed" ta="center">
                                         {canCreateDashboardComments
-                                            ? 'Hover over a tile and use its speech bubble to start a thread.'
+                                            ? 'Use a tile’s comment button to start a thread.'
                                             : 'Threads started on any tile will show up here.'}
                                     </Text>
                                 </Stack>

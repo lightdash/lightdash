@@ -3,6 +3,7 @@ import {
     Anchor,
     Box,
     Divider,
+    Flex,
     Group,
     Loader,
     Select,
@@ -204,9 +205,9 @@ export const AiGeneralSettingsPage = () => {
 
                         <SettingsCard>
                             <Stack gap="md">
-                                <Group
+                                <Flex
                                     justify="space-between"
-                                    wrap="nowrap"
+                                    direction={{ base: 'column', sm: 'row' }}
                                     align="flex-start"
                                     gap="md"
                                 >
@@ -222,7 +223,9 @@ export const AiGeneralSettingsPage = () => {
                                         </Text>
                                     </Box>
                                     <Select
-                                        w={260}
+                                        w={{ base: '100%', sm: 260 }}
+                                        miw={{ base: 0, sm: 260 }}
+                                        aria-label="Default AI model"
                                         size="xs"
                                         value={selectedDefaultModelKey}
                                         disabled={
@@ -252,7 +255,7 @@ export const AiGeneralSettingsPage = () => {
                                             });
                                         }}
                                     />
-                                </Group>
+                                </Flex>
 
                                 {showReasoningDefault && (
                                     <>

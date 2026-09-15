@@ -295,13 +295,13 @@ export const HeaderCreate: FC = () => {
     return (
         <>
             <PageHeader cardProps={{ py: 'xs' }}>
-                <Group justify="space-between" flex={1} wrap="nowrap">
-                    <Group gap="two">
+                <Group justify="space-between" flex={1} miw={0}>
+                    <Group gap="two" miw={0} maw="100%">
                         {hasAnyAction && (
                             <EditableText
                                 heading
                                 size="md"
-                                w={400}
+                                w={{ base: '100%', md: 400 }}
                                 placeholder={untitledName}
                                 value={name}
                                 onChange={(e) =>

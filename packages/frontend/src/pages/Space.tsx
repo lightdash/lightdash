@@ -277,18 +277,17 @@ const Space: FC = () => {
                                         arrowPosition="center"
                                     >
                                         <Menu.Target>
-                                            <Box>
-                                                <Button
-                                                    data-testid="Space/AddButton"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconPlus}
-                                                        />
-                                                    }
-                                                >
-                                                    Add
-                                                </Button>
-                                            </Box>
+                                            <Button
+                                                data-testid="Space/AddButton"
+                                                h={{ base: 44, md: 36 }}
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                    />
+                                                }
+                                            >
+                                                Add
+                                            </Button>
                                         </Menu.Target>
 
                                         <Menu.Dropdown>
@@ -384,6 +383,9 @@ const Space: FC = () => {
                                     <ActionIcon
                                         variant="default"
                                         size={36}
+                                        w={{ base: 44, md: 36 }}
+                                        h={{ base: 44, md: 36 }}
+                                        aria-label="Space actions"
                                         // Anchor for scope walkthroughs
                                         data-tour-anchor="space-actions"
                                         data-tour-hint="Open the space's actions menu"

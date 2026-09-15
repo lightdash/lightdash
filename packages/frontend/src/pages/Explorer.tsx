@@ -64,6 +64,7 @@ const ExplorerContent = memo(() => {
         <Page
             title={data ? data?.label : 'Tables'}
             sidebar={<ExploreSideBar />}
+            sidebarTitle="Tables and fields"
             {...rightSidebarProps}
             withFullHeight
             withPaddedContent

@@ -10,6 +10,7 @@ import {
     type SchedulerAppState,
 } from '@lightdash/common';
 import {
+    Accordion,
     Box,
     Button,
     Group,
@@ -20,6 +21,7 @@ import {
     Stack,
     Text,
     Tooltip,
+    useMatches,
 } from '@mantine/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseMutationResult } from '@tanstack/react-query';
@@ -94,6 +96,10 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     onClose,
     onBack,
 }) => {
+    const compact = useMatches(
+        { base: true, lg: false },
+        { getInitialValueInEffect: false },
+    );
     const isAiVisible = useAiAgentButtonVisibility();
     const projectUuid = useProjectUuid();
     const { user } = useApp();
@@ -262,9 +268,18 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         }
     };
 
+    const preview = (
+        <SchedulerPreviewPanel
+            dashboard={dashboard}
+            isThresholdAlert={isThresholdAlert}
+            numericMetrics={numericMetrics}
+        />
+    );
+
     return (
         <SchedulerFormProvider form={form}>
             <Modal.Root
+                fullScreen={compact}
                 opened
                 onClose={onClose}
                 size={1080}
@@ -317,7 +332,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                             : 'https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries'
                                     }
                                 />
-                                <Modal.CloseButton />
+                                <Modal.CloseButton aria-label="Close scheduled delivery" />
                             </Group>
                         </Group>
 
@@ -377,11 +392,20 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                             </Stack>
                                         </div>
                                     </ScrollArea>
-                                    <SchedulerPreviewPanel
-                                        dashboard={dashboard}
-                                        isThresholdAlert={isThresholdAlert}
-                                        numericMetrics={numericMetrics}
-                                    />
+                                    {compact ? (
+                                        <Accordion px="md" pb="md">
+                                            <Accordion.Item value="preview">
+                                                <Accordion.Control>
+                                                    Preview and next runs
+                                                </Accordion.Control>
+                                                <Accordion.Panel>
+                                                    {preview}
+                                                </Accordion.Panel>
+                                            </Accordion.Item>
+                                        </Accordion>
+                                    ) : (
+                                        preview
+                                    )}
                                 </form>
 
                                 <div className={classes.footer}>

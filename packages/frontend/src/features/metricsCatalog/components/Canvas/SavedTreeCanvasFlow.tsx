@@ -1,20 +1,24 @@
 import type { CatalogMetricsTreeEdge } from '@lightdash/common';
-import { Box, Group, Text, Button, useMantineTheme } from '@mantine/core';
+import { Box, Group, Stack, Button, useMantineTheme } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     Background,
+    Controls,
     ReactFlow,
-    Panel as ReactFlowPanel,
+    useReactFlow,
     type Edge,
     type EdgeTypes,
     type NodeTypes,
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 import { useMemo, type FC } from 'react';
+import '@xyflow/react/dist/style.css';
 import { Panel, PanelGroup } from 'react-resizable-panels';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { CanvasTimeFramePicker } from '../visualization/CanvasTimeFramePicker';
 import styles from './Canvas.module.css';
+import { CanvasConnectionModal } from './CanvasConnectionModal';
 import { type CanvasMetric } from './canvasLayoutUtils';
 import {
     CanvasYamlDriversContext,
@@ -58,6 +62,10 @@ const SavedTreeCanvasFlow: FC<Props> = ({
     onLoadMoreMetrics,
 }) => {
     const theme = useMantineTheme();
+    const getUiString = useUiStrings();
+    const { deleteElements } = useReactFlow();
+    const [metricsOpened, { open: openMetrics, close: closeMetrics }] =
+        useDisclosure(false);
 
     const flow = useCanvasFlow({
         metrics,
@@ -108,90 +116,159 @@ const SavedTreeCanvasFlow: FC<Props> = ({
 
     return (
         <CanvasYamlDriversContext.Provider value={yamlDriversContextValue}>
-            <PanelGroup direction="horizontal" style={{ height: '100%' }}>
-                {!viewOnly && (
-                    <MetricsSidebar
-                        nodes={flow.sidebarNodes}
-                        onAddMetric={(node) =>
-                            flow.addMetricsToCanvas([
-                                {
-                                    catalogSearchUuid: node.id,
-                                    name: node.data.metricName,
-                                    label: node.data.label,
-                                    tableName: node.data.tableName,
-                                },
-                            ])
-                        }
-                        yamlDriversByTarget={yamlDriversByTarget}
-                        hasMore={hasMoreMetrics}
-                        isLoadingMore={isLoadingMoreMetrics}
-                        onLoadMore={onLoadMoreMetrics}
+            <Stack h="100%" gap={0}>
+                <Group
+                    className={styles.toolbar}
+                    gap="xs"
+                    justify="space-between"
+                >
+                    <CanvasTimeFramePicker
+                        value={flow.canvasTimeOption}
+                        onChange={flow.setCanvasTimeOption}
                     />
-                )}
-                <Panel id="metrics-canvas" order={2}>
-                    <Box h="100%">
-                        <ReactFlow
-                            className={styles.reactFlow}
-                            nodes={flow.currentNodes}
-                            edges={flow.currentEdges}
-                            fitView
-                            attributionPosition="top-right"
-                            onNodesChange={flow.handleNodeChange}
-                            onEdgesChange={flow.handleEdgesChange}
-                            onConnect={flow.handleConnect}
-                            onDragOver={flow.handleDragOver}
-                            onDrop={flow.handleDrop}
-                            edgesReconnectable={false}
-                            onEdgesDelete={flow.handleEdgesDelete}
-                            nodeTypes={nodeTypes}
-                            edgeTypes={edgeTypes}
-                            nodesConnectable={!viewOnly}
-                            nodesDraggable={!viewOnly}
-                            elementsSelectable={!viewOnly}
-                        >
-                            <ReactFlowPanel
-                                position="top-left"
-                                style={{ margin: '14px 27px' }}
+                    {!viewOnly && (
+                        <Group gap="xs">
+                            <Button
+                                hiddenFrom="md"
+                                variant="default"
+                                h={44}
+                                onClick={openMetrics}
+                            >
+                                {getUiString('metrics.addMetrics')}
+                            </Button>
+                            <CanvasConnectionModal
+                                nodes={flow.currentNodes}
+                                edges={flow.currentEdges}
+                                onConnect={flow.handleConnect}
+                            />
+                        </Group>
+                    )}
+                </Group>
+                <PanelGroup
+                    direction="horizontal"
+                    style={{ flex: 1, minHeight: 0 }}
+                >
+                    {!viewOnly && (
+                        <MetricsSidebar
+                            opened={metricsOpened}
+                            onClose={closeMetrics}
+                            nodes={flow.sidebarNodes}
+                            onAddMetric={(node) =>
+                                flow.addMetricsToCanvas([
+                                    {
+                                        catalogSearchUuid: node.id,
+                                        name: node.data.metricName,
+                                        label: node.data.label,
+                                        tableName: node.data.tableName,
+                                    },
+                                ])
+                            }
+                            yamlDriversByTarget={yamlDriversByTarget}
+                            hasMore={hasMoreMetrics}
+                            isLoadingMore={isLoadingMoreMetrics}
+                            onLoadMore={onLoadMoreMetrics}
+                        />
+                    )}
+                    <Panel id="metrics-canvas" order={2}>
+                        <Stack h="100%" gap={0}>
+                            <Box style={{ flex: 1, minHeight: 0 }}>
+                                <ReactFlow
+                                    className={styles.reactFlow}
+                                    nodes={flow.currentNodes}
+                                    edges={flow.currentEdges}
+                                    fitView
+                                    minZoom={0.1}
+                                    fitViewOptions={{ maxZoom: 1.2 }}
+                                    attributionPosition="top-right"
+                                    onNodesChange={flow.handleNodeChange}
+                                    onEdgesChange={flow.handleEdgesChange}
+                                    onConnect={flow.handleConnect}
+                                    onDragOver={flow.handleDragOver}
+                                    onDrop={flow.handleDrop}
+                                    edgesReconnectable={false}
+                                    onEdgesDelete={flow.handleEdgesDelete}
+                                    nodeTypes={nodeTypes}
+                                    edgeTypes={edgeTypes}
+                                    nodesConnectable={!viewOnly}
+                                    nodesDraggable={!viewOnly}
+                                    elementsSelectable={!viewOnly}
+                                >
+                                    {!viewOnly && <Background />}
+                                </ReactFlow>
+                            </Box>
+                            <Group
+                                className={styles.footer}
+                                gap="xs"
+                                justify="space-between"
                             >
                                 <Group gap="xs">
-                                    <Text fz="sm" fw={500} c="dimmed">
-                                        Canvas mode:
-                                    </Text>
-                                    <CanvasTimeFramePicker
-                                        value={flow.canvasTimeOption}
-                                        onChange={flow.setCanvasTimeOption}
-                                    />
+                                    {!viewOnly && (
+                                        <>
+                                            <Button
+                                                variant="default"
+                                                onClick={() =>
+                                                    flow.applyLayout({
+                                                        removeUnconnected: true,
+                                                    })
+                                                }
+                                                size="xs"
+                                                style={{
+                                                    boxShadow:
+                                                        theme.shadows.subtle,
+                                                }}
+                                                leftSection={
+                                                    <MantineIcon
+                                                        color="ldGray.5"
+                                                        icon={
+                                                            IconLayoutGridRemove
+                                                        }
+                                                    />
+                                                }
+                                            >
+                                                Clean up
+                                            </Button>
+                                            {(flow.currentNodes.some(
+                                                (node) => node.selected,
+                                            ) ||
+                                                flow.currentEdges.some(
+                                                    (edge) => edge.selected,
+                                                )) && (
+                                                <Button
+                                                    variant="default"
+                                                    color="red"
+                                                    size="xs"
+                                                    onClick={() =>
+                                                        void deleteElements({
+                                                            nodes: flow.currentNodes.filter(
+                                                                (node) =>
+                                                                    node.selected,
+                                                            ),
+                                                            edges: flow.currentEdges.filter(
+                                                                (edge) =>
+                                                                    edge.selected,
+                                                            ),
+                                                        })
+                                                    }
+                                                >
+                                                    {getUiString(
+                                                        'metrics.removeSelected',
+                                                    )}
+                                                </Button>
+                                            )}
+                                        </>
+                                    )}
                                 </Group>
-                            </ReactFlowPanel>
-                            {!viewOnly && (
-                                <ReactFlowPanel position="bottom-left">
-                                    <Button
-                                        variant="default"
-                                        onClick={() =>
-                                            flow.applyLayout({
-                                                removeUnconnected: true,
-                                            })
-                                        }
-                                        size="xs"
-                                        style={{
-                                            boxShadow: theme.shadows.subtle,
-                                        }}
-                                        leftSection={
-                                            <MantineIcon
-                                                color="ldGray.5"
-                                                icon={IconLayoutGridRemove}
-                                            />
-                                        }
-                                    >
-                                        Clean up
-                                    </Button>
-                                </ReactFlowPanel>
-                            )}
-                            {!viewOnly && <Background />}
-                        </ReactFlow>
-                    </Box>
-                </Panel>
-            </PanelGroup>
+                                <Controls
+                                    showInteractive={false}
+                                    fitViewOptions={{ maxZoom: 1.2 }}
+                                    orientation="horizontal"
+                                    className={styles.controls}
+                                />
+                            </Group>
+                        </Stack>
+                    </Panel>
+                </PanelGroup>
+            </Stack>
         </CanvasYamlDriversContext.Provider>
     );
 };

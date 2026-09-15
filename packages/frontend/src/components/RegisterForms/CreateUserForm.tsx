@@ -47,10 +47,12 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
     return (
         <form name="register" onSubmit={form.onSubmit(onSubmit)}>
             <Stack gap="md">
-                <Flex direction="row" gap="xs">
+                <Flex direction={{ base: 'column', sm: 'row' }} gap="xs">
                     <TextInput
                         label="First name"
                         name="firstName"
+                        autoComplete="given-name"
+                        flex={1}
                         placeholder="Your first name"
                         disabled={isLoading}
                         required
@@ -59,6 +61,8 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     <TextInput
                         label="Last name"
                         name="lastName"
+                        autoComplete="family-name"
+                        flex={1}
                         placeholder="Your last name"
                         disabled={isLoading}
                         required
@@ -68,6 +72,8 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                 <TextInput
                     label="Email address"
                     name="email"
+                    type="email"
+                    autoComplete="email"
                     placeholder="Your email address"
                     required
                     {...form.getInputProps('email')}
@@ -80,6 +86,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     <PasswordInput
                         label="Password"
                         name="password"
+                        autoComplete="new-password"
                         placeholder="Your password"
                         required
                         {...form.getInputProps('password')}

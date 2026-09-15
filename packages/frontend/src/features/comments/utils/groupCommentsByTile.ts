@@ -106,7 +106,8 @@ export const countThreads = (groups: TileCommentGroup[]): number =>
     groups.reduce((total, group) => total + group.threads.length, 0);
 
 export type TileCommentSection = {
-    /** null for tiles that are no longer on the dashboard */
+    isRemoved: boolean;
+    /** null for untabbed or removed tiles */
     tabUuid: string | null;
     label: string;
     groups: TileCommentGroup[];
@@ -125,17 +126,24 @@ export const sectionGroupsByTab = (
     const tabNames = new Map(tabs.map((tab) => [tab.uuid, tab.name]));
     const sections: TileCommentSection[] = [];
     for (const group of groups) {
+        const isRemoved = group.tileType === null;
         const last = sections[sections.length - 1];
-        if (last && last.tabUuid === group.tabUuid) {
+        if (
+            last &&
+            last.tabUuid === group.tabUuid &&
+            last.isRemoved === isRemoved
+        ) {
             last.groups.push(group);
             continue;
         }
         sections.push({
+            isRemoved,
             tabUuid: group.tabUuid,
-            label:
-                group.tabUuid === null
-                    ? REMOVED_TILES_SECTION_LABEL
-                    : (tabNames.get(group.tabUuid) ?? ''),
+            label: isRemoved
+                ? REMOVED_TILES_SECTION_LABEL
+                : group.tabUuid === null
+                  ? 'Dashboard'
+                  : (tabNames.get(group.tabUuid) ?? ''),
             groups: [group],
         });
     }

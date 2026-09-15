@@ -57,6 +57,8 @@ export const PasswordRecoveryForm: FC = () => {
                             <TextInput
                                 label="Email address"
                                 name="email"
+                                type="email"
+                                autoComplete="email"
                                 placeholder="Your email address"
                                 required
                                 {...form.getInputProps('email')}

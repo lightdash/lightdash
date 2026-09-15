@@ -1,6 +1,14 @@
 .layout {
-    height: calc(100vh - 50px);
+    height: calc(100dvh - 50px);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.panels {
+    flex: 1;
+    min-height: 0;
 }
 
 /* A fixed NavBar banner (preview / impersonation) reserves an extra 35px at
@@ -8,7 +16,7 @@
    the viewport and can be scrolled. Mirrors dashboardTabs/tabs.module.css. */
 :global(body:has(#preview-banner)) .layout,
 :global(body:has(#impersonation-banner)) .layout {
-    height: calc(100vh - 50px - 35px);
+    height: calc(100dvh - 50px - 35px);
 }
 
 /* Hard pixel floor for the chat panel — react-resizable-panels' minSize is
@@ -47,7 +55,7 @@
    backdrop, then morphs into the split sidebar (see .chatPanel's
    view-transition-name) on first submit. */
 .composeLayout {
-    height: calc(100vh - 50px);
+    height: calc(100dvh - 50px);
     overflow: visible;
     display: flex;
     justify-content: center;
@@ -77,7 +85,7 @@
 
 :global(body:has(#preview-banner)) .composeLayout,
 :global(body:has(#impersonation-banner)) .composeLayout {
-    height: calc(100vh - 50px - 35px);
+    height: calc(100dvh - 50px - 35px);
 }
 
 .chatPanel {
@@ -156,7 +164,7 @@
        but cap on tall viewports and scroll — never clip — when the prompt +
        fanout can't both fit. */
     height: auto;
-    max-height: min(760px, calc(100vh - 84px));
+    max-height: min(760px, calc(100dvh - 84px));
     border-radius: var(--mantine-radius-lg);
     border: 1px solid;
     overflow: hidden auto;
@@ -369,6 +377,35 @@
     }
     @mixin dark {
         background-color: var(--mantine-color-dark-8);
+    }
+}
+
+@mixin smaller-than $mantine-breakpoint-md {
+    .chatPanelOuter,
+    .chatPanelOuter[data-collapsed='true'],
+    .previewPanelOuter {
+        min-width: 0;
+        max-width: none;
+        flex: 1 1 100% !important;
+    }
+
+    .layout[data-mobile-panel='preview'] .chatPanelOuter,
+    .layout[data-mobile-panel='build'] .previewPanelOuter,
+    .resizeHandle {
+        display: none;
+    }
+
+    .chatPanelOuter[data-collapsed='true'] .chatMessages,
+    .chatPanelOuter[data-collapsed='true'] .chatInputArea {
+        visibility: visible;
+    }
+
+    .composeLayout {
+        padding: var(--mantine-spacing-xs);
+    }
+
+    .composeHeading {
+        padding-inline: var(--mantine-spacing-md);
     }
 }
 

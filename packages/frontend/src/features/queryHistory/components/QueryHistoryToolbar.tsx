@@ -9,8 +9,10 @@ import {
     Button,
     Group,
     SegmentedControl,
+    Select,
     Skeleton,
     Text,
+    useMatches,
 } from '@mantine/core';
 import {
     IconClock,
@@ -106,6 +108,10 @@ export const QueryHistoryToolbar: FC<Props> = ({
     search,
     onSearchChange,
 }) => {
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
     const hasRefinements =
         language !== undefined || statuses.length > 0 || search.length > 0;
 
@@ -118,32 +124,61 @@ export const QueryHistoryToolbar: FC<Props> = ({
             py="sm"
             className={styles.toolbar}
         >
-            <Group gap="xs" wrap="nowrap">
-                <SegmentedControl
-                    size="xs"
-                    value={trigger ?? ALL_TRIGGERS}
-                    onChange={(value) =>
-                        onTriggerChange(
-                            isQueryTrigger(value) ? value : undefined,
-                        )
-                    }
-                    data={TRIGGER_OPTIONS.map((option) => ({
-                        value: option ?? ALL_TRIGGERS,
-                        label: (
-                            <TriggerLabel
-                                icon={
-                                    option ? TRIGGER_ICONS[option] : undefined
-                                }
-                                label={option ? getTriggerLabel(option) : 'All'}
-                                count={
-                                    option
-                                        ? counts?.triggers[option]
-                                        : counts?.total
-                                }
-                            />
-                        ),
-                    }))}
-                />
+            <Group gap="xs" wrap="nowrap" className={styles.toolbarFilters}>
+                {compact ? (
+                    <Select
+                        aria-label="Query source"
+                        w="100%"
+                        value={trigger ?? ALL_TRIGGERS}
+                        allowDeselect={false}
+                        onChange={(value) =>
+                            onTriggerChange(
+                                value && isQueryTrigger(value)
+                                    ? value
+                                    : undefined,
+                            )
+                        }
+                        data={TRIGGER_OPTIONS.map((option) => {
+                            const count = option
+                                ? counts?.triggers[option]
+                                : counts?.total;
+                            return {
+                                value: option ?? ALL_TRIGGERS,
+                                label: `${option ? getTriggerLabel(option) : 'All'}${count === undefined ? '' : ` (${count.toLocaleString()})`}`,
+                            };
+                        })}
+                    />
+                ) : (
+                    <SegmentedControl
+                        size="xs"
+                        value={trigger ?? ALL_TRIGGERS}
+                        onChange={(value) =>
+                            onTriggerChange(
+                                isQueryTrigger(value) ? value : undefined,
+                            )
+                        }
+                        data={TRIGGER_OPTIONS.map((option) => ({
+                            value: option ?? ALL_TRIGGERS,
+                            label: (
+                                <TriggerLabel
+                                    icon={
+                                        option
+                                            ? TRIGGER_ICONS[option]
+                                            : undefined
+                                    }
+                                    label={
+                                        option ? getTriggerLabel(option) : 'All'
+                                    }
+                                    count={
+                                        option
+                                            ? counts?.triggers[option]
+                                            : counts?.total
+                                    }
+                                />
+                            ),
+                        }))}
+                    />
+                )}
                 <FilterFacet
                     label="Language"
                     mode="single"
@@ -183,6 +218,10 @@ export const QueryHistoryToolbar: FC<Props> = ({
                 ) : null}
             </Group>
             <ContentTableSearchInput
+                aria-label="Search fields, tables or SQL"
+                w={compact ? '100%' : undefined}
+                collapsedWidth={compact ? '100%' : undefined}
+                expandedWidth={compact ? '100%' : undefined}
                 value={search}
                 onChange={onSearchChange}
                 placeholder="Search fields, tables or SQL"

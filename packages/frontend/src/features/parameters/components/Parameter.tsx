@@ -175,6 +175,15 @@ const Parameter: FC<Props> = ({
                                 )}
                                 {hasValue && (
                                     <ActionIcon
+                                        aria-label={
+                                            getUiString
+                                                ? getUiString(
+                                                      'parameters.clear',
+                                                  )
+                                                : DEFAULT_UI_STRINGS[
+                                                      'parameters.clear'
+                                                  ]
+                                        }
                                         onClick={handleClear}
                                         size="xs"
                                         radius="xl"

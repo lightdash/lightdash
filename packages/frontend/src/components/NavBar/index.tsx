@@ -44,11 +44,13 @@ const NavBarContent = ({
     activeProjectUuid,
     activeProjectUrlIdentifier,
     isLoadingActiveProject,
+    projectName,
 }: {
     navBarMode: NavBarMode;
     activeProjectUuid: string | undefined;
     activeProjectUrlIdentifier: string | undefined;
     isLoadingActiveProject: boolean;
+    projectName: string | undefined;
 }) => {
     const projectUuid = useProjectUuid();
     if (navBarMode === NavBarMode.EDITING_DASHBOARD_CHART) {
@@ -60,6 +62,7 @@ const NavBarContent = ({
             activeProjectUuid={activeProjectUuid}
             activeProjectUrlIdentifier={activeProjectUrlIdentifier}
             isLoadingActiveProject={isLoadingActiveProject}
+            projectName={projectName}
         />
     );
 };
@@ -172,6 +175,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                                 : activeProjectUuid
                         }
                         isLoadingActiveProject={isLoadingActiveProject}
+                        projectName={project?.name}
                     />
                 </Box>
                 {/* Placeholder to reserve space when navbar is fixed */}

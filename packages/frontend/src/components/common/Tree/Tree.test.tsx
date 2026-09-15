@@ -1,4 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import Tree from './Tree';
@@ -25,6 +26,36 @@ const renderTree = (isExpanded: boolean, value: string | null) =>
     );
 
 describe('Tree', () => {
+    it('allows keyboard selection of the top-level destination', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        renderWithProviders(
+            <Tree
+                topLevelLabel="Spaces"
+                data={data}
+                isExpanded={false}
+                type="single"
+                value="d"
+                onChange={onChange}
+            />,
+        );
+        await user.tab();
+        expect(screen.getByRole('button', { name: 'Spaces' })).toHaveFocus();
+        await user.keyboard('{Enter}');
+        expect(onChange).toHaveBeenLastCalledWith(null);
+    });
+
+    it('labels expansion controls and exposes their state', () => {
+        renderTree(false, null);
+        const expand = screen.getByRole('button', { name: 'Expand Alpha' });
+        expect(expand).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(expand);
+        expect(screen.getByText('Beta')).toBeVisible();
+        expect(
+            screen.getByRole('button', { name: 'Collapse Alpha' }),
+        ).toHaveAttribute('aria-expanded', 'true');
+    });
+
     it('selects a node on click and keeps a single selection on re-click', () => {
         const onChange = vi.fn();
         renderWithProviders(

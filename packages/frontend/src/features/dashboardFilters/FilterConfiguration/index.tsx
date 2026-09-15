@@ -467,7 +467,10 @@ const FilterConfiguration: FC<Props> = ({
                     </Tabs.List>
                 ) : null}
 
-                <Tabs.Panel value={FilterTabs.SETTINGS} w={400}>
+                <Tabs.Panel
+                    value={FilterTabs.SETTINGS}
+                    w="min(400px, calc(100vw - 56px))"
+                >
                     <Stack gap="sm">
                         {isCreatingNew ? (
                             !!fields && fields.length > 0 ? (
@@ -586,7 +589,7 @@ const FilterConfiguration: FC<Props> = ({
                 {draftFilterRule && selectedTabId === FilterTabs.TILES && (
                     <Tabs.Panel
                         value={FilterTabs.TILES}
-                        w={500}
+                        w="min(500px, calc(100vw - 56px))"
                         data-testid="DashboardFilterConfiguration/ChartTiles"
                     >
                         <TileFilterConfiguration
@@ -647,6 +650,10 @@ const FilterConfiguration: FC<Props> = ({
                             // reaches the Apply button — so a real-user click
                             // would otherwise need two presses to apply.
                             onMouseDown={handleApply}
+                            onClick={(event) => {
+                                // Keyboard and assistive activation do not emit mousedown.
+                                if (event.detail === 0) handleApply();
+                            }}
                         >
                             {getUiString('filters.apply')}
                         </Button>

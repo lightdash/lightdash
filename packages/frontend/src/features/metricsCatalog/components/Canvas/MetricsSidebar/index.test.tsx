@@ -23,6 +23,8 @@ describe('MetricsSidebar', () => {
             <MantineProvider>
                 <PanelGroup direction="horizontal">
                     <MetricsSidebar
+                        opened={false}
+                        onClose={vi.fn()}
                         nodes={[node]}
                         yamlDriversByTarget={new Map()}
                         onAddMetric={onAddMetric}
@@ -44,5 +46,47 @@ describe('MetricsSidebar', () => {
             },
         );
         expect(setData).toHaveBeenCalledWith('application/reactflow', node.id);
+    });
+    it('filters metric choices and closes the chooser after adding a result', () => {
+        const onAddMetric = vi.fn();
+        const onClose = vi.fn();
+        const otherNode = {
+            ...node,
+            id: 'other',
+            data: {
+                ...node.data,
+                label: 'Total customers',
+                tableName: 'customers',
+            },
+        };
+        render(
+            <MantineProvider>
+                <PanelGroup direction="horizontal">
+                    <MetricsSidebar
+                        opened={false}
+                        onClose={onClose}
+                        nodes={[node, otherNode]}
+                        yamlDriversByTarget={new Map()}
+                        onAddMetric={onAddMetric}
+                    />
+                </PanelGroup>
+            </MantineProvider>,
+        );
+        fireEvent.change(
+            screen.getByRole('searchbox', { name: 'Search metrics' }),
+            { target: { value: 'customers' } },
+        );
+        expect(
+            screen.queryByRole('button', {
+                name: 'Add Total completed order amount to canvas',
+            }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Add Total customers to canvas',
+            }),
+        );
+        expect(onAddMetric).toHaveBeenCalledExactlyOnceWith(otherNode);
+        expect(onClose).toHaveBeenCalledOnce();
     });
 });

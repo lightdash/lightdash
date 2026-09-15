@@ -20,6 +20,7 @@ import {
     Text,
     Title,
     Tooltip,
+    useMatches,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -193,6 +194,10 @@ const verifiedTourProps = {
 };
 
 const SavedChartsHeader: FC = () => {
+    const compact = useMatches(
+        { base: true, md: false },
+        { getInitialValueInEffect: false },
+    );
     const { data: changeChartExploreFlag } = useServerFeatureFlag(
         FeatureFlags.ChangeChartExplore,
     );
@@ -817,6 +822,7 @@ const SavedChartsHeader: FC = () => {
                                             <Button
                                                 variant="default"
                                                 size="xs"
+                                                visibleFrom="md"
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={IconPencil}
@@ -888,7 +894,7 @@ const SavedChartsHeader: FC = () => {
                             )}
                         </>
                     )}
-                    {showFullscreenToggle && (
+                    {showFullscreenToggle && (!compact || isFullscreen) && (
                         <Tooltip
                             label={
                                 isFullscreen
@@ -930,7 +936,39 @@ const SavedChartsHeader: FC = () => {
                             width={200}
                             disabled={!unsavedChartVersion.tableName}
                         >
-                            <Menu.Dropdown>
+                            <Menu.Dropdown
+                                mah="calc(100dvh - 24px)"
+                                style={{ overflowY: 'auto' }}
+                            >
+                                {compact &&
+                                    !isEditMode &&
+                                    savedChart &&
+                                    userCanManageChart && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPencil}
+                                                />
+                                            }
+                                            onClick={() =>
+                                                navigate(
+                                                    `/projects/${projectUrlIdentifier}/saved/${savedChart.slug}/edit`,
+                                                )
+                                            }
+                                        >
+                                            Edit chart
+                                        </Menu.Item>
+                                    )}
+                                {compact && showFullscreenToggle && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconMaximize} />
+                                        }
+                                        onClick={handleToggleFullscreen}
+                                    >
+                                        Enter fullscreen
+                                    </Menu.Item>
+                                )}
                                 {savedChart && (
                                     <AskAiAgentMenuItem
                                         projectUuid={projectUuid}

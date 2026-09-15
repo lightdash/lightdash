@@ -16,11 +16,13 @@ import {
     SegmentedControl,
     Popover,
     Tooltip,
+    useMatches,
 } from '@mantine/core';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import CalendarRangePicker from '../../../../components/common/DatePickers/CalendarRangePicker';
 import MonthRangePicker from '../../../../components/common/DatePickers/MonthRangePicker';
 import YearRangePicker from '../../../../components/common/DatePickers/YearRangePicker';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
@@ -54,6 +56,8 @@ export const MetricExploreDatePicker: FC<Props> = ({
     isFetching,
     disabled = false,
 }) => {
+    const compact = useMatches({ base: true, md: false });
+    const getUiString = useUiStrings();
     const { track } = useTracking();
     const userUuid = useAppSelector(
         (state) => state.metricsCatalog.user?.userUuid,
@@ -145,57 +149,81 @@ export const MetricExploreDatePicker: FC<Props> = ({
     ];
 
     return (
-        <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
+        <Popover
+            opened={isOpen}
+            onChange={handleOpen}
+            position="bottom-start"
+            floatingStrategy="fixed"
+            middlewares={{ shift: { crossAxis: true, padding: 12 } }}
+            width={compact ? 'calc(100vw - 24px)' : undefined}
+        >
             <Popover.Target>
-                <Group justify="space-between" w="fill-available" wrap="nowrap">
-                    <SegmentedControl
-                        disabled={isFetching || disabled}
-                        size="xs"
-                        h={32}
-                        data={customWithPresets}
-                        value={
-                            isOpen ||
-                            !timeDimensionBaseField ||
-                            !effectiveMatchingPresetLabel ||
-                            !presets.some(
-                                (p) =>
-                                    p.controlLabel ===
-                                    effectiveMatchingPresetLabel,
-                            )
-                                ? 'custom'
-                                : effectiveMatchingPresetLabel
-                        }
-                        onChange={(value) => {
-                            if (isFetching) return;
-
-                            if (value === 'custom') {
-                                handleOpen(true);
-                            } else {
-                                handleOpen(false);
-
-                                const presetDateRange = presets
-                                    .find(
-                                        (preset) =>
-                                            preset.controlLabel === value,
-                                    )
-                                    ?.getValue();
-                                if (presetDateRange) {
-                                    handleTrackDateFilterApplied();
-                                    onChange(
-                                        presetDateRange as MetricExplorerDateRange,
-                                    );
-                                }
+                <Group
+                    justify="space-between"
+                    w="100%"
+                    className={styles.toolbar}
+                >
+                    {compact ? (
+                        <Button
+                            variant="default"
+                            size="xs"
+                            className={styles.rangeButton}
+                            disabled={isFetching || disabled}
+                            onClick={() => handleOpen(!isOpen)}
+                            aria-expanded={isOpen}
+                        >
+                            {effectiveMatchingPresetLabel || buttonLabel}
+                        </Button>
+                    ) : (
+                        <SegmentedControl
+                            disabled={isFetching || disabled}
+                            size="xs"
+                            h={32}
+                            data={customWithPresets}
+                            value={
+                                isOpen ||
+                                !timeDimensionBaseField ||
+                                !effectiveMatchingPresetLabel ||
+                                !presets.some(
+                                    (p) =>
+                                        p.controlLabel ===
+                                        effectiveMatchingPresetLabel,
+                                )
+                                    ? 'custom'
+                                    : effectiveMatchingPresetLabel
                             }
-                        }}
-                        transitionDuration={300}
-                        transitionTimingFunction="linear"
-                        withItemsBorders={false}
-                        classNames={{
-                            root: styles.root,
-                            label: styles.label,
-                            indicator: styles.indicator,
-                        }}
-                    />
+                            onChange={(value) => {
+                                if (isFetching) return;
+
+                                if (value === 'custom') {
+                                    handleOpen(true);
+                                } else {
+                                    handleOpen(false);
+
+                                    const presetDateRange = presets
+                                        .find(
+                                            (preset) =>
+                                                preset.controlLabel === value,
+                                        )
+                                        ?.getValue();
+                                    if (presetDateRange) {
+                                        handleTrackDateFilterApplied();
+                                        onChange(
+                                            presetDateRange as MetricExplorerDateRange,
+                                        );
+                                    }
+                                }
+                            }}
+                            transitionDuration={300}
+                            transitionTimingFunction="linear"
+                            withItemsBorders={false}
+                            classNames={{
+                                root: styles.root,
+                                label: styles.label,
+                                indicator: styles.indicator,
+                            }}
+                        />
+                    )}
                     {showTimeDimensionIntervalPicker &&
                         timeDimensionBaseField && (
                             <Tooltip label="Change granularity" position="top">
@@ -216,9 +244,9 @@ export const MetricExploreDatePicker: FC<Props> = ({
                 </Group>
             </Popover.Target>
 
-            <Popover.Dropdown p={0}>
-                <Group gap={0} align="flex-start">
-                    <Stack gap={2} py="xs" px="sm">
+            <Popover.Dropdown p={0} className={styles.dropdown}>
+                <Group gap={0} align="flex-start" className={styles.datePanel}>
+                    <Stack gap={2} py="xs" px="sm" className={styles.presets}>
                         {presets.map((preset) => (
                             <UnstyledButton
                                 key={preset.label}
@@ -235,11 +263,12 @@ export const MetricExploreDatePicker: FC<Props> = ({
                     </Stack>
 
                     <Divider orientation="vertical" color="ldGray.2" />
-                    <Stack gap={0}>
+                    <Stack gap={0} className={styles.calendar}>
                         <Box px="xs">
                             {calendarConfig?.type === TimeFrames.YEAR ? (
                                 <YearRangePicker
                                     {...calendarConfig.props}
+                                    numberOfColumns={compact ? 1 : 2}
                                     mih={180}
                                     w="100%"
                                     size="xs"
@@ -247,12 +276,14 @@ export const MetricExploreDatePicker: FC<Props> = ({
                             ) : calendarConfig?.type === TimeFrames.MONTH ? (
                                 <MonthRangePicker
                                     {...calendarConfig.props}
+                                    numberOfColumns={compact ? 1 : 2}
                                     mih={180}
                                     size="xs"
                                 />
                             ) : calendarConfig ? (
                                 <CalendarRangePicker
                                     {...calendarConfig.props}
+                                    numberOfColumns={compact ? 1 : 2}
                                     mih={225}
                                     size="xs"
                                     withCellSpacing={false}
@@ -260,10 +291,13 @@ export const MetricExploreDatePicker: FC<Props> = ({
                             ) : null}
                         </Box>
                         <Divider color="ldGray.2" />
-                        <Box p="sm">
+                        <Box p="sm" className={styles.footer}>
                             <Group justify="space-between" gap="xl">
                                 <Group gap="xs">
                                     <TextInput
+                                        aria-label={getUiString(
+                                            'metrics.dateStart',
+                                        )}
                                         size="xs"
                                         w={100}
                                         value={formattedTempDateRange[0]}
@@ -280,6 +314,9 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                         -
                                     </Text>
                                     <TextInput
+                                        aria-label={getUiString(
+                                            'metrics.dateEnd',
+                                        )}
                                         size="xs"
                                         w={100}
                                         value={formattedTempDateRange[1]}

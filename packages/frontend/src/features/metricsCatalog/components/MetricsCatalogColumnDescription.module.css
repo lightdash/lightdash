@@ -1,0 +1,29 @@
+.preview {
+    flex: 1;
+    min-width: 0;
+}
+
+.expandButton {
+    flex-shrink: 0;
+}
+
+.dropdown {
+    max-height: min(500px, calc(100dvh - 24px));
+    overflow: auto;
+    overflow-wrap: anywhere;
+}
+
+.header {
+    position: sticky;
+    top: 0;
+    background: var(--mantine-color-body);
+    z-index: 1;
+    margin-bottom: var(--mantine-spacing-xs);
+}
+
+@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+    .expandButton {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}

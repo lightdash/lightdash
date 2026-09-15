@@ -42,9 +42,21 @@
 }
 
 .dropdown {
-    min-width: 300px;
+    min-width: min(300px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
 }
 
 .rightSection {
     pointer-events: none;
+}
+
+@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+    .input {
+        height: 44px;
+        font-size: 16px;
+    }
+
+    .option {
+        min-height: 44px;
+    }
 }

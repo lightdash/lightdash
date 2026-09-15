@@ -78,6 +78,7 @@ const DashboardHistory = () => {
     return (
         <Page
             title="Dashboard version history"
+            sidebarTitle="Versions"
             withSidebarFooter
             withFullHeight
             withPaddedContent

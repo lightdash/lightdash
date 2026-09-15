@@ -3,7 +3,7 @@
     top: 0;
     left: 0;
     right: 0;
-    z-index: var(--mantine-z-index-popover);
+    z-index: var(--mantine-z-index-app);
 }
 
 /* Always dark: the navbar renders inside a forced-dark provider, so the

@@ -269,6 +269,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 <Drawer
                     opened={isMobileSidebarOpened}
                     onClose={closeMobileSidebar}
+                    closeButtonProps={{
+                        'aria-label': 'Close threads',
+                        size: 44,
+                    }}
                     position="left"
                     size="85%"
                     title={

@@ -162,6 +162,7 @@ const ChartHistory = () => {
     return (
         <Page
             title="Chart version history"
+            sidebarTitle="Versions"
             withSidebarFooter
             withFullHeight
             withPaddedContent

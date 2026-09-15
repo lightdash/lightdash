@@ -22,3 +22,36 @@
 .spacer {
     flex-grow: 1;
 }
+
+.mobileNavigation {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xl);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobileNavigation .leftGroup,
+.mobileNavigation .rightGroup {
+    align-items: stretch;
+    flex-direction: column;
+}
+
+.mobileNavigation .buttonGroup {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--mantine-spacing-sm);
+}
+
+.mobileNavigation :global(.mantine-Button-root) {
+    min-height: 44px;
+    border-radius: var(--mantine-radius-md);
+}
+
+.mobileNavigation :global(.mantine-Button-label) {
+    gap: var(--mantine-spacing-xs);
+}
+
+.mobileNavigation .leftGroup .buttonGroup {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}

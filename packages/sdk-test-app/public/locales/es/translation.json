@@ -87,14 +87,21 @@
         },
         "repro-prod-10299": {
             "tabs": [
-                { "name": "Pestaña uno" },
-                { "name": "Pestaña dos" },
-                { "name": "Pestaña tres" }
+                {
+                    "name": "Pestaña uno"
+                },
+                {
+                    "name": "Pestaña dos"
+                },
+                {
+                    "name": "Pestaña tres"
+                }
             ]
         }
     },
     "uiOverrides": {
         "parameters.is": "es",
+        "parameters.clear": "Borrar parámetro",
         "tileMenu.exploreFromHere": "Explorar desde aquí",
         "tileMenu.downloadData": "Descargar datos",
         "tileMenu.exportImage": "Exportar imagen",
@@ -122,6 +129,13 @@
         "filters.summary.dateZoomLabel": "Zoom de fecha:",
         "filters.summary.default": "Predeterminado",
         "filters.summary.showFilters": "Mostrar filtros",
+        "page.closeSidebar": "Cerrar panel lateral",
+        "page.closeDetails": "Cerrar detalles",
+        "metrics.previous": "Métrica anterior",
+        "metrics.next": "Siguiente métrica",
+        "metrics.closeExploration": "Cerrar exploración de métrica",
+        "filters.panel.title": "Filtros y parámetros",
+        "filters.panel.close": "Cerrar filtros",
         "filters.operators.isNull": "es nulo",
         "filters.operators.notNull": "no es nulo",
         "filters.operators.equals": "es",
@@ -302,6 +316,58 @@
         "filters.summary.hideFilters": "Ocultar filtros",
         "filters.summary.hide": "Ocultar",
         "dashboard.exportAllTiles": "Exportar todos los mosaicos",
-        "dashboard.printPage": "Imprimir esta página"
+        "dashboard.printPage": "Imprimir esta página",
+        "tileMenu.actions": "Acciones del elemento",
+        "comments.title": "Comentarios",
+        "comments.close": "Cerrar comentarios",
+        "comments.reply": "Responder",
+        "comments.actions": "Acciones del comentario",
+        "tileMenu.filters": "Filtros del gráfico",
+        "tileMenu.parameters": "Parámetros del gráfico",
+        "tileMenu.execution": "Detalles de ejecución de la consulta",
+        "tileMenu.timezone": "Zona horaria del gráfico",
+        "tileMenu.askAi": "Preguntar al agente de IA",
+        "metrics.dateStart": "Inicio del intervalo de fechas",
+        "metrics.dateEnd": "Fin del intervalo de fechas",
+        "metrics.granularity": "Granularidad temporal",
+        "metrics.details": "Detalles de {metric}",
+        "metrics.closeDetails": "Cerrar detalles de la métrica",
+        "metrics.changeIcon": "Cambiar icono de {metric}",
+        "metrics.removeIcon": "Eliminar icono",
+        "metrics.closeIconPicker": "Cerrar selector de iconos",
+        "metrics.closeSidebar": "Cerrar {sidebar}",
+        "metrics.savedTrees": "Árboles guardados",
+        "metrics.addMetrics": "Añadir métricas",
+        "metrics.canvasPeriod": "Período del lienzo",
+        "metrics.treeActions": "Acciones del árbol",
+        "metrics.searchMetrics": "Buscar métricas",
+        "metrics.noMatchingMetrics": "No hay métricas coincidentes",
+        "metrics.removeSelected": "Eliminar selección",
+        "metrics.canvasLabel": "Lienzo de métricas",
+        "metrics.expandCanvas": "Ampliar lienzo",
+        "metrics.exitExpandedCanvas": "Salir del lienzo ampliado",
+        "metrics.connectMetrics": "Conectar métricas",
+        "metrics.connect": "Conectar",
+        "metrics.connectionSource": "Métrica de origen",
+        "metrics.connectionTarget": "Métrica de destino",
+        "metrics.connectionExists": "Estas métricas ya están conectadas en esta dirección.",
+        "metrics.editCategories": "Editar categorías de {metric}",
+        "metrics.addCategory": "Añadir categoría",
+        "metrics.closeCategories": "Cerrar categorías",
+        "metrics.editCategory": "Editar categoría {category}",
+        "metrics.closeCategoryEditor": "Cerrar editor de categorías",
+        "metrics.categoryName": "Nombre de categoría",
+        "metrics.deleteCategory": "Eliminar categoría {category}",
+        "metrics.categoryColor": "Color de categoría {color}",
+        "metrics.removeCategory": "Quitar categoría {category} de la métrica",
+        "metrics.readDescription": "Leer la descripción completa de {metric}",
+        "metrics.closeDescription": "Cerrar descripción",
+        "metrics.comparison": "Comparación de métricas",
+        "metrics.comparePreviousYear": "Comparar con el año anterior",
+        "metrics.compareAnotherMetric": "Comparar con otra métrica",
+        "metrics.compareMetricTooltip": "Comparar «{metric}» con otra métrica",
+        "metrics.comparisonMetric": "Métrica de comparación",
+        "filters.closeFacet": "Cerrar filtro {filter}",
+        "metrics.ownerDetails": "Detalles del propietario {owner}"
     }
 }

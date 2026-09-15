@@ -25,3 +25,18 @@
     );
     outline: none;
 }
+.base:has(.removeButton) {
+    flex-shrink: 0;
+}
+
+@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+    .base:has(.removeButton) {
+        min-height: 44px;
+        padding-block: 0;
+    }
+
+    .removeButton {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}

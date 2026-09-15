@@ -35,6 +35,7 @@ import {
     Badge,
     Popover,
     Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
 import {
     IconEye,
@@ -110,7 +111,13 @@ const SortableColumn: FC<{
     };
 
     return (
-        <Group ref={setNodeRef} style={style} justify="space-between" h={28}>
+        <Group
+            ref={setNodeRef}
+            style={style}
+            justify="space-between"
+            h={28}
+            className={classes.columnRow}
+        >
             <Group gap={4}>
                 <Tooltip
                     disabled={!column.frozen}
@@ -123,6 +130,7 @@ const SortableColumn: FC<{
                             color="ldGray.5"
                             {...attributes}
                             {...listeners}
+                            aria-label={`Reorder ${column.name} column`}
                             disabled={column.frozen}
                         >
                             <MantineIcon icon={IconGripVertical} />
@@ -440,7 +448,13 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             </Text>
                         </Group>
                     </Badge>
-                    <Popover withArrow>
+                    <Popover
+                        withArrow
+                        floatingStrategy="fixed"
+                        middlewares={{
+                            shift: { crossAxis: true, padding: 12 },
+                        }}
+                    >
                         <Popover.Target>
                             <Tooltip
                                 maw={150}
@@ -449,6 +463,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             >
                                 <ActionIcon
                                     variant="transparent"
+                                    aria-label="Manage column visibility"
+                                    className={classes.columnTrigger}
                                     size="xs"
                                     color="ldGray.5"
                                     display={embedToken ? 'none' : undefined}
@@ -470,6 +486,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         <Popover.Dropdown
                             p="sm"
                             miw={270}
+                            maw="calc(100vw - 24px)"
+                            mah="calc(100dvh - 24px)"
+                            className={classes.columnDropdown}
                             data-tour-scope="view:SpotlightTableConfig"
                             data-tour-step="1"
                             data-tour-route="/projects/:projectUuid/metrics"
@@ -627,6 +646,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         }}
                     />
                     <SegmentedControl
+                        classNames={{ label: classes.viewLabel }}
                         size="xs"
                         value={metricCatalogView}
                         styles={(theme) => ({
@@ -651,6 +671,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         position="bottom-end"
                                     >
                                         <Center>
+                                            <VisuallyHidden>
+                                                List view
+                                            </VisuallyHidden>
                                             <MantineIcon
                                                 icon={IconList}
                                                 size="md"
@@ -679,6 +702,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                             data-tour-hint="Open Canvas"
                                             data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#intro:p3:1"
                                         >
+                                            <VisuallyHidden>
+                                                Canvas
+                                            </VisuallyHidden>
                                             <MantineIcon
                                                 icon={IconSitemap}
                                                 size="md"

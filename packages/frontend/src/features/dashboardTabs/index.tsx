@@ -25,7 +25,7 @@ import {
     useTransition,
     type FC,
 } from 'react';
-import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
+import { type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
@@ -44,8 +44,8 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
-import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
+import '../../styles/droppable.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
@@ -59,21 +59,22 @@ import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
-    getReactGridLayoutConfig,
+    getDashboardLayouts,
+    type DashboardLayouts,
     getResponsiveGridLayoutProps,
     GRID_CONTAINER_PADDING,
 } from './gridUtils';
+import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
 import { useAutoScrollOnDrag } from './useAutoScrollOnDrag';
 import { useGridStyles } from './useGridStyles';
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
-
-const EMPTY_LAYOUTS: { lg: Layout[]; md: Layout[]; sm: Layout[] } = {
+const EMPTY_LAYOUTS: DashboardLayouts = {
     lg: [],
     md: [],
     sm: [],
+    xs: [],
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
@@ -83,7 +84,7 @@ const SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER = 52;
 type TabGridPanelProps = {
     tabUuid: string;
     tiles: DashboardTile[];
-    layouts: { lg: Layout[]; md: Layout[]; sm: Layout[] };
+    layouts: DashboardLayouts;
     isActive: boolean;
     isEditMode: boolean;
     locked: boolean;
@@ -257,7 +258,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     parameterOrder,
     onParameterReorder,
 }) => {
-    const gridProps = useMemo(() => getResponsiveGridLayoutProps(), []);
+    const gridProps = useMemo(
+        () => getResponsiveGridLayoutProps({ isEditMode }),
+        [isEditMode],
+    );
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
     const { showToastError } = useToaster();
     const { health } = useApp();
@@ -441,34 +445,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     }, [dashboardTiles, dashboardTabs, defaultTab?.uuid, tabsEnabled]);
 
     const layoutsByTab = useMemo(() => {
-        const map = new Map<
-            string,
-            { lg: Layout[]; md: Layout[]; sm: Layout[] }
-        >();
+        const map = new Map<string, DashboardLayouts>();
         for (const [tabUuid, tiles] of tilesByTab) {
-            map.set(tabUuid, {
-                lg: tiles.map<Layout>((tile) =>
-                    getReactGridLayoutConfig(
-                        tile,
-                        isEditMode,
-                        gridProps.cols.lg,
-                    ),
-                ),
-                md: tiles.map<Layout>((tile) =>
-                    getReactGridLayoutConfig(
-                        tile,
-                        isEditMode,
-                        gridProps.cols.md,
-                    ),
-                ),
-                sm: tiles.map<Layout>((tile) =>
-                    getReactGridLayoutConfig(
-                        tile,
-                        isEditMode,
-                        gridProps.cols.sm,
-                    ),
-                ),
-            });
+            map.set(
+                tabUuid,
+                getDashboardLayouts(tiles, isEditMode, gridProps.cols),
+            );
         }
         return map;
     }, [tilesByTab, isEditMode, gridProps]);
@@ -490,32 +472,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     // Layouts for non-tabbed dashboards (single grid with all tiles)
     const allTilesLayouts = useMemo(
-        () => ({
-            lg:
-                visibleTiles?.map<Layout>((tile) =>
-                    getReactGridLayoutConfig(
-                        tile,
-                        isEditMode,
-                        gridProps.cols.lg,
-                    ),
-                ) ?? [],
-            md:
-                visibleTiles?.map<Layout>((tile) =>
-                    getReactGridLayoutConfig(
-                        tile,
-                        isEditMode,
-                        gridProps.cols.md,
-                    ),
-                ) ?? [],
-            sm:
-                visibleTiles?.map<Layout>((tile) =>
-                    getReactGridLayoutConfig(
-                        tile,
-                        isEditMode,
-                        gridProps.cols.sm,
-                    ),
-                ) ?? [],
-        }),
+        () =>
+            getDashboardLayouts(visibleTiles ?? [], isEditMode, gridProps.cols),
         [visibleTiles, isEditMode, gridProps],
     );
 

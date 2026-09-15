@@ -1,6 +1,37 @@
 .header {
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
     flex-shrink: 0;
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--mantine-spacing-sm);
+        align-items: start;
+    }
+}
+
+@mixin smaller-than $mantine-breakpoint-sm {
+    .titleGroup {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .closeButton {
+        grid-column: 2;
+        grid-row: 1;
+        width: 44px;
+        height: 44px;
+    }
+
+    .headerActions {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        min-width: 0;
+
+        :global(.mantine-Button-root) {
+            min-height: 44px;
+        }
+    }
 }
 
 .body {
@@ -47,4 +78,35 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
+}
+
+.mobileContent.mobileContent {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    width: 100%;
+}
+
+@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+    .body :global(.mantine-Input-input),
+    .fullScreenBody :global(.mantine-Input-input) {
+        min-height: 44px;
+        font-size: 16px;
+    }
+
+    .actions :global(.mantine-Button-root) {
+        min-height: 44px;
+    }
+}
+
+@media (max-width: $mantine-breakpoint-sm) {
+    .actions {
+        flex-wrap: wrap;
+        gap: var(--mantine-spacing-sm);
+        padding: var(--mantine-spacing-md);
+        padding-bottom: max(
+            var(--mantine-spacing-md),
+            env(safe-area-inset-bottom)
+        );
+    }
 }

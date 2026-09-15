@@ -12,3 +12,98 @@
 .iconButton:disabled {
     background-color: initial;
 }
+
+.iconDropdown {
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+}
+
+.iconHeader {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--mantine-color-body);
+}
+
+@media (width < $mantine-breakpoint-md), (pointer: coarse) {
+    .iconDropdown :global(.EmojiPickerReact) {
+        --epr-emoji-size: 28px !important;
+        --epr-emoji-padding: 8px;
+        --epr-search-input-height: 44px !important;
+    }
+
+    .iconDropdown :global(.epr-search-container) {
+        height: 44px !important;
+        flex-basis: calc(100% - 44px);
+    }
+
+    .iconDropdown :global(.epr-header > div:has(.epr-skin-tones)) {
+        flex-wrap: wrap;
+    }
+
+    .iconDropdown :global(.epr-skin-tones) {
+        flex-basis: 44px !important;
+        padding: 0;
+    }
+
+    .iconDropdown :global(.epr-skin-tones:has(.epr-tone[tabindex='0'])) {
+        flex-basis: 100% !important;
+        padding-top: 8px;
+    }
+
+    .iconDropdown :global(.epr-skin-tone-select) {
+        display: flex;
+        flex-direction: row-reverse;
+        gap: 4px;
+        width: auto;
+        height: 44px;
+    }
+
+    .iconDropdown :global(.epr-skin-tone-select > button) {
+        position: relative;
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+        transform: none !important;
+    }
+
+    .iconDropdown
+        :global(
+            .epr-skin-tones:not(:has(.epr-tone[tabindex='0']))
+                .epr-tone:not(.epr-active)
+        ) {
+        display: none;
+    }
+
+    .iconDropdown :global(.epr-btn-clear-search) {
+        min-width: 44px;
+        min-height: 44px;
+        right: 0;
+    }
+
+    .iconDropdown :global(.epr-category-nav) {
+        overflow-x: auto;
+        justify-content: flex-start;
+    }
+
+    .iconDropdown :global(.epr-cat-btn) {
+        min-width: 44px;
+        min-height: 44px;
+        flex-shrink: 0;
+        /* Keep the library's 20px sprite while enlarging its hit target. */
+        border: 12px solid transparent;
+        padding: 0;
+        background-origin: content-box;
+        background-clip: content-box;
+    }
+
+    .iconButton {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .iconDropdown :global(input) {
+        min-height: 44px;
+        font-size: 16px;
+    }
+}

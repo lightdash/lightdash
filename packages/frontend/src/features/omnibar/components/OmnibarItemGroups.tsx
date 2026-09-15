@@ -19,6 +19,7 @@ type Props = {
     onToggleGroup: (key: string) => void;
     groups: OmnibarGroup[];
     scrollRef?: RefObject<HTMLDivElement | null>;
+    onPreview?: (item: SearchItem) => void;
 };
 
 const OmnibarItemGroups: FC<Props> = ({
@@ -30,6 +31,7 @@ const OmnibarItemGroups: FC<Props> = ({
     onFocusedItemChange,
     onToggleGroup,
     scrollRef,
+    onPreview,
 }) => {
     useEffect(() => {
         if (scrollRef?.current && focusedItemIndex) {
@@ -98,6 +100,11 @@ const OmnibarItemGroups: FC<Props> = ({
                                     canUserManageValidation
                                 }
                                 hovered={isFocused}
+                                onPreview={
+                                    onPreview
+                                        ? () => onPreview(item)
+                                        : undefined
+                                }
                             />
                         );
                     })}

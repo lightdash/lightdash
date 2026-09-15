@@ -80,7 +80,7 @@ export const CommentForm: FC<Props> = ({
     });
 
     return (
-        <form onSubmit={handleSubmit}>
+        <form className={styles.form} onSubmit={handleSubmit}>
             <Stack gap="xs" mt="xs">
                 <Grid columns={20}>
                     <Grid.Col span={2}>
@@ -95,7 +95,7 @@ export const CommentForm: FC<Props> = ({
                     </Grid.Col>
                     <Grid.Col
                         span={18}
-                        w={mode === 'reply' ? 300 : 350}
+                        miw={0}
                         // Walkthrough anchor: the typed step of
                         // create:DashboardComments, with a suggestion the
                         // learner can use as written. Only the new-comment

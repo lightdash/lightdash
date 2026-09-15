@@ -1,9 +1,11 @@
+import { interpolateUiString } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
     Box,
     Button,
     Checkbox,
+    CloseButton,
     Group,
     Loader,
     Popover,
@@ -21,7 +23,8 @@ import {
     IconX,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
-import { useCallback, useRef, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../MantineIcon';
 import classes from './FilterFacet.module.css';
 
@@ -106,6 +109,8 @@ const FilterFacet = ({
     triggerProps,
     optionAnchor,
 }: FilterFacetProps) => {
+    const getUiString = useUiStrings();
+    const [opened, setOpened] = useState(false);
     const selectedSet = new Set(selected);
     const viewportRef = useRef<HTMLDivElement>(null);
 
@@ -186,6 +191,7 @@ const FilterFacet = ({
             <UnstyledButton
                 key={option.value}
                 onClick={() => toggle(option.value, disabled)}
+                aria-pressed={isChecked}
                 {...(optionAnchor
                     ? {
                           'data-tour-anchor': optionAnchor,
@@ -207,19 +213,17 @@ const FilterFacet = ({
                 <Group justify="space-between" wrap="nowrap" gap="md">
                     <Group gap="xs" wrap="nowrap">
                         {mode === 'single' ? (
-                            <Radio
+                            <Radio.Indicator
                                 size="xs"
                                 checked={isChecked}
-                                readOnly
-                                tabIndex={-1}
+                                aria-hidden
                                 disabled={disabled}
                             />
                         ) : (
-                            <Checkbox
+                            <Checkbox.Indicator
                                 size="xs"
                                 checked={isChecked}
-                                readOnly
-                                tabIndex={-1}
+                                aria-hidden
                                 disabled={disabled}
                             />
                         )}
@@ -249,6 +253,7 @@ const FilterFacet = ({
             size="xs"
             loading={loading}
             {...triggerProps}
+            onClick={() => setOpened((value) => !value)}
             className={
                 hasSelection
                     ? classes.filterButtonSelected
@@ -285,15 +290,47 @@ const FilterFacet = ({
     );
 
     const popover = (
-        <Popover position="bottom-start" withArrow>
+        <Popover
+            position="bottom-start"
+            withArrow
+            opened={opened}
+            onDismiss={() => setOpened(false)}
+            floatingStrategy="fixed"
+            middlewares={{ shift: { crossAxis: true, padding: 12 } }}
+            trapFocus
+            returnFocus
+        >
             <Popover.Target>
                 {tooltipLabel ? (
-                    <Tooltip label={tooltipLabel}>{trigger}</Tooltip>
+                    <Tooltip
+                        label={tooltipLabel}
+                        maw="min(300px, calc(100vw - 24px))"
+                        multiline
+                    >
+                        {trigger}
+                    </Tooltip>
                 ) : (
                     trigger
                 )}
             </Popover.Target>
-            <Popover.Dropdown p={4} miw={240}>
+            <Popover.Dropdown p={4} className={classes.dropdown}>
+                <Group
+                    justify="space-between"
+                    px="xs"
+                    className={classes.header}
+                >
+                    <Text fw={600} size="xs">
+                        {label}
+                    </Text>
+                    <CloseButton
+                        size={44}
+                        aria-label={interpolateUiString(
+                            getUiString('filters.closeFacet'),
+                            { filter: label },
+                        )}
+                        onClick={() => setOpened(false)}
+                    />
+                </Group>
                 {headerSection && (
                     <Box px="xs" pt={4} pb={6}>
                         {headerSection}
@@ -310,6 +347,8 @@ const FilterFacet = ({
                             size="xs"
                             autoFocus
                             placeholder={searchPlaceholder}
+                            aria-label={searchPlaceholder}
+                            className={classes.search}
                             value={searchValue ?? ''}
                             onChange={(e) =>
                                 onSearchChange(e.currentTarget.value)
@@ -328,17 +367,19 @@ const FilterFacet = ({
                 {showSelectAll && (
                     <UnstyledButton
                         onClick={toggleAll}
+                        aria-pressed={
+                            allSelected ? true : someSelected ? 'mixed' : false
+                        }
                         px="xs"
                         py={6}
                         className={classes.option}
                     >
                         <Group gap="xs" wrap="nowrap">
-                            <Checkbox
+                            <Checkbox.Indicator
                                 size="xs"
                                 checked={allSelected}
                                 indeterminate={someSelected}
-                                readOnly
-                                tabIndex={-1}
+                                aria-hidden
                             />
                             <Text fz="xs" fw={500}>
                                 {allSelected ? 'Deselect all' : 'Select all'}
@@ -386,6 +427,7 @@ const FilterFacet = ({
                 <Tooltip label="Clear">
                     <ActionIcon
                         size="xs"
+                        className={classes.clearButton}
                         color="ldGray.5"
                         aria-label={`Clear ${label} filter`}
                         onClick={() => onChange([])}

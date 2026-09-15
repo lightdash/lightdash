@@ -40,3 +40,14 @@
 .itemIcon {
     flex-shrink: 0;
 }
+
+@mixin smaller-than $mantine-breakpoint-sm {
+    .paper {
+        min-height: 44px;
+    }
+
+    .actionIcon {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}

@@ -141,6 +141,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                     }`}
                 >
                     <ActionIcon
+                        aria-label="Refresh dashboard"
                         size="md"
                         variant="default"
                         loading={isOneAtLeastFetching}
@@ -158,6 +159,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                 >
                     <Menu.Target>
                         <ActionIcon
+                            aria-label="Auto-refresh options"
                             size="md"
                             variant="default"
                             disabled={isOneAtLeastFetching}

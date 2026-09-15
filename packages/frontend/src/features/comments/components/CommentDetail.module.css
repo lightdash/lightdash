@@ -4,6 +4,18 @@
 
 /* The actions show on hover; they also show while a walkthrough points at
    one of them, so the learner can see what the ring is on. */
+.actions:focus-within,
 .actions:has([data-tour-active]) {
     opacity: 1 !important;
+}
+
+@media (hover: none), (width < $mantine-breakpoint-md) {
+    .actions {
+        opacity: 1 !important;
+    }
+
+    .actions :global(.mantine-ActionIcon-root) {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }

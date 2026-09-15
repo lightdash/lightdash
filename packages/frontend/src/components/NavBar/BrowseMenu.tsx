@@ -43,6 +43,7 @@ import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import TruncatedText from '../common/TruncatedText';
 import { MetricsLink } from './MetricsLink';
+import { useNavBarPortalTarget } from './NavBarPortalContext';
 
 interface Props {
     projectUuid: string;
@@ -83,6 +84,7 @@ const getFavoriteItemIcon = (item: ResourceViewItem) => {
 };
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
+    const portalTarget = useNavBarPortalTarget();
     const canManageDeletedContent = useRecentlyDeletedAccess(projectUuid);
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -126,7 +128,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
             arrowOffset={16}
             offset={-2}
             zIndex={getDefaultZIndex('max')}
-            portalProps={{ target: '#navbar-header' }}
+            portalProps={{ target: portalTarget }}
             onChange={(opened) => {
                 if (opened && !hasBeenOpened) {
                     setHasBeenOpened(true);

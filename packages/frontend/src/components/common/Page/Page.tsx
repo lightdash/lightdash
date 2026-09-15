@@ -1,7 +1,9 @@
 import { ProjectType, type AnyType } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box, Button, Drawer, useMatches } from '@mantine/core';
 import { useDisclosure, useElementSize } from '@mantine/hooks';
-import { type FC } from 'react';
+import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
+import { useEffect, type FC } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
@@ -45,12 +47,15 @@ type StyleProps = {
 type Props = {
     title?: string;
     sidebar?: React.ReactNode;
+    sidebarTitle?: string;
     isSidebarOpen?: boolean;
     isSidebarCollapsed?: boolean;
     isSidebarCollapsible?: boolean;
     collapsedSidebarContent?: React.ReactNode;
     sidebarWidthProps?: SidebarWidthProps;
     rightSidebar?: React.ReactNode;
+    rightSidebarTitle?: string;
+    onRightSidebarClose?: () => void;
     isRightSidebarOpen?: boolean;
     keepRightSidebarMounted?: boolean;
     noRightSidebarPadding?: boolean;
@@ -62,12 +67,15 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     title,
     header,
     sidebar,
+    sidebarTitle = 'Navigation',
     isSidebarOpen = true,
     isSidebarCollapsed = false,
     isSidebarCollapsible = false,
     collapsedSidebarContent,
     sidebarWidthProps,
     rightSidebar,
+    rightSidebarTitle = 'Details',
+    onRightSidebarClose,
     isRightSidebarOpen = false,
     keepRightSidebarMounted = false,
     noRightSidebarPadding,
@@ -92,7 +100,16 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     fullPageScroll = false,
     children,
 }) => {
+    const getUiString = useUiStrings();
+    const compact = useMatches(
+        { base: true, md: false },
+        { getInitialValueInEffect: false },
+    );
+    const [sidebarOpened, { open: openSidebar, close: closeSidebar }] =
+        useDisclosure(false);
+    useEffect(closeSidebar, [compact, closeSidebar]);
     const { ref: mainRef, width: mainWidth } = useElementSize();
+    const { ref: headerRef, height: headerHeight } = useElementSize();
     const [
         isSidebarResizing,
         { open: startSidebarResizing, close: stopSidebarResizing },
@@ -108,14 +125,15 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     const { isImpersonating } = useImpersonation();
     const hasBanner = isCurrentProjectPreview || isImpersonating;
 
-    const withSidebar = !!sidebar || !!rightSidebar;
-    const reserveSidebarToggle = isSidebarCollapsible && isSidebarCollapsed;
+    const withSidebar = !compact && (!!sidebar || !!rightSidebar);
+    const reserveSidebarToggle =
+        !compact && isSidebarCollapsible && isSidebarCollapsed;
 
     return (
         <>
             <DocumentTitle title={title} />
 
-            {header}
+            {header && <Box ref={headerRef}>{header}</Box>}
 
             <Box
                 id="page-root"
@@ -129,8 +147,46 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                 data-with-sidebar={withSidebar}
                 data-sidebar-resizing={isSidebarResizing}
                 data-centered-root={withCenteredRoot}
+                data-compact={compact}
+                style={
+                    header
+                        ? { '--header-offset': `${headerHeight}px` }
+                        : undefined
+                }
             >
-                {sidebar ? (
+                {sidebar && compact && isSidebarOpen ? (
+                    <Box px="sm" py="xs" className={classes.sidebarToolbar}>
+                        <Button
+                            variant="default"
+                            onClick={openSidebar}
+                            leftSection={
+                                <IconLayoutSidebarLeftExpand size={18} />
+                            }
+                            aria-expanded={sidebarOpened}
+                        >
+                            {sidebarTitle}
+                        </Button>
+                        <Drawer
+                            opened={sidebarOpened}
+                            onClose={closeSidebar}
+                            title={sidebarTitle}
+                            closeButtonProps={{
+                                'aria-label': getUiString('page.closeSidebar'),
+                            }}
+                            size="min(100%, 24rem)"
+                            onClickCapture={(event) => {
+                                if (
+                                    event.target instanceof Element &&
+                                    event.target.closest('a[href]')
+                                )
+                                    closeSidebar();
+                            }}
+                        >
+                            <ErrorBoundary>{sidebar}</ErrorBoundary>
+                            {withSidebarFooter ? <AboutFooter minimal /> : null}
+                        </Drawer>
+                    </Box>
+                ) : sidebar && !compact ? (
                     <Sidebar
                         noSidebarPadding={noSidebarPadding}
                         isOpen={isSidebarOpen}
@@ -178,7 +234,27 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     </TrackSection>
                 </main>
 
-                {rightSidebar ? (
+                {rightSidebar && compact && onRightSidebarClose ? (
+                    <Drawer
+                        opened={isRightSidebarOpen}
+                        onClose={onRightSidebarClose}
+                        title={rightSidebarTitle}
+                        closeButtonProps={{
+                            'aria-label': getUiString('page.closeDetails'),
+                        }}
+                        position="right"
+                        size="100%"
+                        keepMounted={keepRightSidebarMounted}
+                        padding="md"
+                        styles={
+                            noRightSidebarPadding
+                                ? { body: { padding: 0 } }
+                                : undefined
+                        }
+                    >
+                        <ErrorBoundary>{rightSidebar}</ErrorBoundary>
+                    </Drawer>
+                ) : rightSidebar ? (
                     <Sidebar
                         noSidebarPadding={
                             noRightSidebarPadding ?? noSidebarPadding

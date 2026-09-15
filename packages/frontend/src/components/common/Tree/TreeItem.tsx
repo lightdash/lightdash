@@ -62,7 +62,7 @@ const TreeItem: React.FC<Props> = ({
             data-is-selectable={!restricted && (!isRoot || withRootSelectable)}
             data-restricted={restricted}
             className={clsx(classes.paper, className)}
-            miw={rem(200)}
+            miw={0}
             w="100%"
             gap={rem(4)}
             h={rem(32)}
@@ -76,6 +76,20 @@ const TreeItem: React.FC<Props> = ({
             withBorder={false}
             wrap="nowrap"
             onClick={restricted ? undefined : onClick}
+            role={isRoot && withRootSelectable ? 'button' : undefined}
+            tabIndex={
+                isRoot && withRootSelectable && !restricted ? 0 : undefined
+            }
+            onKeyDown={
+                isRoot && withRootSelectable && !restricted
+                    ? (event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              onClick?.();
+                          }
+                      }
+                    : undefined
+            }
         >
             {isRoot ? null : (
                 <ActionIcon
@@ -87,6 +101,8 @@ const TreeItem: React.FC<Props> = ({
                     }}
                     size="xs"
                     variant="transparent"
+                    aria-label={`${expanded ? 'Collapse' : 'Expand'} ${stringLabel}`}
+                    aria-expanded={hasChildren ? expanded : undefined}
                 >
                     <MantineIcon
                         icon={expanded ? IconChevronDown : IconChevronRight}
