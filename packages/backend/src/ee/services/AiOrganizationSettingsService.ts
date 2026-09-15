@@ -383,6 +383,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 deepResearchRawSqlEnabled: false,
                 mcpContentWritesEnabled: true,
                 mcpAgentsEnabled: true,
+                dataAppRuntimeAiEnabled: false,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
@@ -465,6 +466,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 visibleDataAppModels: getVisibleDataAppClaudeModels(
                     dataAppModelVisibility,
                 ),
+                dataAppRuntimeAiEnabled: false,
                 threadRetentionHours: null,
             };
         }
@@ -485,6 +487,7 @@ export class AiOrganizationSettingsService extends BaseService {
             visibleDataAppModels: getVisibleDataAppClaudeModels(
                 settings.dataAppModelVisibility,
             ),
+            dataAppRuntimeAiEnabled: settings.dataAppRuntimeAiEnabled ?? false,
             threadRetentionHours: settings.threadRetentionHours ?? null,
         };
     }
@@ -495,6 +498,17 @@ export class AiOrganizationSettingsService extends BaseService {
                 organizationUuid,
             );
         return settings?.mcpAgentsEnabled ?? true;
+    }
+
+    /** Customer consent gate for any AI call made on behalf of a running data app. */
+    async isDataAppRuntimeAiEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.dataAppRuntimeAiEnabled ?? false;
     }
 
     async isDeepResearchRawSqlEnabled({

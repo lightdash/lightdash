@@ -406,6 +406,9 @@ export type AiOrganizationSettings = {
     deepResearchRawSqlEnabled: boolean;
     mcpContentWritesEnabled: boolean;
     mcpAgentsEnabled: boolean;
+    // Customer consent for data apps to call AI at runtime (analysis, insights).
+    // Optional to keep the response schema backwards-compatible for old clients.
+    dataAppRuntimeAiEnabled?: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
@@ -433,6 +436,7 @@ export type UpdateAiOrganizationSettings = {
     deepResearchRawSqlEnabled?: boolean;
     mcpContentWritesEnabled?: boolean;
     mcpAgentsEnabled?: boolean;
+    dataAppRuntimeAiEnabled?: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;
@@ -456,6 +460,8 @@ export type AiOrganizationRuntimeSettings = {
     defaultAiAgentModelOptions: AiModelOption[];
     dataAppCodingAgent: DataAppCodingAgent;
     visibleDataAppModels: DataAppClaudeModel[];
+    // Whether data apps may call AI at runtime; optional for old clients.
+    dataAppRuntimeAiEnabled?: boolean;
     // Org retention ceiling, surfaced so agent editors can see what caps
     // their agent-level window. Optional for backwards compatibility.
     threadRetentionHours?: number | null;
