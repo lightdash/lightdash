@@ -5,6 +5,7 @@ import {
     QueryHistoryStatus,
     type AndFilterGroup,
     type FilterableItem,
+    WarehouseQueryError,
 } from '@lightdash/common';
 import { waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -143,10 +144,8 @@ describe('pollForFieldValueResults', () => {
         }
 
         const error = await pollPromise;
-        expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toBe(
-            'Field value search timed out. Please try again.',
-        );
+        expect(error).toBeInstanceOf(WarehouseQueryError);
+        expect((error as Error).message).toBe('Field value search timed out.');
 
         expect(lightdashApi).toHaveBeenCalledTimes(MAX_POLL_ATTEMPTS);
     });

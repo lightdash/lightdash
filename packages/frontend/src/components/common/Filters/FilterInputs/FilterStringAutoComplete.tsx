@@ -3,14 +3,18 @@ import {
     isDimension,
     isFilterAutocompleteManualOnly,
     type FilterableItem,
+    type UiStringKey,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
+    Button,
     Group,
     Highlight,
+    HoverCard,
     Loader,
     Pill,
+    Stack,
     Text,
     TextInput,
     Tooltip,
@@ -34,6 +38,10 @@ import {
     type FC,
 } from 'react';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
+import {
+    classifyFieldValueSearchError,
+    type FieldValueSearchErrorKind,
+} from '../../../../hooks/fieldValueSearchError';
 import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
@@ -120,6 +128,92 @@ const RefreshIndicator: FC<{
     );
 };
 
+const ERROR_HEADLINE_KEY: Record<FieldValueSearchErrorKind, UiStringKey> = {
+    configuration: 'filters.autocomplete.error.configuration',
+    forbidden: 'filters.autocomplete.error.forbidden',
+    warehouse: 'filters.autocomplete.error.warehouse',
+    unknown: 'filters.autocomplete.error.unknown',
+};
+
+const RETRYABLE_ERROR_KINDS: FieldValueSearchErrorKind[] = [
+    'warehouse',
+    'unknown',
+];
+
+const SearchErrorIndicator: FC<{
+    error: unknown;
+    isRetrying: boolean;
+    onRetry: () => void;
+}> = ({ error, isRetrying, onRetry }) => {
+    const getUiString = useUiStrings();
+    const { kind, detail } = useMemo(
+        () => classifyFieldValueSearchError(error),
+        [error],
+    );
+    const canRetry = RETRYABLE_ERROR_KINDS.includes(kind);
+
+    if (isRetrying) return <Loader size={14} color="gray" />;
+
+    return (
+        <HoverCard
+            width={300}
+            position="bottom-end"
+            withArrow
+            shadow="md"
+            openDelay={150}
+        >
+            <HoverCard.Target>
+                <ActionIcon
+                    size="sm"
+                    aria-label={
+                        canRetry
+                            ? getUiString(
+                                  'filters.autocomplete.error.retryAriaLabel',
+                              )
+                            : getUiString(ERROR_HEADLINE_KEY[kind])
+                    }
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={canRetry ? onRetry : undefined}
+                    style={{ cursor: canRetry ? 'pointer' : 'default' }}
+                >
+                    <MantineIcon icon={IconAlertCircle} color="red" />
+                </ActionIcon>
+            </HoverCard.Target>
+            <HoverCard.Dropdown p="sm">
+                <Stack gap="xs">
+                    <Text fz="sm" fw={500}>
+                        {getUiString(ERROR_HEADLINE_KEY[kind])}
+                    </Text>
+                    {detail ? (
+                        <Text fz="xs" c="dimmed" lineClamp={4}>
+                            {detail}
+                        </Text>
+                    ) : null}
+                    <Text fz="xs">
+                        {getUiString(
+                            'filters.autocomplete.error.filterStillApplies',
+                        )}
+                    </Text>
+                    {canRetry ? (
+                        <Group justify="flex-end">
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={onRetry}
+                            >
+                                {getUiString(
+                                    'filters.autocomplete.error.tryAgain',
+                                )}
+                            </Button>
+                        </Group>
+                    ) : null}
+                </Stack>
+            </HoverCard.Dropdown>
+        </HoverCard>
+    );
+};
+
 const FilterStringAutoComplete: FC<Props> = ({
     filterId,
     values,
@@ -190,6 +284,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         reset,
         error,
         isError,
+        isFetching,
     } = useFieldValues(
         search,
         initialSuggestionData,
@@ -469,21 +564,13 @@ const FilterStringAutoComplete: FC<Props> = ({
                                     }}
                                 >
                                     {isInitialLoading ? (
-                                        <Loader size="xs" color="gray" />
+                                        <Loader size={14} color="gray" />
                                     ) : isError ? (
-                                        <Tooltip
-                                            label={
-                                                error?.error?.message ||
-                                                getUiString(
-                                                    'filters.autocomplete.filterNotAvailable',
-                                                )
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={IconAlertCircle}
-                                                color="red"
-                                            />
-                                        </Tooltip>
+                                        <SearchErrorIndicator
+                                            error={error}
+                                            isRetrying={isFetching}
+                                            onRetry={() => void refetch()}
+                                        />
                                     ) : null}
 
                                     <Tooltip
