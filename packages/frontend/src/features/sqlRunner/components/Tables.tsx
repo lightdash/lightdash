@@ -17,7 +17,6 @@ import {
     ScrollArea,
     SegmentedControl,
     Tooltip,
-    clsx,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
@@ -425,14 +424,11 @@ export const Tables: FC = () => {
                     size="sm"
                     disabled={!data && !debouncedSearch}
                     classNames={{
-                        wrapper: clsx(
-                            showTypeFilter &&
-                                showClear &&
-                                styles.searchWithFilterAndClear,
-                            showTypeFilter &&
-                                !showClear &&
-                                styles.searchWithFilter,
-                        ),
+                        wrapper: showTypeFilter
+                            ? showClear
+                                ? styles.searchWithFilterAndClear
+                                : styles.searchWithFilter
+                            : undefined,
                         section: styles.searchSection,
                     }}
                     leftSection={
