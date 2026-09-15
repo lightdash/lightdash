@@ -22,6 +22,7 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type CompiledMetricRelativeDateFilter,
+    type CompiledMetricSqlTemplate,
     type CompiledMetricTimestampFilter,
     type CustomDimension,
     type CustomSqlDimension,
@@ -55,6 +56,7 @@ import {
     getCategoriesFromResource,
     getSpotlightConfigurationForResource,
 } from './lightdashProjectConfig';
+import { transformMetricSqlTemplate } from './metricSqlTemplate';
 import {
     getAvailableParameterNames,
     getAvailableParametersFromTables,
@@ -1110,6 +1112,12 @@ export class ExploreCompiler {
         return {
             ...metric,
             compiledSql,
+            ...(compiledMetric.sqlTemplate
+                ? { compiledSqlTemplate: compiledMetric.sqlTemplate }
+                : {}),
+            ...(compiledMetric.valueSqlTemplate
+                ? { compiledValueSqlTemplate: compiledMetric.valueSqlTemplate }
+                : {}),
             showUnderlyingValues: metric.showUnderlyingValues,
             tablesReferences: Array.from(compiledMetric.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
@@ -1151,6 +1159,8 @@ export class ExploreCompiler {
         compiledDistinctKeys?: string[];
         compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
         compiledTimestampFilters?: CompiledMetricTimestampFilter[];
+        sqlTemplate?: CompiledMetricSqlTemplate;
+        valueSqlTemplate?: CompiledMetricSqlTemplate;
     } {
         // Metric might have references to other dimensions
         if (!tables[metric.table]) {
@@ -1176,9 +1186,17 @@ export class ExploreCompiler {
                 {},
             );
         }
+        const rawMetricSql = metric.sql;
+        let template: CompiledMetricSqlTemplate = [];
+        let templateOffset = 0;
         let renderedSql = metric.sql.replace(
             lightdashVariablePattern,
-            (_, p1) => {
+            (
+                match: string,
+                p1: string,
+                _reservedPrefix: string | undefined,
+                offset: number,
+            ) => {
                 if ([currentShortRef, currentRef].includes(p1)) {
                     throw new CompileError(
                         `Metric "${metric.name}" in table "${metric.table}" has a sql string referencing itself: "${metric.sql}"`,
@@ -1219,6 +1237,7 @@ export class ExploreCompiler {
                     tablesReferences: Set<string>;
                     compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
                     compiledTimestampFilters?: CompiledMetricTimestampFilter[];
+                    sqlTemplate?: CompiledMetricSqlTemplate;
                 };
 
                 if (isPostCalc) {
@@ -1290,9 +1309,23 @@ export class ExploreCompiler {
                 referencedTimestampFilters.push(
                     ...(compiledReference.compiledTimestampFilters ?? []),
                 );
+                template.push(
+                    {
+                        type: 'sql',
+                        sql: rawMetricSql.slice(templateOffset, offset),
+                    },
+                    ...(compiledReference.sqlTemplate ?? [
+                        {
+                            type: 'sql',
+                            sql: compiledReference.sql,
+                        } satisfies CompiledMetricSqlTemplate[number],
+                    ]),
+                );
+                templateOffset = offset + match.length;
                 return compiledReference.sql;
             },
         );
+        template.push({ type: 'sql', sql: rawMetricSql.slice(templateOffset) });
         if (metric.filters !== undefined && metric.filters.length > 0) {
             if (
                 isNonAggregateMetric(metric) ||
@@ -1307,7 +1340,8 @@ export class ExploreCompiler {
                 [];
             const compiledTimestampFilters: CompiledMetricTimestampFilter[] =
                 [];
-            const conditions = metric.filters.map((filter) => {
+            const conditionTemplate: CompiledMetricSqlTemplate = [];
+            const conditions = metric.filters.map((filter, position) => {
                 const fieldRef =
                     // @ts-expect-error This fallback is to support old metric filters in yml. We can delete this after a few months since we can assume all projects have been redeployed
                     filter.target.fieldRef || filter.target.fieldId;
@@ -1381,11 +1415,37 @@ export class ExploreCompiler {
                         compiledSql: conditionSql,
                     });
                 }
+                if (position > 0)
+                    conditionTemplate.push({ type: 'sql', sql: ' AND ' });
+                const needsQueryTimeRendering =
+                    isRelativeDateFilterOperator(filter.operator) ||
+                    (compiledDimension.type === DimensionType.TIMESTAMP &&
+                        filter.values !== undefined &&
+                        filter.values.length > 0);
+                conditionTemplate.push(
+                    needsQueryTimeRendering
+                        ? {
+                              type: 'filter',
+                              filter,
+                              fieldId: getItemId(compiledDimension),
+                              metricId: getItemId(metric),
+                              position,
+                              compiledSql: conditionSql,
+                          }
+                        : { type: 'sql', sql: conditionSql },
+                );
                 return conditionSql;
             });
             renderedSql = `CASE WHEN (${conditions.join(
                 ' AND ',
             )}) THEN (${renderedSql}) ELSE NULL END`;
+            template = [
+                { type: 'sql', sql: 'CASE WHEN (' },
+                ...conditionTemplate,
+                { type: 'sql', sql: ') THEN (' },
+                ...template,
+                { type: 'sql', sql: ') ELSE NULL END' },
+            ];
 
             if (compiledRelativeDateFilters.length > 0) {
                 relativeDateFilters = compiledRelativeDateFilters;
@@ -1406,6 +1466,9 @@ export class ExploreCompiler {
                 ...referencedTimestampFilters,
             ]);
         }
+        const valueSqlTemplate = template.some((part) => part.type === 'filter')
+            ? template
+            : undefined;
         if (
             metric.type === MetricType.SUM_DISTINCT ||
             metric.type === MetricType.AVERAGE_DISTINCT
@@ -1434,6 +1497,15 @@ export class ExploreCompiler {
                 metric.type === MetricType.AVERAGE_DISTINCT ? 'AVG' : 'SUM';
             return {
                 sql: `${fallbackAgg}(${renderedSql})`, // fallback compiledSql
+                ...(valueSqlTemplate
+                    ? {
+                          sqlTemplate: transformMetricSqlTemplate(
+                              valueSqlTemplate,
+                              (sql) => `${fallbackAgg}(${sql})`,
+                          ),
+                          valueSqlTemplate,
+                      }
+                    : {}),
                 tablesReferences,
                 valueSql: renderedSql,
                 compiledDistinctKeys: compiledKeys,
@@ -1449,6 +1521,16 @@ export class ExploreCompiler {
 
         return {
             sql: compiledSql,
+            ...(valueSqlTemplate
+                ? {
+                      sqlTemplate: transformMetricSqlTemplate(
+                          valueSqlTemplate,
+                          (sql) =>
+                              this.warehouseClient.getMetricSql(sql, metric),
+                      ),
+                      valueSqlTemplate,
+                  }
+                : {}),
             tablesReferences,
             valueSql: renderedSql,
             compiledRelativeDateFilters: relativeDateFilters,
@@ -1691,6 +1773,8 @@ export class ExploreCompiler {
         tablesReferences: Set<string>;
         compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
         compiledTimestampFilters?: CompiledMetricTimestampFilter[];
+        sqlTemplate?: CompiledMetricSqlTemplate;
+        valueSqlTemplate?: CompiledMetricSqlTemplate;
     } {
         // Reference to current table; for an unnested table that is the element
         // reference the warehouse gave it, not necessarily the bare alias.
@@ -1730,6 +1814,14 @@ export class ExploreCompiler {
         );
         return {
             sql: `(${compiledMetric.sql})`,
+            ...(compiledMetric.sqlTemplate
+                ? {
+                      sqlTemplate: transformMetricSqlTemplate(
+                          compiledMetric.sqlTemplate,
+                          (sql) => `(${sql})`,
+                      ),
+                  }
+                : {}),
             tablesReferences: new Set([
                 referencedTable?.name || refTableName,
                 ...compiledMetric.tablesReferences,

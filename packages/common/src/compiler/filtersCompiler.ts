@@ -18,6 +18,7 @@ import {
     isDateFilterRule,
     isFilterTarget,
     isMetricFilterTarget,
+    isRelativeDateFilterOperator,
     UnitOfTime,
     type FilterRule,
 } from '../types/filter';
@@ -96,6 +97,24 @@ export type TimestampFilterContext =
     | { mode: 'wrapped' }
     | { mode: 'naiveWall'; wallClockTimezone: string }
     | { mode: 'awareInstant' };
+
+export type RelativeDateFilterDescriptor = {
+    operator: FilterOperator;
+    unitOfTime: UnitOfTime;
+    count: number | null;
+    completed: boolean;
+    dimensionSql: string;
+    baseDimensionSql: string | null;
+    adapterType: SupportedDbtAdapter;
+    timezone: string;
+    startOfWeek: WeekDay;
+    timestampFilterContext: TimestampFilterContext;
+};
+
+export type RelativeDateFilterRendering = {
+    referenceTime?: Date;
+    onRelativeDateFilter?: (descriptor: RelativeDateFilterDescriptor) => void;
+};
 
 export type TimestampFilterLhsMode = 'legacy' | 'instant' | 'wrapped';
 
@@ -513,6 +532,7 @@ const renderDateOrTimestampFilterSql = ({
     startOfWeek,
     baseDimensionSql,
     timestampFilterContext = legacyTimestampFilterContext,
+    relativeDateRendering,
 }: {
     dimensionSql: string;
     filter: FilterRule<FilterOperator, unknown>;
@@ -523,6 +543,7 @@ const renderDateOrTimestampFilterSql = ({
     startOfWeek?: WeekDay | null;
     baseDimensionSql?: string;
     timestampFilterContext?: TimestampFilterContext;
+    relativeDateRendering?: RelativeDateFilterRendering;
 }): string => {
     // When startOfWeek is not explicitly configured, use the warehouse's default
     // to ensure JS-side week boundaries match the warehouse's DATE_TRUNC behavior.
@@ -578,6 +599,29 @@ const renderDateOrTimestampFilterSql = ({
     };
 
     const settings = isDateFilterRule(filter) ? filter.settings : undefined;
+    if (isRelativeDateFilterOperator(filter.operator)) {
+        const hasCount =
+            filter.operator === FilterOperator.IN_THE_PAST ||
+            filter.operator === FilterOperator.NOT_IN_THE_PAST ||
+            filter.operator === FilterOperator.IN_THE_NEXT;
+        relativeDateRendering?.onRelativeDateFilter?.({
+            operator: filter.operator,
+            unitOfTime: settings?.unitOfTime || UnitOfTime.days,
+            count: hasCount ? Number(filter.values?.[0] ?? 0) : null,
+            completed: hasCount && !!settings?.completed,
+            dimensionSql,
+            baseDimensionSql: baseDimensionSql ?? null,
+            adapterType,
+            timezone,
+            startOfWeek: effectiveStartOfWeek,
+            timestampFilterContext,
+        });
+    }
+    const now = () =>
+        getMomentDateWithCustomStartOfWeek(
+            effectiveStartOfWeek,
+            relativeDateRendering?.referenceTime,
+        );
 
     // Multi-value equals/notEquals match any value, like string/number filters
     const castValues = (values: Date[]): string =>
@@ -629,19 +673,13 @@ const renderDateOrTimestampFilterSql = ({
                     : '';
 
             if (completed) {
-                const completedDate = getMomentDateWithCustomStartOfWeek(
-                    effectiveStartOfWeek,
-                )
+                const completedDate = now()
                     .tz(timezone)
                     .startOf(unitOfTime)
                     .utc()
                     .toDate();
                 const untilDate = boundaryFormatter(
-                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                        .tz(timezone)
-                        .startOf(unitOfTime)
-                        .utc()
-                        .toDate(),
+                    now().tz(timezone).startOf(unitOfTime).utc().toDate(),
                 );
                 return `${not}((${dimensionSql}) >= ${castValue(
                     boundaryFormatter(
@@ -657,14 +695,11 @@ const renderDateOrTimestampFilterSql = ({
                 )} AND (${dimensionSql}) < ${castValue(untilDate)})`;
             }
             const untilDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .utc()
-                    .toDate(),
+                now().tz(timezone).utc().toDate(),
             );
             return `${not}((${dimensionSql}) >= ${castValue(
                 boundaryFormatter(
-                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
+                    now()
                         .tz(timezone)
                         .subtract(filter.values?.[0], unitOfTime)
                         .utc()
@@ -678,9 +713,7 @@ const renderDateOrTimestampFilterSql = ({
             const completed: boolean = !!settings?.completed;
 
             if (completed) {
-                const fromDate = getMomentDateWithCustomStartOfWeek(
-                    effectiveStartOfWeek,
-                )
+                const fromDate = now()
                     .tz(timezone)
                     .add(1, unitOfTime)
                     .startOf(unitOfTime)
@@ -701,13 +734,10 @@ const renderDateOrTimestampFilterSql = ({
                 )} AND (${dimensionSql}) < ${castValue(toDate)})`;
             }
             const fromDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .utc()
-                    .toDate(),
+                now().tz(timezone).utc().toDate(),
             );
             const toDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
+                now()
                     .tz(timezone)
                     .add(filter.values?.[0], unitOfTime)
                     .utc()
@@ -722,18 +752,10 @@ const renderDateOrTimestampFilterSql = ({
                 settings?.unitOfTime || UnitOfTime.days;
 
             const fromDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .startOf(unitOfTime)
-                    .utc()
-                    .toDate(),
+                now().tz(timezone).startOf(unitOfTime).utc().toDate(),
             );
             const untilDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .endOf(unitOfTime)
-                    .utc()
-                    .toDate(),
+                now().tz(timezone).endOf(unitOfTime).utc().toDate(),
             );
 
             const castedFromDate = castValue(fromDate);
@@ -746,18 +768,10 @@ const renderDateOrTimestampFilterSql = ({
                 settings?.unitOfTime || UnitOfTime.days;
 
             const fromDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .startOf(unitOfTime)
-                    .utc()
-                    .toDate(),
+                now().tz(timezone).startOf(unitOfTime).utc().toDate(),
             );
             const untilDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .endOf(unitOfTime)
-                    .utc()
-                    .toDate(),
+                now().tz(timezone).endOf(unitOfTime).utc().toDate(),
             );
 
             const castedFromDate = castValue(fromDate);
@@ -766,10 +780,7 @@ const renderDateOrTimestampFilterSql = ({
             return `(NOT ((${dimensionSql}) >= ${castedFromDate} AND (${dimensionSql}) <= ${castedUntilDate}))`;
         }
         case FilterOperator.IN_PERIOD_TO_DATE: {
-            const today =
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
-                    timezone,
-                );
+            const today = now().tz(timezone);
             const periodUnit = settings?.unitOfTime;
             // Use the raw base dimension SQL for date extraction when available
             // (e.g., when filtering on a DATE_TRUNC'd dimension like order_date_year)
@@ -862,6 +873,7 @@ export const renderDateFilterSql = ({
     boundaryDateFormatter,
     startOfWeek,
     baseDimensionSql,
+    relativeDateRendering,
 }: {
     dimensionSql: string;
     filter: FilterRule<FilterOperator, unknown>;
@@ -870,6 +882,7 @@ export const renderDateFilterSql = ({
     boundaryDateFormatter?: (date: Date) => string;
     startOfWeek?: WeekDay | null;
     baseDimensionSql?: string;
+    relativeDateRendering?: RelativeDateFilterRendering;
 }): string => {
     const effectiveTimezone = boundaryDateFormatter ? timezone : 'UTC';
     const effectiveFormatter =
@@ -884,6 +897,7 @@ export const renderDateFilterSql = ({
         boundaryFormatter: effectiveFormatter,
         startOfWeek,
         baseDimensionSql,
+        relativeDateRendering,
     });
 };
 
@@ -896,6 +910,7 @@ export const renderTimestampFilterSql = ({
     timestampFormatter,
     startOfWeek,
     baseDimensionSql,
+    relativeDateRendering,
     timestampFilterContext,
 }: {
     dimensionSql: string;
@@ -905,6 +920,7 @@ export const renderTimestampFilterSql = ({
     timestampFormatter: (date: Date) => string;
     startOfWeek?: WeekDay | null;
     baseDimensionSql?: string;
+    relativeDateRendering?: RelativeDateFilterRendering;
     timestampFilterContext?: TimestampFilterContext;
 }): string =>
     renderDateOrTimestampFilterSql({
@@ -916,6 +932,7 @@ export const renderTimestampFilterSql = ({
         boundaryFormatter: timestampFormatter,
         startOfWeek,
         baseDimensionSql,
+        relativeDateRendering,
         timestampFilterContext,
     });
 
@@ -1040,6 +1057,7 @@ export const renderFilterRuleSql = (
     useTimezoneAwareDateTrunc?: boolean,
     baseTimeIntervalDimensionType?: DimensionType,
     timestampFilterContext?: TimestampFilterContext,
+    relativeDateRendering?: RelativeDateFilterRendering,
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
@@ -1088,6 +1106,7 @@ export const renderFilterRuleSql = (
                     : undefined,
                 startOfWeek,
                 baseDimensionSql,
+                relativeDateRendering,
             });
         }
         case DimensionType.TIMESTAMP:
@@ -1104,6 +1123,7 @@ export const renderFilterRuleSql = (
                         : formatTimestampAsUTC,
                 startOfWeek,
                 baseDimensionSql,
+                relativeDateRendering,
                 timestampFilterContext,
             });
         }
@@ -1134,6 +1154,7 @@ export const renderFilterRuleSqlFromField = (
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
     timestampFilterContext?: TimestampFilterContext,
+    relativeDateRendering?: RelativeDateFilterRendering,
 ): string => {
     const fieldType = isCompiledCustomSqlDimension(field)
         ? field.dimensionType
@@ -1174,5 +1195,6 @@ export const renderFilterRuleSqlFromField = (
         useTimezoneAwareDateTrunc,
         baseTimeIntervalDimensionType,
         timestampFilterContext,
+        relativeDateRendering,
     );
 };

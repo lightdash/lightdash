@@ -864,7 +864,23 @@ type CompiledProperties = {
     // the predicate with the query-time domain context and swaps it in when
     // the target is classified.
     compiledTimestampFilters?: CompiledMetricTimestampFilter[];
+    /** Compiler-owned filter slots distinguish identical predicates by occurrence. */
+    compiledSqlTemplate?: CompiledMetricSqlTemplate;
+    compiledValueSqlTemplate?: CompiledMetricSqlTemplate;
 };
+
+export type CompiledMetricSqlPart =
+    | { type: 'sql'; sql: string }
+    | {
+          type: 'filter';
+          filter: MetricFilterRule;
+          fieldId: string;
+          metricId: string;
+          position: number;
+          compiledSql: string;
+      };
+
+export type CompiledMetricSqlTemplate = CompiledMetricSqlPart[];
 
 export type CompiledMetricRelativeDateFilter = {
     id: string; // metric filter rule id, maps back to Metric.filters
