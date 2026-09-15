@@ -1,7 +1,11 @@
+import { type ApiAppVersionSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
     Box,
+    Button,
+    Pill,
+    Stack,
     Group,
     Loader,
     Text,
@@ -10,7 +14,7 @@ import {
 } from '@mantine/core';
 import {
     IconArrowUp,
-    IconPaperclip,
+    IconPlugConnected,
     IconPlayerStop,
     IconX,
 } from '@tabler/icons-react';
@@ -30,7 +34,6 @@ import PromptComposer, {
     type PromptComposerHandle,
 } from '../../../components/common/PromptComposer/PromptComposer';
 import {
-    ConnectionAttachButton,
     ModelPicker,
     SelectedAttachmentSection,
     type SelectedConnection,
@@ -42,12 +45,18 @@ import {
     hasVersionNarration,
     type AppVersionNarrationData,
 } from '../../apps/utils/versionNarration';
+import { useAppExternalConnections } from '../../externalConnections/hooks/useAppExternalConnections';
+import { useOrganizationDesigns } from '../../organizationDesigns/hooks/useOrganizationDesigns';
 import {
     type DataAppVizBuildState,
     type VizBuildRequest,
 } from '../hooks/useDataAppVizBuild';
 import { useVizComposerAttachments } from '../hooks/useVizComposerAttachments';
 import classes from './BuilderPromptBar.module.css';
+import ChartTypeComposerActions, {
+    type ComposerPanel,
+} from './ChartTypeComposerActions';
+import ChartTypeThemePicker from './ChartTypeThemePicker';
 import ClarifyingQuestions from './ClarifyingQuestions';
 
 type Props = {
@@ -57,6 +66,8 @@ type Props = {
     /** Stable across the create route adopting its claimed app uuid. */
     sessionKey: string;
     hasVersions: boolean;
+    isNewChart: boolean;
+    latestVersion: ApiAppVersionSummary | null;
     isBuilding: boolean;
     buildingPrompt: string | null;
     elapsed: string | null;
@@ -147,6 +158,8 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             projectUuid,
             composerAppUuid,
             hasVersions,
+            isNewChart,
+            latestVersion,
             isBuilding,
             buildingPrompt,
             elapsed,
@@ -182,6 +195,51 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             SelectedConnection[]
         >([]);
         const queryClient = useQueryClient();
+        const [composerPanel, setComposerPanel] = useState<ComposerPanel>(null);
+        const { data: linkedConnections = [] } = useAppExternalConnections(
+            projectUuid,
+            hasVersions ? composerAppUuid : undefined,
+        );
+        const pendingConnections = selectedConnections.filter(
+            (connection) =>
+                !linkedConnections.some(
+                    (link) =>
+                        link.connection.externalConnectionUuid ===
+                        connection.externalConnectionUuid,
+                ),
+        );
+        const deselectConnection = (uuid: string) =>
+            setSelectedConnections((current) =>
+                current.filter(
+                    (connection) => connection.externalConnectionUuid !== uuid,
+                ),
+            );
+        const themesQuery = useOrganizationDesigns();
+        const themes = themesQuery.data ?? [];
+        const [newThemeUuid, setNewThemeUuid] = useState<
+            string | null | undefined
+        >();
+        const savedDesign = latestVersion?.resources?.design ?? null;
+        const initialThemeUuid =
+            newThemeUuid !== undefined
+                ? newThemeUuid
+                : (themes.find((theme) => theme.isDefault)?.designUuid ?? null);
+        const selectedThemeUuid = isNewChart
+            ? initialThemeUuid
+            : (savedDesign?.designUuid ?? null);
+        const themeName =
+            themesQuery.isError && isNewChart
+                ? 'Themes unavailable'
+                : themesQuery.isLoading && isNewChart
+                  ? 'Loading themes…'
+                  : selectedThemeUuid === null
+                    ? 'No theme'
+                    : (themes.find(
+                          (theme) => theme.designUuid === selectedThemeUuid,
+                      )?.name ??
+                      (savedDesign?.designUuid === selectedThemeUuid
+                          ? savedDesign.name
+                          : 'Selected theme'));
 
         // A finished build may have linked connections; refresh the count.
         useEffect(() => {
@@ -209,7 +267,8 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             },
         }));
 
-        const canSubmit = !attachments.isUploading;
+        const canSubmit =
+            !attachments.isUploading && (!isNewChart || themesQuery.isSuccess);
         const sendBuild = build.send;
         const buildError = build.error;
         const cancelActiveBuild = interruptNext
@@ -230,6 +289,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 ...modelSelection.modelRequest,
                 clarifications: [],
                 externalConnections: selectedConnections,
+                ...(isNewChart && !isBuilding && themesQuery.isSuccess
+                    ? { designUuid: initialThemeUuid }
+                    : {}),
             };
             const queuedPrompt: QueuedPrompt = {
                 id: editing?.id ?? nextQueueId.current++,
@@ -361,6 +423,31 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const hasStack = queuedStackSize > 0 || isBuilding || isClarifying;
         // Read-only, not just unsubmittable: text typed here would be lost.
         const isComposerLocked = isClarifying || questions !== null;
+        const themePickerDisabled =
+            isBuilding ||
+            isComposerLocked ||
+            !themesQuery.isSuccess ||
+            modelSelection.isLoading ||
+            queuedStackSize > 0;
+
+        const handleThemeChange = (designUuid: string | null) => {
+            if (themePickerDisabled || designUuid === selectedThemeUuid) return;
+            if (isNewChart) {
+                setNewThemeUuid(designUuid);
+                return;
+            }
+            build.send({
+                description:
+                    designUuid === null
+                        ? 'Remove theme'
+                        : `Apply theme: ${themes.find((theme) => theme.designUuid === designUuid)?.name ?? 'Selected theme'}`,
+                designUuid,
+                fileIds: [],
+                clarifications: [],
+                externalConnections: [],
+                ...modelSelection.modelRequest,
+            });
+        };
 
         return (
             <Box
@@ -538,9 +625,21 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                         )}
                     </Box>
                 )}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    hidden
+                    onChange={(event) => {
+                        attachments.add(Array.from(event.target.files ?? []));
+                        event.target.value = '';
+                    }}
+                />
                 <PromptComposer
                     ref={composerRef}
-                    variant="inline"
+                    variant="card"
+                    size="sm"
+                    className={classes.composer}
                     placeholder={
                         questions !== null
                             ? 'Answer the questions, or skip, to build…'
@@ -557,8 +656,118 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     onEmptyChange={setIsEmpty}
                     onSubmit={handleSubmit}
                     onPaste={handlePaste}
+                    toolbarLeft={
+                        <ChartTypeComposerActions
+                            panel={composerPanel}
+                            onPanelChange={setComposerPanel}
+                            disabled={isComposerLocked}
+                            themeDisabled={themePickerDisabled}
+                            themeName={themeName}
+                            selectedThemeUuid={selectedThemeUuid}
+                            themes={themes}
+                            isNewChart={isNewChart}
+                            onThemeChange={handleThemeChange}
+                            onAttach={() => fileInputRef.current?.click()}
+                            selectedConnections={selectedConnections}
+                            onSelectConnection={(connection) =>
+                                setSelectedConnections((current) => [
+                                    ...current,
+                                    connection,
+                                ])
+                            }
+                            onDeselectConnection={deselectConnection}
+                            linkedAppUuid={hasVersions ? composerAppUuid : null}
+                        />
+                    }
                     attachments={
-                        attachments.attachments.length > 0 ? (
+                        <Stack gap="xs" pb="xs">
+                            <Group gap="xs" aria-label="Selected chart context">
+                                <ChartTypeThemePicker
+                                    themeName={themeName}
+                                    pickerOpened={composerPanel !== null}
+                                    disabled={themePickerDisabled}
+                                    onClick={() => setComposerPanel('theme')}
+                                />
+                                {themesQuery.isError && (
+                                    <Button
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        onClick={() =>
+                                            void themesQuery.refetch()
+                                        }
+                                    >
+                                        Retry themes
+                                    </Button>
+                                )}
+                                {linkedConnections.map(({ connection }) => (
+                                    <Tooltip
+                                        key={connection.externalConnectionUuid}
+                                        label={`Manage connection: ${connection.name}`}
+                                    >
+                                        <Button
+                                            size="compact-xs"
+                                            variant="light"
+                                            radius="xl"
+                                            disabled={isComposerLocked}
+                                            onClick={() =>
+                                                setComposerPanel('connections')
+                                            }
+                                            aria-label={`Manage connection: ${connection.name}`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPlugConnected}
+                                                    size={14}
+                                                />
+                                            }
+                                        >
+                                            <Text
+                                                span
+                                                inherit
+                                                truncate
+                                                className={
+                                                    classes.connectionName
+                                                }
+                                            >
+                                                {connection.name}
+                                            </Text>
+                                        </Button>
+                                    </Tooltip>
+                                ))}
+                                {pendingConnections.map((connection) => (
+                                    <Pill
+                                        key={connection.externalConnectionUuid}
+                                        withRemoveButton
+                                        disabled={isComposerLocked}
+                                        onRemove={() =>
+                                            deselectConnection(
+                                                connection.externalConnectionUuid,
+                                            )
+                                        }
+                                        removeButtonProps={{
+                                            'aria-label': `Remove connection: ${connection.name}`,
+                                            'aria-hidden': false,
+                                            tabIndex: 0,
+                                        }}
+                                    >
+                                        <Group gap={4} wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconPlugConnected}
+                                                size={12}
+                                            />
+                                            <Text
+                                                span
+                                                inherit
+                                                truncate
+                                                className={
+                                                    classes.connectionName
+                                                }
+                                            >
+                                                {connection.name}
+                                            </Text>
+                                        </Group>
+                                    </Pill>
+                                ))}
+                            </Group>
                             <SelectedAttachmentSection
                                 attachments={attachments.attachments.map(
                                     (attachment) => ({
@@ -568,8 +777,18 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     }),
                                 )}
                                 onRemove={attachments.remove}
+                                disabled={isComposerLocked}
                             />
-                        ) : undefined
+                            {questions !== null ? (
+                                <Text size="xs" c="dimmed">
+                                    Answer or skip first
+                                </Text>
+                            ) : isBuilding && !isEmpty ? (
+                                <Text size="xs" c="dimmed">
+                                    Enter to queue
+                                </Text>
+                            ) : null}
+                        </Stack>
                     }
                     toolbarRight={
                         <Group
@@ -577,78 +796,15 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                             align="center"
                             wrap="nowrap"
                         >
-                            {questions !== null ? (
-                                <Text
-                                    className={classes.queueHint}
-                                    fz="xs"
-                                    c="dimmed"
-                                >
-                                    Answer or skip first
-                                </Text>
-                            ) : isBuilding && !isEmpty ? (
-                                <Text
-                                    className={classes.queueHint}
-                                    fz="xs"
-                                    c="dimmed"
-                                >
-                                    Enter to queue
-                                </Text>
-                            ) : (
-                                <ModelPicker
-                                    value={modelSelection.selectedModel}
-                                    onChange={modelSelection.setModel}
-                                    disabled={modelSelection.isLoading}
-                                    visibleModels={modelSelection.visibleModels}
-                                    codingAgent={modelSelection.codingAgent}
-                                />
-                            )}
-                            <ConnectionAttachButton
-                                selectedConnections={selectedConnections}
-                                onSelect={(connection) =>
-                                    setSelectedConnections((current) => [
-                                        ...current,
-                                        connection,
-                                    ])
+                            <ModelPicker
+                                value={modelSelection.selectedModel}
+                                onChange={modelSelection.setModel}
+                                disabled={
+                                    modelSelection.isLoading || isComposerLocked
                                 }
-                                onDeselect={(uuid) =>
-                                    setSelectedConnections((current) =>
-                                        current.filter(
-                                            (connection) =>
-                                                connection.externalConnectionUuid !==
-                                                uuid,
-                                        ),
-                                    )
-                                }
-                                disabled={isComposerLocked}
-                                description="Let this chart type fetch from these external APIs"
-                                linkedAppUuid={
-                                    hasVersions ? composerAppUuid : null
-                                }
+                                visibleModels={modelSelection.visibleModels}
+                                codingAgent={modelSelection.codingAgent}
                             />
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                multiple
-                                hidden
-                                onChange={(event) => {
-                                    attachments.add(
-                                        Array.from(event.target.files ?? []),
-                                    );
-                                    event.target.value = '';
-                                }}
-                            />
-                            <Tooltip label="Attach an image or file">
-                                <ActionIcon
-                                    color="ldGray"
-                                    size="sm"
-                                    aria-label="Attach"
-                                    onClick={() =>
-                                        fileInputRef.current?.click()
-                                    }
-                                >
-                                    <MantineIcon icon={IconPaperclip} />
-                                </ActionIcon>
-                            </Tooltip>
                             {isBuilding && cancelActiveBuild ? (
                                 <ComposerSubmitButton
                                     icon={IconPlayerStop}

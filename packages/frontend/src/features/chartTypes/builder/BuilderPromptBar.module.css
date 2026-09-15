@@ -175,12 +175,16 @@
     margin-left: auto;
 }
 
-.queueHint {
-    white-space: nowrap;
+.connectionName {
+    max-width: 140px;
 }
 
 @media (prefers-reduced-motion: reduce) {
     .stackRow {
         transition: none;
     }
+}
+
+.composer :global(.ProseMirror) {
+    padding: 0;
 }

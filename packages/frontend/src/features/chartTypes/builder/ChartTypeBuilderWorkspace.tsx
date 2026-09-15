@@ -117,6 +117,11 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                     projectUuid={projectUuid}
                                     composerAppUuid={composerAppUuid}
                                     hasVersions={history.versions.length > 0}
+                                    latestVersion={history.latest}
+                                    isNewChart={
+                                        dataAppVizUuid === null &&
+                                        build.appUuid === null
+                                    }
                                     isBuilding={isBuilding}
                                     buildingPrompt={buildingPrompt}
                                     elapsed={elapsed}
