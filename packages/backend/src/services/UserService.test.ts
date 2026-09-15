@@ -26,6 +26,8 @@ import {
     SessionUser,
     SnowflakeAuthenticationType,
     WarehouseTypes,
+    type LearnProgress,
+    type RegisteredAccount,
 } from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
@@ -48,6 +50,7 @@ import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../models/RolesModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
+import { UserLearnProgressModel } from '../models/UserLearnProgressModel';
 import { UserModel } from '../models/UserModel';
 import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserOnboardingModel } from '../models/UserOnboardingModel';
@@ -230,6 +233,7 @@ const organizationMemberProfileModel = {
 };
 
 type UserServiceTestOverrides = {
+    userLearnProgressModel?: Partial<UserLearnProgressModel>;
     featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
     userWarehouseCredentialsModel?: Partial<UserWarehouseCredentialsModel>;
     personalAccessTokenModel?: Pick<
@@ -315,6 +319,9 @@ const createUserService = (
             } as unknown as FeatureFlagModel),
         userAvatarModel: {} as UserAvatarModel,
         userOnboardingModel: {} as UserOnboardingModel,
+        userLearnProgressModel:
+            (overrides.userLearnProgressModel as UserLearnProgressModel) ??
+            ({} as UserLearnProgressModel),
         rolesModel: {
             ...rolesModelWithoutExtraRoles,
             ...overrides.rolesModel,
@@ -4563,6 +4570,7 @@ describe('UserService', () => {
                 } as unknown as FeatureFlagModel,
                 userAvatarModel: {} as UserAvatarModel,
                 userOnboardingModel: {} as UserOnboardingModel,
+                userLearnProgressModel: {} as UserLearnProgressModel,
                 rolesModel: {} as RolesModel,
             });
 
@@ -4641,6 +4649,7 @@ describe('UserService', () => {
                 } as unknown as FeatureFlagModel,
                 userAvatarModel: {} as UserAvatarModel,
                 userOnboardingModel: {} as UserOnboardingModel,
+                userLearnProgressModel: {} as UserLearnProgressModel,
                 rolesModel: {} as RolesModel,
             });
 
@@ -5662,6 +5671,93 @@ describe('UserService', () => {
                 service.loginWithPersonalAccessToken('token'),
             ).rejects.toBeInstanceOf(AuthorizationError);
             expect(patModel.delete).toHaveBeenCalledWith('pat-uuid');
+        });
+    });
+});
+
+describe('UserService learn progress (CS-186)', () => {
+    const account = {
+        user: { userUuid: 'user-1' },
+    } as unknown as RegisteredAccount;
+    const stored: LearnProgress = {
+        completed: ['view:Dashboard'],
+        started: ['view:Dashboard', 'manage:Space'],
+        lastStarted: 'manage:Space',
+    };
+    const learnModel = {
+        get: vi.fn(async () => stored),
+        markStarted: vi.fn(async () => {}),
+        markCompleted: vi.fn(async () => {}),
+        merge: vi.fn(async () => {}),
+    };
+    const service = () =>
+        createUserService(lightdashConfigMock, {
+            userLearnProgressModel: learnModel,
+        });
+
+    beforeEach(() => {
+        learnModel.get.mockClear();
+        learnModel.markStarted.mockClear();
+        learnModel.markCompleted.mockClear();
+        learnModel.merge.mockClear();
+    });
+
+    it('reads the progress the instance holds for the caller', async () => {
+        await expect(service().getLearnProgress(account)).resolves.toEqual(
+            stored,
+        );
+        expect(learnModel.get).toHaveBeenCalledWith('user-1');
+    });
+
+    it('records a start and a completion for a registry scope', async () => {
+        await expect(
+            service().markLearnScopeStarted(account, 'view:Dashboard'),
+        ).resolves.toEqual(stored);
+        expect(learnModel.markStarted).toHaveBeenCalledWith(
+            'user-1',
+            'view:Dashboard',
+        );
+        await service().markLearnScopeCompleted(account, 'view:Dashboard');
+        expect(learnModel.markCompleted).toHaveBeenCalledWith(
+            'user-1',
+            'view:Dashboard',
+        );
+    });
+
+    it('rejects a scope the registry does not know and stores nothing', async () => {
+        await expect(
+            service().markLearnScopeStarted(account, 'manage:Invented'),
+        ).rejects.toThrow(ParameterError);
+        await expect(
+            service().markLearnScopeCompleted(account, 'manage:Invented'),
+        ).rejects.toThrow(ParameterError);
+        expect(learnModel.markStarted).not.toHaveBeenCalled();
+        expect(learnModel.markCompleted).not.toHaveBeenCalled();
+    });
+
+    it('merges only registry scopes from a browser and drops the rest', async () => {
+        await service().mergeLearnProgress(account, {
+            completed: ['view:Dashboard', 'manage:Invented'],
+            started: ['view:Dashboard', 'manage:Space', 'manage:Retired'],
+            lastStarted: 'manage:Retired',
+        });
+        expect(learnModel.merge).toHaveBeenCalledWith('user-1', {
+            completed: ['view:Dashboard'],
+            started: ['view:Dashboard', 'manage:Space'],
+            lastStarted: null,
+        });
+    });
+
+    it('treats a malformed merge body as empty rather than failing', async () => {
+        await service().mergeLearnProgress(account, {
+            completed: 'view:Dashboard',
+            started: undefined,
+            lastStarted: 7,
+        } as unknown as LearnProgress);
+        expect(learnModel.merge).toHaveBeenCalledWith('user-1', {
+            completed: [],
+            started: [],
+            lastStarted: null,
         });
     });
 });

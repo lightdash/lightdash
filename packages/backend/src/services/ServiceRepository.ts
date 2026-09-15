@@ -1405,6 +1405,8 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     userAvatarModel: this.models.getUserAvatarModel(),
                     userOnboardingModel: this.models.getUserOnboardingModel(),
+                    userLearnProgressModel:
+                        this.models.getUserLearnProgressModel(),
                     rolesModel: this.models.getRolesModel(),
                 }),
         );
