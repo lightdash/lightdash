@@ -40,37 +40,17 @@
     min-width: 0;
 
     & :global(.mantine-Button-root) {
-        position: relative;
         width: 100%;
         max-width: 100%;
         height: 44px;
-        padding-inline: 10px;
-        overflow: visible;
-        border-color: transparent;
+        padding-inline: 8px;
+        border: 0;
         background: transparent;
         box-shadow: none;
     }
 
-    & :global(.mantine-Button-root)::before {
-        position: absolute;
-        content: '';
-        inset: 6px 0;
-        border: 1px solid var(--mantine-color-default-border);
-        border-radius: var(--mantine-radius-md);
-        background: var(--mantine-color-dark-6);
-        transition:
-            border-color 120ms ease,
-            background-color 120ms ease;
-    }
-
-    & :global(.mantine-Button-root:hover)::before {
-        border-color: var(--mantine-color-ldGray-3);
-        background: var(--mantine-color-dark-5);
-    }
-
     & :global(.mantine-Button-inner) {
-        position: relative;
-        z-index: 1;
+        justify-content: flex-start;
     }
 }
 
@@ -89,16 +69,9 @@
     place-items: center;
 
     & :global([data-testid='user-avatar']) {
-        position: relative;
         width: 32px;
         height: 32px;
-        overflow: visible;
-    }
-
-    & :global([data-testid='user-avatar'])::after {
-        position: absolute;
-        content: '';
-        inset: -6px;
+        box-shadow: none;
     }
 }
 
@@ -110,39 +83,18 @@
     height: 44px;
     padding: 0;
     flex-shrink: 0;
-    position: relative;
-    overflow: visible;
-    border-color: transparent;
+    border: 0;
     background: transparent;
     box-shadow: none;
 }
 
-.compactActions :global([role='search'])::before,
-.compactAiButton :global(.mantine-Button-root)::before,
-.menuButton::before {
-    position: absolute;
-    content: '';
-    inset: 6px;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
-    background: var(--mantine-color-dark-6);
-    transition:
-        border-color 120ms ease,
-        background-color 120ms ease;
-}
-
-.compactActions :global([role='search']:hover)::before,
-.compactAiButton :global(.mantine-Button-root:hover)::before,
-.menuButton:hover::before {
-    border-color: var(--mantine-color-ldGray-3);
-    background: var(--mantine-color-dark-5);
-}
-
-.compactActions :global([role='search']) > *,
-.compactAiButton :global(.mantine-Button-inner),
-.menuButton > * {
-    position: relative;
-    z-index: 1;
+@media (hover: hover) and (pointer: fine) {
+    .compactProjectSwitcher :global(.mantine-Button-root:hover),
+    .compactActions :global([role='search']:hover),
+    .compactAiButton :global(.mantine-Button-root:hover),
+    .menuButton:hover {
+        background: var(--mantine-color-dark-5);
+    }
 }
 
 .compactAiButton :global(.mantine-Button-label) {
@@ -195,12 +147,19 @@
 
 /* Keep the desktop navigation shape on tablets. Labels condense only where
    the full row would otherwise run out of room. */
-@media (32em <= width < 48em) {
+@media (32em <= width < 37.5em) {
     .leftGroup > :global([role='search']) {
         width: rem(34px);
         height: rem(32px);
         padding-inline: rem(8px);
         justify-content: center;
+        border-color: transparent;
+        background: transparent;
+    }
+
+    .leftGroup > :global([role='search']:hover) {
+        border-color: transparent;
+        background: var(--mantine-color-default-hover);
     }
 }
 
