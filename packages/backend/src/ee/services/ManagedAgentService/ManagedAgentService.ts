@@ -96,7 +96,9 @@ import {
 } from './autopilotFailure';
 import {
     AUTOPILOT_MANAGED_MODEL_ID,
+    parseAutopilotToolCall,
     renderAutopilotAgent,
+    type AutopilotToolInput,
 } from './config/agent';
 import {
     composeHeartbeatNarrative,
@@ -228,6 +230,13 @@ type AutopilotToolCallHandler = (
     allowContentDeletion?: boolean,
 ) => Promise<string>;
 
+type LogInsightInput = Omit<
+    AutopilotToolInput<'log_insight'>,
+    'target_type'
+> & {
+    target_type: ManagedAgentTargetType;
+};
+
 type HeartbeatSessionResult = {
     sessionId: string;
     error: string | null;
@@ -337,20 +346,6 @@ export class ManagedAgentService extends BaseService {
                 ),
             );
         }
-    }
-
-    private static validateEnum<T extends string>(
-        value: unknown,
-        enumObj: Record<string, T>,
-        fieldName: string,
-    ): T {
-        const valid = Object.values(enumObj);
-        if (!valid.includes(value as T)) {
-            throw new Error(
-                `Invalid ${fieldName}: "${value}". Must be one of: ${valid.join(', ')}`,
-            );
-        }
-        return value as T;
     }
 
     private static assertProjectOwnership(
@@ -2608,6 +2603,11 @@ export class ManagedAgentService extends BaseService {
                 error: 'This model is not enabled for cleanup in this run',
             });
         }
+        const parsed = parseAutopilotToolCall(toolName, input);
+        if (!parsed.ok) {
+            return JSON.stringify({ error: parsed.error });
+        }
+        const { call } = parsed;
         if (!NON_ACTIVITY_TOOL_NAMES.has(toolName)) {
             void this.managedAgentModel
                 .setCurrentActivity(runUuid, friendlyToolLabel(toolName))
@@ -2622,12 +2622,12 @@ export class ManagedAgentService extends BaseService {
         const actor = await this.getAutopilotActor(projectUuid);
         await this.assertActorCanViewProject(actor, projectUuid);
         abortSignal?.throwIfAborted();
-        switch (toolName) {
+        switch (call.name) {
             case 'get_recent_actions':
                 return this.handleGetRecentActions(
                     actor,
                     projectUuid,
-                    input.limit as number | undefined,
+                    call.input.limit,
                 );
             case 'get_stale_charts':
                 return this.handleGetStaleContent(actor, projectUuid, 'charts');
@@ -2638,7 +2638,11 @@ export class ManagedAgentService extends BaseService {
                     'dashboards',
                 );
             case 'get_broken_content':
-                return this.handleGetBrokenContent(actor, projectUuid, input);
+                return this.handleGetBrokenContent(
+                    actor,
+                    projectUuid,
+                    call.input,
+                );
             case 'get_preview_projects':
                 return this.handleGetPreviewProjects(actor, projectUuid);
             case 'get_popular_content':
@@ -2649,7 +2653,7 @@ export class ManagedAgentService extends BaseService {
                     projectUuid,
                     sessionId,
                     runUuid,
-                    input,
+                    call.input,
                     abortSignal,
                 );
             case 'bulk_flag_broken_content':
@@ -2658,7 +2662,7 @@ export class ManagedAgentService extends BaseService {
                     projectUuid,
                     sessionId,
                     runUuid,
-                    input,
+                    call.input,
                     abortSignal,
                 );
             case 'soft_delete_content':
@@ -2667,7 +2671,7 @@ export class ManagedAgentService extends BaseService {
                     projectUuid,
                     sessionId,
                     runUuid,
-                    input,
+                    call.input,
                     abortSignal,
                 );
             case 'bulk_delete_broken_content':
@@ -2676,7 +2680,7 @@ export class ManagedAgentService extends BaseService {
                     projectUuid,
                     sessionId,
                     runUuid,
-                    input,
+                    call.input,
                     abortSignal,
                 );
             case 'log_project_insight':
@@ -2686,8 +2690,8 @@ export class ManagedAgentService extends BaseService {
                     sessionId,
                     runUuid,
                     {
-                        description: input.description,
-                        metadata: input.metadata,
+                        description: call.input.description,
+                        metadata: call.input.metadata,
                         target_type: ManagedAgentTargetType.PROJECT,
                         target_uuid: projectUuid,
                         target_name: 'Project health',
@@ -2700,11 +2704,15 @@ export class ManagedAgentService extends BaseService {
                     projectUuid,
                     sessionId,
                     runUuid,
-                    input,
+                    call.input,
                     abortSignal,
                 );
             case 'get_chart_details':
-                return this.handleGetChartDetails(actor, projectUuid, input);
+                return this.handleGetChartDetails(
+                    actor,
+                    projectUuid,
+                    call.input,
+                );
             case 'get_chart_schema':
                 return this.handleGetChartSchema();
             case 'fix_broken_chart':
@@ -2713,7 +2721,7 @@ export class ManagedAgentService extends BaseService {
                     projectUuid,
                     sessionId,
                     runUuid,
-                    input,
+                    call.input,
                     abortSignal,
                 );
             case 'create_content_from_code':
@@ -2722,32 +2730,48 @@ export class ManagedAgentService extends BaseService {
                     projectUuid,
                     sessionId,
                     runUuid,
-                    input,
+                    call.input,
                     abortSignal,
                 );
             case 'get_user_questions':
-                return this.handleGetUserQuestions(actor, projectUuid, input);
+                return this.handleGetUserQuestions(
+                    actor,
+                    projectUuid,
+                    call.input,
+                );
             case 'get_slow_queries':
-                return this.handleGetSlowQueries(actor, projectUuid, input);
+                return this.handleGetSlowQueries(
+                    actor,
+                    projectUuid,
+                    call.input,
+                );
             case 'get_inactive_users':
-                return this.handleGetInactiveUsers(projectUuid, input);
+                return this.handleGetInactiveUsers(projectUuid, call.input);
             case 'get_orphaned_content':
-                return this.handleGetOrphanedContent(actor, projectUuid, input);
+                return this.handleGetOrphanedContent(
+                    actor,
+                    projectUuid,
+                    call.input,
+                );
             case 'get_unused_agents':
-                return this.handleGetUnusedAgents(projectUuid, input);
+                return this.handleGetUnusedAgents(projectUuid, call.input);
             case 'get_preagg_candidates':
-                return this.handleGetPreAggCandidates(projectUuid, input);
+                return this.handleGetPreAggCandidates(projectUuid, call.input);
             case 'reverse_own_action':
                 return this.handleReverseOwnAction(
                     actor,
                     projectUuid,
                     runUuid,
-                    input,
+                    call.input,
                     abortSignal,
                     allowContentDeletion,
                 );
+            case 'write_slack_summary':
+                return JSON.stringify({
+                    error: 'write_slack_summary is handled by the runtime',
+                });
             default:
-                return JSON.stringify({ error: `Unknown tool: ${toolName}` });
+                return assertUnreachable(call, `Unknown tool: ${toolName}`);
         }
     }
 
@@ -2898,7 +2922,7 @@ export class ManagedAgentService extends BaseService {
     private async handleGetBrokenContent(
         actor: SessionUser,
         projectUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'get_broken_content'>,
     ): Promise<string> {
         const validations: ValidationResponse[] = (
             await this.validationModel.get(projectUuid)
@@ -2911,10 +2935,7 @@ export class ManagedAgentService extends BaseService {
         );
 
         // UUID cursors stay valid when repairs remove items from earlier pages.
-        const tableNameFilter =
-            typeof input.table_name === 'string' && input.table_name.length > 0
-                ? input.table_name
-                : undefined;
+        const tableNameFilter = input.table_name || undefined;
         if (tableNameFilter) {
             const matching = validations.filter(
                 (validation) =>
@@ -2932,9 +2953,7 @@ export class ManagedAgentService extends BaseService {
                     input.limit,
                     MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
                 ),
-                typeof input.cursor === 'string' && input.cursor.length > 0
-                    ? input.cursor
-                    : null,
+                input.cursor || null,
             );
         }
 
@@ -3207,12 +3226,9 @@ chartConfig:
     private async handleGetChartDetails(
         actor: SessionUser,
         projectUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'get_chart_details'>,
     ): Promise<string> {
-        const chartUuid = input.chart_uuid as string;
-        if (!chartUuid) {
-            throw new Error('chart_uuid is required');
-        }
+        const chartUuid = input.chart_uuid;
         const chart = await this.savedChartModel.get(chartUuid);
         ManagedAgentService.assertProjectOwnership(
             chart.projectUuid,
@@ -3245,17 +3261,14 @@ chartConfig:
         projectUuid: string,
         sessionId: string,
         runUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'fix_broken_chart'>,
         abortSignal?: AbortSignal,
     ): Promise<string> {
-        const chartUuid = input.chart_uuid as string;
-        const chartName = input.chart_name as string;
-        const description = input.description as string;
-        if (!chartUuid || !chartName || !description) {
-            throw new Error(
-                'chart_uuid, chart_name, and description are required',
-            );
-        }
+        const {
+            chart_uuid: chartUuid,
+            chart_name: chartName,
+            description,
+        } = input;
 
         // Validate the chart payload before writing
         ManagedAgentService.validateChartPayload(
@@ -3415,17 +3428,10 @@ chartConfig:
         projectUuid: string,
         sessionId: string,
         runUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'create_content_from_code'>,
         abortSignal?: AbortSignal,
     ): Promise<string> {
-        const chartAsCode = input.chart_as_code as Record<string, unknown>;
-        if (!chartAsCode || typeof chartAsCode !== 'object') {
-            throw new Error('chart_as_code must be a non-null object');
-        }
-        const description = input.description as string;
-        if (!description) {
-            throw new Error('description is required');
-        }
+        const { chart_as_code: chartAsCode, description } = input;
         const chartName = (chartAsCode.name as string) ?? 'Untitled';
 
         // Normalize chart type — agent may send "line", "bar", "area" but
@@ -3575,35 +3581,21 @@ chartConfig:
         });
     }
 
-    private static readonly VALID_FLAG_TYPES = new Set<string>([
-        ManagedAgentActionType.FLAGGED_STALE,
-        ManagedAgentActionType.FLAGGED_BROKEN,
-        ManagedAgentActionType.FLAGGED_SLOW,
-    ]);
-
     private async handleFlagContent(
         actor: SessionUser,
         projectUuid: string,
         sessionId: string,
         runUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'flag_content'>,
         abortSignal?: AbortSignal,
     ): Promise<string> {
-        const targetUuid = input.target_uuid as string;
-        const targetName = input.target_name as string;
-        const description = input.description as string;
-        if (!targetUuid || !targetName || !description) {
-            throw new Error(
-                'target_uuid, target_name, and description are required',
-            );
-        }
-
-        const flagType = input.flag_type as string;
-        if (!ManagedAgentService.VALID_FLAG_TYPES.has(flagType)) {
-            throw new Error(
-                `Invalid flag_type: "${flagType}". Must be one of: ${[...ManagedAgentService.VALID_FLAG_TYPES].join(', ')}`,
-            );
-        }
+        const {
+            target_uuid: targetUuid,
+            target_name: targetName,
+            target_type: targetType,
+            description,
+            flag_type: flagType,
+        } = input;
 
         const policy = await this.getPolicy(projectUuid);
         if (policy.aggression === 'observe') {
@@ -3613,11 +3605,6 @@ chartConfig:
             });
         }
 
-        const targetType = ManagedAgentService.validateEnum(
-            input.target_type,
-            ManagedAgentTargetType,
-            'target_type',
-        );
         const flagProtectionBlock = await this.checkTargetProtectionGuard(
             projectUuid,
             targetType,
@@ -3700,12 +3687,12 @@ chartConfig:
             projectUuid,
             sessionId,
             managedAgentRunUuid: runUuid,
-            actionType: flagType as ManagedAgentActionType,
+            actionType: flagType,
             targetType,
             targetUuid,
             targetName,
             description,
-            metadata: (input.metadata as Record<string, unknown>) ?? {},
+            metadata: input.metadata ?? {},
         });
         this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({ action_uuid: action.actionUuid });
@@ -3716,18 +3703,10 @@ chartConfig:
         projectUuid: string,
         sessionId: string,
         runUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'bulk_flag_broken_content'>,
         abortSignal?: AbortSignal,
     ): Promise<string> {
         const { table_name: tableName, reason } = input;
-        if (
-            typeof tableName !== 'string' ||
-            !tableName.trim() ||
-            typeof reason !== 'string' ||
-            !reason.trim()
-        ) {
-            throw new Error('table_name and reason are required');
-        }
         if ((await this.getPolicy(projectUuid)).aggression === 'observe') {
             return JSON.stringify({
                 blocked: true,
@@ -3765,7 +3744,10 @@ chartConfig:
                     sessionId,
                     runUuid,
                     {
-                        target_type: candidate.type,
+                        target_type:
+                            candidate.type === 'chart'
+                                ? ManagedAgentTargetType.CHART
+                                : ManagedAgentTargetType.DASHBOARD,
                         target_uuid: candidate.uuid,
                         target_name: candidate.name,
                         flag_type: ManagedAgentActionType.FLAGGED_BROKEN,
@@ -3957,23 +3939,15 @@ chartConfig:
         projectUuid: string,
         sessionId: string,
         runUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'soft_delete_content'>,
         abortSignal?: AbortSignal,
     ): Promise<string> {
-        const targetUuid = input.target_uuid as string;
-        const targetName = input.target_name as string;
-        const description = input.description as string;
-        if (!targetUuid || !targetName || !description) {
-            throw new Error(
-                'target_uuid, target_name, and description are required',
-            );
-        }
-
-        const targetType = ManagedAgentService.validateEnum(
-            input.target_type,
-            ManagedAgentTargetType,
-            'target_type',
-        );
+        const {
+            target_uuid: targetUuid,
+            target_name: targetName,
+            target_type: targetType,
+            description,
+        } = input;
         await this.assertActorCanManageProject(actor, projectUuid);
 
         // Use the admin who enabled the agent as the actor
@@ -4088,7 +4062,7 @@ chartConfig:
             targetUuid,
             targetName,
             description,
-            metadata: (input.metadata as Record<string, unknown>) ?? {},
+            metadata: input.metadata ?? {},
         });
         this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({
@@ -4102,14 +4076,10 @@ chartConfig:
         projectUuid: string,
         sessionId: string,
         runUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'bulk_delete_broken_content'>,
         abortSignal?: AbortSignal,
     ): Promise<string> {
-        const tableName = input.table_name as string;
-        const reason = input.reason as string;
-        if (!tableName || !reason) {
-            throw new Error('table_name and reason are required');
-        }
+        const { table_name: tableName, reason } = input;
 
         await this.assertActorCanManageProject(actor, projectUuid);
         const settings = await this.managedAgentModel.getSettings(projectUuid);
@@ -4254,23 +4224,15 @@ chartConfig:
         projectUuid: string,
         sessionId: string,
         runUuid: string,
-        input: Record<string, unknown>,
+        input: LogInsightInput,
         abortSignal?: AbortSignal,
     ): Promise<string> {
-        const targetUuid = input.target_uuid as string;
-        const targetName = input.target_name as string;
-        const description = input.description as string;
-        if (!targetUuid || !targetName || !description) {
-            throw new Error(
-                'target_uuid, target_name, and description are required',
-            );
-        }
-
-        const targetType = ManagedAgentService.validateEnum(
-            input.target_type,
-            ManagedAgentTargetType,
-            'target_type',
-        );
+        const {
+            target_uuid: targetUuid,
+            target_name: targetName,
+            target_type: targetType,
+            description,
+        } = input;
         if (
             !(await this.canActorViewTarget(
                 actor,
@@ -4294,7 +4256,7 @@ chartConfig:
             targetUuid,
             targetName,
             description,
-            metadata: (input.metadata as Record<string, unknown>) ?? {},
+            metadata: input.metadata ?? {},
         });
         this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({ action_uuid: action.actionUuid });
@@ -4303,10 +4265,10 @@ chartConfig:
     private async handleGetUserQuestions(
         _actor: SessionUser,
         projectUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'get_user_questions'>,
     ): Promise<string> {
         const limit = getManagedAgentToolResultLimit(input.limit, 30);
-        const days = (input.days as number) ?? 30;
+        const days = input.days ?? 30;
 
         const questions = await this.managedAgentModel.getUserQuestions(
             projectUuid,
@@ -4326,11 +4288,10 @@ chartConfig:
     private async handleGetSlowQueries(
         actor: SessionUser,
         projectUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'get_slow_queries'>,
     ): Promise<string> {
         const policy = await this.getPolicy(projectUuid);
-        const thresholdMs =
-            (input.threshold_ms as number) ?? policy.slowQueryThresholdMs;
+        const thresholdMs = input.threshold_ms ?? policy.slowQueryThresholdMs;
         const limit = getManagedAgentToolResultLimit(input.limit, 20);
 
         const slowQueries = await this.managedAgentModel.getSlowQueries(
@@ -4377,10 +4338,10 @@ chartConfig:
 
     private async handleGetInactiveUsers(
         projectUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'get_inactive_users'>,
     ): Promise<string> {
         const inactiveDays =
-            (input.inactive_days as number) ??
+            input.inactive_days ??
             ManagedAgentService.DEFAULT_INACTIVE_USER_DAYS;
         const limit = getManagedAgentToolResultLimit(input.limit, 30);
 
@@ -4411,7 +4372,7 @@ chartConfig:
     private async handleGetOrphanedContent(
         actor: SessionUser,
         projectUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'get_orphaned_content'>,
     ): Promise<string> {
         const limit = getManagedAgentToolResultLimit(input.limit, 30);
 
@@ -4459,13 +4420,13 @@ chartConfig:
 
     private async handleGetUnusedAgents(
         projectUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'get_unused_agents'>,
     ): Promise<string> {
         const windowDays =
-            (input.window_days as number) ??
+            input.window_days ??
             ManagedAgentService.DEFAULT_UNUSED_AGENT_WINDOW_DAYS;
         const minPrompts =
-            (input.min_prompts as number) ??
+            input.min_prompts ??
             ManagedAgentService.DEFAULT_UNUSED_AGENT_MIN_PROMPTS;
         const limit = getManagedAgentToolResultLimit(input.limit, 30);
 
@@ -4515,7 +4476,7 @@ chartConfig:
 
     private async handleGetPreAggCandidates(
         projectUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'get_preagg_candidates'>,
     ): Promise<string> {
         if (!this.lightdashConfig.preAggregates.enabled) {
             return JSON.stringify({
@@ -4526,11 +4487,9 @@ chartConfig:
         }
 
         const windowDays =
-            (input.window_days as number) ??
-            ManagedAgentService.DEFAULT_PREAGG_WINDOW_DAYS;
+            input.window_days ?? ManagedAgentService.DEFAULT_PREAGG_WINDOW_DAYS;
         const minQueries =
-            (input.min_queries as number) ??
-            ManagedAgentService.DEFAULT_PREAGG_MIN_QUERIES;
+            input.min_queries ?? ManagedAgentService.DEFAULT_PREAGG_MIN_QUERIES;
         const limit = getManagedAgentToolResultLimit(input.limit, 10);
 
         const candidates =
@@ -4647,15 +4606,11 @@ chartConfig:
         actor: SessionUser,
         projectUuid: string,
         runUuid: string,
-        input: Record<string, unknown>,
+        input: AutopilotToolInput<'reverse_own_action'>,
         abortSignal?: AbortSignal,
         allowContentDeletion = true,
     ): Promise<string> {
-        const actionUuid = input.action_uuid as string;
-        const reason = input.reason as string;
-        if (!actionUuid || !reason) {
-            throw new Error('action_uuid and reason are required');
-        }
+        const { action_uuid: actionUuid, reason } = input;
 
         const action = await this.managedAgentModel.getAction(actionUuid);
         if (!action) {

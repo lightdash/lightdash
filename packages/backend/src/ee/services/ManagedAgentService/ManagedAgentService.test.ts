@@ -1374,7 +1374,11 @@ describe('ManagedAgentService broken-content pagination', () => {
             const response = await service['handleGetBrokenContent'](
                 actor,
                 PROJECT_UUID,
-                { table_name: 'orders', limit: 500, cursor },
+                {
+                    table_name: 'orders',
+                    limit: 500,
+                    cursor: cursor ?? undefined,
+                },
             );
             try {
                 return JSON.parse(response);

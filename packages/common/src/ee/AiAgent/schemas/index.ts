@@ -28,6 +28,7 @@ import {
     type ToolSyncDbtProjectOutput,
 } from './tools';
 
+export * from './agentInputSchema';
 export * from './customMetrics';
 export * from './defineTool';
 export * from './filterExpressions';
