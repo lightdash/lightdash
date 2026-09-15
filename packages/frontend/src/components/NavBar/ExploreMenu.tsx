@@ -12,6 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import useCreateInAnySpaceAccess from '../../hooks/user/useCreateInAnySpaceAccess';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -41,6 +42,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
         projectUuid;
     const navigate = useNavigate();
     const location = useLocation();
+    const contentAuthoringEnabled = useContentAuthoringEnabled();
 
     const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
@@ -95,53 +97,55 @@ const ExploreMenu: FC<Props> = memo((props) => {
                     </Menu.Target>
 
                     <Menu.Dropdown>
-                        <LargeMenuItem
-                            visibleFrom="sm"
-                            component={Link}
-                            title="Chart"
-                            description="Build queries and save them as charts."
-                            to={`/projects/${projectUrlIdentifier}/tables`}
-                            icon={IconTable}
-                            data-tour-nav="new-chart"
-                            data-tour-hint="Choose Chart"
-                        />
-
-                        <Can
-                            I="manage"
-                            this={subject('SqlRunner', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
+                        {contentAuthoringEnabled && (
                             <LargeMenuItem
-                                visibleFrom="sm"
                                 component={Link}
-                                title="Query using SQL runner"
-                                description="Access your database to run ad-hoc queries."
-                                to={`/projects/${projectUrlIdentifier}/sql-runner`}
-                                data-tour-nav="new-sql-runner"
-                                data-tour-hint="Choose Query using SQL runner"
-                                onClick={(
-                                    event: React.MouseEvent<HTMLAnchorElement>,
-                                ) => {
-                                    if (
-                                        location.pathname.startsWith(
-                                            `/projects/${projectUrlIdentifier}/sql-runner`,
-                                        )
-                                    ) {
-                                        event.preventDefault();
-                                        window.open(
-                                            `/projects/${projectUrlIdentifier}/sql-runner`,
-                                            '_blank',
-                                        );
-                                    }
-                                }}
-                                icon={IconTerminal2}
+                                title="Chart"
+                                description="Build queries and save them as charts."
+                                to={`/projects/${projectUrlIdentifier}/tables`}
+                                icon={IconTable}
+                                data-tour-nav="new-chart"
+                                data-tour-hint="Choose Chart"
                             />
-                        </Can>
-                        {userCanCreateDashboards && (
+                        )}
+
+                        {contentAuthoringEnabled && (
+                            <Can
+                                I="manage"
+                                this={subject('SqlRunner', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                <LargeMenuItem
+                                    component={Link}
+                                    title="Query using SQL runner"
+                                    description="Access your database to run ad-hoc queries."
+                                    to={`/projects/${projectUrlIdentifier}/sql-runner`}
+                                    data-tour-nav="new-sql-runner"
+                                    data-tour-hint="Choose Query using SQL runner"
+                                    onClick={(
+                                        event: React.MouseEvent<HTMLAnchorElement>,
+                                    ) => {
+                                        if (
+                                            location.pathname.startsWith(
+                                                `/projects/${projectUrlIdentifier}/sql-runner`,
+                                            )
+                                        ) {
+                                            event.preventDefault();
+                                            window.open(
+                                                `/projects/${projectUrlIdentifier}/sql-runner`,
+                                                '_blank',
+                                            );
+                                        }
+                                    }}
+                                    icon={IconTerminal2}
+                                />
+                            </Can>
+                        )}
+                        {contentAuthoringEnabled && userCanCreateDashboards && (
                             <LargeMenuItem
-                                visibleFrom="sm"
                                 title="Dashboard"
                                 description="Arrange multiple charts into a single view."
                                 onClick={() => setIsCreateDashboardOpen(true)}
