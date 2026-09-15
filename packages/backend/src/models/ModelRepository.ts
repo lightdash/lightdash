@@ -207,6 +207,7 @@ export type ModelManifest = {
     scimRequestLogModel: unknown;
     externalConnectionModel: unknown;
     schedulerAiAugmentationModel: unknown;
+    dataAppAnalysisModel: unknown;
 };
 
 /**
@@ -1041,6 +1042,10 @@ export class ModelRepository
 
     public getSchedulerAiAugmentationModel<ModelImplT>(): ModelImplT {
         return this.getModel('schedulerAiAugmentationModel');
+    }
+
+    public getDataAppAnalysisModel<ModelImplT>(): ModelImplT {
+        return this.getModel('dataAppAnalysisModel');
     }
 
     public getAiAgentReviewClassifierModel<ModelImplT>(): ModelImplT {

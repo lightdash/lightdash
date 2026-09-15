@@ -1,5 +1,4 @@
 import {
-    AI_DEFAULT_MAX_QUERY_LIMIT,
     applyDimensionOverrides,
     assertUnreachable,
     ForbiddenError,
@@ -29,70 +28,16 @@ import { getDashboardParametersValuesMap } from '../../../services/ProjectServic
 import { SchedulerService } from '../../../services/SchedulerService/SchedulerService';
 import { SchedulerAiAugmentationModel } from '../../models/SchedulerAiAugmentationModel';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
-import { truncateCsvAtRowBoundary } from '../ai/utils/truncation';
+import {
+    appendCsvSection,
+    emptySectionAccumulator,
+    MAX_ROWS_PER_CHART,
+    omitSection,
+    serializeSections,
+    type SectionAccumulator,
+} from '../ai/utils/csvSections';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import type { AiService } from '../AiService/AiService';
-
-const MAX_ROWS_PER_CHART = AI_DEFAULT_MAX_QUERY_LIMIT;
-// Rough character proxy for the model's context window; keeps the one-shot
-// summary prompt well under provider token limits even for wide tables.
-const MAX_CONTENT_CHARS = 300_000;
-
-type SectionAccumulator = {
-    parts: string[];
-    remainingChars: number;
-    omittedCharts: string[];
-};
-
-const emptySectionAccumulator = (): SectionAccumulator => ({
-    parts: [],
-    remainingChars: MAX_CONTENT_CHARS,
-    omittedCharts: [],
-});
-
-const appendCsvSection = (
-    acc: SectionAccumulator,
-    title: string | null,
-    csv: string,
-    rowsTruncated: boolean,
-): SectionAccumulator => {
-    const heading = title === null ? '' : `## ${title}\n`;
-    const available = acc.remainingChars - heading.length;
-    const charsTruncated = csv.length > available;
-    const body = charsTruncated
-        ? truncateCsvAtRowBoundary(csv, available)
-        : csv;
-    const note =
-        charsTruncated || rowsTruncated
-            ? '\n[Data truncated — only part of the rows are included]'
-            : '';
-    const section = `${heading}${body}${note}`;
-    return {
-        parts: [...acc.parts, section],
-        remainingChars: acc.remainingChars - section.length,
-        omittedCharts: acc.omittedCharts,
-    };
-};
-
-const omitSection = (
-    acc: SectionAccumulator,
-    title: string,
-): SectionAccumulator => ({
-    ...acc,
-    omittedCharts: [...acc.omittedCharts, title],
-});
-
-const serializeSections = (acc: SectionAccumulator): string =>
-    [
-        ...acc.parts,
-        ...(acc.omittedCharts.length > 0
-            ? [
-                  `[Charts omitted because the data exceeds the size limit: ${acc.omittedCharts.join(
-                      ', ',
-                  )}]`,
-              ]
-            : []),
-    ].join('\n\n');
 
 type Dependencies = {
     schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
