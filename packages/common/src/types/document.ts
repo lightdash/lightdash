@@ -18,17 +18,35 @@ export type MergeChartAsCode = SemanticChartAsCode & {
     merge: SavedMergeQuery;
 };
 
+type DocumentChartContent =
+    | { source: 'semantic'; chart: SemanticChartAsCode }
+    | { source: 'merge'; chart: MergeChartAsCode };
+
 export type DocumentCellV1 =
     | { id: string; type: 'markdown'; content: string }
     | {
           id: string;
           type: 'chart';
-          content:
-              | { source: 'semantic'; chart: SemanticChartAsCode }
-              | { source: 'merge'; chart: MergeChartAsCode };
+          content: DocumentChartContent;
       };
 
 export type DocumentContentV1 = { cells: DocumentCellV1[] };
+
+export type DocumentCellV2 =
+    | {
+          id: string;
+          type: 'markdown';
+          content: { title?: string; markdown: string };
+      }
+    | {
+          id: string;
+          type: 'chart';
+          content: DocumentChartContent & {
+              title?: string;
+          };
+      };
+
+export type DocumentContentV2 = { cells: DocumentCellV2[] };
 
 export type DocumentSummary = {
     documentUuid: string;
@@ -46,8 +64,8 @@ export type DocumentSummary = {
 export type DocumentVersion = {
     versionUuid: string;
     versionNumber: number;
-    schemaVersion: 1;
-    content: DocumentContentV1;
+    schemaVersion: 2;
+    content: DocumentContentV2;
     createdByUserUuid: string | null;
     createdAt: Date;
 };

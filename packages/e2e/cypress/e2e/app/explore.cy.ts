@@ -1,5 +1,16 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
+const openChartGallery = () => {
+    cy.get('#chart-gallery-sidebar-title')
+        .should('be.visible')
+        .then(($title) => {
+            if ($title.text().trim() !== 'Choose chart type') {
+                cy.get('[data-chart-type-gallery-change]').click();
+            }
+        });
+    cy.findByText('Choose chart type').should('be.visible');
+};
+
 describe('Explore', () => {
     beforeEach(() => {
         cy.login();
@@ -80,6 +91,7 @@ describe('Explore', () => {
         cy.findByText('Configure', { timeout: 10000 })
             .should('be.visible')
             .click();
+        openChartGallery();
         cy.findByRole('button', {
             name: 'Horizontal bar chart',
         }).click();
@@ -122,6 +134,7 @@ describe('Explore', () => {
 
         // open the chart gallery and change chart types
         cy.findByText('Configure').click();
+        openChartGallery();
 
         const selectChartType = (chartType: string) => {
             cy.findByRole('button', { name: chartType }).click();
