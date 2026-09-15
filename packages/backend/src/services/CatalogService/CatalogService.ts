@@ -385,11 +385,15 @@ export class CatalogService<
         const { result: filteredExplores } = await measureTime(
             async () => {
                 const dbReadStart = performance.now();
+                const explorePromise = this.projectModel
+                    .findExploresFromCache(projectUuid, 'name')
+                    .then((result) => {
+                        browseReadContext.dbReadMs =
+                            performance.now() - dbReadStart;
+                        return result;
+                    });
                 const [cachedExplores, storedExploreBytes] = await Promise.all([
-                    this.projectModel.findExploresFromCache(
-                        projectUuid,
-                        'name',
-                    ),
+                    explorePromise,
                     safeGetCachedExploreStorageBytes(() =>
                         this.projectModel.getCachedExploreStorageBytes(
                             projectUuid,

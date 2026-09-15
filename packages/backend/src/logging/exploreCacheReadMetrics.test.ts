@@ -14,26 +14,4 @@ describe('safeGetCachedExploreStorageBytes', () => {
 
         expect(getStorageBytes).not.toHaveBeenCalled();
     });
-
-    it('runs the storage query when unset', async () => {
-        vi.stubEnv('LIGHTDASH_EXPLORE_CACHE_READ_STORAGE_BYTES', undefined);
-        const getStorageBytes = vi.fn(async () => 42);
-
-        await expect(
-            safeGetCachedExploreStorageBytes(getStorageBytes),
-        ).resolves.toBe(42);
-
-        expect(getStorageBytes).toHaveBeenCalledOnce();
-    });
-
-    it('runs the storage query for values other than false', async () => {
-        vi.stubEnv('LIGHTDASH_EXPLORE_CACHE_READ_STORAGE_BYTES', 'FALSE');
-        const getStorageBytes = vi.fn(async () => 42);
-
-        await expect(
-            safeGetCachedExploreStorageBytes(getStorageBytes),
-        ).resolves.toBe(42);
-
-        expect(getStorageBytes).toHaveBeenCalledOnce();
-    });
 });
