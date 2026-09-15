@@ -612,10 +612,11 @@ const validateLesson = (
         );
     }
     if (
-        !/^[a-z][a-z0-9_]*$/.test(lesson.column) ||
-        !new RegExp(`^\\s*- name: ${lesson.column}\\s*$`, 'm').test(
-            bundleFiles.get(lesson.file)!,
-        )
+        lesson.column !== undefined &&
+        (!/^[a-z][a-z0-9_]*$/.test(lesson.column) ||
+            !new RegExp(`^\\s*- name: ${lesson.column}\\s*$`, 'm').test(
+                bundleFiles.get(lesson.file)!,
+            ))
     ) {
         throw new Error(
             `${where}: column ${lesson.column} is not a column of ${lesson.file}`,
@@ -629,8 +630,18 @@ const validateLesson = (
             `${where}: snippet must start with the key it extends (metrics:, additional_dimensions:)`,
         );
     }
-    if (!snippetMetricType(lesson.snippet)) {
+    if (lesson.column !== undefined && !snippetMetricType(lesson.snippet)) {
         throw new Error(`${where}: snippet declares no type`);
+    }
+    if (
+        lesson.column === undefined &&
+        !new RegExp(`^\\s*- name: ${lesson.result.field}\\s*$`, 'm').test(
+            lesson.snippet,
+        )
+    ) {
+        throw new Error(
+            `${where}: a snippet that extends the model must declare the column entry "- name: ${lesson.result.field}"`,
+        );
     }
     // The snippet's children land directly under the last line that is
     // that key; it has to belong to the declared column, or the cards would
@@ -648,9 +659,12 @@ const validateLesson = (
         .reverse()
         .map((line) => /^\s*- name: ([a-z0-9_]+)\s*$/.exec(line)?.[1])
         .find((name) => name !== undefined);
-    if (owner !== lesson.column) {
+    // A column lesson's key belongs to that column; a model lesson's key
+    // (`columns:`) belongs to the model the explore is named after.
+    const expectedOwner = lesson.column ?? lesson.result.explore;
+    if (owner !== expectedOwner) {
         throw new Error(
-            `${where}: the last ${under}: key of ${lesson.file} belongs to ${owner ?? 'no column'}, not ${lesson.column}`,
+            `${where}: the last ${under}: key of ${lesson.file} belongs to ${owner ?? 'nothing named'}, not ${expectedOwner}`,
         );
     }
     const [tool] = lesson.command.trim().split(/\s+/);
@@ -741,7 +755,7 @@ export const buildLessonTours = (
     const bundleFiles = learnBundleFiles();
     return lessons.map((lesson) => {
         validateLesson(lesson, bundleFiles);
-        const metricType = snippetMetricType(lesson.snippet)!;
+        const metricType = snippetMetricType(lesson.snippet);
         const under = snippetKey(lesson.snippet)!;
         const fileRow = `[data-tour-anchor="workspace-file"][data-tour-value="${lesson.file}"]`;
         const editor = '[data-tour-anchor="workspace-editor"]';
@@ -785,7 +799,9 @@ export const buildLessonTours = (
                 editor,
                 WORKSPACE_ROUTE,
                 hintFor(editor, files),
-                `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** ${lesson.result.kind} on the **${lesson.column}** column: it goes under that column's **${under}**. Type it in, or press Use it to add it.`,
+                lesson.column !== undefined && metricType !== undefined
+                    ? `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** ${lesson.result.kind} on the **${lesson.column}** column: it goes under that column's **${under}**. Type it in, or press Use it to add it.`
+                    : `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}** to the **${lesson.result.explore}** model's **${under}**. Type it in, or press Use it to add it.`,
                 lesson.snippet,
                 [fileRow],
             ),
