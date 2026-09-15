@@ -60,6 +60,7 @@ describe('useLearnAvailability sandbox gate', () => {
         const { result } = renderHook(() => useLearnAvailability());
         expect(
             result.current.isOpen({
+                kind: 'scope',
                 scope: 'manage:LearnWorkspace',
                 title: '',
                 group: 'foundations',

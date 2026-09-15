@@ -68,7 +68,39 @@ Each walkthrough prints `PASS` or `FAIL` with a screenshot path. `SMOKE_DEBUG=1`
 
 - Starting a walkthrough deletes that account's current training copy. Do not run the smoke as an account someone is testing with.
 - Enterprise walkthroughs (AI agents, data apps) need a licence, and data apps need their flag. Without them those walkthroughs stall on a control that is not rendered, so leave them out of `SMOKE_SCOPES` on a non-Enterprise instance.
+- Developer lessons need the learn sandbox on the instance, which means the `lightdash` CLI and a dbt virtualenv reachable through `LEARN_SANDBOX_PATH_PREFIX` (`GET /api/v1/health` should report `learnSandbox.enabled`). A plain `pnpm scope-tours:smoke` now runs them along with everything else, so leave them out of `SMOKE_SCOPES` on an instance without it.
 - A walkthrough can behave differently on an instance configured differently from yours. If your change depends on configuration, run the smoke with that configuration too. For example, `AUTH_GOOGLE_OAUTH2_CLIENT_ID=x` and `GOOGLE_DRIVE_API_KEY=x` (any non-empty value) make the export menu show the Google Sheets option it shows on Cloud.
+
+## Developer lessons
+
+A developer lesson is a walkthrough over the sandbox workspace rather than over the product: the learner edits a model file, deploys it, and opens the field they just created. Its steps are not marked up in components, so most of this guide does not apply, but the same two failures reach it, through the lesson's declaration and through the four anchors it borrows from Explore.
+
+To add one:
+
+1. **Declare it** in `packages/frontend/src/features/learn/sandboxLessons.ts`: the docs page, the citation each step shows (one, or a list read in order), the file to open, the column the snippet extends, the snippet (its first line is the key it goes under), the command, and the explore and field the learner ends on. Nothing else is authored. The twelve steps come from a fixed template, so a lesson cannot invent a click path, and the only wording that is not a docs sentence is two fixed task sentences the template fills from the entry: on the editor step, which metric to add and which column's metrics it goes under (typed in, or added by Use it), and on the last step, which metric the learner is looking at. The build refuses a column the file does not declare and a snippet with no `type`.
+
+2. **Start the snippet with the key it extends.** Its first line is that key at the indent it has in the file (`columns:` under the model to declare a new column, or `metrics:` under a column's `meta` to add a metric), and the lines after it are the entry to add. Use it types those lines directly under the last line in the file that is that key, and the compile test inserts them the same way, so the card shows the learner the path the entry takes. The build refuses a lesson whose key is missing from the file or belongs to something other than the column (or, for `columns:`, the model) the lesson declares.
+
+3. **Regenerate, check and compile.**
+
+    ```sh
+    pnpm scope-tours:generate
+    pnpm scope-tours:check
+    pnpm test:learn-lessons
+    ```
+
+    `test:learn-lessons` appends each snippet the way the editor appends it, compiles the workspace with dbt, and asserts the field the tour ends on exists. It needs the playground virtualenv (`scripts/playground-bundle/README.md`) and a built `common`. This is what catches an indentation that no longer fits, and it catches it long before a learner meets a deploy that fails.
+
+4. **Smoke it** like a walkthrough, naming the lesson by its id. The sandbox has to be on: `GET /api/v1/health` should report `learnSandbox.enabled`.
+
+    ```sh
+    SMOKE_BASE_URL=http://localhost:<frontend port> \
+    SMOKE_EMAIL=demo3@lightdash.com SMOKE_PASSWORD='demo_password!' \
+    SMOKE_SCOPES=docs:semantic-layer/metrics \
+    pnpm scope-tours:smoke
+    ```
+
+The last four steps leave the workspace (Click New and Choose Chart are still on the workspace route; the step after them is the first one in Explore), so a lesson also depends on anchors it does not own: the two navigation hops it borrows, `data-tour-nav="new"` and `data-tour-nav="new-chart"`, and four more in Explore. Both lists in Explore are virtualised, so each is reached by searching first: `data-tour-anchor="explore-search"` is typed to find the table, and `data-tour-anchor="explore-field-search"`, the explore's own field search, is typed to find the field. The two rows are then found by the label they render, carried in `data-tour-value`: `data-tour-anchor="explore-table"` (`Payments`) and `data-tour-anchor="explore-metric"` (`Average payment amount`). The two searches are not interchangeable: opening a table replaces the table list with the field tree, so the table's search is gone by the time the field is looked for. Renaming a table or a field in the playground bundle leaves every attribute in place and still breaks the lesson, because the value no longer matches what the step looks for. The checker sees a missing anchor; only the smoke sees a label that changed.
 
 ## When CI fails
 

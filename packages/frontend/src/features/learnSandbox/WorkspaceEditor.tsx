@@ -1,7 +1,7 @@
 import { lightdashDbtYamlSchema } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import type { editor } from 'monaco-editor';
-import { useCallback, useRef, type FC } from 'react';
+import { useCallback, useEffect, useRef, type FC } from 'react';
 import { type TourEditable } from '../../components/common/GuidedTour/GuidedTour';
 import Editor, {
     type BeforeMount,
@@ -16,6 +16,7 @@ import {
 } from '../sqlRunner/utils/monaco';
 // eslint-disable-next-line css-modules/no-unused-class -- classes used from FileTree.tsx
 import styles from './LearnWorkspace.module.css';
+import { insertionPoint } from './snippetInsertion';
 
 /** Registers the dbt YAML schema against the single shared monaco-yaml
  * instance (see configureLightdashYaml — monaco-yaml only allows one
@@ -53,6 +54,11 @@ type WorkspaceEditorProps = {
     onBlur: () => void;
 };
 
+/** Milliseconds per character when the tour types a snippet in. */
+const TOUR_TYPE_INTERVAL_MS = 24;
+/** How long the lines the tour added stay highlighted. */
+const TOUR_INSERT_HIGHLIGHT_MS = 4000;
+
 const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     path,
     content,
@@ -75,34 +81,94 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     const onBlurRef = useRef(onBlur);
     onBlurRef.current = onBlur;
 
+    // The tour's "Use it" types the snippet in rather than dropping it in:
+    // one character a tick, directly under the key it extends (see
+    // snippetInsertion.ts), scrolled into view and highlighted for a moment
+    // afterwards, so the learner sees what was added and where. Each tick
+    // fires an input event on the wrapper, which holds the tour's typed-step
+    // advance until the last character has landed.
+    const typingRef = useRef<{ cancel: () => void } | null>(null);
+    useEffect(() => () => typingRef.current?.cancel(), []);
     const appendToEditor = useCallback((value: string) => {
         const ed = editorRef.current;
         if (!ed) return;
         const model = ed.getModel();
         if (!model) return;
-        const current = model.getValue();
-        const prefix =
-            current.length === 0 || current.endsWith('\n') ? '' : '\n';
-        const line = model.getLineCount();
-        const col = model.getLineMaxColumn(line);
-        ed.executeEdits('learn-tour', [
-            {
-                range: {
-                    startLineNumber: line,
-                    startColumn: col,
-                    endLineNumber: line,
-                    endColumn: col,
+        // A second press while the snippet is still being typed, or once it
+        // is already there, adds nothing: the learner (and the smoke) can
+        // press Use it again without doubling the metric.
+        if (typingRef.current) return;
+        const point = insertionPoint(model.getValue(), value);
+        if (model.getValue().includes(point.text)) return;
+        let offset = point.offset;
+        const insertHere = (text: string) => {
+            const at = model.getPositionAt(offset);
+            ed.executeEdits('learn-tour', [
+                {
+                    range: {
+                        startLineNumber: at.lineNumber,
+                        startColumn: at.column,
+                        endLineNumber: at.lineNumber,
+                        endColumn: at.column,
+                    },
+                    text,
+                    forceMoveMarkers: true,
                 },
-                text: prefix + value,
-                forceMoveMarkers: true,
+            ]);
+            offset += text.length;
+        };
+        if (point.prefix) insertHere(point.prefix);
+        const firstLine = model.getPositionAt(offset).lineNumber;
+        const chars = [...point.text];
+        const wrapper = wrapperRef.current;
+        let index = 0;
+        let timer: number | undefined;
+        let cancelled = false;
+        const finish = () => {
+            const end = model.getPositionAt(offset);
+            if (point.suffix) insertHere(point.suffix);
+            onChangeRef.current(model.getValue());
+            ed.setPosition(end);
+            ed.revealLineInCenter(end.lineNumber);
+            const added = ed.createDecorationsCollection([
+                {
+                    range: {
+                        startLineNumber: firstLine,
+                        startColumn: 1,
+                        endLineNumber: end.lineNumber,
+                        endColumn: 1,
+                    },
+                    options: { isWholeLine: true, className: styles.tourInsert },
+                },
+            ]);
+            window.setTimeout(() => added.clear(), TOUR_INSERT_HIGHLIGHT_MS);
+            // The caret has to end up where typing would leave it: the page
+            // autosaves on blur, and text dropped into an editor that never
+            // held focus would never blur, so it would sit unsaved until the
+            // learner ran a command.
+            ed.focus();
+            typingRef.current = null;
+        };
+        const tick = () => {
+            if (cancelled) return;
+            insertHere(chars[index]);
+            index += 1;
+            ed.revealLineInCenter(model.getPositionAt(offset).lineNumber);
+            wrapper?.dispatchEvent(new Event('input', { bubbles: true }));
+            if (index < chars.length) {
+                timer = window.setTimeout(tick, TOUR_TYPE_INTERVAL_MS);
+            } else {
+                finish();
+            }
+        };
+        typingRef.current = {
+            cancel: () => {
+                cancelled = true;
+                window.clearTimeout(timer);
             },
-        ]);
-        onChangeRef.current(model.getValue());
-        // The tour's append has to leave the caret where typing would leave
-        // it: the page autosaves on blur, and text dropped into an editor
-        // that never held focus would never blur, so it would sit unsaved
-        // until the learner ran a command.
-        ed.focus();
+        };
+        if (chars.length === 0) finish();
+        else tick();
     }, []);
 
     const handleBeforeMount: BeforeMount = useCallback((monaco) => {

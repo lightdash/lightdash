@@ -25,11 +25,16 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
+    SANDBOX_LESSONS,
+    type SandboxLesson,
+} from '../../packages/frontend/src/features/learn/sandboxLessons';
+import {
     buildTours,
     docsDir,
     findBlockEnd,
     findMarkers,
     frontendSrc,
+    LESSON_SOURCE,
     listTsx,
     parsePath,
     PATH_SELECTOR,
@@ -171,6 +176,7 @@ const rawDocsHasBold = (ref: string): boolean => {
 
 export const checkTours = (
     files: string[] = listTsx(frontendSrc),
+    lessons: SandboxLesson[] = [],
 ): Finding[] => {
     const findings: Finding[] = [];
     const error = (file: string, message: string, line?: number) =>
@@ -181,7 +187,7 @@ export const checkTours = (
     let tours: ScopeTourDefinition[] = [];
     let markers: Marker[] = [];
     try {
-        ({ tours, markers } = buildTours(files));
+        ({ tours, markers } = buildTours(files, lessons));
     } catch (caught) {
         const message = (caught as Error).message;
         // The builder names the file when it has one; hint and docs errors
@@ -392,9 +398,13 @@ export const checkTours = (
         const first = markers.find(
             (m) => m.scope === tour.scope && m.step === 1,
         );
+        // A lesson tour has no markers; its findings belong to the file that
+        // declares it.
         const file =
             first?.file ??
-            'packages/frontend/src/features/scopeTours/generated.ts';
+            (tour.scope.startsWith('docs:')
+                ? LESSON_SOURCE
+                : 'packages/frontend/src/features/scopeTours/generated.ts');
         const seen = new Map<string, number>();
         tour.steps.forEach((step, index) => {
             const where = `${tour.scope} step ${index + 1} ("${step.title}")`;
@@ -513,7 +523,7 @@ export const checkTours = (
 
 const main = () => {
     const json = process.argv.includes('--json');
-    const findings = checkTours();
+    const findings = checkTours(undefined, SANDBOX_LESSONS);
     const errors = findings.filter((f) => f.level === 'error');
     if (json) {
         console.log(JSON.stringify(findings, null, 2));

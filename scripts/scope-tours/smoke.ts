@@ -76,7 +76,9 @@ const login = async (page: Page) => {
     await page.goto(`${BASE}/login`);
     await page.getByLabel('Email address').fill(EMAIL);
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByLabel('Password').fill(PASSWORD);
+    // By role: the visibility toggle beside the field also carries a label
+    // containing "password", so a label lookup alone is ambiguous.
+    await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
     // Only the URL: after login the app may bounce for a while between the
     // project list and a copy an earlier run left behind (its remembered
@@ -310,7 +312,7 @@ const runTour = async (
             lastStep > 0 &&
             !thumbnailTaken &&
             (THUMBNAIL_STEP === null
-                ? step.target.includes('data-tour-step="2"')
+                ? (step.target?.includes('data-tour-step="2"') ?? false)
                 : lastStep === THUMBNAIL_STEP)
         ) {
             thumbnailTaken = true;
@@ -357,7 +359,8 @@ const runTour = async (
             if (state.button.ready) {
                 if (
                     scope === 'manage:MetricsTree' &&
-                    state.button.label === 'Got it'
+                    state.button.label === 'Got it' &&
+                    step.target
                 ) {
                     // The fallback card can finish even when save navigation
                     // was blocked. Require the persisted tree to be on screen.
@@ -527,7 +530,10 @@ const main = async () => {
         for (const scope of scopes) {
             const started = Date.now();
             try {
-                if (!traineeScopes.includes(scope)) {
+                if (
+                    !scope.startsWith('docs:') &&
+                    !traineeScopes.includes(scope)
+                ) {
                     throw new Error(
                         'the scope is not in the trainee set a training copy grants',
                     );

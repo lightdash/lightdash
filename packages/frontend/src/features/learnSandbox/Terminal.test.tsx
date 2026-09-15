@@ -19,7 +19,7 @@ type RenderOverrides = {
     value?: string;
     onValueChange?: (value: string) => void;
     onRun?: () => void;
-    running?: boolean;
+    busy?: boolean;
     disabled?: boolean;
     output?: Partial<TerminalOutput>;
 };
@@ -33,7 +33,7 @@ const renderTerminal = (overrides: RenderOverrides = {}) => {
                 value={overrides.value ?? ''}
                 onValueChange={onValueChange}
                 onRun={onRun}
-                running={overrides.running ?? false}
+                busy={overrides.busy ?? false}
                 disabled={overrides.disabled ?? false}
                 output={{ ...EMPTY_OUTPUT, ...overrides.output }}
             />
@@ -70,14 +70,14 @@ describe('Terminal', () => {
         );
     });
 
-    it('shows data-tour-busy="true" and status Running while running, removing it when done', () => {
+    it('shows data-tour-busy="true" and status Running while busy, removing it when done', () => {
         const { rerender } = render(
             <MantineProvider env="test">
                 <Terminal
                     value=""
                     onValueChange={vi.fn()}
                     onRun={vi.fn()}
-                    running
+                    busy
                     disabled={false}
                     output={{
                         ...EMPTY_OUTPUT,
@@ -111,7 +111,7 @@ describe('Terminal', () => {
                     value=""
                     onValueChange={vi.fn()}
                     onRun={vi.fn()}
-                    running={false}
+                    busy={false}
                     disabled={false}
                     output={{
                         ...EMPTY_OUTPUT,
@@ -129,8 +129,16 @@ describe('Terminal', () => {
         expect(screen.getByText('Finished · 8s')).toBeInTheDocument();
     });
 
-    it('disables the Run button while running', () => {
-        renderTerminal({ running: true });
+    it('is busy for the tour from the moment Run is clicked, before the first poll', () => {
+        renderTerminal({ busy: true });
+
+        const pane = document.querySelector('[data-learn-terminal-output]');
+        expect(pane).toHaveAttribute('data-tour-busy', 'true');
+        expect(pane).toHaveAttribute('data-tour-anchor', 'terminal-running');
+    });
+
+    it('disables the Run button while busy', () => {
+        renderTerminal({ busy: true });
 
         expect(screen.getByRole('button', { name: /run/i })).toBeDisabled();
     });
@@ -196,8 +204,8 @@ describe('Terminal', () => {
         expect(onValueChange).toHaveBeenCalledWith('dbt parse');
     });
 
-    it('disables the quick command chips while running', () => {
-        renderTerminal({ running: true });
+    it('disables the quick command chips while busy', () => {
+        renderTerminal({ busy: true });
 
         expect(
             screen.getByRole('button', { name: 'dbt parse' }),

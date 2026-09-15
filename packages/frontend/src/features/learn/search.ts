@@ -34,10 +34,16 @@ export const createLearnSearch = (
             const steps = SCOPE_TOURS[module.scope]?.steps ?? [];
             return {
                 module,
-                title: normalize(module.title),
+                // A lesson is named after its docs page ("Dimensions"), one
+                // word that would outrank every walkthrough about the feature,
+                // so it is indexed with the step titles instead.
+                title: module.kind === 'docs' ? '' : normalize(module.title),
                 scope: normalize(module.scope),
                 stepTitles: normalize(
-                    steps.map((step) => step.title).join(' '),
+                    [
+                        module.kind === 'docs' ? module.title : '',
+                        ...steps.map((step) => step.title),
+                    ].join(' '),
                 ),
                 body: normalize(
                     [module.blurb, ...steps.map((step) => step.body)].join(' '),

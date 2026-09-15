@@ -3,9 +3,14 @@
  * read from the frontend, how docs sentences are cited, and how a set of
  * markers becomes a walkthrough. See generate.ts for the marker contract.
  */
-import { getScopes } from '@lightdash/common';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { friendlyName, getScopes } from '@lightdash/common';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import type {
+    DocsCitation,
+    SandboxLesson,
+} from '../../packages/frontend/src/features/learn/sandboxLessons';
+import { insertionPoint } from '../../packages/frontend/src/features/learnSandbox/snippetInsertion';
 
 export const root = path.resolve(__dirname, '../..');
 export const frontendSrc = path.join(root, 'packages/frontend/src');
@@ -386,11 +391,14 @@ export const docsParagraph = (ref: string): string => {
         }
     }
     if (current.length > 0) paragraphs.push(current);
-    // Prose only: skip image/JSX blocks and bullet or numbered lists (a
-    // paragraph that merely starts with bold text is prose).
+    // Prose only: skip image/JSX blocks, the MDX component imports a page
+    // opens with, and bullet or numbered lists (a paragraph that merely
+    // starts with bold text is prose).
     const prose = paragraphs.filter(
         (para) =>
-            !/^[<!]/.test(para[0]) && !/^\s*(?:[-*]\s|\d+\.\s)/.test(para[0]),
+            !/^[<!]/.test(para[0]) &&
+            !/^(?:import|export)\s/.test(para[0]) &&
+            !/^\s*(?:[-*]\s|\d+\.\s)/.test(para[0]),
     );
     // A list item, counted across the section's lists in order.
     const items = paragraphs
@@ -481,7 +489,8 @@ export const selectorFor = (marker: Marker) =>
           : `[data-tour-scope="${marker.scope}"][data-tour-result="${marker.result}"]`;
 
 export type ScopeTourStepDefinition = {
-    target: string;
+    /** CSS selector of the spotlit control; null renders a centered explainer. */
+    target: string | null;
     route?: string;
     title: string;
     body: string;
@@ -515,12 +524,355 @@ export type ScopeTourBuild = {
     files: string[];
 };
 
+export const LESSON_SOURCE =
+    'packages/frontend/src/features/learn/sandboxLessons.ts';
+const LESSON_ID = /^docs:[a-z0-9-]+(?:\/[a-z0-9-]+)+$/;
+const WORKSPACE_ROUTE = '/projects/:projectUuid/learn/workspace';
+const EXPLORE_ROUTE = '/projects/:projectUuid/tables/:tableName';
+const BUSY_OUTPUT = '[data-tour-anchor="terminal-running"]';
+
+/** The card title of a docs page: its sidebar title when it has one, else its title. */
+export const docsCardTitle = (relative: string): string => {
+    const lines = readFileSync(path.join(docsDir, relative), 'utf8').split(
+        '\n',
+    );
+    const front = lines.slice(
+        0,
+        lines[0] === '---' ? lines.indexOf('---', 1) : 0,
+    );
+    const read = (key: string) =>
+        front
+            .find((line) => line.startsWith(`${key}:`))
+            ?.replace(`${key}:`, '')
+            .trim()
+            .replace(/^["']|["']$/g, '');
+    // An empty `sidebarTitle:` is a page with no sidebar title, not a title.
+    const title = read('sidebarTitle') || read('title');
+    if (!title) throw new Error(`Docs page has no title: ${relative}`);
+    return title;
+};
+
+const learnBundleFiles = (): Map<string, string> => {
+    const bundle = JSON.parse(
+        readFileSync(
+            path.join(root, 'packages/backend/assets/learn/jaffle-dbt.json'),
+            'utf8',
+        ),
+    ) as { files: { path: string; content: string }[] };
+    return new Map(bundle.files.map((file) => [file.path, file.content]));
+};
+
 /**
- * Every walkthrough the markers describe. Throws on the first inconsistency
- * (the generator stops; the checker reports it with the file it came from).
+ * Several citations read as one body: each is closed with a full stop when
+ * the docs leave it open (a list item), then they are joined in order.
+ */
+const cite = (refs: DocsCitation): string =>
+    (Array.isArray(refs) ? refs : [refs])
+        .map((ref) => docsParagraph(ref))
+        .map((text) => (/[.!?:]\**$/.test(text) ? text : `${text}.`))
+        .join(' ');
+
+const firstCitation = (refs: DocsCitation): string =>
+    Array.isArray(refs) ? refs[0] : refs;
+
+const article = (word: string) => (/^[aeiou]/.test(word) ? 'an' : 'a');
+
+/** The key a snippet extends: its first line, `metrics:` or the like. */
+const snippetKey = (snippet: string): string | undefined =>
+    /^ *([^\s#-][^:]*):\s*$/.exec(snippet.split('\n')[0])?.[1];
+
+/** The `type:` a lesson's snippet declares; the cards name it. */
+const snippetMetricType = (snippet: string): string | undefined =>
+    /^\s*type:\s*([a-z_]+)\s*$/m.exec(snippet)?.[1];
+
+const validateLesson = (
+    lesson: SandboxLesson,
+    bundleFiles: Map<string, string>,
+) => {
+    const where = `${LESSON_SOURCE}: lesson ${lesson.id}`;
+    if (!LESSON_ID.test(lesson.id)) {
+        throw new Error(
+            `${where}: id must look like docs:<docs path without .mdx>`,
+        );
+    }
+    if (lesson.id !== `docs:${lesson.docs.replace(/\.mdx$/, '')}`) {
+        throw new Error(`${where}: id and docs page disagree`);
+    }
+    if (!existsSync(path.join(docsDir, lesson.docs))) {
+        throw new Error(
+            `${where}: docs page ${lesson.docs} not found under ${docsDir}`,
+        );
+    }
+    if (
+        !/^models\/(?:[^/]+\/)*[^/]+\.yml$/.test(lesson.file) ||
+        !bundleFiles.has(lesson.file)
+    ) {
+        throw new Error(
+            `${where}: file must be an editable models/**/*.yml in the learn bundle`,
+        );
+    }
+    if (
+        lesson.column !== undefined &&
+        (!/^[a-z][a-z0-9_]*$/.test(lesson.column) ||
+            !new RegExp(`^\\s*- name: ${lesson.column}\\s*$`, 'm').test(
+                bundleFiles.get(lesson.file)!,
+            ))
+    ) {
+        throw new Error(
+            `${where}: column ${lesson.column} is not a column of ${lesson.file}`,
+        );
+    }
+    if (lesson.snippet.trim() === '')
+        throw new Error(`${where}: snippet is empty`);
+    const under = snippetKey(lesson.snippet);
+    if (!under) {
+        throw new Error(
+            `${where}: snippet must start with the key it extends (metrics:, additional_dimensions:)`,
+        );
+    }
+    if (lesson.column !== undefined && !snippetMetricType(lesson.snippet)) {
+        throw new Error(`${where}: snippet declares no type`);
+    }
+    if (
+        lesson.column === undefined &&
+        !new RegExp(`^\\s*- name: ${lesson.result.field}\\s*$`, 'm').test(
+            lesson.snippet,
+        )
+    ) {
+        throw new Error(
+            `${where}: a snippet that extends the model must declare the column entry "- name: ${lesson.result.field}"`,
+        );
+    }
+    // The snippet's children land directly under the last line that is
+    // that key; it has to belong to the declared column, or the cards would
+    // name one column and the snippet extend another.
+    const content = bundleFiles.get(lesson.file)!;
+    const point = insertionPoint(content, lesson.snippet);
+    if (point.parentLine === null || point.text === lesson.snippet) {
+        throw new Error(
+            `${where}: ${lesson.file} has no ${under}: key for the snippet to extend`,
+        );
+    }
+    const owner = content
+        .split('\n')
+        .slice(0, point.parentLine)
+        .reverse()
+        .map((line) => /^\s*- name: ([a-z0-9_]+)\s*$/.exec(line)?.[1])
+        .find((name) => name !== undefined);
+    // A column lesson's key belongs to that column; a model lesson's key
+    // (`columns:`) belongs to the model the explore is named after.
+    const expectedOwner = lesson.column ?? lesson.result.explore;
+    if (owner !== expectedOwner) {
+        throw new Error(
+            `${where}: the last ${under}: key of ${lesson.file} belongs to ${owner ?? 'nothing named'}, not ${expectedOwner}`,
+        );
+    }
+    const [tool] = lesson.command.trim().split(/\s+/);
+    if (tool !== 'lightdash' && tool !== 'dbt') {
+        throw new Error(`${where}: command must start with lightdash or dbt`);
+    }
+    for (const name of [lesson.result.explore, lesson.result.field]) {
+        if (!/^[a-z][a-z0-9_]*$/.test(name)) {
+            throw new Error(
+                `${where}: result names must be dbt names (${name})`,
+            );
+        }
+    }
+};
+
+const click = (
+    target: string,
+    route: string,
+    title: string,
+    via: string[],
+): ScopeTourStepDefinition => ({
+    target,
+    route,
+    title,
+    body: '',
+    interactive: true,
+    advanceOnTargetClick: true,
+    advanceOnTargetInput: false,
+    via,
+});
+
+const typed = (
+    target: string,
+    route: string,
+    title: string,
+    body: string,
+    suggestion: string,
+    via: string[],
+): ScopeTourStepDefinition => ({
+    target,
+    route,
+    title,
+    body,
+    interactive: true,
+    advanceOnTargetClick: false,
+    advanceOnTargetInput: true,
+    via,
+    suggestion,
+});
+
+const look = (
+    target: string | null,
+    route: string,
+    title: string,
+    body: string,
+    via: string[],
+    busy?: string,
+): ScopeTourStepDefinition => ({
+    target,
+    route,
+    title,
+    body,
+    interactive: false,
+    advanceOnTargetClick: false,
+    advanceOnTargetInput: false,
+    via,
+    ...(busy ? { busy } : {}),
+});
+
+/**
+ * One tour per lesson from a fixed template: read the docs, open the file,
+ * append the snippet, type the command, run it, watch the output, then open
+ * the explore and find the new field. Hints and docs are read the way marker
+ * tours read them, so a missing anchor or citation fails the build.
+ */
+export const buildLessonTours = (
+    lessons: SandboxLesson[],
+    files: string[],
+): ScopeTourDefinition[] => {
+    if (lessons.length === 0) return [];
+    const seen = new Set<string>();
+    lessons.forEach(({ id }) => {
+        if (seen.has(id)) {
+            throw new Error(`${LESSON_SOURCE}: duplicate lesson id ${id}`);
+        }
+        seen.add(id);
+    });
+    const bundleFiles = learnBundleFiles();
+    return lessons.map((lesson) => {
+        validateLesson(lesson, bundleFiles);
+        const metricType = snippetMetricType(lesson.snippet);
+        const under = snippetKey(lesson.snippet)!;
+        const fileRow = `[data-tour-anchor="workspace-file"][data-tour-value="${lesson.file}"]`;
+        const editor = '[data-tour-anchor="workspace-editor"]';
+        const command = '[data-tour-anchor="terminal-command"]';
+        const run = '[data-tour-anchor="terminal-run"]';
+        const output = '[data-learn-terminal-output]';
+        const newMenu = '[data-tour-nav="new"]';
+        const newChart = '[data-tour-nav="new-chart"]';
+        const exploreLabel = friendlyName(lesson.result.explore);
+        const fieldLabel = friendlyName(lesson.result.field);
+        const table = `[data-tour-anchor="explore-table"][data-tour-value="${exploreLabel}"]`;
+        const search = '[data-tour-anchor="explore-search"]';
+        const fieldSearch = '[data-tour-anchor="explore-field-search"]';
+        const fieldRow = `[data-tour-anchor="explore-${lesson.result.kind}"][data-tour-value="${fieldLabel}"]`;
+        for (const selector of [editor, command, search, fieldSearch]) {
+            if (!isInputAnchor(selector, files)) {
+                throw new Error(
+                    `${LESSON_SOURCE}: ${selector} must be a typed anchor (data-tour-input)`,
+                );
+            }
+        }
+        const title = docsCardTitle(lesson.docs);
+        const steps: ScopeTourStepDefinition[] = [
+            look(
+                // The intro explains the page's concept before any control is named.
+                null,
+                WORKSPACE_ROUTE,
+                title,
+                cite(lesson.intro),
+                [],
+            ),
+            // The docs say where a metric lives; the editor step then says
+            // which one this lesson adds. Its task sentence and the closing
+            // one are the only fixed wording in a lesson besides 'See the
+            // result'.
+            {
+                ...click(fileRow, WORKSPACE_ROUTE, hintFor(fileRow, files), []),
+                body: cite(lesson.fileDocs),
+            },
+            typed(
+                editor,
+                WORKSPACE_ROUTE,
+                hintFor(editor, files),
+                lesson.column !== undefined && metricType !== undefined
+                    ? `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** ${lesson.result.kind} on the **${lesson.column}** column: it goes under that column's **${under}**. Type it in, or press Use it to add it.`
+                    : `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}** to the **${lesson.result.explore}** model's **${under}**. Type it in, or press Use it to add it.`,
+                lesson.snippet,
+                [fileRow],
+            ),
+            typed(
+                command,
+                WORKSPACE_ROUTE,
+                hintFor(command, files),
+                cite(lesson.commandDocs),
+                lesson.command,
+                [fileRow],
+            ),
+            click(run, WORKSPACE_ROUTE, hintFor(run, files), [fileRow]),
+            look(
+                output,
+                WORKSPACE_ROUTE,
+                'See the result',
+                cite(lesson.outputDocs),
+                [],
+                BUSY_OUTPUT,
+            ),
+            click(newMenu, WORKSPACE_ROUTE, hintFor(newMenu, files), []),
+            click(newChart, WORKSPACE_ROUTE, hintFor(newChart, files), [
+                newMenu,
+            ]),
+            // The table list is virtualised, so the lesson's table is not on
+            // the page until it is searched for.
+            typed(
+                search,
+                EXPLORE_ROUTE,
+                hintFor(search, files),
+                '',
+                exploreLabel,
+                [newMenu, newChart],
+            ),
+            click(table, EXPLORE_ROUTE, hintFor(table, files), [
+                newMenu,
+                newChart,
+                search,
+            ]),
+            // The field tree has its own search, and the table list's has
+            // gone by now: the explore replaces it. The search is titled from
+            // the field row's own named hint, so the step and the row it
+            // leads to say the same thing and a missing row fails the build.
+            typed(
+                fieldSearch,
+                EXPLORE_ROUTE,
+                hintFor(fieldRow, files),
+                '',
+                fieldLabel,
+                [newMenu, newChart, search, table],
+            ),
+            look(
+                fieldRow,
+                EXPLORE_ROUTE,
+                docsHeading(firstCitation(lesson.resultDocs)),
+                `${cite(lesson.resultDocs)} **${fieldLabel}** is the ${lesson.result.kind} you just deployed.`,
+                [newMenu, newChart, search, table, fieldSearch],
+            ),
+        ];
+        return { scope: lesson.id, title, sources: [LESSON_SOURCE], steps };
+    });
+};
+
+/**
+ * Every walkthrough the markers describe, and one per developer lesson.
+ * Throws on the first inconsistency (the generator stops; the checker reports
+ * it with the file it came from).
  */
 export const buildTours = (
     files: string[] = listTsx(frontendSrc),
+    lessons: SandboxLesson[] = [],
 ): ScopeTourBuild => {
     const markers = files.flatMap(findMarkers);
     const scopes = new Map(
@@ -778,5 +1130,6 @@ export const buildTours = (
             tours.push({ ...primaryTours.get(marker.scope)!, scope: covered });
         }
     }
+    tours.push(...buildLessonTours(lessons, files));
     return { tours, markers, files };
 };
