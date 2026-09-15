@@ -1,3 +1,10 @@
+## [2.214.1](https://github.com/lightdash/lightdash/compare/2.214.0...2.214.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* disable press transforms in the dark navbar ([#29211](https://github.com/lightdash/lightdash/issues/29211)) ([d91debb](https://github.com/lightdash/lightdash/commit/d91debbe282b197bd4ef5593f8dede8057e547f0))
+
 # [2.214.0](https://github.com/lightdash/lightdash/compare/2.213.0...2.214.0) (2026-09-15)
 
 
