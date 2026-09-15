@@ -22,7 +22,6 @@ import {
     Title,
     Tooltip,
     UnstyledButton,
-    useMatches,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -104,6 +103,7 @@ import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
+import { useCompactContentHeader } from '../Page/useCompactContentHeader';
 import DashboardInfoOverlay from '../PageHeader/DashboardInfoOverlay';
 import ShareShortLinkButton from '../ShareShortLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
@@ -184,10 +184,7 @@ const DashboardHeader = memo(
         onEditClicked,
         className,
     }: DashboardHeaderProps) => {
-        const compact = useMatches(
-            { base: true, sm: false },
-            { getInitialValueInEffect: false },
-        );
+        const compact = useCompactContentHeader();
         const performanceWarning = useDashboardPerformanceWarning(
             dashboardTiles,
             dashboardTabs,

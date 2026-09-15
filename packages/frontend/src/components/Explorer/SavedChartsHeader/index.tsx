@@ -8,7 +8,6 @@ import {
     Text,
     Title,
     Tooltip,
-    useMatches,
 } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -71,6 +70,7 @@ import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import PageHeader from '../../common/Page/PageHeader';
+import { useCompactContentHeader } from '../../common/Page/useCompactContentHeader';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import {
     ResourceInfoPopup,
@@ -152,10 +152,7 @@ const verifiedTourProps = {
 
 const SavedChartsHeader: FC = () => {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-    const compact = useMatches(
-        { base: true, sm: false },
-        { getInitialValueInEffect: false },
-    );
+    const compact = useCompactContentHeader();
     const { search } = useLocation();
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
