@@ -320,10 +320,17 @@ const SetupSection: FC<{
                                 <Anchor
                                     component={Link}
                                     to="/generalSettings/ai/general"
+                                    target="_blank"
                                     fz="xs"
+                                    fw={600}
                                     c="dimmed"
+                                    className={classes.aiSettingsLink}
                                 >
                                     AI settings
+                                    <MantineIcon
+                                        icon={IconExternalLink}
+                                        size={14}
+                                    />
                                 </Anchor>
                             </>
                         )}
