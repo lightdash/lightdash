@@ -120,7 +120,8 @@ const main = () => {
 // \`pnpm scope-tours:generate\`.
 
 export type ScopeTourStepDefinition = {
-    target: string;
+    /** CSS selector of the spotlit control; null renders a centered explainer. */
+    target: string | null;
     route?: string;
     title: string;
     body: string;

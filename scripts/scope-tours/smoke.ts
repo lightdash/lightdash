@@ -312,7 +312,7 @@ const runTour = async (
             lastStep > 0 &&
             !thumbnailTaken &&
             (THUMBNAIL_STEP === null
-                ? step.target.includes('data-tour-step="2"')
+                ? (step.target?.includes('data-tour-step="2"') ?? false)
                 : lastStep === THUMBNAIL_STEP)
         ) {
             thumbnailTaken = true;
@@ -359,7 +359,8 @@ const runTour = async (
             if (state.button.ready) {
                 if (
                     scope === 'manage:MetricsTree' &&
-                    state.button.label === 'Got it'
+                    state.button.label === 'Got it' &&
+                    step.target
                 ) {
                     // The fallback card can finish even when save navigation
                     // was blocked. Require the persisted tree to be on screen.

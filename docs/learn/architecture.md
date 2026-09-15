@@ -149,16 +149,19 @@ profile only when the file sits directly inside it.
 #### Lessons
 
 A lesson teaches one docs page by having the learner change the project and then look at what changed. Each is
-declared in `features/learn/sandboxLessons.ts`, one entry per page, naming the file to open, the snippet to add,
-the command to run, and the explore and field the learner ends on. Every sentence the learner reads is a cited
-docs sentence, so the snippet is the only part written by hand. The library lists each lesson as a module of kind
+declared in `features/learn/sandboxLessons.ts`, one entry per page, naming the file to open and the column the
+snippet extends, the snippet to add, the command to run, and the explore and field the learner ends on. Every
+sentence the learner reads is either a cited docs sentence (a step may cite several, read in order) or one of
+three fixed task sentences the template fills from the entry (which metric goes under which column of which
+model, where Use it puts the snippet, which metric the learner ends on), so the snippet and the entry's facts are
+the only parts written by hand. The library lists each lesson as a module of kind
 `docs` in the Developer group, gated on the sandbox rather than on a permission, so every learner holds it. The
 generated teaching order (`curriculum.ts`) covers permissions and does not name lessons at all, so the library
 sorts them after every walkthrough. Start makes a copy the way a walkthrough does and opens
 `/projects/<copy>/learn/workspace?tour=<id>`.
 
 The tour itself is not authored. `buildLessonTours` in `scripts/scope-tours/lib.ts` turns each entry into the
-same twelve steps: read the docs sentence, open the file, add the snippet, type the command, run it, watch the
+same twelve steps: read the page's introduction on a card with nothing spotlit, open the file, add the snippet, type the command, run it, watch the
 output to the end, then New, Chart, search for the table, open it, search for the field, and look at the field
 that now exists. The two searches are not decoration: both lists in Explore are virtualised, so neither the
 table nor the field is on the page until it has been searched for, and they are two different controls, because
