@@ -109,6 +109,7 @@ const Spaces: FC = () => {
                         <Group gap="xs">
                             {!isDemo && userCanManageSpace && (
                                 <Button
+                                    h={{ base: 32, md: 36 }}
                                     leftSection={<IconPlus size={18} />}
                                     onClick={handleCreateSpace}
                                     className={
