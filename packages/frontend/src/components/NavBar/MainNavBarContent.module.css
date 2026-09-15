@@ -147,8 +147,16 @@
 
 /* Keep the desktop navigation shape on tablets. Labels condense only where
    the full row would otherwise run out of room. */
+@media (min-width: 32em) {
+    .leftGroup :global([role='search']) {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+}
+
 @media (32em <= width < 37.5em) {
-    .leftGroup > :global([role='search']) {
+    .leftGroup :global([role='search']) {
         width: rem(34px);
         height: rem(32px);
         padding-inline: rem(8px);
@@ -157,7 +165,7 @@
         background: transparent;
     }
 
-    .leftGroup > :global([role='search']:hover) {
+    .leftGroup :global([role='search']:hover) {
         border-color: transparent;
         background: var(--mantine-color-default-hover);
     }
