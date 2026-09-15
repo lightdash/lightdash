@@ -1,3 +1,10 @@
+## [2.217.2](https://github.com/lightdash/lightdash/compare/2.217.1...2.217.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* stricter patch validation for content edits ([#29241](https://github.com/lightdash/lightdash/issues/29241)) ([e9e184e](https://github.com/lightdash/lightdash/commit/e9e184edb73530928906a08a28497eb89e0bca35))
+
 ## [2.217.1](https://github.com/lightdash/lightdash/compare/2.217.0...2.217.1) (2026-09-15)
 
 
