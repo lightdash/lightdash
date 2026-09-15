@@ -317,6 +317,109 @@ describe('ExplorerChartTypeAuthoring', () => {
         expect(screen.getByTestId('config-tabs')).toBeInTheDocument();
     });
 
+    it('keeps configuration out of a new chart type before its first build', () => {
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            newTypeWorkspace(),
+        );
+
+        renderAuthoring({ dataAppVizUuid: null });
+
+        expect(screen.queryByTestId('config-tabs')).not.toBeInTheDocument();
+    });
+
+    it('keeps configuration out while a first build has no preview version', () => {
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            workspaceStub({ isBuilding: true, previewVersion: null }),
+        );
+
+        renderAuthoring();
+
+        expect(screen.queryByTestId('config-tabs')).not.toBeInTheDocument();
+    });
+
+    it('keeps configuration out when the preview schema has not arrived', () => {
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            workspaceStub({
+                dataAppViz: { ...dataAppViz, schema: null },
+            }),
+        );
+
+        renderAuthoring();
+
+        expect(screen.queryByTestId('config-tabs')).not.toBeInTheDocument();
+    });
+
+    it('keeps configuration out for an empty generated schema contract', () => {
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            workspaceStub({
+                dataAppViz: {
+                    ...dataAppViz,
+                    schema: {
+                        fields: [],
+                        configOptions: [],
+                        colorPalette: null,
+                    },
+                },
+            }),
+        );
+
+        renderAuthoring();
+
+        expect(screen.queryByTestId('config-tabs')).not.toBeInTheDocument();
+    });
+
+    it('shows field mapping for a ready schema with no configuration options', () => {
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            workspaceStub({
+                dataAppViz: {
+                    ...dataAppViz,
+                    schema: { ...dataAppViz.schema, configOptions: [] },
+                },
+            }),
+        );
+
+        renderAuthoring();
+
+        expect(screen.getByTestId('config-tabs')).toBeInTheDocument();
+    });
+
+    it('shows configuration for a ready options-only schema', () => {
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            workspaceStub({
+                dataAppViz: {
+                    ...dataAppViz,
+                    schema: {
+                        ...dataAppViz.schema,
+                        fields: [],
+                    },
+                },
+            }),
+        );
+
+        renderAuthoring();
+
+        expect(screen.getByTestId('config-tabs')).toBeInTheDocument();
+    });
+
+    it('shows configuration for a ready palette-only schema', () => {
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            workspaceStub({
+                dataAppViz: {
+                    ...dataAppViz,
+                    schema: {
+                        fields: [],
+                        configOptions: [],
+                        colorPalette: { group: 'Colours' },
+                    },
+                },
+            }),
+        );
+
+        renderAuthoring();
+
+        expect(screen.getByTestId('config-tabs')).toBeInTheDocument();
+    });
+
     it('binds the chart to the type once its schema is known', () => {
         const store = renderAuthoring();
 

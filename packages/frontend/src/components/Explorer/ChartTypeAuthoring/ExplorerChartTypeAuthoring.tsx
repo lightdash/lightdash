@@ -284,7 +284,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                 fullScreen
                 cancelLabel={false}
                 modalRootProps={{ closeOnClickOutside: false }}
-                modalBodyProps={{ px: 'md', py: 'md' }}
+                modalBodyProps={{ px: 0, py: 0 }}
             >
                 <ExplorerChartTypeAuthoringView
                     projectUuid={projectUuid}
