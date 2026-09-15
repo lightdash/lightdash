@@ -248,6 +248,7 @@ export type ManagedAgentAction = {
     actionUuid: string;
     projectUuid: string;
     sessionId: string;
+    managedAgentRunUuid: string | null;
     actionType: ManagedAgentActionType;
     targetType: ManagedAgentTargetType;
     targetUuid: string;

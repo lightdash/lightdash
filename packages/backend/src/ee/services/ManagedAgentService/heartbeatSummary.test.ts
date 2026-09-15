@@ -50,7 +50,7 @@ describe('heartbeat summaries from saved actions', () => {
             interrupted: false,
         });
         expect(report.text).toContain(
-            'Broken flags: 105 — `Chart 0`, `Chart 1`, `Chart 2`; 102 more targets',
+            'Broken flags: 105 (`Chart 0`, `Chart 1`, `Chart 2`; 102 more targets)',
         );
         expect(report.compactSummary).toContain('Broken flags: 105');
         expect(report.text).not.toContain('Chart 104');
@@ -70,8 +70,17 @@ describe('heartbeat summaries from saved actions', () => {
             interrupted: false,
         });
         expect(report.text).toContain(
-            'Repairs: 2 — `Sales & Marketing  chart `',
+            'Repairs: 2 (`Sales & Marketing  chart `)',
         );
+    });
+    it('writes standard markdown that both the page and Slack render', () => {
+        const report = renderHeartbeatSummary({
+            actions: [action(ManagedAgentActionType.FLAGGED_STALE, 'Old')],
+            interrupted: false,
+        });
+        expect(report.text).toContain('**Autopilot activity**');
+        expect(report.text).toContain('\n- Stale flags: 1 (`Old`)');
+        expect(report.text).not.toMatch(/•|—|^\*[^*]/m);
     });
     it('distinguishes an unavailable ledger from no actions', () => {
         expect(

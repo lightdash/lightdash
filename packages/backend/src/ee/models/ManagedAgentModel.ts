@@ -402,6 +402,7 @@ export class ManagedAgentModel {
             actionUuid: row.action_uuid,
             projectUuid: row.project_uuid,
             sessionId: row.session_id,
+            managedAgentRunUuid: row.managed_agent_run_uuid ?? null,
             actionType: row.action_type as ManagedAgentAction['actionType'],
             targetType: row.target_type as ManagedAgentAction['targetType'],
             targetUuid: row.target_uuid,
@@ -1305,10 +1306,30 @@ export class ManagedAgentModel {
         return row ? ManagedAgentModel.mapDbRun(row) : null;
     }
 
+    // Per-run action counts keyed by action type, for every run read that
+    // feeds the activity page.
+    private actionCountsByTypeColumn() {
+        return this.database.raw(
+            `(SELECT json_object_agg(action_type, cnt) FROM (
+                SELECT action_type, COUNT(*) AS cnt
+                FROM ${ManagedAgentActionsTableName}
+                WHERE managed_agent_run_uuid = ${ManagedAgentRunsTableName}.managed_agent_run_uuid
+                GROUP BY action_type
+            ) sub) AS action_counts_by_type`,
+        );
+    }
+
     async getLatestRun(projectUuid: string): Promise<ManagedAgentRun | null> {
         const row = await this.database(ManagedAgentRunsTableName)
             .where({ project_uuid: projectUuid })
-            .orderBy('started_at', 'desc')
+            .orderBy([
+                { column: 'started_at', order: 'desc' },
+                { column: 'managed_agent_run_uuid', order: 'desc' },
+            ])
+            .select(
+                `${ManagedAgentRunsTableName}.*`,
+                this.actionCountsByTypeColumn(),
+            )
             .first();
         return row ? ManagedAgentModel.mapDbRun(row) : null;
     }
@@ -1332,14 +1353,7 @@ export class ManagedAgentModel {
             .limit(opts.limit + 1)
             .select(
                 `${ManagedAgentRunsTableName}.*`,
-                this.database.raw(
-                    `(SELECT json_object_agg(action_type, cnt) FROM (
-                        SELECT action_type, COUNT(*) AS cnt
-                        FROM ${ManagedAgentActionsTableName}
-                        WHERE managed_agent_run_uuid = ${ManagedAgentRunsTableName}.managed_agent_run_uuid
-                        GROUP BY action_type
-                    ) sub) AS action_counts_by_type`,
-                ),
+                this.actionCountsByTypeColumn(),
             );
         if (opts.cursor) {
             query = query.whereRaw(

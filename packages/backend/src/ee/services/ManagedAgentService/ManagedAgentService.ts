@@ -58,6 +58,7 @@ import type { SpaceModel } from '../../../models/SpaceModel';
 import type { UserModel } from '../../../models/UserModel';
 import type { ValidationModel } from '../../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../../scheduler/SchedulerClient';
+import type { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { ValidationService } from '../../../services/ValidationService/ValidationService';
@@ -204,6 +205,7 @@ type ManagedAgentServiceDependencies = {
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     aiAgentToolsService: AiAgentToolsService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
+    asyncQueryService: AsyncQueryService;
 };
 
 type AutopilotToolCallHandler = (
@@ -259,6 +261,8 @@ export class ManagedAgentService extends BaseService {
 
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
 
+    private readonly asyncQueryService: AsyncQueryService;
+
     constructor(deps: ManagedAgentServiceDependencies) {
         super();
         this.lightdashConfig = deps.lightdashConfig;
@@ -281,9 +285,40 @@ export class ManagedAgentService extends BaseService {
         this.orgAiCopilotConfigResolver = deps.orgAiCopilotConfigResolver;
         this.aiAgentToolsService = deps.aiAgentToolsService;
         this.aiOrganizationSettingsService = deps.aiOrganizationSettingsService;
+        this.asyncQueryService = deps.asyncQueryService;
     }
 
     // --- Validation helpers ---
+
+    // Runs the chart query at limit 1 so a bad field or SQL fails here, not
+    // on the next validation pass after the version is already saved.
+    private async assertChartQueryRuns(
+        actor: SessionUser,
+        projectUuid: string,
+        metricQuery: MetricQuery,
+        parameters: SavedChart['parameters'],
+        abortSignal?: AbortSignal,
+    ): Promise<void> {
+        try {
+            await this.asyncQueryService.executeMetricQueryAndGetResults(
+                {
+                    account: fromSession(actor),
+                    projectUuid,
+                    context: QueryExecutionContext.AI,
+                    metricQuery: { ...metricQuery, limit: 1 },
+                    parameters,
+                },
+                { abortSignal },
+            );
+        } catch (error) {
+            abortSignal?.throwIfAborted();
+            const message =
+                error instanceof Error ? error.message : 'Unknown error';
+            throw new Error(
+                `The chart query failed, so nothing was saved: ${message}. Fix the query and try again.`,
+            );
+        }
+    }
 
     private static validateEnum<T extends string>(
         value: unknown,
@@ -2420,16 +2455,11 @@ export class ManagedAgentService extends BaseService {
                 blocks: mainBlocks,
             });
 
-            // Thread reply: full detailed report
+            // Thread reply: the markdown report, posted as markdown blocks
             if (agentSummary && mainMessage?.ts) {
-                const slackSummary = agentSummary
-                    .replace(/^#{1,3}\s+(.+)$/gm, '*$1*')
-                    .replace(/\*{2}([^*]+)\*{2}/g, '*$1*')
-                    .replace(/\|---[|\-\s]*\|/g, '');
-
                 // Split into chunks of 2800 chars to stay under Slack's 3000 limit
                 const chunks: string[] = [];
-                let remaining = slackSummary;
+                let remaining = agentSummary;
                 while (remaining.length > 0) {
                     chunks.push(remaining.slice(0, 2800));
                     remaining = remaining.slice(2800);
@@ -2616,6 +2646,7 @@ export class ManagedAgentService extends BaseService {
                 return this.handleReverseOwnAction(
                     actor,
                     projectUuid,
+                    runUuid,
                     input,
                     abortSignal,
                     allowContentDeletion,
@@ -3158,6 +3189,16 @@ chartConfig:
         );
         await this.assertActorCanManageProject(actor, projectUuid);
         await this.assertActorCanUpdateChart(actor, chart);
+        await this.assertChartQueryRuns(
+            actor,
+            projectUuid,
+            {
+                ...(input.metric_query as MetricQuery),
+                exploreName: chart.tableName,
+            },
+            chart.parameters,
+            abortSignal,
+        );
 
         const previousVersion =
             await this.savedChartModel.getLatestVersionSummary(chartUuid);
@@ -3366,8 +3407,15 @@ chartConfig:
             );
         }
 
-        // Get or create the Agent Suggestions space
         await this.assertActorCanManageProject(actor, projectUuid);
+        await this.assertChartQueryRuns(
+            actor,
+            projectUuid,
+            { ...(mq as unknown as MetricQuery), exploreName: tableName },
+            undefined,
+            abortSignal,
+        );
+        // Get or create the Agent Suggestions space
         abortSignal?.throwIfAborted();
         const spaceUuid = await this.getOrCreateAgentSpace(actor, projectUuid);
         await this.assertActorCanCreateChart(
@@ -4503,6 +4551,7 @@ chartConfig:
     private async handleReverseOwnAction(
         actor: SessionUser,
         projectUuid: string,
+        runUuid: string,
         input: Record<string, unknown>,
         abortSignal?: AbortSignal,
         allowContentDeletion = true,
@@ -4526,6 +4575,11 @@ chartConfig:
             return JSON.stringify({
                 error: `Action already reversed`,
                 reversed_at: action.reversedAt,
+            });
+        }
+        if (action.managedAgentRunUuid !== runUuid) {
+            return JSON.stringify({
+                error: 'This action was recorded by an earlier run. Only actions from the current run can be reversed; admins can dismiss or restore older actions from the activity page.',
             });
         }
         await this.assertActorCanManageProject(actor, projectUuid);

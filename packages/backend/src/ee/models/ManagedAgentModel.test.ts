@@ -134,3 +134,50 @@ describe('ManagedAgentModel run attribution', () => {
         });
     });
 });
+
+describe('ManagedAgentModel latest run', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new ManagedAgentModel({
+        database: database as unknown as Knex,
+        encryptionUtil: {} as EncryptionUtil,
+    });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('aggregates action counts like the run list does', async () => {
+        tracker.on.select(/managed_agent_runs/).response([
+            {
+                managed_agent_run_uuid: 'run-uuid',
+                project_uuid: projectUuid,
+                triggered_by: 'manual',
+                status: 'completed',
+                session_id: null,
+                started_at: new Date(),
+                finished_at: new Date(),
+                action_count: 3,
+                summary: null,
+                error: null,
+                current_activity: null,
+                created_at: new Date(),
+                model_provider: null,
+                model_name: null,
+                action_counts_by_type: { flagged_stale: 2, insight: 1 },
+            },
+        ]);
+
+        const run = await model.getLatestRun(projectUuid);
+
+        expect(run?.actionCountsByType).toEqual({
+            flagged_stale: 2,
+            insight: 1,
+        });
+        expect(tracker.history.select[0].sql).toContain('json_object_agg');
+    });
+});

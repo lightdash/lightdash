@@ -2107,14 +2107,11 @@ const RunRow: FC<{
             {isOpen && run.summary && (
                 <Table.Tr>
                     <Table.Td colSpan={3}>
-                        <Text
-                            fz="xs"
-                            px="md"
-                            py="xs"
-                            className={classes.runSummary}
-                        >
-                            {run.summary}
-                        </Text>
+                        <Box px="md" py="xs" className={classes.runSummary}>
+                            <AiMarkdown className={classes.runSummaryMarkdown}>
+                                {run.summary}
+                            </AiMarkdown>
+                        </Box>
                     </Table.Td>
                 </Table.Tr>
             )}
@@ -2248,13 +2245,13 @@ const QuietRunsGroup: FC<{
                             </Text>
                         </Group>
                         {run.summary && (
-                            <Text
-                                fz="xs"
-                                mt="xs"
-                                className={classes.runSummary}
-                            >
-                                {run.summary}
-                            </Text>
+                            <Box mt="xs" className={classes.runSummary}>
+                                <AiMarkdown
+                                    className={classes.runSummaryMarkdown}
+                                >
+                                    {run.summary}
+                                </AiMarkdown>
+                            </Box>
                         )}
                     </Table.Td>
                 </Table.Tr>

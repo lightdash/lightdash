@@ -21,7 +21,8 @@ const quoteName = (name: string) =>
     `\`${name.replace(/[`\r\n]/g, ' ').slice(0, 120)}\``;
 
 // Built only from saved actions: one snapshot feeds the stored run summary,
-// the activity page and the Slack headline.
+// the activity page and the Slack thread. Standard markdown: the page
+// renders it and Slack accepts it in markdown blocks.
 export const renderHeartbeatSummary = ({
     actions,
     interrupted,
@@ -31,18 +32,20 @@ export const renderHeartbeatSummary = ({
 }): { text: string; compactSummary: string } => {
     if (actions === null) {
         return {
-            text: '*Autopilot activity*\nThe saved action report is unavailable. Review this run in the activity page.',
+            text: '**Autopilot activity**\n\nThe saved action report is unavailable. Review this run in the activity page.',
             compactSummary: 'Saved action report unavailable',
         };
     }
     const active = actions.filter((action) => !action.reversedAt);
     const lines = [
-        '*Autopilot activity*',
+        '**Autopilot activity**',
+        '',
         interrupted
             ? 'Run interrupted. Saved work is listed below.'
             : 'Run completed.',
         '',
-        '*Actions in effect at report time*',
+        '**Actions in effect at report time**',
+        '',
     ];
     const headline: string[] = [];
     for (const [type, label] of actionLabels) {
@@ -52,7 +55,7 @@ export const renderHeartbeatSummary = ({
         const more =
             names.length > 3 ? `; ${names.length - 3} more targets` : '';
         lines.push(
-            `• ${label}: ${group.length}${examples ? ` — ${examples}${more}` : ''}`,
+            `- ${label}: ${group.length}${examples ? ` (${examples}${more})` : ''}`,
         );
         if (group.length) headline.push(`${label}: ${group.length}`);
     }
@@ -65,11 +68,12 @@ export const renderHeartbeatSummary = ({
     const reversed = actions.length - active.length;
     lines.push(
         '',
-        '*Other saved activity*',
-        `• Insights for review: ${insights}`,
-        `• Refused attempts: ${blocked}`,
+        '**Other saved activity**',
+        '',
+        `- Insights for review: ${insights}`,
+        `- Refused attempts: ${blocked}`,
     );
-    if (reversed) lines.push(`• Reversed or dismissed actions: ${reversed}`);
+    if (reversed) lines.push(`- Reversed or dismissed actions: ${reversed}`);
     lines.push(
         '',
         'See the activity page for findings and individual action details. Soft-deleted content is recoverable.',

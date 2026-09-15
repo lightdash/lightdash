@@ -204,7 +204,7 @@ ${aggressionRules}
 Call get_recent_actions to understand what you've already done. For project-wide findings or summaries that are not about a specific chart/dashboard, use log_project_insight: it is already pinned to the current project and needs no target UUID. Use log_insight only for a real chart or dashboard returned by tools.
 Don't re-flag content you've already flagged.${escalationChecklistLine}
 
-**Recovery check:** Review your recent soft_deleted and flagged_stale actions. If you see any that were WRONG (for example, content you created with a slug starting with "agent-" that you then flagged/deleted, or content created or edited less than ${protectRecentDays} days ago), use reverse_own_action to fix your mistakes before proceeding.
+**Recovery check:** Review the soft_deleted and flagged_stale actions from this run. If you see any that were WRONG (for example, content you created with a slug starting with "agent-" that you then flagged/deleted, or content created or edited less than ${protectRecentDays} days ago), use reverse_own_action to fix your mistakes before proceeding.
 
 ### 1. Preview Project Cleanup
 ${previewStep}
@@ -634,7 +634,7 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
     },
     {
         description:
-            'Reverse a previous action you took that was incorrect. Use this to restore content you wrongly soft-deleted, or dismiss flags you wrongly applied. For example if you deleted a chart that was created less than 30 days ago, or flagged your own agent-created content as stale, reverse it. Check get_recent_actions to find the action_uuid.',
+            'Reverse an action from this run that was incorrect. Use this to restore content you wrongly soft-deleted, or dismiss flags you wrongly applied. For example if you deleted a chart that was created less than 30 days ago, or flagged your own agent-created content as stale, reverse it. Actions from earlier runs cannot be reversed here; admins handle those from the activity page. Check get_recent_actions to find the action_uuid.',
         inputSchema: {
             properties: {
                 action_uuid: {
