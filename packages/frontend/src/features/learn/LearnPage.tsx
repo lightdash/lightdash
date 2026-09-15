@@ -207,7 +207,12 @@ const LearnPage: FC = () => {
         () => buildLearnCatalogue().filter(isOpen),
         [isOpen],
     );
-    const { completed, started, lastStarted } = useLearnProgress();
+    const {
+        completed,
+        started,
+        lastStarted,
+        isSettled: isProgressSettled,
+    } = useLearnProgress();
     // What the learner can do, anywhere: their organization role, any
     // organization-level custom roles, and every project role they hold. The
     // library is that; everything else waits behind the Extra modules
@@ -270,7 +275,8 @@ const LearnPage: FC = () => {
     // One view per visit to the library, once the page knows what it is
     // showing: the projects, the instance switch, and the gates that decide
     // which modules are in the catalogue (they answer after the projects
-    // do, and the counts below would be short without them). The redirects
+    // do, and the counts below would be short without them), and the
+    // progress the instance holds. The redirects
     // below are not views of it, and the call to action before an admin
     // has enabled Learn is (hasTrainingProject false): it is the page a
     // learner lands on.
@@ -278,7 +284,7 @@ const LearnPage: FC = () => {
     const trackedViewRef = useRef(false);
     useEffect(() => {
         if (trackedViewRef.current) return;
-        if (!projects || !learnFlag || !isSettled) return;
+        if (!projects || !learnFlag || !isSettled || !isProgressSettled) return;
         if (previewRedirect || !learnFlag.enabled) return;
         trackedViewRef.current = true;
         track({
@@ -303,6 +309,7 @@ const LearnPage: FC = () => {
         projects,
         learnFlag,
         isSettled,
+        isProgressSettled,
         previewRedirect,
         organizationUuid,
         trainingProject,

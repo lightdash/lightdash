@@ -8,11 +8,33 @@ import ScopeTourHost from './ScopeTourHost';
 const SCOPE = 'manage:PinnedItems';
 const NEXT_SCOPE = 'manage:Space';
 
-const { track, navigate, mutate, searchState } = vi.hoisted(() => ({
+const {
+    track,
+    navigate,
+    mutate,
+    searchState,
+    markScopeStarted,
+    markScopeCompleted,
+    progressState,
+} = vi.hoisted(() => ({
     track: vi.fn(),
     navigate: vi.fn().mockResolvedValue(undefined),
     mutate: vi.fn(),
     searchState: { current: new URLSearchParams() },
+    markScopeStarted: vi.fn(),
+    markScopeCompleted: vi.fn(),
+    progressState: { completed: [] as string[] },
+}));
+
+// Progress comes from the instance; the tests set what it answers.
+vi.mock('../learn/progress', () => ({
+    useLearnProgress: () => ({
+        completed: progressState.completed,
+        started: [],
+        lastStarted: null,
+        isSettled: true,
+    }),
+    useLearnProgressActions: () => ({ markScopeStarted, markScopeCompleted }),
 }));
 
 vi.mock('react-router', () => ({
@@ -149,11 +171,13 @@ const learnEvents = () =>
 
 describe('ScopeTourHost analytics', () => {
     beforeEach(() => {
-        localStorage.clear();
         sessionStorage.clear();
+        progressState.completed = [];
         track.mockClear();
         navigate.mockClear();
         mutate.mockClear();
+        markScopeStarted.mockClear();
+        markScopeCompleted.mockClear();
         searchState.current = new URLSearchParams(
             `tour=${SCOPE}&copy=true&from=learn`,
         );
@@ -232,9 +256,8 @@ describe('ScopeTourHost analytics', () => {
             source: 'deep_link',
             trainingProjectUuid: 'training-1',
         });
-        expect(
-            JSON.parse(localStorage.getItem('lightdash.learn.started') ?? '[]'),
-        ).toContain(SCOPE);
+        expect(markScopeStarted).toHaveBeenCalledWith(SCOPE);
+        expect(markScopeCompleted).toHaveBeenCalledWith(SCOPE);
     });
 
     it('does not record a second start for a tour the library already started', () => {
@@ -247,10 +270,7 @@ describe('ScopeTourHost analytics', () => {
     });
 
     it('reports a walkthrough the learner has finished before as a restart', () => {
-        localStorage.setItem(
-            'lightdash.learn.completed',
-            JSON.stringify([NEXT_SCOPE]),
-        );
+        progressState.completed = [NEXT_SCOPE];
         renderHost();
 
         fireEvent.click(screen.getByText('got it'));
