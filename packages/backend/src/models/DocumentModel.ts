@@ -242,7 +242,7 @@ export class DocumentModel {
             await transaction(DocumentVersionsTableName).insert({
                 document_id: row.document_id,
                 version_number: document.version.versionNumber + 1,
-                schema_version: 1,
+                schema_version: DOCUMENT_SCHEMA_VERSION,
                 content,
                 created_by_user_uuid: createdByUserUuid,
             });
