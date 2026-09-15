@@ -22,7 +22,9 @@ const {
     track: vi.fn(),
     projectState: { current: [] as unknown[] },
     learnFlagState: { current: { enabled: true }, isLoading: false },
-    availabilityState: { current: { isSettled: true } },
+    availabilityState: {
+        current: { isSettled: true, closed: [] as string[] },
+    },
     // Everything the learner can do, anywhere.
     accessState: { current: [] as string[] },
     // What the instance holds for the learner.
@@ -95,7 +97,9 @@ vi.mock('../../hooks/useProjectRoute', () => ({
 // tests decide whether the gates have answered yet.
 vi.mock('./availability', () => ({
     useLearnAvailability: () => ({
-        isOpen: () => true,
+        isOpen: (module: { gate: string | null }) =>
+            module.gate === null ||
+            !availabilityState.current.closed.includes(module.gate),
         isSettled: availabilityState.current.isSettled,
     }),
 }));
@@ -144,7 +148,7 @@ describe('LearnPage analytics', () => {
         track.mockClear();
         learnFlagState.current = { enabled: true };
         learnFlagState.isLoading = false;
-        availabilityState.current = { isSettled: true };
+        availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = scopes;
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
@@ -226,7 +230,7 @@ describe('LearnPage analytics', () => {
         const { container } = renderPage();
         const { moduleCount, startedCount, completedCount } =
             viewEvents()[0].properties;
-        expect(moduleCount).toBe(41);
+        expect(moduleCount).toBe(42);
         expect(startedCount).toBe(1);
         expect(completedCount).toBe(1);
         expect(
@@ -250,11 +254,11 @@ describe('LearnPage analytics', () => {
     });
 
     it('waits for the catalogue gates to answer before counting', () => {
-        availabilityState.current = { isSettled: false };
+        availabilityState.current = { isSettled: false, closed: [] };
         const { rerender } = renderPage();
         expect(viewEvents()).toEqual([]);
 
-        availabilityState.current = { isSettled: true };
+        availabilityState.current = { isSettled: true, closed: [] };
         rerender(
             <MemoryRouter>
                 <MantineProvider env="test">
@@ -291,7 +295,7 @@ describe('LearnPage access', () => {
         };
         track.mockClear();
         learnFlagState.current = { enabled: true };
-        availabilityState.current = { isSettled: true };
+        availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = ['view:Dashboard', 'manage:Validation'];
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
@@ -351,6 +355,37 @@ describe('LearnPage access', () => {
         expect(screen.getByText('Every module')).toBeTruthy();
     });
 
+    it('lists the Metrics lesson under Developer for a learner who holds no scope', () => {
+        accessState.current = [];
+
+        const { container } = renderPage();
+
+        const card = container.querySelector(
+            '[data-learn-module="docs:semantic-layer/metrics"]',
+        );
+        expect(card).not.toBeNull();
+        expect(card!.textContent).toContain('Metrics');
+        expect(card!.textContent).toContain('11 steps');
+        expect(
+            container.querySelector('[data-learn-group="developer"]'),
+        ).not.toBeNull();
+    });
+
+    it('hides the Developer section while the sandbox gate is closed', () => {
+        availabilityState.current.closed = ['sandbox'];
+
+        const { container } = renderPage();
+
+        expect(
+            container.querySelector(
+                '[data-learn-module="docs:semantic-layer/metrics"]',
+            ),
+        ).toBeNull();
+        expect(
+            container.querySelector('[data-learn-group="developer"]'),
+        ).toBeNull();
+    });
+
     it('keeps the access filter when searching and clearing', async () => {
         const { container } = renderPage();
         const input = screen.getByRole('textbox', {
@@ -375,7 +410,7 @@ describe('LearnPage unsupported modules', () => {
         track.mockClear();
         learnFlagState.current = { enabled: true };
         learnFlagState.isLoading = false;
-        availabilityState.current = { isSettled: true };
+        availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = scopes;
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
