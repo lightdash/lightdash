@@ -94,6 +94,7 @@ export const AI_THREAD_CREATED_FROM = [
     'web_app',
     'evals',
     'scheduler',
+    'data_app',
 ] as const;
 export type AiThreadCreatedFrom = (typeof AI_THREAD_CREATED_FROM)[number];
 
@@ -106,6 +107,7 @@ export const AI_WEB_APP_THREAD_CREATED_FROM = [
     'web_app',
     'evals',
     'scheduler',
+    'data_app',
 ] as const satisfies readonly AiThreadCreatedFrom[];
 export type AiWebAppThreadCreatedFrom =
     (typeof AI_WEB_APP_THREAD_CREATED_FROM)[number];

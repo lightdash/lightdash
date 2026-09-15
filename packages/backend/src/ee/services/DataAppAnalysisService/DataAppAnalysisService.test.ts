@@ -283,3 +283,131 @@ describe('DataAppAnalysisService.detect', () => {
         ).rejects.toBeInstanceOf(ParameterError);
     });
 });
+
+describe('DataAppAnalysisService.investigate', () => {
+    const storedDetection = {
+        data_app_analysis_uuid: 'analysis-1',
+        operation: 'detect' as const,
+        app_id: 'app-1',
+        app_version: 3,
+        sources: [{ queryUuid: 'q1', label: 'Orders by status' }],
+        result: {
+            headline: 'h',
+            summary: 's',
+            anomalies: [
+                {
+                    id: 'anom-1',
+                    severity: 'high' as const,
+                    text: 'Returned orders are 12 in Q3',
+                    queryUuid: 'q1',
+                    fieldId: 'orders_total',
+                    dimensionValues: { orders_status: 'returned' },
+                    expected: null,
+                    actual: '12',
+                },
+            ],
+            limitations: [],
+            dataAsOf: null,
+        },
+        created_at: new Date('2026-09-15T10:00:00Z'),
+    };
+
+    function buildInvestigateService(
+        overrides: {
+            stored?: unknown;
+            agentAccessible?: boolean;
+        } = {},
+    ) {
+        const base = buildService();
+        const find = vi
+            .fn()
+            .mockResolvedValue(
+                overrides.stored === undefined
+                    ? storedDetection
+                    : overrides.stored,
+            );
+        const dataAppInvestigate = vi
+            .fn()
+            .mockResolvedValue({ jobId: 'job-1' });
+        const getAgent =
+            overrides.agentAccessible === false
+                ? vi.fn().mockRejectedValue(new ForbiddenError('no access'))
+                : vi.fn().mockResolvedValue({ uuid: 'agent-1' });
+        const service = base.service as unknown as Record<string, unknown>;
+        (service.dataAppAnalysisModel as Record<string, unknown>).find = find;
+        service.schedulerClient = { dataAppInvestigate };
+        (service.aiAgentService as Record<string, unknown>).getAgent = getAgent;
+        return { service: base.service, find, dataAppInvestigate, getAgent };
+    }
+
+    it('queues a job for a known anomaly with an accessible agent', async () => {
+        const { service, dataAppInvestigate } = buildInvestigateService();
+        await expect(
+            service.investigate(
+                buildAccount(),
+                'proj-1',
+                'app-1',
+                'analysis-1',
+                {
+                    anomalyId: 'anom-1',
+                    agentUuid: 'agent-1',
+                },
+            ),
+        ).resolves.toEqual({ jobId: 'job-1' });
+        expect(dataAppInvestigate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                analysisId: 'analysis-1',
+                anomalyId: 'anom-1',
+                agentUuid: 'agent-1',
+                appUuid: 'app-1',
+                projectUuid: 'proj-1',
+            }),
+        );
+    });
+
+    it('returns 404 for an anomaly id that is not in the detection', async () => {
+        const { service, dataAppInvestigate } = buildInvestigateService();
+        await expect(
+            service.investigate(
+                buildAccount(),
+                'proj-1',
+                'app-1',
+                'analysis-1',
+                {
+                    anomalyId: 'forged',
+                    agentUuid: 'agent-1',
+                },
+            ),
+        ).rejects.toMatchObject({ statusCode: 404 });
+        expect(dataAppInvestigate).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 for an analysis the viewer does not own', async () => {
+        const { service } = buildInvestigateService({ stored: null });
+        await expect(
+            service.investigate(buildAccount(), 'proj-1', 'app-1', 'other', {
+                anomalyId: 'anom-1',
+                agentUuid: 'agent-1',
+            }),
+        ).rejects.toMatchObject({ statusCode: 404 });
+    });
+
+    it('reports agent_unavailable instead of picking another agent', async () => {
+        const { service, dataAppInvestigate } = buildInvestigateService({
+            agentAccessible: false,
+        });
+        await expect(
+            service.investigate(
+                buildAccount(),
+                'proj-1',
+                'app-1',
+                'analysis-1',
+                {
+                    anomalyId: 'anom-1',
+                    agentUuid: 'agent-x',
+                },
+            ),
+        ).rejects.toMatchObject({ data: { code: 'agent_unavailable' } });
+        expect(dataAppInvestigate).not.toHaveBeenCalled();
+    });
+});

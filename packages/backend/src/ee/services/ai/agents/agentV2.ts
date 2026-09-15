@@ -209,6 +209,29 @@ export const AGENT_FINAL_STEP_INSTRUCTION =
  * field discovery and query execution and nothing else — no content, repo,
  * memory, delegation, or reporting tools.
  */
+/**
+ * Read-only tools a data-app investigation may use: semantic-layer lookups
+ * and queries, saved content reads, and project knowledge. No raw SQL, no
+ * writes, no external actions.
+ */
+export const DATA_APP_INVESTIGATE_TOOL_NAMES: ReadonlySet<string> = new Set([
+    'findContent',
+    'generateVisualization',
+    'getDashboardCharts',
+    'getKnowledgeDocumentContent',
+    'getMetadata',
+    'getProjectInfo',
+    'grepFields',
+    'listContent',
+    'listKnowledgeDocuments',
+    'loadProjectContext',
+    'readContent',
+    'runContentQuery',
+    'runSavedChart',
+    'searchFieldValues',
+    'searchSemanticLayer',
+]);
+
 export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
     'describeWarehouseTable',
     'generateVisualization',
@@ -1307,7 +1330,22 @@ export const getAgentTools = (
                 return assertUnreachable(research, 'Unknown research role');
         }
     };
-    const finalTools = getResearchTools() ?? mergedTools;
+    const researchTools = getResearchTools();
+    const allowlist =
+        args.execution.mode === 'standard'
+            ? args.execution.toolAllowlist
+            : undefined;
+    // A standard run can pin itself to a read-only subset (data-app
+    // investigations); MCP tools are excluded from such runs entirely.
+    const finalTools =
+        researchTools ??
+        (allowlist
+            ? Object.fromEntries(
+                  Object.entries(tools).filter(([toolName]) =>
+                      allowlist.has(toolName),
+                  ),
+              )
+            : mergedTools);
 
     logger(
         'Agent Tools',
