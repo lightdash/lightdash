@@ -1,31 +1,40 @@
-import { type CatalogField } from '@lightdash/common';
-import { Box, Text, useMantineTheme } from '@mantine/core';
+import { interpolateUiString } from '@lightdash/common';
+import {
+    ActionIcon,
+    CloseButton,
+    Group,
+    Popover,
+    Text,
+    useMantineTheme,
+} from '@mantine/core';
+import { IconArrowsMaximize } from '@tabler/icons-react';
 import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';
-import { useRef, useState, type FC } from 'react';
-import {
-    type ContentTableRow,
-    type ContentTableInstance,
-} from '../../../components/common/ContentTable';
+import { useState, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useIsLineClamped } from '../../../hooks/useIsLineClamped';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setDescriptionPopoverIsClosing } from '../store/metricsCatalogSlice';
-import { MetricCatalogCellOverlay } from './MetricCatalogCellOverlay';
+import classes from './MetricsCatalogColumnDescription.module.css';
 
 type Props = {
-    row: ContentTableRow<CatalogField>;
-    table: ContentTableInstance<CatalogField>;
+    description: string | undefined;
+    metricLabel: string;
 };
 
-export const MetricsCatalogColumnDescription: FC<Props> = ({ row, table }) => {
+export const MetricsCatalogColumnDescription: FC<Props> = ({
+    description,
+    metricLabel,
+}) => {
     const theme = useMantineTheme();
+    const getUiString = useUiStrings();
     const dispatch = useAppDispatch();
-    const cellRef = useRef<HTMLDivElement>(null);
     const { ref: highlightRef, isLineClamped } =
         useIsLineClamped<HTMLDivElement>(2);
     const [isOpen, setIsOpen] = useState(false);
-    const canOpen = isLineClamped && row.original.description;
+    const canOpen = isLineClamped && Boolean(description);
 
     const isCategoryPopoverClosing = useAppSelector(
         (state) => state.metricsCatalog.popovers.category.isClosing,
@@ -58,56 +67,83 @@ export const MetricsCatalogColumnDescription: FC<Props> = ({ row, table }) => {
     };
 
     return (
-        <Box ref={cellRef}>
+        <Group wrap="nowrap" gap="xs" align="flex-start">
             <Text
+                component="div"
                 ref={highlightRef}
-                c={row.original.description ? 'ldGray.6' : 'ldGray.4'}
+                c={description ? 'ldGray.6' : 'ldGray.4'}
                 fz="sm"
                 fw={400}
                 lh="150%"
-                onClick={() => {
-                    if (
-                        canOpen &&
-                        !(
-                            isCategoryPopoverClosing ||
-                            isDescriptionPopoverClosing
-                        )
-                    ) {
-                        setIsOpen(true);
-                    }
-                }}
                 lineClamp={2}
-                style={{
-                    cursor: canOpen ? 'pointer' : 'default',
-                    color: row.original.description ? 'ldGray.6' : 'ldGray.4',
-                }}
+                className={classes.preview}
             >
                 <MarkdownPreview
-                    source={row.original.description ?? '\\-'}
+                    source={description ?? '\\-'}
                     {...markdownPreviewProps}
                 />
             </Text>
 
-            <MetricCatalogCellOverlay
-                isOpen={isOpen}
-                setIsOpen={(newIsOpen) => {
-                    if (!newIsOpen) {
-                        dispatch(setDescriptionPopoverIsClosing(true));
-                        setIsOpen(false);
-
-                        // Reset the closing state after a short delay
-                        setTimeout(() => {
-                            dispatch(setDescriptionPopoverIsClosing(false));
-                        }, 100);
-                    } else {
-                        setIsOpen(true);
-                    }
+            <Popover
+                opened={isOpen}
+                onDismiss={() => {
+                    dispatch(setDescriptionPopoverIsClosing(true));
+                    setIsOpen(false);
+                    setTimeout(
+                        () => dispatch(setDescriptionPopoverIsClosing(false)),
+                        100,
+                    );
                 }}
-                content={row.original.description || ''}
-                cellRef={cellRef}
-                table={table}
-                markdownPreviewProps={markdownPreviewProps}
-            />
-        </Box>
+                position="bottom-end"
+                width="min(480px, calc(100vw - 24px))"
+                floatingStrategy="fixed"
+                middlewares={{ shift: { crossAxis: true, padding: 12 } }}
+                trapFocus
+                returnFocus
+                shadow="md"
+            >
+                <Popover.Target>
+                    <ActionIcon
+                        aria-label={interpolateUiString(
+                            getUiString('metrics.readDescription'),
+                            { metric: metricLabel },
+                        )}
+                        className={classes.expandButton}
+                        display={canOpen || isOpen ? undefined : 'none'}
+                        variant="subtle"
+                        color="gray"
+                        onClick={() => {
+                            if (
+                                !isCategoryPopoverClosing &&
+                                !isDescriptionPopoverClosing
+                            )
+                                setIsOpen((open) => !open);
+                        }}
+                    >
+                        <MantineIcon icon={IconArrowsMaximize} />
+                    </ActionIcon>
+                </Popover.Target>
+                <Popover.Dropdown className={classes.dropdown}>
+                    <Group
+                        justify="space-between"
+                        wrap="nowrap"
+                        className={classes.header}
+                    >
+                        <Text fw={600} size="sm">
+                            {metricLabel}
+                        </Text>
+                        <CloseButton
+                            size={44}
+                            aria-label={getUiString('metrics.closeDescription')}
+                            onClick={() => setIsOpen(false)}
+                        />
+                    </Group>
+                    <MarkdownPreview
+                        {...markdownPreviewProps}
+                        source={description ?? ''}
+                    />
+                </Popover.Dropdown>
+            </Popover>
+        </Group>
     );
 };

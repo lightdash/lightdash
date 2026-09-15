@@ -3,28 +3,10 @@
     border: 0;
 }
 
-.resizeHandle {
-    background-color: var(--mantine-color-ldGray-0);
-    width: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: col-resize;
-    transition: background-color 0.2s ease-in-out;
-    border-right: 1px solid var(--mantine-color-ldGray-2);
-
-    &:hover {
-        background-color: var(--mantine-color-ldGray-1);
-    }
-
-    &[data-active] {
-        background-color: var(--mantine-color-ldGray-2);
-    }
-}
-
 .treeItem {
     border-radius: var(--mantine-radius-md);
     cursor: pointer;
+    text-align: start;
     transition: background-color 0.15s ease-in-out;
 
     &:hover {
@@ -38,5 +20,12 @@
 
     &:hover {
         background-color: var(--mantine-color-indigo-light-hover);
+    }
+}
+
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
+    .sidebar :global(.mantine-Button-root),
+    .treeItem {
+        min-height: 44px;
     }
 }

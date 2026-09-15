@@ -4,6 +4,7 @@ import { IconFilePencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useChartPermissions } from '../../hooks/useChartPermissions';
+import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
 import { useDashboardChartEdit } from '../../providers/Dashboard/useDashboardChartEdit';
@@ -22,6 +23,7 @@ type Props = LinkMenuItemProps & {
 };
 
 const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const { user } = useApp();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
@@ -41,12 +43,15 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
     // Otherwise the menu opens an editor that only fails on save.
     const { canMutateVerification } = useChartPermissions(chart);
 
+    if (!authoringEnabled) return null;
+
     if (!tile.properties.savedChartUuid || !userCanManageExplore) return null;
 
     // Edit over the dashboard when the host offers it and the chart is loaded.
     if (onEditChart && chart && canMutateVerification) {
         return (
             <Menu.Item
+                display={authoringEnabled ? undefined : 'none'}
                 leftSection={<MantineIcon icon={IconFilePencil} />}
                 onClick={() => onEditChart(chart)}
                 disabled={props.disabled}

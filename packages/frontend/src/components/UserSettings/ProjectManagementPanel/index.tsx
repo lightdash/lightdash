@@ -639,20 +639,34 @@ const ProjectManagementPanel: FC = () => {
         },
         renderTopToolbar: () => (
             <Group
+                className={classes.toolbar}
                 justify="space-between"
                 p={`${theme.spacing.sm} ${theme.spacing.md}`}
                 wrap="nowrap"
             >
-                <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
+                <Group
+                    className={classes.filters}
+                    gap="xs"
+                    wrap="nowrap"
+                    flex={1}
+                    miw={0}
+                >
                     <Tooltip label="Search by project name">
                         <ContentTableSearchInput
+                            className={classes.search}
+                            aria-label="Search projects"
                             placeholder="Search projects..."
                             value={search}
                             onChange={setSearch}
                         />
                     </Tooltip>
 
-                    <Divider orientation="vertical" w={1} h={20} />
+                    <Divider
+                        orientation="vertical"
+                        w={1}
+                        h={20}
+                        visibleFrom="sm"
+                    />
 
                     <SegmentedControl
                         size="xs"

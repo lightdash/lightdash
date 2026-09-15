@@ -6,12 +6,14 @@ import { useNavigate } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
+import { useContentAuthoringEnabled } from '../hooks/useContentAuthoringEnabled';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 
 const SavedQueries: FC = () => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const projectUuid = useProjectUuid();
     const { health } = useApp();
     const navigate = useNavigate();
@@ -45,6 +47,7 @@ const SavedQueries: FC = () => {
                         />
                         {!isDemo && userCanCreateCharts ? (
                             <Button
+                                display={authoringEnabled ? undefined : 'none'}
                                 leftSection={<IconPlus size={18} />}
                                 onClick={handleCreateChart}
                             >

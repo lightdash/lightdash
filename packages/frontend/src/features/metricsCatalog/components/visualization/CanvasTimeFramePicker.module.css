@@ -43,7 +43,9 @@
 
 /* Dropdown container */
 .dropdown {
-    min-width: 300px;
+    width: min(300px, calc(100vw - 24px)) !important;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
 }
 
 /* Right section (chevron icon) */
@@ -72,4 +74,46 @@
 
 .dateDisplayGroupped {
     border-radius: 0 var(--mantine-radius-md) var(--mantine-radius-md) 0;
+}
+
+.select {
+    width: 224px;
+    max-width: 100%;
+    flex-shrink: 0;
+}
+
+@media (width < $mantine-breakpoint-sm) {
+    .root {
+        min-width: 0;
+        gap: 4px;
+    }
+
+    .currentRange {
+        gap: 4px;
+    }
+
+    .dateDisplay {
+        height: auto;
+        min-height: 32px;
+        font-size: var(--mantine-font-size-xs);
+        padding-inline: 6px;
+        white-space: normal;
+    }
+
+    .dateDisplayGroupped,
+    .input {
+        border-radius: var(--mantine-radius-md);
+        border: 1px solid var(--mantine-color-ldGray-2);
+    }
+}
+
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
+    .input,
+    .option {
+        min-height: 44px;
+    }
+
+    .input {
+        font-size: 16px;
+    }
 }

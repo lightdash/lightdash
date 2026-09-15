@@ -1,0 +1,32 @@
+.drawerContent {
+    composes: content from '../../../../components/common/SidebarDrawer.module.css';
+}
+
+.drawerBody {
+    composes: body from '../../../../components/common/SidebarDrawer.module.css';
+    padding: 0;
+}
+
+.resizeHandle {
+    background-color: var(--mantine-color-ldGray-0);
+    width: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    border-right: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.resizeHandle:hover {
+    background-color: var(--mantine-color-ldGray-1);
+}
+
+.resizeHandle[data-active] {
+    background-color: var(--mantine-color-ldGray-2);
+}
+
+@media (width < $mantine-breakpoint-sm) {
+    .resizeHandle {
+        display: none;
+    }
+}

@@ -1,4 +1,4 @@
-import { Stack } from '@mantine/core';
+import { Select, Stack, useMatches } from '@mantine/core';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { AiAgentIcon } from '../../../../../ee/features/aiCopilot/components/AiAgentIcon';
@@ -23,6 +23,28 @@ export const SchedulerDeliveryNav: FC<Props> = ({
     active,
     onSelect,
 }) => {
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
+    if (compact) {
+        return (
+            <Select
+                m="md"
+                aria-label="Delivery section"
+                value={active}
+                allowDeselect={false}
+                data={sections.map((id) => ({
+                    value: id,
+                    label: SCHEDULER_SECTIONS[id].label,
+                }))}
+                onChange={(value) => {
+                    const section = sections.find((id) => id === value);
+                    if (section) onSelect(section);
+                }}
+            />
+        );
+    }
     return (
         <nav className={classes.nav}>
             <Stack gap="lg">

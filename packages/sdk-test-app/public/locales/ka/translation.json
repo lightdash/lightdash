@@ -87,14 +87,21 @@
         },
         "repro-prod-10299": {
             "tabs": [
-                { "name": "პირველი ჩანართი" },
-                { "name": "მეორე ჩანართი" },
-                { "name": "მესამე ჩანართი" }
+                {
+                    "name": "პირველი ჩანართი"
+                },
+                {
+                    "name": "მეორე ჩანართი"
+                },
+                {
+                    "name": "მესამე ჩანართი"
+                }
             ]
         }
     },
     "uiOverrides": {
         "parameters.is": "არის",
+        "parameters.clear": "პარამეტრის გასუფთავება",
         "tileMenu.exploreFromHere": "გამოიკვლიეთ აქედან",
         "tileMenu.downloadData": "მონაცემების ჩამოტვირთვა",
         "tileMenu.exportImage": "სურათის ექსპორტი",
@@ -122,6 +129,13 @@
         "filters.summary.dateZoomLabel": "თარიღის მასშტაბი:",
         "filters.summary.default": "ნაგულისხმევი",
         "filters.summary.showFilters": "ფილტრების ჩვენება",
+        "page.closeSidebar": "გვერდითი პანელის დახურვა",
+        "page.closeDetails": "დეტალების დახურვა",
+        "metrics.previous": "წინა მეტრიკა",
+        "metrics.next": "შემდეგი მეტრიკა",
+        "metrics.closeExploration": "მეტრიკის კვლევის დახურვა",
+        "filters.panel.title": "ფილტრები და პარამეტრები",
+        "filters.panel.close": "ფილტრების დახურვა",
         "filters.operators.isNull": "ცარიელია",
         "filters.operators.notNull": "არ არის ცარიელი",
         "filters.operators.equals": "არის",
@@ -302,6 +316,58 @@
         "filters.summary.hideFilters": "ფილტრების დამალვა",
         "filters.summary.hide": "დამალვა",
         "dashboard.exportAllTiles": "ყველა ფილას ექსპორტი",
-        "dashboard.printPage": "ამ გვერდის ამობეჭდვა"
+        "dashboard.printPage": "ამ გვერდის ამობეჭდვა",
+        "tileMenu.actions": "ფილის მოქმედებები",
+        "comments.title": "კომენტარები",
+        "comments.close": "კომენტარების დახურვა",
+        "comments.reply": "პასუხი",
+        "comments.actions": "კომენტარის მოქმედებები",
+        "tileMenu.filters": "დიაგრამის ფილტრები",
+        "tileMenu.parameters": "დიაგრამის პარამეტრები",
+        "tileMenu.execution": "მოთხოვნის შესრულების დეტალები",
+        "tileMenu.timezone": "დიაგრამის დროის სარტყელი",
+        "tileMenu.askAi": "ჰკითხეთ AI აგენტს",
+        "metrics.dateStart": "თარიღის დიაპაზონის დასაწყისი",
+        "metrics.dateEnd": "თარიღის დიაპაზონის დასასრული",
+        "metrics.granularity": "დროის დეტალიზაცია",
+        "metrics.details": "{metric}: დეტალები",
+        "metrics.closeDetails": "მეტრიკის დეტალების დახურვა",
+        "metrics.changeIcon": "{metric}: ხატულის შეცვლა",
+        "metrics.removeIcon": "ხატულის წაშლა",
+        "metrics.closeIconPicker": "ხატულების არჩევის დახურვა",
+        "metrics.closeSidebar": "დახურვა: {sidebar}",
+        "metrics.savedTrees": "შენახული ხეები",
+        "metrics.addMetrics": "მეტრიკების დამატება",
+        "metrics.canvasPeriod": "ტილოს პერიოდი",
+        "metrics.treeActions": "ხის მოქმედებები",
+        "metrics.searchMetrics": "მეტრიკების ძებნა",
+        "metrics.noMatchingMetrics": "შესაბამისი მეტრიკები ვერ მოიძებნა",
+        "metrics.removeSelected": "არჩეულის წაშლა",
+        "metrics.canvasLabel": "მეტრიკების ტილო",
+        "metrics.expandCanvas": "ტილოს გაფართოება",
+        "metrics.exitExpandedCanvas": "გაფართოებული ტილოს დახურვა",
+        "metrics.connectMetrics": "მეტრიკების დაკავშირება",
+        "metrics.connect": "დაკავშირება",
+        "metrics.connectionSource": "საწყისი მეტრიკა",
+        "metrics.connectionTarget": "სამიზნე მეტრიკა",
+        "metrics.connectionExists": "ეს მეტრიკები ამ მიმართულებით უკვე დაკავშირებულია.",
+        "metrics.editCategories": "{metric}-ის კატეგორიების რედაქტირება",
+        "metrics.addCategory": "კატეგორიის დამატება",
+        "metrics.closeCategories": "კატეგორიების დახურვა",
+        "metrics.editCategory": "კატეგორიის რედაქტირება: {category}",
+        "metrics.closeCategoryEditor": "კატეგორიის რედაქტორის დახურვა",
+        "metrics.categoryName": "კატეგორიის სახელი",
+        "metrics.deleteCategory": "კატეგორიის წაშლა: {category}",
+        "metrics.categoryColor": "კატეგორიის ფერი: {color}",
+        "metrics.removeCategory": "მეტრიკიდან კატეგორიის ამოშლა: {category}",
+        "metrics.readDescription": "{metric}-ის სრული აღწერის წაკითხვა",
+        "metrics.closeDescription": "აღწერის დახურვა",
+        "metrics.comparison": "მეტრიკების შედარება",
+        "metrics.comparePreviousYear": "წინა წელთან შედარება",
+        "metrics.compareAnotherMetric": "სხვა მეტრიკასთან შედარება",
+        "metrics.compareMetricTooltip": "„{metric}“-ის სხვა მეტრიკასთან შედარება",
+        "metrics.comparisonMetric": "შესადარებელი მეტრიკა",
+        "filters.closeFacet": "{filter} ფილტრის დახურვა",
+        "metrics.ownerDetails": "მფლობელის დეტალები: {owner}"
     }
 }

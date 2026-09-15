@@ -1207,6 +1207,7 @@ export const AttachButton: FC<{
     disabled: boolean;
     filesDisabled: boolean;
     linkedAppUuid?: string;
+    iconOnly?: boolean;
 }> = ({
     selectedCharts,
     onSelectChart,
@@ -1221,6 +1222,7 @@ export const AttachButton: FC<{
     disabled,
     filesDisabled,
     linkedAppUuid,
+    iconOnly = false,
 }) => {
     const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
@@ -1275,30 +1277,51 @@ export const AttachButton: FC<{
                     position="top"
                     disabled={opened}
                 >
-                    <Button
-                        variant="subtle"
-                        color="gray"
-                        size="xs"
-                        radius="xl"
-                        h="auto"
-                        px={8}
-                        py={6}
-                        onClick={() => setOpened((o) => !o)}
-                        disabled={disabled}
-                        aria-label="Attach resources"
-                        // Walkthrough look for create:DataApp: context makes
-                        // the agent's first version better.
-                        data-tour-scope="create:DataApp"
-                        data-tour-look="2"
-                        data-tour-after='[data-tour-anchor="app-prompt"]'
-                        data-tour-label="Attach charts or a dashboard for context"
-                        data-tour-docs="data-apps.mdx#adding-context:1"
-                        leftSection={<MantineIcon icon={IconPlus} size={14} />}
-                    >
-                        <Text span size="xs" fw={600} lh={1.2} c="inherit">
-                            Attach
-                        </Text>
-                    </Button>
+                    {iconOnly ? (
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            size={32}
+                            radius="xl"
+                            onClick={() => setOpened((o) => !o)}
+                            disabled={disabled}
+                            aria-label="Attach resources"
+                            data-tour-scope="create:DataApp"
+                            data-tour-look="2"
+                            data-tour-after='[data-tour-anchor="app-prompt"]'
+                            data-tour-label="Attach charts or a dashboard for context"
+                            data-tour-docs="data-apps.mdx#adding-context:1"
+                        >
+                            <MantineIcon icon={IconPlus} size={16} />
+                        </ActionIcon>
+                    ) : (
+                        <Button
+                            variant="subtle"
+                            color="gray"
+                            size="xs"
+                            radius="xl"
+                            h="auto"
+                            px={8}
+                            py={6}
+                            onClick={() => setOpened((o) => !o)}
+                            disabled={disabled}
+                            aria-label="Attach resources"
+                            // Walkthrough look for create:DataApp: context makes
+                            // the agent's first version better.
+                            data-tour-scope="create:DataApp"
+                            data-tour-look="2"
+                            data-tour-after='[data-tour-anchor="app-prompt"]'
+                            data-tour-label="Attach charts or a dashboard for context"
+                            data-tour-docs="data-apps.mdx#adding-context:1"
+                            leftSection={
+                                <MantineIcon icon={IconPlus} size={14} />
+                            }
+                        >
+                            <Text span size="xs" fw={600} lh={1.2} c="inherit">
+                                Attach
+                            </Text>
+                        </Button>
+                    )}
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown className={classes.queryDropdown} p={0}>

@@ -1,9 +1,17 @@
+.sidebarSlot {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
 .root {
     --navbar-offset: 0px;
     --header-offset: 0px;
     --banner-offset: 0px;
     --page-height: calc(
-        100vh - var(--navbar-offset) - var(--header-offset) -
+        100dvh - var(--navbar-offset) - var(--header-offset) -
             var(--banner-offset)
     );
 
@@ -56,7 +64,7 @@
 
 .content {
     width: 100%;
-    min-width: var(--page-content-width);
+    min-width: 0;
     padding-top: var(--mantine-spacing-lg);
     padding-bottom: var(--mantine-spacing-lg);
 }
@@ -70,7 +78,7 @@
 }
 
 .content[data-with-sidebar='true'] {
-    min-width: var(--page-min-content-width);
+    min-width: min(var(--page-min-content-width), 100%);
     /* Absorb the row's negative free space down to the min-width above before
        the (shrinkable) sidebars start giving up their width. */
     flex-shrink: 1000;
@@ -96,6 +104,7 @@
 
 .content[data-fit-content='true'] {
     width: fit-content;
+    max-width: 100%;
     margin-left: auto;
     margin-right: auto;
 }
@@ -133,5 +142,33 @@
     margin-left: auto;
     margin-right: auto;
     width: var(--page-content-width);
+    max-width: 100%;
     flex-shrink: 0;
+}
+
+.root[data-compact='true'] {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.root[data-compact='true'] > .content {
+    flex: 1;
+    min-height: 0;
+}
+
+.root[data-compact='true']:not([data-full-height='true']) > .content {
+    flex: 1 0 auto;
+}
+
+.sidebarToolbar {
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+@media (max-width: $mantine-breakpoint-sm) {
+    .content[data-xlarge-padded-content='true'],
+    .content[data-padded-content='true'] {
+        padding: var(--mantine-spacing-sm);
+    }
 }

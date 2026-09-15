@@ -4,9 +4,10 @@ import {
     PROJECT_TIMEZONE_SETTING,
     USER_TIMEZONE_SETTING,
 } from '@lightdash/common';
-import { ActionIcon, HoverCard, Text } from '@mantine/core';
+import { ActionIcon, Popover, Text } from '@mantine/core';
 import { IconWorld } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { getTimezoneSourceLabel } from '../../utils/timezoneSourceLabel';
 import MantineIcon from '../common/MantineIcon';
@@ -19,6 +20,7 @@ type Props = {
 };
 
 const TileTimezoneInfo: FC<Props> = ({ resolvedTimezone, timezoneSetting }) => {
+    const getUiString = useUiStrings();
     const { data: timezoneSupportFlag } = useServerFeatureFlag(
         FeatureFlags.EnableTimezoneSupport,
     );
@@ -44,18 +46,25 @@ const TileTimezoneInfo: FC<Props> = ({ resolvedTimezone, timezoneSetting }) => {
     }
 
     return (
-        <HoverCard withArrow position="bottom-end" offset={4} arrowOffset={10}>
-            <HoverCard.Dropdown>
+        <Popover withArrow position="bottom-end" offset={4} arrowOffset={10}>
+            <Popover.Dropdown
+                maw="calc(100vw - 24px)"
+                mah="calc(100dvh - 24px)"
+                style={{ overflowY: 'auto' }}
+            >
                 <Text size="sm" c="ldGray.7" maw={260}>
                     {getTimezoneSourceLabel(timezoneSetting, timezone)}
                 </Text>
-            </HoverCard.Dropdown>
-            <HoverCard.Target>
-                <ActionIcon size="sm">
+            </Popover.Dropdown>
+            <Popover.Target>
+                <ActionIcon
+                    aria-label={getUiString('tileMenu.timezone')}
+                    size="sm"
+                >
                     <MantineIcon icon={IconWorld} />
                 </ActionIcon>
-            </HoverCard.Target>
-        </HoverCard>
+            </Popover.Target>
+        </Popover>
     );
 };
 

@@ -26,7 +26,7 @@ import {
     useState,
     type FC,
 } from 'react';
-import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
+import { type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
@@ -43,6 +43,7 @@ import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
 } from '../features/dashboardTabs/gridUtils';
+import { ResponsiveGridLayout } from '../features/dashboardTabs/ResponsiveGridLayout';
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
@@ -60,8 +61,6 @@ import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTi
 import '../styles/export-paged-tabs.css';
 import '../styles/react-grid.css';
 import { getProjectUrlIdentifier } from '../utils/projectUrl';
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
 
 type TabWithUrls = DashboardTab & {
     prevUrl: string | null;

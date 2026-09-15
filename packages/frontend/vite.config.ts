@@ -157,7 +157,6 @@ export default defineConfig({
                 './src/index.tsx',
                 './src/App.tsx',
                 './src/Routes.tsx',
-                './src/MobileRoutes.tsx',
                 './src/ee/CommercialRoutes.tsx',
                 './src/providers/**/*.tsx',
             ],

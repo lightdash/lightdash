@@ -23,9 +23,11 @@ import {
     Image,
     Loader,
     Menu,
+    SegmentedControl,
     Stack,
     Text,
     Tooltip,
+    useMatches,
 } from '@mantine/core';
 import {
     IconAppsOff,
@@ -320,6 +322,10 @@ const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
 );
 
 const AppGenerate: FC = () => {
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
     const { appUuid: urlAppUuid } = useParams();
     const projectUuid = useProjectUuid();
     const navigate = useNavigate();
@@ -392,6 +398,7 @@ const AppGenerate: FC = () => {
     // — the panel-group layout is never touched, so expanding restores the
     // exact pre-collapse width.
     const [isChatPanelCollapsed, setIsChatPanelCollapsed] = useState(false);
+    const [mobilePanel, setMobilePanel] = useState('build');
     const handleToggleChatPanel = useCallback(() => {
         setIsChatPanelCollapsed((collapsed) => !collapsed);
     }, []);
@@ -457,7 +464,10 @@ const AppGenerate: FC = () => {
     // at submit time. Picker and lineage modes are mutually exclusive.
     const elementPicker = useElementPicker({
         identityKey: activeAppUuid ?? '',
-        onEnabled: handleLineageCancelled,
+        onEnabled: () => {
+            handleLineageCancelled();
+            setMobilePanel('preview');
+        },
     });
     const cancelElementPicker = elementPicker.cancel;
     const clearElementRefs = elementPicker.clear;
@@ -1110,6 +1120,7 @@ const AppGenerate: FC = () => {
     const pinPreviewToVersion = useCallback(
         (version: number) => {
             if (!activeAppUuid) return;
+            setMobilePanel('preview');
             setPin({
                 appUuid: activeAppUuid,
                 version,
@@ -1441,6 +1452,12 @@ const AppGenerate: FC = () => {
         if (!capture) return;
         setIsCapturingScreenshot(true);
         try {
+            flushSync(() => setMobilePanel('preview'));
+            await new Promise<void>((resolve) => {
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => resolve()),
+                );
+            });
             const file = await capture();
             if (projectUuid && activeAppUuid) {
                 try {
@@ -1463,6 +1480,7 @@ const AppGenerate: FC = () => {
                 }
             }
             void handleFileAttach(file, 'screenshot');
+            setMobilePanel('build');
         } catch (err) {
             showToastError({
                 title: 'Screenshot failed',
@@ -1714,8 +1732,27 @@ const AppGenerate: FC = () => {
     };
 
     return (
-        <Box className={newAppLanding ? classes.composeLayout : classes.layout}>
+        <Box
+            className={newAppLanding ? classes.composeLayout : classes.layout}
+            data-mobile-panel={mobilePanel}
+        >
+            {!newAppLanding && (
+                <SegmentedControl
+                    hiddenFrom="sm"
+                    fullWidth
+                    size="md"
+                    m="xs"
+                    aria-label="App builder view"
+                    value={mobilePanel}
+                    onChange={setMobilePanel}
+                    data={[
+                        { label: 'Build', value: 'build' },
+                        { label: 'Preview', value: 'preview' },
+                    ]}
+                />
+            )}
             <ResizableSplitter
+                className={classes.panels}
                 handleLabel="Resize chat and preview"
                 classNames={{ handle: classes.resizeHandle }}
                 resizable={!isChatPanelCollapsed}
@@ -1739,7 +1776,10 @@ const AppGenerate: FC = () => {
                         }`}
                     >
                         {!newAppLanding && (
-                            <Box className={classes.sidebarHeader}>
+                            <Box
+                                className={classes.sidebarHeader}
+                                visibleFrom="sm"
+                            >
                                 <AppBuilderSidebarToggle
                                     collapsed={isChatPanelCollapsed}
                                     onToggle={handleToggleChatPanel}
@@ -2490,7 +2530,7 @@ const AppGenerate: FC = () => {
                                 >
                                     <PromptComposer
                                         ref={promptEditorRef}
-                                        size="md"
+                                        size={compact ? 'sm' : 'md'}
                                         placeholder="Describe the app you want to build..."
                                         autoFocus
                                         // Editable while the agent works so the next prompt
@@ -2696,6 +2736,7 @@ const AppGenerate: FC = () => {
                                         toolbarLeft={
                                             <Group gap={4}>
                                                 <AttachButton
+                                                    iconOnly={compact}
                                                     selectedCharts={
                                                         selectedCharts
                                                     }
@@ -2809,6 +2850,7 @@ const AppGenerate: FC = () => {
                                                 {newAppLanding && (
                                                     <ThemePicker
                                                         compact
+                                                        iconOnly={compact}
                                                         value={currentThemeUuid}
                                                         onChange={
                                                             handleThemeChange
@@ -2885,6 +2927,11 @@ const AppGenerate: FC = () => {
                                                     <ComposerSubmitButton
                                                         icon={IconPlayerStop}
                                                         label="Stop generation"
+                                                        size={
+                                                            compact
+                                                                ? 'sm'
+                                                                : 'lg'
+                                                        }
                                                         onClick={handleCancel}
                                                         loading={isCancelling}
                                                     />
@@ -2892,6 +2939,11 @@ const AppGenerate: FC = () => {
                                                     <ComposerSubmitButton
                                                         icon={IconArrowUp}
                                                         label="Send message"
+                                                        size={
+                                                            compact
+                                                                ? 'sm'
+                                                                : 'lg'
+                                                        }
                                                         // Walkthrough look for
                                                         // create:DataApp: the
                                                         // build starts here;
@@ -2936,6 +2988,7 @@ const AppGenerate: FC = () => {
                 {!newAppLanding && (
                     <ResizableSplitter.Pane
                         id="app-preview"
+                        className={classes.previewPanelOuter}
                         defaultSize={70}
                         min={40}
                     >
@@ -3094,6 +3147,10 @@ const AppGenerate: FC = () => {
                                             handleExternalRequestEvent
                                         }
                                         {...elementPicker.iframeProps}
+                                        onElementSelected={(event) => {
+                                            elementPicker.select(event);
+                                            setMobilePanel('build');
+                                        }}
                                         onScreenshotAvailabilityChange={
                                             setScreenshotAvailable
                                         }

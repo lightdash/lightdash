@@ -1,10 +1,11 @@
-import { type DashboardTile } from '@lightdash/common';
+import { DashboardTileTypes, type DashboardTile } from '@lightdash/common';
 import { type Layout } from 'react-grid-layout';
 
 const DEFAULT_COLS = 36;
 
-export const GRID_BREAKPOINTS = { lg: 1200, md: 996, sm: 768 };
-export const GRID_COLS = { lg: DEFAULT_COLS, md: 30, sm: 18 };
+export const GRID_BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 0 };
+export const GRID_COLS = { lg: DEFAULT_COLS, md: 30, sm: 18, xs: 1 };
+export type DashboardLayouts = Record<keyof typeof GRID_COLS, Layout[]>;
 /**
  * Row height: fontSize * lineHeight + padding + borders
  */
@@ -42,8 +43,8 @@ export type ResponsiveGridLayoutProps = {
     draggableCancel: string;
     useCSSTransforms: boolean;
     measureBeforeMount: boolean;
-    breakpoints: { lg: number; md: number; sm: number };
-    cols: { lg: number; md: number; sm: number };
+    breakpoints: typeof GRID_BREAKPOINTS;
+    cols: typeof GRID_COLS;
     rowHeight: number;
     margin: [number, number];
 };
@@ -58,7 +59,7 @@ export const getReactGridLayoutConfig = (
 
     return {
         minH: 1,
-        minW: 4,
+        minW: Math.min(4, cols),
         x: tile.x * scaleFactor,
         y: tile.y,
         w: tile.w * scaleFactor,
@@ -69,11 +70,66 @@ export const getReactGridLayoutConfig = (
     };
 };
 
+export const getMobileGridLayout = (tiles: DashboardTile[]): Layout[] => {
+    let y = 0;
+    return [...tiles]
+        .sort((a, b) => a.y - b.y || a.x - b.x || a.uuid.localeCompare(b.uuid))
+        .map((tile) => {
+            const h =
+                tile.type === DashboardTileTypes.HEADING ||
+                tile.type === DashboardTileTypes.MARKDOWN
+                    ? tile.h
+                    : tile.type === DashboardTileTypes.LOOM
+                      ? 4
+                      : tile.type === DashboardTileTypes.SAVED_CHART ||
+                          tile.type === DashboardTileTypes.SQL_CHART
+                        ? Math.max(3, Math.min(Math.ceil(tile.h * 0.6), 6))
+                        : Math.max(5, Math.min(tile.h, 8));
+            const layout: Layout = {
+                i: tile.uuid,
+                x: 0,
+                y,
+                w: 1,
+                h,
+                minW: 1,
+                minH: 1,
+                isDraggable: false,
+                isResizable: false,
+            };
+            y += h;
+            return layout;
+        });
+};
+
+export const getDashboardLayouts = (
+    tiles: DashboardTile[],
+    isEditMode = false,
+    cols = GRID_COLS,
+): DashboardLayouts => ({
+    lg: tiles.map((tile) =>
+        getReactGridLayoutConfig(tile, isEditMode, cols.lg),
+    ),
+    md: tiles.map((tile) =>
+        getReactGridLayoutConfig(tile, isEditMode, cols.md),
+    ),
+    sm:
+        cols.sm === 1
+            ? getMobileGridLayout(tiles)
+            : tiles.map((tile) =>
+                  getReactGridLayoutConfig(tile, isEditMode, cols.sm),
+              ),
+    xs: isEditMode
+        ? tiles.map((tile) => getReactGridLayoutConfig(tile, true, cols.xs))
+        : getMobileGridLayout(tiles),
+});
+
 export const getResponsiveGridLayoutProps = ({
     enableAnimation = false,
     stackVerticallyOnSmallestBreakpoint = false,
+    isEditMode = false,
 }: {
     enableAnimation?: boolean;
+    isEditMode?: boolean;
 
     /**
      * If enabled, we set the grid on the smallest breakpoint to have a single
@@ -89,6 +145,7 @@ export const getResponsiveGridLayoutProps = ({
     cols: {
         ...GRID_COLS,
         sm: stackVerticallyOnSmallestBreakpoint ? 1 : GRID_COLS.sm,
+        xs: isEditMode ? GRID_COLS.sm : 1,
     },
     rowHeight: DEFAULT_ROW_HEIGHT,
     margin: GRID_MARGIN,

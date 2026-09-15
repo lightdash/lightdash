@@ -20,6 +20,35 @@ const renderPicker = (
     );
 
 describe('ThemePicker compact', () => {
+    it('keeps the saved theme accessible in the mobile icon-only trigger', async () => {
+        const onOpenedChange = vi.fn();
+        renderPicker({
+            compact: true,
+            iconOnly: true,
+            value: 'deleted-theme',
+            fallbackLabel: 'Saved theme',
+            opened: false,
+            onOpenedChange,
+        });
+        const trigger = screen.getByRole('button', {
+            name: 'Theme: Saved theme',
+        });
+        expect(trigger).toHaveTextContent('');
+        expect(trigger).toHaveAttribute('data-selected', 'true');
+        await userEvent.click(trigger);
+        expect(onOpenedChange).toHaveBeenCalledWith(true);
+    });
+
+    it('opens the mobile icon-only picker without controlled state', async () => {
+        renderPicker({ compact: true, iconOnly: true });
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Apply theme' }),
+        );
+        expect(
+            screen.getByRole('menuitem', { name: /^No theme/ }),
+        ).toBeVisible();
+    });
+
     it('shows the saved theme name when it is missing from the list', () => {
         renderPicker({
             compact: true,

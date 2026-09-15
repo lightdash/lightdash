@@ -91,6 +91,41 @@ describe('DashboardRefreshButton auto-refresh', () => {
         vi.clearAllMocks();
     });
 
+    test('the phone action refreshes directly and scheduled refresh remains available', async () => {
+        const user = userEvent.setup({
+            advanceTimers: vi.advanceTimersByTime,
+            delay: null,
+        });
+        const onIntervalChange = vi.fn();
+        const { rerender } = renderWithProviders(
+            <DashboardRefreshButton
+                compact
+                onIntervalChange={onIntervalChange}
+            />,
+        );
+        expect(
+            within(screen.getByRole('group')).getAllByRole('button'),
+        ).toHaveLength(1);
+        await user.click(
+            screen.getByRole('button', { name: 'Refresh dashboard' }),
+        );
+        expect(clearCacheAndFetch).toHaveBeenCalledTimes(1);
+        expect(
+            screen.queryByRole('menuitem', { name: '5m' }),
+        ).not.toBeInTheDocument();
+        rerender(
+            <DashboardRefreshButton
+                compact
+                settingsOpened
+                onIntervalChange={onIntervalChange}
+            />,
+        );
+        await user.click(screen.getByRole('menuitem', { name: '5m' }));
+        expect(onIntervalChange).toHaveBeenCalledWith(5);
+        advance(FIVE_MINUTES + SLACK);
+        expect(clearCacheAndFetch).toHaveBeenCalledTimes(2);
+    });
+
     test('refreshes once per chosen interval, not continuously', async () => {
         const user = userEvent.setup({
             advanceTimers: vi.advanceTimersByTime,
@@ -110,7 +145,7 @@ describe('DashboardRefreshButton auto-refresh', () => {
         expect(clearCacheAndFetch).toHaveBeenCalledTimes(2);
     });
 
-    test('re-rendering while waiting does not reset the schedule', async () => {
+    test('switching between phone and desktop controls does not reset the schedule', async () => {
         const user = userEvent.setup({
             advanceTimers: vi.advanceTimersByTime,
             delay: null,
@@ -121,7 +156,12 @@ describe('DashboardRefreshButton auto-refresh', () => {
 
         for (let elapsed = 0; elapsed < FIVE_MINUTES; elapsed += 60_000) {
             advance(60_000);
-            rerender(<DashboardRefreshButton onIntervalChange={vi.fn()} />);
+            rerender(
+                <DashboardRefreshButton
+                    compact={elapsed >= 120_000}
+                    onIntervalChange={vi.fn()}
+                />,
+            );
         }
         advance(SLACK);
         expect(clearCacheAndFetch).toHaveBeenCalledTimes(1);

@@ -12,6 +12,13 @@
             var(--mantine-color-ldDark-6)
         )
         transparent;
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        width: 100%;
+        min-height: 0;
+        flex: 1;
+        border-left: 0;
+    }
 }
 
 .container::-webkit-scrollbar {

@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { ContentType } from '@lightdash/common';
-import { Box, Menu, ActionIcon } from '@mantine/core';
+import { Menu } from '@mantine/core';
 import {
     IconEdit,
     IconFolderSymlink,
@@ -18,6 +18,7 @@ import useFavoritesContext from '../../../providers/Favorites/useFavoritesContex
 import MantineIcon from '../../common/MantineIcon';
 
 interface Props {
+    children: React.ReactElement;
     isPinned: boolean;
     spaceUuid: string;
     onRename: () => void;
@@ -27,7 +28,7 @@ interface Props {
     onShare: () => void;
 }
 
-export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
+export const SpaceBrowserMenu: React.FC<Props> = ({
     isPinned,
     spaceUuid,
     onRename,
@@ -51,11 +52,7 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
             closeOnItemClick
             closeOnClickOutside
         >
-            <Menu.Target>
-                <Box>
-                    <ActionIcon>{children}</ActionIcon>
-                </Box>
-            </Menu.Target>
+            <Menu.Target>{children}</Menu.Target>
             <Menu.Dropdown>
                 {favoritesContext && (
                     <>

@@ -17,6 +17,7 @@ import DestinationFilter from './filters/DestinationFilter';
 import FormatFilter from './filters/FormatFilter';
 import { ResourceTypeFilter } from './filters/ResourceTypeFilter';
 import { SearchFilter } from './filters/SearchFilter';
+import classes from './SchedulerTopToolbar.module.css';
 
 type SchedulerTopToolbarProps = GroupProps &
     Pick<
@@ -74,22 +75,39 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
 
         return (
             <Group
+                className={classes.toolbar}
                 justify="space-between"
                 p={`${theme.spacing.sm} ${theme.spacing.md}`}
                 wrap="nowrap"
                 {...props}
             >
-                <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
+                <Group
+                    className={classes.filters}
+                    gap="xs"
+                    wrap="nowrap"
+                    flex={1}
+                    miw={0}
+                >
                     <SearchFilter search={search} setSearch={setSearch} />
 
-                    <Divider orientation="vertical" w={1} h={20} />
+                    <Divider
+                        orientation="vertical"
+                        w={1}
+                        h={20}
+                        visibleFrom="sm"
+                    />
 
                     <ResourceTypeFilter
                         selectedResourceType={selectedResourceType}
                         setSelectedResourceType={setSelectedResourceType}
                     />
 
-                    <Divider orientation="vertical" w={1} h={20} />
+                    <Divider
+                        orientation="vertical"
+                        w={1}
+                        h={20}
+                        visibleFrom="sm"
+                    />
 
                     <FormatFilter
                         selectedFormats={selectedFormats}
@@ -116,7 +134,12 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     />
                 </Group>
 
-                <Group gap="sm" wrap="nowrap" flex="0 0 auto">
+                <Group
+                    className={classes.actions}
+                    gap="sm"
+                    wrap="nowrap"
+                    flex="0 0 auto"
+                >
                     {hasSelection && onBulkReassign && !hideBulkReassign && (
                         <>
                             <Text size="sm" c="dimmed">

@@ -6,6 +6,11 @@
     height: min(560px, calc(100dvh - 160px));
     display: flex;
     flex-direction: column;
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        height: 100dvh;
+        border: 0;
+    }
 }
 
 .modalBody {
@@ -99,4 +104,16 @@
         var(--mantine-color-ldGray-0),
         var(--mantine-color-ldDark-2)
     );
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        flex-wrap: wrap;
+        padding-bottom: max(
+            var(--mantine-spacing-xs),
+            env(safe-area-inset-bottom)
+        );
+
+        button {
+            min-height: 44px;
+        }
+    }
 }

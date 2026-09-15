@@ -6,11 +6,23 @@
     flex-direction: column;
     min-height: rem(600px);
     overflow: hidden;
+
+    @mixin smaller-than $mantine-breakpoint-lg {
+        --modal-content-height: 100dvh;
+        min-height: 0;
+        height: 100dvh;
+    }
 }
 
 .modalHeader {
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
     padding: var(--mantine-spacing-md) var(--mantine-spacing-lg);
+
+    @mixin smaller-than $mantine-breakpoint-lg {
+        flex-wrap: wrap;
+        gap: var(--mantine-spacing-xs);
+        flex-shrink: 0;
+    }
 }
 
 .kbd {
@@ -28,6 +40,24 @@
     display: flex;
     flex: 1;
     min-height: 0;
+
+    @mixin smaller-than $mantine-breakpoint-lg {
+        flex-direction: column;
+        overflow-y: auto;
+
+        > * {
+            flex-shrink: 0;
+        }
+    }
+}
+
+.visualization {
+    min-width: 0;
+
+    @mixin smaller-than $mantine-breakpoint-lg {
+        order: -1;
+        height: 440px;
+    }
 }
 
 .sidebarContainer {
@@ -44,4 +74,22 @@
 
 .clearButton:hover {
     background-color: var(--mantine-color-ldGray-1);
+}
+
+@media (width < $mantine-breakpoint-lg) {
+    .modalHeader :global(.mantine-ActionIcon-root),
+    .modalHeader :global(.mantine-CloseButton-root) {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .modalHeader :global(.mantine-Button-root),
+    .sidebarContainer :global(.mantine-Button-root),
+    .sidebarContainer :global(.mantine-Input-input) {
+        min-height: 44px;
+    }
+
+    .sidebarContainer :global(.mantine-Input-input) {
+        font-size: 16px;
+    }
 }

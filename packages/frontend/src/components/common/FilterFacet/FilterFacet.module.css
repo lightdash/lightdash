@@ -57,3 +57,35 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
+
+.dropdown {
+    min-width: min(240px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+}
+
+.header {
+    position: sticky;
+    top: 0;
+    background: var(--mantine-color-body);
+    z-index: 1;
+}
+
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
+    .filterButton,
+    .filterButtonSelected,
+    .option,
+    .clearButton,
+    .search :global(input) {
+        min-height: 44px;
+    }
+
+    .clearButton {
+        min-width: 44px;
+    }
+
+    .search :global(input) {
+        font-size: 16px;
+    }
+}

@@ -175,6 +175,8 @@ const ProjectRow: FC<{
                         {...MENU_TEXT_PROPS}
                         truncate="end"
                         maw={260}
+                        miw={0}
+                        flex={1}
                         fw={isActive ? 600 : 500}
                         c={isActive ? 'ldGray.9' : 'inherit'}
                     >
@@ -182,7 +184,7 @@ const ProjectRow: FC<{
                     </Highlight>
                 </Tooltip>
 
-                <Group gap="xs" wrap="nowrap">
+                <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
                     {isActive && <CurrentBadge />}
                     {isPlaygroundProject(item) && <PlaygroundBadge />}
                     {previewCount > 0 && (
@@ -597,6 +599,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
             >
                 <Menu.Target>
                     <Button
+                        aria-label={`Switch project, current: ${activeProject?.name ?? 'none'}`}
                         variant="default"
                         size="xs"
                         className={classes.targetButton}
@@ -611,7 +614,11 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                     </Button>
                 </Menu.Target>
 
-                <Menu.Dropdown w={400}>
+                <Menu.Dropdown
+                    w="min(400px, calc(100vw - 24px))"
+                    mah="calc(100dvh - 24px)"
+                    style={{ overflowY: 'auto' }}
+                >
                     {isLoadingProjects ? (
                         <Box p="lg" ta="center">
                             <Text {...MENU_TEXT_PROPS}>

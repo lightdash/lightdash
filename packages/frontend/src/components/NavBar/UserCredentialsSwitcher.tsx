@@ -16,6 +16,7 @@ import MantineIcon from '../common/MantineIcon';
 import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils';
 import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPanel/CreateCredentialsModal';
 import AppColorSchemeScope from './AppColorSchemeScope';
+import { useNavBarPortalTarget } from './NavBarPortalContext';
 
 const routesThatNeedWarehouseCredentials = [
     '/projects/:projectUuid/tables/:tableId',
@@ -25,6 +26,7 @@ const routesThatNeedWarehouseCredentials = [
 ];
 
 const UserCredentialsSwitcher = () => {
+    const portalTarget = useNavBarPortalTarget();
     const { user } = useApp();
     const location = useLocation();
     const [showCreateModalOnPageLoad, setShowCreateModalOnPageLoad] =
@@ -189,7 +191,7 @@ const UserCredentialsSwitcher = () => {
                 arrowOffset={16}
                 offset={-2}
                 zIndex={getDefaultZIndex('max')}
-                portalProps={{ target: '#navbar-header' }}
+                portalProps={{ target: portalTarget }}
             >
                 <Menu.Target>
                     <Button

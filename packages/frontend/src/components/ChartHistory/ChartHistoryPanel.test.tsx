@@ -137,6 +137,9 @@ describe('ChartHistoryPanel', () => {
         const onRestored = vi.fn();
         renderPanel({ hasUnsavedEdits: true, onRestored });
 
+        await user.click(
+            await screen.findByRole('button', { name: 'Versions' }),
+        );
         const versions = await screen.findAllByText(/Updated by:/);
         expect(versions).toHaveLength(2);
         await user.click(versions[1]);
@@ -178,6 +181,9 @@ describe('ChartHistoryPanel', () => {
         const user = userEvent.setup();
         renderPanel();
 
+        await user.click(
+            await screen.findByRole('button', { name: 'Versions' }),
+        );
         const versions = await screen.findAllByRole('button', {
             name: /Preview version from/i,
         });
@@ -264,12 +270,19 @@ describe('ChartHistoryPanel', () => {
     });
 
     it("shows the app's footer on a page and leaves it out of a modal", async () => {
+        const user = userEvent.setup();
         const { unmount } = renderPanel({ withSidebarFooter: true });
+        await user.click(
+            await screen.findByRole('button', { name: 'Versions' }),
+        );
         expect(await screen.findAllByText(/Updated by:/)).toHaveLength(2);
         expect(screen.getByRole('contentinfo')).toBeVisible();
         unmount();
 
         renderPanel({ withSidebarFooter: false });
+        await user.click(
+            await screen.findByRole('button', { name: 'Versions' }),
+        );
         expect(await screen.findAllByText(/Updated by:/)).toHaveLength(2);
         expect(screen.queryByRole('contentinfo')).toBeNull();
     });

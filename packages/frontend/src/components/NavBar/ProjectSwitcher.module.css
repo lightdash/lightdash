@@ -33,6 +33,18 @@
     min-width: 0;
 }
 
+@media ($navigation-compact <= width < $navigation-project-label) {
+    .targetButton {
+        width: rem(34px);
+        padding-inline: rem(8px);
+    }
+
+    .targetButton .previewName,
+    .targetButton .upstreamName {
+        display: none;
+    }
+}
+
 .breadcrumbSeparator {
     flex-shrink: 0;
 }
@@ -101,4 +113,10 @@
 
 .stickyFooter {
     border-top: 1px solid var(--mantine-color-default-border);
+}
+
+@media (width < $mantine-breakpoint-sm) {
+    .dropdown :global(.mantine-Menu-item) {
+        min-height: 44px;
+    }
 }

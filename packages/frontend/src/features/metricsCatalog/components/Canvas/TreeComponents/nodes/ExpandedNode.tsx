@@ -253,6 +253,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                                 projectUuid={projectUuid}
                                 tableName={data.tableName}
                                 metricName={data.metricName}
+                                metricLabel={data.label}
                                 compiledQueryConfig={compiledQueryConfig}
                                 showExploreButton
                             >

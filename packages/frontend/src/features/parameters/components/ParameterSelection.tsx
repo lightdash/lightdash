@@ -98,10 +98,14 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                         );
                     }
                     return (
-                        <Box key={paramKey}>
+                        <Box key={paramKey} miw={0}>
                             <Group align="center" gap="xs" mb="xxs">
                                 <Group align="center" gap="xs">
-                                    <Text size={size} fw={500}>
+                                    <Text
+                                        size={size}
+                                        fw={500}
+                                        style={{ overflowWrap: 'anywhere' }}
+                                    >
                                         {parameters?.[paramKey]?.label ||
                                             paramKey}
                                     </Text>

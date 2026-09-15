@@ -61,12 +61,18 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
 
     return (
         <TrackSection name={SectionName.PAGE_FOOTER}>
-            <Box mt={FOOTER_MARGIN} h={FOOTER_HEIGHT} component="footer">
+            <Box
+                mt={FOOTER_MARGIN}
+                h={FOOTER_HEIGHT}
+                component="footer"
+                style={{ flexShrink: 0 }}
+            >
                 <Divider color="ldGray.2" w="100%" mb="-1px" />
 
                 <Group
                     h="100%"
-                    miw={minimal ? '100%' : maxWidth}
+                    miw={0}
+                    w="100%"
                     maw={maxWidth}
                     justify="space-between"
                     mx="auto"

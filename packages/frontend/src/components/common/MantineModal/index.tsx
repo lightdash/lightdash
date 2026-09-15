@@ -5,9 +5,9 @@ import {
     Group,
     Modal,
     Paper,
-    ScrollArea,
     Stack,
     Text,
+    useMatches,
     type FlexProps,
     type ModalBodyProps,
     type ModalContentProps,
@@ -20,7 +20,7 @@ import {
     IconTrash,
     type Icon as IconType,
 } from '@tabler/icons-react';
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import MantineIcon from '../MantineIcon';
 import classes from './MantineModal.module.css';
@@ -307,6 +307,10 @@ const MantineModal: React.FC<MantineModalProps> = ({
     modalActionsProps,
     bodyScrollAreaMaxHeight = 'calc(80vh - 140px)',
 }) => {
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
     const [
         isConfirmCloseOpen,
         { open: openConfirmClose, close: closeConfirmClose },
@@ -336,6 +340,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
     const config = VARIANT_CONFIG[variant];
 
     const isAlertDialog = role === 'alertdialog';
+    const mobileFullScreen = compact && !isAlertDialog;
 
     // Mantine gives every open modal its own window Escape listener, so a
     // nested dialog (ours or a plain Mantine one) would close this modal too.
@@ -363,83 +368,52 @@ const MantineModal: React.FC<MantineModalProps> = ({
 
     const confirmButtonColor = config.color;
 
-    const renderBody = () => {
-        if (fullScreen) {
-            // Fullscreen mode: no ScrollArea, body fills available space
-            return (
-                <Modal.Body p={0} className={classes.fullScreenBody}>
-                    <Box
-                        px={modalBodyProps?.px ?? 'xl'}
-                        py={modalBodyProps?.py ?? 'md'}
-                        h="100%"
-                    >
-                        {effectiveDescription && (
-                            <Text fz="sm">{effectiveDescription}</Text>
-                        )}
-                        {children}
-                    </Box>
-                </Modal.Body>
-            );
-        }
-
-        // Standard mode: ScrollArea with max height
-        return (
-            <Modal.Body p={0} className={classes.body}>
-                <ScrollArea.Autosize mah={bodyScrollAreaMaxHeight} mih={0}>
-                    <Stack
-                        gap="md"
-                        px={modalBodyProps?.px ?? 'xl'}
-                        py={modalBodyProps?.py ?? 'md'}
-                        {...(modalBodyProps?.bg
-                            ? { bg: modalBodyProps.bg }
-                            : {})}
-                        mah={modalBodyProps?.mah}
-                        mih={modalBodyProps?.mih}
-                    >
-                        {effectiveDescription && (
-                            <Text fz="sm">{effectiveDescription}</Text>
-                        )}
-                        {children}
-                    </Stack>
-                </ScrollArea.Autosize>
-            </Modal.Body>
-        );
-    };
-
     return (
         <MantineModalContext.Provider value={closeContext}>
             <Modal.Root
                 opened={opened}
                 onClose={handleClose}
                 size={fullScreen ? 'auto' : size}
-                yOffset={fullScreen ? 24 : undefined}
-                xOffset={fullScreen ? 24 : undefined}
                 centered
                 closeOnClickOutside={isAlertDialog ? false : undefined}
                 {...rootProps}
                 closeOnEscape={false}
+                fullScreen={mobileFullScreen || modalRootProps?.fullScreen}
+                yOffset={
+                    mobileFullScreen
+                        ? 0
+                        : (modalRootProps?.yOffset ??
+                          (fullScreen ? 24 : undefined))
+                }
+                xOffset={
+                    mobileFullScreen
+                        ? 0
+                        : (modalRootProps?.xOffset ??
+                          (fullScreen ? 24 : undefined))
+                }
             >
                 <Modal.Overlay />
                 <Modal.Content
                     {...modalContentProps}
                     ref={contentRef}
                     role={isAlertDialog ? 'alertdialog' : undefined}
-                    className={
-                        fullScreen
-                            ? classes.fullScreenContent
-                            : clsx(
-                                  classes.content,
-                                  modalContentProps?.className,
-                              )
-                    }
+                    className={clsx(
+                        modalContentProps?.className,
+                        mobileFullScreen
+                            ? classes.mobileContent
+                            : fullScreen
+                              ? classes.fullScreenContent
+                              : classes.content,
+                    )}
                 >
                     <Modal.Header
                         className={classes.header}
-                        px="xl"
+                        px={{ base: 'md', sm: 'xl' }}
                         py="md"
                         {...modalHeaderProps}
                     >
                         <Group
+                            className={classes.titleGroup}
                             gap="sm"
                             flex={1}
                             // Shrinkable, so long titles truncate instead of
@@ -473,12 +447,17 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             </Stack>
                         </Group>
                         {headerActions ? (
-                            <Group gap="sm" mr="md">
+                            <Group
+                                className={classes.headerActions}
+                                gap="sm"
+                                mr={{ base: 0, sm: 'md' }}
+                            >
                                 {headerActions}
                             </Group>
                         ) : null}
                         {withCloseButton && (
                             <Modal.CloseButton
+                                className={classes.closeButton}
                                 aria-label="Close"
                                 // Anchor for scope walkthroughs (data-tour-via)
                                 data-tour-anchor="modal-close"
@@ -487,7 +466,30 @@ const MantineModal: React.FC<MantineModalProps> = ({
                         )}
                     </Modal.Header>
 
-                    {renderBody()}
+                    <Modal.Body
+                        p={0}
+                        className={classes.body}
+                        mah={
+                            fullScreen || mobileFullScreen
+                                ? undefined
+                                : bodyScrollAreaMaxHeight
+                        }
+                    >
+                        <Stack
+                            gap="md"
+                            h={fullScreen ? '100%' : undefined}
+                            px={modalBodyProps?.px ?? { base: 'md', sm: 'xl' }}
+                            py={modalBodyProps?.py ?? 'md'}
+                            bg={modalBodyProps?.bg}
+                            mah={modalBodyProps?.mah}
+                            mih={modalBodyProps?.mih}
+                        >
+                            {effectiveDescription && (
+                                <Text fz="sm">{effectiveDescription}</Text>
+                            )}
+                            {children}
+                        </Stack>
+                    </Modal.Body>
 
                     {footer && !fullScreen ? (
                         <Box className={classes.actions} px="xl" py="md">

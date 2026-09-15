@@ -37,6 +37,7 @@ import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../hooks/useContent';
+import { useContentAuthoringEnabled } from '../hooks/useContentAuthoringEnabled';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -64,6 +65,7 @@ const Space: FC = () => {
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
     const { track } = useTracking();
+    const contentAuthoringEnabled = useContentAuthoringEnabled();
 
     const userCanManageSpace = user.data?.ability?.can(
         'create',
@@ -266,8 +268,9 @@ const Space: FC = () => {
 
                         <Group gap="xs">
                             {!isDemo &&
-                                (userCanCreateDashboards ||
-                                    userCanCreateCharts ||
+                                ((contentAuthoringEnabled &&
+                                    (userCanCreateDashboards ||
+                                        userCanCreateCharts)) ||
                                     userCanCreateDataApps ||
                                     userCanManageSpace) && (
                                     <Menu
@@ -277,18 +280,17 @@ const Space: FC = () => {
                                         arrowPosition="center"
                                     >
                                         <Menu.Target>
-                                            <Box>
-                                                <Button
-                                                    data-testid="Space/AddButton"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconPlus}
-                                                        />
-                                                    }
-                                                >
-                                                    Add
-                                                </Button>
-                                            </Box>
+                                            <Button
+                                                data-testid="Space/AddButton"
+                                                h={{ base: 32, md: 36 }}
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                    />
+                                                }
+                                            >
+                                                Add
+                                            </Button>
                                         </Menu.Target>
 
                                         <Menu.Dropdown>
@@ -314,7 +316,8 @@ const Space: FC = () => {
                                                 </>
                                             )}
 
-                                            {userCanCreateDashboards ? (
+                                            {contentAuthoringEnabled &&
+                                            userCanCreateDashboards ? (
                                                 <Menu.Item
                                                     leftSection={
                                                         <MantineIcon
@@ -331,7 +334,8 @@ const Space: FC = () => {
                                                 </Menu.Item>
                                             ) : null}
 
-                                            {userCanCreateCharts ? (
+                                            {contentAuthoringEnabled &&
+                                            userCanCreateCharts ? (
                                                 <Menu.Item
                                                     leftSection={
                                                         <MantineIcon
@@ -384,13 +388,16 @@ const Space: FC = () => {
                                     <ActionIcon
                                         variant="default"
                                         size={36}
+                                        w={{ base: 32, md: 36 }}
+                                        h={{ base: 32, md: 36 }}
+                                        aria-label="Space actions"
                                         // Anchor for scope walkthroughs
                                         data-tour-anchor="space-actions"
                                         data-tour-hint="Open the space's actions menu"
                                     >
                                         <MantineIcon
                                             icon={IconDots}
-                                            size="lg"
+                                            size="md"
                                         />
                                     </ActionIcon>
                                 </SpaceBrowserMenu>

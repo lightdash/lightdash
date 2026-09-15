@@ -1,5 +1,5 @@
 .page {
-    min-height: calc(100vh - var(--navbar-height));
+    min-height: calc(100dvh - var(--navbar-height));
     background-color: var(--mantine-color-white);
     display: flex;
     flex-direction: column;
@@ -23,4 +23,23 @@
 /* The heading only receives programmatic focus on route change. */
 .title:focus {
     outline: none;
+}
+
+@media (width < $mantine-breakpoint-sm) {
+    .column {
+        padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
+    }
+
+    .card {
+        padding: var(--mantine-spacing-md);
+    }
+
+    .column :global(.mantine-Input-input) {
+        min-height: 44px;
+        font-size: 16px;
+    }
+
+    .column :global(.mantine-Button-root) {
+        min-height: 44px;
+    }
 }

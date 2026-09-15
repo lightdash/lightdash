@@ -12,3 +12,54 @@
 .editButton:hover {
     background-color: var(--mantine-color-background-0);
 }
+
+.categoryButton {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+
+.editButton {
+    opacity: 0;
+}
+
+.categoryFormItem:focus-within .editButton,
+.editButton[data-visible] {
+    opacity: 1;
+}
+
+.editDropdown {
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+}
+
+.editorHeader {
+    position: sticky;
+    top: 0;
+    background: var(--mantine-color-body);
+    z-index: 1;
+}
+
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
+    .categoryButton,
+    .editButton,
+    .editDropdown :global(.mantine-Button-root),
+    .editDropdown :global(.mantine-ActionIcon-root),
+    .editDropdown :global(.mantine-Input-input) {
+        min-height: 44px;
+    }
+
+    .editButton,
+    .editDropdown :global(.mantine-ActionIcon-root) {
+        min-width: 44px;
+        opacity: 1;
+    }
+
+    .editDropdown :global(input) {
+        font-size: 16px;
+    }
+
+    .colorGrid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}

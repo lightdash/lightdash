@@ -69,6 +69,7 @@ import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
+import { useContentAuthoringEnabled } from '../hooks/useContentAuthoringEnabled';
 import { tryParseCreateSavedChartVersionParam } from '../hooks/useExplorerRoute';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
@@ -92,6 +93,7 @@ import '../styles/react-grid.css';
 const EDIT_CHART_SEARCH_PARAM = 'editChart';
 
 const Dashboard: FC = () => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
@@ -851,7 +853,8 @@ const Dashboard: FC = () => {
     const chartEditorFlag = useServerFeatureFlag(
         FeatureFlags.InDashboardChartEditor,
     );
-    const isChartEditorEnabled = chartEditorFlag.data?.enabled === true;
+    const isChartEditorEnabled =
+        authoringEnabled && chartEditorFlag.data?.enabled === true;
     const dashboardCustomMetricsFlag = useServerFeatureFlag(
         FeatureFlags.DashboardCustomMetrics,
     );

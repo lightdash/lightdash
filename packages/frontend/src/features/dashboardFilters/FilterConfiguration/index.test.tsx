@@ -104,41 +104,50 @@ describe('FilterConfiguration', () => {
         };
     });
 
-    it('saves a value typed into the input when Apply is clicked without pressing Enter', async () => {
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
-        const onSave = vi.fn();
+    it.each(['pointer', 'keyboard'])(
+        'saves a typed value once when Apply is activated with %s',
+        async (activation) => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onSave = vi.fn();
 
-        renderWithProviders(
-            <FilterConfiguration
-                isEditMode={false}
-                tiles={[]}
-                tabs={[]}
-                availableTileFilters={{}}
-                field={mockField}
-                defaultFilterRule={anyValueRule}
-                originalFilterRule={anyValueRule}
-                onSave={onSave}
-            />,
-        );
+            renderWithProviders(
+                <FilterConfiguration
+                    isEditMode={false}
+                    tiles={[]}
+                    tabs={[]}
+                    availableTileFilters={{}}
+                    field={mockField}
+                    defaultFilterRule={anyValueRule}
+                    originalFilterRule={anyValueRule}
+                    onSave={onSave}
+                />,
+            );
 
-        const input = document.querySelector(
-            'input[data-autofocus]',
-        ) as HTMLInputElement;
-        expect(input).toBeTruthy();
+            const input = document.querySelector(
+                'input[data-autofocus]',
+            ) as HTMLInputElement;
+            expect(input).toBeTruthy();
 
-        fireEvent.focus(input);
-        await user.type(input, 'adam');
+            fireEvent.focus(input);
+            await user.type(input, 'adam');
 
-        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+            const applyButton = screen.getByRole('button', { name: 'Apply' });
+            if (activation === 'keyboard') {
+                applyButton.focus();
+                await user.keyboard('{Enter}');
+            } else {
+                await user.click(applyButton);
+            }
 
-        await waitFor(() => {
-            expect(onSave).toHaveBeenCalledTimes(1);
-        });
+            await waitFor(() => {
+                expect(onSave).toHaveBeenCalledTimes(1);
+            });
 
-        expect(onSave).toHaveBeenCalledWith(
-            expect.objectContaining({ values: ['adam'] }),
-        );
-    });
+            expect(onSave).toHaveBeenCalledWith(
+                expect.objectContaining({ values: ['adam'] }),
+            );
+        },
+    );
 
     it('allows changing between multiple and single values', async () => {
         const user = userEvent.setup();

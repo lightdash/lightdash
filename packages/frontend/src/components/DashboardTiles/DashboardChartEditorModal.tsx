@@ -31,6 +31,7 @@ import { useDashboardCustomMetricSeed } from '../../hooks/dashboard/useDashboard
 import { useDeleteDashboardCustomMetric } from '../../hooks/dashboard/useUpdateDashboardCustomMetric';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useChartPermissions } from '../../hooks/useChartPermissions';
+import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
@@ -272,6 +273,7 @@ const DashboardChartEditorModal: FC<Props> = ({
     onRegistryMetricDeleted,
     onClose,
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const [pickedExploreId, setPickedExploreId] = useState<string>();
     const exploreId = editChart ? editChart.tableName : pickedExploreId;
 
@@ -445,6 +447,8 @@ const DashboardChartEditorModal: FC<Props> = ({
     // The dialog says which chart, and under which dashboard, is being restored.
     const historySubtitle =
         dashboard && chartName ? `${dashboard.name} / ${chartName}` : chartName;
+
+    if (!authoringEnabled) return null;
 
     return (
         <MantineModal

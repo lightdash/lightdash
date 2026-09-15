@@ -53,6 +53,7 @@ import {
     usePromoteDashboardDiffMutation,
     usePromoteDashboardMutation,
 } from '../../../features/promotion/hooks/usePromoteDashboard';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import {
     useUnverifyChartMutation,
     useUnverifyDashboardMutation,
@@ -98,6 +99,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     onAction,
 }) => {
     const { user } = useApp();
+    const authoringEnabled = useContentAuthoringEnabled();
     const location = useLocation();
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
@@ -522,6 +524,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             )}
 
                             <Menu.Item
+                                display={
+                                    isChartOrDashboard && !authoringEnabled
+                                        ? 'none'
+                                        : undefined
+                                }
                                 component="button"
                                 role="menuitem"
                                 leftSection={<IconEdit size={18} />}
@@ -544,6 +551,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             {item.type === ResourceViewItemType.CHART ||
                             item.type === ResourceViewItemType.DASHBOARD ? (
                                 <Menu.Item
+                                    display={
+                                        authoringEnabled ? undefined : 'none'
+                                    }
                                     component="button"
                                     role="menuitem"
                                     leftSection={

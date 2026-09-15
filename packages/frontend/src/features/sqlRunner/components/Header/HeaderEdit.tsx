@@ -158,7 +158,7 @@ export const HeaderEdit: FC = () => {
 
     return (
         <>
-            <PageHeader cardProps={{ py: 'xs' }}>
+            <PageHeader variant="query">
                 <Group justify="space-between" flex={1} wrap="nowrap">
                     <Stack gap={0} miw={0}>
                         <Group gap={4} wrap="nowrap">

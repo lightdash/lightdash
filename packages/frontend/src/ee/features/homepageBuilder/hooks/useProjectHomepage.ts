@@ -15,7 +15,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
-import { IS_MOBILE } from '../../../../utils/isMobile';
 import { ANNOUNCEMENTS_QUERY_KEY } from './useAnnouncements';
 import { useOrgHomepageSettings } from './useOrgHomepageSettings';
 
@@ -134,10 +133,8 @@ export const useHomepageBuilderFlag = () => {
     // opt-in flow rolls out. Must match the backend rule in
     // ProjectHomepageService.isHomepageEnabled.
     const settings = useOrgHomepageSettings();
-    // The homepage builder / new onboarding surfaces are desktop-only for now,
-    // so fall back to the classic homepage on mobile.
     return {
-        isEnabled: !IS_MOBILE && (!!flag?.enabled || !!settings.data?.enabled),
+        isEnabled: !!flag?.enabled || !!settings.data?.enabled,
         isLoading: isFlagLoading || settings.isInitialLoading,
     };
 };

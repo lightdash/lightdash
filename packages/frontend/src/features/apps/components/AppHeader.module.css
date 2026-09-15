@@ -3,3 +3,10 @@
 .header {
     flex-shrink: 0;
 }
+
+@mixin smaller-than $mantine-breakpoint-md {
+    .header {
+        --header-height: auto;
+        --header-padding-x: var(--mantine-spacing-sm);
+    }
+}

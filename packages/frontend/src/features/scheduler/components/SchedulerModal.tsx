@@ -6,7 +6,7 @@ import {
     type SchedulerRun,
     type SchedulerRunLog,
 } from '@lightdash/common';
-import { Group, Modal, Paper, Stack, Text } from '@mantine/core';
+import { Group, Modal, Paper, Stack, Text, useMatches } from '@mantine/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseInfiniteQueryResult } from '@tanstack/react-query';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
@@ -85,6 +85,7 @@ const SchedulersModal: FC<
     searchQuery,
     onSearchQueryChange,
 }) => {
+    const compact = useMatches({ base: true, sm: false });
     const [modalState, setModalState] = useState<States>(
         // eslint-disable-next-line no-nested-ternary
         initialSchedulerUuid
@@ -172,7 +173,13 @@ const SchedulersModal: FC<
 
     if (modalState === States.LIST) {
         return (
-            <Modal.Root opened={isOpen} onClose={onClose} size={880} centered>
+            <Modal.Root
+                opened={isOpen}
+                onClose={onClose}
+                size={880}
+                fullScreen={compact}
+                centered
+            >
                 <Modal.Overlay />
                 <Modal.Content>
                     <div className={classes.content}>
@@ -216,7 +223,7 @@ const SchedulersModal: FC<
                                             : 'https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries'
                                     }
                                 />
-                                <Modal.CloseButton />
+                                <Modal.CloseButton aria-label="Close scheduled deliveries" />
                             </Group>
                         </Group>
                         <SchedulerList

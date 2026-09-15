@@ -3,4 +3,43 @@
     display: block;
     text-align: center;
     overflow: auto;
+    min-width: 0;
+    grid-area: var(--tile-area);
+}
+
+.grid {
+    display: grid;
+    width: min(1220px, 100%);
+    margin-inline: auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: 200px 200px 400px 400px 400px 400px;
+    gap: 10px;
+    grid-template-areas:
+        'total-users total-users weekly-active weekly-active'
+        'viewers interactive-viewers editors admins'
+        'chart-active-users chart-active-users queries-per-user queries-per-user'
+        'table-most-queries table-most-queries table-most-charts table-most-charts'
+        'table-not-logged-in table-not-logged-in table-most-viewed table-most-viewed'
+        'table-dashboard-views table-dashboard-views table-chart-views table-chart-views';
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: none;
+        grid-auto-rows: 200px;
+        grid-template-areas: none;
+
+        .visualizationCard {
+            grid-area: auto;
+        }
+
+        .visualizationCard:nth-child(n + 7) {
+            grid-column: 1 / -1;
+            height: 400px;
+            grid-row: span 2;
+        }
+    }
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }

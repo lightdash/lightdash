@@ -14,7 +14,10 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
  * preview (a learner's training copy included): a library opened inside a
  * copy would start walkthroughs from the wrong place.
  */
-export const LearnLink: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+export const LearnLink: FC<{ projectUuid: string; withLabel?: boolean }> = ({
+    projectUuid,
+    withLabel = false,
+}) => {
     const navigate = useNavigate();
     const { data: learnFlag } = useServerFeatureFlag(FeatureFlags.EnableLearn);
     const { data: projects } = useProjects();
@@ -35,6 +38,7 @@ export const LearnLink: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 data-tour-hint="Click Learn"
             >
                 <MantineIcon icon={IconSchool} />
+                {withLabel && 'Learn'}
             </Button>
         </Tooltip>
     );

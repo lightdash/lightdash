@@ -52,6 +52,30 @@ const ControlledComparison = () => {
 };
 
 describe('MetricExploreComparison', () => {
+    it('switches comparisons using named radios from the keyboard', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<ControlledComparison />);
+        const previousYear = screen.getByRole('radio', {
+            name: 'Compare to previous year',
+        });
+        previousYear.focus();
+        await user.keyboard(' ');
+        expect(previousYear).toBeChecked();
+        expect(
+            screen.queryByRole('combobox', { name: 'Comparison metric' }),
+        ).not.toBeInTheDocument();
+
+        const anotherMetric = screen.getByRole('radio', {
+            name: 'Compare to another metric',
+        });
+        anotherMetric.focus();
+        await user.keyboard(' ');
+        expect(anotherMetric).toBeChecked();
+        expect(
+            screen.getByRole('combobox', { name: 'Comparison metric' }),
+        ).toBeInTheDocument();
+    });
+
     it('keeps the metric selected when choosing a comparison metric', async () => {
         renderWithProviders(<ControlledComparison />);
 

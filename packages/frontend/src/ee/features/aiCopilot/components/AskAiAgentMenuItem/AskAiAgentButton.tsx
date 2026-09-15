@@ -1,6 +1,7 @@
 import { ActionIcon, type ActionIconProps, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { type AiAgentAskClickedSource } from '../../../../../providers/Tracking/types';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { AiAgentIcon } from '../AiAgentIcon';
 import { useAskAiAgentAction } from './useAskAiAgentAction';
 
@@ -32,6 +33,7 @@ export const AskAiAgentButton: FC<Props> = ({
     radius,
     iconSize = 16,
 }) => {
+    const getUiString = useUiStrings();
     const { canAsk, handleClick } = useAskAiAgentAction({
         projectUuid,
         chartUuid,
@@ -43,8 +45,9 @@ export const AskAiAgentButton: FC<Props> = ({
     if (!canAsk) return null;
 
     return (
-        <Tooltip label="Ask AI Agent">
+        <Tooltip label={getUiString('tileMenu.askAi')}>
             <ActionIcon
+                aria-label={getUiString('tileMenu.askAi')}
                 variant={variant}
                 size={size}
                 radius={radius}

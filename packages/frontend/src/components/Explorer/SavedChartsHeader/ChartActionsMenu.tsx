@@ -9,7 +9,7 @@ import {
     ResourceViewItemType,
     type ResourceViewChartItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Box, Menu, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconArrowsExchange,
@@ -32,7 +32,14 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
-import { lazy, useCallback, useMemo, useState, type FC } from 'react';
+import {
+    lazy,
+    useCallback,
+    useMemo,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import {
     RequestReviewModal,
@@ -63,6 +70,7 @@ import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useChartPermissions } from '../../../hooks/useChartPermissions';
 import { useContentAction } from '../../../hooks/useContent';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import {
     useUnverifyChartMutation,
     useVerifyChartMutation,
@@ -109,6 +117,8 @@ const verifyTourAction = {
 export type ChartActionsHost = 'page' | 'modal';
 
 type Props = {
+    children?: ReactNode;
+    withLabel?: boolean;
     /**
      * The chart page navigates for history, deletion and moves. A modal host
      * stays put: history and the AI launcher open in place, while items that
@@ -131,13 +141,16 @@ type Props = {
  * actions; reads the chart from the explorer store it is rendered under.
  */
 const ChartActionsMenu: FC<Props> = ({
+    children,
     host,
+    withLabel = false,
     onOpenVersionHistory,
     onDeleted,
     onMovedToSpace,
     onSlugRenamed,
     schedulerDeepLink = null,
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const { data: changeChartExploreFlag } = useServerFeatureFlag(
         FeatureFlags.ChangeChartExplore,
     );
@@ -235,6 +248,18 @@ const ChartActionsMenu: FC<Props> = ({
         canPinChart: userCanPinChart,
     } = useChartPermissions(savedChart);
 
+    const canAuthorChart = authoringEnabled && userCanManageChart;
+    const canManageStandaloneChart = canAuthorChart && !chartBelongsToDashboard;
+    const canDuplicateChart = canManageStandaloneChart && !hasUnsavedChanges;
+    const canMoveDashboardChartToSpace =
+        authoringEnabled &&
+        host === 'page' &&
+        userCanManageChartViaSpace &&
+        chartBelongsToDashboard;
+    const canChangeExplore =
+        canAuthorChart && host === 'page' && changeChartExploreEnabled;
+    const canPromoteChart = authoringEnabled && userCanPromoteChart;
+
     const { mutate: verifyChart } = useVerifyChartMutation();
     const { mutate: unverifyChart } = useUnverifyChartMutation();
 
@@ -269,7 +294,25 @@ const ChartActionsMenu: FC<Props> = ({
         [savedChart, chartViewStats.data],
     );
 
-    if (!savedChart || !showChartActions) return null;
+    if (!savedChart) return null;
+    if (!showChartActions) {
+        // Read-only viewers still need the header's Details action.
+        if (!withLabel) return null;
+        return (
+            <Menu position="bottom" withArrow>
+                <Menu.Target>
+                    <Button
+                        variant="subtle"
+                        aria-label="Chart actions"
+                        leftSection={<MantineIcon icon={IconDots} />}
+                    >
+                        More
+                    </Button>
+                </Menu.Target>
+                <Menu.Dropdown>{children}</Menu.Dropdown>
+            </Menu>
+        );
+    }
 
     return (
         <>
@@ -280,24 +323,26 @@ const ChartActionsMenu: FC<Props> = ({
                 width={200}
                 disabled={!unsavedChartVersion.tableName}
             >
-                <Menu.Dropdown>
+                <Menu.Dropdown
+                    mah="calc(100dvh - 24px)"
+                    style={{ overflowY: 'auto' }}
+                >
+                    {children}
                     <AskAiAgentMenuItem
                         projectUuid={projectUuid}
                         chartUuid={savedChart.uuid}
                         clickedFrom="saved_chart_header"
                     />
                     <Menu.Label>Manage</Menu.Label>
-                    {userCanManageChart &&
-                        !hasUnsavedChanges &&
-                        !chartBelongsToDashboard && (
-                            <Menu.Item
-                                leftSection={<MantineIcon icon={IconCopy} />}
-                                onClick={chartDuplicateModalHandlers.open}
-                            >
-                                Duplicate
-                            </Menu.Item>
-                        )}
-                    {userCanManageChart && !chartBelongsToDashboard && (
+                    {canDuplicateChart && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconCopy} />}
+                            onClick={chartDuplicateModalHandlers.open}
+                        >
+                            Duplicate
+                        </Menu.Item>
+                    )}
+                    {canManageStandaloneChart && (
                         <Menu.Item
                             leftSection={
                                 <MantineIcon icon={IconLayoutGridAdd} />
@@ -307,16 +352,14 @@ const ChartActionsMenu: FC<Props> = ({
                             Add to dashboard
                         </Menu.Item>
                     )}
-                    {host === 'page' &&
-                        userCanManageChartViaSpace &&
-                        savedChart.dashboardUuid && (
-                            <Menu.Item
-                                leftSection={<MantineIcon icon={IconFolders} />}
-                                onClick={() => setIsMovingChart(true)}
-                            >
-                                Move to space
-                            </Menu.Item>
-                        )}
+                    {canMoveDashboardChartToSpace && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconFolders} />}
+                            onClick={() => setIsMovingChart(true)}
+                        >
+                            Move to space
+                        </Menu.Item>
+                    )}
                     {contentReview.canRequest && !hasUnsavedChanges && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconSend} />}
@@ -351,7 +394,7 @@ const ChartActionsMenu: FC<Props> = ({
                                 Share
                             </Menu.Item>
                         )}
-                    {userCanManageChart && !chartBelongsToDashboard && (
+                    {canManageStandaloneChart && (
                         <Menu.Item
                             leftSection={
                                 <MantineIcon icon={IconFolderSymlink} />
@@ -370,19 +413,17 @@ const ChartActionsMenu: FC<Props> = ({
                         </Menu.Item>
                     )}
                     {/* A new explore re-initialises the page; the editor is keyed by its explore */}
-                    {host === 'page' &&
-                        changeChartExploreEnabled &&
-                        userCanManageChart && (
-                            <Menu.Item
-                                leftSection={
-                                    <MantineIcon icon={IconArrowsExchange} />
-                                }
-                                onClick={changeExploreModalHandlers.open}
-                            >
-                                Change explore
-                            </Menu.Item>
-                        )}
-                    {userCanPromoteChart && (
+                    {canChangeExplore && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconArrowsExchange} />
+                            }
+                            onClick={changeExploreModalHandlers.open}
+                        >
+                            Change explore
+                        </Menu.Item>
+                    )}
+                    {canPromoteChart && (
                         <Tooltip
                             label="You must enable first an upstream project in settings > Data ops"
                             disabled={!promoteDisabled}
@@ -429,7 +470,7 @@ const ChartActionsMenu: FC<Props> = ({
                         </Menu.Item>
                     )}
 
-                    {(userCanViewContentAsCode || userCanManageChart) && (
+                    {(userCanViewContentAsCode || canAuthorChart) && (
                         <>
                             <Menu.Divider />
                             <Menu.Label>Content as code</Menu.Label>
@@ -443,7 +484,7 @@ const ChartActionsMenu: FC<Props> = ({
                                     View as code
                                 </Menu.Item>
                             )}
-                            {userCanManageChart && (
+                            {canAuthorChart && (
                                 <Menu.Item
                                     leftSection={
                                         <MantineIcon icon={IconLink} />
@@ -522,16 +563,26 @@ const ChartActionsMenu: FC<Props> = ({
                     )}
                 </Menu.Dropdown>
                 <Menu.Target>
-                    <ActionIcon
-                        variant="default"
-                        aria-label="Chart actions"
-                        disabled={!unsavedChartVersion.tableName}
-                        // Anchor for scope walkthroughs (data-tour-via)
-                        data-tour-anchor="chart-actions"
-                        data-tour-hint="Open the chart's actions"
-                    >
-                        <MantineIcon icon={IconDots} />
-                    </ActionIcon>
+                    {withLabel ? (
+                        <Button
+                            variant="subtle"
+                            aria-label="Chart actions"
+                            leftSection={<MantineIcon icon={IconDots} />}
+                        >
+                            More
+                        </Button>
+                    ) : (
+                        <ActionIcon
+                            variant="default"
+                            aria-label="Chart actions"
+                            disabled={!unsavedChartVersion.tableName}
+                            // Anchor for scope walkthroughs (data-tour-via)
+                            data-tour-anchor="chart-actions"
+                            data-tour-hint="Open the chart's actions"
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    )}
                 </Menu.Target>
             </Menu>
 
