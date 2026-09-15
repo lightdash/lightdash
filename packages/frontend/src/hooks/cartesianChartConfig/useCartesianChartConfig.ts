@@ -1311,6 +1311,7 @@ const useCartesianChartConfig = ({
                     defaultStackLabel,
                     itemsMap,
                     columnLimit,
+                    existingSeries: prev?.series,
                 });
                 const sortedByPivot = isPivotSeriesOrderDeterminedByQuery(
                     pivotKeys,
