@@ -141,6 +141,9 @@ export const AiGeneralSettingsPage = () => {
                     <AiSurfacesCard
                         aiAgentsVisible={settings.aiAgentsVisible}
                         mcpAgentsEnabled={settings.mcpAgentsEnabled}
+                        dataAppRuntimeAiEnabled={
+                            settings.dataAppRuntimeAiEnabled ?? false
+                        }
                         slackInstallation={slackInstallation}
                         slackAgentsEnabled={slackAgentsEnabled}
                         isTrial={settings.isTrial}
@@ -151,6 +154,11 @@ export const AiGeneralSettingsPage = () => {
                         }
                         onUpdateMcpAgentsEnabled={(checked) =>
                             updateSettings({ mcpAgentsEnabled: checked })
+                        }
+                        onUpdateDataAppRuntimeAiEnabled={(checked) =>
+                            updateSettings({
+                                dataAppRuntimeAiEnabled: checked,
+                            })
                         }
                         onUpdateSlackAgentsEnabled={handleSlackAgentsToggle}
                     />
