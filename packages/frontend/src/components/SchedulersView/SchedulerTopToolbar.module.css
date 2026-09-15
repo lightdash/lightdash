@@ -1,0 +1,16 @@
+@media (max-width: 48em) {
+    .toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: var(--mantine-spacing-xs);
+    }
+
+    .filters {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .actions {
+        width: 100%;
+    }
+}
