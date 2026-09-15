@@ -12807,6 +12807,56 @@
                 "required": ["pushToken"],
                 "type": "object"
             },
+            "ManagedAgentAggression": {
+                "type": "string",
+                "enum": ["observe", "flag", "cleanup"]
+            },
+            "ManagedAgentRuntimeInfo": {
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "notice": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "effectiveCleanupMode": {
+                        "$ref": "#/components/schemas/ManagedAgentAggression"
+                    },
+                    "requestedCleanupMode": {
+                        "$ref": "#/components/schemas/ManagedAgentAggression"
+                    },
+                    "keySource": {
+                        "type": "string",
+                        "enum": ["organization", "instance", null],
+                        "nullable": true
+                    },
+                    "model": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "provider": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "runtime": {
+                        "type": "string",
+                        "enum": ["anthropic-managed", "ai-sdk"]
+                    }
+                },
+                "required": [
+                    "error",
+                    "notice",
+                    "effectiveCleanupMode",
+                    "requestedCleanupMode",
+                    "keySource",
+                    "model",
+                    "provider",
+                    "runtime"
+                ],
+                "type": "object"
+            },
             "ManagedAgentScheduleOption": {
                 "enum": [
                     "every_6_hours",
@@ -12816,10 +12866,6 @@
                     "weekly"
                 ],
                 "type": "string"
-            },
-            "ManagedAgentAggression": {
-                "type": "string",
-                "enum": ["observe", "flag", "cleanup"]
             },
             "ManagedAgentAudience": {
                 "type": "string",
@@ -61237,7 +61283,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.212.2",
+        "version": "2.213.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

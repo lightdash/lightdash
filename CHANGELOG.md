@@ -1,3 +1,16 @@
+# [2.213.0](https://github.com/lightdash/lightdash/compare/2.212.2...2.213.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* contain the login page loading indicator below the heading ([#29225](https://github.com/lightdash/lightdash/issues/29225)) ([4d509c9](https://github.com/lightdash/lightdash/commit/4d509c9f9f9edc9f82b43bff69c40ff5f06d5d01))
+* restoring an uninstalled chart type conflicts cleanly over a fresh install ([#29185](https://github.com/lightdash/lightdash/issues/29185)) ([545e550](https://github.com/lightdash/lightdash/commit/545e55073e2a5bd75061346bd153b034d064bf70))
+
+
+### Features
+
+* **autopilot:** run heartbeats on the AI SDK behind MANAGED_AGENT_RUNTIME ([#29088](https://github.com/lightdash/lightdash/issues/29088)) ([277b147](https://github.com/lightdash/lightdash/commit/277b1471e64ba26c5f14a9c6554371d07b62d00d))
+
 ## [2.212.2](https://github.com/lightdash/lightdash/compare/2.212.1...2.212.2) (2026-09-15)
 
 
