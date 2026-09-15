@@ -124,6 +124,10 @@ import {
     type LegendDoubleClickTooltip,
 } from './useLegendDoubleClickTooltip';
 
+// SimpleChart owns series focus through a custom state. Native blur must stay
+// off because axis-pointer highlight/downplay actions repeatedly clear it.
+export const CARTESIAN_HOVER_EMPHASIS = { focus: 'none' as const };
+
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
     axisId: string;
@@ -1186,9 +1190,7 @@ const getPivotSeries = ({
 
     return {
         ...series,
-        emphasis: {
-            focus: 'series',
-        },
+        emphasis: CARTESIAN_HOVER_EMPHASIS,
         xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
         yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
         ...(series.type === CartesianSeriesType.LINE ||
@@ -1383,9 +1385,7 @@ const getSimpleSeries = ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
     yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
-    emphasis: {
-        focus: 'series',
-    },
+    emphasis: CARTESIAN_HOVER_EMPHASIS,
     ...(series.type === CartesianSeriesType.LINE ||
     series.type === CartesianSeriesType.AREA
         ? {
