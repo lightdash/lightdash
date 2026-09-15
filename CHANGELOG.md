@@ -1,3 +1,10 @@
+## [2.215.2](https://github.com/lightdash/lightdash/compare/2.215.1...2.215.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* **autopilot:** validate chart filters and evaluate real content ([#29163](https://github.com/lightdash/lightdash/issues/29163)) ([a18bc6a](https://github.com/lightdash/lightdash/commit/a18bc6a6df6ec453f981a498e7775ba2a1f740b8))
+
 ## [2.215.1](https://github.com/lightdash/lightdash/compare/2.215.0...2.215.1) (2026-09-15)
 
 
