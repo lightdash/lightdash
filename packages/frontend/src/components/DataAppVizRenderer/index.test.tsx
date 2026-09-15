@@ -59,12 +59,14 @@ const mocks = vi.hoisted(() => ({
     iframePreview: vi.fn(
         (_props: {
             onScreenshotAvailabilityChange: (available: boolean) => void;
-        }) => null,
+            onIframeLoad: () => void;
+        }) => <iframe data-testid="app-preview" title="App preview" />,
     ),
     renderMetadataHook: vi.fn(),
     previewTokenHook: vi.fn(),
     setFetchAll: vi.fn(),
     canViewUnderlyingData: { current: true },
+    isLoading: { current: false },
     explore: { current: undefined as { name: string } | undefined },
     exploreHook: vi.fn(),
     // Extra keys merged into the useVisualizationContext mock return value.
@@ -183,6 +185,7 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
             },
         },
         colorPalette: ['#7162FF'],
+        isLoading: mocks.isLoading.current,
         ...mocks.vizContextOverrides.current,
     }),
 }));
@@ -217,6 +220,12 @@ const announceIframeAvailable = () => {
     const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
     if (!iframeProps) throw new Error('Expected the iframe preview to render');
     act(() => iframeProps.onScreenshotAvailabilityChange(true));
+};
+
+const loadIframe = () => {
+    const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
+    if (!iframeProps) throw new Error('Expected the iframe preview to render');
+    act(() => iframeProps.onIframeLoad());
 };
 
 const readyMetadata = () => ({
@@ -259,6 +268,7 @@ describe('DataAppVizRenderer', () => {
         mocks.previewTokenHook.mockClear();
         mocks.setFetchAll.mockClear();
         mocks.canViewUnderlyingData.current = true;
+        mocks.isLoading.current = false;
         mocks.explore.current = undefined;
         mocks.exploreHook.mockClear();
         mocks.vizContextOverrides.current = {};
@@ -276,15 +286,65 @@ describe('DataAppVizRenderer', () => {
         ).toBeInTheDocument();
     });
 
-    it('shows a neutral loading state while render metadata is pending', () => {
+    it('uses the standard chart loading overlay while render metadata is pending', () => {
         mocks.metadata.current = undefined;
 
         renderRenderer();
 
-        expect(
-            screen.getByText('Loading custom chart type…'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Loading chart')).toBeInTheDocument();
         expect(mocks.iframePreview).not.toHaveBeenCalled();
+    });
+
+    it('uses the standard chart loading overlay while the preview token is pending', () => {
+        mocks.token.current = undefined;
+
+        renderRenderer();
+
+        expect(screen.getByText('Loading chart')).toBeInTheDocument();
+        expect(mocks.iframePreview).not.toHaveBeenCalled();
+    });
+
+    it('keeps the standard chart loading overlay until the app preview loads', () => {
+        renderRenderer();
+        const preview = screen.getByTestId('app-preview');
+
+        expect(screen.getByText('Loading chart')).toBeInTheDocument();
+        expect(preview.parentElement).toHaveAttribute('inert');
+
+        loadIframe();
+
+        expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
+        expect(preview.parentElement).not.toHaveAttribute('inert');
+    });
+
+    it.each(['metadata', 'token'])(
+        'waits for a remounted iframe after %s becomes pending',
+        (pending) => {
+            const view = renderRenderer();
+            loadIframe();
+            if (pending === 'metadata') mocks.metadata.current = undefined;
+            else mocks.token.current = undefined;
+            view.rerender(rendererElement());
+            mocks.metadata.current = readyMetadata();
+            mocks.token.current = 'preview-token';
+            view.rerender(rendererElement());
+            expect(screen.getByText('Loading chart')).toBeInTheDocument();
+            loadIframe();
+            expect(screen.queryByText('Loading chart')).not.toBeInTheDocument();
+        },
+    );
+
+    it('keeps the app preview mounted under the standard loading overlay while query results refresh', () => {
+        const view = renderRenderer();
+        loadIframe();
+        const preview = screen.getByTestId('app-preview');
+
+        mocks.isLoading.current = true;
+        view.rerender(rendererElement());
+
+        expect(screen.getByText('Loading chart')).toBeInTheDocument();
+        expect(screen.getByTestId('app-preview')).toBe(preview);
+        expect(preview.parentElement).toHaveAttribute('inert');
     });
 
     it('shows generating only for metadata building state', () => {
@@ -707,13 +767,14 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         mocks.embedToken.current = undefined;
         mocks.dataAppVizUuid.current = 'viz-uuid';
         mocks.iframePreview.mockClear();
+        mocks.isLoading.current = false;
         mocks.canViewUnderlyingData.current = true;
         mocks.explore.current = undefined;
         mocks.vizContextOverrides.current = {};
         mocks.trackingContext.current = { track: mocks.track };
     });
 
-    it('does not signal ready on mount, and signals once the iframe announces with context delivered', () => {
+    it('waits for iframe load after the SDK announces before signaling screenshot readiness', () => {
         const onScreenshotReady = vi.fn();
 
         renderRenderer({ onScreenshotReady });
@@ -721,6 +782,8 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         expect(onScreenshotReady).not.toHaveBeenCalled();
 
         announceScreenshotAvailable();
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+        loadIframe();
 
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
@@ -732,6 +795,7 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         };
 
         const view = renderRenderer({ onScreenshotReady });
+        loadIframe();
         announceScreenshotAvailable();
 
         expect(onScreenshotReady).not.toHaveBeenCalled();
@@ -739,6 +803,18 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         mocks.vizContextOverrides.current = {};
         view.rerender(rendererElement({ onScreenshotReady }));
 
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for query loading to finish before signaling screenshot readiness', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.isLoading.current = true;
+        const view = renderRenderer({ onScreenshotReady });
+        loadIframe();
+        announceScreenshotAvailable();
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+        mocks.isLoading.current = false;
+        view.rerender(rendererElement({ onScreenshotReady }));
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
 

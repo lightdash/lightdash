@@ -7,7 +7,7 @@ import {
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
-import { Anchor, Stack, Text } from '@mantine/core';
+import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { IconPuzzle } from '@tabler/icons-react';
 import {
     useCallback,
@@ -36,11 +36,13 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import LoadingChart from '../common/LoadingChart';
 import MantineIcon from '../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
+import classes from './DataAppVizRenderer.module.css';
 import { resolveVizDrillDownConfig } from './vizDrillDownConfig';
 import { buildVizUnderlyingDataRequest } from './vizUnderlyingDataRequest';
 
@@ -107,11 +109,15 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         dateZoom,
         resolvedTimezone,
         isEditMode,
+        isLoading,
     } = useVisualizationContext();
     const { embedToken } = useEmbed();
     const { canViewUnderlyingData, canDrillInto } = useContextMenuPermissions();
     const previewOrigin = usePreviewOrigin();
     const { user, health } = useApp();
+    const [loadedIframeNavigationKey, setLoadedIframeNavigationKey] = useState<
+        string | null
+    >(null);
     // Fail-silent: /minimal routes at desktop viewports mount no
     // TrackingProvider (App.tsx `enabled={isMobile || !isMinimalPage}`), so
     // screenshot/export/unfurl renders simply skip the drill-by event.
@@ -397,12 +403,6 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         drillDownEnabled,
     ]);
 
-    // Ready only once the sandbox has booted AND the viz context has been
-    // handed to the bridge (whose push effect commits before this one).
-    useEffect(() => {
-        if (screenshotAnnounced && dataAppVizContext) signalScreenshotReady();
-    }, [screenshotAnnounced, dataAppVizContext, signalScreenshotReady]);
-
     // Terminal placeholders never mount the iframe — their frame is final,
     // so report ready now instead of stalling until the fallback timeout.
     const terminalRequestErrors = [
@@ -425,6 +425,38 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     useEffect(() => {
         if (isTerminalPlaceholder) signalScreenshotReady();
     }, [isTerminalPlaceholder, signalScreenshotReady]);
+
+    const previewUrl =
+        !isTerminalPlaceholder && readyMetadata && token
+            ? `${previewOrigin}/api/apps/${dataAppVizUuid}/versions/${readyMetadata.version}/t/${token}/?r=0#transport=postMessage&projectUuid=${projectUuid}`
+            : null;
+    // Token renewal updates the bridge without navigating the same bundle.
+    const iframeNavigationKey =
+        previewUrl && token
+            ? previewUrl.replace(token, '{preview-token}')
+            : null;
+    const isPreviewLoading =
+        isLoading || loadedIframeNavigationKey !== iframeNavigationKey;
+    useEffect(() => {
+        if (previewUrl === null) setLoadedIframeNavigationKey(null);
+    }, [previewUrl]);
+
+    useEffect(() => {
+        if (
+            previewUrl &&
+            !isPreviewLoading &&
+            screenshotAnnounced &&
+            dataAppVizContext
+        ) {
+            signalScreenshotReady();
+        }
+    }, [
+        previewUrl,
+        isPreviewLoading,
+        screenshotAnnounced,
+        dataAppVizContext,
+        signalScreenshotReady,
+    ]);
 
     // Armed once on mount — capture surfaces pass the callback from mount.
     useEffect(() => {
@@ -470,14 +502,10 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     }
 
     if (!renderMetadata) {
-        return (
-            <DataAppVizPlaceholder
-                message={
-                    renderMetadataError
-                        ? 'Custom chart type could not be loaded.'
-                        : 'Loading custom chart type…'
-                }
-            />
+        return renderMetadataError ? (
+            <DataAppVizPlaceholder message="Custom chart type could not be loaded." />
+        ) : (
+            <LoadingChart />
         );
     }
 
@@ -506,33 +534,47 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         );
     }
 
-    if (!token) {
-        return (
-            <DataAppVizPlaceholder
-                message={
-                    previewTokenError
-                        ? 'Custom chart type could not be loaded.'
-                        : 'Loading custom chart type…'
-                }
-            />
+    if (!token || !previewUrl) {
+        return previewTokenError ? (
+            <DataAppVizPlaceholder message="Custom chart type could not be loaded." />
+        ) : (
+            <LoadingChart />
         );
     }
 
-    const previewUrl = `${previewOrigin}/api/apps/${dataAppVizUuid}/versions/${renderMetadata.version}/t/${token}/?r=0#transport=postMessage&projectUuid=${projectUuid}`;
-
     return (
-        <AppIframePreview
-            src={previewUrl}
-            previewToken={token}
-            expectedPreviewOrigin={previewOrigin}
-            projectUuid={projectUuid}
-            appUuid={dataAppVizUuid}
-            identityKey={dataAppVizUuid}
-            dataAppVizContext={dataAppVizContext}
-            onScreenshotAvailabilityChange={handleScreenshotAvailabilityChange}
-            rewriteVizUnderlyingDataRequest={rewriteVizUnderlyingDataRequest}
-            onVizDrillDownIntent={onVizDrillDownIntent}
-        />
+        <Box className={classes.previewContainer}>
+            <Box
+                className={classes.previewFrame}
+                inert={isPreviewLoading}
+                aria-hidden={isPreviewLoading}
+            >
+                <AppIframePreview
+                    src={previewUrl}
+                    previewToken={token}
+                    expectedPreviewOrigin={previewOrigin}
+                    projectUuid={projectUuid}
+                    appUuid={dataAppVizUuid}
+                    identityKey={dataAppVizUuid}
+                    dataAppVizContext={dataAppVizContext}
+                    onScreenshotAvailabilityChange={
+                        handleScreenshotAvailabilityChange
+                    }
+                    onIframeLoad={() =>
+                        setLoadedIframeNavigationKey(iframeNavigationKey)
+                    }
+                    rewriteVizUnderlyingDataRequest={
+                        rewriteVizUnderlyingDataRequest
+                    }
+                    onVizDrillDownIntent={onVizDrillDownIntent}
+                />
+            </Box>
+            {isPreviewLoading && (
+                <Box className={classes.loadingOverlay}>
+                    <LoadingChart />
+                </Box>
+            )}
+        </Box>
     );
 };
 
