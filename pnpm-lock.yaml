@@ -1425,6 +1425,9 @@ importers:
       react-countdown:
         specifier: 2.3.5
         version: 2.3.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react-device-detect:
+        specifier: 2.2.3
+        version: 2.2.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
@@ -14013,6 +14016,12 @@ packages:
     peerDependencies:
       react: '>= 15'
       react-dom: '>= 15'
+
+  react-device-detect@2.2.3:
+    resolution: {integrity: sha512-buYY3qrCnQVlIFHrC5UcUoAj7iANs/+srdkwsnNjI7anr3Tt7UY6MqNxtMLlr0tMBied0O49UZVK8XKs3ZIiPw==}
+    peerDependencies:
+      react: '>= 0.14.0'
+      react-dom: '>= 0.14.0'
 
   react-docgen-typescript@2.2.2:
     resolution: {integrity: sha512-tvg2ZtOpOi6QDwsb3GZhOjDkkX0h8Z2gipvTg6OVMUyoYoURhEiRNePT8NZItTVCDh39JJHnLdfCOkzoLbFnTg==}
@@ -31400,6 +31409,12 @@ snapshots:
       prop-types: 15.8.1
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
+
+  react-device-detect@2.2.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+      ua-parser-js: 1.0.35
 
   react-docgen-typescript@2.2.2:
     dependencies:

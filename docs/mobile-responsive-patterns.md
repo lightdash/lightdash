@@ -2,7 +2,7 @@
 
 Current implementation map, September 15. This describes component replacements and layout changes separately. Verification and remaining feature coverage live in [the audit](mobile-responsive-audit.md).
 
-Phone-specific layouts, navigation collapse and chart/dashboard authoring restrictions start strictly below **768px (`sm`)**. Tablets keep full content controls and the desktop navigation shape; its labels condense between 768px and 896px to fit. Container-based wrapping and dashboard grid projection remain independent of this viewport policy.
+Responsive presentation and product capability use separate signals. Phone layouts and navigation collapse start strictly below **768px (`sm`)**; labels condense between 768px and 896px. Chart/dashboard authoring restrictions use phone device detection (`react-device-detect`'s `isMobileOnly`), so narrowing a desktop window never removes authoring. Tablets retain authoring. Container-based wrapping and dashboard grid projection remain independent.
 
 ## Component replacements
 
@@ -41,7 +41,7 @@ Saved/SQL dashboard charts use 60% of saved height, bounded to 3–6 grid rows (
 
 ## Phone interaction policy
 
-- Chart/dashboard editor routes show a larger-screen notice below 768px, including direct links to Explorer and SQL Runner. Saved viewers remain available. Create, edit, duplicate, add-to-dashboard and Explore from here actions are unavailable on phones; existing authorization still applies at larger widths.
+- Chart/dashboard editor routes show a phone-specific notice on detected phones, including direct links to Explorer and SQL Runner. Saved viewers remain available. Create, edit, duplicate, add-to-dashboard and Explore from here actions are unavailable on phones; narrowing a desktop window never removes these actions. Device detection is a capability hint only, never a layout or routing signal.
 - **Selected direction B for both headers:** full-width title, compact metadata, then an equally spaced labeled action row. Dashboard: Refresh / Share / More. Saved chart: Share / Favorite / More, subject to existing permissions. Controls are 48px tall with 18px icons, 8px icon-label gaps and a shared 16px horizontal inset. Details and secondary actions live under More; the saved-chart author remains in Details.
 - Dashboard Refresh runs immediately. Auto-refresh settings open from More; the same refresh component stays mounted across phone/tablet resizing so its timer survives. Desktop retains its split control. The pre-aggregate bolt is omitted from the phone header.
 - Navigation uses grouped vertical rows. Settings, page-details and AI settings drawers use a bounded flex body so their option lists scroll while the close control remains reachable.
@@ -56,7 +56,7 @@ Saved/SQL dashboard charts use 60% of saved height, bounded to 3–6 grid rows (
 
 - Choose presentation by available space and task: navigation → side drawer; dashboard filters → bottom sheet; substantial forms → fullscreen modal; short confirmations → dialog; small contextual choices → bounded popover.
 - Reuse the same controls, queries and permissions. Preserve selections, unsaved input, URL state and canvas/iframe state across resize. A component swap does not imply mounting a second full workspace.
-- Use CSS for wrapping, dimensions and touch targets. Use Mantine `useMatches` / `useMediaQuery` when interaction or component placement changes. Observe container width for reusable dashboard/embed content.
+- Use CSS for wrapping, dimensions and touch targets. Use Mantine `useMatches` / `useMediaQuery` when interaction or component placement changes. Observe container width for reusable dashboard/embed content. Reserve `useIsPhoneDevice` for genuine phone-only product restrictions; never use it to select responsive presentation or a route.
 - Target 44px controls and 16px form inputs on compact/touch layouts. Keep close/actions reachable with short landscape heights, scrolling content, safe areas and the on-screen keyboard. Check keyboard opening, nested Escape handling and focus return.
 - Record each new replacement here with its trigger, exception, source component and audit evidence. Mark unverified behavior explicitly.
 
