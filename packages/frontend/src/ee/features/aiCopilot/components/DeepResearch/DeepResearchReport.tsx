@@ -4,6 +4,7 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import DocumentReportLayout from '../../../../../features/documents/presentation/DocumentReportLayout';
+import reportStyles from '../../../../../features/documents/presentation/ReportPresentation.module.css';
 import { DeepResearchBetaBadge } from '../../deepResearch/DeepResearchBetaBadge';
 import {
     getDeepResearchReportHeadings,
@@ -68,7 +69,7 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
             opened={opened}
             onClose={onClose}
             title={
-                <Group className={styles.reportControls} wrap="nowrap">
+                <Group className={reportStyles.reportControls} wrap="nowrap">
                     <Text className={styles.visuallyHidden}>Deep research</Text>
                     <Button
                         variant="subtle"

@@ -1,5 +1,12 @@
 .reportScroll {
     height: var(--page-height, calc(100dvh - var(--navbar-height) - 3.75rem));
+    background-color: var(--mantine-color-body);
+}
+
+.reportControls {
+    width: min(100%, 74rem);
+    margin-inline: auto;
+    padding-inline: var(--mantine-spacing-lg);
 }
 
 .reportLayout {

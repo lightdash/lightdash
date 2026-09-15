@@ -1,12 +1,15 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Anchor, Box, Button } from '@mantine/core';
+import { Box, Button, Group } from '@mantine/core';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
+import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageHeader from '../components/common/Page/PageHeader';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
+import reportStyles from '../features/documents/presentation/ReportPresentation.module.css';
 import { useDocument } from '../features/documents/useDocument';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -49,9 +52,26 @@ const DocumentContent = ({
                 noContentPadding
                 header={
                     <PageHeader>
-                        <Anchor component={Link} to={backUrl}>
-                            Back
-                        </Anchor>
+                        <Group
+                            className={reportStyles.reportControls}
+                            justify="space-between"
+                        >
+                            <Button
+                                component={Link}
+                                to={backUrl}
+                                variant="subtle"
+                                radius="xl"
+                                size="xs"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconArrowLeft}
+                                        size={14}
+                                    />
+                                }
+                            >
+                                Back
+                            </Button>
+                        </Group>
                     </PageHeader>
                 }
             >
