@@ -1,4 +1,7 @@
-import { type PreAggregateMaterializationSummary } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type PreAggregateMaterializationSummary,
+} from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine/core';
 import { IconDatabaseExport } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -33,11 +36,26 @@ export const StatusBadge: FC<{
         );
     }
 
-    if (!summary.materialization) {
+    if (!summary.activeMaterialization) {
+        if (summary.materialization) {
+            return <Badge size="sm">Unavailable</Badge>;
+        }
         return <Badge size="sm">Never materialized</Badge>;
     }
 
-    const { status, errorMessage } = summary.materialization;
+    return (
+        <MaterializationStatusBadge
+            materialization={summary.activeMaterialization}
+        />
+    );
+};
+
+export const MaterializationStatusBadge: FC<{
+    materialization: PreAggregateMaterializationSummary['materialization'];
+}> = ({ materialization }) => {
+    if (!materialization) return <Badge size="sm">No attempts</Badge>;
+
+    const { status, errorMessage } = materialization;
 
     switch (status) {
         case 'active':
@@ -49,7 +67,7 @@ export const StatusBadge: FC<{
         case 'in_progress':
             return (
                 <Badge color="blue" size="sm">
-                    Building
+                    In progress
                 </Badge>
             );
         case 'failed':
@@ -63,6 +81,6 @@ export const StatusBadge: FC<{
         case 'superseded':
             return <Badge size="sm">Superseded</Badge>;
         default:
-            return <Badge size="sm">{status}</Badge>;
+            return assertUnreachable(status, 'Unknown materialization status');
     }
 };
