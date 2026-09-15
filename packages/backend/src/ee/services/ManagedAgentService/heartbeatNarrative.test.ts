@@ -104,6 +104,7 @@ describe('composeHeartbeatNarrative', () => {
             evidence,
             notice: 'Cleanup mode is observe.',
             actions: [staleFlag],
+            onFailure: vi.fn(),
         });
 
         expect(text).toBe('**Jaffle shop: agent update**\n\nA grounded story.');
@@ -135,6 +136,7 @@ describe('composeHeartbeatNarrative', () => {
             evidence: [],
             notice: null,
             actions: [],
+            onFailure: vi.fn(),
         });
         expect(JSON.stringify(calls[0].prompt)).toContain(
             'None. This run changed nothing.',
@@ -148,6 +150,7 @@ describe('composeHeartbeatNarrative', () => {
                 throw new Error('Provider disconnected');
             },
         });
+        const onFailure = vi.fn();
         const args = {
             callOptions: { maxRetries: 0 },
             providerOptions: undefined,
@@ -156,13 +159,18 @@ describe('composeHeartbeatNarrative', () => {
             evidence,
             notice: null,
             actions: [staleFlag],
+            onFailure,
         };
         await expect(
             composeHeartbeatNarrative({ ...args, model: failing }),
         ).resolves.toBeNull();
+        expect(onFailure).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Provider disconnected' }),
+        );
         const { model: empty } = buildModel(() => '   ');
         await expect(
             composeHeartbeatNarrative({ ...args, model: empty }),
         ).resolves.toBeNull();
+        expect(onFailure).toHaveBeenCalledTimes(1);
     });
 });

@@ -19,6 +19,13 @@ import type { ManagedAgentRuntime } from '../../../config/parseConfig';
 import { getAvailableModels, getModel } from '../ai/models';
 import { ManagedAgentService } from './ManagedAgentService';
 
+const captureAutopilotFailure = vi.fn();
+vi.mock('./autopilotFailure', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./autopilotFailure')>()),
+    captureAutopilotFailure: (...args: unknown[]) =>
+        captureAutopilotFailure(...args),
+}));
+
 vi.mock('../ai/models', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../ai/models')>()),
     getModel: vi.fn(),
@@ -822,6 +829,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
     it.each([false, true])(
         'renders saved actions instead of an invented draft (provider failure: %s)',
         async (fail) => {
+            captureAutopilotFailure.mockClear();
             const { service, managedAgentModel, analytics, slackClient } =
                 buildService({
                     runtime: 'ai-sdk',
@@ -961,10 +969,29 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                 expect(summary).toContain('cut short');
                 expect(summary).toContain('Agent Suggestions');
                 expect(reportCalls).toBe(0);
+                expect(captureAutopilotFailure).toHaveBeenCalledTimes(1);
+                expect(captureAutopilotFailure).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        message: 'Provider disconnected',
+                    }),
+                    {
+                        stage: 'run',
+                        runtime: 'ai-sdk',
+                        organizationUuid: expect.any(String),
+                        projectUuid: PROJECT_UUID,
+                        runUuid: 'run-uuid',
+                        attribution: {
+                            provider: 'openai',
+                            model: 'unscored-model',
+                            keyManagement: 'self-managed',
+                        },
+                    },
+                );
             } else {
                 expect(summary).toContain('Grounded story about Saved chart.');
                 expect(summary).not.toContain('cut short');
                 expect(reportCalls).toBe(1);
+                expect(captureAutopilotFailure).not.toHaveBeenCalled();
             }
             expect(managedAgentModel.getActions).toHaveBeenCalledTimes(1);
             expect(slackClient.postMessage).toHaveBeenCalledWith(

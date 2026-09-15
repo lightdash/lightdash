@@ -139,9 +139,11 @@ export const composeHeartbeatNarrative = async ({
     evidence,
     notice,
     actions,
+    onFailure,
 }: HeartbeatReportInputs & {
     notice: string | null;
     actions: ReportAction[];
+    onFailure: (error: Error) => void;
 }): Promise<string | null> => {
     try {
         const result = await generateText({
@@ -171,6 +173,7 @@ export const composeHeartbeatNarrative = async ({
         Logger.warn(
             `Autopilot report composition failed, using the saved-action report: ${error instanceof Error ? error.message : 'Unknown error'}`,
         );
+        onFailure(error instanceof Error ? error : new Error(String(error)));
         return null;
     }
 };
