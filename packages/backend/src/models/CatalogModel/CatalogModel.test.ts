@@ -129,6 +129,7 @@ describe('CatalogModel', () => {
 
     afterEach(() => {
         tracker.reset();
+        vi.restoreAllMocks();
         vi.clearAllMocks();
     });
 
@@ -142,6 +143,11 @@ describe('CatalogModel', () => {
                     name: 'removed_metric',
                 }),
             ];
+            const ordersJsonBytes = Buffer.byteLength(
+                JSON.stringify(orders),
+                'utf8',
+            );
+            const stringify = vi.spyOn(JSON, 'stringify');
 
             tracker.on
                 .any(({ sql }) => sql.includes('WITH count_cte AS'))
@@ -239,13 +245,22 @@ describe('CatalogModel', () => {
                     returnedSqlRowCount: 2,
                     distinctExploreCount: 1,
                     exploreCount: 1,
-                    selectedExploreJsonBytes:
-                        Buffer.byteLength(JSON.stringify(orders), 'utf8') * 2,
+                    selectedExploreJsonBytes: ordersJsonBytes * 2,
                     returnedCatalogRowCount: undefined,
                 }),
             );
             expect(pageContext?.dbReadMs).toEqual(expect.any(Number));
             expect(pageLog?.duration).toBe(pageContext?.dbReadMs);
+            expect(
+                stringify.mock.calls.filter(
+                    ([value]) =>
+                        typeof value === 'object' &&
+                        value !== null &&
+                        'name' in value &&
+                        value.name === orders.name &&
+                        'tables' in value,
+                ),
+            ).toHaveLength(1);
 
             const countContext = logEntries.find(
                 ({ name }) => name === 'CatalogModel.search.count.driverRead',

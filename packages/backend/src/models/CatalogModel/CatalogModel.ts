@@ -1008,11 +1008,6 @@ export class CatalogModel {
             measureQuery,
         );
 
-        Object.assign(
-            pageReadContext,
-            summarizeCatalogSearchExploreRead(paginatedCatalogItems.data),
-        );
-
         const { result: tagsPerItem } = await measureTime(
             () =>
                 this.getTagsPerItem(

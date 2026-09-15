@@ -59,19 +59,10 @@ export type ExploreCacheReadContext = {
 export type CatalogSearchExploreCacheReadContext = ExploreCacheReadContext & {
     page: number | undefined;
     pageSize: number | undefined;
-    /** Total result count returned by the existing pagination count query. */
     totalResultCount: number | undefined;
-    /** Number of rows materialized by the catalog page query. */
     returnedSqlRowCount: number | undefined;
-    /** Number of catalog items left after stale catalog rows are removed. */
     returnedCatalogRowCount: number | undefined;
-    /** Number of distinct explores represented by the materialized SQL page. */
     distinctExploreCount: number | undefined;
-    /**
-     * UTF-8 bytes after re-serializing every selected row's already-materialized
-     * explore with JSON.stringify in Node. This is a shape proxy, not PostgreSQL
-     * storage size, wire bytes or the exact JSON text emitted by PostgreSQL.
-     */
     selectedExploreJsonBytes: number | undefined;
 };
 
