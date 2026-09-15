@@ -17,6 +17,7 @@ import {
     PersistentDownloadFileAccessMode,
     RequestMethod,
     SchedulerFormat,
+    SchedulerJobStatus,
     sleep,
     ThresholdOperator,
     VizAggregationOptions,
@@ -27,6 +28,7 @@ import {
     type DeliveryCaptureManifest,
     type EmailNotificationPayload,
     type Filters,
+    type MaterializePreAggregatePayload,
     type MetricQuery,
     type NotificationPayloadBase,
     type ReadyQueryResultsPage,
@@ -113,6 +115,102 @@ describe('buildSchedulerLogContext', () => {
 });
 
 describe('pre-aggregate scheduler outcomes', () => {
+    const payload: MaterializePreAggregatePayload = {
+        organizationUuid: 'organization',
+        projectUuid: 'project',
+        userUuid: 'user',
+        preAggregateDefinitionUuid: 'definition',
+        trigger: 'cron',
+        scheduleRevision: 'revision',
+    };
+
+    it.each(['unchanged_active', 'obsolete_schedule', 'ineligible'])(
+        'records %s as a completed check without a materialization record',
+        async (reason) => {
+            const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+            const materializePreAggregate = vi.fn().mockResolvedValue({
+                status: 'skipped',
+                reason,
+            });
+            const account = { user: { id: 'user' } };
+
+            await SchedulerTask.prototype['materializePreAggregate'].call(
+                {
+                    userService: {
+                        getAccountByUserUuid: vi
+                            .fn()
+                            .mockResolvedValue(account),
+                    },
+                    schedulerService: { logSchedulerJob },
+                    preAggregateMaterializationService: {
+                        materializePreAggregate,
+                    },
+                },
+                'job',
+                new Date('2026-09-14T10:00:00Z'),
+                payload,
+            );
+
+            expect(materializePreAggregate).toHaveBeenCalledWith({
+                account,
+                projectUuid: 'project',
+                preAggregateDefinitionUuid: 'definition',
+                trigger: 'cron',
+                scheduleRevision: 'revision',
+            });
+            expect(logSchedulerJob).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    status: SchedulerJobStatus.COMPLETED,
+                    details: {
+                        createdByUserUuid: 'user',
+                        organizationUuid: 'organization',
+                        projectUuid: 'project',
+                        preAggregateDefinitionUuid: 'definition',
+                        trigger: 'cron',
+                        materializationStatus: 'skipped',
+                        skipReason: reason,
+                    },
+                }),
+            );
+        },
+    );
+
+    it('preserves a real failed materialization outcome and its identifiers', async () => {
+        const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+
+        await SchedulerTask.prototype['materializePreAggregate'].call(
+            {
+                userService: {
+                    getAccountByUserUuid: vi
+                        .fn()
+                        .mockResolvedValue({ user: { id: 'user' } }),
+                },
+                schedulerService: { logSchedulerJob },
+                preAggregateMaterializationService: {
+                    materializePreAggregate: vi.fn().mockResolvedValue({
+                        status: 'failed',
+                        materializationUuid: 'materialization',
+                        queryUuid: 'query',
+                    }),
+                },
+            },
+            'job',
+            new Date('2026-09-14T10:00:00Z'),
+            payload,
+        );
+
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: SchedulerJobStatus.COMPLETED,
+                details: expect.objectContaining({
+                    materializationStatus: 'failed',
+                    materializationUuid: 'materialization',
+                    queryUuid: 'query',
+                }),
+            }),
+        );
+    });
+
     it('only generates daily jobs with a current schedule revision and execution user', async () => {
         const definition = {
             organizationUuid: 'organization',

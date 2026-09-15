@@ -3,12 +3,17 @@ import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { type LightdashSecrets } from '../../config/parseConfig';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { deriveTokenHashSalt, hashWithSecret } from '../../utils/hash';
+import {
+    getSecretArtifactKeyId,
+    PRE_AGGREGATE_EXECUTION_SCOPE_ARTIFACT,
+} from '../../utils/secretArtifactKeyId';
 import { CIPHERTEXT_REGISTRY } from './registry';
 import {
     classifyTokenHashes,
     rotateQueuedCreateProjectJobs,
     rotateRegisteredCiphertext,
     runSecretRotation,
+    scanPreAggregateExecutionScopes,
 } from './rotation';
 
 const secrets = (active: string, ...fallbacks: string[]): LightdashSecrets => ({
@@ -486,6 +491,201 @@ describe('classifyTokenHashes', () => {
     });
 });
 
+const scopeRow = (
+    uuid: string,
+    secret: string,
+    status: 'active' | 'in_progress' = 'active',
+) => ({
+    pre_aggregate_materialization_uuid: uuid,
+    pre_aggregate_definition_uuid: `definition-${uuid}`,
+    status,
+    execution_scope_key_id: getSecretArtifactKeyId(
+        secret,
+        PRE_AGGREGATE_EXECUTION_SCOPE_ARTIFACT,
+    ),
+});
+
+describe('scanPreAggregateExecutionScopes', () => {
+    test('classifies live proofs by active, each fallback, or unknown key', async () => {
+        tracker.on.any(/information_schema/).response(true);
+        tracker.on
+            .select('pre_aggregate_materializations')
+            .response([
+                scopeRow('mat-1', 'new secret'),
+                scopeRow('mat-2', 'old secret', 'in_progress'),
+                scopeRow('mat-3', 'older secret'),
+                scopeRow('mat-4', 'unknown secret'),
+            ]);
+
+        const result = await scanPreAggregateExecutionScopes(
+            {
+                ...context,
+                lightdashSecrets: secrets(
+                    'new secret',
+                    'old secret',
+                    'older secret',
+                ),
+            },
+            { batchSize: 500 },
+        );
+
+        expect(result).toEqual({
+            tablePresent: true,
+            columnPresent: true,
+            scanned: 4,
+            active: 1,
+            fallback: [1, 1],
+            unknown: 1,
+            blockingMaterializations: [
+                {
+                    materializationUuid: 'mat-2',
+                    definitionUuid: 'definition-mat-2',
+                    status: 'in_progress',
+                    keySource: { type: 'fallback', fallbackIndex: 0 },
+                },
+                {
+                    materializationUuid: 'mat-3',
+                    definitionUuid: 'definition-mat-3',
+                    status: 'active',
+                    keySource: { type: 'fallback', fallbackIndex: 1 },
+                },
+                {
+                    materializationUuid: 'mat-4',
+                    definitionUuid: 'definition-mat-4',
+                    status: 'active',
+                    keySource: { type: 'unknown' },
+                },
+            ],
+            blockingMaterializationsTruncated: false,
+        });
+        expect(tracker.history.update).toHaveLength(0);
+    });
+
+    test('filters out terminal statuses and secret-independent scopes, paginating by UUID', async () => {
+        tracker.on.any(/information_schema/).response(true);
+        tracker.on
+            .select('pre_aggregate_materializations')
+            .responseOnce([
+                scopeRow('mat-1', 'new secret'),
+                scopeRow('mat-2', 'old secret'),
+            ]);
+        tracker.on
+            .select('pre_aggregate_materializations')
+            .responseOnce([scopeRow('mat-3', 'old secret', 'in_progress')]);
+
+        const result = await scanPreAggregateExecutionScopes(context, {
+            batchSize: 2,
+        });
+
+        expect(result).toMatchObject({ scanned: 3, active: 1, fallback: [2] });
+        const queries = tracker.history.select.filter((query) =>
+            query.sql.includes('from "pre_aggregate_materializations"'),
+        );
+        expect(queries).toHaveLength(2);
+        for (const query of queries) {
+            expect(query.sql).toContain('"status" in ($1, $2)');
+            expect(query.bindings.slice(0, 2)).toEqual([
+                'active',
+                'in_progress',
+            ]);
+            expect(query.sql).toContain('"execution_scope_key_id" is not null');
+            expect(query.sql).toContain(
+                'order by "pre_aggregate_materialization_uuid" asc limit',
+            );
+            expect(query.bindings.at(-1)).toEqual(2);
+        }
+        expect(queries[1].bindings).toContain('mat-2');
+        expect(queries[1].sql).toContain(
+            '"pre_aggregate_materialization_uuid" >',
+        );
+    });
+
+    test.each([
+        { tablePresent: false, columnPresent: false },
+        { tablePresent: true, columnPresent: false },
+    ])('tolerates an older schema: %j', async (presence) => {
+        tracker.on
+            .any(/information_schema.*tables/)
+            .response(presence.tablePresent);
+        tracker.on.any(/information_schema.*columns/).response(false);
+
+        const result = await scanPreAggregateExecutionScopes(context, {
+            batchSize: 500,
+        });
+
+        expect(result).toMatchObject({ ...presence, scanned: 0 });
+        expect(
+            tracker.history.select.filter((query) =>
+                query.sql.includes('from "pre_aggregate_materializations"'),
+            ),
+        ).toHaveLength(0);
+    });
+
+    test('an empty enterprise table has no blockers', async () => {
+        tracker.on.any(/information_schema/).response(true);
+        tracker.on.select('pre_aggregate_materializations').response([]);
+
+        const result = await scanPreAggregateExecutionScopes(context, {
+            batchSize: 500,
+        });
+
+        expect(result).toMatchObject({
+            tablePresent: true,
+            columnPresent: true,
+            scanned: 0,
+            fallback: [0],
+            unknown: 0,
+            blockingMaterializations: [],
+        });
+    });
+
+    test('caps reported IDs while counting every blocking materialization', async () => {
+        tracker.on.any(/information_schema/).response(true);
+        tracker.on
+            .select('pre_aggregate_materializations')
+            .response(
+                Array.from({ length: 101 }, (_, index) =>
+                    scopeRow(`mat-${index}`, 'old secret'),
+                ),
+            );
+
+        const result = await scanPreAggregateExecutionScopes(context, {
+            batchSize: 500,
+        });
+
+        expect(result.scanned).toBe(101);
+        expect(result.fallback).toEqual([101]);
+        expect(result.blockingMaterializations).toHaveLength(100);
+        expect(result.blockingMaterializationsTruncated).toBe(true);
+    });
+
+    test('reclassifies proofs when the active and fallback secrets switch', async () => {
+        tracker.on.any(/information_schema/).response(true);
+        tracker.on
+            .select('pre_aggregate_materializations')
+            .response([scopeRow('mat-1', 'new secret')]);
+
+        const activeResult = await scanPreAggregateExecutionScopes(context, {
+            batchSize: 500,
+        });
+        const rollbackResult = await scanPreAggregateExecutionScopes(
+            {
+                ...context,
+                lightdashSecrets: secrets('old secret', 'new secret'),
+            },
+            { batchSize: 500 },
+        );
+        const removedResult = await scanPreAggregateExecutionScopes(
+            { ...context, lightdashSecrets: secrets('old secret') },
+            { batchSize: 500 },
+        );
+
+        expect(activeResult).toMatchObject({ active: 1, fallback: [0] });
+        expect(rollbackResult).toMatchObject({ active: 0, fallback: [1] });
+        expect(removedResult).toMatchObject({ active: 0, unknown: 1 });
+    });
+});
+
 describe('runSecretRotation blockers', () => {
     test('reports blockers for pending fallback state', async () => {
         tracker.on.any(/information_schema/).response(TABLE_PRESENT);
@@ -497,6 +697,7 @@ describe('runSecretRotation blockers', () => {
             },
         ]);
         tracker.on.select('personal_access_tokens').response([]);
+        tracker.on.select('pre_aggregate_materializations').response([]);
         tracker.on
             .select('service_accounts')
             .response([
@@ -528,6 +729,7 @@ describe('runSecretRotation blockers', () => {
         ]);
         tracker.on.select('personal_access_tokens').response([]);
         tracker.on.select('service_accounts').response([]);
+        tracker.on.select('pre_aggregate_materializations').response([]);
 
         const report = await runSecretRotation(context, {
             execute: false,
@@ -537,5 +739,62 @@ describe('runSecretRotation blockers', () => {
 
         expect(report.blockers).toEqual([]);
         expect(report.hasUnreadableValues).toBe(false);
+    });
+
+    test.each([false, true])(
+        'reports live-proof blockers without rewriting them (execute=%s)',
+        async (execute) => {
+            tracker.on.any(/information_schema/).response(TABLE_PRESENT);
+            tracker.on.any(/graphile_worker\.jobs/).response({ rows: [] });
+            tracker.on.select('personal_access_tokens').response([]);
+            tracker.on.select('service_accounts').response([]);
+            tracker.on
+                .select('pre_aggregate_materializations')
+                .response([
+                    scopeRow('mat-1', 'old secret'),
+                    scopeRow('mat-2', 'unknown secret', 'in_progress'),
+                ]);
+
+            const report = await runSecretRotation(context, {
+                execute,
+                batchSize: 500,
+                tables: [],
+            });
+
+            expect(report.blockers).toEqual([
+                '1 live pre-aggregate materialization(s) still require a fallback secret; manually refresh affected definitions under the active secret and drain or cancel old attempts before removing the fallback',
+                '1 live pre-aggregate materialization(s) have execution scopes from no configured secret; manually refresh affected definitions and drain or cancel old attempts',
+            ]);
+            expect(report.hasUnreadableValues).toBe(true);
+            expect(tracker.history.update).toHaveLength(0);
+        },
+    );
+
+    test('clears the removal gate after refreshing and settling old attempts', async () => {
+        tracker.on.any(/information_schema/).response(TABLE_PRESENT);
+        tracker.on.any(/graphile_worker\.jobs/).response({ rows: [] });
+        tracker.on.select('personal_access_tokens').response([]);
+        tracker.on.select('service_accounts').response([]);
+        tracker.on
+            .select('pre_aggregate_materializations')
+            .responseOnce([scopeRow('old-materialization', 'old secret')]);
+        tracker.on
+            .select('pre_aggregate_materializations')
+            .responseOnce([
+                scopeRow('refreshed-materialization', 'new secret'),
+            ]);
+
+        const options = { execute: false, batchSize: 500, tables: [] };
+        const before = await runSecretRotation(context, options);
+        const after = await runSecretRotation(context, options);
+
+        expect(before.blockers).toHaveLength(1);
+        expect(before.hasUnreadableValues).toBe(false);
+        expect(after.blockers).toEqual([]);
+        expect(after.hasUnreadableValues).toBe(false);
+        expect(after.preAggregateExecutionScopes).toMatchObject({
+            active: 1,
+            fallback: [0],
+        });
     });
 });
