@@ -48,9 +48,9 @@
 .cardConfigureAction {
     position: absolute;
     top: var(--mantine-spacing-lg);
-    left: 50%;
+    inset-inline: 0;
+    margin-inline: auto;
     z-index: 1;
-    transform: translateX(-50%);
 }
 
 .cardMoreActions {
