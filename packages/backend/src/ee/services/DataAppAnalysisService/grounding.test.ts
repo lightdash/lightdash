@@ -76,13 +76,28 @@ describe('groundAnomalies', () => {
         const a = anomalyId({
             queryUuid: 'q1',
             fieldId: 'f',
+            text: 'x',
             dimensionValues: { a: '1', b: '2' },
         });
         const b = anomalyId({
             queryUuid: 'q1',
             fieldId: 'f',
+            text: 'y',
             dimensionValues: { b: '2', a: '1' },
         });
         expect(a).toBe(b);
+    });
+
+    it('keys table-level findings on their text so two on one metric differ', () => {
+        const base = { queryUuid: 'q1', fieldId: 'f', dimensionValues: {} };
+        expect(anomalyId({ ...base, text: 'peak on Jan 3' })).not.toBe(
+            anomalyId({ ...base, text: 'peak on Jan 23' }),
+        );
+    });
+
+    it('collapses duplicate findings to one', () => {
+        const result = groundAnomalies([anomaly, { ...anomaly }], [source]);
+        expect(result.anomalies).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
     });
 });
