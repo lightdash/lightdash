@@ -59,6 +59,10 @@ describe('Minimal pages', () => {
                 `/minimal/projects/${SEED_PROJECT.project_uuid}/saved/${savedChart.uuid}`,
             );
 
+            cy.get(`#${SCREENSHOT_READY_INDICATOR_ID}`, {
+                timeout: 30000,
+            }).should('have.attr', 'data-status', 'ready');
+
             cy.contains('Payments total revenue');
             cy.get('[data-testid="big-number-value"]').should(
                 'contain',
@@ -77,6 +81,10 @@ describe('Minimal pages', () => {
             cy.visit(
                 `/minimal/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboard.uuid}`,
             );
+
+            cy.get(`#${SCREENSHOT_READY_INDICATOR_ID}`, {
+                timeout: 30000,
+            }).should('have.attr', 'data-status', 'ready');
 
             // cy.contains('Jaffle dashboard') // minimal doesn't show titles
 

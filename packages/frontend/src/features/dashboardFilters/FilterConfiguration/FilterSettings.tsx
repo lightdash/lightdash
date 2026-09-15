@@ -25,8 +25,8 @@ import {
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
-import { filterOperatorDescriptionKey } from '../../../components/common/Filters/FilterInputs/constants';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
+import FilterOperatorOption from '../../../components/common/Filters/FilterOperatorOption';
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -200,27 +200,12 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         )
                     }
                     value={filterRule.operator}
-                    renderOption={({ option }) => {
-                        const descriptionKey =
-                            filterOperatorDescriptionKey[
-                                option.value as FilterOperator
-                            ];
-                        const description = descriptionKey
-                            ? getUiString(descriptionKey)
-                            : undefined;
-                        if (description) {
-                            return (
-                                <Tooltip
-                                    label={description}
-                                    position="right"
-                                    maw={300}
-                                >
-                                    <div>{option.label}</div>
-                                </Tooltip>
-                            );
-                        }
-                        return <div>{option.label}</div>;
-                    }}
+                    renderOption={({ option }) => (
+                        <FilterOperatorOption
+                            operator={option.value as FilterOperator}
+                            label={option.label}
+                        />
+                    )}
                     rightSectionWidth={140}
                     rightSectionPointerEvents="all"
                     rightSectionProps={{
