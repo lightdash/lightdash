@@ -123,7 +123,6 @@ describe('ExplorerChartSidebar', () => {
         expect(
             screen.getAllByRole('button', {
                 name: 'Configure Table',
-                exact: true,
             }),
         ).toHaveLength(1);
     });
@@ -140,9 +139,7 @@ describe('ExplorerChartSidebar', () => {
         );
         await userEvent.click(screen.getByRole('button', { name: 'Change' }));
         const previousChart = store.getState().explorer.unsavedChartVersion;
-        screen
-            .getByRole('button', { name: 'Configure Table', exact: true })
-            .focus();
+        screen.getByRole('button', { name: 'Configure Table' }).focus();
         await userEvent.keyboard('{Enter}');
 
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
