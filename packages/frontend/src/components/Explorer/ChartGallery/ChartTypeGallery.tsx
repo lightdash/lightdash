@@ -159,7 +159,11 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     data-selected={item.selected}
                     aria-pressed={item.selected}
                     disabled={item.disabled}
-                    onClick={item.select}
+                    onClick={
+                        item.selected && item.onConfigure !== null
+                            ? item.onConfigure
+                            : item.select
+                    }
                 >
                     <Box className={classes.cardIcon}>
                         <ChartTypeIcon

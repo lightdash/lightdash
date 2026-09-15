@@ -131,13 +131,17 @@ const gallerySection = (
     ...overrides,
 });
 
-const KeyboardSelectionHarness = () => {
+const KeyboardSelectionHarness = ({
+    onConfigure = vi.fn(),
+}: {
+    onConfigure?: () => void;
+}) => {
     const [selectedLabel, setSelectedLabel] = useState('Bar chart');
     const item = (label: string) => ({
         ...galleryItem(label),
         selected: selectedLabel === label,
         select: () => setSelectedLabel(label),
-        onConfigure: vi.fn(),
+        onConfigure,
     });
 
     return (
@@ -155,6 +159,47 @@ const KeyboardSelectionHarness = () => {
 };
 
 describe('ChartTypeGallery', () => {
+    it('selects on the first click and configures on the second tile click', async () => {
+        const onConfigure = vi.fn();
+        renderWithProviders(
+            <KeyboardSelectionHarness onConfigure={onConfigure} />,
+        );
+        const tile = screen.getByRole('button', { name: 'Line chart' });
+
+        await userEvent.click(tile);
+        expect(tile).toHaveAttribute('aria-pressed', 'true');
+        expect(onConfigure).not.toHaveBeenCalled();
+
+        await userEvent.click(tile);
+        expect(onConfigure).toHaveBeenCalledOnce();
+    });
+
+    it('selects and configures an unselected tile with a double click', async () => {
+        const onConfigure = vi.fn();
+        renderWithProviders(
+            <KeyboardSelectionHarness onConfigure={onConfigure} />,
+        );
+
+        await userEvent.dblClick(
+            screen.getByRole('button', { name: 'Line chart' }),
+        );
+        expect(onConfigure).toHaveBeenCalledOnce();
+    });
+
+    it.each(['{Enter}', ' '])(
+        'configures the selected tile with the keyboard using %s',
+        async (key) => {
+            const onConfigure = vi.fn();
+            renderWithProviders(
+                <KeyboardSelectionHarness onConfigure={onConfigure} />,
+            );
+            screen.getByRole('button', { name: 'Bar chart' }).focus();
+
+            await userEvent.keyboard(key);
+            expect(onConfigure).toHaveBeenCalledOnce();
+        },
+    );
+
     it('moves a single configuration button with the selected tile', async () => {
         renderWithProviders(<KeyboardSelectionHarness />);
         expect(
@@ -248,6 +293,9 @@ describe('ChartTypeGallery', () => {
         });
         expect(configure).toBeDisabled();
         await userEvent.click(configure);
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Bar chart' }),
+        );
         expect(onConfigure).not.toHaveBeenCalled();
     });
 
@@ -322,6 +370,7 @@ describe('ChartTypeGallery', () => {
     it('opens and dismisses an editable chart type menu from its own button', async () => {
         const select = vi.fn();
         const onEdit = vi.fn();
+        const onConfigure = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
                 search=""
@@ -332,8 +381,10 @@ describe('ChartTypeGallery', () => {
                         items: [
                             {
                                 ...galleryItem('Event pulse'),
+                                selected: true,
                                 select,
                                 onEdit,
+                                onConfigure,
                             },
                         ],
                     }),
@@ -370,6 +421,7 @@ describe('ChartTypeGallery', () => {
 
         expect(onEdit).toHaveBeenCalledOnce();
         expect(select).not.toHaveBeenCalled();
+        expect(onConfigure).not.toHaveBeenCalled();
     });
 
     it('keeps keyboard focus on a card when selection rerenders it', async () => {
@@ -619,6 +671,7 @@ describe('ExplorerChartTypeGallery', () => {
     });
 
     it('surfaces Table first without changing its selection command', async () => {
+        visualizationConfig.current.chartType = ChartType.PIE;
         renderGallery();
 
         const builtIn = screen.getByRole('group', { name: 'Built in' });
@@ -647,7 +700,7 @@ describe('ExplorerChartTypeGallery', () => {
         await userEvent.click(
             within(builtIn).getByRole('button', {
                 name: 'Table',
-                pressed: true,
+                pressed: false,
             }),
         );
 
@@ -727,31 +780,33 @@ describe('ExplorerChartTypeGallery', () => {
         );
     });
 
-    it('keeps the selected custom type bindings when selecting it again', async () => {
+    it('configures the selected custom tile without resetting its bindings', async () => {
         visualizationConfig.current = {
             chartType: ChartType.DATA_APP_VIZ,
             chartConfig: { dataAppVizUuid: projectChartType.dataAppVizUuid },
         };
-        renderGallery();
+        const onConfigure = renderGallery();
         await userEvent.click(
             screen.getByRole('button', { name: 'Event pulse' }),
         );
         expect(mocks.selectProjectChartType).not.toHaveBeenCalled();
+        expect(onConfigure).toHaveBeenCalledOnce();
     });
 
-    it('configures the selected built-in chart without resetting its options', async () => {
-        const onConfigure = renderGallery();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Configure Table' }),
-        );
-        expect(onConfigure).toHaveBeenCalledOnce();
-        expect(mocks.setChartType).not.toHaveBeenCalled();
-        expect(mocks.setCartesianType).not.toHaveBeenCalled();
-        expect(mocks.setStacking).not.toHaveBeenCalled();
-        expect(
-            screen.queryByRole('button', { name: 'Configure Pie chart' }),
-        ).not.toBeInTheDocument();
-    });
+    it.each(['Table', 'Configure Table'])(
+        'configures the selected built-in chart through %s without resetting its options',
+        async (target) => {
+            const onConfigure = renderGallery();
+            await userEvent.click(screen.getByRole('button', { name: target }));
+            expect(onConfigure).toHaveBeenCalledOnce();
+            expect(mocks.setChartType).not.toHaveBeenCalled();
+            expect(mocks.setCartesianType).not.toHaveBeenCalled();
+            expect(mocks.setStacking).not.toHaveBeenCalled();
+            expect(
+                screen.queryByRole('button', { name: 'Configure Pie chart' }),
+            ).not.toBeInTheDocument();
+        },
+    );
 
     it('configures the selected custom chart without resetting its bindings', async () => {
         visualizationConfig.current = {

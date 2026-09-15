@@ -32,12 +32,24 @@ describe('Chart picker actions', () => {
                 );
                 const icon = title.previousElementSibling!;
                 expect(getComputedStyle(icon).opacity).to.eq('1');
-            })
-            .click();
+            });
+        cy.findByRole('button', { name: 'Pie chart', pressed: true }).click(
+            'top',
+        );
         cy.findByRole('button', { name: 'Change', exact: true }).should(
             'have.focus',
         );
         cy.findByText('Choose chart type').should('not.exist');
         cy.findByText('Pie chart', { exact: true }).should('be.visible');
+
+        cy.findByRole('button', { name: 'Change', exact: true }).click();
+        cy.findByRole('button', { name: 'Line chart', exact: true }).dblclick(
+            'top',
+        );
+        cy.findByRole('button', { name: 'Change', exact: true }).should(
+            'have.focus',
+        );
+        cy.findByText('Choose chart type').should('not.exist');
+        cy.findByText('Line chart', { exact: true }).should('be.visible');
     });
 });
