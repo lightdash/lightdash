@@ -65,7 +65,8 @@
     font-size: inherit;
 }
 
-.aiMarkdown strong {
+.aiMarkdown strong,
+.aiMarkdown [data-streamdown='strong'] {
     font-weight: 600;
     color: var(--mantine-color-ldGray-9);
 }

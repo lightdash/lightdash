@@ -920,9 +920,9 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             const { summary } = managedAgentModel.finishRun.mock.calls[0][1];
             expect(summary).not.toContain('I flagged');
             expect(summary).toContain('Created content: 1 (`Saved chart`)');
-            expect(summary).toContain(
-                fail ? 'Run interrupted' : 'Run completed',
-            );
+            if (fail) expect(summary).toContain('cut short');
+            else expect(summary).not.toContain('cut short');
+            expect(summary).toContain('Agent Suggestions');
             expect(managedAgentModel.getActions).toHaveBeenCalledTimes(1);
             expect(slackClient.postMessage).toHaveBeenCalledWith(
                 expect.objectContaining({

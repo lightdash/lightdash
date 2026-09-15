@@ -115,6 +115,7 @@ type RunsCursor = { startedAt: Date; runUuid: string };
 type HeartbeatContext = {
     runUuid: string;
     projectUuid: string;
+    projectName: string | null;
     organizationUuid: string;
     settings: ManagedAgentSettings | null;
     triggeredBy: ManagedAgentRunTriggeredBy;
@@ -1922,6 +1923,8 @@ export class ManagedAgentService extends BaseService {
             const report = renderHeartbeatSummary({
                 actions: savedActions,
                 interrupted: runError !== null,
+                projectName: ctx.projectName,
+                seed: runUuid,
             });
             const slackSummary = [...ctx.summaryContext, report.text].join(
                 '\n\n',
@@ -2216,11 +2219,12 @@ export class ManagedAgentService extends BaseService {
             return null;
         }
         const settings = await this.managedAgentModel.getSettings(projectUuid);
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
         return {
             runUuid,
             projectUuid,
+            projectName: projectName ?? null,
             organizationUuid,
             settings,
             triggeredBy: run.triggeredBy,

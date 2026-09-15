@@ -951,7 +951,7 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                         action.actionType === actionType && !action.reversedAt,
                 ).length;
                 const reportedCount = finished?.summary?.match(
-                    new RegExp(`• ${label}: (\\d+)(?: —|$)`, 'm'),
+                    new RegExp(`^- ${label}: (\\d+)(?: \\(|$)`, 'm'),
                 )?.[1];
                 check(
                     `summary ${label} matches saved actions`,
@@ -960,9 +960,7 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
             }
             check(
                 'summary is factual report',
-                finished?.summary?.includes(
-                    'Actions in effect at report time',
-                ) === true,
+                finished?.summary?.includes('By the numbers') === true,
             );
 
             check(
