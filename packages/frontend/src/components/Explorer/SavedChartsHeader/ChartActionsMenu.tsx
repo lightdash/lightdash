@@ -247,6 +247,18 @@ const ChartActionsMenu: FC<Props> = ({
         canPinChart: userCanPinChart,
     } = useChartPermissions(savedChart);
 
+    const canAuthorChart = authoringEnabled && userCanManageChart;
+    const canManageStandaloneChart = canAuthorChart && !chartBelongsToDashboard;
+    const canDuplicateChart = canManageStandaloneChart && !hasUnsavedChanges;
+    const canMoveDashboardChartToSpace =
+        authoringEnabled &&
+        host === 'page' &&
+        userCanManageChartViaSpace &&
+        chartBelongsToDashboard;
+    const canChangeExplore =
+        canAuthorChart && host === 'page' && changeChartExploreEnabled;
+    const canPromoteChart = authoringEnabled && userCanPromoteChart;
+
     const { mutate: verifyChart } = useVerifyChartMutation();
     const { mutate: unverifyChart } = useUnverifyChartMutation();
 
@@ -317,20 +329,16 @@ const ChartActionsMenu: FC<Props> = ({
                         clickedFrom="saved_chart_header"
                     />
                     <Menu.Label>Manage</Menu.Label>
-                    {userCanManageChart &&
-                        !hasUnsavedChanges &&
-                        !chartBelongsToDashboard && (
-                            <Menu.Item
-                                display={authoringEnabled ? undefined : 'none'}
-                                leftSection={<MantineIcon icon={IconCopy} />}
-                                onClick={chartDuplicateModalHandlers.open}
-                            >
-                                Duplicate
-                            </Menu.Item>
-                        )}
-                    {userCanManageChart && !chartBelongsToDashboard && (
+                    {canDuplicateChart && (
                         <Menu.Item
-                            display={authoringEnabled ? undefined : 'none'}
+                            leftSection={<MantineIcon icon={IconCopy} />}
+                            onClick={chartDuplicateModalHandlers.open}
+                        >
+                            Duplicate
+                        </Menu.Item>
+                    )}
+                    {canManageStandaloneChart && (
+                        <Menu.Item
                             leftSection={
                                 <MantineIcon icon={IconLayoutGridAdd} />
                             }
@@ -339,17 +347,14 @@ const ChartActionsMenu: FC<Props> = ({
                             Add to dashboard
                         </Menu.Item>
                     )}
-                    {host === 'page' &&
-                        userCanManageChartViaSpace &&
-                        savedChart.dashboardUuid && (
-                            <Menu.Item
-                                display={authoringEnabled ? undefined : 'none'}
-                                leftSection={<MantineIcon icon={IconFolders} />}
-                                onClick={() => setIsMovingChart(true)}
-                            >
-                                Move to space
-                            </Menu.Item>
-                        )}
+                    {canMoveDashboardChartToSpace && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconFolders} />}
+                            onClick={() => setIsMovingChart(true)}
+                        >
+                            Move to space
+                        </Menu.Item>
+                    )}
                     {contentReview.canRequest && !hasUnsavedChanges && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconSend} />}
@@ -384,9 +389,8 @@ const ChartActionsMenu: FC<Props> = ({
                                 Share
                             </Menu.Item>
                         )}
-                    {userCanManageChart && !chartBelongsToDashboard && (
+                    {canManageStandaloneChart && (
                         <Menu.Item
-                            display={authoringEnabled ? undefined : 'none'}
                             leftSection={
                                 <MantineIcon icon={IconFolderSymlink} />
                             }
@@ -404,29 +408,23 @@ const ChartActionsMenu: FC<Props> = ({
                         </Menu.Item>
                     )}
                     {/* A new explore re-initialises the page; the editor is keyed by its explore */}
-                    {host === 'page' &&
-                        changeChartExploreEnabled &&
-                        userCanManageChart && (
-                            <Menu.Item
-                                display={authoringEnabled ? undefined : 'none'}
-                                leftSection={
-                                    <MantineIcon icon={IconArrowsExchange} />
-                                }
-                                onClick={changeExploreModalHandlers.open}
-                            >
-                                Change explore
-                            </Menu.Item>
-                        )}
-                    {userCanPromoteChart && (
+                    {canChangeExplore && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconArrowsExchange} />
+                            }
+                            onClick={changeExploreModalHandlers.open}
+                        >
+                            Change explore
+                        </Menu.Item>
+                    )}
+                    {canPromoteChart && (
                         <Tooltip
                             label="You must enable first an upstream project in settings > Data ops"
                             disabled={!promoteDisabled}
                         >
                             <div>
                                 <Menu.Item
-                                    display={
-                                        authoringEnabled ? undefined : 'none'
-                                    }
                                     disabled={promoteDisabled}
                                     leftSection={
                                         <MantineIcon
@@ -467,7 +465,7 @@ const ChartActionsMenu: FC<Props> = ({
                         </Menu.Item>
                     )}
 
-                    {(userCanViewContentAsCode || userCanManageChart) && (
+                    {(userCanViewContentAsCode || canAuthorChart) && (
                         <>
                             <Menu.Divider />
                             <Menu.Label>Content as code</Menu.Label>
@@ -481,11 +479,8 @@ const ChartActionsMenu: FC<Props> = ({
                                     View as code
                                 </Menu.Item>
                             )}
-                            {userCanManageChart && (
+                            {canAuthorChart && (
                                 <Menu.Item
-                                    display={
-                                        authoringEnabled ? undefined : 'none'
-                                    }
                                     leftSection={
                                         <MantineIcon icon={IconLink} />
                                     }

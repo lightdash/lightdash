@@ -65,6 +65,8 @@ Theme breakpoints are `sm=48em`, `md=62em`, `lg=75em` (768/992/1200px at the def
 
 ## Shared ownership
 
+- Chart/dashboard headers compose `HeaderTitle`, `HeaderHeading`, `HeaderMetadata` and `HeaderActions` from `HeaderSlots`; saved charts also use `HeaderMain` and `HeaderBreadcrumbs`. The slots own layout classes rather than requiring callers to know CSS data attributes. Keep title semantics and feature actions with their callers.
+- Derive action availability once from permissions, authoring capability and content state, then reuse it with the same handler in desktop buttons and compact menu items. Layout flags choose placement, not availability. Conditionally render unavailable actions rather than CSS-hiding them or leaving empty menu sections.
 - `src/styles/responsiveBreakpoints.json` owns custom navigation and content-header thresholds. PostCSS and React hooks consume the same values; standard layout thresholds use Mantine's theme variables.
 - `OmnibarTarget.module.css` owns search width, height, positioning and label visibility. Navbar styles must not override its dimensions.
 - `SidebarDrawer.module.css` owns flex structure, scrolling and safe-area defaults for page, navigation, filter and canvas drawers. Individual drawers set placement and size.

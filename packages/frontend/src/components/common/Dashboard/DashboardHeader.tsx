@@ -19,7 +19,6 @@ import {
     Menu,
     Popover,
     Text,
-    Title,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
@@ -103,6 +102,12 @@ import { FavoriteActionIcon } from '../FavoriteActionIcon';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
+import {
+    HeaderActions,
+    HeaderHeading,
+    HeaderMetadata,
+    HeaderTitle,
+} from '../Page/HeaderSlots';
 import PageHeader from '../Page/PageHeader';
 import { useCompactContentHeader } from '../Page/useCompactContentHeader';
 import DashboardInfoOverlay from '../PageHeader/DashboardInfoOverlay';
@@ -363,6 +368,9 @@ const DashboardHeader = memo(
                 dashboard.verification,
                 user.data.userUuid,
             );
+        const canAuthorDashboard = authoringEnabled && userCanManageDashboard;
+        const canEditDashboard =
+            canAuthorDashboard && !isEditMode && !isFullscreen;
         const userCanDeleteDashboard =
             userCanManageDashboard &&
             user.data?.ability.can(
@@ -465,8 +473,8 @@ const DashboardHeader = memo(
                     className,
                 }}
             >
-                <Group gap="xs" flex={1} wrap="nowrap" data-header-title>
-                    <Title
+                <HeaderTitle gap="xs" flex={1} wrap="nowrap">
+                    <HeaderHeading
                         order={6}
                         // Walkthrough result marker for manage:Dashboard:
                         // saving lands here, so no return path. See
@@ -480,7 +488,7 @@ const DashboardHeader = memo(
                         data-tour-resultdocs="explore/dashboards.mdx#save-your-dashboard:2"
                     >
                         {dashboard.name}
-                    </Title>
+                    </HeaderHeading>
                     {dashboard.hasUnpublishedChanges && (
                         <Tooltip
                             label="Only you can see these changes. A reviewer can write them back to the repo from Content review."
@@ -649,13 +657,15 @@ const DashboardHeader = memo(
                             }}
                         />
                     )}
-                </Group>
+                </HeaderTitle>
 
                 {compact && !isEditMode && oldestCacheTime && (
-                    <Text data-header-metadata fz="xs" c="dimmed">
-                        Data from{' '}
-                        {dayjs(oldestCacheTime).format('MMM D, h:mm A')}
-                    </Text>
+                    <HeaderMetadata>
+                        <Text fz="xs" c="dimmed">
+                            Data from{' '}
+                            {dayjs(oldestCacheTime).format('MMM D, h:mm A')}
+                        </Text>
+                    </HeaderMetadata>
                 )}
                 {isDetailsOpen && (
                     <MantineModal
@@ -762,35 +772,32 @@ const DashboardHeader = memo(
                         </Button>
                     </Group>
                 ) : (
-                    <Group gap="sm" data-header-actions>
-                        {!!userCanManageDashboard &&
-                            authoringEnabled &&
-                            !isFullscreen &&
-                            !compact && (
-                                <Tooltip
-                                    label="Edit dashboard"
-                                    position="bottom"
-                                    openDelay={200}
-                                    transitionProps={{
-                                        transition: 'fade',
-                                        duration: 150,
-                                    }}
+                    <HeaderActions gap="sm">
+                        {canEditDashboard && !compact && (
+                            <Tooltip
+                                label="Edit dashboard"
+                                position="bottom"
+                                openDelay={200}
+                                transitionProps={{
+                                    transition: 'fade',
+                                    duration: 150,
+                                }}
+                            >
+                                <ActionIcon
+                                    aria-label="Edit dashboard"
+                                    onClick={onEditClicked}
+                                    bg="foreground"
+                                    c="background"
+                                    size="md"
                                 >
-                                    <ActionIcon
-                                        aria-label="Edit dashboard"
-                                        onClick={onEditClicked}
-                                        bg="foreground"
-                                        c="background"
+                                    <MantineIcon
+                                        icon={IconPencil}
+                                        color="background"
                                         size="md"
-                                    >
-                                        <MantineIcon
-                                            icon={IconPencil}
-                                            color="background"
-                                            size="md"
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                         {(userCanExportData ||
                             (!isEditMode &&
                                 document.fullscreenEnabled &&
@@ -996,22 +1003,18 @@ const DashboardHeader = memo(
                                 >
                                     {compact && (
                                         <>
-                                            {authoringEnabled &&
-                                                userCanManageDashboard &&
-                                                !isFullscreen && (
-                                                    <Menu.Item
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconPencil
-                                                                }
-                                                            />
-                                                        }
-                                                        onClick={onEditClicked}
-                                                    >
-                                                        Edit dashboard
-                                                    </Menu.Item>
-                                                )}
+                                            {canEditDashboard && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconPencil}
+                                                        />
+                                                    }
+                                                    onClick={onEditClicked}
+                                                >
+                                                    Edit dashboard
+                                                </Menu.Item>
+                                            )}
                                             <Menu.Item
                                                 leftSection={
                                                     <MantineIcon
@@ -1145,37 +1148,35 @@ const DashboardHeader = memo(
                                                         <Menu.Divider />
                                                     </>
                                                 )}
-                                            <Menu.Item
-                                                display={
-                                                    authoringEnabled
-                                                        ? undefined
-                                                        : 'none'
-                                                }
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconPencil}
-                                                    />
-                                                }
-                                                onClick={handleEditClick}
-                                            >
-                                                Edit details
-                                            </Menu.Item>
+                                            {canAuthorDashboard && (
+                                                <>
+                                                    <Menu.Item
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconPencil
+                                                                }
+                                                            />
+                                                        }
+                                                        onClick={
+                                                            handleEditClick
+                                                        }
+                                                    >
+                                                        Edit details
+                                                    </Menu.Item>
 
-                                            <Menu.Item
-                                                display={
-                                                    authoringEnabled
-                                                        ? undefined
-                                                        : 'none'
-                                                }
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconCopy}
-                                                    />
-                                                }
-                                                onClick={onDuplicate}
-                                            >
-                                                Duplicate
-                                            </Menu.Item>
+                                                    <Menu.Item
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={IconCopy}
+                                                            />
+                                                        }
+                                                        onClick={onDuplicate}
+                                                    >
+                                                        Duplicate
+                                                    </Menu.Item>
+                                                </>
+                                            )}
 
                                             <Menu.Item
                                                 leftSection={
@@ -1261,7 +1262,8 @@ const DashboardHeader = memo(
                                         </Menu.Item>
                                     )}
 
-                                    {userCanPromoteDashboard &&
+                                    {authoringEnabled &&
+                                        userCanPromoteDashboard &&
                                         dashboardUuid && (
                                             <Tooltip
                                                 label="You must enable first an upstream project in settings > Data ops"
@@ -1272,11 +1274,6 @@ const DashboardHeader = memo(
                                             >
                                                 <div>
                                                     <Menu.Item
-                                                        display={
-                                                            authoringEnabled
-                                                                ? undefined
-                                                                : 'none'
-                                                        }
                                                         disabled={
                                                             project?.upstreamProjectUuid ===
                                                             undefined
@@ -1370,7 +1367,7 @@ const DashboardHeader = memo(
                                     )}
 
                                     {(userCanViewContentAsCode ||
-                                        userCanManageDashboard) && (
+                                        canAuthorDashboard) && (
                                         <>
                                             <Menu.Divider />
                                             <Menu.Label>
@@ -1390,13 +1387,8 @@ const DashboardHeader = memo(
                                                     View as code
                                                 </Menu.Item>
                                             )}
-                                            {userCanManageDashboard && (
+                                            {canAuthorDashboard && (
                                                 <Menu.Item
-                                                    display={
-                                                        authoringEnabled
-                                                            ? undefined
-                                                            : 'none'
-                                                    }
                                                     leftSection={
                                                         <MantineIcon
                                                             icon={IconLink}
@@ -1503,7 +1495,7 @@ const DashboardHeader = memo(
                                     }}
                                 />
                             )}
-                    </Group>
+                    </HeaderActions>
                 )}
                 {canViewDashboardComments && (
                     <DashboardCommentsPanel
