@@ -1,5 +1,6 @@
 import { chartTypeIconSchema, type ChartTypeIcon } from '@lightdash/common';
 import {
+    Box,
     Button,
     Group,
     Stack,
@@ -15,6 +16,7 @@ import { z } from 'zod';
 import { useUpdateApp } from '../../../features/apps/hooks/useUpdateApp';
 import ChartTypeIconPicker from '../../../features/chartTypes/components/ChartTypeIconPicker';
 import MantineModal from '../MantineModal';
+import classes from './AppUpdateModal.module.css';
 
 interface AppUpdateModalProps {
     opened: ModalProps['opened'];
@@ -113,15 +115,17 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
         >
             <form id="update-app" onSubmit={handleConfirm}>
                 <Stack>
-                    <Group align="flex-end" gap="xs" wrap="nowrap">
+                    <Group align="flex-start" gap="xs" wrap="nowrap">
                         {iconPicker !== null && (
-                            <ChartTypeIconPicker
-                                value={form.values.icon}
-                                onChange={(next) =>
-                                    form.setFieldValue('icon', next)
-                                }
-                                disabled={isUpdating}
-                            />
+                            <Box className={classes.iconPicker}>
+                                <ChartTypeIconPicker
+                                    value={form.values.icon}
+                                    onChange={(next) =>
+                                        form.setFieldValue('icon', next)
+                                    }
+                                    disabled={isUpdating}
+                                />
+                            </Box>
                         )}
 
                         <TextInput

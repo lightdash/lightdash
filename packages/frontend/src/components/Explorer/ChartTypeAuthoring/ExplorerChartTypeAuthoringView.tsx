@@ -35,6 +35,17 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
     onDone,
 }) => {
     const titleId = useId();
+    const schema = workspace.dataAppViz?.schema;
+    // A schema is useful once it has something the chart can configure. The
+    // first build can claim an app before its preview/schema is ready, so do
+    // not reserve an empty rail while the workspace is still the only task.
+    const hasGeneratedConfig =
+        workspace.previewVersion !== null &&
+        schema !== null &&
+        schema !== undefined &&
+        (schema.fields.length > 0 ||
+            schema.configOptions.length > 0 ||
+            schema.colorPalette != null);
     return (
         <Box
             component="section"
@@ -65,17 +76,19 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
                     configurePanel={null}
                 />
             </Box>
-            {/* The chart's real configuration (field mapping + generated
-                options); the gallery context hides the type picker inside. */}
-            <Box
-                component="aside"
-                className={classes.configColumn}
-                aria-label="Chart type configuration"
-            >
-                <ChartGalleryContext.Provider value={true}>
-                    <DataAppVizConfigTabs />
-                </ChartGalleryContext.Provider>
-            </Box>
+            {hasGeneratedConfig && (
+                /* The chart's real configuration (field mapping + generated
+                    options); the gallery context hides the type picker inside. */
+                <Box
+                    component="aside"
+                    className={classes.configColumn}
+                    aria-label="Chart type configuration"
+                >
+                    <ChartGalleryContext.Provider value={true}>
+                        <DataAppVizConfigTabs />
+                    </ChartGalleryContext.Provider>
+                </Box>
+            )}
         </Box>
     );
 };
