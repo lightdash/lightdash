@@ -1,3 +1,10 @@
+## [2.226.1](https://github.com/lightdash/lightdash/compare/2.226.0...2.226.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **data-apps:** keep the element picker setter stable so the generate page stops looping ([#29297](https://github.com/lightdash/lightdash/issues/29297)) ([4f28ba4](https://github.com/lightdash/lightdash/commit/4f28ba436966359a7b11a89fc6d20b02f10f670f))
+
 # [2.226.0](https://github.com/lightdash/lightdash/compare/2.225.1...2.226.0) (2026-09-15)
 
 
