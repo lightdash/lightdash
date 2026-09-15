@@ -86,6 +86,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import type { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import type { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { runAutopilotAgent } from './AutopilotAgentRunner';
@@ -316,10 +317,14 @@ export class ManagedAgentService extends BaseService {
             );
         } catch (error) {
             abortSignal?.throwIfAborted();
-            const message =
-                error instanceof Error ? error.message : 'Unknown error';
+            // Same handling as the shared runMetricQuery tool: log, record a
+            // Sentry breadcrumb, and forward the warehouse message so the
+            // model can fix the field it got wrong.
             throw new Error(
-                `The chart query failed, so nothing was saved: ${message}. Fix the query and try again.`,
+                toolErrorHandler(
+                    error,
+                    'The chart query failed, so nothing was saved. Fix the query and try again.',
+                ),
             );
         }
     }
