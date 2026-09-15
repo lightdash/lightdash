@@ -1079,6 +1079,7 @@ export class ServiceRepository
             'asyncQueryService',
             () =>
                 new AsyncQueryService({
+                    getDocumentService: () => this.getDocumentService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     contentDraftModel: this.models.getContentDraftModel(),

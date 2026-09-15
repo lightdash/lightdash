@@ -369,6 +369,7 @@ import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
+import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -6034,6 +6035,7 @@ export class ProjectService extends BaseService {
 
     async compileQuery(
         args: {
+            documentQueryContext?: DocumentQueryContext;
             account: Account;
             // ! TODO: we need to fix this type
             body: MetricQuery & {
@@ -6083,13 +6085,22 @@ export class ProjectService extends BaseService {
         // Authorize custom SQL against the explore the query actually runs on
         // (the resolved source explore), not the client-supplied
         // metricQuery.exploreName, which may differ.
-        await this.assertCustomSqlAuthorizedForQuery({
-            account,
-            projectUuid,
-            organizationUuid,
-            exploreName: sourceExplore.name,
-            metricQuery,
-        });
+        if (args.documentQueryContext) {
+            args.documentQueryContext.assertMetricQuery(
+                account,
+                projectUuid,
+                metricQuery,
+                parameters,
+            );
+        } else {
+            await this.assertCustomSqlAuthorizedForQuery({
+                account,
+                projectUuid,
+                organizationUuid,
+                exploreName: sourceExplore.name,
+                metricQuery,
+            });
+        }
 
         // Pre-aggregate routing: compile against the pre-agg explore when cache is enabled and there's a match
         let explore = sourceExplore;
@@ -6328,6 +6339,7 @@ export class ProjectService extends BaseService {
      * explorer shows them against the offending query row.
      */
     async compileMergeQuery(args: {
+        documentQueryContext?: DocumentQueryContext;
         account: Account;
         projectUuid: string;
         mergeQuery: MergeQuery;
@@ -6342,6 +6354,13 @@ export class ProjectService extends BaseService {
             parameters,
             userAttributeOverrides,
         } = args;
+
+        args.documentQueryContext?.assertMergeQuery(
+            account,
+            projectUuid,
+            mergeQuery,
+            parameters,
+        );
 
         // One metadata load feeds validation, output typing and display
         // labels. Metric sources resolve through their explore (query-defined
@@ -6485,7 +6504,10 @@ export class ProjectService extends BaseService {
 
         // Merge calculations are user SQL, so they pass the custom SQL gate;
         // each source's own calculations are gated by that source's compile
-        if (mergeQuery.tableCalculations.length > 0) {
+        if (
+            mergeQuery.tableCalculations.length > 0 &&
+            !args.documentQueryContext
+        ) {
             const { organizationUuid } =
                 await this.projectModel.getSummary(projectUuid);
             await this.assertCustomSqlAuthorizedForQuery({
@@ -6539,6 +6561,7 @@ export class ProjectService extends BaseService {
                 // from. This is the statement the leg runs: whole, at the
                 // source row cap, unsorted.
                 const compiled = await this.compileQuery({
+                    documentQueryContext: args.documentQueryContext,
                     account,
                     projectUuid,
                     exploreName: source.metricQuery.exploreName,

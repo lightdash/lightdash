@@ -11,12 +11,14 @@ import {
     applyChartFilterOverridesToMetricQuery,
     applyDashboardFiltersForTile,
     assertIsAccountWithOrg,
+    assertRegisteredAccount,
     assertUnreachable,
     buildMergeQueryFromSaved,
     buildWarehouseColumnTotals,
     buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
+    ChartType,
     CompiledDimension,
     CreateWarehouseCredentials,
     CustomSqlQueryForbiddenError,
@@ -123,6 +125,7 @@ import {
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
+    type DocumentQueryReference,
     type DuckdbSourceQuery,
     type ExecuteAsyncComposeMergeQueryRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
@@ -146,6 +149,7 @@ import {
     type Project,
     type QueryHistory,
     type ReadyQueryResultsPage,
+    type RegisteredAccount,
     type ResultColumns,
     type RunQueryTags,
     type SavedChartDAO,
@@ -233,6 +237,8 @@ import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import type { CacheHitCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
+import { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import type { DocumentService } from '../DocumentService/DocumentService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
@@ -411,6 +417,7 @@ type AsyncQueryExecutionPlan =
       };
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
+    getDocumentService: () => DocumentService;
     contentDraftModel: ContentDraftModel;
     queryHistoryModel: QueryHistoryModel;
     downloadAuditModel: DownloadAuditModel;
@@ -562,6 +569,7 @@ export class AsyncQueryService extends ProjectService {
     private readonly composeEngineClient: ComposeEngineClient;
 
     private readonly getQuerySourceService: () => QuerySourceService;
+    private readonly getDocumentService: () => DocumentService;
 
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
@@ -584,6 +592,7 @@ export class AsyncQueryService extends ProjectService {
         this.organizationAccessService = args.organizationAccessService;
         this.composeEngineClient = args.composeEngineClient;
         this.getQuerySourceService = args.getQuerySourceService;
+        this.getDocumentService = args.getDocumentService;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
@@ -1330,6 +1339,14 @@ export class AsyncQueryService extends ProjectService {
             return;
         }
         checkedQueries.add(queryHistory.queryUuid);
+        if (queryHistory.requestParameters?.documentSource) {
+            assertRegisteredAccount(account);
+            await this.getDocumentService().get(
+                account,
+                projectUuid,
+                queryHistory.requestParameters.documentSource.documentUuid,
+            );
+        }
         const { chartUuid, references } =
             AsyncQueryService.getQuerySourceParameters(
                 queryHistory.requestParameters,
@@ -5155,6 +5172,56 @@ export class AsyncQueryService extends ProjectService {
     }
 
     // execute
+    async executeAsyncDocumentCellQuery({
+        account,
+        projectUuid,
+        reference,
+    }: {
+        account: RegisteredAccount;
+        projectUuid: string;
+        reference: DocumentQueryReference;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+        const documentQueryContext = await DocumentQueryContext.authorize({
+            documentService: this.getDocumentService(),
+            account,
+            projectUuid,
+            reference,
+            sourceRowCap: this.lightdashConfig.query.maxLimit,
+        });
+        const { chart } = documentQueryContext.content;
+        if (chart.chartConfig.type === ChartType.DATA_APP_VIZ) {
+            throw new ParameterError(
+                'Custom chart types are not supported in Documents',
+            );
+        }
+        if (documentQueryContext.mergeQuery) {
+            const outcome = await this.executeAsyncMergeQuery({
+                account,
+                projectUuid,
+                context: QueryExecutionContext.CHART,
+                mergeQuery: documentQueryContext.mergeQuery,
+                parameters: chart.parameters,
+                userAttributeOverrides: {},
+                documentQueryContext,
+                mode: { type: 'interactive' },
+                chart: {
+                    chartConfig: chart.chartConfig,
+                    pivotConfig: chart.pivotConfig,
+                },
+            });
+            return AsyncQueryService.assertSavedMergeStarted(outcome);
+        }
+        return this.executeAsyncMetricQuery({
+            account,
+            projectUuid,
+            context: QueryExecutionContext.CHART,
+            metricQuery: documentQueryContext.metricQuery,
+            parameters: chart.parameters,
+            userAttributeOverrides: {},
+            documentQueryContext,
+        });
+    }
+
     async executeAsyncMetricQuery(
         args: ExecuteAsyncMetricQueryArgs,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
@@ -5188,6 +5255,18 @@ export class AsyncQueryService extends ProjectService {
         // We only check `exploreName` for chart embeds. Otherwise, CASL doesn't match
         // on condition checks that aren't set. If no `exploreName` is set in conditions,
         // CASL ignores it.
+        if (args.documentQueryContext) {
+            args.documentQueryContext.assertMetricQuery(
+                account,
+                projectUuid,
+                inputMetricQuery,
+                args.parameters,
+            );
+            return this.runAsyncMetricQueryWithoutPermissionCheck(
+                args,
+                organizationUuid,
+            );
+        }
         const auditedAbility = this.createAuditedAbility(account);
         const isForbidden = auditedAbility.cannot(
             'view',
@@ -5236,6 +5315,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole,
             dashboardFilters,
             totalConfiguration,
+            documentQueryContext,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
@@ -5330,6 +5410,26 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const prepareStart = Date.now();
+        const documentChart = documentQueryContext?.content.chart;
+        const documentChartConfig = documentChart?.chartConfig;
+        const documentPivot =
+            documentQueryContext?.content.source === 'semantic' &&
+            documentChartConfig &&
+            documentChartConfig.type !== ChartType.DATA_APP_VIZ
+                ? derivePivotConfigurationFromChart(
+                      {
+                          chartConfig: documentChartConfig,
+                          pivotConfig: documentChart.pivotConfig,
+                      },
+                      metricQuery,
+                      getItemMap(
+                          explore,
+                          metricQuery.additionalMetrics,
+                          metricQuery.tableCalculations,
+                          metricQuery.customDimensions,
+                      ),
+                  )
+                : undefined;
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -5338,7 +5438,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
-            pivotConfiguration,
+            pivotConfiguration: documentPivot ?? pivotConfiguration,
             totalConfiguration,
             userAttributeOverrides,
             materializationRole,
@@ -5367,10 +5467,15 @@ export class AsyncQueryService extends ProjectService {
             sourceQueryHistory?.requestParameters,
         );
         const references =
-            sourceQueryHistory && sourceParameters.chartUuid
+            sourceQueryHistory &&
+            (sourceParameters.chartUuid ||
+                sourceQueryHistory.requestParameters?.documentSource)
                 ? { source: sourceQueryHistory.queryUuid }
                 : sourceParameters.references;
-        const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
+        const requestParameters: ExecuteAsyncQueryRequestParams = {
+            ...(documentQueryContext
+                ? { documentSource: documentQueryContext.reference }
+                : {}),
             ...(references ? { references } : {}),
             context,
             query: effectiveMetricQuery,
@@ -8975,6 +9080,7 @@ export class AsyncQueryService extends ProjectService {
         mode,
         pivotInput,
         userAttributeOverrides,
+        documentQueryContext,
     }: ExecuteMergeQueryInternalArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } =
@@ -8994,6 +9100,7 @@ export class AsyncQueryService extends ProjectService {
                   })
                 : mergeQuery;
         const compiledMerge = await this.compileMergeQuery({
+            documentQueryContext,
             account,
             projectUuid,
             mergeQuery: effectiveMergeQuery,
@@ -9029,6 +9136,7 @@ export class AsyncQueryService extends ProjectService {
         })();
 
         const query = await this.submitMergeDag({
+            documentQueryContext,
             account,
             projectUuid,
             organizationUuid,
@@ -9067,7 +9175,9 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
         pivotConfiguration,
         compiledMerge,
+        documentQueryContext,
     }: {
+        documentQueryContext?: DocumentQueryContext;
         account: Account;
         projectUuid: string;
         organizationUuid: string;
@@ -9148,7 +9258,10 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
-        const requestParameters: ExecuteAsyncComposeMergeQueryRequestParams = {
+        const requestParameters: ExecuteAsyncQueryRequestParams = {
+            ...(documentQueryContext
+                ? { documentSource: documentQueryContext.reference }
+                : {}),
             context,
             invalidateCache,
             mergeQuery,
@@ -9235,6 +9348,7 @@ export class AsyncQueryService extends ProjectService {
             },
             () =>
                 this.getQuerySourceService().submitQueries({
+                    documentQueryContext,
                     account,
                     projectUuid,
                     context,
