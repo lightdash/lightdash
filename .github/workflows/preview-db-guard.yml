@@ -1,0 +1,68 @@
+name: Preview DB Guard
+
+# Circuit breaker for preview database snapshot diverts: when diverted
+# preview deploys keep failing (e.g. GCP throttling snapshot restores),
+# delete the snapshots so every preview — including branches with older
+# manifests — falls back to the full migrate + seed path, and alert Slack.
+# Snapshots are republished by the next Preview DB Snapshot run.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: preview-db-guard
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Check diverted preview deploys
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Count recent diverted deploy failures
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/preview-db-guard.sh
+
+      - name: Install Okteto CLI
+        if: steps.check.outputs.tripped == 'true'
+        run: |
+          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
+          chmod +x okteto
+          sudo mv okteto /usr/local/bin/okteto
+
+      - name: Trip the breaker
+        id: breaker
+        if: steps.check.outputs.tripped == 'true'
+        run: |
+          okteto context use "${{ secrets.OKTETO_CONTEXT }}" --token "${{ secrets.OKTETO_TOKEN }}"
+          okteto kubeconfig
+          deleted=$(kubectl -n db-snapshot get volumesnapshots -o name | wc -l | tr -d ' ')
+          kubectl -n db-snapshot delete volumesnapshots --all --ignore-not-found
+          echo "deleted=${deleted}" >> "$GITHUB_OUTPUT"
+          echo "Deleted ${deleted} snapshot(s); previews now fall back to full migrate + seed"
+
+      # Only alert when the breaker actually removed snapshots, so a
+      # still-tripped check on the next schedule doesn't re-alert
+      - name: Alert Slack
+        if: steps.check.outputs.tripped == 'true' && steps.breaker.outputs.deleted != '0'
+        run: |
+          curl -sf -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"username\": \"Preview DB Guard\",
+              \"text\": \":rotating_light: Preview DB snapshot circuit breaker tripped: ${{ steps.check.outputs.failures }} diverted preview deploys failed in the last 90 minutes. Snapshots deleted — previews now build their database from scratch (slower but reliable). Affected PRs just need their checks re-run. Snapshots republish on the next <${{ github.server_url }}/${{ github.repository }}/actions/workflows/preview-db-snapshot.yml|Preview DB Snapshot> run; investigate before dispatching one manually.\\n\\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Guard run details>\"
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
