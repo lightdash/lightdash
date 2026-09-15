@@ -1,3 +1,15 @@
+# [2.221.0](https://github.com/lightdash/lightdash/compare/2.220.0...2.221.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* **charts:** stabilize tooltip triggering and series focus ([#29260](https://github.com/lightdash/lightdash/issues/29260)) ([f1feaf9](https://github.com/lightdash/lightdash/commit/f1feaf908c29bbdb64223852af7b98a5a011677f))
+
+
+### Features
+
+* **autopilot:** write the run report from the run's evidence ([#29261](https://github.com/lightdash/lightdash/issues/29261)) ([368d2de](https://github.com/lightdash/lightdash/commit/368d2deea9dd4dd54191e5c87e99ae08287c139e))
+
 # [2.220.0](https://github.com/lightdash/lightdash/compare/2.219.0...2.220.0) (2026-09-15)
 
 
