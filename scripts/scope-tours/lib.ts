@@ -10,6 +10,7 @@ import type {
     DocsCitation,
     SandboxLesson,
 } from '../../packages/frontend/src/features/learn/sandboxLessons';
+import { insertionPoint } from '../../packages/frontend/src/features/learnSandbox/snippetInsertion';
 
 export const root = path.resolve(__dirname, '../..');
 export const frontendSrc = path.join(root, 'packages/frontend/src');
@@ -576,6 +577,10 @@ const firstCitation = (refs: DocsCitation): string =>
 
 const article = (word: string) => (/^[aeiou]/.test(word) ? 'an' : 'a');
 
+/** The key a snippet extends: its first line, `metrics:` or the like. */
+const snippetKey = (snippet: string): string | undefined =>
+    /^ *([^\s#-][^:]*):\s*$/.exec(snippet.split('\n')[0])?.[1];
+
 /** The `type:` a lesson's snippet declares; the cards name it. */
 const snippetMetricType = (snippet: string): string | undefined =>
     /^\s*type:\s*([a-z_]+)\s*$/m.exec(snippet)?.[1];
@@ -618,8 +623,35 @@ const validateLesson = (
     }
     if (lesson.snippet.trim() === '')
         throw new Error(`${where}: snippet is empty`);
+    const under = snippetKey(lesson.snippet);
+    if (!under) {
+        throw new Error(
+            `${where}: snippet must start with the key it extends (metrics:, additional_dimensions:)`,
+        );
+    }
     if (!snippetMetricType(lesson.snippet)) {
-        throw new Error(`${where}: snippet declares no metric type`);
+        throw new Error(`${where}: snippet declares no type`);
+    }
+    // The snippet's children land directly under the last line that is
+    // that key; it has to belong to the declared column, or the cards would
+    // name one column and the snippet extend another.
+    const content = bundleFiles.get(lesson.file)!;
+    const point = insertionPoint(content, lesson.snippet);
+    if (point.parentLine === null || point.text === lesson.snippet) {
+        throw new Error(
+            `${where}: ${lesson.file} has no ${under}: key for the snippet to extend`,
+        );
+    }
+    const owner = content
+        .split('\n')
+        .slice(0, point.parentLine)
+        .reverse()
+        .map((line) => /^\s*- name: ([a-z0-9_]+)\s*$/.exec(line)?.[1])
+        .find((name) => name !== undefined);
+    if (owner !== lesson.column) {
+        throw new Error(
+            `${where}: the last ${under}: key of ${lesson.file} belongs to ${owner ?? 'no column'}, not ${lesson.column}`,
+        );
     }
     const [tool] = lesson.command.trim().split(/\s+/);
     if (tool !== 'lightdash' && tool !== 'dbt') {
@@ -710,6 +742,7 @@ export const buildLessonTours = (
     return lessons.map((lesson) => {
         validateLesson(lesson, bundleFiles);
         const metricType = snippetMetricType(lesson.snippet)!;
+        const under = snippetKey(lesson.snippet)!;
         const fileRow = `[data-tour-anchor="workspace-file"][data-tour-value="${lesson.file}"]`;
         const editor = '[data-tour-anchor="workspace-editor"]';
         const command = '[data-tour-anchor="terminal-command"]';
@@ -722,7 +755,7 @@ export const buildLessonTours = (
         const table = `[data-tour-anchor="explore-table"][data-tour-value="${exploreLabel}"]`;
         const search = '[data-tour-anchor="explore-search"]';
         const fieldSearch = '[data-tour-anchor="explore-field-search"]';
-        const fieldRow = `[data-tour-anchor="explore-metric"][data-tour-value="${fieldLabel}"]`;
+        const fieldRow = `[data-tour-anchor="explore-${lesson.result.kind}"][data-tour-value="${fieldLabel}"]`;
         for (const selector of [editor, command, search, fieldSearch]) {
             if (!isInputAnchor(selector, files)) {
                 throw new Error(
@@ -752,7 +785,7 @@ export const buildLessonTours = (
                 editor,
                 WORKSPACE_ROUTE,
                 hintFor(editor, files),
-                `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** of the **${lesson.column}** column: it goes under that column's metrics, at the end of the file. Type it in, or press Use it to add it.`,
+                `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** ${lesson.result.kind} on the **${lesson.column}** column: it goes under that column's **${under}**. Type it in, or press Use it to add it.`,
                 lesson.snippet,
                 [fileRow],
             ),
@@ -808,7 +841,7 @@ export const buildLessonTours = (
                 fieldRow,
                 EXPLORE_ROUTE,
                 docsHeading(firstCitation(lesson.resultDocs)),
-                `${cite(lesson.resultDocs)} **${fieldLabel}** is the metric you just deployed.`,
+                `${cite(lesson.resultDocs)} **${fieldLabel}** is the ${lesson.result.kind} you just deployed.`,
                 [newMenu, newChart, search, table, fieldSearch],
             ),
         ];
