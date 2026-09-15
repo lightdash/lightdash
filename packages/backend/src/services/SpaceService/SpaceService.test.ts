@@ -1969,3 +1969,182 @@ describe('SpaceService - space share target validation', () => {
         });
     });
 });
+
+describe('SpaceService.createSpace', () => {
+    const mockProjectModel = {
+        getSummary: vi.fn(),
+    };
+    const mockSpaceModel = {
+        getSpaceSummary: vi.fn(),
+        createSpace: vi.fn(),
+        addSpaceAccess: vi.fn(),
+        get: vi.fn(),
+        getSpaceBreadcrumbs: vi.fn(),
+        getSpaceQueries: vi.fn(),
+        getSpaceDashboards: vi.fn(),
+        find: vi.fn(),
+    };
+    const mockSpacePermissionService = {
+        can: vi.fn(),
+        getAccessibleSpaceUuids: vi.fn(),
+        resolveAccess: vi.fn(),
+        mergeAdminAccess: vi.fn(() => []),
+        getGroupAccess: vi.fn(),
+        getUserMetadataByUuids: vi.fn(),
+    };
+
+    const mockUser = {
+        ...createTestUser({
+            projectRole: ProjectMemberRole.VIEWER,
+        }),
+        userId: 1,
+    };
+
+    let service: SpaceService;
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+
+        service = new SpaceService({
+            analytics: analyticsMock,
+            lightdashConfig: lightdashConfigMock,
+            projectModel: mockProjectModel as unknown as ProjectModel,
+            spaceModel: mockSpaceModel as unknown as SpaceModel,
+            organizationModel: {} as OrganizationModel,
+            organizationMemberProfileModel:
+                {} as OrganizationMemberProfileModel,
+            pinnedListModel: {} as PinnedListModel,
+            spacePermissionService:
+                mockSpacePermissionService as unknown as SpacePermissionService,
+            savedChartService: {} as SavedChartService,
+            dashboardService: {} as DashboardService,
+            appGenerateService: undefined,
+        });
+
+        mockProjectModel.getSummary.mockResolvedValue({
+            organizationUuid: 'test-org-uuid',
+        });
+        mockSpaceModel.getSpaceSummary.mockResolvedValue({
+            uuid: 'parent-space-uuid',
+            projectUuid: 'test-project-uuid',
+        });
+        mockSpaceModel.createSpace.mockResolvedValue({
+            uuid: 'child-space-uuid',
+        });
+        mockSpaceModel.get.mockResolvedValue({
+            uuid: 'child-space-uuid',
+            projectUuid: 'test-project-uuid',
+            organizationUuid: 'test-org-uuid',
+            name: 'Child Space',
+            inheritParentPermissions: true,
+            slug: 'child-space',
+            pinnedListUuid: null,
+            pinnedListOrder: null,
+            parentSpaceUuid: 'parent-space-uuid',
+            path: 'parent_space.child_space',
+        });
+        mockSpaceModel.getSpaceBreadcrumbs.mockResolvedValue([]);
+        mockSpaceModel.getSpaceQueries.mockResolvedValue([]);
+        mockSpaceModel.getSpaceDashboards.mockResolvedValue([]);
+        mockSpaceModel.find.mockResolvedValue([]);
+        mockSpacePermissionService.getAccessibleSpaceUuids.mockResolvedValue(
+            [],
+        );
+        mockSpacePermissionService.resolveAccess.mockResolvedValue({
+            organizationUuid: 'test-org-uuid',
+            projectUuid: 'test-project-uuid',
+            inheritsFromOrgOrProject: false,
+            access: [],
+            admins: [],
+        });
+        mockSpacePermissionService.getGroupAccess.mockResolvedValue([]);
+        mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({});
+    });
+
+    test('allows nested space creation when the user can manage the parent space', async () => {
+        mockSpacePermissionService.can.mockResolvedValue(true);
+
+        const createdSpace = await service.createSpace(
+            'test-project-uuid',
+            mockUser as unknown as SessionUser,
+            {
+                name: 'Child Space',
+                parentSpaceUuid: 'parent-space-uuid',
+            },
+        );
+
+        expect(createdSpace.uuid).toBe('child-space-uuid');
+        expect(createdSpace.parentSpaceUuid).toBe('parent-space-uuid');
+        expect(mockSpacePermissionService.can).toHaveBeenCalledWith(
+            'manage',
+            mockUser,
+            'parent-space-uuid',
+        );
+    });
+
+    test.each([
+        { name: 'nested', parentSpaceUuid: 'parent-space-uuid' },
+        { name: 'root', parentSpaceUuid: undefined },
+    ])(
+        'blocks $name space creation without the required permission',
+        async ({ parentSpaceUuid }) => {
+            mockSpacePermissionService.can.mockResolvedValue(false);
+            await expect(
+                service.createSpace(
+                    'test-project-uuid',
+                    mockUser as SessionUser,
+                    {
+                        name: 'New Space',
+                        parentSpaceUuid,
+                    },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(mockSpaceModel.createSpace).not.toHaveBeenCalled();
+            expect(mockSpaceModel.addSpaceAccess).not.toHaveBeenCalled();
+        },
+    );
+
+    test('rejects a parent in another project even with manage access', async () => {
+        mockSpacePermissionService.can.mockResolvedValue(true);
+        mockSpaceModel.getSpaceSummary.mockResolvedValue({
+            uuid: 'parent-space-uuid',
+            projectUuid: 'other-project-uuid',
+        });
+        await expect(
+            service.createSpace('test-project-uuid', mockUser as SessionUser, {
+                name: 'New Space',
+                parentSpaceUuid: 'parent-space-uuid',
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(mockSpaceModel.createSpace).not.toHaveBeenCalled();
+    });
+
+    test.each([undefined, 'parent-space-uuid'])(
+        'preserves project-level create permission with parent %s',
+        async (parentSpaceUuid) => {
+            const editor = {
+                ...createTestUser({ projectRole: ProjectMemberRole.EDITOR }),
+                userId: 1,
+            };
+            mockSpacePermissionService.can.mockResolvedValue(false);
+            await expect(
+                service.createSpace(
+                    'test-project-uuid',
+                    editor as SessionUser,
+                    {
+                        name: 'New Space',
+                        parentSpaceUuid,
+                    },
+                ),
+            ).resolves.toHaveProperty('uuid', 'child-space-uuid');
+            expect(mockSpaceModel.createSpace).toHaveBeenCalledWith(
+                {
+                    name: 'New Space',
+                    parentSpaceUuid: parentSpaceUuid ?? null,
+                    inheritParentPermissions: !!parentSpaceUuid,
+                },
+                { projectUuid: 'test-project-uuid', userId: 1 },
+            );
+        },
+    );
+});
