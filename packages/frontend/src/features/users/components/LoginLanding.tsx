@@ -35,9 +35,9 @@ import {
 import { Link, Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
 import { useAuthLayoutVariant } from '../../../components/common/AuthLayout/useAuthLayoutVariant';
+import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ThirdPartySignInButton } from '../../../components/common/ThirdPartySignInButton';
-import PageSpinner from '../../../components/PageSpinner';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import useApp from '../../../providers/App/useApp';
@@ -571,7 +571,7 @@ const Login: FC<{}> = () => {
     });
 
     if (health.isInitialLoading || isDemo || isInitialLoadingLoginOptions) {
-        return <PageSpinner />;
+        return <EmptyStateLoader py="xl" />;
     }
     if (health.status === 'success' && health.data?.requiresOrgRegistration) {
         return (
