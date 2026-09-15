@@ -187,6 +187,9 @@ describe('Explorer chart configuration in alternate hosts', () => {
 
         expect(screen.getByText('Choose chart type')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Bar chart' })).toBeVisible();
+        expect(
+            screen.getByRole('button', { name: 'Configure Bar chart' }),
+        ).toBeVisible();
     });
 
     it('opens the chart gallery and settings in Embed Explore', async () => {
@@ -208,5 +211,8 @@ describe('Explorer chart configuration in alternate hosts', () => {
 
         expect(screen.getByText('Choose chart type')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Bar chart' })).toBeVisible();
+        expect(
+            screen.getByRole('button', { name: 'Configure Bar chart' }),
+        ).toBeVisible();
     });
 });
