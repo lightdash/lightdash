@@ -7,6 +7,10 @@
     align-items: center;
 }
 
+.main {
+    flex: 1;
+}
+
 @mixin smaller-than $mantine-breakpoint-sm {
     .root:not([data-mobile-layout='content']) {
         flex-direction: column;
@@ -38,15 +42,15 @@
         padding: 12px 16px;
     }
 
-    .root[data-mobile-layout='content']:has([data-header-breadcrumbs]) {
+    .root[data-mobile-layout='content']:has(.breadcrumbs) {
         grid-template-areas: 'breadcrumbs' 'title' 'metadata' 'actions';
     }
 
-    .root [data-header-main] {
+    .root[data-mobile-layout='content'] .main {
         display: contents;
     }
 
-    .root [data-header-breadcrumbs] {
+    .root .breadcrumbs {
         grid-area: breadcrumbs;
         display: flex;
         align-items: center;
@@ -56,30 +60,30 @@
         font-size: 12px;
     }
 
-    .root [data-header-breadcrumbs] :global(.mantine-Anchor-root),
-    .root [data-header-breadcrumbs] :global(.mantine-Text-root) {
+    .root .breadcrumbs :global(.mantine-Anchor-root),
+    .root .breadcrumbs :global(.mantine-Text-root) {
         font-size: 12px;
     }
 
-    .root [data-header-breadcrumbs] > span:last-child {
+    .root .breadcrumbs > span:last-child {
         display: none;
     }
 
-    .root [data-header-title] {
+    .root .title {
         grid-area: title;
         min-width: 0;
         flex-wrap: wrap;
         gap: 4px;
     }
 
-    .root [data-header-title] :global(.mantine-Title-root) {
+    .root .heading {
         min-width: 0;
         font-size: 18px;
         line-height: 25px;
         overflow-wrap: anywhere;
     }
 
-    .root [data-header-actions] {
+    .root .actions {
         grid-area: actions;
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -90,13 +94,13 @@
         border-top: 1px solid var(--mantine-color-default-border);
     }
 
-    .root [data-header-actions] > *,
-    .root [data-header-actions] :global(.mantine-Button-root) {
+    .root .actions > *,
+    .root .actions :global(.mantine-Button-root) {
         min-width: 0;
         width: 100%;
     }
 
-    .root [data-header-actions] :global(.mantine-Button-root) {
+    .root .actions :global(.mantine-Button-root) {
         height: var(--header-action-height);
         min-height: var(--header-action-height);
         padding-inline: 6px;
@@ -107,19 +111,17 @@
         background: transparent;
     }
 
-    .root
-        [data-header-actions]
-        :global(.mantine-Button-section[data-position='left']) {
+    .root .actions :global(.mantine-Button-section[data-position='left']) {
         margin-inline-end: 8px;
     }
 
     @media (hover: hover) {
-        .root [data-header-actions] :global(.mantine-Button-root:hover) {
+        .root .actions :global(.mantine-Button-root:hover) {
             background: var(--mantine-color-default-hover);
         }
     }
 
-    .root [data-header-metadata] {
+    .root .metadata {
         grid-area: metadata;
         min-width: 0;
         justify-content: space-between;
@@ -127,7 +129,7 @@
         gap: 8px;
     }
 
-    .root [data-header-metadata] > :first-child {
+    .root .metadata > :first-child {
         min-width: 0;
     }
 }

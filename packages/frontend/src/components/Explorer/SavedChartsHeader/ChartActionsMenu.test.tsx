@@ -52,12 +52,16 @@ const chart = mockSavedChartResponse({
     dashboardUuid: 'dashboard-uuid',
 });
 
-const renderMenu = (host: ChartActionsHost) => {
+const renderMenu = (
+    host: ChartActionsHost,
+    savedChart = chart,
+    abilityRules = [manageChartRule],
+) => {
     const onOpenVersionHistory = vi.fn();
     const store = createExplorerStore({
         explorer: buildDashboardEditorInitialState({
-            exploreId: chart.tableName,
-            editChart: chart,
+            exploreId: savedChart.tableName,
+            editChart: savedChart,
             seededMetrics: [],
         }),
     });
@@ -67,7 +71,7 @@ const renderMenu = (host: ChartActionsHost) => {
             initialEntries={['/projects/project-uuid/saved/chart-uuid']}
         >
             <AbilityContext.Provider
-                value={new Ability<PossibleAbilities>([manageChartRule])}
+                value={new Ability<PossibleAbilities>(abilityRules)}
             >
                 <Provider store={store}>
                     <ChartActionsMenu
@@ -79,7 +83,7 @@ const renderMenu = (host: ChartActionsHost) => {
                 </Provider>
             </AbilityContext.Provider>
         </MemoryRouter>,
-        { user: { abilityRules: [manageChartRule] } },
+        { user: { abilityRules } },
     );
     return { onOpenVersionHistory };
 };
@@ -97,11 +101,62 @@ describe('ChartActionsMenu', () => {
             const move = screen.queryByRole('menuitem', {
                 name: 'Move to space',
             });
-            if (isPhone) expect(move).toBeNull();
-            else expect(move).toBeVisible();
+            if (isPhone) {
+                expect(move).toBeNull();
+                expect(screen.queryByText('Move to space')).toBeNull();
+            } else expect(move).toBeVisible();
             expect(screen.getByText('Version history')).toBeVisible();
         },
     );
+
+    it.each([390, 640, 744, 1280])(
+        'preserves standalone chart authoring when resizing to %ipx',
+        async (width) => {
+            const viewport = mockViewport(1280);
+            renderMenu('page', { ...chart, dashboardUuid: null });
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Chart actions' }),
+            );
+            viewport.resize(width);
+
+            for (const name of [
+                'Duplicate',
+                'Add to dashboard',
+                'Move chart',
+                'Change URL slug',
+            ]) {
+                expect(screen.getByRole('menuitem', { name })).toBeVisible();
+            }
+        },
+    );
+
+    it('omits phone authoring entries without hiding version history', async () => {
+        device.isPhone = true;
+        mockViewport(390);
+        renderMenu('page', { ...chart, dashboardUuid: null });
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'Chart actions' }),
+        );
+        for (const name of [
+            'Duplicate',
+            'Add to dashboard',
+            'Move chart',
+            'Change URL slug',
+        ]) {
+            expect(screen.queryByText(name, { exact: true })).toBeNull();
+        }
+        expect(
+            screen.getByRole('menuitem', { name: 'Version history' }),
+        ).toBeVisible();
+    });
+
+    it('does not grant authoring to a viewer at a compact width', async () => {
+        mockViewport(390);
+        renderMenu('page', { ...chart, dashboardUuid: null }, []);
+        expect(
+            screen.queryByRole('button', { name: 'Chart actions' }),
+        ).toBeNull();
+    });
 
     it('in a modal host hides page-only items and opens history in place', async () => {
         const user = userEvent.setup();
