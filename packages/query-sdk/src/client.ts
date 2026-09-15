@@ -8,6 +8,7 @@
 import { createApiTransport } from './apiTransport';
 import { applyColorSchemeSeed, mountColorScheme } from './colorScheme';
 import { mountInspector } from './inspector';
+import { mountInsights } from './insights';
 import { mountLineage } from './lineage';
 import { createPostMessageTransport } from './postMessageTransport';
 import { QueryBuilder } from './query';
@@ -113,6 +114,7 @@ export function createClient(): LightdashClient {
             mountInspector(window.parent);
             mountLineage(window.parent);
             mountColorScheme(window.parent);
+            mountInsights(window.parent);
             return new LightdashClient(
                 { apiKey: '', baseUrl: '', projectUuid },
                 createPostMessageTransport({
