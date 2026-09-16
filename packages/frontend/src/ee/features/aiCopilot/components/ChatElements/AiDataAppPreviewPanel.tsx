@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     getAppDisplayName,
     getDataAppBuilderPath,
     getSdkFeatureTargetForTemplate,
@@ -14,9 +15,17 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { IconArrowRight, IconExternalLink, IconX } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconAppWindow,
+    IconArrowRight,
+    IconCircleMinus,
+    IconExternalLink,
+    IconX,
+} from '@tabler/icons-react';
 import { useCallback, useRef, useState, type FC, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
+import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import AppIframePreview, {
@@ -25,6 +34,7 @@ import AppIframePreview, {
 import AppInspectorPanel from '../../../../../features/apps/AppInspectorPanel';
 import AppActionsMenu from '../../../../../features/apps/components/AppActionsMenu';
 import { ElementPickerButton } from '../../../../../features/apps/components/ElementPickerButton';
+import LoadingDots from '../../../../../features/apps/components/LoadingDots';
 import { RestoreAppVersionModal } from '../../../../../features/apps/components/RestoreAppVersionModal';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppInspector } from '../../../../../features/apps/hooks/useAppInspector';
@@ -50,6 +60,12 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import artifactStyles from './AiArtifactPanel.module.css';
+import { type DataAppBuildCardState } from './DataAppBuildCard/DataAppBuildCard';
+import {
+    DATA_APP_BUILD_CANCELLED_TITLE,
+    DATA_APP_BUILD_FAILED_TITLE,
+    getDataAppLatestVersionState,
+} from './DataAppBuildCard/dataAppBuildCardState';
 import { getEffectiveDataAppVersion } from './DataAppBuildCard/dataAppPreviewVersion';
 import { DataAppVersionPill } from './DataAppVersionPill';
 
@@ -58,6 +74,50 @@ type Props = {
     /** Only the full-page thread panel hosts the network inspector and the
      *  element picker; the floating launcher preview is too small for them. */
     showInspector: boolean;
+};
+
+/** Shown in place of the iframe while the app has no ready version. */
+const BuildStateBody: FC<{ state: DataAppBuildCardState }> = ({ state }) => {
+    switch (state.kind) {
+        case 'queued':
+        case 'building':
+            return (
+                <Box className={artifactStyles.previewEmpty}>
+                    <MantineIcon icon={IconAppWindow} size={48} />
+                    <Text size="sm">Your app preview will appear here</Text>
+                    <Text size="xs" c="dimmed">
+                        {state.kind === 'building'
+                            ? state.statusMessage
+                            : 'Starting the build'}{' '}
+                        <LoadingDots />
+                    </Text>
+                </Box>
+            );
+        case 'failed':
+            return (
+                <Box className={artifactStyles.previewEmpty}>
+                    <MantineIcon icon={IconAlertTriangle} size={48} />
+                    <Text size="sm">{DATA_APP_BUILD_FAILED_TITLE}</Text>
+                    <Text size="xs" c="dimmed" ta="center">
+                        {state.message}
+                    </Text>
+                </Box>
+            );
+        case 'cancelled':
+            return (
+                <Box className={artifactStyles.previewEmpty}>
+                    <MantineIcon icon={IconCircleMinus} size={48} />
+                    <Text size="sm">{DATA_APP_BUILD_CANCELLED_TITLE}</Text>
+                </Box>
+            );
+        // A ready row without a ready version is a stale app read; the
+        // refetch lands shortly.
+        case 'ready':
+        case 'unavailable':
+            return <EmptyStateLoader />;
+        default:
+            return assertUnreachable(state, 'Unknown build state');
+    }
 };
 
 export const AiDataAppPreviewPanel: FC<Props> = ({
@@ -194,8 +254,6 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     const isNotFound =
         appQuery.error?.error?.statusCode === 404 ||
         visibleTokenError?.error?.statusCode === 404;
-    const hasNoReadyVersion =
-        !appQuery.isLoading && !appQuery.error && effectiveVersion === null;
     const otherError =
         !isForbidden && !isNotFound && (appQuery.error || visibleTokenError);
 
@@ -331,9 +389,6 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
             "You don't have permission to view this data app.",
         );
     }
-    if (hasNoReadyVersion) {
-        return renderMessage("This data app hasn't finished building yet.");
-    }
     if (otherError) {
         return renderMessage('Failed to load data app. Please try again.');
     }
@@ -355,8 +410,15 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         );
     }
 
+    // No ready version to render: the newest version is building or failed.
+    const buildState =
+        effectiveVersion === null ? getDataAppLatestVersionState(app) : null;
+    const isRenderingVersion = buildState === null;
+
     let body: ReactNode;
-    if (isTokenLoading || !previewUrl || !token) {
+    if (buildState !== null) {
+        body = <BuildStateBody state={buildState} />;
+    } else if (isTokenLoading || !previewUrl || !token) {
         body = (
             <Center h="100%">
                 <Loader
@@ -470,7 +532,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                             }
                             askAiItem={null}
                             viewNetwork={
-                                showInspector
+                                showInspector && isRenderingVersion
                                     ? {
                                           label: isInspectorVisible
                                               ? 'Hide network'
@@ -479,7 +541,9 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                       }
                                     : null
                             }
-                            onRefresh={handleRefresh}
+                            onRefresh={
+                                isRenderingVersion ? handleRefresh : null
+                            }
                             capturedQueryCount={
                                 showInspector
                                     ? inspector.readyQueryCount
@@ -492,13 +556,18 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                 )
                             }
                             onDeleted={() => dispatch(clearPreview())}
-                            captureThumbnail={{
-                                onCapture: () => void captureThumbnail(),
-                                disabled:
-                                    !isPreviewMounted ||
-                                    !screenshotAvailable ||
-                                    isCapturingThumbnail,
-                            }}
+                            captureThumbnail={
+                                isRenderingVersion
+                                    ? {
+                                          onCapture: () =>
+                                              void captureThumbnail(),
+                                          disabled:
+                                              !isPreviewMounted ||
+                                              !screenshotAvailable ||
+                                              isCapturingThumbnail,
+                                      }
+                                    : null
+                            }
                             capturePreviewScreenshot={
                                 screenshotAvailable
                                     ? capturePreviewScreenshot
@@ -517,6 +586,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                             }}
                         />
                         {showInspector &&
+                            isRenderingVersion &&
                             picker.available &&
                             !isViewingOlderVersion && (
                                 <ElementPickerButton

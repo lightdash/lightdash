@@ -24,7 +24,10 @@ import {
     getBuildWatchKey,
 } from '../../../store/buildWatchesSlice';
 import { AiAgentBuildWatcher } from '../../Launcher/AiAgentBuildWatcher';
-import { AiDataAppBuildCard } from './AiDataAppBuildCard';
+import {
+    AiDataAppBuildCard,
+    type DataAppBuildOrigin,
+} from './AiDataAppBuildCard';
 
 vi.mock('../../../../../../api', () => ({ lightdashApi: vi.fn() }));
 const mockedLightdashApi = vi.mocked(lightdashApi);
@@ -120,7 +123,10 @@ const pending: ToolGenerateDataAppOutput['metadata'] = {
 
 const renderCard = (
     metadata: ToolGenerateDataAppOutput['metadata'],
-    { withWatcher = false }: { withWatcher?: boolean } = {},
+    {
+        withWatcher = false,
+        origin = 'persisted',
+    }: { withWatcher?: boolean; origin?: DataAppBuildOrigin } = {},
 ) =>
     renderWithProviders(
         <Provider store={store}>
@@ -129,6 +135,7 @@ const renderCard = (
                 <div data-testid="host">
                     <AiDataAppBuildCard
                         metadata={metadata}
+                        origin={origin}
                         compact={false}
                         {...IDS}
                     />
@@ -161,7 +168,7 @@ describe('AiDataAppBuildCard', () => {
         vi.restoreAllMocks();
     });
 
-    it('follows a pending build from building to ready and opens the preview once', async () => {
+    it('opens the preview when a build starts and follows it to ready', async () => {
         mockedLightdashApi.mockResolvedValue(
             app([
                 version({
@@ -170,11 +177,20 @@ describe('AiDataAppBuildCard', () => {
                 }),
             ]),
         );
-        renderCard(pending, { withWatcher: true });
+        renderCard(pending, { withWatcher: true, origin: 'stream' });
 
         expect(await screen.findByText('Generating your app')).toBeVisible();
-        expect(store.getState().aiArtifact.preview).toBeNull();
+        // Opened at the app's latest ready version, which is none yet.
+        expect(store.getState().aiArtifact.preview).toEqual({
+            ...expectedPreview,
+            version: null,
+            latestReadyVersionAtOpen: null,
+        });
 
+        // Closing the panel sticks: landing does not reopen it.
+        act(() => {
+            store.dispatch(clearPreview());
+        });
         pollResult([
             version({
                 status: 'ready',
@@ -185,16 +201,10 @@ describe('AiDataAppBuildCard', () => {
 
         expect(await screen.findByText('Revenue app')).toBeVisible();
         expect(screen.getByText('v1 · built in 6m 12s')).toBeVisible();
-        expect(store.getState().aiArtifact.preview).toEqual(expectedPreview);
-
-        // The landed build is no longer watched, so nothing reopens the
-        // panel once closed; View brings it back.
         expect(store.getState().buildWatches.watches).toEqual({});
-        act(() => {
-            store.dispatch(clearPreview());
-        });
         expect(store.getState().aiArtifact.preview).toBeNull();
 
+        // View brings it back at the landed version.
         fireEvent.click(screen.getByRole('button', { name: 'View' }));
         expect(store.getState().aiArtifact.preview).toEqual(expectedPreview);
     });
@@ -206,6 +216,8 @@ describe('AiDataAppBuildCard', () => {
         renderCard(pending);
 
         expect(await screen.findByText('Building your app')).toBeVisible();
+        // A build loaded from the message (reload) never opens the preview.
+        expect(store.getState().aiArtifact.preview).toBeNull();
         expect(store.getState().buildWatches.watches).toEqual({
             [getBuildWatchKey({ appUuid: APP_UUID, version: 1 })]: {
                 appUuid: APP_UUID,
@@ -237,6 +249,7 @@ describe('AiDataAppBuildCard', () => {
                     <div data-testid="card-1">
                         <AiDataAppBuildCard
                             metadata={success(1)}
+                            origin="persisted"
                             compact={false}
                             {...IDS}
                         />
@@ -244,6 +257,7 @@ describe('AiDataAppBuildCard', () => {
                     <div data-testid="card-2">
                         <AiDataAppBuildCard
                             metadata={success(2)}
+                            origin="persisted"
                             compact={false}
                             {...IDS}
                         />

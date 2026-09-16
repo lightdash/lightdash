@@ -1,4 +1,4 @@
-import { type AppVersionStatus } from '@lightdash/common';
+import { type ApiAppVersionSummary } from '@lightdash/common';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +14,20 @@ type IframePreviewProps = {
     onInspectorAvailabilityChange?: (available: boolean) => void;
 };
 
+type VersionRow = Pick<
+    ApiAppVersionSummary,
+    'version' | 'status' | 'statusMessage' | 'statusHistory' | 'error'
+>;
+
+const versionRow = (overrides: Partial<VersionRow>): VersionRow => ({
+    version: 3,
+    status: 'ready',
+    statusMessage: null,
+    statusHistory: [],
+    error: null,
+    ...overrides,
+});
+
 const mocks = vi.hoisted(() => ({
     iframePreview: vi.fn((_props: IframePreviewProps) => null),
     previewToken: vi.fn(
@@ -23,8 +37,14 @@ const mocks = vi.hoisted(() => ({
             error: undefined,
         }),
     ),
-    latestReadyVersion: 3,
-    latestVersionStatus: 'ready' as AppVersionStatus,
+    latestReadyVersion: 3 as number | null,
+    latestVersionRow: {
+        version: 3,
+        status: 'ready',
+        statusMessage: null,
+        statusHistory: [],
+        error: null,
+    } as VersionRow,
     tokenLoading: false,
     dispatch: vi.fn(),
     canManageApp: true,
@@ -67,7 +87,7 @@ vi.mock('../../../../../features/apps/hooks/useGetApp', () => ({
                     slug: 'sales-app',
                     description: null,
                     latestReadyVersion: mocks.latestReadyVersion,
-                    versions: [{ status: mocks.latestVersionStatus }],
+                    versions: [mocks.latestVersionRow],
                 },
             ],
         },
@@ -150,10 +170,11 @@ const landNewVersion = (
 describe('AiDataAppPreviewPanel versions', () => {
     beforeEach(() => {
         mocks.latestReadyVersion = 3;
-        mocks.latestVersionStatus = 'ready';
+        mocks.latestVersionRow = versionRow({});
         mocks.tokenLoading = false;
         mocks.canManageApp = true;
         mocks.dispatch.mockReset();
+        mocks.iframePreview.mockClear();
         mocks.lightdashApi.mockReset();
         mocks.previewToken.mockClear();
         window.localStorage.clear();
@@ -210,13 +231,40 @@ describe('AiDataAppPreviewPanel versions', () => {
         );
     });
 
-    it('jumps to latest when a newer ready version lands', () => {
-        const { rerender } = renderWithProviders(panel(olderVersion));
-        expect(iframeVersion()).toBe('1');
+    it('shows a first build as building or failed, then jumps to the version that lands', () => {
+        mocks.latestReadyVersion = null;
+        mocks.latestVersionRow = versionRow({
+            version: 1,
+            status: 'generating',
+            statusMessage: 'Generating your app',
+        });
+        const { rerender } = renderWithProviders(panel(latest));
 
-        landNewVersion(rerender, olderVersion, 4);
+        expect(
+            screen.getByText('Your app preview will appear here'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Generating your app')).toBeInTheDocument();
+        expect(mocks.iframePreview).not.toHaveBeenCalled();
 
-        expect(iframeVersion()).toBe('4');
+        mocks.latestVersionRow = versionRow({
+            version: 1,
+            status: 'error',
+            statusMessage: 'The build ran out of time.',
+        });
+        rerender(panel(latest));
+
+        expect(
+            screen.getByText("The app couldn't be built"),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('The build ran out of time.'),
+        ).toBeInTheDocument();
+        expect(mocks.iframePreview).not.toHaveBeenCalled();
+
+        mocks.latestVersionRow = versionRow({ version: 2 });
+        landNewVersion(rerender, latest, 2);
+
+        expect(iframeVersion()).toBe('2');
         expect(pill()).not.toBeInTheDocument();
     });
 
@@ -255,7 +303,10 @@ describe('AiDataAppPreviewPanel versions', () => {
         });
 
         it('disables Restore with a reason while a version is building', async () => {
-            mocks.latestVersionStatus = 'generating';
+            mocks.latestVersionRow = versionRow({
+                version: 4,
+                status: 'generating',
+            });
             const user = userEvent.setup();
             renderWithProviders(panel(olderVersion));
 

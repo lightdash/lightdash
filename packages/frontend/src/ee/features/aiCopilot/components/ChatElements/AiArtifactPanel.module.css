@@ -94,6 +94,16 @@
     place-items: center;
 }
 
+.previewEmpty {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--mantine-spacing-sm);
+    color: var(--mantine-color-dimmed);
+}
+
 @keyframes floatingPanelEnter {
     from {
         opacity: 0;
