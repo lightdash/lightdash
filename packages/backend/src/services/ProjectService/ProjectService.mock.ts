@@ -539,6 +539,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         timezone: undefined,
         retryQueryOnTransientErrors: false,
         enableTimezoneSupport: undefined,
+        exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
 };
 

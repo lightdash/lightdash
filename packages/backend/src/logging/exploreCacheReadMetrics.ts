@@ -33,6 +33,8 @@ export type ExploreCacheReadContext = {
      * the request for this.
      */
     storedExploreBytes: number | undefined;
+    storedBytesPerExplore: number | undefined;
+    projectionThresholdBytesPerExplore: number | undefined;
     /**
      * Driver-read time for the cache read, in ms. This includes query
      * execution, transfer, protocol decoding, driver JSON parsing, scheduling
@@ -69,6 +71,8 @@ export const newExploreCacheReadContext = (
     tableFanOut: 0,
     requestedExploreCount,
     storedExploreBytes: undefined,
+    storedBytesPerExplore: undefined,
+    projectionThresholdBytesPerExplore: undefined,
     dbReadMs: undefined,
     attributeFilterMs: undefined,
 });

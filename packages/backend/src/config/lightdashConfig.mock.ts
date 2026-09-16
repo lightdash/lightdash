@@ -293,6 +293,7 @@ export const lightdashConfigMock: LightdashConfig = {
         timezone: undefined,
         retryQueryOnTransientErrors: true,
         enableTimezoneSupport: undefined,
+        exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
     ai: {
         copilot: {

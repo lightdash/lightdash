@@ -178,8 +178,8 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import {
     newExploreCacheReadContext,
-    safeGetCachedExploreStorageBytes,
     summarizeExploreCacheRead,
+    type ExploreCacheReadContext,
 } from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -302,6 +302,96 @@ type RawExploreTableSummaryRow = {
     ymlPath: unknown;
     dbtSourceUuid: unknown;
 };
+
+type CachedExploreStorageStats = {
+    exploreCount: number;
+    totalBytes: number;
+};
+
+const isJsonObject = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+export const toExploreTableSummaryRecord = (
+    explore: unknown,
+): ExploreTableSummaryRecord | undefined => {
+    if (!isJsonObject(explore) || typeof explore.name !== 'string') {
+        return undefined;
+    }
+
+    const tables = Object.create(null) as Record<string, ExploreTableSummary>;
+    if (isJsonObject(explore.tables)) {
+        Object.entries(explore.tables).forEach(([tableKey, table]) => {
+            if (!isJsonObject(table)) {
+                return;
+            }
+            tables[tableKey] = {
+                name: (table.name ?? null) as string,
+                database: (table.database ?? null) as string,
+                schema: (table.schema ?? null) as string,
+                sqlTable: (table.sqlTable ?? null) as string,
+                ...(table.originalName
+                    ? { originalName: table.originalName as string }
+                    : {}),
+                ...(Object.hasOwn(table, 'description')
+                    ? { description: table.description as string }
+                    : {}),
+                ...(table.ymlPath ? { ymlPath: table.ymlPath as string } : {}),
+                ...(table.dbtSourceUuid == null
+                    ? {}
+                    : { dbtSourceUuid: table.dbtSourceUuid as string }),
+            };
+        });
+    }
+
+    return {
+        name: explore.name,
+        type: (explore.type ?? undefined) as ExploreType | undefined,
+        baseTable: (explore.baseTable ?? '') as string,
+        tables,
+        ...(Object.hasOwn(explore, 'errors') ? { errors: true as const } : {}),
+    };
+};
+
+export const reduceExploreTableSummaryRows = (
+    rows: RawExploreTableSummaryRow[],
+): Record<string, ExploreTableSummaryRecord> =>
+    rows.reduce<Record<string, ExploreTableSummaryRecord>>(
+        (acc, row) => {
+            const explore = acc[row.exploreName] ?? {
+                name: row.exploreName,
+                type: row.exploreType ?? undefined,
+                baseTable: row.baseTable ?? '',
+                tables: Object.create(null) as Record<
+                    string,
+                    ExploreTableSummary
+                >,
+                ...(row.hasErrors ? { errors: true as const } : {}),
+            };
+
+            if (row.tableKey !== null) {
+                explore.tables[row.tableKey] = {
+                    name: row.tableName as string,
+                    database: row.database as string,
+                    schema: row.schema as string,
+                    sqlTable: row.sqlTable as string,
+                    ...(row.originalName
+                        ? { originalName: row.originalName as string }
+                        : {}),
+                    ...(row.hasDescription
+                        ? { description: row.description as string }
+                        : {}),
+                    ...(row.ymlPath ? { ymlPath: row.ymlPath as string } : {}),
+                    ...(row.dbtSourceUuid === null
+                        ? {}
+                        : { dbtSourceUuid: row.dbtSourceUuid as string }),
+                };
+            }
+
+            acc[row.exploreName] = explore;
+            return acc;
+        },
+        Object.create(null) as Record<string, ExploreTableSummaryRecord>,
+    );
 
 type PreviewChartUuidMapping = {
     sourceChartUuid: string;
@@ -1943,6 +2033,9 @@ export class ProjectModel {
         const convertedExplore = { ...explore };
         if (convertedExplore.tables) {
             Object.values(convertedExplore.tables).forEach((table) => {
+                if (!isJsonObject(table)) {
+                    return;
+                }
                 if (table.metrics) {
                     Object.values(table.metrics).forEach((metric) => {
                         if (metric.filters) {
@@ -2003,17 +2096,26 @@ export class ProjectModel {
                     () =>
                         explores.reduce<Record<string, Explore | ExploreError>>(
                             (acc, { explore, cached_explore_uuid }) => {
+                                if (
+                                    !isJsonObject(explore) ||
+                                    typeof explore.name !== 'string'
+                                ) {
+                                    return acc;
+                                }
                                 const exploreKey =
                                     key === 'name'
                                         ? explore.name
                                         : cached_explore_uuid;
                                 acc[exploreKey] =
                                     ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                                        explore,
+                                        explore as Explore | ExploreError,
                                     );
                                 return acc;
                             },
-                            {},
+                            Object.create(null) as Record<
+                                string,
+                                Explore | ExploreError
+                            >,
                         ),
                 );
 
@@ -2033,13 +2135,24 @@ export class ProjectModel {
         projectUuid: string,
         exploreNamesWithDuplicates?: string[],
     ): Promise<number> {
+        const { totalBytes } = await this.getCachedExploreStorageStats(
+            projectUuid,
+            exploreNamesWithDuplicates,
+        );
+        return totalBytes;
+    }
+
+    async getCachedExploreStorageStats(
+        projectUuid: string,
+        exploreNamesWithDuplicates?: string[],
+    ): Promise<CachedExploreStorageStats> {
         const exploreNames = exploreNamesWithDuplicates
             ? [...new Set(exploreNamesWithDuplicates)]
             : undefined;
         const query = this.database(CachedExploreTableName)
-            .select<{ totalBytes: string }[]>(
+            .select<{ exploreCount: string; totalBytes: string }[]>(
                 this.database.raw(
-                    'COALESCE(SUM(pg_column_size("explore")), 0)::bigint as "totalBytes"',
+                    'COUNT(*)::bigint as "exploreCount", COALESCE(SUM(pg_column_size("explore")), 0)::bigint as "totalBytes"',
                 ),
             )
             .where('project_uuid', projectUuid);
@@ -2047,12 +2160,16 @@ export class ProjectModel {
             void query.whereIn('name', exploreNames);
         }
         const [row] = await query;
-        return Number(row?.totalBytes ?? 0);
+        return {
+            exploreCount: Number(row?.exploreCount ?? 0),
+            totalBytes: Number(row?.totalBytes ?? 0),
+        };
     }
 
     async findExploreTableSummariesFromCache(
         projectUuid: string,
         exploreNamesWithDuplicates?: string[],
+        readContext?: ExploreCacheReadContext,
     ): Promise<Record<string, ExploreTableSummaryRecord>> {
         const exploreNames = exploreNamesWithDuplicates
             ? [...new Set(exploreNamesWithDuplicates)]
@@ -2062,6 +2179,60 @@ export class ProjectModel {
             'ProjectModel.findExploreTableSummariesFromCache',
             { projectUuid, exploreNames },
             async (span) => {
+                const { exploreCount, totalBytes } =
+                    await this.getCachedExploreStorageStats(
+                        projectUuid,
+                        exploreNames,
+                    );
+                const storedBytesPerExplore =
+                    exploreCount === 0 ? undefined : totalBytes / exploreCount;
+                const projectionThresholdBytesPerExplore =
+                    this.lightdashConfig.query
+                        .exploreSummaryProjectionMinStoredBytesPerExplore;
+                const shouldReadFullExplores =
+                    exploreCount > 0 &&
+                    projectionThresholdBytesPerExplore > 0 &&
+                    storedBytesPerExplore !== undefined &&
+                    storedBytesPerExplore < projectionThresholdBytesPerExplore;
+
+                if (readContext) {
+                    Object.assign(readContext, {
+                        readStrategy: shouldReadFullExplores
+                            ? ('full-explore-read' as const)
+                            : ('table-summary-projection' as const),
+                        storedExploreBytes: totalBytes,
+                        storedBytesPerExplore,
+                        projectionThresholdBytesPerExplore,
+                    });
+                }
+
+                if (exploreCount === 0) {
+                    span.setAttribute('foundExplores', false);
+                    return {};
+                }
+
+                if (shouldReadFullExplores) {
+                    const fullExplores = await this.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                        exploreNames,
+                    );
+                    const summaries = Object.values(fullExplores).reduce<
+                        Record<string, ExploreTableSummaryRecord>
+                    >((acc, explore) => {
+                        const summary = toExploreTableSummaryRecord(explore);
+                        if (summary) {
+                            acc[summary.name] = summary;
+                        }
+                        return acc;
+                    }, Object.create(null));
+                    span.setAttribute(
+                        'foundExplores',
+                        !!Object.keys(summaries).length,
+                    );
+                    return summaries;
+                }
+
                 const query = this.database(CachedExploreTableName)
                     .select<RawExploreTableSummaryRow[]>(
                         this.database.raw(`
@@ -2125,56 +2296,7 @@ export class ProjectModel {
                 }
 
                 const rows = await query;
-                const explores = rows.reduce<
-                    Record<string, ExploreTableSummaryRecord>
-                >(
-                    (acc, row) => {
-                        const explore = acc[row.exploreName] ?? {
-                            name: row.exploreName,
-                            type: row.exploreType ?? undefined,
-                            baseTable: row.baseTable ?? '',
-                            tables: Object.create(null) as Record<
-                                string,
-                                ExploreTableSummary
-                            >,
-                            ...(row.hasErrors ? { errors: true as const } : {}),
-                        };
-
-                        if (row.tableKey !== null) {
-                            explore.tables[row.tableKey] = {
-                                name: row.tableName as string,
-                                database: row.database as string,
-                                schema: row.schema as string,
-                                sqlTable: row.sqlTable as string,
-                                ...(row.originalName
-                                    ? {
-                                          originalName:
-                                              row.originalName as string,
-                                      }
-                                    : {}),
-                                ...(row.hasDescription
-                                    ? { description: row.description as string }
-                                    : {}),
-                                ...(row.ymlPath
-                                    ? { ymlPath: row.ymlPath as string }
-                                    : {}),
-                                ...(row.dbtSourceUuid === null
-                                    ? {}
-                                    : {
-                                          dbtSourceUuid:
-                                              row.dbtSourceUuid as string,
-                                      }),
-                            };
-                        }
-
-                        acc[row.exploreName] = explore;
-                        return acc;
-                    },
-                    Object.create(null) as Record<
-                        string,
-                        ExploreTableSummaryRecord
-                    >,
-                );
+                const explores = reduceExploreTableSummaryRows(rows);
 
                 span.setAttribute(
                     'foundExplores',
@@ -2322,18 +2444,15 @@ export class ProjectModel {
             'split-lookup',
             undefined,
         );
-        splitLookupReadContext.readStrategy = 'table-summary-projection';
         const { result: allCachedExplores } = await measureTime(
             async () => {
-                const [explores, storedExploreBytes] = await Promise.all([
-                    this.findExploreTableSummariesFromCache(projectUuid),
-                    safeGetCachedExploreStorageBytes(() =>
-                        this.getCachedExploreStorageBytes(projectUuid),
-                    ),
-                ]);
+                const explores = await this.findExploreTableSummariesFromCache(
+                    projectUuid,
+                    undefined,
+                    splitLookupReadContext,
+                );
                 Object.assign(splitLookupReadContext, {
                     ...summarizeExploreCacheRead(explores),
-                    storedExploreBytes,
                 });
                 return explores;
             },

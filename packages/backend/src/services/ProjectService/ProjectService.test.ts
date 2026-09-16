@@ -2689,7 +2689,7 @@ describe('ProjectService', () => {
         expect(results).toEqual(expectedCatalog);
         expect(
             projectModel.findExploreTableSummariesFromCache,
-        ).toHaveBeenCalledWith(projectUuid);
+        ).toHaveBeenCalledWith(projectUuid, undefined, expect.any(Object));
         expect(projectModel.findExploresFromCache).not.toHaveBeenCalled();
     });
     test('keeps catalog error skipping and last-write-wins behavior', async () => {
@@ -2887,13 +2887,17 @@ describe('ProjectService', () => {
 
         expect(
             projectModel.findExploreTableSummariesFromCache,
-        ).toHaveBeenCalledWith(projectUuid, [
-            'default_explore',
-            'virtual_explore',
-            'pre_aggregate_explore',
-            'external_source_explore',
-            'broken_explore',
-        ]);
+        ).toHaveBeenCalledWith(
+            projectUuid,
+            [
+                'default_explore',
+                'virtual_explore',
+                'pre_aggregate_explore',
+                'external_source_explore',
+                'broken_explore',
+            ],
+            expect.any(Object),
+        );
         expect(results.ld_chart_default_chart.dependsOn).toEqual([
             "ref('orders')",
             "ref('payments')",
@@ -2929,7 +2933,7 @@ describe('ProjectService', () => {
 
         expect(
             projectModel.findExploreTableSummariesFromCache,
-        ).toHaveBeenCalledWith(projectUuid, []);
+        ).toHaveBeenCalledWith(projectUuid, [], expect.any(Object));
         expect(Object.values(results)).toHaveLength(1);
         expect(Object.values(results)[0]).toMatchObject({
             type: DbtExposureType.APPLICATION,

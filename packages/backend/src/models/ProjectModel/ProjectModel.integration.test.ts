@@ -1,9 +1,12 @@
 import { ExploreType } from '@lightdash/common';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
     CachedExploreTableName,
     type CachedExploreTable,
 } from '../../database/entities/projects';
 import { getTestContext } from '../../vitest.setup.integration';
+import { ProjectModel } from './ProjectModel';
+import { encryptionUtilMock } from './ProjectModel.mock';
 
 describe('ProjectModel cached explore summary projection', () => {
     const cachedRowNames = [
@@ -35,7 +38,7 @@ describe('ProjectModel cached explore summary projection', () => {
     afterEach(deleteFixtures);
 
     test('executes guarded JSONB expansion without losing legal names', async () => {
-        const { app, db, testProjectUuid } = getTestContext();
+        const { db, testProjectUuid } = getTestContext();
         await db<CachedExploreTable>(CachedExploreTableName).insert([
             {
                 project_uuid: testProjectUuid,
@@ -106,10 +109,33 @@ describe('ProjectModel cached explore summary projection', () => {
             },
         ]);
 
-        const result = await app
-            .getModels()
-            .getProjectModel()
-            .findExploreTableSummariesFromCache(testProjectUuid);
+        const projectionModel = new ProjectModel({
+            database: db,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                query: {
+                    ...lightdashConfigMock.query,
+                    exploreSummaryProjectionMinStoredBytesPerExplore: 0,
+                },
+            },
+            encryptionUtil: encryptionUtilMock,
+        });
+        const fallbackModel = new ProjectModel({
+            database: db,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                query: {
+                    ...lightdashConfigMock.query,
+                    exploreSummaryProjectionMinStoredBytesPerExplore:
+                        Number.MAX_SAFE_INTEGER,
+                },
+            },
+            encryptionUtil: encryptionUtilMock,
+        });
+        const result =
+            await projectionModel.findExploreTableSummariesFromCache(
+                testProjectUuid,
+            );
         const summary = (name: string) =>
             Object.entries(result).find(([key]) => key === name)?.[1];
 
@@ -129,5 +155,29 @@ describe('ProjectModel cached explore summary projection', () => {
         ).toEqual([]);
         expect(summary('prod10912_errors_null')).toHaveProperty('errors', true);
         expect(Object.hasOwn(result, 'null')).toBe(false);
+
+        await Promise.all(
+            [
+                undefined,
+                [
+                    'prod10912_constructor',
+                    'prod10912_malformed_entries',
+                    'prod10912_top_scalar',
+                ],
+            ].map(async (exploreNames) => {
+                const [projected, fullRead] = await Promise.all([
+                    projectionModel.findExploreTableSummariesFromCache(
+                        testProjectUuid,
+                        exploreNames,
+                    ),
+                    fallbackModel.findExploreTableSummariesFromCache(
+                        testProjectUuid,
+                        exploreNames,
+                    ),
+                ]);
+
+                expect(fullRead).toEqual(projected);
+            }),
+        );
     });
 });

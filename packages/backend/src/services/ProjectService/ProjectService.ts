@@ -312,7 +312,6 @@ import { seedMissingTrainingCopyMetricsTrees } from '../../ee/services/ProjectSe
 import { errorHandler } from '../../errors';
 import {
     newExploreCacheReadContext,
-    safeGetCachedExploreStorageBytes,
     summarizeExploreCacheRead,
 } from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
@@ -9964,22 +9963,16 @@ export class ProjectService extends BaseService {
             'catalog',
             undefined,
         );
-        catalogReadContext.readStrategy = 'table-summary-projection';
         const { result: cachedExplores } = await measureTime(
             async () => {
-                const [explores, storedExploreBytes] = await Promise.all([
-                    this.projectModel.findExploreTableSummariesFromCache(
+                const explores =
+                    await this.projectModel.findExploreTableSummariesFromCache(
                         projectUuid,
-                    ),
-                    safeGetCachedExploreStorageBytes(() =>
-                        this.projectModel.getCachedExploreStorageBytes(
-                            projectUuid,
-                        ),
-                    ),
-                ]);
+                        undefined,
+                        catalogReadContext,
+                    );
                 Object.assign(catalogReadContext, {
                     ...summarizeExploreCacheRead(explores),
-                    storedExploreBytes,
                 });
                 return explores;
             },
@@ -11927,24 +11920,16 @@ export class ProjectService extends BaseService {
             'dbt-exposures',
             exploreNames.length,
         );
-        dbtExposuresReadContext.readStrategy = 'table-summary-projection';
         const { result: cachedExplores } = await measureTime(
             async () => {
-                const [explores, storedExploreBytes] = await Promise.all([
-                    this.projectModel.findExploreTableSummariesFromCache(
+                const explores =
+                    await this.projectModel.findExploreTableSummariesFromCache(
                         projectUuid,
                         exploreNames,
-                    ),
-                    safeGetCachedExploreStorageBytes(() =>
-                        this.projectModel.getCachedExploreStorageBytes(
-                            projectUuid,
-                            exploreNames,
-                        ),
-                    ),
-                ]);
+                        dbtExposuresReadContext,
+                    );
                 Object.assign(dbtExposuresReadContext, {
                     ...summarizeExploreCacheRead(explores),
-                    storedExploreBytes,
                 });
                 return explores;
             },

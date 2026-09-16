@@ -95,7 +95,6 @@ import { createAuditLogEvent } from '../../logging/auditLog';
 import { createActorFromUser } from '../../logging/caslAuditWrapper';
 import {
     newExploreCacheReadContext,
-    safeGetCachedExploreStorageBytes,
     summarizeExploreCacheRead,
     type ExploreCacheReadContext,
 } from '../../logging/exploreCacheReadMetrics';
@@ -2441,23 +2440,17 @@ export class AiAgentAdminService extends BaseService {
         } = {
             ...newExploreCacheReadContext('review-writeback', undefined),
             trigger: 'plan',
-            readStrategy: 'table-summary-projection',
         };
         const { result: explores } = await measureTime(
             async () => {
-                const [cachedExplores, storedExploreBytes] = await Promise.all([
-                    this.projectModel.findExploreTableSummariesFromCache(
+                const cachedExplores =
+                    await this.projectModel.findExploreTableSummariesFromCache(
                         projectUuid,
-                    ),
-                    safeGetCachedExploreStorageBytes(() =>
-                        this.projectModel.getCachedExploreStorageBytes(
-                            projectUuid,
-                        ),
-                    ),
-                ]);
+                        undefined,
+                        planWritebackReadContext,
+                    );
                 Object.assign(planWritebackReadContext, {
                     ...summarizeExploreCacheRead(cachedExplores),
-                    storedExploreBytes,
                 });
                 return cachedExplores;
             },
@@ -2774,24 +2767,17 @@ export class AiAgentAdminService extends BaseService {
             } = {
                 ...newExploreCacheReadContext('review-writeback', undefined),
                 trigger: 'run',
-                readStrategy: 'table-summary-projection',
             };
             const { result: explores } = await measureTime(
                 async () => {
-                    const [cachedExplores, storedExploreBytes] =
-                        await Promise.all([
-                            this.projectModel.findExploreTableSummariesFromCache(
-                                projectUuid,
-                            ),
-                            safeGetCachedExploreStorageBytes(() =>
-                                this.projectModel.getCachedExploreStorageBytes(
-                                    projectUuid,
-                                ),
-                            ),
-                        ]);
+                    const cachedExplores =
+                        await this.projectModel.findExploreTableSummariesFromCache(
+                            projectUuid,
+                            undefined,
+                            runWritebackReadContext,
+                        );
                     Object.assign(runWritebackReadContext, {
                         ...summarizeExploreCacheRead(cachedExplores),
-                        storedExploreBytes,
                     });
                     return cachedExplores;
                 },

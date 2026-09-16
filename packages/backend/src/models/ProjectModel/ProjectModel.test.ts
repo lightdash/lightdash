@@ -54,7 +54,13 @@ import {
     SpaceUserAccessTableName,
 } from '../../database/entities/spaces';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
-import { ProjectModel, type ExploreTableSummaryRecord } from './ProjectModel';
+import { newExploreCacheReadContext } from '../../logging/exploreCacheReadMetrics';
+import {
+    ProjectModel,
+    reduceExploreTableSummaryRows,
+    toExploreTableSummaryRecord,
+    type ExploreTableSummaryRecord,
+} from './ProjectModel';
 import {
     CompletePostgresCredentials,
     encryptionUtilMock,
@@ -168,6 +174,18 @@ describe('ProjectModel', () => {
         expect(tracker.history.select).toHaveLength(1);
     });
     describe('getCachedExploreStorageBytes', () => {
+        test('returns the matched explore count and stored bytes together', async () => {
+            tracker.on
+                .select(queryMatcher(CachedExploreTableName, [projectUuid]))
+                .response([{ exploreCount: '2', totalBytes: '4096' }]);
+
+            await expect(
+                model.getCachedExploreStorageStats(projectUuid),
+            ).resolves.toEqual({ exploreCount: 2, totalBytes: 4096 });
+            expect(tracker.history.select[0].sql).toContain('COUNT(*)');
+            expect(tracker.history.select[0].sql).toContain('pg_column_size');
+        });
+
         test('sums pg_column_size across the matched rows', async () => {
             tracker.on
                 .select(queryMatcher(CachedExploreTableName, [projectUuid]))
@@ -217,6 +235,27 @@ describe('ProjectModel', () => {
             ymlPath: null,
             dbtSourceUuid: null,
             ...overrides,
+        });
+
+        const createModel = (threshold: number) =>
+            new ProjectModel({
+                database,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    query: {
+                        ...lightdashConfigMock.query,
+                        exploreSummaryProjectionMinStoredBytesPerExplore:
+                            threshold,
+                    },
+                },
+                encryptionUtil: encryptionUtilMock,
+            });
+
+        beforeEach(() => {
+            vi.spyOn(model, 'getCachedExploreStorageStats').mockResolvedValue({
+                exploreCount: 1,
+                totalBytes: 4096,
+            });
         });
 
         test('keeps prototype-like explore and table names as own keys', async () => {
@@ -296,6 +335,255 @@ describe('ProjectModel', () => {
             expect(result.coercions.tables.orders).not.toHaveProperty(
                 'ymlPath',
             );
+        });
+
+        test('always projects when the threshold is zero', async () => {
+            const zeroThresholdModel = createModel(0);
+            vi.spyOn(
+                zeroThresholdModel,
+                'getCachedExploreStorageStats',
+            ).mockResolvedValue({ exploreCount: 1, totalBytes: 1 });
+            const fullRead = vi.spyOn(
+                zeroThresholdModel,
+                'findExploresFromCache',
+            );
+            tracker.on
+                .select(queryMatcher(CachedExploreTableName, [projectUuid]))
+                .response([summaryRow('orders', 'orders')]);
+            const context = newExploreCacheReadContext('catalog', undefined);
+
+            const result =
+                await zeroThresholdModel.findExploreTableSummariesFromCache(
+                    projectUuid,
+                    undefined,
+                    context,
+                );
+
+            expect(result.orders.name).toBe('orders');
+            expect(fullRead).not.toHaveBeenCalled();
+            expect(context).toMatchObject({
+                readStrategy: 'table-summary-projection',
+                storedExploreBytes: 1,
+                storedBytesPerExplore: 1,
+                projectionThresholdBytesPerExplore: 0,
+            });
+        });
+
+        test('falls back below the threshold', async () => {
+            const thresholdModel = createModel(2048);
+            vi.spyOn(
+                thresholdModel,
+                'getCachedExploreStorageStats',
+            ).mockResolvedValue({ exploreCount: 2, totalBytes: 3000 });
+            const fullRead = vi
+                .spyOn(thresholdModel, 'findExploresFromCache')
+                .mockResolvedValue({
+                    orders: {
+                        ...exploreWithMetricFilters,
+                        name: 'orders',
+                        type: ExploreType.DEFAULT,
+                        baseTable: 'orders',
+                        tables: {},
+                    },
+                });
+            const context = newExploreCacheReadContext('catalog', undefined);
+
+            const result =
+                await thresholdModel.findExploreTableSummariesFromCache(
+                    projectUuid,
+                    undefined,
+                    context,
+                );
+
+            expect(result.orders.name).toBe('orders');
+            expect(fullRead).toHaveBeenCalledWith(
+                projectUuid,
+                'name',
+                undefined,
+            );
+            expect(tracker.history.select).toHaveLength(0);
+            expect(context).toMatchObject({
+                readStrategy: 'full-explore-read',
+                storedExploreBytes: 3000,
+                storedBytesPerExplore: 1500,
+                projectionThresholdBytesPerExplore: 2048,
+            });
+        });
+
+        test('projects at or above the threshold', async () => {
+            const thresholdModel = createModel(2048);
+            vi.spyOn(
+                thresholdModel,
+                'getCachedExploreStorageStats',
+            ).mockResolvedValue({ exploreCount: 2, totalBytes: 4096 });
+            const fullRead = vi.spyOn(thresholdModel, 'findExploresFromCache');
+            tracker.on
+                .select(queryMatcher(CachedExploreTableName, [projectUuid]))
+                .response([summaryRow('orders', 'orders')]);
+            const context = newExploreCacheReadContext('catalog', undefined);
+
+            await thresholdModel.findExploreTableSummariesFromCache(
+                projectUuid,
+                undefined,
+                context,
+            );
+
+            expect(fullRead).not.toHaveBeenCalled();
+            expect(context).toMatchObject({
+                readStrategy: 'table-summary-projection',
+                storedExploreBytes: 4096,
+                storedBytesPerExplore: 2048,
+                projectionThresholdBytesPerExplore: 2048,
+            });
+        });
+
+        test('returns without a read when no explores match', async () => {
+            vi.mocked(model.getCachedExploreStorageStats).mockResolvedValue({
+                exploreCount: 0,
+                totalBytes: 0,
+            });
+            const fullRead = vi.spyOn(model, 'findExploresFromCache');
+            const context = newExploreCacheReadContext('catalog', undefined);
+
+            await expect(
+                model.findExploreTableSummariesFromCache(
+                    projectUuid,
+                    undefined,
+                    context,
+                ),
+            ).resolves.toEqual({});
+
+            expect(fullRead).not.toHaveBeenCalled();
+            expect(tracker.history.select).toHaveLength(0);
+            expect(context).toMatchObject({
+                readStrategy: 'table-summary-projection',
+                storedExploreBytes: 0,
+                storedBytesPerExplore: undefined,
+                projectionThresholdBytesPerExplore: 2048,
+            });
+        });
+
+        test.each([
+            {
+                name: 'errors',
+                fixture: {
+                    name: 'errors',
+                    errors: null,
+                },
+            },
+            {
+                name: 'description absent',
+                fixture: {
+                    name: 'description_absent',
+                    type: ExploreType.DEFAULT,
+                    baseTable: 'orders',
+                    tables: {
+                        orders: {
+                            name: 'orders',
+                            database: 'database',
+                            schema: 'schema',
+                            sqlTable: 'database.schema.orders',
+                        },
+                    },
+                },
+            },
+            {
+                name: 'description null',
+                fixture: {
+                    name: 'description_null',
+                    type: ExploreType.DEFAULT,
+                    baseTable: 'orders',
+                    tables: {
+                        orders: {
+                            name: 'orders',
+                            database: 'database',
+                            schema: 'schema',
+                            sqlTable: 'database.schema.orders',
+                            description: null,
+                        },
+                    },
+                },
+            },
+            {
+                name: 'prototype-like names and malformed table entry',
+                fixture: {
+                    name: 'constructor',
+                    type: ExploreType.DEFAULT,
+                    baseTable: '__proto__',
+                    tables: Object.fromEntries([
+                        [
+                            '__proto__',
+                            {
+                                name: '__proto__',
+                                database: 'database',
+                                schema: 'schema',
+                                sqlTable: 'database.schema.prototype',
+                            },
+                        ],
+                        [
+                            'constructor',
+                            {
+                                name: 'constructor',
+                                database: 'database',
+                                schema: 'schema',
+                                sqlTable: 'database.schema.constructor',
+                            },
+                        ],
+                        ['invalid', 1],
+                    ]),
+                },
+            },
+            {
+                name: 'non-object tables value',
+                fixture: {
+                    name: 'non_object_tables',
+                    type: ExploreType.DEFAULT,
+                    baseTable: '',
+                    tables: 1,
+                },
+            },
+        ])('maps $name like the projection reducer', ({ fixture }) => {
+            const tableEntries =
+                typeof fixture.tables === 'object' &&
+                fixture.tables !== null &&
+                !Array.isArray(fixture.tables)
+                    ? Object.entries(fixture.tables).filter(
+                          ([, table]) =>
+                              typeof table === 'object' &&
+                              table !== null &&
+                              !Array.isArray(table),
+                      )
+                    : [];
+            const rows = (
+                tableEntries.length === 0 ? [[null, null]] : tableEntries
+            ).map(([tableKey, table]) => {
+                const tableRecord = table as Record<string, unknown> | null;
+                return summaryRow(fixture.name, tableKey, {
+                    exploreType: fixture.type ?? null,
+                    baseTable: fixture.baseTable ?? null,
+                    hasErrors: Object.hasOwn(fixture, 'errors'),
+                    tableName: tableRecord?.name ?? null,
+                    originalName: tableRecord?.originalName ?? null,
+                    database: tableRecord?.database ?? null,
+                    schema: tableRecord?.schema ?? null,
+                    description: tableRecord?.description ?? null,
+                    hasDescription:
+                        tableRecord !== null &&
+                        Object.hasOwn(tableRecord, 'description'),
+                    sqlTable: tableRecord?.sqlTable ?? null,
+                    ymlPath: tableRecord?.ymlPath ?? null,
+                    dbtSourceUuid: tableRecord?.dbtSourceUuid ?? null,
+                });
+            });
+            const mapped = toExploreTableSummaryRecord(fixture);
+            const reduced = reduceExploreTableSummaryRows(rows);
+
+            expect(mapped).toEqual(reduced[fixture.name]);
+        });
+
+        test('skips a non-object explore like an empty projection result', () => {
+            expect(toExploreTableSummaryRecord(1)).toBeUndefined();
+            expect(reduceExploreTableSummaryRows([])).toEqual({});
         });
     });
     describe('getExploreFromCache', () => {

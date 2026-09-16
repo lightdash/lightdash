@@ -1664,6 +1664,7 @@ export type LightdashConfig = {
         maxPageSize: number;
         retryQueryOnTransientErrors: boolean;
         enableTimezoneSupport: boolean | undefined;
+        exploreSummaryProjectionMinStoredBytesPerExplore: number;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -3471,6 +3472,10 @@ export const parseConfig = (): LightdashConfig => {
             enableTimezoneSupport: process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT
                 ? process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT === 'true'
                 : undefined,
+            exploreSummaryProjectionMinStoredBytesPerExplore:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_EXPLORE_SUMMARY_PROJECTION_MIN_STORED_BYTES_PER_EXPLORE',
+                ) ?? 2048,
         },
         dashboard: {
             maxTilesPerTab:
