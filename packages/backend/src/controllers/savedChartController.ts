@@ -4,6 +4,7 @@ import {
     ApiContentVerificationDeleteResponse,
     ApiContentVerificationResponse,
     ApiErrorPayload,
+    ApiExportChartImageRequest,
     ApiExportChartImageResponse,
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
@@ -30,6 +31,7 @@ import {
     OperationId,
     Path,
     Post,
+    Produces,
     Query,
     Request,
     Response,
@@ -38,6 +40,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { Readable } from 'stream';
 import {
     getContextFromHeader,
     getContextFromQueryOrHeader,
@@ -490,6 +493,7 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
     async exportSavedChartImage(
         @Path() chartUuid: string,
         @Request() req: express.Request,
+        @Body() body?: ApiExportChartImageRequest,
         @Query() projectUuid?: UUID,
     ): Promise<ApiExportChartImageResponse> {
         assertRegisteredAccount(req.account);
@@ -502,8 +506,42 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
                     chartUuid,
                     toSessionUser(req.account),
                     projectUuid,
+                    body,
                 ),
         };
+    }
+
+    /**
+     * Export a saved chart as a same-origin PNG stream.
+     * @summary Download chart image
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/export-image')
+    @Produces('image/png')
+    @OperationId('downloadSavedChartImage')
+    async downloadSavedChartImage(
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+        @Body() body?: ApiExportChartImageRequest,
+        @Query() projectUuid?: UUID,
+    ): Promise<Readable> {
+        assertRegisteredAccount(req.account);
+        const png = await this.services
+            .getUnfurlService()
+            .exportChartImage(
+                chartUuid,
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        this.setHeader('Content-Type', 'image/png');
+        this.setHeader(
+            'Content-Disposition',
+            'attachment; filename="chart.png"',
+        );
+        this.setHeader('Cache-Control', 'no-store');
+        return Readable.from(png);
     }
 
     /**

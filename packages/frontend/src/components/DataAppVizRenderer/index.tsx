@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { IconPuzzle } from '@tabler/icons-react';
+import isEqual from 'lodash/isEqual';
 import {
     useCallback,
     useEffect,
@@ -41,7 +42,10 @@ import MantineIcon from '../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
-import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
+import {
+    LEGACY_VIZ_MANIFEST_TIMEOUT_MS,
+    SCREENSHOT_READY_FALLBACK_MS,
+} from './constants';
 import classes from './DataAppVizRenderer.module.css';
 import { resolveVizDrillDownConfig } from './vizDrillDownConfig';
 import { resolveVizUnderlyingDataConfig } from './vizUnderlyingDataConfig';
@@ -81,6 +85,8 @@ const DataAppVizPlaceholder: FC<{
 const EMPTY_ITEMS_MAP: ItemsMap = {};
 const EMPTY_ROWS: ResultRow[] = [];
 const EMPTY_FIELD_MAPPING = {};
+
+type VizRenderSignalSupport = 'unknown' | 'current' | 'legacy';
 
 const getTerminalRequestErrorMessage = (
     errors: Array<ApiError | null | undefined>,
@@ -124,6 +130,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     // screenshot/export/unfurl renders simply skip the drill-by event.
     const trackingContext = useTracking({ failSilently: true });
     const hasSignaledScreenshotReady = useRef(false);
+    const renderIdRef = useRef({
+        context: undefined as DataAppVizContext | undefined,
+        navigationKey: null as string | null,
+        sequence: 0,
+        id: undefined as string | undefined,
+    });
     // Latest callback in a ref so the signal helper stays identity-stable —
     // the fallback timer must arm once, not reset on parent re-renders.
     const onScreenshotReadyRef = useRef(onScreenshotReady);
@@ -136,13 +148,15 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     // The iframe SDK posts `lightdash:sdk:screenshot-available` at bundle
     // boot — proof the sandbox is alive, not that the viz painted.
-    const [screenshotAnnounced, setScreenshotAnnounced] = useState(false);
-    const handleScreenshotAvailabilityChange = useCallback(
-        (available: boolean) => {
-            if (available) setScreenshotAnnounced(true);
-        },
-        [],
+    const [vizRenderSignalSupport, setVizRenderSignalSupport] =
+        useState<VizRenderSignalSupport>('unknown');
+    const [renderedContextId, setRenderedContextId] = useState<string | null>(
+        null,
     );
+    const legacyFallbackRef = useRef<{
+        navigationKey: string | null;
+        deadline: number;
+    } | null>(null);
 
     // Fetch every page so the renderer gets all rows — surfaces that don't
     // auto-fetch (dashboard tiles) would otherwise push a partial result.
@@ -488,38 +502,122 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         previewUrl && token
             ? previewUrl.replace(token, '{preview-token}')
             : null;
+    // `useDataAppVizResolvedColors` can allocate equivalent maps while other
+    // host state updates. Render ids must track a changed payload, not that
+    // incidental object identity, or an acknowledgement can never catch up.
+    // A referential equality check keeps the common case constant-time; the
+    // deep comparison runs only for a newly allocated context.
+    if (
+        !isEqual(renderIdRef.current.context, dataAppVizContext) ||
+        renderIdRef.current.navigationKey !== iframeNavigationKey
+    ) {
+        renderIdRef.current = {
+            context: dataAppVizContext,
+            navigationKey: iframeNavigationKey,
+            sequence: renderIdRef.current.sequence + 1,
+            id: dataAppVizContext
+                ? `viz-render-${renderIdRef.current.sequence + 1}`
+                : undefined,
+        };
+    }
+    const dataAppVizRenderId = renderIdRef.current.id;
     const isPreviewLoading =
         isLoading || loadedIframeNavigationKey !== iframeNavigationKey;
     useEffect(() => {
         if (previewUrl === null) setLoadedIframeNavigationKey(null);
     }, [previewUrl]);
 
+    // Every iframe navigation is a new bundle. Never let a manifest or paint
+    // acknowledgement from its predecessor satisfy this render.
+    useEffect(() => {
+        setVizRenderSignalSupport('unknown');
+        setRenderedContextId(null);
+    }, [iframeNavigationKey]);
+
+    // Only a bundle that remains silent after its bootstrap window is legacy.
+    // A current bundle must prove `viz-rendered` through its manifest.
+    useEffect(() => {
+        if (!iframeNavigationKey || isPreviewLoading) return undefined;
+        const timer = setTimeout(() => {
+            setVizRenderSignalSupport((support) =>
+                support === 'unknown' ? 'legacy' : support,
+            );
+        }, LEGACY_VIZ_MANIFEST_TIMEOUT_MS);
+        return () => clearTimeout(timer);
+    }, [iframeNavigationKey, isPreviewLoading]);
+
+    // The fallback has one deadline per loaded bundle. Do not restart it for
+    // a manifest, a context refresh, or a parent callback identity change.
+    useEffect(() => {
+        if (
+            !iframeNavigationKey ||
+            isPreviewLoading ||
+            legacyFallbackRef.current?.navigationKey === iframeNavigationKey
+        ) {
+            return;
+        }
+        legacyFallbackRef.current = {
+            navigationKey: iframeNavigationKey,
+            deadline: Date.now() + SCREENSHOT_READY_FALLBACK_MS,
+        };
+    }, [iframeNavigationKey, isPreviewLoading]);
+
+    const handleSdkManifest = useCallback(
+        (manifest: { features: string[] }) => {
+            setVizRenderSignalSupport(
+                manifest.features.includes('viz-rendered')
+                    ? 'current'
+                    : 'legacy',
+            );
+        },
+        [],
+    );
+
+    const handleVizRendered = useCallback((renderId: string) => {
+        if (renderId !== renderIdRef.current.id) return;
+        setRenderedContextId(renderId);
+    }, []);
+
     useEffect(() => {
         if (
             previewUrl &&
             !isPreviewLoading &&
-            screenshotAnnounced &&
-            dataAppVizContext
+            vizRenderSignalSupport === 'current' &&
+            renderedContextId === dataAppVizRenderId
         ) {
             signalScreenshotReady();
         }
     }, [
         previewUrl,
         isPreviewLoading,
-        screenshotAnnounced,
-        dataAppVizContext,
+        dataAppVizRenderId,
+        renderedContextId,
         signalScreenshotReady,
+        vizRenderSignalSupport,
     ]);
 
-    // Armed once on mount — capture surfaces pass the callback from mount.
+    // The fallback is strictly for legacy bundles. A current bundle has a
+    // manifest and must acknowledge the matching post-paint render instead.
     useEffect(() => {
-        if (!onScreenshotReadyRef.current) return;
-        const timer = setTimeout(
-            signalScreenshotReady,
-            SCREENSHOT_READY_FALLBACK_MS,
+        if (
+            !onScreenshotReadyRef.current ||
+            vizRenderSignalSupport !== 'legacy' ||
+            !legacyFallbackRef.current
+        ) {
+            return undefined;
+        }
+        const delay = Math.max(
+            0,
+            legacyFallbackRef.current.deadline - Date.now(),
         );
+        const timer = setTimeout(signalScreenshotReady, delay);
         return () => clearTimeout(timer);
-    }, [signalScreenshotReady]);
+    }, [
+        signalScreenshotReady,
+        vizRenderSignalSupport,
+        iframeNavigationKey,
+        isPreviewLoading,
+    ]);
 
     if (!projectUuid || dataAppVizUuid === null) {
         return (
@@ -610,9 +708,9 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                     appUuid={dataAppVizUuid}
                     identityKey={dataAppVizUuid}
                     dataAppVizContext={dataAppVizContext}
-                    onScreenshotAvailabilityChange={
-                        handleScreenshotAvailabilityChange
-                    }
+                    dataAppVizRenderId={dataAppVizRenderId}
+                    onSdkManifest={handleSdkManifest}
+                    onVizRendered={handleVizRendered}
                     onIframeLoad={() =>
                         setLoadedIframeNavigationKey(iframeNavigationKey)
                     }

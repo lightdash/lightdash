@@ -1193,6 +1193,11 @@ export const APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE =
 export const APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE =
     'lightdash:sdk:viz-context-request';
 
+// Posted by a current chart-type SDK after it has committed and painted the
+// render context identified by `renderId`. The host uses it to avoid capturing
+// an iframe which has booted but has not painted the chart yet.
+export const APP_SDK_VIZ_RENDERED_MESSAGE = 'lightdash:sdk:viz-rendered';
+
 // The light/dark mode an app iframe renders in: the host's resolved Mantine
 // scheme, or the embed's `?theme=`.
 export type AppColorScheme = 'light' | 'dark';

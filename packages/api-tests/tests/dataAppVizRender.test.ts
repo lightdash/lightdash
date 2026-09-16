@@ -10,7 +10,12 @@ import {
     type UpdateEmbed,
 } from '@lightdash/common';
 import { randomUUID } from 'node:crypto';
-import { ApiClient, type Body } from '../helpers/api-client';
+import {
+    ApiClient,
+    fetchWithConnectionRetry,
+    SITE_URL,
+    type Body,
+} from '../helpers/api-client';
 import {
     login,
     loginAsViewer,
@@ -204,6 +209,38 @@ describe('Data app visualization render endpoints', () => {
 
     it('lets a viewer render a visualization just like viewing its saved chart', async () => {
         await expectAccessLikeSavedChart(viewer, 200);
+    });
+
+    it('accepts a saved-chart image export POST with no request body', async () => {
+        const response = await admin.post<Body<string>>(
+            `/api/v1/saved/${savedChartUuid}/export?projectUuid=${SEED_PROJECT.project_uuid}`,
+        );
+        expect(response.status).toBe(200);
+        expect(response.body.results).toMatch(/^https?:\/\//);
+    });
+
+    it('returns a PNG from the permissioned image-stream endpoint', async () => {
+        const response = await fetchWithConnectionRetry(
+            new URL(
+                `/api/v1/saved/${savedChartUuid}/export-image?projectUuid=${SEED_PROJECT.project_uuid}`,
+                SITE_URL,
+            ).href,
+            {
+                method: 'POST',
+                headers: {
+                    Cookie: admin.cookieHeader,
+                    'Content-Type': 'application/json',
+                },
+            },
+        );
+        expect(response.status).toBe(200);
+        expect(response.headers.get('content-type')).toContain('image/png');
+        expect(response.headers.get('content-disposition')).toContain(
+            'attachment; filename="chart.png"',
+        );
+        expect(
+            Buffer.from(await response.arrayBuffer()).subarray(0, 8),
+        ).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
     });
 
     it('uses view:SavedChart rather than view:DataApp on the chart route', async () => {

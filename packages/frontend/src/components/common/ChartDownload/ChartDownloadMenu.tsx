@@ -26,6 +26,7 @@ import {
     CHART_TYPES_WITHOUT_DATA_EXPORT,
     CHART_TYPES_WITHOUT_IMAGE_EXPORT,
 } from './chartDownloadUtils';
+import HeadlessChartImageDownload from './HeadlessChartImageDownload';
 
 export type ChartDownloadMenuProps = {
     getDownloadQueryUuid: (
@@ -50,6 +51,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             pivotDimensions,
             chartConfig,
             columnOrder,
+            savedChartUuid,
         } = useVisualizationContext();
 
         const eChartsOptions = useEchartsCartesianConfig();
@@ -148,6 +150,15 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
         ) {
             return null;
         }
+        // Unsaved explorer work has no persisted route the headless browser
+        // can authorize and render. Saved custom chart types use that route
+        // rather than attempting to access their sandboxed iframe locally.
+        if (
+            visualizationConfig.chartType === ChartType.DATA_APP_VIZ &&
+            !savedChartUuid
+        ) {
+            return null;
+        }
         return isTableVisualizationConfig(visualizationConfig) &&
             getChartDownloadQueryUuid ? (
             canExportCsv ? (
@@ -234,9 +245,15 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 </Popover.Target>
 
                 <Popover.Dropdown>
-                    {visualizationConfig?.chartType &&
-                    !isTableVisualizationConfig(visualizationConfig) &&
-                    chartRef.current ? (
+                    {visualizationConfig.chartType ===
+                    ChartType.DATA_APP_VIZ ? (
+                        <HeadlessChartImageDownload
+                            chartUuid={savedChartUuid!}
+                            projectUuid={projectUuid}
+                        />
+                    ) : visualizationConfig?.chartType &&
+                      !isTableVisualizationConfig(visualizationConfig) &&
+                      chartRef.current ? (
                         <ChartDownloadOptions
                             getChartInstance={getChartInstance}
                         />

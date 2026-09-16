@@ -36,6 +36,7 @@ import {
     UnexpectedServerError,
     validateSelectedTabs,
     type AiArtifact,
+    type ApiExportChartImageRequest,
     type DashboardFilterRule,
     type DashboardFilters,
     type DeliveryCaptureManifest,
@@ -682,6 +683,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters,
         sendNowSchedulerChartFilters,
         sendNowSchedulerParameters,
+        hostImage = true,
     }: {
         url: string;
         lightdashPage?: LightdashPage;
@@ -698,8 +700,10 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerChartFilters?: Filters | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
+        hostImage?: boolean;
     }): Promise<{
         imageUrl?: string;
+        imageBuffer?: Buffer;
         pdfFile?: { source: string; fileName: string };
     }> {
         const cookie = await this.getUserCookie(authUserUuid);
@@ -742,7 +746,7 @@ export class UnfurlService extends BaseService {
         const { imageBuffer, pdfBuffer } = result;
 
         let imageUrl;
-        if (imageBuffer) {
+        if (imageBuffer && hostImage) {
             imageUrl = await this.hostImage(
                 imageBuffer,
                 imageId,
@@ -757,6 +761,7 @@ export class UnfurlService extends BaseService {
 
         return {
             imageUrl,
+            imageBuffer,
             pdfFile,
         };
     }
@@ -1067,7 +1072,47 @@ export class UnfurlService extends BaseService {
         chartUuidOrSlug: string,
         user: SessionUser,
         projectUuid?: string,
+        dashboardContext?: ApiExportChartImageRequest,
     ): Promise<string> {
+        const result = await this.captureChartExport(
+            chartUuidOrSlug,
+            user,
+            projectUuid,
+            dashboardContext,
+            true,
+        );
+        if (result.imageUrl === undefined) {
+            throw new Error('Unable to export chart image');
+        }
+        return result.imageUrl;
+    }
+
+    async exportChartImage(
+        chartUuidOrSlug: string,
+        user: SessionUser,
+        projectUuid?: string,
+        dashboardContext?: ApiExportChartImageRequest,
+    ): Promise<Buffer> {
+        const result = await this.captureChartExport(
+            chartUuidOrSlug,
+            user,
+            projectUuid,
+            dashboardContext,
+            false,
+        );
+        if (result.imageBuffer === undefined) {
+            throw new Error('Unable to export chart image');
+        }
+        return result.imageBuffer;
+    }
+
+    private async captureChartExport(
+        chartUuidOrSlug: string,
+        user: SessionUser,
+        projectUuid: string | undefined,
+        dashboardContext: ApiExportChartImageRequest | undefined,
+        hostImage: boolean,
+    ): Promise<{ imageUrl?: string; imageBuffer?: Buffer }> {
         const chart = await this.savedChartModel.get(
             chartUuidOrSlug,
             undefined,
@@ -1100,10 +1145,86 @@ export class UnfurlService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const minimalUrl = new URL(
-            `/minimal/projects/${chart.projectUuid}/saved/${chart.uuid}`,
-            this.lightdashConfig.headlessBrowser.internalLightdashHost,
-        ).href;
+        let minimalUrl: string;
+        let lightdashPage = LightdashPage.CHART;
+        let selector: string | undefined;
+
+        if (
+            dashboardContext?.dashboardUuid ||
+            dashboardContext?.dashboardTileUuid
+        ) {
+            if (
+                !dashboardContext.dashboardUuid ||
+                !dashboardContext.dashboardTileUuid
+            ) {
+                throw new ParameterError(
+                    'dashboardUuid and dashboardTileUuid are both required for a dashboard chart export',
+                );
+            }
+            const dashboard = await this.dashboardModel.getByIdOrSlug(
+                dashboardContext.dashboardUuid,
+            );
+            const tile = dashboard.tiles.find(
+                (candidate) =>
+                    candidate.uuid === dashboardContext.dashboardTileUuid &&
+                    isDashboardChartTileType(candidate) &&
+                    candidate.properties.savedChartUuid === chart.uuid,
+            );
+            if (!tile || dashboard.projectUuid !== chart.projectUuid) {
+                throw new ParameterError(
+                    'The requested chart tile does not belong to this dashboard',
+                );
+            }
+            const { inheritsFromOrgOrProject, access } =
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'dashboard',
+                    dashboardUuid: dashboard.uuid,
+                    spaceUuid: dashboard.spaceUuid,
+                });
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid: dashboard.projectUuid,
+                        inheritsFromOrgOrProject,
+                        access,
+                        metadata: {
+                            dashboardUuid: dashboard.uuid,
+                            dashboardName: dashboard.name,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+            const url = new URL(
+                `/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}${tile.tabUuid ? `/view/tabs/${tile.tabUuid}` : ''}`,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
+            );
+            if (dashboardContext.dateZoomGranularity) {
+                url.searchParams.set(
+                    'dateZoom',
+                    dashboardContext.dateZoomGranularity.toLowerCase(),
+                );
+            }
+            Object.entries(
+                dashboardContext.dateZoomControlGranularities ?? {},
+            ).forEach(([controlUuid, granularity]) => {
+                url.searchParams.set(
+                    `dateZoom.${controlUuid}`,
+                    granularity.toLowerCase(),
+                );
+            });
+            minimalUrl = url.href;
+            lightdashPage = LightdashPage.DASHBOARD;
+            selector = `[data-dashboard-tile-uuid="${tile.uuid}"]`;
+        } else {
+            minimalUrl = new URL(
+                `/minimal/projects/${chart.projectUuid}/saved/${chart.uuid}`,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
+            ).href;
+        }
 
         this.logger.info(
             `Exporting chart "${chart.name}" with minimalUrl ${minimalUrl}`,
@@ -1111,17 +1232,19 @@ export class UnfurlService extends BaseService {
 
         const unfurlImage = await this.unfurlImage({
             url: minimalUrl,
-            lightdashPage: LightdashPage.CHART,
+            lightdashPage,
             imageId: `chart-image_${snakeCaseName(chart.name)}_${useNanoid()}`,
             authUserUuid: user.userUuid,
+            selector,
             context: ScreenshotContext.EXPORT_CHART,
             selectedTabs: null,
+            sendNowSchedulerDashboardFilters:
+                dashboardContext?.dashboardFilters,
+            sendNowSchedulerParameters: dashboardContext?.parameters,
+            hostImage,
         });
-        if (unfurlImage.imageUrl === undefined) {
-            throw new Error('Unable to export chart image');
-        }
         this.logger.info(`Chart "${chart.name}" exported successfully`);
-        return unfurlImage.imageUrl;
+        return unfurlImage;
     }
 
     /**
@@ -2264,7 +2387,10 @@ export class UnfurlService extends BaseService {
 
                     if (lightdashPage === LightdashPage.EXPLORE) {
                         finalSelector = `[data-testid="visualization"]`;
-                    } else if (lightdashPage === LightdashPage.DASHBOARD) {
+                    } else if (
+                        lightdashPage === LightdashPage.DASHBOARD &&
+                        !selector
+                    ) {
                         finalSelector = SCREENSHOT_SELECTORS.DASHBOARD_GRID;
                         // Rolling-deploy fallback: a new backend may briefly
                         // serve an old frontend bundle that doesn't render

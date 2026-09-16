@@ -7,6 +7,7 @@ import {
     APP_SDK_INSIGHTS_REQUEST_MESSAGE,
     APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    APP_SDK_VIZ_RENDERED_MESSAGE,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_PATH,
@@ -274,6 +275,8 @@ export type UseAppSdkBridgeParams = {
      * yet" timeout that classifies them as legacy.
      */
     onSdkManifest?: (manifest: SdkManifest) => void;
+    /** Fires only for a well-formed post-paint acknowledgement from a viz. */
+    onVizRendered?: (renderId: string) => void;
     /**
      * When provided, external-connection fetches proxied through this bridge
      * are reported for the external-requests inspector tab — mirrors
@@ -284,6 +287,8 @@ export type UseAppSdkBridgeParams = {
     // When set, the host pushes this render context into the iframe over the
     // existing bridge — on load and on every change. Only set for data app vizs.
     dataAppVizContext?: DataAppVizContext;
+    /** Opaque token echoed by a current viz after it has painted its context. */
+    dataAppVizRenderId?: string;
     /**
      * Rewrites the viz underlying-data virtual route
      * (`APP_SDK_VIZ_UNDERLYING_DATA_PATH`) into the real API request, which
@@ -361,11 +366,13 @@ export function useAppSdkBridge({
     onLineageSelected,
     onExternalRequestEvent,
     dataAppVizContext,
+    dataAppVizRenderId,
     rewriteVizUnderlyingDataRequest,
     onVizUnderlyingDataIntent,
     onVizDrillDownIntent,
     onUrlStateChange,
     onSdkManifest,
+    onVizRendered,
     deliveryCapture,
     captureRender,
     queryContextOverride,
@@ -406,10 +413,11 @@ export function useAppSdkBridge({
             {
                 type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
                 ...dataAppVizContext,
+                ...(dataAppVizRenderId ? { renderId: dataAppVizRenderId } : {}),
             },
             '*',
         );
-    }, [iframeRef, dataAppVizContext]);
+    }, [iframeRef, dataAppVizContext, dataAppVizRenderId]);
 
     // Tell the iframe which scheme to render in. Wildcard target for the same
     // reason as every other outbound message: the sandboxed iframe has an
@@ -482,6 +490,17 @@ export function useAppSdkBridge({
 
             if (data?.type === 'lightdash:sdk:screenshot-available') {
                 onScreenshotAvailable?.();
+                return;
+            }
+
+            if (data?.type === APP_SDK_VIZ_RENDERED_MESSAGE) {
+                if (
+                    typeof data.renderId === 'string' &&
+                    data.renderId.length > 0 &&
+                    data.renderId.length <= 200
+                ) {
+                    onVizRendered?.(data.renderId);
+                }
                 return;
             }
 
@@ -1215,6 +1234,7 @@ export function useAppSdkBridge({
             pushColorScheme,
             onUrlStateChange,
             onSdkManifest,
+            onVizRendered,
             health.data,
             user.data,
             deliveryCapture,

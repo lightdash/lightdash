@@ -116,6 +116,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Receive query context when app visualizations are embedded in dashboards.',
     },
     {
+        key: 'viz-rendered',
+        appliesTo: ['chart_type'],
+        label: 'Reliable chart image capture',
+        description:
+            'Lets Lightdash capture a reusable visualization only after it has painted the current query context.',
+        wiring: 'Use useVizContext() in the rendered chart component. The current SDK acknowledges its host context after paint automatically; do not post readiness messages yourself.',
+    },
+    {
         key: 'viz-config-options',
         appliesTo: ['chart_type'],
         label: 'Visualization config options',

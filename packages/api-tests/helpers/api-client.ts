@@ -64,7 +64,7 @@ export async function fetchWithConnectionRetry(
 export class ApiClient {
     private cookies: Map<string, string> = new Map();
 
-    private get cookieHeader(): string {
+    get cookieHeader(): string {
         return Array.from(this.cookies.entries())
             .map(([k, v]) => `${k}=${v}`)
             .join('; ');

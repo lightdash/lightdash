@@ -97,6 +97,8 @@ export type VizContextPivotDetails = {
  */
 export type DataAppVizContextMessage = {
     type: 'lightdash:sdk:data-app-viz-context';
+    /** Opaque host token echoed by the post-paint rendered acknowledgement. */
+    renderId?: string;
     fieldMapping: Record<string, string>;
     rows: VizContextRow[];
     /** Absent when the installed host predates config-option delivery. */
@@ -122,6 +124,26 @@ export type VizContextRequestMessage = {
 
 const DATA_APP_VIZ_CONTEXT_MESSAGE = 'lightdash:sdk:data-app-viz-context';
 const VIZ_CONTEXT_REQUEST_MESSAGE = 'lightdash:sdk:viz-context-request';
+const VIZ_RENDERED_MESSAGE = 'lightdash:sdk:viz-rendered';
+
+/** Schedule an acknowledgement after the browser has had a chance to paint. */
+export const scheduleVizRendered = (target: Window, renderId: string) => {
+    let secondFrame: number | undefined;
+    const firstFrame = target.requestAnimationFrame(() => {
+        secondFrame = target.requestAnimationFrame(() => {
+            target.parent.postMessage(
+                { type: VIZ_RENDERED_MESSAGE, renderId },
+                '*',
+            );
+        });
+    });
+    return () => {
+        target.cancelAnimationFrame(firstFrame);
+        if (secondFrame !== undefined) {
+            target.cancelAnimationFrame(secondFrame);
+        }
+    };
+};
 
 /**
  * Dev-only fixture seed param. A chart type runs no query and renders the
@@ -230,6 +252,7 @@ export type VizContext = {
 };
 
 type VizContextValue = {
+    renderId: string | null;
     fieldMapping: Record<string, string>;
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
@@ -339,6 +362,10 @@ export function toVizContextState(
     message: DataAppVizContextMessage,
 ): VizContextValue {
     return {
+        renderId:
+            typeof message.renderId === 'string' && message.renderId.length > 0
+                ? message.renderId
+                : null,
         fieldMapping: message.fieldMapping ?? {},
         rows: Array.isArray(message.rows) ? message.rows : [],
         options: normalizeOptions(message.options),
@@ -580,6 +607,21 @@ export function useVizContext(): VizContext {
         () => buildVizDrillDown(drillHostEnabled, transport),
         [drillHostEnabled, transport],
     );
+
+    // A React commit is not necessarily visible to Chromium yet. Waiting two
+    // animation frames acknowledges the frame after the viz consumed its host
+    // context, so a screenshot cannot race the iframe's initial paint.
+    const renderId = context?.renderId ?? null;
+    useEffect(() => {
+        if (
+            !renderId ||
+            typeof window === 'undefined' ||
+            window.parent === window
+        ) {
+            return undefined;
+        }
+        return scheduleVizRendered(window, renderId);
+    }, [renderId]);
 
     return {
         fieldMapping: context?.fieldMapping ?? {},

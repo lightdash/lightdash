@@ -4,6 +4,7 @@ import {
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_INSIGHTS_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    APP_SDK_VIZ_RENDERED_MESSAGE,
     FilterOperator,
     JWT_HEADER_NAME,
     LightdashAppPreviewTokenHeader,
@@ -1190,7 +1191,10 @@ describe('data-app-viz-context push', () => {
         drillDown: { enabled: false },
     };
 
-    function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
+    function renderWithDataAppVizContext(
+        ctx: DataAppVizContext | undefined,
+        onVizRendered?: (renderId: string) => void,
+    ) {
         const iframeRef = {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
         } as RefObject<HTMLIFrameElement | null>;
@@ -1203,6 +1207,8 @@ describe('data-app-viz-context push', () => {
                 appUuid: APP_UUID,
                 previewToken: PREVIEW_TOKEN,
                 dataAppVizContext: ctx,
+                dataAppVizRenderId: ctx ? 'render-context-1' : undefined,
+                onVizRendered,
             }),
         );
     }
@@ -1218,6 +1224,7 @@ describe('data-app-viz-context push', () => {
                 options: dataAppVizContext.options,
                 colorPalette: dataAppVizContext.colorPalette,
                 pivotDetails: null,
+                renderId: 'render-context-1',
             }),
             '*',
         );
@@ -1333,6 +1340,27 @@ describe('data-app-viz-context push', () => {
             }),
             '*',
         );
+    });
+
+    it('relays only well-formed viz render acknowledgements from the iframe', () => {
+        const onVizRendered = vi.fn();
+        renderWithDataAppVizContext(dataAppVizContext, onVizRendered);
+
+        dispatchFetchMessage({
+            type: APP_SDK_VIZ_RENDERED_MESSAGE,
+            renderId: 'render-context-1',
+        });
+        dispatchFetchMessage({
+            type: APP_SDK_VIZ_RENDERED_MESSAGE,
+            renderId: '',
+        });
+        dispatchFetchMessage({
+            type: APP_SDK_VIZ_RENDERED_MESSAGE,
+            renderId: 42,
+        });
+
+        expect(onVizRendered).toHaveBeenCalledTimes(1);
+        expect(onVizRendered).toHaveBeenCalledWith('render-context-1');
     });
 });
 
