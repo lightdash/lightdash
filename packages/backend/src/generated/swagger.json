@@ -57636,6 +57636,340 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "DocumentSummary": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "documentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "createdByUserUuid",
+                    "description",
+                    "slug",
+                    "name",
+                    "spaceUuid",
+                    "organizationUuid",
+                    "projectUuid",
+                    "documentUuid"
+                ],
+                "type": "object"
+            },
+            "DocumentList": {
+                "properties": {
+                    "nextOffset": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "items": {
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["nextOffset", "items"],
+                "type": "object"
+            },
+            "ApiSuccess_DocumentList_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DocumentList"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DocumentList_"
+            },
+            "Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
+                    },
+                    "tableName": {
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
+                    },
+                    "metricQuery": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Omit_MetricQuery.filters_"
+                            },
+                            {
+                                "properties": {
+                                    "filters": {
+                                        "$ref": "#/components/schemas/FiltersInput"
+                                    }
+                                },
+                                "required": ["filters"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartAsCodeConfig"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "description": "Pivot table configuration"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object",
+                        "description": "Table configuration. Defaults to empty column order if omitted."
+                    }
+                },
+                "required": ["name", "tableName", "metricQuery", "chartConfig"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SemanticChartAsCode": {
+                "$ref": "#/components/schemas/Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
+            },
+            "MergeChartAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticChartAsCode"
+                    },
+                    {
+                        "properties": {
+                            "merge": {
+                                "$ref": "#/components/schemas/SavedMergeQuery"
+                            }
+                        },
+                        "required": ["merge"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DocumentChartContent": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "chart": {
+                                "$ref": "#/components/schemas/SemanticChartAsCode"
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": ["semantic"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["chart", "source"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "chart": {
+                                "$ref": "#/components/schemas/MergeChartAsCode"
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": ["merge"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["chart", "source"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DocumentCellV3": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "content": {
+                                "properties": {
+                                    "markdown": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["markdown"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["markdown"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["content", "type", "id"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "content": {
+                                "$ref": "#/components/schemas/DocumentChartContent"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["content", "type", "id"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DocumentContentV3": {
+                "properties": {
+                    "cells": {
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentCellV3"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["cells"],
+                "type": "object"
+            },
+            "DocumentVersion": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "content": {
+                        "$ref": "#/components/schemas/DocumentContentV3"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [3],
+                        "nullable": false
+                    },
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "createdByUserUuid",
+                    "content",
+                    "schemaVersion",
+                    "versionNumber",
+                    "versionUuid"
+                ],
+                "type": "object"
+            },
+            "Document": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DocumentSummary"
+                    },
+                    {
+                        "properties": {
+                            "version": {
+                                "$ref": "#/components/schemas/DocumentVersion"
+                            }
+                        },
+                        "required": ["version"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_Document_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Document"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_Document_"
+            },
             "KnexPaginatedData_ValidationResponse-Array_": {
                 "properties": {
                     "pagination": {
@@ -62374,7 +62708,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.231.0",
+        "version": "2.232.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -98267,6 +98601,110 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents": {
+            "get": {
+                "operationId": "ListDocuments",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}": {
+            "get": {
+                "operationId": "GetDocument",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/projects/{projectUuid}/validate": {

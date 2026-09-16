@@ -1,3 +1,10 @@
+# [2.232.0](https://github.com/lightdash/lightdash/compare/2.231.0...2.232.0) (2026-09-16)
+
+
+### Features
+
+* **documents:** add independent persistence and read APIs ([#29270](https://github.com/lightdash/lightdash/issues/29270)) ([18ee2a9](https://github.com/lightdash/lightdash/commit/18ee2a917be1459eb130e6f68f0cfb9b6fd5fea8))
+
 # [2.231.0](https://github.com/lightdash/lightdash/compare/2.230.0...2.231.0) (2026-09-16)
 
 
