@@ -2,7 +2,7 @@
 
 Learn offers generated in-app walkthroughs and disabled **Coming Soon** cards.
 Reading acknowledgments do not count as completed walkthroughs. The catalogue
-has 42 walkthrough scope entries (40 distinct click paths) and 21 Coming Soon
+has 41 walkthrough scope entries (39 distinct click paths) and 24 Coming Soon
 scope entries, explicitly listed in `features/learn/comingSoon.ts`.
 
 The coverage audit reconciles `getTrainingProjectScopes()`, the explicit analytics
@@ -44,10 +44,10 @@ seed availability, or training-copy isolation. Those require separate checks.
 Canonical documentation still supplies walkthrough prose through frontend
 markers and `scope-tours:generate`; no separate reading generator is required.
 
-`manage:DeletedContent` uses the project-scoped Recently deleted entry. Its menu
-and direct route require the existing DeletedContent ability and soft-delete
-flag. The walkthrough restores a chart deleted in the learner's copy. Permanent
-deletion is outside this path.
+`manage:DeletedContent` is Coming Soon. Its walkthrough reached Recently deleted
+through a Browse menu entry and standalone route added for Learn without a
+product decision; both were removed. CS-311 tracks agreeing an entry point with
+product before the walkthrough returns.
 
 See [walkthrough priorities](walkthrough-priorities.md) for the in-app outcomes
 and their verification requirements.
