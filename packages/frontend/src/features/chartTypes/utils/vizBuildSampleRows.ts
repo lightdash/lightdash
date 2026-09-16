@@ -1,6 +1,6 @@
 import { type DataAppVizContext } from '@lightdash/common';
 
-export const MAX_VIZ_BUILD_SAMPLE_ROWS = 10;
+const MAX_VIZ_BUILD_SAMPLE_ROWS = 10;
 const MAX_VIZ_BUILD_SAMPLE_FIELDS = 20;
 
 /** Take the rows already shown by the host, prioritizing mapped chart fields. */
