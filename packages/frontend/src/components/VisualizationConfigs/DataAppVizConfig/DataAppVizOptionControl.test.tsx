@@ -13,6 +13,13 @@ const textOption: DataAppVizConfigOption = {
     default: 'Untitled',
 };
 
+const paletteColorOption: DataAppVizConfigOption = {
+    name: 'accent',
+    label: 'Accent',
+    type: 'paletteColor',
+    default: 0,
+};
+
 describe('DataAppVizOptionControl', () => {
     let removeFakeTimerBridge: () => void;
 
@@ -117,5 +124,84 @@ describe('DataAppVizOptionControl', () => {
         );
 
         expect(screen.getByLabelText('Title')).toHaveValue('Untitled');
+    });
+
+    it('shows wrapping accessible palette swatches and stores the selected position', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+
+        renderWithProviders(
+            <DataAppVizOptionControl
+                option={paletteColorOption}
+                value={0}
+                colorPalette={['#111111', '#222222']}
+                onChange={onChange}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', {
+                name: 'Accent: palette colour 2, #222222',
+            }),
+        );
+
+        expect(onChange).toHaveBeenCalledWith(1);
+    });
+
+    it('shows the first fallback swatch as selected when the stored position is outside the palette', () => {
+        renderWithProviders(
+            <DataAppVizOptionControl
+                option={paletteColorOption}
+                value={9}
+                colorPalette={[]}
+                onChange={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Accent: palette colour 1, #5470c6, selected',
+            }),
+        ).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('keeps the stored position when the palette changes and when the control reopens', () => {
+        const { rerender, unmount } = renderWithProviders(
+            <DataAppVizOptionControl
+                option={paletteColorOption}
+                value={1}
+                colorPalette={['#111111', '#222222']}
+                onChange={vi.fn()}
+            />,
+        );
+
+        rerender(
+            <DataAppVizOptionControl
+                option={paletteColorOption}
+                value={1}
+                colorPalette={['#aaaaaa', '#bbbbbb']}
+                onChange={vi.fn()}
+            />,
+        );
+        expect(
+            screen.getByRole('button', {
+                name: 'Accent: palette colour 2, #bbbbbb, selected',
+            }),
+        ).toHaveAttribute('aria-pressed', 'true');
+
+        unmount();
+        renderWithProviders(
+            <DataAppVizOptionControl
+                option={paletteColorOption}
+                value={1}
+                colorPalette={['#aaaaaa', '#bbbbbb']}
+                onChange={vi.fn()}
+            />,
+        );
+        expect(
+            screen.getByRole('button', {
+                name: 'Accent: palette colour 2, #bbbbbb, selected',
+            }),
+        ).toHaveAttribute('aria-pressed', 'true');
     });
 });

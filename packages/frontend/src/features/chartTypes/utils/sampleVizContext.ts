@@ -1,7 +1,7 @@
 import {
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
-    getEffectiveOptionValues,
+    resolveDataAppVizRuntimeOptionValues,
     getPivotValueColumnName,
     VizAggregationOptions,
     VizIndexType,
@@ -217,7 +217,11 @@ export const buildSampleVizContext = (
         fieldMapping: Object.fromEntries(
             schema.fields.map((field) => [field.name, sampleColumnId(field)]),
         ),
-        options: getEffectiveOptionValues(schema.configOptions, optionValues),
+        options: resolveDataAppVizRuntimeOptionValues(
+            schema.configOptions,
+            optionValues,
+            colorPalette,
+        ),
         colorPalette,
         seriesColors: {},
         valueColors: {},

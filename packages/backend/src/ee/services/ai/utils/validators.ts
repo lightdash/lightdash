@@ -1590,6 +1590,12 @@ const getOptionValidationError = (
                 return `Option "${declaration.name}" (number) must be <= ${declaration.max}, received ${received}.`;
             }
             return null;
+        case 'paletteColor':
+            return typeof value !== 'number' ||
+                !Number.isInteger(value) ||
+                value < 0
+                ? `Option "${declaration.name}" (paletteColor) expects a nonnegative integer, received ${received}.`
+                : null;
         case 'select': {
             const choiceValues = declaration.choices.map(
                 (choice) => choice.value,

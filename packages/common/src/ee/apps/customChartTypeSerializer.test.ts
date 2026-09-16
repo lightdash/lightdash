@@ -70,8 +70,15 @@ const cohortWaterfall: CustomChartType = {
                 group: 'Style',
                 default: '#ff0000',
             },
+            {
+                type: 'paletteColor',
+                name: 'accent',
+                label: 'Accent colour',
+                group: 'Style',
+                default: 1,
+            },
         ],
-        colorPalette: null,
+        colorPalette: {},
     },
 };
 
@@ -100,7 +107,7 @@ describe('serializeCustomChartTypeForPrompt', () => {
                 '<customChartType slug="cohort-waterfall" name="Cohort Waterfall">',
                 '<description>Retention by signup cohort</description>',
                 '<fields>Cohort period; Revenue; Segment</fields>',
-                '<configOptions>Show labels; Axis: Scale; Axis: Max bars; Subtitle; Style: Highlight color</configOptions>',
+                '<configOptions>Show labels; Axis: Scale; Axis: Max bars; Subtitle; Style: Highlight color; Style: Accent colour</configOptions>',
                 '</customChartType>',
             ].join('\n'),
         );
@@ -145,6 +152,7 @@ describe('serializeCustomChartTypeSchema', () => {
                 '- max_bars "Max bars" [number] group: Axis, min: 1, max: 50, default: 10',
                 '- subtitle "Subtitle" [text] default: ""',
                 '- highlight "Highlight color" [color] group: Style, default: "#ff0000"',
+                '- accent "Accent colour" [paletteColor] group: Style, default position: 1 (zero-based; runtime hex)',
             ].join('\n'),
         );
     });

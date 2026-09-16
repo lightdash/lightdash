@@ -283,7 +283,7 @@ Every option has:
   tab; ungrouped options share a default tab.
 - `default` — REQUIRED on every option. The value the viz uses until the viewer changes it;
   its shape follows `type`. Use the value you would otherwise have hardcoded.
-- `type` — exactly one of these five, no others:
+- `type` — exactly one of these six, no others:
 
 | `type` | control | `default` | extra keys |
 |---|---|---|---|
@@ -292,8 +292,15 @@ Every option has:
 | `number` | number input | a number | `min`, `max` — both optional numbers |
 | `text` | single-line text input | a string | — |
 | `color` | single colour | a hex string, e.g. `"#7162FF"` | — |
+| `paletteColor` | palette swatches | a zero-based nonnegative palette position | — |
 
-Series colours are not in this list. They are declared separately, on `colorPalette`.
+`color` is a free hex value for an accent that is independent of the chart palette. Use
+`paletteColor` for an accent that should follow the chart palette: store its zero-based
+position in `default`, then read its resolved hex colour from `options`. Declare
+`colorPalette` alongside every `paletteColor`, so the viewer can choose the chart palette.
+If the position is outside the chosen palette the runtime resolves its first colour; if no
+palette is available it uses the standard Lightdash fallback colours. Series colours are
+declared separately, on `colorPalette`.
 
 ### `colorPalette`
 
@@ -304,7 +311,9 @@ option's: the picker joins that tab, and gets a tab of its own when no option sh
 name.
 
 This is not a config option. There is one palette per chart, it has no `name` and no
-`default`, and its colours arrive on `colorPalette` — never on `options`.
+`default`, and its colours arrive on `colorPalette` — never on `options`. The exception is
+that a declared `paletteColor` resolves its stored position to one palette colour on
+`options`; it still needs this declaration for the picker.
 
 ## Worked example
 
@@ -377,6 +386,8 @@ minimum, not a menu:
 - every number you chose (bar width, max rows, decimal places, a threshold) → `number`
 - every string you wrote into the chart (title, axis label, empty-state text) → `text`
 - every accent colour that is not a series colour (a target line, a highlight) → `color`
+- every accent that should follow the selected chart palette → `paletteColor` plus
+  `colorPalette`
 - the series colours, whenever the chart draws more than one series → resolved-colour
   helper plus `colorPalette`
 

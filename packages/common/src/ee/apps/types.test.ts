@@ -6,6 +6,7 @@ import {
     getVisibleDataAppClaudeModels,
     isOfficialChartType,
     pruneDataAppVizOptionValues,
+    resolveDataAppVizRuntimeOptionValues,
     resolveDefaultDataAppClaudeModel,
     resolveDefaultVisibleDataAppClaudeModel,
     type DataAppVizConfigOption,
@@ -134,7 +135,14 @@ describe('dataAppVizSchema', () => {
                     type: 'color',
                     default: '#7262ff',
                 },
+                {
+                    name: 'paletteAccent',
+                    label: 'Palette accent',
+                    type: 'paletteColor',
+                    default: 0,
+                },
             ],
+            colorPalette: {},
         });
         expect(r.success).toBe(true);
     });
@@ -182,6 +190,63 @@ describe('dataAppVizSchema', () => {
                 ],
             }).success,
         ).toBe(false);
+    });
+
+    it('rejects negative and fractional palette-color defaults', () => {
+        for (const defaultValue of [-1, 0.5]) {
+            expect(
+                dataAppVizSchema.safeParse({
+                    fields: [],
+                    colorPalette: {},
+                    configOptions: [
+                        {
+                            name: 'accent',
+                            label: 'Accent',
+                            type: 'paletteColor',
+                            default: defaultValue,
+                        },
+                    ],
+                }).success,
+            ).toBe(false);
+        }
+    });
+
+    it('requires a palette declaration when a schema has palette-color options', () => {
+        const paletteOption = {
+            name: 'accent',
+            label: 'Accent',
+            type: 'paletteColor',
+            default: 0,
+        } as const;
+
+        expect(
+            dataAppVizSchema.safeParse({
+                fields: [],
+                configOptions: [paletteOption],
+                colorPalette: null,
+            }).success,
+        ).toBe(false);
+        expect(
+            dataAppVizSchema.safeParse({
+                fields: [],
+                configOptions: [paletteOption],
+                colorPalette: {},
+            }).success,
+        ).toBe(true);
+        expect(
+            dataAppVizSchema.safeParse({
+                fields: [],
+                configOptions: [
+                    {
+                        name: 'accent',
+                        label: 'Accent',
+                        type: 'color',
+                        default: '#111111',
+                    },
+                ],
+                colorPalette: null,
+            }).success,
+        ).toBe(true);
     });
 
     it('rejects a select option with no choices', () => {
@@ -299,6 +364,80 @@ describe('getEffectiveOptionValues', () => {
         expect(
             getEffectiveOptionValues(declared, { layout: 'horizontal' }),
         ).toEqual({ layout: 'vertical' });
+    });
+});
+
+describe('resolveDataAppVizRuntimeOptionValues', () => {
+    const paletteOption: DataAppVizConfigOption = {
+        type: 'paletteColor',
+        name: 'accent',
+        label: 'Accent',
+        default: 0,
+    };
+
+    it('keeps positions in effective values and resolves them to palette colours only at runtime', () => {
+        expect(
+            getEffectiveOptionValues([paletteOption], { accent: 1 }),
+        ).toEqual({
+            accent: 1,
+        });
+        expect(
+            resolveDataAppVizRuntimeOptionValues(
+                [paletteOption],
+                { accent: 1 },
+                ['#111111', '#222222'],
+            ),
+        ).toEqual({ accent: '#222222' });
+    });
+
+    it('uses the first colour for an out-of-range position without changing the stored position', () => {
+        expect(
+            resolveDataAppVizRuntimeOptionValues(
+                [paletteOption],
+                { accent: 9 },
+                ['#111111', '#222222'],
+            ),
+        ).toEqual({ accent: '#111111' });
+    });
+
+    it('uses the declared nonzero default and falls back for null, undefined, empty, and shorter palettes', () => {
+        const option = { ...paletteOption, default: 2 };
+        expect(
+            resolveDataAppVizRuntimeOptionValues([option], {}, null),
+        ).toEqual({ accent: '#91cc75' });
+        expect(
+            resolveDataAppVizRuntimeOptionValues([option], {}, undefined),
+        ).toEqual({ accent: '#91cc75' });
+        expect(resolveDataAppVizRuntimeOptionValues([option], {}, [])).toEqual({
+            accent: '#91cc75',
+        });
+        expect(
+            resolveDataAppVizRuntimeOptionValues([option], {}, ['#111111']),
+        ).toEqual({ accent: '#111111' });
+    });
+
+    it('uses the default position when a stored palette position is negative, fractional, or not a number', () => {
+        expect(
+            getEffectiveOptionValues([paletteOption], {
+                accent: -1,
+            }),
+        ).toEqual({ accent: 0 });
+        expect(
+            getEffectiveOptionValues([paletteOption], {
+                accent: 0.5,
+            }),
+        ).toEqual({ accent: 0 });
+        expect(
+            getEffectiveOptionValues([paletteOption], {
+                accent: '1',
+            }),
+        ).toEqual({ accent: 0 });
+    });
+
+    it('falls back to the default ECharts palette when a runtime palette is missing or empty', () => {
+        expect(
+            resolveDataAppVizRuntimeOptionValues([paletteOption], {}, []),
+        ).toEqual({ accent: '#5470c6' });
     });
 });
 
@@ -423,6 +562,32 @@ describe('dataAppVizGenerationSchema', () => {
         expect(dataAppVizSchema.safeParse(declaration).success).toBe(true);
     });
 
+    it('requires colorPalette for paletteColor in the generation schema', () => {
+        const declaration = {
+            ...validFields,
+            configOptions: [
+                {
+                    name: 'accent',
+                    label: 'Accent',
+                    type: 'paletteColor',
+                    default: 0,
+                },
+            ],
+        };
+        expect(
+            dataAppVizGenerationSchema.safeParse({
+                ...declaration,
+                colorPalette: null,
+            }).success,
+        ).toBe(false);
+        expect(
+            dataAppVizGenerationSchema.safeParse({
+                ...declaration,
+                colorPalette: {},
+            }).success,
+        ).toBe(true);
+    });
+
     it('normalizes nullable placeholders for optional properties', () => {
         expect(
             dataAppVizGenerationSchema.safeParse({
@@ -482,6 +647,10 @@ describe('dataAppVizJsonSchema', () => {
         expect(jsonSchema.properties?.fields.description).toBeTruthy();
         expect(jsonSchema.properties?.configOptions.description).toBeTruthy();
         expect(jsonSchema.properties?.colorPalette.description).toBeTruthy();
+    });
+
+    it('includes paletteColor in the strict generation schema', () => {
+        expect(JSON.stringify(dataAppVizJsonSchema)).toContain('paletteColor');
     });
 
     it('uses strict object schemas compatible with Codex structured output', () => {
@@ -551,6 +720,7 @@ describe('pruneDataAppVizOptionValues', () => {
             default: 'stacked',
         },
         { type: 'number', name: 'limit', label: 'Limit', default: 10 },
+        { type: 'paletteColor', name: 'accent', label: 'Accent', default: 0 },
     ];
 
     it('keeps stored values that still fit and drops the rest', () => {
@@ -559,9 +729,10 @@ describe('pruneDataAppVizOptionValues', () => {
                 showLegend: false,
                 mode: 'grouped',
                 limit: 'ten',
+                accent: 2,
                 gone: true,
             }),
-        ).toEqual({ showLegend: false });
+        ).toEqual({ showLegend: false, accent: 2 });
     });
 
     it('never seeds defaults', () => {

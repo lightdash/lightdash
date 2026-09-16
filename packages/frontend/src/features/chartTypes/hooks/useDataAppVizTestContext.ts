@@ -3,6 +3,7 @@ import {
     deriveDataAppVizPivotConfiguration,
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
+    resolveDataAppVizRuntimeOptionValues,
     getItemMap,
     isSummaryExploreError,
     QueryExecutionContext,
@@ -52,6 +53,8 @@ export type DataAppVizTestContextState = {
     colorPaletteUuid: string | null;
     setColorPaletteUuid: (uuid: string | null) => void;
     palettes: OrganizationColorPaletteWithIsActive[];
+    /** The same selected light/dark palette delivered to the test iframe. */
+    colorPalette: string[];
     handleRun: () => void;
     /** Every required declared field is mapped and an explore is picked. */
     complete: boolean;
@@ -148,7 +151,11 @@ export const useDataAppVizTestContext = ({
             onContextChange({
                 fieldMapping: run.mapping,
                 rows,
-                options: effectiveOptions,
+                options: resolveDataAppVizRuntimeOptionValues(
+                    schema.configOptions,
+                    optionValues,
+                    colorPalette,
+                ),
                 colorPalette,
                 ...resolvedColors,
                 pivotDetails: queryResults.pivotDetails ?? null,
@@ -163,6 +170,8 @@ export const useDataAppVizTestContext = ({
         queryResults.queryUuid,
         queryResults.pivotDetails,
         effectiveOptions,
+        optionValues,
+        schema.configOptions,
         colorPalette,
         resolvedColors,
         onContextChange,
@@ -260,6 +269,7 @@ export const useDataAppVizTestContext = ({
         colorPaletteUuid,
         setColorPaletteUuid,
         palettes,
+        colorPalette,
         handleRun,
         complete,
         isRunning,

@@ -7,7 +7,8 @@ export type DataAppVizConfigOptionType =
     | 'select'
     | 'number'
     | 'text'
-    | 'color';
+    | 'color'
+    | 'paletteColor';
 
 // A whole-viz config option rendered as a form control; `group` is an optional tab label.
 export type DataAppVizConfigOption =
@@ -48,6 +49,14 @@ export type DataAppVizConfigOption =
           label: string;
           group?: string;
           default: string;
+      }
+    | {
+          /** Zero-based position in the chart's resolved Lightdash palette. */
+          type: 'paletteColor';
+          name: string;
+          label: string;
+          group?: string;
+          default: number;
       };
 
 /** A persisted config value; its shape is set by the option's declared `type`. */
@@ -57,8 +66,9 @@ export type DataAppVizOptionValue = boolean | number | string;
  * Declared by a viz that colours from the resolved Lightdash palette. Not a
  * config option: it carries no value of its own, it only asks the config panel
  * for the standard palette picker, whose choice is stored as the chart's
- * palette and delivered on `colorPalette`. There is one palette per chart, so
- * a viz either declares this or it does not.
+ * palette and delivered on `colorPalette`. Palette-position config options
+ * also resolve a selected colour onto runtime `options`. There is one palette
+ * per chart, so a viz either declares this or it does not.
  */
 export type DataAppVizPaletteDeclaration = {
     /** Tab to place the picker in, matching a config option `group`. */

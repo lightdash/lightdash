@@ -14,7 +14,11 @@ import {
 import { type MetricQuery } from '../../types/metricQuery';
 import { type DashboardParameters } from '../../types/parameters';
 import { type ResultRow } from '../../types/results';
-import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
+import {
+    ECHARTS_DEFAULT_COLORS,
+    type ChartConfig,
+    type SavedChart,
+} from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
 import { type ChartTypeIcon } from './chartTypeIcons';
@@ -932,6 +936,17 @@ const vizConfigOptions = z.array(
                 .string()
                 .describe('Hex colour used until the viewer changes it.'),
         }),
+        z.object({
+            ...optionBase,
+            type: z.literal('paletteColor'),
+            default: z
+                .number()
+                .int()
+                .nonnegative()
+                .describe(
+                    'Zero-based position in the resolved Lightdash palette. The runtime delivers the colour at that position on `options`.',
+                ),
+        }),
     ]),
 );
 
@@ -948,32 +963,55 @@ const vizColorPalette = z
     })
     .nullable()
     .describe(
-        'Declare this when the component colours anything from `colorPalette`. It surfaces the standard Lightdash palette picker, so the viz inherits the same colours as the charts around it. Not a config option: the chosen colours arrive on `colorPalette`, never on `options`. Null when the component colours nothing.',
+        'Declare this when the component colours anything from `colorPalette` or uses a `paletteColor` option. It surfaces the standard Lightdash palette picker, so the viz inherits the same colours as the charts around it. It is not a config option: chosen colours arrive on `colorPalette`; a `paletteColor` option separately resolves its stored position to one hex colour on `options`. Null when the component colours nothing from the palette.',
     );
+
+const validatePaletteColorDeclaration = (
+    declaration: Pick<DataAppVizSchema, 'configOptions' | 'colorPalette'>,
+    ctx: z.RefinementCtx,
+) => {
+    if (
+        declaration.colorPalette === null &&
+        declaration.configOptions.some(
+            (option) => option.type === 'paletteColor',
+        )
+    ) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['colorPalette'],
+            message:
+                'colorPalette is required when a config option uses paletteColor',
+        });
+    }
+};
 
 // Runtime validator for the untrusted generated declaration, and for schemas
 // round-tripped through an app manifest. `configOptions` defaults to `[]` so a
 // declaration persisted before config options existed still parses.
-export const dataAppVizSchema = z.object({
-    fields: vizFields.refine(uniqueNames, 'duplicate field name'),
-    configOptions: vizConfigOptions
-        .default([])
-        .refine(uniqueNames, 'duplicate option name'),
-    colorPalette: vizColorPalette.default(null),
-});
+export const dataAppVizSchema = z
+    .object({
+        fields: vizFields.refine(uniqueNames, 'duplicate field name'),
+        configOptions: vizConfigOptions
+            .default([])
+            .refine(uniqueNames, 'duplicate option name'),
+        colorPalette: vizColorPalette.default(null),
+    })
+    .superRefine(validatePaletteColorDeclaration);
 
 // The stricter contract handed to the generator CLI: `configOptions` and
 // `colorPalette` are required, so an empty declaration is a deliberate answer
 // rather than the shape of the schema's defaults.
-export const dataAppVizGenerationSchema = z.object({
-    fields: vizFields.refine(uniqueNames, 'duplicate field name'),
-    configOptions: vizConfigOptions
-        .refine(uniqueNames, 'duplicate option name')
-        .describe(
-            'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
-        ),
-    colorPalette: vizColorPalette,
-});
+export const dataAppVizGenerationSchema = z
+    .object({
+        fields: vizFields.refine(uniqueNames, 'duplicate field name'),
+        configOptions: vizConfigOptions
+            .refine(uniqueNames, 'duplicate option name')
+            .describe(
+                'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Use `paletteColor` for an accent that follows the selected chart palette: its nonnegative zero-based position is stored, then runtime `options` receives the resolved hex colour. A schema with `paletteColor` must also declare `colorPalette` for the palette picker. Series colours are not options: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
+            ),
+        colorPalette: vizColorPalette,
+    })
+    .superRefine(validatePaletteColorDeclaration);
 
 // Compile-time guard: the zod schema's output type must match the explicit
 // type exposed through the API. If either side drifts, this line fails to type.
@@ -1059,6 +1097,12 @@ const matchesDeclaredType = (
             return typeof value === 'boolean';
         case 'number':
             return typeof value === 'number';
+        case 'paletteColor':
+            return (
+                typeof value === 'number' &&
+                Number.isInteger(value) &&
+                value >= 0
+            );
         case 'select':
             // A choice dropped by a regeneration is as stale as a wrong type.
             return option.choices.some((choice) => choice.value === value);
@@ -1116,6 +1160,36 @@ export const getEffectiveOptionValues = (
             getEffectiveOptionValue(o, optionValues[o.name]),
         ]),
     );
+
+/**
+ * Values delivered to a viz runtime. Palette positions stay numeric in chart
+ * state and config controls, but resolve to the active chart colour here.
+ */
+export const resolveDataAppVizRuntimeOptionValues = (
+    configOptions: DataAppVizConfigOption[],
+    optionValues: Record<string, DataAppVizOptionValue>,
+    colorPalette: string[] | null | undefined,
+): Record<string, DataAppVizOptionValue> => {
+    const palette =
+        colorPalette && colorPalette.length > 0
+            ? colorPalette
+            : ECHARTS_DEFAULT_COLORS;
+    return Object.fromEntries(
+        configOptions.map((option) => {
+            if (option.type === 'paletteColor') {
+                const position = getEffectiveOptionValue(
+                    option,
+                    optionValues[option.name],
+                );
+                return [option.name, palette[position] ?? palette[0]];
+            }
+            return [
+                option.name,
+                getEffectiveOptionValue(option, optionValues[option.name]),
+            ];
+        }),
+    );
+};
 
 // A reusable, by-reference data app viz: a single-tile data app that declares a
 // schema. Consumers store the `dataAppVizUuid` plus their own mapping, never a
@@ -1269,6 +1343,7 @@ export type DataAppVizDrillDownIntent = {
 export type DataAppVizContext = {
     fieldMapping: Record<string, string>;
     rows: ResultRow[];
+    /** Palette-position options resolve to their current hex colour here. */
     options: Record<string, DataAppVizOptionValue>;
     colorPalette: string[];
     seriesColors: Record<string, string>;

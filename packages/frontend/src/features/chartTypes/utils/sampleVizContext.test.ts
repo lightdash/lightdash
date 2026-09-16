@@ -46,6 +46,50 @@ describe('buildSampleVizContext', () => {
         expect(context.options).toEqual({ showLegend: true });
     });
 
+    it('resolves palette-position options to a colour from the preview palette', () => {
+        const context = buildSampleVizContext(
+            {
+                ...schema,
+                configOptions: [
+                    {
+                        type: 'paletteColor',
+                        name: 'accent',
+                        label: 'Accent',
+                        default: 1,
+                    },
+                ],
+            },
+            ['#111111', '#222222'],
+        );
+
+        expect(context.options).toEqual({ accent: '#222222' });
+    });
+
+    it('re-resolves the same stored palette position after the palette changes', () => {
+        const paletteSchema = {
+            ...schema,
+            configOptions: [
+                {
+                    type: 'paletteColor' as const,
+                    name: 'accent',
+                    label: 'Accent',
+                    default: 0,
+                },
+            ],
+        };
+
+        expect(
+            buildSampleVizContext(paletteSchema, ['#111111', '#222222'], {
+                accent: 1,
+            }).options,
+        ).toEqual({ accent: '#222222' });
+        expect(
+            buildSampleVizContext(paletteSchema, ['#aaaaaa', '#bbbbbb'], {
+                accent: 1,
+            }).options,
+        ).toEqual({ accent: '#bbbbbb' });
+    });
+
     it('is deterministic', () => {
         expect(buildSampleVizContext(schema)).toEqual(
             buildSampleVizContext(schema),
