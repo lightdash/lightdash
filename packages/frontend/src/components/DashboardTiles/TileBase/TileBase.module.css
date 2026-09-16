@@ -185,6 +185,14 @@
     }
 }
 
+@media (width < $navigation-compact) {
+    .tileCard:not([data-with-transparent-border='true']):not(
+            :has(.chartContainer[data-full-width='true'])
+        ) {
+        padding: var(--mantine-spacing-xs) !important;
+    }
+}
+
 .tileTooltip,
 .dragHandleIcon {
     /* When tabs are not stuck: show tooltip above tabs (zindex + 1)

@@ -4,7 +4,7 @@ import {
     type QueryResultsPerformance,
     type QueryResultsPreAggregate,
 } from '@lightdash/common';
-import { ActionIcon, Divider, Stack, Popover } from '@mantine/core';
+import { ActionIcon, Divider, Menu, Stack, Popover } from '@mantine/core';
 import {
     IconClock,
     IconClockBolt,
@@ -27,6 +27,7 @@ type TileExecutionInfoProps = {
     performance: QueryResultsPerformance | undefined;
     totalClientFetchTimeMs: number | undefined;
     totalResults: number | undefined;
+    targetVariant?: 'actionIcon' | 'menuItem';
 };
 
 // `cacheMetadata.preAggregate.hit` is the plan-time match; `preAggregate` from
@@ -61,6 +62,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
     performance,
     totalClientFetchTimeMs,
     totalResults,
+    targetVariant = 'actionIcon',
 }) => {
     const getUiString = useUiStrings();
     const { data: showExecutionTimeFlag } = useServerFeatureFlag(
@@ -80,6 +82,9 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
         totalClientFetchTimeMs -
         (performance.initialQueryExecutionMs ?? 0) -
         (performance.queueTimeMs ?? 0);
+    const icon = isServedFromPreAggregate(cacheMetadata, preAggregate)
+        ? IconClockBolt
+        : IconClock;
 
     return (
         <Popover withArrow position="bottom-end" offset={4} arrowOffset={10}>
@@ -125,21 +130,21 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
                 </Stack>
             </Popover.Dropdown>
             <Popover.Target>
-                <ActionIcon
-                    aria-label={getUiString('tileMenu.execution')}
-                    size="sm"
-                >
-                    <MantineIcon
-                        icon={
-                            isServedFromPreAggregate(
-                                cacheMetadata,
-                                preAggregate,
-                            )
-                                ? IconClockBolt
-                                : IconClock
-                        }
-                    />
-                </ActionIcon>
+                {targetVariant === 'menuItem' ? (
+                    <Menu.Item
+                        closeMenuOnClick={false}
+                        leftSection={<MantineIcon icon={icon} />}
+                    >
+                        {getUiString('tileMenu.execution')}
+                    </Menu.Item>
+                ) : (
+                    <ActionIcon
+                        aria-label={getUiString('tileMenu.execution')}
+                        size="sm"
+                    >
+                        <MantineIcon icon={icon} />
+                    </ActionIcon>
+                )}
             </Popover.Target>
         </Popover>
     );

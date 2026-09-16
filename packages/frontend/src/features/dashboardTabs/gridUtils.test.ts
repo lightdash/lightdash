@@ -27,9 +27,9 @@ describe('mobile dashboard layout', () => {
         const layout = getMobileGridLayout(tiles);
         expect(layout.map(({ i }) => i)).toEqual(['left', 'right', 'last']);
         expect(layout.map(({ x, y, w, h }) => ({ x, y, w, h }))).toEqual([
-            { x: 0, y: 0, w: 1, h: 4 },
-            { x: 0, y: 4, w: 1, h: 4 },
-            { x: 0, y: 8, w: 1, h: 4 },
+            { x: 0, y: 0, w: 1, h: 5 },
+            { x: 0, y: 5, w: 1, h: 5 },
+            { x: 0, y: 10, w: 1, h: 5 },
         ]);
         expect(tiles).toEqual(saved);
         expect(
@@ -52,13 +52,13 @@ describe('mobile dashboard layout', () => {
             ),
         ).toEqual([
             { h: 1, y: 0 },
-            { h: 3, y: 1 },
+            { h: 5, y: 1 },
         ]);
     });
 
     it('bounds chart heights on phones without changing saved sizes', () => {
         const tiles = [chart('small', 0, 0, 1), chart('large', 0, 2, 20)];
-        expect(getMobileGridLayout(tiles).map(({ h }) => h)).toEqual([3, 6]);
+        expect(getMobileGridLayout(tiles).map(({ h }) => h)).toEqual([5, 8]);
         expect(getDashboardLayouts(tiles).lg.map(({ h }) => h)).toEqual([
             1, 20,
         ]);

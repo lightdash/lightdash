@@ -119,6 +119,7 @@ const getDashboardTileErrorMessage = (
 };
 
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
+import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { DashboardTileComments } from '../../features/comments';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
@@ -1575,6 +1576,35 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     resultsData.totalClientFetchTimeMs
                                 }
                                 totalResults={totalResults}
+                            />
+                        </>
+                    }
+                    mobileMenuItems={
+                        <>
+                            <AskAiAgentMenuItem
+                                projectUuid={projectUuid}
+                                chartUuid={savedChartUuid ?? undefined}
+                                dashboardUuid={dashboardUuid}
+                                clickedFrom="dashboard_chart_tile"
+                            />
+                            {!!showComments && (
+                                <DashboardTileComments
+                                    opened={isCommentsMenuOpen}
+                                    onOpen={() => setIsCommentsMenuOpen(true)}
+                                    onClose={() => setIsCommentsMenuOpen(false)}
+                                    dashboardTileUuid={tileUuid}
+                                    targetVariant="menuItem"
+                                />
+                            )}
+                            <TileExecutionInfo
+                                cacheMetadata={cacheMetadata}
+                                preAggregate={metadata?.preAggregate ?? null}
+                                performance={performance}
+                                totalClientFetchTimeMs={
+                                    resultsData.totalClientFetchTimeMs
+                                }
+                                totalResults={totalResults}
+                                targetVariant="menuItem"
                             />
                         </>
                     }

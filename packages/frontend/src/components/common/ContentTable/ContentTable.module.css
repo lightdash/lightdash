@@ -52,9 +52,12 @@
 }
 
 .container {
+    -webkit-overflow-scrolling: touch;
     flex: 1 1 auto;
     min-height: 0;
+    overscroll-behavior: contain;
     overflow: auto;
+    touch-action: pan-x pan-y pinch-zoom;
 }
 
 .table {
