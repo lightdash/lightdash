@@ -689,7 +689,11 @@ const [period, setPeriod] = useUrlState('period', 'last_month');
 
 ### External APIs
 
-For any external HTTP API call, read `/app/references/external-apis.md` and use `externalFetch` with a configured connection alias — never raw `fetch`/`axios` (blocked by the sandbox) and never hardcoded credentials.
+For any external HTTP API call, read `/app/references/external-apis.md` and use `externalFetch` with a configured connection alias — never raw `fetch`/`axios` (blocked by the sandbox) and never hardcoded credentials. For AI summaries, explanations or anomaly callouts, do not wire an external connection to a model provider — use the native hook below.
+
+### AI analysis — executive summary and anomalies
+
+When the user asks for an executive summary, "what changed and why", anomaly callouts, or any AI-generated insight about the data on the page, read `/app/references/ai-analysis.md` and use `useInsights` from the SDK. Lightdash runs the analysis over the queries the app already loaded and pushes the result in; the app renders it (a summary block, markers on flagged points, an Investigate action) and never sends prompts, rows or keys. Render nothing when `status === 'unavailable'`.
 
 ## Visual Design
 
@@ -1274,6 +1278,8 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Metric action menu missing "View underlying data" | Users cannot inspect the rows behind a value unless they explicitly ask for it | Add `getUnderlyingData({ row, metric })` to default metric-value menus when the source row and metric are unambiguous |
 | Underlying-data table has no Download button | Users can inspect rows but cannot export them through the backend pipeline | Add a button in the underlying-data table/dialog header that calls `downloadUnderlyingData({ row, metric, fileType, values, limit, filename })` and shows an exporting state |
 | Using a formatted display value in `addFilter` | Filter never matches raw rows (e.g. `"$1,234"` vs `1234`) | Pass the raw row value into `addFilter`; only use `format()` for the menu label |
+| Wiring an LLM external connection for summaries or explanations | Sends the viewer's data to a third party with the author's key, bypasses org consent and permissions, and duplicates a native feature | Use `useInsights()` from the SDK (see `/app/references/ai-analysis.md`); Lightdash runs the analysis |
+| Calling `useInsights().analyse()` on mount or on a timer | Every viewer pays for a model call on every load | Only call `analyse()` from a viewer's click |
 | `<XAxis dataKey="order_date_month" />` with no `tickFormatter` | Recharts renders the raw ISO timestamp (e.g. `2025-03-01T00:00:00Z`) as labels | `tickFormatter={(v) => formatDate(v, getColumn(columns, 'order_date_month'), 'axis')}` from `@/lib/format` |
 | Skipping `tickFormatter` on a year axis because "year is just a number" | Year dimensions (`*_year`) are still full ISO timestamps at the data layer, so the axis renders `2025-01-01T00:00:00Z` | Apply the same `formatDate(...)` `tickFormatter` to year axes — `formatDate` will collapse to `2025` for year-grain columns |
 | Using `format(row, 'order_date')` for a date column in a table cell | Renders `2025-03-17` (zero-padded tabular) — readable but ugly in dashboards | `formatField(row, col, format, 'cell')` from `@/lib/format` — renders `Mar 17, 2025` while still routing currency/% metrics through the server format |

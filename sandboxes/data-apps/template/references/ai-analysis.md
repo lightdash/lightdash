@@ -1,0 +1,214 @@
+# AI analysis (`useInsights`)
+
+> Read this when the user wants an executive summary, "what changed and why", anomaly callouts, "flag anything unusual", or an "AI insight" block inside the app.
+
+Lightdash analyses the queries the app ran for the viewer's current view and pushes the result into the app. The app **renders** that analysis and can trigger it; it never sends its own prompt, never calls a model provider, and never needs an API key. Do not wire an external connection to an LLM for this — the native hook is the supported path and respects the viewer's data permissions.
+
+Two operations exist, both run by Lightdash:
+
+- **Detect** — reads the results the app already loaded and returns a headline, a summary, a list of notable data points (anomalies) with the query, field and row they refer to, and the limitations of the data (no comparison period, truncation, and so on).
+- **Investigate** — for one anomaly, an AI agent with read-only query tools looks for possible drivers using data beyond the page and returns a Markdown explanation with evidence and a confidence line. It runs asynchronously; the app shows progress from the pushed status.
+
+```tsx
+import { useInsights } from '@lightdash/query-sdk';
+```
+
+## View-level: the executive summary block
+
+`useInsights()` with no argument returns the analysis of the whole view:
+
+```ts
+const view = useInsights();
+// view.status:      'idle' | 'analysing' | 'ready' | 'error' | 'unavailable'
+// view.headline     one sentence with the main finding (ready only)
+// view.summary      two to four sentences an executive can read without the charts
+// view.limitations  string[] — what the data could not show
+// view.dataAsOf     period the data covers, in words, or null
+// view.generatedAt  ISO timestamp, or null
+// view.stale        true when the view changed since the analysis ran
+// view.anomalies    every notable data point (see below)
+// view.error        message when status is 'error'
+// view.analyse()    ask Lightdash to (re)run the analysis
+```
+
+Render a block near the top of the page. It must handle every status:
+
+```tsx
+import { useInsights } from '@lightdash/query-sdk';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2, RefreshCw, Sparkles } from 'lucide-react';
+
+function ExecutiveSummary() {
+    const view = useInsights();
+
+    // The org has not enabled AI analysis: render nothing, never a stub.
+    if (view.status === 'unavailable') return null;
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" /> Executive summary
+                </CardTitle>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={view.analyse}
+                    disabled={view.status === 'analysing'}
+                >
+                    {view.status === 'analysing' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                        <RefreshCw className="h-4 w-4" />
+                    )}
+                    {view.status === 'ready' ? 'Refresh' : 'Analyse'}
+                </Button>
+            </CardHeader>
+            <CardContent>
+                {view.status === 'idle' && (
+                    <p className="text-muted-foreground">
+                        Click Analyse for a summary of what is on this page.
+                    </p>
+                )}
+                {view.status === 'analysing' && (
+                    <p className="text-muted-foreground">Reading the data on this page…</p>
+                )}
+                {view.status === 'error' && (
+                    <p className="text-destructive">{view.error}</p>
+                )}
+                {view.status === 'ready' && (
+                    <>
+                        {view.stale && (
+                            <p className="text-sm text-muted-foreground">
+                                The view changed since this was generated. Refresh to update.
+                            </p>
+                        )}
+                        <h3 className="text-lg font-semibold">{view.headline}</h3>
+                        <p>{view.summary}</p>
+                        {view.limitations.length > 0 && (
+                            <ul className="text-sm text-muted-foreground">
+                                {view.limitations.map((l) => (
+                                    <li key={l}>{l}</li>
+                                ))}
+                            </ul>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                            AI-generated from the data on this page
+                            {view.dataAsOf ? ` · Data as of ${view.dataAsOf}` : ''}
+                        </p>
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+```
+
+Rules for the block:
+
+- Say "AI-generated" in the footer. Never name a model or provider.
+- Show the limitations; they are what keeps the summary honest.
+- Never mount it unconditionally in a modal or overlay; it is page content.
+- `analyse()` re-runs even when a result exists (that is the Refresh case). Do not call it in an effect on mount; the viewer clicks.
+
+## Per-chart: anomalies on the data points
+
+`useInsights(result)` with a `useLightdash` result narrows to that chart:
+
+```ts
+const orders = useLightdash(ordersQuery);
+const insights = useInsights(orders);
+// insights.status           same as the view
+// insights.anomalies        the anomalies that refer to this query
+// insights.matches(row)     the anomalies whose dimension values match this row
+// insights.canInvestigate   false when no agent is available
+// insights.investigate(id)  start an investigation of one anomaly
+// insights.continueInAskAi(id)  open the investigation's thread in Ask AI
+```
+
+Each anomaly:
+
+```ts
+{
+    id: string;
+    severity: 'high' | 'medium' | 'positive' | 'info';
+    text: string;                            // one or two sentences, names period and scope
+    queryUuid: string;
+    fieldId: string;                         // the metric it is about
+    dimensionValues: Record<string, string>; // the row it refers to, by dimension field id
+    expected: string | null;
+    actual: string | null;
+    investigation: {
+        status: 'idle' | 'running' | 'ready' | 'error';
+        explanation: string | null;          // Markdown, when ready
+        partial: boolean;                    // true when the query budget ran out
+        threadUuid: string | null;
+        error: string | null;
+    };
+}
+```
+
+Mark the flagged rows on the chart. `matches(row)` takes the raw result row, so call it per datum:
+
+```tsx
+import { Bar, BarChart, Cell } from 'recharts';
+
+function OrdersByStatus() {
+    const orders = useLightdash(ordersQuery);
+    const insights = useInsights(orders);
+
+    return (
+        <BarChart data={orders.data}>
+            <Bar dataKey="orders_count">
+                {orders.data.map((row) => {
+                    const flagged = insights.matches(row).length > 0;
+                    return (
+                        <Cell
+                            key={row.orders_status}
+                            stroke={flagged ? 'var(--destructive)' : undefined}
+                            strokeWidth={flagged ? 2 : 0}
+                        />
+                    );
+                })}
+            </Bar>
+        </BarChart>
+    );
+}
+```
+
+Keep the marker subtle (an outline, a dot, a badge in the tooltip), and show the anomaly `text` on hover so the viewer learns why the point is marked.
+
+## Investigate from the action menu
+
+When a clicked data point has a matching anomaly, add **Investigate** to the point's action menu next to "Filter by …" and "View underlying data". Gate it on `insights.canInvestigate` and on the investigation not already running or ready:
+
+```tsx
+const anomaly = insights.matches(row)[0];
+
+{anomaly && insights.canInvestigate && anomaly.investigation.status === 'idle' && (
+    <DropdownMenuItem onSelect={() => insights.investigate(anomaly.id)}>
+        Investigate with AI
+    </DropdownMenuItem>
+)}
+```
+
+Then render the investigation state wherever the anomaly is shown (a card under the chart, a side sheet):
+
+- `running` — a spinner and "Investigating…". It can take a minute.
+- `ready` — render `explanation` as Markdown (it contains a summary, a "Possible drivers" list with the evidence for each, an "Evidence" list, and a "Confidence: …" line). If `partial` is true, say the query budget ran out. Offer a **Continue in Ask AI** button that calls `insights.continueInAskAi(anomaly.id)`; Lightdash opens the thread.
+- `error` — show `error` and offer Investigate again.
+
+Never open a dialog for the investigation yourself; the app renders state, Lightdash owns the run.
+
+## What the app must not do
+
+- Do not send prompts, rows or field values anywhere. The hook exposes results; Lightdash already has the data.
+- Do not add an external connection to a model provider for summaries or explanations. Use this hook.
+- Do not fabricate insights when the status is `idle` or `unavailable`; render the state.
+- Do not render `explanation` as HTML. It is Markdown; render it as text or through a Markdown component.
+- Do not call `analyse()` on mount or on a timer.
+
+## When nothing is notable
+
+`status === 'ready'` with an empty `anomalies` list is a normal outcome. The headline will say so; render it, do not treat it as an error.
