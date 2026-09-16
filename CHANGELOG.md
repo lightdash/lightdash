@@ -1,3 +1,12 @@
+# [2.238.0](https://github.com/lightdash/lightdash/compare/2.237.0...2.238.0) (2026-09-16)
+
+
+### Features
+
+* **explorer:** fold installed chart types into the built-in shelf ([#29324](https://github.com/lightdash/lightdash/issues/29324)) ([f1c9006](https://github.com/lightdash/lightdash/commit/f1c90061abcffdaf93c7f71820eff2bf29417f57))
+* **learn:** keep walkthrough progress on the instance per user ([#29310](https://github.com/lightdash/lightdash/issues/29310)) ([dd0a6ae](https://github.com/lightdash/lightdash/commit/dd0a6ae9ac13beda235395082cb6bc1dba435f5a))
+* **learn:** read walkthrough progress from the instance ([#29311](https://github.com/lightdash/lightdash/issues/29311)) ([05b1b3d](https://github.com/lightdash/lightdash/commit/05b1b3d82575bb4e02b7d41d360ab27beed7533c)), closes [#29310](https://github.com/lightdash/lightdash/issues/29310)
+
 # [2.237.0](https://github.com/lightdash/lightdash/compare/2.236.1...2.237.0) (2026-09-16)
 
 

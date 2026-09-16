@@ -42488,6 +42488,50 @@
                 "required": ["tour"],
                 "type": "object"
             },
+            "LearnProgress": {
+                "properties": {
+                    "lastStarted": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The scope started most recently, for the library's Resume card."
+                    },
+                    "started": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Scopes whose walkthrough was started at least once."
+                    },
+                    "completed": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Scopes whose walkthrough was finished (Got it on the last step)."
+                    }
+                },
+                "required": ["lastStarted", "started", "completed"],
+                "type": "object",
+                "description": "What a learner has done with Learn walkthroughs, kept on the instance per\nuser (CS-186) so the library shows the same thing from any browser."
+            },
+            "ApiLearnProgressResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LearnProgress"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "MergeLearnProgressRequest": {
+                "$ref": "#/components/schemas/LearnProgress",
+                "description": "Progress a browser recorded before the instance kept it: unioned into\nwhat the instance holds for the user, once, without overwriting server\ntimestamps. Unknown scopes are dropped."
+            },
             "UserAllowedOrganization": {
                 "properties": {
                     "membersCount": {
@@ -63227,7 +63271,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.237.0",
+        "version": "2.238.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -80501,6 +80545,166 @@
                             "schema": {
                                 "$ref": "#/components/schemas/ApiCompleteUserOnboardingTourRequest",
                                 "description": "the tour to mark as completed"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/learn-progress": {
+            "get": {
+                "operationId": "GetUserLearnProgress",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnProgressResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Learn walkthrough progress for the authenticated user: what the\nlibrary shows as complete, started, and up next, from any browser.",
+                "summary": "Get Learn progress",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/user/learn-progress/{scope}/started": {
+            "post": {
+                "operationId": "MarkUserLearnScopeStarted",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnProgressResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Record that the authenticated user started a Learn walkthrough.\nThe scope must be one the instance's scope registry knows.",
+                "summary": "Mark Learn walkthrough started",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the walkthrough's scope, e.g. `view:Dashboard`",
+                        "in": "path",
+                        "name": "scope",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/user/learn-progress/{scope}/completed": {
+            "post": {
+                "operationId": "MarkUserLearnScopeCompleted",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnProgressResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Record that the authenticated user completed a Learn walkthrough.\nIdempotent: the first completion time is kept.",
+                "summary": "Mark Learn walkthrough completed",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the walkthrough's scope, e.g. `view:Dashboard`",
+                        "in": "path",
+                        "name": "scope",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/user/learn-progress/merge": {
+            "post": {
+                "operationId": "MergeUserLearnProgress",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnProgressResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Take in progress a browser recorded before the instance kept it.\nUnioned with what the instance holds; server timestamps win, and\nunknown scopes are dropped.",
+                "summary": "Merge browser Learn progress",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the browser's completed, started and last-started scopes",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MergeLearnProgressRequest",
+                                "description": "the browser's completed, started and last-started scopes"
                             }
                         }
                     }
