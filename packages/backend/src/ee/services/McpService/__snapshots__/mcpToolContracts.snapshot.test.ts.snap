@@ -3835,7 +3835,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 "type": "array",
               },
               "exploreName": {
-                "description": "The name of the explore containing the metrics and dimensions used for the chart.",
+                "description": "Required. The exact explore name from field discovery that contains the selected metrics and dimensions.",
                 "type": "string",
               },
               "filters": {
@@ -11349,7 +11349,7 @@ Example B — "Revenue by month with year-over-year comparison"
             "type": "array",
           },
           "exploreName": {
-            "description": "The name of the explore containing the metrics and dimensions used for the chart.",
+            "description": "Required. The exact explore name from field discovery that contains the selected metrics and dimensions.",
             "type": "string",
           },
           "filters": {

@@ -18,7 +18,9 @@ For `run_metric_query`, set `queryConfig.filters` to null when no query filters 
 - Table calculations belong only in `tableCalculations`.
 - Each category is flat and uses AND or OR, never both.
 - The three categories combine implicitly with AND.
+- Operators are only the exact names listed below, written as `<field> <operator>=<value>`. SQL symbols (`=`, `!=`, `>`, `IN (...)`, `LIKE`) and aliases such as `contains` or `in` are rejected; a rejected expression fails every query that reuses it.
 - Aggregation custom metric filters are flat AND expressions.
+- Run one filtered query and confirm it succeeds before sending parallel variations that share its filter expression. When a query is rejected, apply the `Example` from the error and retry once, sequentially.
 - Omit `search_field_values.filters` for an unscoped search. When present, it is one flat dimension expression string and is AND-only.
 - The tool schema is authoritative for where each string is placed.
 

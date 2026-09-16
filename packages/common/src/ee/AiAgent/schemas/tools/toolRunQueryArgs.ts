@@ -29,7 +29,7 @@ export const queryConfigBaseSchema = z.object({
     exploreName: z
         .string()
         .describe(
-            'The name of the explore containing the metrics and dimensions used for the chart.',
+            'Required. The exact explore name from field discovery that contains the selected metrics and dimensions.',
         ),
     dimensions: z
         .array(getFieldIdSchema({ additionalDescription: null }))

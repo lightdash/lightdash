@@ -116,6 +116,7 @@ const FILTER_EXPRESSION_SHARED_RULES = [
     'Table calculations belong only in `tableCalculations`.',
     'Each category is flat and uses AND or OR, never both.',
     'The three categories combine implicitly with AND.',
+    'Operators are only the exact names listed below, written as `<field> <operator>=<value>`. SQL symbols (`=`, `!=`, `>`, `IN (...)`, `LIKE`) and aliases such as `contains` or `in` are rejected; a rejected expression fails every query that reuses it.',
 ];
 
 const filterExpressionGuidanceByRuntime = {
@@ -133,6 +134,7 @@ const filterExpressionGuidanceByRuntime = {
             'For `run_metric_query`, set `queryConfig.filters` to null when no query filters are needed. Otherwise, `dimensions`, `metrics`, and `tableCalculations` are independent string expressions or null.',
         additionalRules: [
             'Aggregation custom metric filters are flat AND expressions.',
+            'Run one filtered query and confirm it succeeds before sending parallel variations that share its filter expression. When a query is rejected, apply the `Example` from the error and retry once, sequentially.',
         ],
         searchFieldValuesRule:
             'Omit `search_field_values.filters` for an unscoped search. When present, it is one flat dimension expression string and is AND-only.',

@@ -569,6 +569,305 @@ describe('resolveFilterExpressionArgs', () => {
         },
     );
 
+    it.each([
+        {
+            description: 'a `contains` alias',
+            expression: 'orders_customer_name contains=Acme',
+            alias: 'contains',
+            operator: FilterOperator.INCLUDE,
+            example: 'orders_customer_name include=Acme',
+        },
+        {
+            description: 'an `includes` alias',
+            expression: 'orders_customer_name includes=Acme',
+            alias: 'includes',
+            operator: FilterOperator.INCLUDE,
+            example: 'orders_customer_name include=Acme',
+        },
+        {
+            description: 'an `in` list',
+            expression: 'orders_customer_name in=Acme,Globex',
+            alias: 'in',
+            operator: FilterOperator.EQUALS,
+            example: 'orders_customer_name equals=Acme,Globex',
+        },
+        {
+            description: 'a SQL IN list',
+            expression: 'orders_customer_name IN (Acme, Globex)',
+            alias: 'IN',
+            operator: FilterOperator.EQUALS,
+            example: 'orders_customer_name equals=Acme, Globex',
+        },
+        {
+            description: 'a SQL equals comparison',
+            expression: "orders_customer_name = 'Acme'",
+            alias: '=',
+            operator: FilterOperator.EQUALS,
+            example: "orders_customer_name equals='Acme'",
+        },
+        {
+            description: 'a SQL not-equals comparison',
+            expression: 'orders_customer_name != Acme',
+            alias: '!=',
+            operator: FilterOperator.NOT_EQUALS,
+            example: 'orders_customer_name notEquals=Acme',
+        },
+        {
+            description: 'a SQL comparison symbol',
+            expression: 'orders_amount >= 100',
+            alias: '>=',
+            operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+            example: 'orders_amount greaterThanOrEqual=100',
+        },
+        {
+            description: 'a SQL null check',
+            expression: 'orders_customer_name is null',
+            alias: 'is null',
+            operator: FilterOperator.NULL,
+            example: 'orders_customer_name isNull',
+        },
+        {
+            description: 'a SQL not-null check',
+            expression: 'orders_customer_name is not null',
+            alias: 'is not null',
+            operator: FilterOperator.NOT_NULL,
+            example: 'orders_customer_name notNull',
+        },
+        {
+            description: 'a capitalized operator',
+            expression: 'orders_customer_name Equals=Acme',
+            alias: 'Equals',
+            operator: FilterOperator.EQUALS,
+            example: 'orders_customer_name equals=Acme',
+        },
+        {
+            description: 'a snake_case operator',
+            expression:
+                'orders_order_date in_the_past=7{unit:days,completed:true}',
+            alias: 'in_the_past',
+            operator: FilterOperator.IN_THE_PAST,
+            example: 'orders_order_date inThePast=7{unit:days,completed:true}',
+        },
+        {
+            description: 'an alias in a later rule',
+            expression:
+                'orders_customer_name equals=Acme AND orders_amount > 100',
+            alias: '>',
+            operator: FilterOperator.GREATER_THAN,
+            example:
+                'orders_customer_name equals=Acme AND orders_amount greaterThan=100',
+        },
+        {
+            description: 'a backtick-quoted field',
+            expression: '`orders_customer_name` contains=Acme',
+            alias: 'contains',
+            operator: FilterOperator.INCLUDE,
+            example: '`orders_customer_name` include=Acme',
+        },
+        {
+            description: 'a SQL not-equals symbol',
+            expression: 'orders_amount <> 100',
+            alias: '<>',
+            operator: FilterOperator.NOT_EQUALS,
+            example: 'orders_amount notEquals=100',
+        },
+        {
+            description: 'a quoted value containing a connector word',
+            expression:
+                'orders_customer_name contains="Acme AND Sons" AND orders_amount equals=1',
+            alias: 'contains',
+            operator: FilterOperator.INCLUDE,
+            example:
+                'orders_customer_name include="Acme AND Sons" AND orders_amount equals=1',
+        },
+    ])(
+        'names the supported operator and rewrites the rule for $description',
+        async ({ expression, alias, operator, example }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_SYNTAX',
+                problem: `\`${alias}\` is not a filter operator.`,
+                example,
+            });
+            expect(error.guidance).toContain(`Use \`${operator}\``);
+            expectParseableExample(error.example);
+            await expectResolved(
+                expressionArgs({
+                    filters: {
+                        dimensions: error.example,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+        },
+    );
+
+    it('rewrites only the aliased rule when the rest of the expression is still invalid', async () => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions:
+                        'orders_customer_name contains=Acme AND orders_amount > 100',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_SYNTAX',
+            problem: '`contains` is not a filter operator.',
+            example: 'orders_customer_name include=Acme',
+        });
+        expectParseableExample(error.example);
+    });
+
+    it('keeps the operator guidance with a scoped example when the rewrite cannot resolve', async () => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions: 'orders_customer_name > 100',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_SYNTAX',
+            problem: '`>` is not a filter operator.',
+            example: 'orders_amount equals=100',
+        });
+        expect(error.guidance).toContain('Use `greaterThan`');
+        expectParseableExample(error.example);
+    });
+
+    it('repairs a missing = between a supported operator and its value', async () => {
+        const example = 'orders_customer_name equals=Acme';
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions: 'orders_customer_name equals Acme',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_SYNTAX',
+            problem: '`equals` needs `=` between the operator and its value.',
+            example,
+        });
+        await expectResolved(
+            expressionArgs({
+                filters: {
+                    dimensions: example,
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+    });
+
+    it('folds a bare date unit after the period count into named settings', async () => {
+        const example =
+            'orders_order_date inThePast=30{unit:days,completed:false}';
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions: 'orders_order_date inThePast=30 days',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_SYNTAX',
+            problem:
+                'The unit `days` after the period count must be a named setting.',
+            example,
+        });
+        await expectResolved(
+            expressionArgs({
+                filters: {
+                    dimensions: example,
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+    });
+
+    it.each([
+        {
+            expression: 'orders_order_date inThePast=30',
+            operator: FilterOperator.IN_THE_PAST,
+            problem:
+                '"inThePast" requires a settings object after the period count.',
+            example:
+                'orders_order_date inThePast=30{unit:days,completed:false}',
+        },
+        {
+            expression: 'orders_order_date inThePast=30{unit:weeks}',
+            operator: FilterOperator.IN_THE_PAST,
+            problem:
+                '"inThePast" settings object requires both unit and completed.',
+            example:
+                'orders_order_date inThePast=30{unit:weeks,completed:false}',
+        },
+        {
+            expression: 'orders_order_date inTheNext=2{completed:true}',
+            operator: FilterOperator.IN_THE_NEXT,
+            problem:
+                '"inTheNext" settings object requires both unit and completed.',
+            example: 'orders_order_date inTheNext=2{completed:true,unit:days}',
+        },
+    ])(
+        'completes the relative-date settings in the repair example for $expression',
+        async ({ expression, operator, problem, example }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_INVALID_VALUE',
+                operator,
+                problem,
+                example,
+            });
+            expect(formatFilterExpressionError(error)).toContain(
+                `\nExample: ${example}`,
+            );
+            await expectResolved(
+                expressionArgs({
+                    filters: {
+                        dimensions: example,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+        },
+    );
+
     it('propagates parser bounds errors with source, span, and limit metadata', async () => {
         const rule = 'f equals=1';
         const connector = ' AND ';

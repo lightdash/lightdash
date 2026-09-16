@@ -15,6 +15,7 @@ import {
     getFilterTypeFromItemType,
     getItemId,
     isDimension,
+    isFilterExpressionOperator,
     isFilterExpressionRelativeDateOperator,
     parseFilterExpression,
     TableCalculationType,
@@ -41,6 +42,13 @@ import type {
     QueryFilterExpressionCategory,
     QueryFilterExpressionSource,
 } from './errors';
+import {
+    findRuleEnd,
+    findRuleStart,
+    findValueStart,
+    matchOperatorAlias,
+    stripValueParentheses,
+} from './operatorAliases';
 
 type ExpressionToolArgs = ToolRunQueryExpressionArgs;
 
@@ -638,6 +646,30 @@ const wrongArityGuidance = (
         : `Add ${differenceLabel}, supplying ${expectedArityText(expected)} after the equals sign.`;
 };
 
+const getRelativeDateSettingsRepairExample = ({
+    expressionInput,
+    rule,
+}: {
+    expressionInput: string;
+    rule: FilterExpressionRule;
+}): string | null => {
+    const existingEntries = rule.settings?.entries ?? [];
+    const settingNames = new Set(existingEntries.map(({ name }) => name.value));
+    const entries = [
+        ...existingEntries.map(({ span }) =>
+            expressionInput.slice(span.start.offset, span.end.offset),
+        ),
+        ...(settingNames.has('unit') ? [] : ['unit:days']),
+        ...(settingNames.has('completed') ? [] : ['completed:false']),
+    ];
+    const ruleWithoutSettings = expressionInput.slice(
+        rule.span.start.offset,
+        rule.settings?.span.start.offset ?? rule.span.end.offset,
+    );
+    const candidate = `${ruleWithoutSettings}{${entries.join(',')}}`;
+    return parseFilterExpression(candidate).success ? candidate : null;
+};
+
 const getPositionalRelativeDateRepairExample = ({
     expressionInput,
     rule,
@@ -802,6 +834,10 @@ const resolveRelativeDateRule = ({
                 problem: `"${rule.operator.value}" requires a settings object after the period count.`,
                 guidance:
                     'Append {unit:days,completed:false}, using the required unit and completed setting names.',
+                example: getRelativeDateSettingsRepairExample({
+                    expressionInput,
+                    rule,
+                }),
             }),
         );
     }
@@ -855,6 +891,10 @@ const resolveRelativeDateRule = ({
                 problem: `"${rule.operator.value}" settings object requires both unit and completed.`,
                 guidance:
                     'Provide {unit:days,completed:false} after the period count.',
+                example: getRelativeDateSettingsRepairExample({
+                    expressionInput,
+                    rule,
+                }),
             }),
         );
     }
@@ -1170,6 +1210,14 @@ type SyntaxParseError = Extract<
 >;
 
 type SyntaxRepair =
+    | {
+          kind: 'unsupportedOperator';
+          alias: string;
+          operator: FilterOperator;
+          example: string;
+      }
+    | { kind: 'missingEquals'; operator: FilterOperator; example: string }
+    | { kind: 'bareDateUnit'; unit: string; example: string }
     | { kind: 'missingValue'; operator: FilterOperator; example: string }
     | { kind: 'trailingComma'; example: string }
     | { kind: 'parenthesizedLiteral'; example: string }
@@ -1522,6 +1570,205 @@ const repairMixedConnectors = ({
     return null;
 };
 
+const unquoteFieldText = (fieldText: string): string =>
+    fieldText.startsWith('`') && fieldText.endsWith('`')
+        ? fieldText.slice(1, -1).replaceAll('\\`', '`').replaceAll('\\\\', '\\')
+        : fieldText;
+
+const placeholderValues = ({
+    fieldText,
+    operator,
+    fields,
+}: {
+    fieldText: string;
+    operator: FilterOperator;
+    fields: ResolvedField[];
+}): string | null => {
+    const matches = getFieldMatches(fields, unquoteFieldText(fieldText));
+    const field = matches.length === 1 ? matches[0] : undefined;
+    if (!field || !operatorSupportsFilterType(operator, field.filterType)) {
+        return null;
+    }
+    return exampleArguments(operator, field.filterType);
+};
+
+const repairUnsupportedOperator = ({
+    expression,
+    error,
+    fields,
+    source,
+}: {
+    expression: string;
+    error: SyntaxParseError;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): SyntaxRepair | null => {
+    const { offset } = error.span.start;
+    const match = matchOperatorAlias(expression, offset);
+    if (!match) return null;
+
+    // Only a token directly after a rule's field is an operator; `=` inside
+    // a settings object or a value list belongs to other repairs.
+    const ruleStart = findRuleStart(expression, offset);
+    const precedingCharacter = expression[ruleStart - 1];
+    if (
+        precedingCharacter !== undefined &&
+        !/[ \t\r\n]/.test(precedingCharacter)
+    ) {
+        return null;
+    }
+    const ruleEnd = findRuleEnd(expression, match.end);
+    const valueStart = Math.min(findValueStart(expression, match.end), ruleEnd);
+    const fieldText = expression.slice(ruleStart, offset).trim();
+    const definition = getOperatorDefinition(match.operator);
+    const getValues = (): string | null => {
+        if (definition.syntax === 'presence') return '';
+        const written = stripValueParentheses(
+            expression.slice(valueStart, ruleEnd),
+        );
+        return written === ''
+            ? placeholderValues({ fieldText, operator: match.operator, fields })
+            : written;
+    };
+    const values = getValues();
+    const rewrittenRule =
+        values === null || fieldText === ''
+            ? null
+            : `${fieldText} ${match.operator}${values === '' ? '' : `=${values}`}`;
+    const candidates =
+        rewrittenRule === null
+            ? []
+            : [
+                  `${expression.slice(0, ruleStart)}${rewrittenRule}${expression.slice(ruleEnd)}`,
+                  rewrittenRule,
+              ];
+    const example =
+        candidates.find((candidate) =>
+            validateRepairCandidate({ candidate, fields, source }),
+        ) ?? scopedExample(source, fields);
+
+    return {
+        kind: 'unsupportedOperator',
+        alias: match.alias,
+        operator: match.operator,
+        example,
+    };
+};
+
+const repairMissingEquals = ({
+    expression,
+    error,
+    fields,
+    source,
+}: {
+    expression: string;
+    error: SyntaxParseError;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): SyntaxRepair | null => {
+    const { offset } = error.span.start;
+    const operatorMatch = /([A-Za-z]+)[ \t]+$/.exec(
+        expression.slice(0, offset),
+    );
+    if (!operatorMatch || expression[offset] === '=') return null;
+    const operator = operatorMatch[1];
+    if (
+        !isFilterExpressionOperator(operator) ||
+        getOperatorDefinition(operator).syntax !== 'values'
+    ) {
+        return null;
+    }
+
+    const operatorEnd = offset - operatorMatch[0].length + operator.length;
+    const candidate = `${expression.slice(0, operatorEnd)}=${expression.slice(offset)}`;
+    return validateRepairCandidate({ candidate, fields, source })
+        ? { kind: 'missingEquals', operator, example: candidate }
+        : null;
+};
+
+const bareDateUnitPattern =
+    /^(days?|weeks?|months?|quarters?|years?)(?![A-Za-z0-9_])/i;
+const relativeDateCountPattern = /([A-Za-z]+)=\d+[ \t]+$/;
+
+const repairBareDateUnit = ({
+    expression,
+    error,
+    fields,
+    source,
+}: {
+    expression: string;
+    error: SyntaxParseError;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): SyntaxRepair | null => {
+    const { offset } = error.span.start;
+    const unitMatch = bareDateUnitPattern.exec(expression.slice(offset));
+    const before = expression.slice(0, offset);
+    const countMatch = relativeDateCountPattern.exec(before);
+    if (!unitMatch || !countMatch) return null;
+    const operator = countMatch[1];
+    if (
+        !isFilterExpressionOperator(operator) ||
+        !isFilterExpressionRelativeDateOperator(operator)
+    ) {
+        return null;
+    }
+
+    const unit = unitMatch[1];
+    const normalizedUnit = unit.toLowerCase();
+    const pluralUnit = normalizedUnit.endsWith('s')
+        ? normalizedUnit
+        : `${normalizedUnit}s`;
+    const candidate = `${before.trimEnd()}{unit:${pluralUnit},completed:false}${expression.slice(offset + unit.length)}`;
+    return validateRepairCandidate({ candidate, fields, source })
+        ? { kind: 'bareDateUnit', unit, example: candidate }
+        : null;
+};
+
+const operatorMeaning = (operator: FilterOperator): string => {
+    switch (operator) {
+        case FilterOperator.INCLUDE:
+            return ' for substring matches on string fields (exact matches use `equals`)';
+        case FilterOperator.NOT_INCLUDE:
+            return ' to exclude substring matches on string fields';
+        case FilterOperator.EQUALS:
+            return ', listing every accepted value separated by commas';
+        case FilterOperator.NOT_EQUALS:
+            return ', listing every excluded value separated by commas';
+        default:
+            return '';
+    }
+};
+
+const operatorForm = (operator: FilterOperator): string => {
+    const definition = getOperatorDefinition(operator);
+    switch (definition.argumentSyntax) {
+        case 'none':
+            return operator;
+        case 'relativeDate':
+            return `${operator}=<count>{unit:<unit>,completed:<bool>}`;
+        case 'currentDate':
+            return `${operator}=<unit>`;
+        case 'values': {
+            const argumentCounts = Object.values(
+                definition.argumentCountByFilterType,
+            );
+            if (argumentCounts.includes('oneOrMore')) {
+                return `${operator}=<value>[,<value>...]`;
+            }
+            if (argumentCounts.includes(2)) {
+                return `${operator}=<first value>,<second value>`;
+            }
+            return `${operator}=<value>`;
+        }
+        default:
+            return assertUnreachable(
+                definition,
+                'Unknown filter expression argument syntax',
+            );
+    }
+};
+
 const getSyntaxRepair = ({
     expression,
     error,
@@ -1546,6 +1793,27 @@ const getSyntaxRepair = ({
                     }) ?? scopedExample(source, fields),
             };
         case 'FILTER_EXPRESSION_SYNTAX': {
+            const unsupportedOperator = repairUnsupportedOperator({
+                expression,
+                error,
+                fields,
+                source,
+            });
+            if (unsupportedOperator) return unsupportedOperator;
+            const missingEquals = repairMissingEquals({
+                expression,
+                error,
+                fields,
+                source,
+            });
+            if (missingEquals) return missingEquals;
+            const bareDateUnit = repairBareDateUnit({
+                expression,
+                error,
+                fields,
+                source,
+            });
+            if (bareDateUnit) return bareDateUnit;
             const trailingComma = repairTrailingComma({
                 expression,
                 fields,
@@ -1609,6 +1877,26 @@ const getRepairDetails = ({
     fields: ResolvedField[];
 }): RepairDetails => {
     switch (repair.kind) {
+        case 'unsupportedOperator':
+            return {
+                problem: `\`${repair.alias}\` is not a filter operator.`,
+                guidance: `Use \`${repair.operator}\`${operatorMeaning(repair.operator)}: \`<field> ${operatorForm(repair.operator)}\`.`,
+                example: repair.example,
+            };
+        case 'missingEquals':
+            return {
+                problem: `\`${repair.operator}\` needs \`=\` between the operator and its value.`,
+                guidance:
+                    'Write the operator and value as `operator=value` with no space around `=`; quote string values.',
+                example: repair.example,
+            };
+        case 'bareDateUnit':
+            return {
+                problem: `The unit \`${repair.unit}\` after the period count must be a named setting.`,
+                guidance:
+                    'Put the unit and completed flag in a settings object right after the count: `<count>{unit:<unit>,completed:<bool>}`.',
+                example: repair.example,
+            };
         case 'missingValue':
             return {
                 problem: `\`${repair.operator}\` is missing a value after \`=\`.`,
