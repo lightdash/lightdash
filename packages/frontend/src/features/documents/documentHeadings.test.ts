@@ -2,7 +2,7 @@ import { ChartType } from '@lightdash/common';
 import { getDocumentHeadingId, getDocumentHeadings } from './documentHeadings';
 
 describe('document contents', () => {
-    test('keeps chart cell and Markdown offset namespaces distinct', () => {
+    test('indexes Markdown H1s but not chart names', () => {
         const headings = getDocumentHeadings([
             {
                 id: 'intro',
@@ -33,7 +33,6 @@ describe('document contents', () => {
         ]);
         expect(headings).toEqual([
             { id: 'document-heading-intro-0', label: 'Overview' },
-            { id: 'document-chart-intro-0', label: 'Overview' },
         ]);
         expect(getDocumentHeadingId('intro-0')).not.toBe(
             getDocumentHeadingId('intro', 0),
@@ -55,7 +54,7 @@ describe('document contents', () => {
             ]),
         ).toEqual([]);
     });
-    test('indexes H1/H2 with rendered inline text and full-source offsets', () => {
+    test('indexes only H1 with rendered inline text and full-source offsets', () => {
         const markdown =
             'Intro\n\n# **Overview** :smile:\n\n## ~~Old~~ Results\n\n### Detail\n\n```md\n## Not a heading\n```';
         expect(
@@ -67,10 +66,6 @@ describe('document contents', () => {
                 id: getDocumentHeadingId('first', markdown.indexOf('# **')),
                 label: 'Overview 😄',
             },
-            {
-                id: getDocumentHeadingId('first', markdown.indexOf('## ~~')),
-                label: 'Old Results',
-            },
         ]);
     });
     test('keeps repeated and setext headings distinct across cells', () => {
@@ -78,12 +73,12 @@ describe('document contents', () => {
             {
                 id: 'first',
                 type: 'markdown' as const,
-                content: { markdown: 'Results\n===\n\n## Results' },
+                content: { markdown: 'Results\n===\n\n# Results' },
             },
             {
                 id: 'second',
                 type: 'markdown' as const,
-                content: { markdown: '## Results' },
+                content: { markdown: '# Results' },
             },
         ];
         const headings = getDocumentHeadings(cells);
