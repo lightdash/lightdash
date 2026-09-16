@@ -1,3 +1,10 @@
+## [2.243.5](https://github.com/lightdash/lightdash/compare/2.243.4...2.243.5) (2026-09-16)
+
+
+### Performance Improvements
+
+* reduce repeated dashboard tab search rows (SPK-2153) ([#29376](https://github.com/lightdash/lightdash/issues/29376)) ([9702b13](https://github.com/lightdash/lightdash/commit/9702b13ae9523ec1da3d1203c06e39cfdb1b08e6))
+
 ## [2.243.4](https://github.com/lightdash/lightdash/compare/2.243.3...2.243.4) (2026-09-16)
 
 
