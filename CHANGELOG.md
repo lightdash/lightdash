@@ -1,3 +1,10 @@
+## [2.243.2](https://github.com/lightdash/lightdash/compare/2.243.1...2.243.2) (2026-09-16)
+
+
+### Bug Fixes
+
+* **frontend:** refine dark mode surfaces and explorer controls ([#29378](https://github.com/lightdash/lightdash/issues/29378)) ([e98a3a1](https://github.com/lightdash/lightdash/commit/e98a3a15dee452c623492c4b480d608f4c19d090))
+
 ## [2.243.1](https://github.com/lightdash/lightdash/compare/2.243.0...2.243.1) (2026-09-16)
 
 
