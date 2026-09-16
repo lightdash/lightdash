@@ -54,6 +54,7 @@ const renderPreviewPanel = (preview: AiPreview) => {
 interface Props extends PropsWithChildren {
     Sidebar?: React.ReactNode;
     Header?: React.ReactNode;
+    MobileSidebarHeader?: React.ReactNode;
     isAgentSidebarCollapsed?: boolean;
     setIsAgentSidebarCollapsed?: (isAgentSidebarCollapsed: boolean) => void;
     isEmbed?: boolean;
@@ -62,6 +63,7 @@ interface Props extends PropsWithChildren {
 export const AiAgentPageLayout: React.FC<Props> = ({
     Sidebar,
     Header,
+    MobileSidebarHeader,
     children,
     setIsAgentSidebarCollapsed,
     isAgentSidebarCollapsed,
@@ -278,6 +280,11 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         body: styles.mobileSidebarBody,
                     }}
                 >
+                    {MobileSidebarHeader && (
+                        <Box className={styles.mobileSidebarContext}>
+                            {MobileSidebarHeader}
+                        </Box>
+                    )}
                     {Sidebar}
                 </Drawer>
             )}

@@ -37,13 +37,14 @@ export const AgentPageHeader: FC<Props> = ({
     // has room for the agent selector, sidebar toggle and share.
     const showMemories = Boolean(onOpenMemories) && !isMobile;
     const showMinimize = Boolean(onMinimize) && !isMobile;
-    const hasAgentActions = showMemories || Boolean(settingsHref);
+    const showSettings = Boolean(settingsHref) && !isMobile;
+    const hasAgentActions = showMemories || showSettings;
 
     return (
         <Group align="center" justify="space-between" className={styles.root}>
             <Group gap="sm">
-                {leftSection}
-                {leftSection && hasAgentActions && (
+                {!isMobile && leftSection}
+                {!isMobile && leftSection && hasAgentActions && (
                     <Divider orientation="vertical" my={6} />
                 )}
                 {hasAgentActions && (
@@ -65,7 +66,7 @@ export const AgentPageHeader: FC<Props> = ({
                                 Memories
                             </Button>
                         )}
-                        {settingsHref && (
+                        {showSettings && settingsHref && (
                             <Button
                                 component={Link}
                                 variant="default"

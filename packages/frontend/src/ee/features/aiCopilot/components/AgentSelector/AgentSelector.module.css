@@ -53,6 +53,13 @@
     }
 }
 
+.target[data-variant='drawer'] {
+    width: 100%;
+    min-height: rem(44px);
+    padding-inline: var(--mantine-spacing-sm);
+    box-shadow: none;
+}
+
 .settingsOptions {
     max-height: rem(240px);
     overflow-y: auto;
@@ -89,4 +96,14 @@
     white-space: nowrap;
     font-weight: 600;
     color: var(--mantine-color-ldGray-8);
+}
+
+.mobileSettingsOption {
+    display: none;
+}
+
+@media (max-width: 48em) {
+    .mobileSettingsOption {
+        display: flex;
+    }
 }

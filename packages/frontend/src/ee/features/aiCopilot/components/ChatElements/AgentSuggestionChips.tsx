@@ -1,7 +1,7 @@
 import type { AgentSuggestion } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './AgentSuggestionChips.module.css';
 
@@ -11,6 +11,7 @@ type Props = {
     onImpression?: (chipCount: number) => void;
     align?: 'center' | 'left';
     showPromptAffordance?: boolean;
+    maxVisible?: number;
 };
 
 const chipKey = (chip: AgentSuggestion, idx: number) =>
@@ -37,24 +38,29 @@ export const AgentSuggestionChips = ({
     onImpression,
     align = 'center',
     showPromptAffordance = false,
+    maxVisible,
 }: Props) => {
     const impressedRef = useRef<string | null>(null);
+    const visibleChips = useMemo(
+        () => (maxVisible === undefined ? chips : chips.slice(0, maxVisible)),
+        [chips, maxVisible],
+    );
 
     useEffect(() => {
-        if (chips.length === 0) return;
-        const fingerprint = chips.map((c, i) => chipKey(c, i)).join('|');
+        if (visibleChips.length === 0) return;
+        const fingerprint = visibleChips.map((c, i) => chipKey(c, i)).join('|');
         if (impressedRef.current === fingerprint) return;
         impressedRef.current = fingerprint;
-        onImpression?.(chips.length);
-    }, [chips, onImpression]);
+        onImpression?.(visibleChips.length);
+    }, [visibleChips, onImpression]);
 
-    if (chips.length === 0) return null;
+    if (visibleChips.length === 0) return null;
 
     return (
         <Box
             className={`${styles.row} ${align === 'left' ? styles.rowLeft : ''}`}
         >
-            {chips.map((chip, idx) => {
+            {visibleChips.map((chip, idx) => {
                 const classes = [styles.chip, styles.fadeIn];
                 if (chip.kind === 'navigate') classes.push(styles.navigateChip);
                 return (

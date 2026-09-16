@@ -235,6 +235,10 @@ const AgentPage = () => {
         );
     }
 
+    const agentSettingsHref = canManageAgents
+        ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`
+        : undefined;
+
     return (
         <AiAgentPageLayout
             isEmbed={isEmbed}
@@ -259,6 +263,7 @@ const AgentPage = () => {
                                 agents={agentsList}
                                 selectedAgent={agent}
                                 variant="header"
+                                settingsHref={agentSettingsHref}
                             />
                         }
                         onShare={
@@ -273,11 +278,18 @@ const AgentPage = () => {
                                 : undefined
                         }
                         onMinimize={() => handleMinimize()}
-                        settingsHref={
-                            canManageAgents
-                                ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`
-                                : undefined
-                        }
+                        settingsHref={agentSettingsHref}
+                    />
+                ) : undefined
+            }
+            MobileSidebarHeader={
+                !isEmbed && agentsList && agentsList.length > 0 ? (
+                    <AgentSelector
+                        projectUuid={projectUuid!}
+                        agents={agentsList}
+                        selectedAgent={agent}
+                        variant="drawer"
+                        settingsHref={agentSettingsHref}
                     />
                 ) : undefined
             }

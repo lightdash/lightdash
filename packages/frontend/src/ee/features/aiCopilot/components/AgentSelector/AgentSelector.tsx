@@ -12,12 +12,14 @@ import {
     IconCheck,
     IconChevronDown,
     IconCirclePlus,
+    IconSettings,
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiRouterConfig } from '../../hooks/useAiRouter';
+import { useAgentSettingsLinkState } from '../../utils/agentSettingsNavigation';
 import styles from './AgentSelector.module.css';
 import {
     AI_ROUTING_AUTO_VALUE,
@@ -30,13 +32,14 @@ type Props = {
     agents: Agent[];
     selectedAgent: Agent | 'auto';
     projectUuid: string;
-    variant?: 'default' | 'header';
+    variant?: 'default' | 'header' | 'drawer';
     /**
      * Render the target as an icon-only chip; the label reveals on hover,
      * focus, or while the dropdown is open. Used when toolbar space is
      * tight (e.g. the chat input).
      */
     compact?: boolean;
+    settingsHref?: string;
 };
 
 // The action belongs to the stable selector. Named agents are reusable options
@@ -56,6 +59,7 @@ const viewAgentTourProps = {
 };
 
 const AUTO_VALUE = '__auto__';
+const SETTINGS_VALUE = '__settings__';
 const DROPDOWN_MIN_WIDTH = 260;
 
 export const AgentSelector = ({
@@ -64,10 +68,12 @@ export const AgentSelector = ({
     projectUuid,
     variant = 'default',
     compact = false,
+    settingsHref,
 }: Props) => {
     const navigate = useNavigate();
     const { search } = useLocation();
     const [opened, setOpened] = useState(false);
+    const settingsLinkState = useAgentSettingsLinkState();
     const combobox = useCombobox({
         onOpenedChange: setOpened,
         onDropdownClose: () => combobox.resetSelectedOption(),
@@ -83,7 +89,9 @@ export const AgentSelector = ({
         agents.length > 1 && aiRouterConfig?.enabled === true;
 
     const handleOptionSubmit = (value: string) => {
-        if (value === 'new') {
+        if (value === SETTINGS_VALUE && settingsHref) {
+            void navigate(settingsHref, { state: settingsLinkState });
+        } else if (value === 'new') {
             void navigate(`/projects/${projectUuid}/ai-agents/new`, {
                 viewTransition: true,
             });
@@ -132,6 +140,7 @@ export const AgentSelector = ({
                     className={`${styles.target} ${
                         compact ? styles.compact : ''
                     } ${variant === 'header' ? styles.headerTarget : ''}`}
+                    data-variant={variant}
                     data-open={opened ? 'true' : undefined}
                     data-auto={isAuto ? 'true' : undefined}
                 >
@@ -245,6 +254,25 @@ export const AgentSelector = ({
                                 </Text>
                             </Group>
                         </Combobox.Option>
+                        {settingsHref && (
+                            <Combobox.Option
+                                value={SETTINGS_VALUE}
+                                p={2}
+                                className={styles.mobileSettingsOption}
+                            >
+                                <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
+                                    <Center w={22} h={22}>
+                                        <MantineIcon
+                                            icon={IconSettings}
+                                            size="sm"
+                                        />
+                                    </Center>
+                                    <Text size="xs" truncate="end" flex={1}>
+                                        Agent settings
+                                    </Text>
+                                </Group>
+                            </Combobox.Option>
+                        )}
                     </Combobox.Footer>
                 </Combobox.Options>
             </Combobox.Dropdown>

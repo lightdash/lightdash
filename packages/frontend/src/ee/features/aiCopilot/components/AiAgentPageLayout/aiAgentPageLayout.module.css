@@ -56,6 +56,11 @@
     padding: 0 var(--mantine-spacing-sm) var(--mantine-spacing-sm);
 }
 
+.mobileSidebarContext {
+    flex-shrink: 0;
+    margin-bottom: var(--mantine-spacing-sm);
+}
+
 .sidebarHeader {
     min-height: rem(32px);
     margin-bottom: var(--mantine-spacing-xs);
@@ -86,6 +91,14 @@
 
     @mixin dark {
         background-color: var(--mantine-color-dark-8);
+    }
+}
+
+@media (max-width: 48em) {
+    .chatHeader {
+        min-height: rem(44px);
+        padding: rem(4px) var(--mantine-spacing-sm);
+        border-bottom: 0;
     }
 }
 
