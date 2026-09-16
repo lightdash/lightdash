@@ -152,8 +152,8 @@ const BuilderCanvas: FC<Props> = ({
                     inert={isClarifyRoundOpen}
                 >
                     <Stack gap="xs" align="center">
-                        <Text size="md" fw={600} c="ldGray.8">
-                            Start with a prompt
+                        <Text component="h1" size="md" fw={600} c="ldGray.8">
+                            Chart Studio
                         </Text>
                         <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
                             Describe the chart type you need. Iterate from

@@ -363,8 +363,12 @@ describe('ChartTypeBuilder', () => {
     it('starts the create flow with a prompt and nothing else', () => {
         renderBuilder('/projects/p1/chart-types/new');
 
-        expect(screen.getByText('Chart Studio')).toBeInTheDocument();
-        expect(screen.getByText('Start with a prompt')).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { name: 'Chart Studio', level: 1 }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Start with a prompt'),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByPlaceholderText('Describe a new chart type…'),
         ).toBeInTheDocument();
