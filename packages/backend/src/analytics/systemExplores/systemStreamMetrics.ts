@@ -9,9 +9,24 @@ type SystemMetricDefinition = Pick<
 };
 
 export const systemStreamMetrics: Record<
-    'query_events' | 'ai_usage' | 'data_app_events',
+    'query_events' | 'ai_usage' | 'data_app_events' | 'export_events',
     SystemMetricDefinition[]
 > = {
+    export_events: [
+        {
+            name: 'total_events',
+            description:
+                'Export lifecycle events, including retries; filter by event_name to count starts, completions or failures',
+            type: MetricType.COUNT,
+            column: 'event_name',
+        },
+        {
+            name: 'unique_users',
+            description: 'Distinct actors with export activity',
+            type: MetricType.COUNT_DISTINCT,
+            column: 'user_id',
+        },
+    ],
     data_app_events: [
         {
             name: 'total_events',

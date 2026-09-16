@@ -2,6 +2,7 @@ import type { AiUsageEvent } from '../aiUsage';
 import type {
     AiAgentStepCompletedEvent,
     AiAgentToolCallCompletedEvent,
+    DownloadCsv,
     QueryCompletedEvent,
 } from '../LightdashAnalytics';
 import {
@@ -14,6 +15,10 @@ import {
     dataAppEventsProjections,
     type DataAppStreamEvent,
 } from './dataAppEventsStream';
+import {
+    exportEventsCompactedColumns,
+    exportEventsProjections,
+} from './exportEventsStream';
 import type { ProjectionResult, StreamName } from './projection';
 import {
     queryEventsCompactedColumns,
@@ -31,7 +36,8 @@ export type ProjectedEvent =
     | AiUsageEvent
     | AiAgentStepCompletedEvent
     | AiAgentToolCallCompletedEvent
-    | DataAppStreamEvent;
+    | DataAppStreamEvent
+    | DownloadCsv;
 
 export type EventStreamRegistry = {
     [E in ProjectedEvent as E['event']]: (payload: E) => ProjectionResult;
@@ -46,6 +52,7 @@ export const eventStreamRegistry: EventStreamRegistry = {
     ...aiUsageProjections,
     ...agentStepsProjections,
     ...dataAppEventsProjections,
+    ...exportEventsProjections,
 };
 
 /**
@@ -61,6 +68,7 @@ export const compactedStreamSchemas: Record<
     ai_usage: aiUsageCompactedColumns,
     agent_steps: agentStepsCompactedColumns,
     data_app_events: dataAppEventsCompactedColumns,
+    export_events: exportEventsCompactedColumns,
 };
 
 export const getCompactedStreamColumns = (
