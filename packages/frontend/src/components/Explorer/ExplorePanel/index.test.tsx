@@ -278,6 +278,9 @@ describe('ExplorePanel query options', () => {
         };
 
         renderPanel();
+        expect(
+            screen.queryByRole('button', { name: 'Merge' }),
+        ).not.toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Query options' }));
         await user.click(
             screen.getByRole('menuitem', { name: 'Merge another query' }),
@@ -287,38 +290,6 @@ describe('ExplorePanel query options', () => {
             screen.queryByRole('menuitem', { name: 'View source code' }),
         ).not.toBeInTheDocument();
         expect(addSource).toHaveBeenCalledOnce();
-    });
-
-    // The kebab gives no hint of what is inside it; a design partner with
-    // the feature on still needed a walkthrough to find the entry point.
-    it('shows a merge control beside the explore name that opens the merge', async () => {
-        const user = userEvent.setup();
-        const addSource = vi.fn();
-        testState.enabledFlags.add(FeatureFlags.MergeQueries);
-        testState.merge = {
-            isMerging: false,
-            readOnly: false,
-            additionalSources: [],
-            addSource,
-        };
-
-        renderPanel();
-        await user.click(screen.getByRole('button', { name: 'Merge' }));
-
-        expect(addSource).toHaveBeenCalledOnce();
-        // The kebab item stays for menu and keyboard users.
-        await user.click(screen.getByRole('button', { name: 'Query options' }));
-        expect(
-            screen.getByRole('menuitem', { name: 'Merge another query' }),
-        ).toBeInTheDocument();
-    });
-
-    it('hides the merge control when merging is unavailable', () => {
-        renderPanel();
-
-        expect(
-            screen.queryByRole('button', { name: 'Merge' }),
-        ).not.toBeInTheDocument();
     });
 
     it('shows both actions in one menu when both features are available', async () => {
