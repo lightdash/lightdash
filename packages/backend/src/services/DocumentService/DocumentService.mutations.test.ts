@@ -12,7 +12,7 @@ import {
     type CreateDocumentRequest,
     type Document,
     type DocumentCellOperation,
-    type DocumentCellV2,
+    type DocumentCellV3,
     type RegisteredAccount,
     type SemanticChartAsCode,
 } from '@lightdash/common';
@@ -25,7 +25,7 @@ const spaceUuid = 'document-space';
 const documentUuid = 'document-uuid';
 const baseVersionUuid = 'document-version';
 
-const markdown: DocumentCellV2 = {
+const markdown: DocumentCellV3 = {
     id: 'intro',
     type: 'markdown',
     content: { markdown: '# Findings' },
@@ -44,12 +44,12 @@ const chart: SemanticChartAsCode = {
     },
     chartConfig: { type: ChartType.TABLE },
 };
-const semantic: DocumentCellV2 = {
+const semantic: DocumentCellV3 = {
     id: 'orders',
     type: 'chart',
     content: { source: 'semantic', chart },
 };
-const merge: DocumentCellV2 = {
+const merge: DocumentCellV3 = {
     id: 'merge',
     type: 'chart',
     content: {
@@ -96,7 +96,7 @@ const document: Document = {
     version: {
         versionUuid: baseVersionUuid,
         versionNumber: 1,
-        schemaVersion: 2,
+        schemaVersion: 3,
         createdByUserUuid: userUuid,
         createdAt: new Date('2026-09-15'),
         content: { cells: [markdown] },
@@ -106,7 +106,7 @@ const createInput: CreateDocumentRequest = {
     name: document.name,
     description: document.description,
     spaceUuid,
-    schemaVersion: 2,
+    schemaVersion: 3,
     content: document.version.content,
 };
 
@@ -444,21 +444,18 @@ describe('DocumentService mutations', () => {
     });
 
     test.each([semantic, merge])(
-        'does not recompile a chart when only its section title changes',
+        'rejects retired section titles before compilation or persistence',
         async (cell) => {
             const { service, documentModel, projectService } = setup();
             documentModel.get.mockResolvedValue({
                 ...document,
                 version: { ...document.version, content: { cells: [cell] } },
             });
-            const request: {
-                baseVersionUuid: string;
-                operations: DocumentCellOperation[];
-            } = {
+            const request = {
                 baseVersionUuid,
                 operations: [
                     {
-                        type: 'replace',
+                        type: 'replace' as const,
                         cellId: cell.id,
                         cell: {
                             ...cell,
@@ -470,20 +467,17 @@ describe('DocumentService mutations', () => {
                     },
                 ],
             };
-            await service.updateContent(
-                makeAccount(),
-                projectUuid,
-                documentUuid,
-                request,
-            );
+            await expect(
+                service.updateContent(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                    request,
+                ),
+            ).rejects.toThrow(ParameterError);
             expect(projectService.compileQuery).not.toHaveBeenCalled();
             expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
-            expect(documentModel.updateContent).toHaveBeenCalledWith(
-                projectUuid,
-                documentUuid,
-                request,
-                userUuid,
-            );
+            expect(documentModel.updateContent).not.toHaveBeenCalled();
         },
     );
 
@@ -702,7 +696,8 @@ describe('DocumentService mutations', () => {
     });
 
     test.each([
-        { ...createInput, schemaVersion: 3 },
+        { ...createInput, schemaVersion: 4 },
+        { ...createInput, schemaVersion: 2 },
         { ...createInput, schemaVersion: 1 },
         {
             ...createInput,
@@ -730,7 +725,7 @@ describe('DocumentService mutations', () => {
 
     test('rejects chart tableName and exploreName mismatch before compiling', async () => {
         const { service, projectService, documentModel } = setup();
-        const cell: DocumentCellV2 = {
+        const cell: DocumentCellV3 = {
             ...semantic,
             type: 'chart',
             content: {

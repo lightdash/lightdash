@@ -105,7 +105,7 @@ describe('DocumentModel PostgreSQL integration', () => {
                         cell: {
                             id: 'conclusion',
                             type: 'markdown',
-                            content: { title: 'Conclusion', markdown: 'Done' },
+                            content: { markdown: 'Done' },
                         },
                     },
                 ],
@@ -160,73 +160,90 @@ describe('DocumentModel PostgreSQL integration', () => {
         expect(await transaction(DocumentVersionsTableName)).toHaveLength(1);
     });
 
-    test('editing a legacy latest version appends V2 without rewriting its identity or payload', async () => {
-        const document = await model.create(input);
-        const legacyContent = {
-            cells: [{ id: 'legacy', type: 'markdown', content: '# Original' }],
-        };
-        await transaction.raw(
-            'UPDATE ?? SET schema_version = 1, content = ?::jsonb WHERE document_version_uuid = ?',
-            [
-                DocumentVersionsTableName,
-                JSON.stringify(legacyContent),
-                document.version.versionUuid,
-            ],
-        );
-        const legacyRow = await transaction(DocumentVersionsTableName)
-            .where('document_version_uuid', document.version.versionUuid)
-            .first();
-        const updated = await model.updateContent(
-            input.projectUuid,
-            document.documentUuid,
-            {
-                baseVersionUuid: document.version.versionUuid,
-                operations: [
-                    {
-                        type: 'append',
-                        cell: {
-                            id: 'conclusion',
-                            type: 'markdown',
-                            content: { title: 'Conclusion', markdown: 'Done' },
-                        },
-                    },
-                ],
-            },
-            SEED_ORG_1_ADMIN.user_uuid,
-        );
-        expect(updated.documentUuid).toBe(document.documentUuid);
-        expect(updated.version).toMatchObject({
-            versionNumber: 2,
-            schemaVersion: 2,
-            content: {
+    test.each([1, 2])(
+        'editing legacy V%s appends V3 without rewriting its identity or payload',
+        async (schemaVersion) => {
+            const document = await model.create(input);
+            const legacyContent = {
                 cells: [
                     {
                         id: 'legacy',
                         type: 'markdown',
-                        content: { markdown: '# Original' },
-                    },
-                    {
-                        id: 'conclusion',
-                        type: 'markdown',
-                        content: { title: 'Conclusion', markdown: 'Done' },
+                        content:
+                            schemaVersion === 1
+                                ? '# Original'
+                                : {
+                                      title: 'Retired title',
+                                      markdown: '# Original',
+                                  },
                     },
                 ],
-            },
-        });
-        expect(updated.version.versionUuid).not.toBe(
-            document.version.versionUuid,
-        );
-        const rows = await transaction(DocumentVersionsTableName).orderBy(
-            'version_number',
-        );
-        expect(rows).toHaveLength(2);
-        expect(rows[0]).toEqual(legacyRow);
-        expect(rows[1]).toMatchObject({
-            schema_version: 2,
-            version_number: 2,
-            content: updated.version.content,
-        });
-    });
+            };
+            await transaction.raw(
+                'UPDATE ?? SET schema_version = ?, content = ?::jsonb WHERE document_version_uuid = ?',
+                [
+                    DocumentVersionsTableName,
+                    schemaVersion,
+                    JSON.stringify(legacyContent),
+                    document.version.versionUuid,
+                ],
+            );
+            const legacyRow = await transaction(DocumentVersionsTableName)
+                .where('document_version_uuid', document.version.versionUuid)
+                .first();
+            const updated = await model.updateContent(
+                input.projectUuid,
+                document.documentUuid,
+                {
+                    expectedSpaceUuid: input.spaceUuid,
+                    baseVersionUuid: document.version.versionUuid,
+                    operations: [
+                        {
+                            type: 'append',
+                            cell: {
+                                id: 'conclusion',
+                                type: 'markdown',
+                                content: { markdown: 'Done' },
+                            },
+                        },
+                    ],
+                },
+                SEED_ORG_1_ADMIN.user_uuid,
+            );
+            expect(updated.documentUuid).toBe(document.documentUuid);
+            expect(updated.version).toMatchObject({
+                versionNumber: 2,
+                schemaVersion: 3,
+                content: {
+                    cells: [
+                        {
+                            id: 'legacy',
+                            type: 'markdown',
+                            content: { markdown: '# Original' },
+                        },
+                        {
+                            id: 'conclusion',
+                            type: 'markdown',
+                            content: { markdown: 'Done' },
+                        },
+                    ],
+                },
+            });
+            expect(updated.version.versionUuid).not.toBe(
+                document.version.versionUuid,
+            );
+            const rows = await transaction(DocumentVersionsTableName).orderBy(
+                'version_number',
+            );
+            expect(rows).toHaveLength(2);
+            expect(rows[0]).toEqual(legacyRow);
+            expect(rows[1]).toMatchObject({
+                schema_version: 3,
+                version_number: 2,
+                content: updated.version.content,
+            });
+        },
+    );
 
     test('stale content edits conflict without changing the current version', async () => {
         const document = await model.create(input);
@@ -891,7 +908,7 @@ describe('DocumentModel PostgreSQL integration', () => {
                 await savepoint(DocumentVersionsTableName).insert({
                     document_id: row.document_id,
                     version_number: 1,
-                    schema_version: 2,
+                    schema_version: 3,
                     content: input.content,
                     created_by_user_uuid: null,
                 });

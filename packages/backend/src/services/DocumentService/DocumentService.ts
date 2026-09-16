@@ -11,7 +11,7 @@ import {
     parseDocumentContent,
     type CreateDocumentRequest,
     type Document,
-    type DocumentContentV2,
+    type DocumentContentV3,
     type DocumentList,
     type MetricQuery,
     type ParametersValuesMap,
@@ -188,8 +188,8 @@ export class DocumentService extends BaseService {
     private async validateCharts(
         account: RegisteredAccount,
         projectUuid: string,
-        content: DocumentContentV2,
-        previous?: DocumentContentV2,
+        content: DocumentContentV3,
+        previous?: DocumentContentV3,
     ): Promise<void> {
         parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content);
         const previousById = new Map(

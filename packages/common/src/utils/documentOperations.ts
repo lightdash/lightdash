@@ -1,15 +1,15 @@
 import type {
     DocumentCellOperation,
-    DocumentContentV2,
+    DocumentContentV3,
 } from '../types/document';
 import { ParameterError } from '../types/errors';
 import assertUnreachable from './assertUnreachable';
 import { DOCUMENT_SCHEMA_VERSION, parseDocumentContent } from './document';
 
 export const applyDocumentCellOperations = (
-    content: DocumentContentV2,
+    content: DocumentContentV3,
     operations: DocumentCellOperation[],
-): DocumentContentV2 => {
+): DocumentContentV3 => {
     if (operations.length === 0) {
         throw new ParameterError(
             'At least one Document cell operation is required',

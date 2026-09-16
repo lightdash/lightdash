@@ -1,26 +1,26 @@
 import type {
     DocumentCellOperation,
-    DocumentCellV2,
-    DocumentContentV2,
+    DocumentCellV3,
+    DocumentContentV3,
 } from '../types/document';
 import { applyDocumentCellOperations } from './documentOperations';
 
-const markdown = (id: string, content = id): DocumentCellV2 => ({
+const markdown = (id: string, content = id): DocumentCellV3 => ({
     id,
     type: 'markdown',
     content: { markdown: content },
 });
 
-const original: DocumentContentV2 = {
+const original: DocumentContentV3 = {
     cells: [markdown('a'), markdown('b'), markdown('c'), markdown('d')],
 };
 
 describe('applyDocumentCellOperations', () => {
-    test('replaces an explicit title without changing markdown or input', () => {
-        const cell: DocumentCellV2 = {
+    test('replaces markdown without changing the input', () => {
+        const cell: DocumentCellV3 = {
             id: 'a',
             type: 'markdown',
-            content: { title: 'Original', markdown: '# Kept' },
+            content: { markdown: '# Original' },
         };
         const content = { cells: [cell] };
         const result = applyDocumentCellOperations(content, [
@@ -29,18 +29,19 @@ describe('applyDocumentCellOperations', () => {
                 cellId: 'a',
                 cell: {
                     ...cell,
-                    content: { ...cell.content, title: 'Renamed' },
+                    content: { markdown: '# Updated' },
                 },
             },
         ]);
         expect(result.cells).toEqual([
-            { ...cell, content: { title: 'Renamed', markdown: '# Kept' } },
+            { ...cell, content: { markdown: '# Updated' } },
         ]);
-        expect(content.cells[0].content.title).toBe('Original');
+        expect(content.cells[0].content.markdown).toBe('# Original');
     });
 
-    test('rejects blank titles without partially changing content', () => {
+    test('rejects retired titles without partially changing content', () => {
         const before = structuredClone(original);
+        const retiredContent = { title: 'Retired', markdown: 'Text' };
         expect(() =>
             applyDocumentCellOperations(original, [
                 {
@@ -48,7 +49,7 @@ describe('applyDocumentCellOperations', () => {
                     cell: {
                         id: 'new',
                         type: 'markdown',
-                        content: { title: ' ', markdown: 'Text' },
+                        content: retiredContent,
                     },
                 },
             ]),
