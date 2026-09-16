@@ -111,10 +111,17 @@ export const documentContentConfiguration: ContentConfiguration = {
                     );
                 }
                 if (!filters.sharedWithMe) {
-                    void builder.whereIn(
-                        'spaces.space_uuid',
-                        filters.documents?.allowedSpaceUuids ?? [],
-                    );
+                    void builder.where((visibility) => {
+                        void visibility
+                            .whereIn(
+                                'spaces.space_uuid',
+                                filters.documents?.allowedSpaceUuids ?? [],
+                            )
+                            .orWhereIn(
+                                'documents.document_uuid',
+                                filters.documents?.grantedUuids ?? [],
+                            );
+                    });
                 } else {
                     void builder.whereIn(
                         'documents.document_uuid',

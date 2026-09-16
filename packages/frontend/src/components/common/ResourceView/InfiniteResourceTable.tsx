@@ -62,6 +62,7 @@ import {
     type ContentTableVirtualizer,
 } from '../ContentTable';
 import MantineIcon from '../MantineIcon';
+import SuboptimalState from '../SuboptimalState/SuboptimalState';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import { UserSelect } from '../UserSelect';
 import ViewsCountPopover from '../ViewsCountPopover';
@@ -116,6 +117,7 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
         withAdminView: boolean;
     };
     showDataAppVersionStatus?: boolean;
+    errorStateTitle?: string;
 };
 
 const defaultSpaces: SpaceSummary[] = [];
@@ -202,6 +204,7 @@ const InfiniteResourceTable = ({
     initialAdminContentViewValue = 'shared',
     contentView,
     showDataAppVersionStatus = false,
+    errorStateTitle,
     ...contentTableProps
 }: ResourceView2Props) => {
     const projectRoute = useOptionalProjectRoute();
@@ -530,28 +533,36 @@ const InfiniteResourceTable = ({
         };
     }, [sorting]);
 
-    const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
-        useInfiniteContent(
-            {
-                spaceUuids: filters.spaceUuids,
-                contentTypes: selectedContentType
-                    ? [selectedContentType]
-                    : filters.contentTypes,
-                projectUuids: [filters.projectUuid],
-                page: 1,
-                pageSize: 25,
-                search,
-                sortBy: sortBy?.sortBy,
-                sortDirection: sortBy?.sortDirection,
-                includePersonalDataApps: filters.includePersonalDataApps,
-                dataAppVizsFilter: filters.dataAppVizsFilter,
-                sharedWithMe: filters.sharedWithMe,
-                ownerUserUuids: selectedOwnerUserUuid
-                    ? [selectedOwnerUserUuid]
-                    : undefined,
-            },
-            { keepPreviousData: true },
-        );
+    const {
+        data,
+        isInitialLoading,
+        isFetching,
+        hasNextPage,
+        fetchNextPage,
+        isError,
+        error,
+        refetch,
+    } = useInfiniteContent(
+        {
+            spaceUuids: filters.spaceUuids,
+            contentTypes: selectedContentType
+                ? [selectedContentType]
+                : filters.contentTypes,
+            projectUuids: [filters.projectUuid],
+            page: 1,
+            pageSize: 25,
+            search,
+            sortBy: sortBy?.sortBy,
+            sortDirection: sortBy?.sortDirection,
+            includePersonalDataApps: filters.includePersonalDataApps,
+            dataAppVizsFilter: filters.dataAppVizsFilter,
+            sharedWithMe: filters.sharedWithMe,
+            ownerUserUuids: selectedOwnerUserUuid
+                ? [selectedOwnerUserUuid]
+                : undefined,
+        },
+        { keepPreviousData: true },
+    );
 
     // Real parent names for rows whose space the viewer cannot access
     // (directly shared content): shown as non-navigable context.
@@ -1111,6 +1122,25 @@ const InfiniteResourceTable = ({
     const selectedItems = table
         .getFilteredSelectedRowModel()
         .flatRows.map((row) => row.original);
+
+    if (errorStateTitle && isError) {
+        return (
+            <SuboptimalState
+                title={errorStateTitle}
+                description={error.error.message}
+                action={
+                    <Button
+                        variant="default"
+                        onClick={() => {
+                            void refetch();
+                        }}
+                    >
+                        Retry
+                    </Button>
+                }
+            />
+        );
+    }
 
     return (
         <>

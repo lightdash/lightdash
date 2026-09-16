@@ -281,8 +281,22 @@ export class ContentService extends BaseService {
                   ].map((spaceUuid) => ({ type: 'space', spaceUuid })),
               )
             : [];
+        const isAllDocuments =
+            documentsEnabled &&
+            !isInsideSpace &&
+            filters.contentTypes?.length === 1 &&
+            filters.contentTypes[0] === ContentType.DOCUMENT;
+        const grantedDocumentUuids = isAllDocuments
+            ? await this.getViewableGrantedDocumentUuids(
+                  user,
+                  allowedProjectUuids,
+              )
+            : undefined;
         const documents = documentsEnabled
             ? {
+                  ...(grantedDocumentUuids !== undefined
+                      ? { grantedUuids: grantedDocumentUuids }
+                      : {}),
                   allowedSpaceUuids: documentSpaces.flatMap(
                       ({ target, context }) =>
                           context &&
@@ -300,7 +314,7 @@ export class ContentService extends BaseService {
             {
                 ...filters,
                 projectUuids: allowedProjectUuids,
-                spaceUuids: allowedSpaceUuids,
+                spaceUuids: isAllDocuments ? undefined : allowedSpaceUuids,
                 space: {
                     rootSpaces: !isInsideSpace,
                     accessibleChildSpaceUuids,
@@ -343,17 +357,31 @@ export class ContentService extends BaseService {
         };
     }
 
+    private async getViewableGrantedDocumentUuids(
+        user: SessionUser,
+        projectUuids: string[],
+    ): Promise<string[]> {
+        if (!user.organizationUuid || projectUuids.length === 0) {
+            return [];
+        }
+        const { uuidsByType } =
+            await this.directAccessService.findSharedWithMeAccess(
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                },
+                projectUuids,
+            );
+        return this.documentService.filterViewableUuids(
+            fromSession(user),
+            projectUuids,
+            uuidsByType[DirectAccessResourceType.DOCUMENT],
+        );
+    }
+
     /**
-     * Shared with me: only resources directly granted to the caller or their
-     * groups, hydrated through the ordinary content configurations so parent
-     * metadata, filters, sorting, pagination, and counts behave exactly like
-     * the default listing. Never unions ordinary space-accessible content.
-     */
-    /**
-     * Attaches the viewer's direct-grant roles to each row. Space-derived
-     * access already reaches the client through the space list; grants do not,
-     * so without this the client cannot tell a granted resource it may manage
-     * from one it may only view.
+     * Space-derived access reaches the client through the Space list, but
+     * direct grants must be attached to the individual resource.
      */
     private async withDirectAccessRoles(
         user: SessionUser,

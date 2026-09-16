@@ -61,6 +61,33 @@ describe('Document content discovery', () => {
         expect(query.bindings).toContain('%quarterly review%');
     });
 
+    it('groups inherited and direct access without widening explicit project, Space or UUID filters', () => {
+        const query = documentContentConfiguration
+            .getSummaryQuery(database, {
+                projectUuids: ['project'],
+                spaceUuids: ['requested-space'],
+                uuids: ['requested-document'],
+                documents: {
+                    allowedSpaceUuids: [spaceUuid],
+                    grantedUuids: [documentUuid],
+                },
+            })
+            .toSQL();
+        expect(query.sql).toContain(
+            '("spaces"."space_uuid" in (?) or "documents"."document_uuid" in (?))',
+        );
+        expect(query.bindings).toEqual(
+            expect.arrayContaining([
+                'project',
+                'requested-space',
+                'requested-document',
+                spaceUuid,
+                documentUuid,
+            ]),
+        );
+        expect(query.sql).not.toContain('union');
+    });
+
     it('uses only grant UUIDs for Shared with me without requiring access to the owning Space', () => {
         const query = documentContentConfiguration
             .getSummaryQuery(database, {

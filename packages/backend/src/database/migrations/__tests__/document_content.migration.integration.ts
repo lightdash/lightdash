@@ -1,4 +1,9 @@
-import { ContentType, SEED_ORG_1_ADMIN, SEED_PROJECT } from '@lightdash/common';
+import {
+    ContentSortByColumns,
+    ContentType,
+    SEED_ORG_1_ADMIN,
+    SEED_PROJECT,
+} from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { ContentModel } from '../../../models/ContentModel/ContentModel';
@@ -120,6 +125,82 @@ describe('Document content PostgreSQL integration', () => {
         ]);
     });
 
+    it('paginates the inherited and direct union without duplicates and applies search before counts', async () => {
+        const [sourceSpace] = await transaction('spaces').where(
+            'space_uuid',
+            spaceUuid,
+        );
+        const [hiddenSpace] = await transaction('spaces')
+            .insert({
+                project_id: sourceSpace.project_id,
+                name: 'Direct-only content fixture',
+                slug: `direct-only-${randomUUID()}`,
+                inherit_parent_permissions: false,
+                parent_space_uuid: null,
+                path: 'direct_only_fixture',
+                is_default_user_space: false,
+            })
+            .returning('space_uuid');
+        const hiddenSpaceUuid = hiddenSpace.space_uuid;
+        const directDocument = await new DocumentModel({
+            database: transaction,
+        }).create({
+            projectUuid: SEED_PROJECT.project_uuid,
+            spaceUuid: hiddenSpaceUuid,
+            name: 'A direct-only union fixture',
+            description: '',
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            content: {
+                cells: [
+                    {
+                        id: 'intro',
+                        type: 'markdown',
+                        content: { markdown: 'Private content' },
+                    },
+                ],
+            },
+        });
+        const filters = {
+            projectUuids: [SEED_PROJECT.project_uuid],
+            contentTypes: [ContentType.DOCUMENT],
+            uuids: [documentUuid, directDocument.documentUuid],
+            documents: {
+                allowedSpaceUuids: [spaceUuid],
+                grantedUuids: [documentUuid, directDocument.documentUuid],
+            },
+        };
+        const sort = {
+            sortBy: ContentSortByColumns.NAME,
+            sortDirection: 'asc' as const,
+        };
+        const first = await contentModel.findSummaryContents(filters, sort, {
+            page: 1,
+            pageSize: 1,
+        });
+        const second = await contentModel.findSummaryContents(filters, sort, {
+            page: 2,
+            pageSize: 1,
+        });
+        expect(first.pagination?.totalResults).toBe(2);
+        expect(second.pagination?.totalResults).toBe(2);
+        expect(first.data.map(({ uuid }) => uuid)).toEqual([
+            directDocument.documentUuid,
+        ]);
+        expect(second.data.map(({ uuid }) => uuid)).toEqual([documentUuid]);
+        const search = await contentModel.findSummaryContents(
+            { ...filters, search: 'direct-only union' },
+            sort,
+            { page: 1, pageSize: 1 },
+        );
+        expect(search.pagination?.totalResults).toBe(1);
+        expect(search.data[0].uuid).toBe(directDocument.documentUuid);
+        const restricted = await contentModel.findSummaryContents(
+            { ...filters, spaceUuids: [spaceUuid] },
+            sort,
+        );
+        expect(restricted.data.map(({ uuid }) => uuid)).toEqual([documentUuid]);
+    });
+
     it('hydrates a direct grant without visible Spaces and excludes deleted Documents', async () => {
         const filters = {
             uuids: [documentUuid],
@@ -148,7 +229,7 @@ describe('Document content PostgreSQL integration', () => {
                     {},
                 )
             ).data,
-        ).toHaveLength(0);
+        ).toHaveLength(1);
         await transaction('documents')
             .where('document_uuid', documentUuid)
             .update({ deleted_at: new Date() });

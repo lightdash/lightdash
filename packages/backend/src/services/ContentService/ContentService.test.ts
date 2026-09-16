@@ -70,7 +70,13 @@ const createService = ({
     contentModel = {} as ContentModel,
     spaceModel = {} as SpaceModel,
     spacePermissionService = {} as SpacePermissionService,
-    sharedWithMeUuids = { dashboard: [], chart: [], sqlChart: [], app: [] },
+    sharedWithMeUuids = {
+        dashboard: [],
+        chart: [],
+        sqlChart: [],
+        app: [],
+        document: [],
+    },
     sharedWithMeRoles = {
         dashboard: { 'dashboard-1': [SpaceMemberRole.EDITOR] },
         chart: {},
@@ -206,6 +212,7 @@ describe('Document discovery', () => {
             contentModel: { findSummaryContents } as unknown as ContentModel,
             spaceModel: {
                 find: vi.fn().mockResolvedValue([{ uuid: 'space' }]),
+                getChildSpaceUuidsForParents: vi.fn().mockResolvedValue([]),
             } as unknown as SpaceModel,
             spacePermissionService: {
                 getAccessibleSpaceUuids: vi.fn().mockResolvedValue(['space']),
@@ -214,6 +221,94 @@ describe('Document discovery', () => {
         });
         return { ...deps, findSummaryContents, resolveAccessBatch };
     };
+
+    it('unions only authorized direct Documents into the top-level list before pagination', async () => {
+        const deps = createDocumentDiscovery(true);
+        deps.directAccessService.findSharedWithMeAccess.mockResolvedValue({
+            uuidsByType: { document: ['allowed', 'denied'] },
+            rolesByType: {
+                dashboard: {},
+                chart: {},
+                sqlChart: {},
+                app: {},
+                document: {},
+            },
+        });
+        deps.documentService.filterViewableUuids.mockResolvedValue(['allowed']);
+        await deps.service.find(
+            createUser(),
+            {
+                contentTypes: [ContentType.DOCUMENT],
+                search: 'weekly',
+            },
+            {},
+            { page: 2, pageSize: 10 },
+        );
+        expect(deps.documentService.filterViewableUuids).toHaveBeenCalledWith(
+            expect.any(Object),
+            [projectUuid],
+            ['allowed', 'denied'],
+        );
+        expect(deps.findSummaryContents).toHaveBeenCalledWith(
+            expect.objectContaining({
+                spaceUuids: undefined,
+                search: 'weekly',
+                documents: {
+                    allowedSpaceUuids: ['space'],
+                    grantedUuids: ['allowed'],
+                },
+            }),
+            {},
+            { page: 2, pageSize: 10 },
+        );
+    });
+
+    it.each([
+        { contentTypes: [ContentType.DOCUMENT], spaceUuids: ['space'] },
+        { contentTypes: [ContentType.DOCUMENT, ContentType.CHART] },
+        { contentTypes: [ContentType.CHART] },
+        {},
+    ])(
+        'does not expand direct discovery outside All documents: %j',
+        async (filters) => {
+            const deps = createDocumentDiscovery(true);
+            await deps.service.find(
+                createUser(),
+                filters,
+                {},
+                { page: 1, pageSize: 10 },
+            );
+            expect(
+                deps.directAccessService.findSharedWithMeAccess,
+            ).not.toHaveBeenCalled();
+            expect(deps.findSummaryContents).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    spaceUuids: ['space'],
+                    documents: { allowedSpaceUuids: ['space'] },
+                }),
+                {},
+                { page: 1, pageSize: 10 },
+            );
+        },
+    );
+
+    it('does not resolve grants for All documents when the flag is disabled', async () => {
+        const deps = createDocumentDiscovery(false);
+        await deps.service.find(
+            createUser(),
+            { contentTypes: [ContentType.DOCUMENT] },
+            {},
+            { page: 1, pageSize: 10 },
+        );
+        expect(
+            deps.directAccessService.findSharedWithMeAccess,
+        ).not.toHaveBeenCalled();
+        expect(deps.findSummaryContents).toHaveBeenCalledWith(
+            expect.objectContaining({ documents: undefined }),
+            {},
+            { page: 1, pageSize: 10 },
+        );
+    });
 
     it('enriches ordinary Document rows with direct access roles', async () => {
         const deps = createDocumentDiscovery(true);
