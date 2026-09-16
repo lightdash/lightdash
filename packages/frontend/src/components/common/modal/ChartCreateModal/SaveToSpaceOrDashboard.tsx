@@ -30,6 +30,8 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
+import { useMergeSafe } from '../../../../features/mergeQuery/context/useMerge';
+import { getChartQueryDimensions } from '../../../../features/mergeQuery/utils/getChartQueryDimensions';
 import {
     appendNewTilesToBottom,
     useCreateMutation as useCreateDashboardMutation,
@@ -162,17 +164,23 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         validate: saveToSpaceOrDashboardResolver,
     });
 
-    // Check if the chart has unused dimensions that may cause incorrect results
+    // Check if the chart has unused dimensions that may cause incorrect
+    // results. A merged chart's layout names merged fields, so it is checked
+    // against the merged result, as the visualization card does.
+    const mergeResults = useMergeSafe()?.mergeResults ?? null;
     const showUnusedDimensionsWarning = useMemo(() => {
         const pivotDimensions = savedData.pivotConfig?.columns ?? [];
-        const queryDimensions = savedData.metricQuery?.dimensions ?? [];
+        const queryDimensions = getChartQueryDimensions(
+            savedData.metricQuery,
+            mergeResults,
+        );
         return hasUnusedDimensions({
             chartType: savedData.chartConfig?.type,
             chartConfig: savedData.chartConfig?.config,
             pivotDimensions,
             queryDimensions,
         });
-    }, [savedData]);
+    }, [savedData, mergeResults]);
 
     const {
         data: dashboards,
