@@ -86,8 +86,17 @@ const makeContext = (
     access,
 });
 
-const setup = () => {
+const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
     const documentModel = {
+        getLifecycleState: vi.fn().mockResolvedValue({
+            ...document,
+            deletedAt: null,
+            deletedByUserUuid: null,
+            spaceDeletedAt: null,
+        }),
+        softDelete: vi.fn().mockResolvedValue(undefined),
+        restore: vi.fn().mockResolvedValue(undefined),
+        permanentDelete: vi.fn().mockResolvedValue(undefined),
         get: vi.fn().mockResolvedValue(document),
         list: vi.fn().mockResolvedValue([document]),
         listSpaceUuids: vi.fn().mockResolvedValue([spaceUuid]),
@@ -103,6 +112,9 @@ const setup = () => {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
     const spacePermissionService = {
+        getDocumentDeleteAccessContext: vi
+            .fn()
+            .mockResolvedValue(makeContext()),
         resolveAccess: vi.fn().mockResolvedValue(makeContext()),
         resolveAccessBatch: vi
             .fn()
@@ -112,6 +124,7 @@ const setup = () => {
         findSharedWithMeUuids: vi.fn().mockResolvedValue({ document: [] }),
     };
     const service = new DocumentService({
+        lightdashConfig: { softDelete: { enabled: softDelete } },
         directAccessService,
         documentModel,
         projectModel,
@@ -129,6 +142,189 @@ const setup = () => {
 };
 
 describe('DocumentService', () => {
+    test.each(['delete', 'restore', 'permanentDelete'] as const)(
+        '%s refuses feature-off and cross-project callers before lifecycle reads',
+        async (method) => {
+            const { service, featureFlagModel, documentModel } = setup();
+            featureFlagModel.get.mockResolvedValue({ enabled: false });
+            await expect(
+                service[method](
+                    makeAccount(OrganizationMemberRole.ADMIN),
+                    projectUuid,
+                    documentUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(documentModel.getLifecycleState).not.toHaveBeenCalled();
+            featureFlagModel.get.mockResolvedValue({ enabled: true });
+            await expect(
+                service[method](
+                    makeAccount(OrganizationMemberRole.MEMBER),
+                    projectUuid,
+                    documentUuid,
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(documentModel.getLifecycleState).not.toHaveBeenCalled();
+        },
+    );
+
+    test('delete uses filtered delete access, preserving recoverable versions/grants', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        spacePermissionService.getDocumentDeleteAccessContext.mockResolvedValue(
+            makeContext([{ userUuid, role: SpaceMemberRole.ADMIN }], false),
+        );
+        await service.delete(
+            makeAccount(OrganizationMemberRole.EDITOR),
+            projectUuid,
+            documentUuid,
+        );
+        expect(documentModel.softDelete).toHaveBeenCalledWith(
+            projectUuid,
+            documentUuid,
+            userUuid,
+            spaceUuid,
+        );
+        expect(documentModel.permanentDelete).not.toHaveBeenCalled();
+        expect(documentModel.get).not.toHaveBeenCalled();
+        expect(
+            spacePermissionService.getDocumentDeleteAccessContext,
+        ).toHaveBeenCalledWith(userUuid, {
+            type: 'document',
+            documentUuid,
+            spaceUuid,
+        });
+    });
+
+    test('direct-editor deletion fails after the kernel filters its grant', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        spacePermissionService.getDocumentDeleteAccessContext.mockResolvedValue(
+            makeContext([], false),
+        );
+        await expect(
+            service.delete(
+                makeAccount(OrganizationMemberRole.EDITOR),
+                projectUuid,
+                documentUuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(documentModel.softDelete).not.toHaveBeenCalled();
+    });
+
+    test('disabled soft-delete config purges only after normal delete authorization', async () => {
+        const { service, documentModel, spacePermissionService } = setup({
+            softDelete: false,
+        });
+        spacePermissionService.getDocumentDeleteAccessContext.mockResolvedValue(
+            makeContext([{ userUuid, role: SpaceMemberRole.EDITOR }], false),
+        );
+        await service.delete(
+            makeAccount(OrganizationMemberRole.EDITOR),
+            projectUuid,
+            documentUuid,
+        );
+        expect(documentModel.permanentDelete).toHaveBeenCalledWith(
+            projectUuid,
+            documentUuid,
+            { expectedSpaceUuid: spaceUuid, requireDeleted: false },
+        );
+        expect(documentModel.softDelete).not.toHaveBeenCalled();
+    });
+
+    test('full direct grant cannot replace a missing base Document delete scope', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        builder.can('view', 'Project');
+        builder.can('view', 'Document');
+        spacePermissionService.getDocumentDeleteAccessContext.mockResolvedValue(
+            makeContext([{ userUuid, role: SpaceMemberRole.ADMIN }], false),
+        );
+        await expect(
+            service.delete(
+                makeAccount(OrganizationMemberRole.MEMBER, builder.build()),
+                projectUuid,
+                documentUuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(documentModel.softDelete).not.toHaveBeenCalled();
+    });
+
+    test('restore requires existing recovery permission, not deletion ownership or direct access', async () => {
+        const { service, documentModel } = setup();
+        documentModel.getLifecycleState.mockResolvedValue({
+            ...document,
+            deletedAt: new Date(),
+            deletedByUserUuid: userUuid,
+            spaceDeletedAt: null,
+        } as never);
+        await expect(
+            service.restore(
+                makeAccount(OrganizationMemberRole.EDITOR),
+                projectUuid,
+                documentUuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        await service.restore(
+            makeAccount(OrganizationMemberRole.ADMIN),
+            projectUuid,
+            documentUuid,
+        );
+        expect(documentModel.restore).toHaveBeenCalledWith(
+            projectUuid,
+            documentUuid,
+        );
+    });
+
+    test.each([['recovery'], ['document'], ['recovery', 'document']])(
+        'permanent deletion requires both recovery and Document management: %j',
+        async (...scopes) => {
+            const { service, documentModel } = setup();
+            documentModel.getLifecycleState.mockResolvedValue({
+                ...document,
+                deletedAt: new Date(),
+                deletedByUserUuid: userUuid,
+                spaceDeletedAt: new Date(),
+            } as never);
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            builder.can('view', 'Project');
+            if (scopes.includes('recovery')) {
+                builder.can('manage', 'DeletedContent', { projectUuid });
+            }
+            if (scopes.includes('document')) {
+                builder.can('manage', 'Document', { projectUuid });
+            }
+            const request = service.permanentDelete(
+                makeAccount(OrganizationMemberRole.MEMBER, builder.build()),
+                projectUuid,
+                documentUuid,
+            );
+            if (scopes.length === 2) {
+                await expect(request).resolves.toBeUndefined();
+                expect(documentModel.permanentDelete).toHaveBeenCalledWith(
+                    projectUuid,
+                    documentUuid,
+                );
+            } else {
+                await expect(request).rejects.toThrow(ForbiddenError);
+            }
+        },
+    );
+
+    test('repeated public delete returns404 without rewriting deletion metadata', async () => {
+        const { service, documentModel } = setup();
+        documentModel.getLifecycleState.mockResolvedValue({
+            ...document,
+            deletedAt: new Date(),
+            deletedByUserUuid: userUuid,
+            spaceDeletedAt: null,
+        } as never);
+        await expect(
+            service.delete(
+                makeAccount(OrganizationMemberRole.ADMIN),
+                projectUuid,
+                documentUuid,
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(documentModel.softDelete).not.toHaveBeenCalled();
+    });
     test('direct-only access returns only the caller access, never Space membership', async () => {
         const { service, spacePermissionService } = setup();
         spacePermissionService.resolveAccess.mockResolvedValue(

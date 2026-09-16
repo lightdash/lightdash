@@ -19,7 +19,7 @@ describe('Document content discovery', () => {
         ).toBe(false);
     });
 
-    it('includes enabled Documents but excludes deleted content and dashboard owner filters', () => {
+    it('includes enabled Documents and deleted Documents but excludes dashboard owner filters', () => {
         const filters = { documents: { allowedSpaceUuids: [spaceUuid] } };
         expect(
             documentContentConfiguration.shouldQueryBeIncluded(filters),
@@ -29,7 +29,7 @@ describe('Document content discovery', () => {
                 ...filters,
                 deleted: true,
             }),
-        ).toBe(false);
+        ).toBe(true);
         expect(
             documentContentConfiguration.shouldQueryBeIncluded({
                 ...filters,

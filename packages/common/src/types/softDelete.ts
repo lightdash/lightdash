@@ -11,6 +11,7 @@ type DescendantCountKey =
     | 'dashboard'
     | 'chart'
     | 'scheduler'
+    | 'document'
     | 'app';
 
 export type WithDescendantCounts<T, K extends DescendantCountKey = never> = [
@@ -70,6 +71,11 @@ export type DeletedDashboardContentSummary = {
     organizationUuid: string;
 };
 
+export type DeletedDocumentContentSummary = Omit<
+    DeletedDashboardContentSummary,
+    'contentType'
+> & { contentType: ContentType.DOCUMENT };
+
 export type DeletedSpaceContentSummary = {
     uuid: string;
     name: string;
@@ -112,6 +118,7 @@ export type DeletedDataAppContentSummary = {
 export type DeletedContentSummary =
     | DeletedChartContentSummary
     | DeletedDashboardContentSummary
+    | DeletedDocumentContentSummary
     | DeletedSpaceContentSummary
     | DeletedDataAppContentSummary;
 
@@ -127,8 +134,14 @@ export type DeletedContentWithDescendants =
       >
     | WithDescendantCounts<
           DeletedSpaceContentSummary,
-          'nestedSpace' | 'dashboard' | 'chart' | 'scheduler' | 'app'
+          | 'nestedSpace'
+          | 'dashboard'
+          | 'chart'
+          | 'scheduler'
+          | 'app'
+          | 'document'
       >
+    | WithDescendantCounts<DeletedDocumentContentSummary, never>
     | WithDescendantCounts<DeletedDataAppContentSummary, never>;
 
 export type DeletedContentFilters = {
@@ -148,6 +161,10 @@ export type ApiDeletedContentResponse = {
 };
 
 export type DeletedContentItem =
+    | {
+          uuid: string;
+          contentType: ContentType.DOCUMENT;
+      }
     | {
           uuid: string;
           contentType: ContentType.CHART;

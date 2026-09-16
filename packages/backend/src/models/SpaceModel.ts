@@ -1303,6 +1303,24 @@ export class SpaceModel {
         );
     }
 
+    async getDocumentsInSpaces(
+        spaceUuids: string[],
+    ): Promise<{ uuid: string; name: string; spaceUuid: string }[]> {
+        if (spaceUuids.length === 0) {
+            return [];
+        }
+        return this.database('documents')
+            .innerJoin('spaces', 'spaces.space_id', 'documents.space_id')
+            .whereIn('spaces.space_uuid', spaceUuids)
+            .whereNull('documents.deleted_at')
+            .whereNull('spaces.deleted_at')
+            .select({
+                uuid: 'documents.document_uuid',
+                name: 'documents.name',
+                spaceUuid: 'spaces.space_uuid',
+            });
+    }
+
     async get(
         spaceUuid: string,
     ): Promise<
@@ -2197,21 +2215,44 @@ export class SpaceModel {
     }
 
     async softDelete(spaceUuid: string, userUuid: string): Promise<void> {
-        await this.database(SpaceTableName)
-            .update({
-                deleted_at: new Date(),
-                deleted_by_user_uuid: userUuid,
-            })
-            .where('space_uuid', spaceUuid)
-            .whereNull('deleted_at');
+        await this.database.transaction(async (trx) => {
+            const deletedAt = new Date();
+            const [space] = await trx(SpaceTableName)
+                .where('space_uuid', spaceUuid)
+                .whereNull('deleted_at')
+                .update({
+                    deleted_at: deletedAt,
+                    deleted_by_user_uuid: userUuid,
+                })
+                .returning('space_id');
+            if (!space) {
+                return;
+            }
+            await trx('documents')
+                .where('space_id', space.space_id)
+                .whereNull('deleted_at')
+                .update({
+                    deleted_at: deletedAt,
+                    deleted_by_user_uuid: userUuid,
+                    deleted_with_space: true,
+                });
+        });
     }
 
     async restore(spaceUuid: string): Promise<void> {
         await this.database.transaction(async (trx) => {
             const deletedSpace = await trx(SpaceTableName)
-                .select('project_id', 'path', 'name')
+                .select(
+                    'space_id',
+                    'project_id',
+                    'path',
+                    'name',
+                    'deleted_at',
+                    'deleted_by_user_uuid',
+                )
                 .where('space_uuid', spaceUuid)
                 .whereNotNull('deleted_at')
+                .forUpdate()
                 .first();
             if (!deletedSpace) {
                 throw new NotFoundError('Deleted space not found');
@@ -2235,6 +2276,19 @@ export class SpaceModel {
                     deleted_by_user_uuid: null,
                 })
                 .where('space_uuid', spaceUuid);
+            await trx('documents')
+                .where('space_id', deletedSpace.space_id)
+                .where('deleted_with_space', true)
+                .where('deleted_at', deletedSpace.deleted_at)
+                .where(
+                    'deleted_by_user_uuid',
+                    deletedSpace.deleted_by_user_uuid,
+                )
+                .update({
+                    deleted_at: null,
+                    deleted_by_user_uuid: null,
+                    deleted_with_space: false,
+                });
         });
     }
 

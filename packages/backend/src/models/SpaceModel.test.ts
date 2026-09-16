@@ -135,6 +135,9 @@ describe('SpaceModel restore', () => {
     });
 
     const deletedSpaceRow = {
+        space_id: 1,
+        deleted_at: new Date('2026-09-15'),
+        deleted_by_user_uuid: 'deleter',
         project_id: 1,
         path: 'commercial.churn',
         name: 'Churn',
@@ -144,10 +147,11 @@ describe('SpaceModel restore', () => {
         tracker.on.select(SpaceTableName).responseOnce([deletedSpaceRow]);
         tracker.on.select(SpaceTableName).responseOnce([]);
         tracker.on.update(SpaceTableName).responseOnce(1);
+        tracker.on.update('documents').responseOnce(2);
 
         await model.restore('deleted-space-uuid');
 
-        expect(tracker.history.update).toHaveLength(1);
+        expect(tracker.history.update).toHaveLength(2);
         expect(tracker.history.update[0].bindings).toContain(
             'deleted-space-uuid',
         );

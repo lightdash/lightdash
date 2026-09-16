@@ -32,6 +32,39 @@ type SpaceContentRow = SummaryContentRow<{
     pinnedListOrder: number;
 }>;
 
+const getDocumentCount = (
+    knex: Knex,
+    filters: ContentFilters,
+): Knex.Raw | Knex.QueryBuilder | number => {
+    if (!filters.documents) {
+        return 0;
+    }
+    if (filters.includeDescendantCounts) {
+        return knex.raw(`(
+            WITH RECURSIVE document_spaces AS (
+                SELECT spaces.space_id, spaces.space_uuid
+                UNION ALL
+                SELECT child.space_id, child.space_uuid
+                FROM spaces child
+                JOIN document_spaces parent ON child.parent_space_uuid = parent.space_uuid
+            )
+            SELECT count(*) FROM documents
+            WHERE documents.space_id IN (SELECT space_id FROM document_spaces)
+        )`);
+    }
+    if (filters.documents.allowedSpaceUuids.length === 0) {
+        return 0;
+    }
+    return knex('documents')
+        .count('*')
+        .whereRaw(`documents.space_id = ${SpaceTableName}.space_id`)
+        .whereNull('documents.deleted_at')
+        .whereIn(
+            `${SpaceTableName}.space_uuid`,
+            filters.documents.allowedSpaceUuids,
+        );
+};
+
 export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
     {
         shouldQueryBeIncluded: (filters: ContentFilters) => {
@@ -203,21 +236,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                 : ''
                         }
                     ) as metadata`,
-                        [
-                            filters.documents &&
-                            filters.documents.allowedSpaceUuids.length > 0
-                                ? knex('documents')
-                                      .count('*')
-                                      .whereRaw(
-                                          `documents.space_id = ${SpaceTableName}.space_id`,
-                                      )
-                                      .whereNull('documents.deleted_at')
-                                      .whereIn(
-                                          `${SpaceTableName}.space_uuid`,
-                                          filters.documents.allowedSpaceUuids,
-                                      )
-                                : 0,
-                        ],
+                        [getDocumentCount(knex, filters)],
                     ),
                 ])
                 .where((builder) => {

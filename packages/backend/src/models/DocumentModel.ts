@@ -38,6 +38,12 @@ type DocumentRow = DbDocument & {
     space_uuid: string;
 };
 
+export type DocumentLifecycleState = DocumentSummary & {
+    deletedAt: Date | null;
+    deletedByUserUuid: string | null;
+    spaceDeletedAt: Date | null;
+};
+
 const toSummary = (row: DocumentRow): DocumentSummary => ({
     documentUuid: row.document_uuid,
     projectUuid: row.project_uuid,
@@ -58,7 +64,7 @@ export class DocumentModel {
         this.database = database;
     }
 
-    private activeDocuments(database: Knex, projectUuid: string) {
+    private documents(database: Knex, projectUuid: string) {
         return database(DocumentsTableName)
             .join(
                 ProjectTableName,
@@ -72,13 +78,146 @@ export class DocumentModel {
             )
             .join(SpaceTableName, 'spaces.space_id', 'documents.space_id')
             .where('documents.project_uuid', projectUuid)
-            .whereNull('documents.deleted_at')
-            .whereNull('spaces.deleted_at')
             .select(
                 'documents.*',
                 'organizations.organization_uuid',
                 'spaces.space_uuid',
             );
+    }
+
+    private activeDocuments(database: Knex, projectUuid: string) {
+        return this.documents(database, projectUuid)
+            .whereNull('documents.deleted_at')
+            .whereNull('spaces.deleted_at');
+    }
+
+    async getLifecycleState(
+        projectUuid: string,
+        documentUuid: string,
+    ): Promise<DocumentLifecycleState> {
+        const row = await this.documents(this.database, projectUuid)
+            .select('spaces.deleted_at as space_deleted_at')
+            .where('documents.document_uuid', documentUuid)
+            .first();
+        if (!row) {
+            throw new NotFoundError('Document not found');
+        }
+        return {
+            ...toSummary(row),
+            deletedAt: row.deleted_at,
+            deletedByUserUuid: row.deleted_by_user_uuid,
+            spaceDeletedAt: row.space_deleted_at,
+        };
+    }
+
+    async softDelete(
+        projectUuid: string,
+        documentUuid: string,
+        userUuid: string,
+        expectedSpaceUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            const document = await this.documents(trx, projectUuid)
+                .select('spaces.deleted_at as space_deleted_at')
+                .where('documents.document_uuid', documentUuid)
+                .forUpdate('documents')
+                .first();
+            if (!document || document.space_deleted_at) {
+                throw new NotFoundError('Document not found');
+            }
+            if (document.space_uuid !== expectedSpaceUuid) {
+                throw new ConflictError(
+                    'Document has moved. Reload it and retry',
+                );
+            }
+            if (document.deleted_at) {
+                return;
+            }
+            const now = new Date();
+            await trx(DocumentsTableName)
+                .where('document_id', document.document_id)
+                .whereNull('deleted_at')
+                .update({
+                    deleted_at: now,
+                    deleted_by_user_uuid: userUuid,
+                    deleted_with_space: false,
+                    updated_at: now,
+                });
+        });
+    }
+
+    async restore(projectUuid: string, documentUuid: string): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            const owner = await this.documents(trx, projectUuid)
+                .where('documents.document_uuid', documentUuid)
+                .first();
+            if (!owner) {
+                throw new NotFoundError('Deleted Document not found');
+            }
+            const space = await trx(SpaceTableName)
+                .where('space_id', owner.space_id)
+                .whereNull('deleted_at')
+                .forShare()
+                .first();
+            if (!space) {
+                throw new ConflictError(
+                    'Restore the owning Space before restoring this Document',
+                );
+            }
+            const document = await trx(DocumentsTableName)
+                .where({
+                    document_uuid: documentUuid,
+                    project_uuid: projectUuid,
+                })
+                .forUpdate()
+                .first();
+            if (!document || !document.deleted_at) {
+                throw new NotFoundError('Deleted Document not found');
+            }
+            if (document.space_id !== owner.space_id) {
+                throw new ConflictError(
+                    'Document has moved. Reload it and retry',
+                );
+            }
+            await trx(DocumentsTableName)
+                .where('document_id', document.document_id)
+                .update({
+                    deleted_at: null,
+                    deleted_by_user_uuid: null,
+                    deleted_with_space: false,
+                    updated_at: new Date(),
+                });
+        });
+    }
+
+    async permanentDelete(
+        projectUuid: string,
+        documentUuid: string,
+        {
+            expectedSpaceUuid,
+            requireDeleted = true,
+        }: { expectedSpaceUuid?: string; requireDeleted?: boolean } = {},
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            const document = await this.documents(trx, projectUuid)
+                .where('documents.document_uuid', documentUuid)
+                .forUpdate('documents')
+                .first();
+            if (!document || (requireDeleted && !document.deleted_at)) {
+                throw new NotFoundError('Deleted Document not found');
+            }
+            if (
+                expectedSpaceUuid !== undefined &&
+                document.space_uuid !== expectedSpaceUuid
+            ) {
+                throw new ConflictError(
+                    'Document has moved. Reload it and retry',
+                );
+            }
+            await trx(DocumentsTableName)
+                .where('document_id', document.document_id)
+                .delete();
+        });
     }
 
     async listSpaceUuids(projectUuid: string): Promise<string[]> {
@@ -92,7 +231,9 @@ export class DocumentModel {
         projectUuid: string,
         documentUuids: string[],
     ): Promise<DocumentSummary[]> {
-        if (documentUuids.length === 0) return [];
+        if (documentUuids.length === 0) {
+            return [];
+        }
         const rows = await this.activeDocuments(
             this.database,
             projectUuid,
@@ -168,17 +309,21 @@ export class DocumentModel {
             if (
                 !target ||
                 !spaces.some((space) => space.space_uuid === sourceSpaceUuid)
-            )
+            ) {
                 throw new NotFoundError('Space not found');
+            }
             const document = await this.activeDocuments(trx, projectUuid)
                 .where('documents.document_uuid', documentUuid)
                 .forUpdate('documents')
                 .first();
-            if (!document) throw new NotFoundError('Document not found');
-            if (document.space_uuid !== sourceSpaceUuid)
+            if (!document) {
+                throw new NotFoundError('Document not found');
+            }
+            if (document.space_uuid !== sourceSpaceUuid) {
                 throw new ConflictError(
                     'Document has moved. Reload it and retry',
                 );
+            }
             await trx(DocumentsTableName)
                 .where('document_id', document.document_id)
                 .update({ space_id: target.space_id, updated_at: new Date() });

@@ -133,6 +133,7 @@ export const invalidateContent = async (
         queryClient.invalidateQueries(['content']),
         queryClient.invalidateQueries(['documents', projectUuid]),
         queryClient.invalidateQueries(['document', projectUuid]),
+        queryClient.invalidateQueries(['document-cell-query', projectUuid]),
         queryClient.invalidateQueries(['dashboards']),
         queryClient.invalidateQueries(['most-popular-and-recently-updated']),
         queryClient.invalidateQueries(['pinned_items']),
@@ -226,7 +227,7 @@ export const useContentAction = (
         },
         onError: (error, variables, context) => {
             showToastApiError({
-                title: `Failed to move content`,
+                title: `Failed to ${variables.action.type} content`,
                 apiError: error.error,
             });
 
