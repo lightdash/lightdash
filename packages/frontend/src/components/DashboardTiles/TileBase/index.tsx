@@ -295,7 +295,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 data-with-shadow={!isEditMode && !transparent}
                 h="100%"
                 p={transparent ? 0 : 'md'}
-                bg={transparent ? 'transparent' : 'background'}
+                bg={transparent ? 'transparent' : 'var(--ld-color-tile)'}
                 radius={isEditMode ? rem(4) : rem(12)}
             >
                 <LoadingSkeletonOverlay
