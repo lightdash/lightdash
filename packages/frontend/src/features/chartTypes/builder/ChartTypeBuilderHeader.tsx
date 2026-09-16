@@ -63,6 +63,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const upgradeAvailable =
         upgrade?.status === 'stale' || upgrade?.status === 'legacy';
+    const hasName = !!app?.name.trim();
 
     return (
         <Box className={classes.header} component="header">
@@ -86,21 +87,28 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 >
                     Chart Studio
                 </Text>
-                <Box className={classes.divider} />
-                <Box className={classes.nameCluster}>
-                    {app ? (
-                        <>
-                            <MantineIcon
-                                icon={getChartTypeIcon(app.icon)}
-                                color="dimmed"
-                            />
-                            <Title
-                                className={classes.name}
-                                order={6}
-                                lineClamp={1}
-                            >
-                                {getAppDisplayName(app.name, app.appUuid)}
-                            </Title>
+                {app && (
+                    <>
+                        {hasName && <Box className={classes.divider} />}
+                        <Box className={classes.nameCluster}>
+                            {hasName && (
+                                <>
+                                    <MantineIcon
+                                        icon={getChartTypeIcon(app.icon)}
+                                        color="dimmed"
+                                    />
+                                    <Title
+                                        className={classes.name}
+                                        order={6}
+                                        lineClamp={1}
+                                    >
+                                        {getAppDisplayName(
+                                            app.name,
+                                            app.appUuid,
+                                        )}
+                                    </Title>
+                                </>
+                            )}
                             {app.description && (
                                 <Tooltip w={280} label={app.description}>
                                     <ActionIcon
@@ -120,18 +128,9 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                                     <MantineIcon icon={IconPencil} />
                                 </ActionIcon>
                             </Tooltip>
-                        </>
-                    ) : (
-                        <Text
-                            className={classes.name}
-                            fz="sm"
-                            fw={600}
-                            c="dimmed"
-                        >
-                            Untitled chart type
-                        </Text>
-                    )}
-                </Box>
+                        </Box>
+                    </>
+                )}
             </Box>
             <Group gap="xs" wrap="nowrap">
                 {upgradeAvailable && (

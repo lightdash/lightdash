@@ -332,6 +332,22 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByText('Stream graph')).toBeInTheDocument();
     });
 
+    it.each(['', '   '])(
+        'omits an unnamed chart type from the header (%j)',
+        (name) => {
+            setApp(appMeta({ name }));
+            renderBuilder('/projects/p1/chart-types/stream-graph');
+
+            expect(screen.queryByText(/Untitled/)).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('heading', { level: 6 }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Edit chart type details' }),
+            ).toBeInTheDocument();
+        },
+    );
+
     it('hands non-viz apps to the app builder', () => {
         setApp(appMeta({ template: 'dashboard' as AppMeta['template'] }));
         renderBuilder(
@@ -362,6 +378,10 @@ describe('ChartTypeBuilder', () => {
 
     it('starts the create flow with a prompt and nothing else', () => {
         renderBuilder('/projects/p1/chart-types/new');
+
+        expect(
+            screen.queryByText('Untitled chart type'),
+        ).not.toBeInTheDocument();
 
         expect(
             screen.getByRole('heading', {
