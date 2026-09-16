@@ -1,3 +1,10 @@
+## [2.243.1](https://github.com/lightdash/lightdash/compare/2.243.0...2.243.1) (2026-09-16)
+
+
+### Performance Improvements
+
+* **catalog:** hydrate distinct explores per page (SPK-2142) ([#29329](https://github.com/lightdash/lightdash/issues/29329)) ([da89c72](https://github.com/lightdash/lightdash/commit/da89c729db69198dfc9d2d4836b699d5cc70f318))
+
 # [2.243.0](https://github.com/lightdash/lightdash/compare/2.242.4...2.243.0) (2026-09-16)
 
 
