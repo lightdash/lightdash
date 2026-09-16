@@ -330,6 +330,9 @@ describe('ChartTypeBuilder', () => {
 
         expect(useGetApp).toHaveBeenCalledWith('p1', 'stream-graph');
         expect(screen.getByText('Stream graph')).toBeInTheDocument();
+        expect(
+            screen.getByText('Chart Studio', { exact: true }),
+        ).toBeInTheDocument();
     });
 
     it.each(['', '   '])(
@@ -378,6 +381,15 @@ describe('ChartTypeBuilder', () => {
 
     it('starts the create flow with a prompt and nothing else', () => {
         renderBuilder('/projects/p1/chart-types/new');
+
+        expect(
+            screen.queryByText('Chart Studio', { exact: true }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Describe the chart you’ve always wanted, or start from an example.',
+            ),
+        ).toBeInTheDocument();
 
         expect(
             screen.queryByText('Untitled chart type'),

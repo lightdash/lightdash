@@ -156,8 +156,8 @@ const BuilderCanvas: FC<Props> = ({
                             Create with Chart Studio
                         </Text>
                         <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
-                            Describe a chart type or choose an example to get
-                            started.
+                            Describe the chart you’ve always wanted, or start
+                            from an example.
                         </Text>
                     </Stack>
                     {onPickExample && (

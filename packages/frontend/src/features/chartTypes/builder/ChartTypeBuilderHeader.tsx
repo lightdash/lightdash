@@ -79,16 +79,16 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 >
                     {backLink.label}
                 </Button>
-                <Text
-                    className={classes.studioLabel}
-                    fz="sm"
-                    fw={600}
-                    c="ldGray.8"
-                >
-                    Chart Studio
-                </Text>
                 {app && (
                     <>
+                        <Text
+                            className={classes.studioLabel}
+                            fz="sm"
+                            fw={600}
+                            c="ldGray.8"
+                        >
+                            Chart Studio
+                        </Text>
                         {hasName && <Box className={classes.divider} />}
                         <Box className={classes.nameCluster}>
                             {hasName && (
