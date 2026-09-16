@@ -565,6 +565,11 @@ export const resolveTableChartConfig = ({
             chartConfig?.hideRowNumbers === undefined
                 ? false
                 : chartConfig.hideRowNumbers,
+        // Only kept when on, so existing table configs stay unchanged
+        ...(chartConfig?.hideMetricNames && { hideMetricNames: true }),
+        ...(chartConfig?.hidePivotDimensionNames && {
+            hidePivotDimensionNames: true,
+        }),
         conditionalFormattings: chartConfig?.conditionalFormattings ?? [],
         metricsAsRows: effectiveMetricsAsRows,
         rowLimit: chartConfig?.rowLimit,

@@ -105,6 +105,7 @@ import {
     collectPivotHeaderRowValues,
 } from './getTemplatedUrlRowValues';
 import { collectPivotUnderlyingValues } from './getUnderlyingFieldValues';
+import { getVisiblePivotHeaderRows } from './getVisiblePivotHeaderRows';
 import pivotStyles from './PivotTable.module.css';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
@@ -182,6 +183,8 @@ type PivotTableProps = BoxProps & // TODO: remove this
         conditionalFormattings: ConditionalFormattingConfig[];
         minMaxMap: ConditionalFormattingMinMaxMap | undefined;
         hideRowNumbers: boolean;
+        hideMetricNames?: boolean;
+        hidePivotDimensionNames?: boolean;
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => ItemsMap[string] | undefined;
         showSubtotals?: boolean;
@@ -238,6 +241,8 @@ const PivotTable: FC<PivotTableProps> = ({
     conditionalFormattings,
     minMaxMap = {},
     hideRowNumbers = false,
+    hideMetricNames = false,
+    hidePivotDimensionNames = false,
     getFieldLabel,
     getField,
     className,
@@ -1217,6 +1222,20 @@ const PivotTable: FC<PivotTableProps> = ({
             : 0;
     }, [virtualRows, rowVirtualizer]);
 
+    const headerRows = useMemo(
+        () =>
+            getVisiblePivotHeaderRows(data, {
+                hideMetricNames,
+                hidePivotDimensionNames,
+            }),
+        [data, hideMetricNames, hidePivotDimensionNames],
+    );
+    const lastHeaderRow = headerRows.at(-1);
+    // A merged header spans several columns, so it cannot resize just one
+    const canResizeDataHeaders = lastHeaderRow?.values.every(
+        (value) => value.type === 'label' || value.colSpan === 1,
+    );
+
     const cellsCountWithRowNumber = useMemo(() => {
         return (hideRowNumbers ? 0 : 1) + data.cellsCount;
     }, [hideRowNumbers, data.cellsCount]);
@@ -1277,10 +1296,10 @@ const PivotTable: FC<PivotTableProps> = ({
                 </colgroup>
             )}
             <Table.Head withSticky>
-                {data.headerValues.map((headerValues, headerRowIndex) => (
+                {headerRows.map((headerRow, visibleRowIndex) => (
                     <Table.Row
-                        key={`header-row-${headerRowIndex}`}
-                        index={headerRowIndex}
+                        key={`header-row-${headerRow.index}`}
+                        index={visibleRowIndex}
                     >
                         {/* shows empty cell if row numbers are visible */}
                         {hideRowNumbers
@@ -1296,8 +1315,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 className?: string;
                                                 style?: React.CSSProperties;
                                             });
-                                  return headerRowIndex <
-                                      data.headerValues.length - 1 ? (
+                                  return headerRow !== lastHeaderRow ? (
                                       <Table.Cell
                                           className={rowNumberSticky.className}
                                           style={rowNumberSticky.style}
@@ -1321,7 +1339,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                   );
                               })()}
                         {/* renders the title labels */}
-                        {data.titleFields[headerRowIndex].map(
+                        {headerRow.titleFields.map(
                             (titleField, titleFieldIndex) => {
                                 const field = titleField?.fieldId
                                     ? getField(titleField?.fieldId)
@@ -1339,8 +1357,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     titleField?.direction === 'header';
 
                                 const isLastHeaderRow =
-                                    headerRowIndex ===
-                                    data.headerValues.length - 1;
+                                    headerRow === lastHeaderRow;
 
                                 const titleMenuTarget:
                                     | PivotSortMenuTarget
@@ -1425,7 +1442,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 return isEmpty ? (
                                     <Table.Cell
-                                        key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        key={`title-${headerRow.index}-${titleFieldIndex}`}
                                         className={titleStickyProps.className}
                                         style={titleStickyProps.style}
                                         isMinimal={isMinimal}
@@ -1435,7 +1452,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     />
                                 ) : (
                                     <Table.CellHead
-                                        key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        key={`title-${headerRow.index}-${titleFieldIndex}`}
                                         className={
                                             [
                                                 titleStickyProps.className,
@@ -1518,7 +1535,7 @@ const PivotTable: FC<PivotTableProps> = ({
                             },
                         )}
                         {/* renders the header values or labels */}
-                        {headerValues.map((headerValue, headerColIndex) => {
+                        {headerRow.values.map((headerValue, headerColIndex) => {
                             const isLabel = headerValue.type === 'label';
                             const field = getField(headerValue.fieldId);
 
@@ -1527,8 +1544,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ? field.description
                                     : undefined;
 
-                            const isLastHeaderRow =
-                                headerRowIndex === data.headerValues.length - 1;
+                            const isLastHeaderRow = headerRow === lastHeaderRow;
 
                             // Look up saved width for this data column
                             const colInfo =
@@ -1543,6 +1559,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                             const canResize =
                                 isLastHeaderRow &&
+                                canResizeDataHeaders &&
                                 onColumnWidthChange &&
                                 !isMinimal &&
                                 widthKey;
@@ -1550,7 +1567,7 @@ const PivotTable: FC<PivotTableProps> = ({
                             // Apply width on the last header row, or on parent rows
                             // when the cell spans exactly 1 column (single metric)
                             const effectiveWidth =
-                                isLastHeaderRow ||
+                                (isLabel && isLastHeaderRow) ||
                                 (!isLabel && headerValue.colSpan === 1)
                                     ? colWidth
                                     : undefined;
@@ -1563,7 +1580,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                             const isMetricLabelRow =
                                 metricLabelHeaderRowIndex >= 0 &&
-                                headerRowIndex === metricLabelHeaderRowIndex;
+                                headerRow.index === metricLabelHeaderRowIndex;
                             const columnIdentity =
                                 pivotColumnIdentities[headerColIndex];
                             const columnMetricRef =
@@ -1661,7 +1678,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                       getItem: getField,
                                                       getRowContext: () =>
                                                           getHeaderCellTemplatedUrlRowContext(
-                                                              headerRowIndex,
+                                                              headerRow.index,
                                                               headerColIndex,
                                                           ),
                                                   }}
@@ -1677,7 +1694,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                             return isLabel || headerValue.colSpan > 0 ? (
                                 <Table.CellHead
-                                    key={`header-${headerRowIndex}-${headerColIndex}`}
+                                    key={`header-${headerRow.index}-${headerColIndex}`}
                                     className={cellClassName || undefined}
                                     style={headerValueStickyProps.style}
                                     isMinimal={isMinimal}
@@ -1739,11 +1756,11 @@ const PivotTable: FC<PivotTableProps> = ({
                         })}
                         {/* render the total label */}
                         {hasRowTotals
-                            ? data.rowTotalFields?.[headerRowIndex].map(
+                            ? headerRow.rowTotalFields?.map(
                                   (totalLabel, headerColIndex) =>
                                       totalLabel ? (
                                           <Table.CellHead
-                                              key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                              key={`header-total-${headerRow.index}-${headerColIndex}`}
                                               isMinimal={isMinimal}
                                               withBoldFont
                                               withMinimalWidth={
@@ -1756,7 +1773,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                           </Table.CellHead>
                                       ) : (
                                           <Table.Cell
-                                              key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                              key={`header-total-${headerRow.index}-${headerColIndex}`}
                                               isMinimal={isMinimal}
                                               withMinimalWidth={
                                                   !hasCustomWidths

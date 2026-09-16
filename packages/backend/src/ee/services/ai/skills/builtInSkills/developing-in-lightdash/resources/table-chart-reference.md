@@ -46,17 +46,19 @@ Table visualizations display your query results in a tabular format with powerfu
 
 ### Display Options
 
-| Property                | Type    | Description                                                                |
-| ----------------------- | ------- | -------------------------------------------------------------------------- |
-| `showColumnCalculation` | boolean | Show column totals at the bottom                                           |
-| `showRowCalculation`    | boolean | Show row totals in an additional column                                    |
-| `showTableNames`        | boolean | Show table names in column headers (e.g., "users.name" vs "name")          |
-| `hideRowNumbers`        | boolean | Hide the row number column                                                 |
-| `showResultsTotal`      | boolean | Show total count of results                                                |
-| `showSubtotals`         | boolean | Show subtotal rows for grouped data                                        |
-| `metricsAsRows`         | boolean | Display metrics as rows instead of columns (pivoted view)                  |
-| `rowLimit`              | object  | Show or hide the first/last N rows client-side (see below)                 |
-| `columnLimit`           | number  | Maximum number of pivot groups to display as columns (pivoted tables only) |
+| Property                  | Type    | Description                                                                |
+| ------------------------- | ------- | -------------------------------------------------------------------------- |
+| `showColumnCalculation`   | boolean | Show column totals at the bottom                                           |
+| `showRowCalculation`      | boolean | Show row totals in an additional column                                    |
+| `showTableNames`          | boolean | Show table names in column headers (e.g., "users.name" vs "name")          |
+| `hideRowNumbers`          | boolean | Hide the row number column                                                 |
+| `hideMetricNames`         | boolean | Hide the metric name header row (pivoted tables only)                      |
+| `hidePivotDimensionNames` | boolean | Hide pivoted dimension names, keeping their values (pivoted tables only)   |
+| `showResultsTotal`        | boolean | Show total count of results                                                |
+| `showSubtotals`           | boolean | Show subtotal rows for grouped data                                        |
+| `metricsAsRows`           | boolean | Display metrics as rows instead of columns (pivoted view)                  |
+| `rowLimit`                | object  | Show or hide the first/last N rows client-side (see below)                 |
+| `columnLimit`             | number  | Maximum number of pivot groups to display as columns (pivoted tables only) |
 
 ### Column Configuration
 
