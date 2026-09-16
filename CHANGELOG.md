@@ -1,3 +1,10 @@
+# [2.231.0](https://github.com/lightdash/lightdash/compare/2.230.0...2.231.0) (2026-09-16)
+
+
+### Features
+
+* **filters:** explain why filter value suggestions failed and allow retry ([#29277](https://github.com/lightdash/lightdash/issues/29277)) ([ab3cccd](https://github.com/lightdash/lightdash/commit/ab3cccd57857916491b9b387b0224f4b241cfa8b))
+
 # [2.230.0](https://github.com/lightdash/lightdash/compare/2.229.1...2.230.0) (2026-09-16)
 
 
