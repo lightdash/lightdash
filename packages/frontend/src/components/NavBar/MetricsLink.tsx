@@ -75,6 +75,7 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
 
     return (
         <Button
+            aria-label="Metrics"
             variant="default"
             size="xs"
             fz="sm"

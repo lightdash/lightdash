@@ -3,8 +3,10 @@ import {
     ActionIcon,
     Box,
     Button,
+    CloseButton,
     Collapse,
     Divider,
+    Group,
     Indicator,
     Popover,
     Stack,
@@ -20,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -40,6 +43,7 @@ const COMMENTS_LIST_MAX_HEIGHT = 500;
 export const DashboardTileComments: FC<
     Props & Pick<PopoverProps, 'opened' | 'onClose' | 'onOpen'>
 > = ({ dashboardTileUuid, opened, onClose, onOpen }) => {
+    const getUiString = useUiStrings();
     const { user } = useApp();
     const { track } = useTracking();
 
@@ -185,6 +189,12 @@ export const DashboardTileComments: FC<
     return (
         <Popover
             withArrow
+            preventPositionChangeWhenVisible={false}
+            floatingStrategy="fixed"
+            middlewares={{
+                flip: true,
+                shift: { crossAxis: true, padding: 12, limiter: undefined },
+            }}
             position="bottom-end"
             offset={4}
             arrowOffset={10}
@@ -198,8 +208,9 @@ export const DashboardTileComments: FC<
         >
             <Popover.Dropdown
                 p={0}
-                w={400}
-                maw={400}
+                w="min(400px, calc(100vw - 24px))"
+                mah="calc(100dvh - 24px)"
+                style={{ overflowY: 'auto' }}
                 // Walkthrough result marker for create:DashboardComments:
                 // the thread, with the learner's own comment in it.
                 data-tour-scope="create:DashboardComments"
@@ -213,6 +224,24 @@ export const DashboardTileComments: FC<
                 // cannot mention anyone, since who exists differs per org.
                 data-tour-resultdocs="explore/dashboards/interact.mdx#comment-on-a-tile:2"
             >
+                <Group
+                    justify="space-between"
+                    px="sm"
+                    wrap="nowrap"
+                    pos="sticky"
+                    top={0}
+                    bg="background"
+                    style={{ zIndex: 1 }}
+                >
+                    <Text fw={600} size="sm">
+                        {getUiString('comments.title')}
+                    </Text>
+                    <CloseButton
+                        aria-label={getUiString('comments.close')}
+                        size={44}
+                        onClick={() => setOpenedComments(false)}
+                    />
+                </Group>
                 <Stack
                     id="comments-stack"
                     // Walkthrough result marker for view:DashboardComments:
@@ -334,11 +363,12 @@ export const DashboardTileComments: FC<
                     }}
                 >
                     <Tooltip
-                        label="Comments"
+                        label={getUiString('comments.title')}
                         position="top"
                         disabled={openedComments}
                     >
                         <ActionIcon
+                            aria-label={getUiString('comments.title')}
                             display="block"
                             size="sm"
                             onClick={handleTargetClick}

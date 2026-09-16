@@ -167,6 +167,7 @@ const SqlRunner = ({
             noContentPadding
             flexContent
             sidebar={<Sidebar />}
+            sidebarTitle="Tables"
         >
             <Stack gap={0} flex={1} miw={0}>
                 {mode === 'virtualView' && virtualViewState ? (

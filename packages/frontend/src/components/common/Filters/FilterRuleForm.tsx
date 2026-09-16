@@ -22,6 +22,7 @@ import { FILTER_SELECT_LIMIT } from './constants';
 import FilterInputComponent from './FilterInputs';
 import { getFilterOperatorOptions } from './FilterInputs/utils';
 import FilterOperatorOption from './FilterOperatorOption';
+import classes from './FilterRuleForm.module.css';
 import useFiltersContext from './useFiltersContext';
 
 type Props = {
@@ -150,7 +151,8 @@ const FilterRuleForm: FC<Props> = memo(
 
         return (
             <Group
-                wrap="nowrap"
+                className={classes.rule}
+                wrap="wrap"
                 align="start"
                 gap="xs"
                 data-testid="FilterRuleForm/filter-rule"
@@ -159,7 +161,7 @@ const FilterRuleForm: FC<Props> = memo(
                     label={fieldSelectDisabledReason}
                     disabled={!fieldSelectDisabledReason}
                 >
-                    <Box>
+                    <Box className={classes.field}>
                         <FieldSelect
                             size="xs"
                             disabled={isFieldSelectDisabled}
@@ -184,8 +186,8 @@ const FilterRuleForm: FC<Props> = memo(
                 <Select
                     limit={FILTER_SELECT_LIMIT}
                     size="xs"
-                    w="175px"
-                    flex="0 0 auto"
+                    w={{ base: '100%', sm: 175 }}
+                    flex={{ base: '1 1 100%', sm: '0 0 auto' }}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     disabled={!isEditMode}

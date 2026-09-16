@@ -6,7 +6,6 @@ import {
 import { ActionIcon, Group, Popover, Title } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
-import { DASHBOARD_HEADER_HEIGHT } from '../../../components/common/Dashboard/dashboard.constants';
 import { FavoriteActionIcon } from '../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import PageHeader from '../../../components/common/Page/PageHeader';
@@ -75,10 +74,8 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
 
     return (
         <PageHeader
+            variant="dashboard"
             cardProps={{
-                px: 'xl',
-                py: 0,
-                h: DASHBOARD_HEADER_HEIGHT,
                 className: classes.header,
             }}
         >
@@ -100,12 +97,15 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                     }}
                 >
                     <Popover.Target>
-                        <ActionIcon size="md">
+                        <ActionIcon size="md" aria-label="App information">
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Popover.Target>
 
-                    <Popover.Dropdown maw={500} p={0}>
+                    <Popover.Dropdown
+                        maw="min(500px, calc(100vw - 32px))"
+                        p={0}
+                    >
                         <AppInfoOverlay
                             projectUuid={projectUuid}
                             displayName={displayName}
@@ -138,7 +138,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                 />
             </Group>
 
-            <Group gap="sm" wrap="nowrap">
+            <Group gap="sm" wrap="wrap">
                 {rightSection}
             </Group>
 

@@ -32,6 +32,15 @@ const getJaffleDashboard = () =>
         `/api/v2/content?pageSize=1&contentTypes=dashboard&search=jaffle`,
     );
 
+const getTile = (title: string) =>
+    cy.contains(title).closest('.mantine-Card-root').parent();
+
+const openTileMenu = (title: string) =>
+    getTile(title)
+        .trigger('mouseenter')
+        .findByRole('button', { name: 'Tile actions' })
+        .click();
+
 describe('Embedded dashboard', () => {
     beforeEach(() => {
         cy.login();
@@ -85,19 +94,21 @@ describe('Embedded dashboard', () => {
                     cy.contains('Is completed is True');
 
                     cy.contains(
-                        'Order date year in the last 10 completed years',
+                        /Order date year in the last \d+ completed years/,
                     );
 
                     // Check export options
-                    cy.contains(
-                        `What's the average spend per customer?`,
-                    ).trigger('mouseenter');
-                    cy.findByTestId('tile-icon-more').click();
+                    const chartTitle = `What's the average spend per customer?`;
+                    openTileMenu(chartTitle);
                     cy.contains('Download data');
                     cy.contains('Export image');
 
+                    getTile(chartTitle).trigger('mouseleave');
+                    cy.get('body').click(1, 1);
+                    cy.contains('Download data').should('not.exist');
+
                     // Check date zoom
-                    cy.contains('Default zoom');
+                    cy.findByRole('button', { name: /zoom/i }).should('exist');
                 });
             });
         });
@@ -193,10 +204,9 @@ describe('Embedded dashboard', () => {
                     cy.contains('bank_transfer');
 
                     // Find a chart tile and click "Explore from here"
-                    cy.contains(
+                    openTileMenu(
                         `How much revenue do we have per payment method?`,
-                    ).trigger('mouseenter');
-                    cy.findByTestId('tile-icon-more').click();
+                    );
                     cy.contains('Explore from here').click();
 
                     // Should navigate to embedded explore page

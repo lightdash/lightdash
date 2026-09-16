@@ -17,6 +17,7 @@ import { IconShare2, IconStack, IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useOrganization } from '../../hooks/organization/useOrganization';
+import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -43,6 +44,7 @@ import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
 const UnderlyingDataModalContent: FC = () => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const projectUuid = useProjectUuid();
     const {
         isUnderlyingDataModalOpen,
@@ -339,6 +341,7 @@ const UnderlyingDataModalContent: FC = () => {
             >
                 <Divider orientation="vertical" />
                 <Button
+                    display={authoringEnabled ? undefined : 'none'}
                     leftSection={<MantineIcon icon={IconTelescope} />}
                     onClick={handleExploreFromHere}
                     disabled={!exploreFromHereUrl}

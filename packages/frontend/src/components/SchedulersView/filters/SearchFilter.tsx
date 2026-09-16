@@ -39,7 +39,10 @@ export const SearchFilter = ({ search, setSearch }: SearchFilterProps) => {
                         </ActionIcon>
                     )
                 }
-                style={{ minWidth: 200, maxWidth: 350, flexShrink: 1 }}
+                miw={{ base: 0, sm: 200 }}
+                maw={350}
+                w={{ base: '100%', sm: 309 }}
+                flex={{ base: '1 0 100%', sm: '0 1 auto' }}
             />
         </Tooltip>
     );

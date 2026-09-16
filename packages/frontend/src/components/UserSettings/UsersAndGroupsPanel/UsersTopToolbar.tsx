@@ -32,6 +32,7 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                             data-testid="org-users-search-input"
                             size="xs"
                             type="search"
+                            aria-label="Search users by name, email, or role"
                             variant="default"
                             placeholder="Search users by name, email, or role"
                             value={search ?? ''}
@@ -46,6 +47,7 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                             rightSection={
                                 search && (
                                     <ActionIcon
+                                        aria-label="Clear search"
                                         onClick={() => setSearch('')}
                                         variant="transparent"
                                         size="xs"
@@ -55,7 +57,8 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                                     </ActionIcon>
                                 )
                             }
-                            miw={350}
+                            miw={{ base: 0, sm: 350 }}
+                            w={{ base: '100%', sm: 'auto' }}
                             maw={400}
                         />
                     </Tooltip>

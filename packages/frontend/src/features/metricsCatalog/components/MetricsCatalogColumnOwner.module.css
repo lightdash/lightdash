@@ -1,0 +1,24 @@
+.trigger {
+    max-width: 100%;
+    border-radius: var(--mantine-radius-sm);
+}
+
+.trigger:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.dropdown {
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+}
+
+.email {
+    overflow-wrap: anywhere;
+    user-select: text;
+}
+
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
+    .trigger {
+        min-height: 44px;
+    }
+}

@@ -2,6 +2,7 @@ import { type CatalogField, type Tag } from '@lightdash/common';
 import {
     Box,
     Button,
+    CloseButton,
     Group,
     Stack,
     Text,
@@ -21,6 +22,7 @@ import {
     type FC,
 } from 'react';
 import { PillTagsInput } from '../../../components/common/TagsInput/PillTagsInput';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -48,6 +50,7 @@ const isCategoryDefinedInUI = (
 
 export const MetricsCatalogCategoryForm: FC<Props> = memo(
     ({ catalogSearchUuid, metricCategories, opened, onClose }) => {
+        const getUiString = useUiStrings();
         const { track } = useTracking();
         const { colors } = useMantineTheme();
         const userUuid = useAppSelector(
@@ -261,7 +264,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     }
                 }}
                 position="top"
-                width={300}
+                width="min(340px, calc(100vw - 24px))"
+                floatingStrategy="fixed"
+                middlewares={{ shift: { crossAxis: true, padding: 12 } }}
                 withArrow
                 trapFocus={!hasOpenSubPopover}
                 closeOnClickOutside={!hasOpenSubPopover} // Prevent closing when sub-popover is open
@@ -276,6 +281,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 </Popover.Target>
                 <Popover.Dropdown
                     p={0}
+                    className={formClasses.dropdown}
                     // Walkthrough result marker for manage:Tags: the metric's
                     // categories, with the one just added.
                     data-tour-scope="manage:Tags"
@@ -286,6 +292,17 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     data-tour-return="none"
                     data-tour-resultdocs="explore/metrics-catalog/curate-the-catalog.mdx#browsing-the-catalog:li3:2"
                 >
+                    <Group
+                        justify="flex-end"
+                        className={formClasses.header}
+                        px="xs"
+                    >
+                        <CloseButton
+                            size={44}
+                            aria-label={getUiString('metrics.closeCategories')}
+                            onClick={onClose}
+                        />
+                    </Group>
                     <Stack px="sm" pt="sm" gap="xs">
                         <PillTagsInput
                             value={categoryNames}

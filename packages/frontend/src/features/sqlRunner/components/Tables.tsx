@@ -416,58 +416,53 @@ export const Tables: FC = () => {
 
     return (
         <>
-            <Tooltip
-                opened={search.length > 0 && search.length < MIN_SEARCH_LENGTH}
-                label={`Enter at least ${MIN_SEARCH_LENGTH} characters to search`}
-            >
-                <TextInput
-                    size="sm"
-                    disabled={!data && !debouncedSearch}
-                    classNames={{
-                        wrapper: showTypeFilter
-                            ? showClear
-                                ? styles.searchWithFilterAndClear
-                                : styles.searchWithFilter
-                            : undefined,
-                        section: styles.searchSection,
-                    }}
-                    leftSection={
-                        isLoading ? (
-                            <Loader size="xs" />
-                        ) : (
-                            <MantineIcon icon={IconSearch} />
-                        )
+            <Group gap="xs" wrap="nowrap">
+                <Tooltip
+                    opened={
+                        search.length > 0 && search.length < MIN_SEARCH_LENGTH
                     }
-                    rightSectionPointerEvents="all"
-                    rightSection={
-                        showClear || showTypeFilter ? (
-                            <Group gap="xxs" wrap="nowrap">
-                                {showClear ? (
-                                    <ActionIcon
-                                        aria-label="Clear search"
-                                        onMouseDown={(event) =>
-                                            event.preventDefault()
-                                        }
-                                        size="xs"
-                                        onClick={() => setSearch('')}
-                                    >
-                                        <MantineIcon icon={IconX} />
-                                    </ActionIcon>
-                                ) : null}
-                                {showTypeFilter ? (
-                                    <TableTypeToggle
-                                        value={typeFilter}
-                                        onChange={setTypeFilter}
-                                    />
-                                ) : null}
-                            </Group>
-                        ) : null
-                    }
-                    placeholder="Search tables"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
-            </Tooltip>
+                    label={`Enter at least ${MIN_SEARCH_LENGTH} characters to search`}
+                >
+                    <TextInput
+                        className={styles.searchInput}
+                        size="sm"
+                        disabled={!data && !debouncedSearch}
+                        classNames={{ section: styles.searchSection }}
+                        leftSection={
+                            isLoading ? (
+                                <Loader size="xs" />
+                            ) : (
+                                <MantineIcon icon={IconSearch} />
+                            )
+                        }
+                        rightSectionPointerEvents="all"
+                        rightSection={
+                            showClear ? (
+                                <ActionIcon
+                                    aria-label="Clear search"
+                                    onMouseDown={(event) =>
+                                        event.preventDefault()
+                                    }
+                                    size="xs"
+                                    onClick={() => setSearch('')}
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
+                        }
+                        placeholder="Search tables"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </Tooltip>
+
+                {showTypeFilter ? (
+                    <TableTypeToggle
+                        value={typeFilter}
+                        onChange={setTypeFilter}
+                    />
+                ) : null}
+            </Group>
 
             <ScrollArea
                 viewportRef={viewportRef}

@@ -32,6 +32,7 @@ import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
 import MantineIcon from '../common/MantineIcon';
 import { NumberInput } from '../common/NumberInput';
+import classes from './ExportResults.module.css';
 import { Limit } from './types';
 
 type ExportCsvRenderProps = {
@@ -330,7 +331,11 @@ const ExportResults: FC<ExportResultsProps> = memo(
         return (
             <Stack
                 gap="md"
-                miw="20rem"
+                miw={0}
+                w={isDialog ? '100%' : 'min(32rem, calc(100vw - 64px))'}
+                maw="100%"
+                mah={isDialog ? undefined : 'calc(100dvh - 160px)'}
+                className={isDialog ? undefined : classes.popover}
                 // Walkthrough result marker for manage:ExportCsv: the export
                 // dialog, still open once the file has been sent.
                 data-tour-scope="manage:ExportCsv"

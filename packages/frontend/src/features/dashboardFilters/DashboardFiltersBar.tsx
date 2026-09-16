@@ -8,10 +8,12 @@ import {
     Box,
     Button,
     Divider,
+    Drawer,
     Group,
     Text,
     Tooltip,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustmentsHorizontal,
     IconCalendar,
@@ -22,10 +24,13 @@ import {
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
 import PinnedParameters from '../../components/PinnedParameters';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
+import classes from './DashboardFiltersBar.module.css';
 import FilterGroupSeparator from './FilterGroupSeparator';
 import FilterRequirementsButton from './FilterRequirements/FilterRequirementsButton';
 import DashboardFilters from './index';
@@ -69,6 +74,9 @@ export const DashboardFiltersBar: FC<Props> = ({
     isDateZoomDisabled,
     onCollapse,
 }) => {
+    const compact = useCompactContentHeader();
+    const [opened, { open, close }] = useDisclosure(false);
+    const getUiString = useUiStrings();
     const isAddFilterDisabled = useDashboardContext(
         (c) => c.isAddFilterDisabled,
     );
@@ -101,12 +109,13 @@ export const DashboardFiltersBar: FC<Props> = ({
 
     const renderFilters = !isAddFilterDisabled || isEditMode || hasFilters;
 
-    return (
-        <div>
+    const content = (
+        <div className={classes.content}>
             <Group
+                className={classes.bar}
                 justify="space-between"
                 align="flex-start"
-                wrap="nowrap"
+                wrap={compact ? 'wrap' : 'nowrap'}
                 px="lg"
                 py="xxs"
                 // Walkthrough: a look at the filter bar on the way to the
@@ -121,11 +130,16 @@ export const DashboardFiltersBar: FC<Props> = ({
                 <Group
                     justify="space-between"
                     align="flex-start"
-                    wrap="nowrap"
+                    wrap={compact ? 'wrap' : 'nowrap'}
                     grow
                 >
                     {hasTilesThatSupportFilters && (
-                        <Group align="flex-start" gap="xs" wrap="wrap">
+                        <Group
+                            className={classes.filters}
+                            align="flex-start"
+                            gap="xs"
+                            wrap="wrap"
+                        >
                             {renderFilters && (
                                 <FilterGroupSeparator
                                     icon={IconFilter}
@@ -172,7 +186,11 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         onParameterPin={onParameterPin}
                                         parameterOrder={parameterOrder}
                                         onParameterReorder={onParameterReorder}
-                                        separator={parametersSeparator}
+                                        separator={
+                                            compact
+                                                ? undefined
+                                                : parametersSeparator
+                                        }
                                     />
                                     <PinnedParameters isEditMode={isEditMode} />
                                 </>
@@ -182,7 +200,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                 </Group>
 
                 {/* Right section - date zoom and hide button */}
-                <Group gap="xs" ml="auto" wrap="nowrap">
+                <Group gap="xs" ml="auto" wrap={compact ? 'wrap' : 'nowrap'}>
                     {hasDashboardTiles &&
                         (!isDateZoomDisabled || isEditMode) && (
                             <>
@@ -234,7 +252,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                         )}
 
                     {/* Hide button - only in view mode */}
-                    {!isEditMode && (
+                    {!isEditMode && !compact && (
                         <>
                             <Divider orientation="vertical" />
                             <Tooltip label="Hide filters">
@@ -255,5 +273,37 @@ export const DashboardFiltersBar: FC<Props> = ({
                 </Group>
             </Group>
         </div>
+    );
+
+    if (!compact || isEditMode) return content;
+
+    return (
+        <Box px="sm" py="xs">
+            <Button
+                variant="default"
+                onClick={open}
+                leftSection={<MantineIcon icon={IconFilter} />}
+                aria-expanded={opened}
+            >
+                {getUiString('filters.panel.title')}
+            </Button>
+            <Drawer
+                opened={opened}
+                onClose={close}
+                title={getUiString('filters.panel.title')}
+                closeButtonProps={{
+                    'aria-label': getUiString('filters.panel.close'),
+                    size: 44,
+                }}
+                position="bottom"
+                size="85dvh"
+                classNames={{
+                    content: classes.drawerContent,
+                    body: classes.drawerBody,
+                }}
+            >
+                {content}
+            </Drawer>
+        </Box>
     );
 };

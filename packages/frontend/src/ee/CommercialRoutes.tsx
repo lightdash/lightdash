@@ -516,8 +516,3 @@ export const CommercialWebAppRoutes = [
     ...COMMERCIAL_AI_AGENTS_ROUTES,
     ...COMMERCIAL_SLACK_AUTH_ROUTES,
 ];
-
-export const CommercialMobileRoutes = [
-    ...COMMERCIAL_EMBED_ROUTES,
-    ...COMMERCIAL_AI_AGENTS_ROUTES,
-];

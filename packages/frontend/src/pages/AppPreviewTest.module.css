@@ -1,7 +1,7 @@
 .previewContainer {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 50px);
+    height: calc(100dvh - 50px);
     width: 100%;
     overflow: hidden;
 }
@@ -11,7 +11,7 @@
    the viewport and can be scrolled. Mirrors dashboardTabs/tabs.module.css. */
 :global(body:has(#preview-banner)) .previewContainer,
 :global(body:has(#impersonation-banner)) .previewContainer {
-    height: calc(100vh - 50px - 35px);
+    height: calc(100dvh - 50px - 35px);
 }
 
 /* Presentation mode: the navbar hides itself, so reclaim the full viewport.
@@ -19,7 +19,14 @@
 .previewContainerFullscreen,
 :global(body:has(#preview-banner)) .previewContainerFullscreen,
 :global(body:has(#impersonation-banner)) .previewContainerFullscreen {
-    height: 100vh;
+    height: 100dvh;
+}
+
+.exitFullscreen {
+    position: fixed;
+    top: max(var(--mantine-spacing-sm), env(safe-area-inset-top));
+    right: max(var(--mantine-spacing-sm), env(safe-area-inset-right));
+    z-index: var(--mantine-z-index-app);
 }
 
 .previewBody {

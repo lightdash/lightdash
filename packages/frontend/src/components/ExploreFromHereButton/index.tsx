@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button } from '@mantine/core';
+import { Button, Menu } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
@@ -9,12 +9,18 @@ import {
 } from '../../features/explorer/store';
 import { getExploreFromHereUrl } from '../../features/mergeQuery/utils/getExploreFromHereUrl';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 
-const ExploreFromHereButton = () => {
+const ExploreFromHereButton = ({
+    asMenuItem = false,
+}: {
+    asMenuItem?: boolean;
+}) => {
     // Get savedChart from Redux
+    const authoringEnabled = useContentAuthoringEnabled();
     const savedChart = useExplorerSelector(selectSavedChart);
     const exploreFromHereUrl = useMemo(
         () => (savedChart ? getExploreFromHereUrl(savedChart) : undefined),
@@ -47,15 +53,18 @@ const ExploreFromHereButton = () => {
             projectUuid: savedChart?.projectUuid,
         }),
     );
-    if (cannotManageExplore) return null;
+    if (!authoringEnabled || cannotManageExplore) return null;
     if (!exploreFromHereUrl) return null;
 
-    return (
-        <Button
-            size="xs"
-            leftSection={<MantineIcon icon={IconTelescope} />}
-            onClick={() => handleCreateShareUrl()}
-        >
+    const actionProps = {
+        leftSection: <MantineIcon icon={IconTelescope} />,
+        onClick: () => void handleCreateShareUrl(),
+    };
+
+    return asMenuItem ? (
+        <Menu.Item {...actionProps}>Explore from here</Menu.Item>
+    ) : (
+        <Button size="xs" {...actionProps}>
             Explore from here
         </Button>
     );

@@ -1,3 +1,7 @@
+.filterBar > :last-child {
+    margin-left: auto;
+}
+
 .filterParameterDivider {
     display: none;
 }

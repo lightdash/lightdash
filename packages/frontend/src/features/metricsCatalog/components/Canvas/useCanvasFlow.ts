@@ -121,10 +121,6 @@ export const useCanvasFlow = ({
     // Track whether the canvas has been initialized (used to prevent resets in draft mode)
     const isCanvasInitializedRef = useRef(false);
 
-    // Track reset cycles to avoid stale time-propagation writes (Fix 3)
-    const resetCountRef = useRef(0);
-    const lastSeenResetRef = useRef(0);
-
     // --- Reactive YAML edge injection (edit mode only) ---
     // Stable string of sorted canvas node IDs — avoids re-running on every drag/reposition
     const canvasNodeIdString = useMemo(
@@ -461,7 +457,6 @@ export const useCanvasFlow = ({
         setCurrentNodes(nodesWithTimeData);
         setCurrentEdges(initialEdges);
         setIsLayoutReady(false);
-        resetCountRef.current += 1;
     }, [
         initialNodes,
         initialEdges,
@@ -496,22 +491,24 @@ export const useCanvasFlow = ({
         fitView,
     ]);
 
-    // Propagate time frame changes to all nodes.
-    // Skip when a reset just ran — the reset effect already applied current time values.
+    // Propagate period changes even when metrics loaded since the last change.
+    // A reset already uses current time values, so only update differing nodes.
     useEffect(() => {
-        if (resetCountRef.current !== lastSeenResetRef.current) {
-            lastSeenResetRef.current = resetCountRef.current;
-            return;
-        }
-        setCurrentNodes((nodes) =>
-            nodes.map((node) => ({
+        setCurrentNodes((nodes) => {
+            if (
+                nodes.every(
+                    (node) =>
+                        node.data.timeFrame === timeFrame &&
+                        node.data.rollingDays === rollingDays,
+                )
+            ) {
+                return nodes;
+            }
+            return nodes.map((node) => ({
                 ...node,
-                data:
-                    'timeFrame' in node.data
-                        ? { ...node.data, timeFrame, rollingDays }
-                        : node.data,
-            })),
-        );
+                data: { ...node.data, timeFrame, rollingDays },
+            }));
+        });
     }, [timeFrame, rollingDays, setCurrentNodes]);
 
     // Remove nodes from canvas if they no longer exist in metrics.

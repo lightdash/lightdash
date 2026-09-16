@@ -29,6 +29,7 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useState } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useCopyTileLink } from '../../../hooks/dashboard/useTileLink';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import { FloatingActionsPill } from '../../common/FloatingActionsPill';
@@ -66,6 +67,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     transparent = false,
     fullWidth = false,
 }: TileBaseProps<T>) => {
+    const getUiString = useUiStrings();
     const [isEditingTileContent, setIsEditingTileContent] = useState(false);
     const [isMovingTabs, setIsMovingTabs] = useState(false);
 
@@ -110,6 +112,157 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const hasHeaderContent =
         hasMenuContent || isVerified || hasNonMenuHeaderContent || canViewChart;
 
+    const showHeaderActions =
+        (containerHovered && !titleHovered && !chartHovered) ||
+        isMenuOpen ||
+        lockHeaderVisibility ||
+        !!visibleHeaderElement;
+    const headerActions = hasHeaderContent ? (
+        <FloatingActionsPill
+            visible={showHeaderActions}
+            className={clsx('non-draggable', styles.tileTooltip)}
+        >
+            {titleLeftIcon}
+
+            {visibleHeaderElement && (
+                <Group gap="xs" className="non-draggable">
+                    {visibleHeaderElement}
+                </Group>
+            )}
+
+            {extraHeaderElement}
+
+            {isVerified && (
+                <Tooltip
+                    label={
+                        verification?.verifiedBy
+                            ? `Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`
+                            : 'Verified'
+                    }
+                >
+                    <IconCircleCheckFilled
+                        size={14}
+                        style={{
+                            flexShrink: 0,
+                            color: 'var(--mantine-color-green-6)',
+                        }}
+                    />
+                </Tooltip>
+            )}
+
+            {canViewChart && (
+                <Tooltip label="View chart">
+                    <ActionIcon
+                        component="a"
+                        size="sm"
+                        href={titleHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="View chart"
+                    >
+                        <MantineIcon icon={IconExternalLink} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+
+            {hasMenuContent && (
+                <Menu
+                    withArrow
+                    position="bottom-end"
+                    offset={4}
+                    arrowOffset={10}
+                    opened={isMenuOpen}
+                    onOpen={() => toggleMenu(true)}
+                    onClose={() => toggleMenu(false)}
+                >
+                    <Menu.Dropdown>
+                        {canCopyTileLink && (
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconLink} />}
+                                onClick={copyTileLink}
+                            >
+                                Copy link to tile
+                            </Menu.Item>
+                        )}
+                        {canCopyTileLink &&
+                            (!!extraMenuItems || isEditMode) && (
+                                <Menu.Divider />
+                            )}
+                        {extraMenuItems}
+                        {isEditMode && extraMenuItems && <Menu.Divider />}
+                        {isEditMode && (
+                            <>
+                                <Box>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconEdit} />
+                                        }
+                                        onClick={() =>
+                                            setIsEditingTileContent(true)
+                                        }
+                                    >
+                                        Edit tile content
+                                    </Menu.Item>
+                                </Box>
+                                {tabs && tabs.length > 1 && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconArrowAutofitContent}
+                                            />
+                                        }
+                                        onClick={() => setIsMovingTabs(true)}
+                                    >
+                                        Move to another tab
+                                    </Menu.Item>
+                                )}
+                                <Menu.Divider />
+                                {belongsToDashboard ? (
+                                    <Menu.Item
+                                        color="red"
+                                        onClick={() =>
+                                            setIsDeletingChartThatBelongsToDashboard(
+                                                true,
+                                            )
+                                        }
+                                    >
+                                        Delete chart
+                                    </Menu.Item>
+                                ) : (
+                                    <Menu.Item
+                                        color="red"
+                                        leftSection={
+                                            <MantineIcon icon={IconTrash} />
+                                        }
+                                        onClick={() => onDelete(tile)}
+                                    >
+                                        Remove tile
+                                    </Menu.Item>
+                                )}
+                            </>
+                        )}
+                    </Menu.Dropdown>
+
+                    <Menu.Target>
+                        <ActionIcon
+                            aria-label={getUiString('tileMenu.actions')}
+                            size="sm"
+                            style={{
+                                position: 'relative',
+                                zIndex: 1,
+                            }}
+                        >
+                            <MantineIcon
+                                data-testid="tile-icon-more"
+                                icon={IconDots}
+                            />
+                        </ActionIcon>
+                    </Menu.Target>
+                </Menu>
+            )}
+        </FloatingActionsPill>
+    ) : null;
+
     return (
         <div ref={containerRef} className={styles.tileWrapper}>
             {containerHovered && isEditMode && !minimal && (
@@ -125,172 +278,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     <MantineIcon icon={IconGripVertical} color="ldGray" />
                 </Paper>
             )}
-
-            {((containerHovered && !titleHovered && !chartHovered) ||
-                isMenuOpen ||
-                lockHeaderVisibility ||
-                // Content meant to stay visible (a tile's comment count)
-                // keeps the header shown without a hover.
-                !!visibleHeaderElement) &&
-                hasHeaderContent && (
-                    <FloatingActionsPill
-                        className={clsx('non-draggable', styles.tileTooltip)}
-                    >
-                        {titleLeftIcon}
-
-                        {visibleHeaderElement && (
-                            <Group gap="xs" className="non-draggable">
-                                {visibleHeaderElement}
-                            </Group>
-                        )}
-
-                        {extraHeaderElement}
-
-                        {isVerified && (
-                            <Tooltip
-                                label={
-                                    verification?.verifiedBy
-                                        ? `Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`
-                                        : 'Verified'
-                                }
-                            >
-                                <IconCircleCheckFilled
-                                    size={14}
-                                    style={{
-                                        flexShrink: 0,
-                                        color: 'var(--mantine-color-green-6)',
-                                    }}
-                                />
-                            </Tooltip>
-                        )}
-
-                        {canViewChart && (
-                            <Tooltip label="View chart">
-                                <ActionIcon
-                                    component="a"
-                                    size="sm"
-                                    href={titleHref}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    aria-label="View chart"
-                                >
-                                    <MantineIcon icon={IconExternalLink} />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-
-                        {hasMenuContent && (
-                            <Menu
-                                withArrow
-                                position="bottom-end"
-                                offset={4}
-                                arrowOffset={10}
-                                opened={isMenuOpen}
-                                onOpen={() => toggleMenu(true)}
-                                onClose={() => toggleMenu(false)}
-                            >
-                                <Menu.Dropdown>
-                                    {canCopyTileLink && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconLink} />
-                                            }
-                                            onClick={copyTileLink}
-                                        >
-                                            Copy link to tile
-                                        </Menu.Item>
-                                    )}
-                                    {canCopyTileLink &&
-                                        (!!extraMenuItems || isEditMode) && (
-                                            <Menu.Divider />
-                                        )}
-                                    {extraMenuItems}
-                                    {isEditMode && extraMenuItems && (
-                                        <Menu.Divider />
-                                    )}
-                                    {isEditMode && (
-                                        <>
-                                            <Box>
-                                                <Menu.Item
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconEdit}
-                                                        />
-                                                    }
-                                                    onClick={() =>
-                                                        setIsEditingTileContent(
-                                                            true,
-                                                        )
-                                                    }
-                                                >
-                                                    Edit tile content
-                                                </Menu.Item>
-                                            </Box>
-                                            {tabs && tabs.length > 1 && (
-                                                <Menu.Item
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconArrowAutofitContent
-                                                            }
-                                                        />
-                                                    }
-                                                    onClick={() =>
-                                                        setIsMovingTabs(true)
-                                                    }
-                                                >
-                                                    Move to another tab
-                                                </Menu.Item>
-                                            )}
-                                            <Menu.Divider />
-                                            {belongsToDashboard ? (
-                                                <Menu.Item
-                                                    color="red"
-                                                    onClick={() =>
-                                                        setIsDeletingChartThatBelongsToDashboard(
-                                                            true,
-                                                        )
-                                                    }
-                                                >
-                                                    Delete chart
-                                                </Menu.Item>
-                                            ) : (
-                                                <Menu.Item
-                                                    color="red"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconTrash}
-                                                        />
-                                                    }
-                                                    onClick={() =>
-                                                        onDelete(tile)
-                                                    }
-                                                >
-                                                    Remove tile
-                                                </Menu.Item>
-                                            )}
-                                        </>
-                                    )}
-                                </Menu.Dropdown>
-
-                                <Menu.Target>
-                                    <ActionIcon
-                                        size="sm"
-                                        style={{
-                                            position: 'relative',
-                                            zIndex: 1,
-                                        }}
-                                    >
-                                        <MantineIcon
-                                            data-testid="tile-icon-more"
-                                            icon={IconDots}
-                                        />
-                                    </ActionIcon>
-                                </Menu.Target>
-                            </Menu>
-                        )}
-                    </FloatingActionsPill>
-                )}
 
             <Card
                 className={styles.tileCard}
@@ -327,9 +314,32 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     mb="sm"
                     data-is-edit-mode={isEditMode}
                     data-is-empty={isMarkdownTileTitleEmpty || hideTitle}
+                    data-has-actions={hasHeaderContent}
                 >
-                    {minimal ? (
-                        !hideTitle ? (
+                    <Box className={styles.titleContainer}>
+                        {minimal ? (
+                            !hideTitle ? (
+                                <Tooltip
+                                    disabled={!description}
+                                    label={
+                                        <Text
+                                            style={{ whiteSpace: 'pre-line' }}
+                                            fz="sm"
+                                        >
+                                            {description}
+                                        </Text>
+                                    }
+                                    position="top-start"
+                                    maw={400}
+                                >
+                                    <Text fw={600} size="md">
+                                        {title}
+                                    </Text>
+                                </Tooltip>
+                            ) : (
+                                <Box />
+                            )
+                        ) : (
                             <Tooltip
                                 disabled={!description}
                                 label={
@@ -343,52 +353,37 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 position="top-start"
                                 maw={400}
                             >
-                                <Text fw={600} size="md">
-                                    {title}
-                                </Text>
+                                {isEditMode ||
+                                tile.type === DashboardTileTypes.MARKDOWN ? (
+                                    <Text
+                                        className={styles.tileTitle}
+                                        data-hidden={hideTitle}
+                                        c="foreground"
+                                    >
+                                        {title}
+                                    </Text>
+                                ) : (
+                                    <Text
+                                        component="a"
+                                        className={styles.tileTitle}
+                                        data-hidden={hideTitle}
+                                        data-hovered={titleHovered}
+                                        href={titleHref}
+                                        onMouseEnter={() =>
+                                            setTitleHovered(true)
+                                        }
+                                        onMouseLeave={() =>
+                                            setTitleHovered(false)
+                                        }
+                                        target="_blank"
+                                    >
+                                        {title}
+                                    </Text>
+                                )}
                             </Tooltip>
-                        ) : (
-                            <Box />
-                        )
-                    ) : (
-                        <Tooltip
-                            disabled={!description}
-                            label={
-                                <Text
-                                    style={{ whiteSpace: 'pre-line' }}
-                                    fz="sm"
-                                >
-                                    {description}
-                                </Text>
-                            }
-                            position="top-start"
-                            maw={400}
-                        >
-                            {isEditMode ||
-                            tile.type === DashboardTileTypes.MARKDOWN ? (
-                                <Text
-                                    className={styles.tileTitle}
-                                    data-hidden={hideTitle}
-                                    c="foreground"
-                                >
-                                    {title}
-                                </Text>
-                            ) : (
-                                <Text
-                                    component="a"
-                                    className={styles.tileTitle}
-                                    data-hidden={hideTitle}
-                                    data-hovered={titleHovered}
-                                    href={titleHref}
-                                    onMouseEnter={() => setTitleHovered(true)}
-                                    onMouseLeave={() => setTitleHovered(false)}
-                                    target="_blank"
-                                >
-                                    {title}
-                                </Text>
-                            )}
-                        </Tooltip>
-                    )}
+                        )}
+                    </Box>
+                    {headerActions}
                 </Group>
 
                 <Flex

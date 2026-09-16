@@ -12,6 +12,7 @@ import { useForm } from '@mantine/form';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
@@ -41,6 +42,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     onClose,
     ...modalProps
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const { user } = useApp();
     const { mutateAsync: createDashboard, isLoading: isCreatingDashboard } =
         useCreateMutation(projectUuid);
@@ -179,6 +181,8 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         spaceManagement.createSpaceMutation.isLoading;
 
     if (isLoadingSpaces || !spaces) return null;
+
+    if (!authoringEnabled) return null;
 
     return (
         <MantineBaseProvider>

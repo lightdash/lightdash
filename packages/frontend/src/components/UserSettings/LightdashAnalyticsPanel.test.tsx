@@ -35,7 +35,7 @@ const renderPanel = () =>
 
 describe('LightdashAnalyticsPanel', () => {
     beforeEach(() => {
-        vi.resetAllMocks();
+        vi.clearAllMocks();
         vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
             url.includes('/dashboards?') ? [] : { project },
         );

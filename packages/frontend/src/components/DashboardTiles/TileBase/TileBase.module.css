@@ -87,7 +87,7 @@
 }
 
 .headerContainer {
-    position: relative;
+    position: static;
     line-height: var(--text-lh, var(--mantine-line-height-md));
     min-height: 1lh;
     font-size: 16px;
@@ -105,8 +105,73 @@
     }
 
     &[data-is-empty='true'] {
-        position: absolute;
-        right: 16px;
+        min-height: 0;
+        height: 0;
+        margin-bottom: 0;
+    }
+}
+
+.titleContainer {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    min-height: 1lh;
+}
+
+.headerContainer[data-is-empty='true'] .titleContainer {
+    min-height: 0;
+}
+
+.tileTooltip[data-visible='false'] {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tileTooltip:has(:focus-visible) {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (hover: none), (width < $mantine-breakpoint-sm) {
+    .headerContainer {
+        flex-wrap: wrap;
+    }
+
+    .headerContainer[data-is-empty='true'][data-has-actions='true'] {
+        height: auto;
+        margin-bottom: var(--mantine-spacing-sm);
+    }
+
+    .titleContainer {
+        flex-basis: 140px;
+    }
+
+    .tileTooltip.tileTooltip {
+        position: static !important;
+        flex-shrink: 0;
+        padding: 0 !important;
+        border: 0;
+        max-width: 100%;
+        margin-left: auto;
+        opacity: 1;
+        pointer-events: auto;
+        box-shadow: none !important;
+    }
+
+    .tileTooltip > :global(.mantine-Group-root) {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 2px;
+    }
+
+    .tileTooltip :global(.mantine-ActionIcon-root) {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .tileTooltip :global(.mantine-ActionIcon-root svg) {
+        width: 20px !important;
+        height: 20px !important;
     }
 }
 

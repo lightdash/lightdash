@@ -6,6 +6,8 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     position: relative;
 }
@@ -305,6 +307,14 @@
 .containerEmpty {
     display: flex;
     flex-direction: column;
+    container-type: inline-size;
+    width: 100%;
+}
+
+.containerEmpty .emptyCell > .emptyState {
+    position: sticky;
+    left: 0;
+    width: 100cqw;
 }
 
 .containerEmpty .tableEmpty {

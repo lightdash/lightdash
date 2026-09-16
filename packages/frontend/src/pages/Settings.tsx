@@ -986,6 +986,7 @@ const Settings: FC = () => {
             withFixedContent={isFixedContent}
             withPaddedContent
             title="Settings"
+            sidebarTitle="Settings"
             sidebarWidthProps={{ defaultWidth: 300, minWidth: 260 }}
             isSidebarCollapsed={isSidebarCollapsed}
             isSidebarCollapsible
@@ -1006,6 +1007,7 @@ const Settings: FC = () => {
                         justify="space-between"
                         align="center"
                         className={classes.sidebarHeader}
+                        visibleFrom="sm"
                     >
                         <PageBreadcrumbs
                             items={[{ title: 'Settings', active: true }]}

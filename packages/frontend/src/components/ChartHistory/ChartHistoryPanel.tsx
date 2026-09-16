@@ -26,6 +26,7 @@ import {
     explorerActions,
 } from '../../features/explorer/store';
 import { MergeProvider } from '../../features/mergeQuery/context/MergeContext';
+import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useExplorerQueryEffects } from '../../hooks/useExplorerQueryEffects';
 import {
     getSavedQuery,
@@ -153,6 +154,7 @@ const ChartHistoryPanel: FC<Props> = ({
     withContainerHeight,
     withSidebarFooter,
 }) => {
+    const authoringEnabled = useContentAuthoringEnabled();
     const [userSelectedVersionUuid, selectVersionUuid] = useState<string>();
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
     const historyQuery = useChartHistory(chart.uuid);
@@ -179,6 +181,7 @@ const ChartHistoryPanel: FC<Props> = ({
 
     return (
         <Page
+            sidebarTitle="Versions"
             withSidebarFooter={withSidebarFooter}
             withFullHeight
             withPaddedContent
@@ -261,7 +264,14 @@ const ChartHistoryPanel: FC<Props> = ({
                                                 closeOnClickOutside
                                             >
                                                 <Menu.Target>
-                                                    <ActionIcon aria-label="Version actions">
+                                                    <ActionIcon
+                                                        display={
+                                                            authoringEnabled
+                                                                ? undefined
+                                                                : 'none'
+                                                        }
+                                                        aria-label="Version actions"
+                                                    >
                                                         <MantineIcon
                                                             icon={IconDots}
                                                         />

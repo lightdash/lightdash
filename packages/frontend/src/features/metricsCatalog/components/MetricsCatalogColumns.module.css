@@ -2,3 +2,26 @@
     font-weight: 400;
     background-color: transparent;
 }
+
+.categoryCell {
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    min-height: 44px;
+}
+
+.categoryPlaceholder {
+    opacity: 0;
+}
+
+.categoryCell:hover .categoryPlaceholder,
+.categoryCell:focus-visible .categoryPlaceholder {
+    opacity: 1;
+}
+
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
+    .categoryPlaceholder {
+        opacity: 1;
+    }
+}

@@ -290,6 +290,7 @@ const SchedulerDetail: FC<{
                             >
                                 <Switch
                                     size="md"
+                                    aria-label="Enable scheduled delivery"
                                     checked={scheduler.enabled}
                                     onChange={() => {
                                         if (scheduler.enabled) {
@@ -469,6 +470,7 @@ const SchedulerDetail: FC<{
                             <ActionIcon
                                 variant="default"
                                 size="lg"
+                                aria-label="Delete scheduled delivery"
                                 onClick={() =>
                                     onDelete(scheduler.schedulerUuid)
                                 }

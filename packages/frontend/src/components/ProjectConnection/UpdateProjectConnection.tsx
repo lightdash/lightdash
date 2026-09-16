@@ -211,7 +211,7 @@ const UpdateProjectConnection: FC<{
                                 </Button>
                             )}
                         </Box>
-                        <Flex gap="sm">
+                        <Flex gap="sm" className={classes.actions}>
                             <Button
                                 variant="default"
                                 loading={isTestingConnection}

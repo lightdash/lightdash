@@ -24,6 +24,7 @@ import {
 import { useMemo, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { getNameInitials } from '../utils';
 import styles from './CommentDetail.module.css';
 import { CommentTimestamp } from './CommentTimestamp';
@@ -60,6 +61,7 @@ export const CommentDetail: FC<Props> = ({
     canUnresolve,
     onUnresolve,
 }) => {
+    const getUiString = useUiStrings();
     const { ref, hovered } = useHover();
 
     /**
@@ -100,10 +102,13 @@ export const CommentDetail: FC<Props> = ({
                         >
                             {canReply && onReply && (
                                 <Tooltip
-                                    label="Reply"
+                                    label={getUiString('comments.reply')}
                                     zIndex={getDefaultZIndex('popover') + 1}
                                 >
                                     <ActionIcon
+                                        aria-label={getUiString(
+                                            'comments.reply',
+                                        )}
                                         size="xs"
                                         onClick={() => onReply()}
                                         color="blue"
@@ -122,6 +127,9 @@ export const CommentDetail: FC<Props> = ({
                                 >
                                     <Menu.Target>
                                         <ActionIcon
+                                            aria-label={getUiString(
+                                                'comments.actions',
+                                            )}
                                             size="xs"
                                             // Walkthrough anchor
                                             // (data-tour-via).

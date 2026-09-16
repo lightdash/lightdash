@@ -22,3 +22,201 @@
 .spacer {
     flex-grow: 1;
 }
+
+.compactHeader .logoButton {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 6px;
+
+    & svg {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+.compactProjectSwitcher {
+    flex: 1;
+    min-width: 0;
+
+    & :global(.mantine-Button-root) {
+        width: 100%;
+        max-width: 100%;
+        height: 44px;
+        padding-inline: 8px;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    & :global(.mantine-Button-inner) {
+        justify-content: flex-start;
+    }
+}
+
+.compactActions {
+    flex-shrink: 0;
+}
+
+.compactAiButton {
+    display: flex;
+}
+
+.compactAccount {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+
+    & :global([data-testid='user-avatar']) {
+        width: 32px;
+        height: 32px;
+        box-shadow: none;
+    }
+}
+
+.compactAiButton :global(.mantine-Button-root),
+.menuButton {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    flex-shrink: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .compactProjectSwitcher :global(.mantine-Button-root:hover),
+    .compactAiButton :global(.mantine-Button-root:hover),
+    .menuButton:hover {
+        background: var(--mantine-color-dark-5);
+    }
+}
+
+.compactAiButton :global(.mantine-Button-label) {
+    display: none;
+}
+
+.compactAiButton :global(.mantine-Button-section) {
+    margin: 0;
+}
+
+@media (width < 22.5em) {
+    .compactAccount {
+        display: none;
+    }
+}
+
+.drawerContent {
+    composes: content from '../common/SidebarDrawer.module.css';
+}
+
+.drawerHeader {
+    composes: header from '../common/SidebarDrawer.module.css';
+    padding: 8px 12px 8px 20px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.drawerBody {
+    composes: body from '../common/SidebarDrawer.module.css';
+    padding: 16px 12px max(16px, env(safe-area-inset-bottom));
+}
+
+.mobileNavigation {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sectionLabel {
+    padding-inline: 12px;
+    color: var(--mantine-color-dimmed);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Keep the desktop navigation shape on tablets. Labels condense only where
+   the full row would otherwise run out of room. */
+@media ($navigation-compact <= width < $navigation-action-labels) {
+    .leftGroup {
+        gap: var(--mantine-spacing-xs);
+    }
+
+    .leftGroup .buttonGroup :global(.mantine-Button-root) {
+        padding-inline: 8px;
+    }
+
+    .leftGroup .buttonGroup :global(.mantine-Button-label) {
+        display: none;
+    }
+
+    .leftGroup .buttonGroup :global(.mantine-Button-section) {
+        margin-inline: 0;
+    }
+}
+
+.mobileNavigation .spacer {
+    display: none;
+}
+
+.mobileNavigation .leftGroup,
+.mobileNavigation .rightGroup,
+.mobileNavigation .buttonGroup {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.mobileNavigation .sectionLabel {
+    margin-bottom: 4px;
+}
+
+.mobileNavigation :global(.mantine-Button-root) {
+    min-height: 44px;
+    width: 100%;
+    max-width: none;
+    border: 0;
+    border-radius: var(--mantine-radius-md);
+    background: transparent;
+    padding-inline: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+.mobileNavigation :global(.mantine-Button-root:hover),
+.mobileNavigation :global(.mantine-Button-root[data-expanded='true']) {
+    background: var(--mantine-color-dark-5);
+}
+
+.mobileNavigation :global(.mantine-Button-inner) {
+    justify-content: flex-start;
+}
+
+.mobileNavigation :global(.mantine-Button-section[data-position='left']) {
+    margin-inline-end: 12px;
+}
+
+.mobileNavigation :global(.mantine-Button-section[data-position='right']) {
+    margin-inline-start: auto;
+}
+
+.mobileNavigation :global(.mantine-Button-label) {
+    gap: 12px;
+}
+
+.mobileNavigation :global(.mantine-Button-root svg) {
+    width: 20px !important;
+    height: 20px !important;
+    flex-shrink: 0;
+}
+
+.mobileNavigation :global(.mantine-Menu-dropdown) {
+    max-width: calc(100vw - 48px);
+    max-height: calc(100dvh - 96px);
+    overflow-y: auto;
+}

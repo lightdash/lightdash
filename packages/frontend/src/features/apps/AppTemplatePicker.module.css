@@ -121,12 +121,12 @@
     line-height: 1.2;
 }
 
-/* Narrow widths can't hold the arch — stack the cards vertically. */
+/* Narrow widths can't hold the arch; use the compact grid instead. */
 @media (max-width: 880px) {
     .fan {
         height: auto;
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--mantine-spacing-sm);
     }
     .card {
@@ -140,5 +140,18 @@
     .cardSelected,
     .cardSelected:hover {
         transform: none;
+    }
+}
+
+@mixin smaller-than $mantine-breakpoint-sm {
+    .fan {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--mantine-spacing-xs);
+    }
+
+    .card {
+        padding: var(--mantine-spacing-sm);
+        align-self: stretch;
     }
 }

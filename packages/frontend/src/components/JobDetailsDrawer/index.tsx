@@ -143,6 +143,7 @@ const JobDetailsDrawer: FC = () => {
             closeOnClickOutside
             withOverlay
             withCloseButton
+            closeButtonProps={{ 'aria-label': 'Close job details', size: 44 }}
             position="right"
             opened={isJobsDrawerOpen}
             onClose={() => setIsJobsDrawerOpen(false)}

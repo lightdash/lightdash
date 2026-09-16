@@ -101,6 +101,8 @@ const DbtMethodPicker: FC = () => {
             <Stack gap="md">
                 {methods.map((method) => (
                     <Paper
+                        component="button"
+                        type="button"
                         key={method.to}
                         radius="md"
                         className={classes.methodCard}

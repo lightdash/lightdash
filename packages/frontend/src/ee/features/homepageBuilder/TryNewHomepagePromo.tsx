@@ -25,7 +25,6 @@ import MantineModal from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { IS_MOBILE } from '../../../utils/isMobile';
 import { DEFAULT_GREETING_SUBTITLE, getGreeting } from './greeting';
 import { useHomepageAiState } from './hooks/useHomepageAiState';
 import { useUpdateOrgHomepageSettings } from './hooks/useOrgHomepageSettings';
@@ -325,7 +324,7 @@ export const TryNewHomepageCard: FC<{
     // instances have no backing service, so never invite them to try it.
     const hasValidLicense = !!health.data?.license?.valid;
 
-    const isVisible = !IS_MOBILE && !dismissed && isOrgAdmin && hasValidLicense;
+    const isVisible = !dismissed && isOrgAdmin && hasValidLicense;
 
     // Once per mount, not per render: seeing the card is the top of the
     // opt-in funnel.

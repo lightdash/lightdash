@@ -1,5 +1,5 @@
-import { Badge, Box, Group, Text } from '@mantine/core';
-import { IconCircleCheckFilled } from '@tabler/icons-react';
+import { ActionIcon, Badge, Box, Group, Text } from '@mantine/core';
+import { IconCircleCheckFilled, IconInfoCircle } from '@tabler/icons-react';
 import { type FC, type RefObject } from 'react';
 import { type SearchItem } from '../types/searchItem';
 import classes from './OmnibarItem.module.css';
@@ -19,6 +19,7 @@ type Props = {
     /** Fired on real pointer movement (not scroll-induced mouseenter), so
      * keyboard-scrolling rows under a parked cursor can't steal the focus. */
     onMouseMove?: () => void;
+    onPreview?: () => void;
 };
 
 const OmnibarItem: FC<Props> = ({
@@ -29,6 +30,7 @@ const OmnibarItem: FC<Props> = ({
     onClick,
     onMouseMove,
     scrollRef,
+    onPreview,
 }) => {
     return (
         <Group
@@ -93,6 +95,20 @@ const OmnibarItem: FC<Props> = ({
                     </Badge>
                 )}
             </Group>
+            {onPreview && (
+                <ActionIcon
+                    size="lg"
+                    variant="subtle"
+                    color="gray"
+                    aria-label={`Preview ${item.title}`}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onPreview();
+                    }}
+                >
+                    <IconInfoCircle size={18} />
+                </ActionIcon>
+            )}
         </Group>
     );
 };

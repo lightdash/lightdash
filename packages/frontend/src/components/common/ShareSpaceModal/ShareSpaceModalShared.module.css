@@ -31,3 +31,26 @@
 .pagination {
     align-self: flex-end;
 }
+
+@mixin smaller-than $mantine-breakpoint-sm {
+    .accessModelLayout {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .accessModelLayout :global(.mantine-SegmentedControl-root) {
+        flex-shrink: 0;
+        width: 100%;
+    }
+
+    .accessModelLayout :global(.mantine-SegmentedControl-label) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+    }
+
+    .userRow {
+        flex-wrap: wrap;
+    }
+}

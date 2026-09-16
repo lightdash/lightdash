@@ -1,4 +1,9 @@
 /* Fully qualified table names overflow Monaco's 430px suggest widget. */
 .editor :global(.monaco-editor .suggest-widget) {
     min-width: rem(640px);
+
+    @mixin smaller-than $mantine-breakpoint-sm {
+        min-width: 0;
+        max-width: calc(100vw - 48px);
+    }
 }

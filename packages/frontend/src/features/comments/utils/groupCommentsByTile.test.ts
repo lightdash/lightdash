@@ -172,6 +172,29 @@ describe('sectionGroupsByTab', () => {
         ]);
     });
 
+    it('keeps legacy untabbed tiles separate from removed tiles', () => {
+        const groups = groupCommentsByTile({
+            commentsByTile: { a: [comment('a1')], gone: [comment('g1')] },
+            tiles: [chartTile('a', { x: 0, y: 0 })],
+            tabs: [],
+        });
+        const sections = sectionGroupsByTab(groups, []);
+        expect(
+            sections.map(({ label, isRemoved, groups: items }) => ({
+                label,
+                isRemoved,
+                tiles: items.map(({ tileUuid }) => tileUuid),
+            })),
+        ).toEqual([
+            { label: 'Dashboard', isRemoved: false, tiles: ['a'] },
+            {
+                label: REMOVED_TILES_SECTION_LABEL,
+                isRemoved: true,
+                tiles: ['gone'],
+            },
+        ]);
+    });
+
     it('puts removed tiles in a trailing section of their own', () => {
         const groups = groupCommentsByTile({
             commentsByTile: { gone: [comment('g1')], a: [comment('a1')] },

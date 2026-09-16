@@ -19,7 +19,7 @@ import {
     Text,
     useMantineTheme,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { IconUserCircle } from '@tabler/icons-react';
 import {
     useCallback,
@@ -63,6 +63,11 @@ type PendingRoleChange =
 
 const UsersTable: FC = () => {
     const theme = useMantineTheme();
+    const isCompact = useMediaQuery(
+        `(width < ${theme.breakpoints.sm})`,
+        undefined,
+        { getInitialValueInEffect: false },
+    );
     const { user: activeUser } = useApp();
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
@@ -238,7 +243,7 @@ const UsersTable: FC = () => {
                 accessorKey: 'email',
                 header: 'User',
                 enableSorting: false,
-                size: 300,
+                size: isCompact ? 180 : 300,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconUserCircle} color="dimmed" />
@@ -308,7 +313,7 @@ const UsersTable: FC = () => {
                 accessorKey: 'role',
                 header: 'Role',
                 enableSorting: false,
-                size: 200,
+                size: isCompact ? 130 : 200,
                 Cell: ({ row }) => {
                     const user = row.original;
                     if (multipleRolesEnabled) {
@@ -343,7 +348,7 @@ const UsersTable: FC = () => {
                 },
             });
 
-            if (isGroupManagementEnabled) {
+            if (isGroupManagementEnabled && !isCompact) {
                 cols.push({
                     accessorKey: 'groups',
                     header: 'Groups',
@@ -395,7 +400,7 @@ const UsersTable: FC = () => {
                 id: 'actions',
                 header: '',
                 enableSorting: false,
-                size: 50,
+                size: isCompact ? 44 : 50,
                 Cell: ({ row }) => {
                     const user = row.original;
                     const isCurrentUser =
@@ -442,6 +447,7 @@ const UsersTable: FC = () => {
         flatData.length,
         canInvite,
         handleInviteSent,
+        isCompact,
     ]);
 
     const table = useContentTable({
@@ -472,7 +478,9 @@ const UsersTable: FC = () => {
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
+                    padding: `${theme.spacing.xs} ${
+                        isCompact ? theme.spacing.md : theme.spacing.xl
+                    }`,
                     borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
@@ -489,7 +497,9 @@ const UsersTable: FC = () => {
         mantineTableBodyCellProps: () => {
             return {
                 style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                    padding: `${theme.spacing.md} ${
+                        isCompact ? theme.spacing.md : theme.spacing.xl
+                    }`,
                     borderRight: 'none',
                     borderLeft: 'none',
                     borderBottom: `1px solid ${theme.colors.ldGray[2]}`,

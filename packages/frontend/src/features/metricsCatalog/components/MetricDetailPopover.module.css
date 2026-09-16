@@ -1,5 +1,18 @@
 .target {
-    cursor: default;
+    min-width: 0;
+    text-align: start;
+}
+
+.dropdown {
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+}
+
+.closeRow {
+    position: sticky;
+    top: 0;
+    background: var(--mantine-color-body);
+    z-index: 1;
 }
 
 .tableName {
@@ -14,9 +27,28 @@
 }
 
 .compiledToggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     cursor: pointer;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
 }
 
 .compiledToggle:hover {
     opacity: 0.8;
+}
+
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
+    .target {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .compiledToggle,
+    .dropdown :global(.mantine-Button-root) {
+        min-height: 44px;
+    }
 }

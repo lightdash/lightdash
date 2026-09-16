@@ -408,7 +408,11 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
     return (
         <>
             <Paper p="md" radius="md" className={classes.accessModelCard}>
-                <Group justify="space-between" wrap="nowrap">
+                <Group
+                    justify="space-between"
+                    wrap="nowrap"
+                    className={classes.accessModelLayout}
+                >
                     <Group gap="sm" wrap="nowrap">
                         <Avatar
                             radius="xl"

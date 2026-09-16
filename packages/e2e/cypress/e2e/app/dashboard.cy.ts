@@ -5,6 +5,50 @@ describe('Dashboard', () => {
         cy.login();
     });
 
+    it('keeps a chart tile title in place on hover', () => {
+        cy.visit('/projects/jaffle-shop/dashboards/jaffle-dashboard/view');
+
+        cy.findByRole('link', {
+            name: 'How much revenue do we have per payment method?',
+        })
+            .scrollIntoView()
+            .then(($title) => {
+                const initialRect = $title[0].getBoundingClientRect();
+                const initialContainerRect =
+                    $title[0].parentElement?.getBoundingClientRect();
+                const initialCardRect = $title
+                    .closest('.mantine-Card-root')[0]
+                    .getBoundingClientRect();
+
+                cy.wrap($title).trigger('mouseover');
+                cy.wrap($title).should('have.attr', 'data-hovered', 'true');
+                cy.wrap($title).should(($hoveredTitle) => {
+                    const hoveredRect =
+                        $hoveredTitle[0].getBoundingClientRect();
+                    const hoveredContainerRect =
+                        $hoveredTitle[0].parentElement?.getBoundingClientRect();
+                    const hoveredCardRect = $hoveredTitle
+                        .closest('.mantine-Card-root')[0]
+                        .getBoundingClientRect();
+
+                    expect(
+                        hoveredRect.left - hoveredCardRect.left,
+                    ).to.be.closeTo(
+                        initialRect.left - initialCardRect.left,
+                        0.5,
+                    );
+                    expect(hoveredRect.top - hoveredCardRect.top).to.be.closeTo(
+                        initialRect.top - initialCardRect.top,
+                        0.5,
+                    );
+                    expect(hoveredContainerRect?.height).to.be.closeTo(
+                        initialContainerRect?.height ?? 0,
+                        0.5,
+                    );
+                });
+            });
+    });
+
     it('Should see dashboard', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 

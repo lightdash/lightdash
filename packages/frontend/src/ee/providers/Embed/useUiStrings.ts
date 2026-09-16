@@ -11,7 +11,7 @@ import useEmbed from './useEmbed';
 export const useUiStrings = (): UiStringResolver => {
     const { t } = useEmbed();
     return useCallback(
-        (key: UiStringKey) => t(key) ?? DEFAULT_UI_STRINGS[key],
+        (key: UiStringKey) => t?.(key) ?? DEFAULT_UI_STRINGS[key],
         [t],
     );
 };

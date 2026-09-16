@@ -67,7 +67,11 @@ const TableRow: FC<{
             <Table.Td w="1%">
                 <Menu position="bottom-end">
                     <Menu.Target>
-                        <ActionIcon variant="transparent" size="sm">
+                        <ActionIcon
+                            variant="transparent"
+                            size="sm"
+                            aria-label={`Actions for ${name}`}
+                        >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
                     </Menu.Target>
@@ -133,29 +137,31 @@ export const CustomRolesTable: FC<TableProps> = ({
     return (
         <>
             <Paper className={tableStyles.paper}>
-                <Table
-                    className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
-                >
-                    <Table.Thead>
-                        <Table.Tr>
-                            <Table.Th>Name</Table.Th>
-                            <Table.Th>Description</Table.Th>
-                            <Table.Th>Type</Table.Th>
-                            <Table.Th>Created</Table.Th>
-                            <Table.Th></Table.Th>
-                        </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                        {roles.map((role) => (
-                            <TableRow
-                                key={role.roleUuid}
-                                role={role}
-                                onClickEdit={onEdit}
-                                onClickDelete={handleOpenDeleteModal}
-                            />
-                        ))}
-                    </Table.Tbody>
-                </Table>
+                <Table.ScrollContainer minWidth={720}>
+                    <Table
+                        className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
+                    >
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>Name</Table.Th>
+                                <Table.Th>Description</Table.Th>
+                                <Table.Th>Type</Table.Th>
+                                <Table.Th>Created</Table.Th>
+                                <Table.Th></Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {roles.map((role) => (
+                                <TableRow
+                                    key={role.roleUuid}
+                                    role={role}
+                                    onClickEdit={onEdit}
+                                    onClickDelete={handleOpenDeleteModal}
+                                />
+                            ))}
+                        </Table.Tbody>
+                    </Table>
+                </Table.ScrollContainer>
             </Paper>
 
             {roleToDelete && (

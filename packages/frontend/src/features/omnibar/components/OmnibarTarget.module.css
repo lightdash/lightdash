@@ -1,5 +1,6 @@
 .container {
     flex-shrink: 0;
+    width: rem(44px);
     height: rem(28px);
     border-radius: var(--mantine-radius-md);
     border: 1px solid var(--mantine-color-default-border);
@@ -14,7 +15,7 @@
         border-color: var(--mantine-color-ldGray-3);
     }
 
-    @media (min-width: 75em) {
+    @media (min-width: $navigation-compact) {
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
@@ -27,7 +28,74 @@
 }
 
 .text {
+    display: none;
     flex-grow: 1;
     color: var(--mantine-color-placeholder);
     user-select: none;
+}
+
+.shortcut {
+    display: none;
+}
+
+@media ($navigation-search-icon <= width < $mantine-breakpoint-sm) {
+    .container {
+        width: rem(120px);
+        height: rem(28px);
+    }
+
+    .text {
+        display: block;
+    }
+}
+
+@media (min-width: $mantine-breakpoint-sm) {
+    .container {
+        width: rem(180px);
+    }
+
+    .text {
+        display: block;
+    }
+
+    .shortcut {
+        display: inline-flex;
+    }
+}
+
+@media (min-width: $mantine-breakpoint-lg) {
+    .container {
+        width: rem(220px);
+    }
+}
+
+@media (min-width: $mantine-breakpoint-xl) {
+    .container {
+        width: rem(260px);
+    }
+}
+
+@media (width < $navigation-search-icon) {
+    .container {
+        width: rem(34px);
+        height: rem(32px);
+        padding-inline: rem(8px);
+        justify-content: center;
+        border-color: transparent;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .container:hover {
+        border-color: transparent;
+        background: var(--mantine-color-default-hover);
+    }
+}
+
+@media (width < $navigation-compact) {
+    .container {
+        width: rem(44px);
+        height: rem(44px);
+        padding: 0;
+    }
 }

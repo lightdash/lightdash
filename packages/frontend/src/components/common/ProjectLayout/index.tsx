@@ -6,6 +6,7 @@ import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
 import SourceCodeDrawer from '../../../features/sourceCodeEditor/components/SourceCodeDrawer';
 import NavBar from '../../NavBar';
 import PageSpinner from '../../PageSpinner';
+import { ContentAuthoringRoute } from './ContentAuthoringRoute';
 import classes from './ProjectLayout.module.css';
 
 /**
@@ -45,7 +46,9 @@ const ProjectLayout: FC = () => {
             </Sentry.ErrorBoundary>
             {/* Keep the current page mounted so cancelled navigation preserves edits. */}
             <Box display="contents" inert={isNavigating}>
-                <Outlet />
+                <ContentAuthoringRoute>
+                    <Outlet />
+                </ContentAuthoringRoute>
             </Box>
             {isNavigating && (
                 <Box className={classes.loading} role="status">

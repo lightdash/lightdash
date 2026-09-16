@@ -1,5 +1,11 @@
 import { ContentType, FeatureFlags } from '@lightdash/common';
-import { Center, SegmentedControl, Text } from '@mantine/core';
+import {
+    Center,
+    SegmentedControl,
+    Select,
+    Text,
+    useMatches,
+} from '@mantine/core';
 import { type FC } from 'react';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
@@ -19,19 +25,19 @@ const ContentTypeSelectOption = ({ label }: OptionProps) => (
 const ContentTypeOptions = [
     {
         value: ContentType.DOCUMENT,
-        label: <ContentTypeSelectOption label="Documents" />,
+        label: 'Documents',
     },
     {
         value: ContentType.DASHBOARD,
-        label: <ContentTypeSelectOption label={'Dashboards'} />,
+        label: 'Dashboards',
     },
     {
         value: ContentType.CHART,
-        label: <ContentTypeSelectOption label={'Charts'} />,
+        label: 'Charts',
     },
     {
         value: ContentType.DATA_APP,
-        label: <ContentTypeSelectOption label={'Data Apps'} />,
+        label: 'Data Apps',
     },
 ];
 type ContentTypeFilterProps = {
@@ -46,28 +52,45 @@ const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
     options,
 }) => {
     const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
+    const compact = useMatches(
+        { base: true, sm: false },
+        { getInitialValueInEffect: false },
+    );
+    const data = [
+        { value: 'all', label: 'All' },
+        ...ContentTypeOptions.filter(
+            (option) =>
+                options.includes(option.value) &&
+                (option.value !== ContentType.DOCUMENT ||
+                    (documentsFlag.data?.enabled === true &&
+                        !documentsFlag.isError)),
+        ),
+    ];
+    const handleChange = (next: string) =>
+        onChange(next === 'all' ? undefined : (next as ContentType));
+    if (compact) {
+        return (
+            <Select
+                aria-label="Content type"
+                miw={112}
+                maw={160}
+                flex="1 1 112px"
+                value={value ?? 'all'}
+                data={data}
+                allowDeselect={false}
+                onChange={(next) => next && handleChange(next)}
+            />
+        );
+    }
     return (
         <SegmentedControl
             size="xs"
             value={value ?? 'all'}
-            onChange={(newValue) =>
-                onChange(
-                    newValue === 'all' ? undefined : (newValue as ContentType),
-                )
-            }
-            data={[
-                {
-                    value: 'all',
-                    label: <ContentTypeSelectOption label={'All'} />,
-                },
-                ...ContentTypeOptions.filter(
-                    (option) =>
-                        options?.includes(option.value) &&
-                        (option.value !== ContentType.DOCUMENT ||
-                            (documentsFlag.data?.enabled === true &&
-                                !documentsFlag.isError)),
-                ),
-            ]}
+            onChange={handleChange}
+            data={data.map((option) => ({
+                ...option,
+                label: <ContentTypeSelectOption label={option.label} />,
+            }))}
         />
     );
 };

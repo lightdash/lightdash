@@ -194,15 +194,7 @@ const InfiniteResourceTableColumnName = ({
             isResourceViewDocumentItem(item));
 
     const renderContent = (hideInlineInfo = false) => (
-        <Anchor
-            component={Link}
-            c="unset"
-            underline="never"
-            to={getResourceUrl(projectUuid, item, projectUrlIdentifier)}
-            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                e.stopPropagation()
-            }
-        >
+        <Box miw={0}>
             <Group wrap="nowrap">
                 <ResourceValidationErrorIndicator
                     item={item}
@@ -213,9 +205,18 @@ const InfiniteResourceTableColumnName = ({
                     <ResourceIcon item={item} />
                 </ResourceValidationErrorIndicator>
 
-                <Stack gap={2}>
+                <Stack gap={2} miw={0}>
                     <Group gap="xs" wrap="nowrap">
                         <Text
+                            component={Link}
+                            to={getResourceUrl(
+                                projectUuid,
+                                item,
+                                projectUrlIdentifier,
+                            )}
+                            onClick={(event) => event.stopPropagation()}
+                            c="inherit"
+                            td="none"
                             fz="sm"
                             fw={600}
                             lineClamp={1}
@@ -309,7 +310,7 @@ const InfiniteResourceTableColumnName = ({
                     )}
                 </Stack>
             </Group>
-        </Anchor>
+        </Box>
     );
 
     if (isResourceViewDataAppItem(item)) {

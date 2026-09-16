@@ -157,6 +157,8 @@ const DataSourcePicker: FC = () => {
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                     {popularWarehouses.map((warehouse) => (
                         <Paper
+                            component="button"
+                            type="button"
                             key={warehouse.key}
                             radius="md"
                             className={`${classes.heroCard} ${classes.warehouseCardEnabled}`}
@@ -183,6 +185,8 @@ const DataSourcePicker: FC = () => {
                 <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md">
                     {allWarehouses.map((warehouse) => (
                         <Paper
+                            component="button"
+                            type="button"
                             key={warehouse.key}
                             radius="md"
                             className={`${classes.warehouseCard} ${classes.warehouseCardEnabled}`}

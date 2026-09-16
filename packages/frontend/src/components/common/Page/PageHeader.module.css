@@ -1,7 +1,153 @@
 .root {
+    --header-action-height: rem(32px);
     position: relative;
     z-index: 2;
     display: flex;
     flex-direction: row;
     align-items: center;
+    height: var(--header-height, var(--page-header-height));
+    padding: var(--mantine-spacing-md)
+        var(--header-padding-x, var(--mantine-spacing-lg));
+}
+
+.root[data-header-variant='query'] {
+    height: auto;
+    min-height: var(--page-header-height);
+    padding-block: var(--mantine-spacing-xs);
+}
+
+.root[data-header-variant='dashboard'] {
+    height: var(--header-height, var(--dashboard-header-height));
+    padding-block: 0;
+    padding-inline: var(--header-padding-x, var(--mantine-spacing-xl));
+}
+
+.main {
+    flex: 1;
+}
+
+@mixin smaller-than $mantine-breakpoint-sm {
+    .root:not([data-mobile-layout='content']) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--mantine-spacing-sm);
+        overflow: visible;
+        height: auto;
+        min-height: var(--page-header-height);
+    }
+
+    .root:not([data-mobile-layout='content']) > * {
+        min-width: 0;
+        flex-shrink: 0;
+    }
+}
+
+@media (pointer: coarse) {
+    .root {
+        --header-action-height: rem(44px);
+    }
+}
+
+@media (width < $content-header-compact) {
+    .root[data-mobile-layout='content'] {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: 'title' 'metadata' 'actions';
+        align-items: center;
+        gap: 4px 8px;
+        padding: 8px 16px;
+        height: auto;
+        min-height: var(--page-header-height);
+    }
+
+    .root[data-mobile-layout='content']:has(.breadcrumbs) {
+        grid-template-areas: 'breadcrumbs' 'title' 'metadata' 'actions';
+    }
+
+    .root[data-mobile-layout='content'] .main {
+        display: contents;
+    }
+
+    .root .breadcrumbs {
+        grid-area: breadcrumbs;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+        padding-bottom: 4px;
+        font-size: 12px;
+    }
+
+    .root .breadcrumbs :global(.mantine-Anchor-root),
+    .root .breadcrumbs :global(.mantine-Text-root) {
+        font-size: 12px;
+    }
+
+    .root .breadcrumbs > span:last-child {
+        display: none;
+    }
+
+    .root .title {
+        grid-area: title;
+        min-width: 0;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .root .heading {
+        min-width: 0;
+        font-size: 18px;
+        line-height: 25px;
+        overflow-wrap: anywhere;
+    }
+
+    .root .actions {
+        grid-area: actions;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 4px;
+        width: 100%;
+        margin-top: 6px;
+        padding-top: 2px;
+        border-top: 1px solid var(--mantine-color-default-border);
+    }
+
+    .root .actions > *,
+    .root .actions :global(.mantine-Button-root) {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .root .actions :global(.mantine-Button-root) {
+        height: var(--header-action-height);
+        min-height: var(--header-action-height);
+        padding-inline: 6px;
+        border: 0;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--mantine-color-text);
+        background: transparent;
+    }
+
+    .root .actions :global(.mantine-Button-section[data-position='left']) {
+        margin-inline-end: 8px;
+    }
+
+    @media (hover: hover) {
+        .root .actions :global(.mantine-Button-root:hover) {
+            background: var(--mantine-color-default-hover);
+        }
+    }
+
+    .root .metadata {
+        grid-area: metadata;
+        min-width: 0;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        gap: 8px;
+    }
+
+    .root .metadata > :first-child {
+        min-width: 0;
+    }
 }

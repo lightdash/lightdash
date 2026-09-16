@@ -1,6 +1,6 @@
 .root {
     display: flex;
-    min-height: 100vh;
+    min-height: 100dvh;
 }
 
 .brandPanel {
@@ -113,7 +113,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 100vh;
+    min-height: 100dvh;
     padding: var(--mantine-spacing-lg) var(--mantine-spacing-md);
     background-color: var(--mantine-color-body);
 }
@@ -127,5 +127,35 @@
 @media (max-width: $mantine-breakpoint-sm) {
     .legacyContent {
         margin-top: var(--mantine-spacing-md);
+    }
+}
+
+@media (width < $mantine-breakpoint-sm) {
+    .formPanel,
+    .legacyRoot {
+        padding-top: max(var(--mantine-spacing-lg), env(safe-area-inset-top));
+        padding-bottom: max(
+            var(--mantine-spacing-lg),
+            env(safe-area-inset-bottom)
+        );
+    }
+
+    .root :global(.mantine-Input-input),
+    .legacyRoot :global(.mantine-Input-input) {
+        min-height: 44px;
+        font-size: 16px;
+    }
+
+    .root :global(.mantine-PasswordInput-innerInput),
+    .legacyRoot :global(.mantine-PasswordInput-innerInput) {
+        font-size: 16px;
+    }
+
+    .root :global(.mantine-Button-root),
+    .legacyRoot :global(.mantine-Button-root),
+    .root :global(.mantine-PasswordInput-visibilityToggle),
+    .legacyRoot :global(.mantine-PasswordInput-visibilityToggle) {
+        min-height: 44px;
+        min-width: 44px;
     }
 }
