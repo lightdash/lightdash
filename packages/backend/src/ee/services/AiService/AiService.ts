@@ -636,6 +636,7 @@ export class AiService extends BaseService {
         const detection = await detectDataAppAnomalies(modelOptions, {
             content,
             instructions,
+            today: new Date().toISOString().slice(0, 10),
         });
         return {
             detection,
