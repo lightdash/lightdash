@@ -1,3 +1,10 @@
+## [2.243.4](https://github.com/lightdash/lightdash/compare/2.243.3...2.243.4) (2026-09-16)
+
+
+### Bug Fixes
+
+* **ai:** clip AiAgentIcon glow to a circle on Safari ([#29380](https://github.com/lightdash/lightdash/issues/29380)) ([4bee8f7](https://github.com/lightdash/lightdash/commit/4bee8f77388e7f5fe71466e4c60c4aa1e7d38033))
+
 ## [2.243.3](https://github.com/lightdash/lightdash/compare/2.243.2...2.243.3) (2026-09-16)
 
 
