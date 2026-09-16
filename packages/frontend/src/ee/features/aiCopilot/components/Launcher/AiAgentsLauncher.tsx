@@ -169,8 +169,11 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
     const isPanelOpenSafe =
         mode === 'panel-open' &&
         (safeActiveThreadId !== null || safeActiveAgentUuid !== null);
+    // A preview renders only where its thread is on screen.
     const activeSavedChartPreview =
-        savedChartPreview?.projectUuid === activeProjectUuid
+        savedChartPreview !== null &&
+        savedChartPreview.projectUuid === activeProjectUuid &&
+        savedChartPreview.threadUuid === safeActiveThreadId
             ? savedChartPreview
             : null;
     const lastSavedChartPreviewRef = useRef(activeSavedChartPreview);
@@ -180,7 +183,9 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
     const transitionSavedChartPreview =
         activeSavedChartPreview ?? lastSavedChartPreviewRef.current;
     const activeDataAppPreview =
-        dataAppPreview?.projectUuid === activeProjectUuid
+        dataAppPreview !== null &&
+        dataAppPreview.projectUuid === activeProjectUuid &&
+        dataAppPreview.threadUuid === safeActiveThreadId
             ? dataAppPreview
             : null;
     const lastDataAppPreviewRef = useRef(activeDataAppPreview);
