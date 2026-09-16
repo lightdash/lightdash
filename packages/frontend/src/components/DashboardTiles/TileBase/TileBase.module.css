@@ -64,8 +64,8 @@
         z-index: 10;
         white-space: normal;
         overflow: visible;
-        outline: 4px solid var(--mantine-color-background-0);
-        background-color: var(--mantine-color-background-0);
+        outline: 4px solid var(--ld-color-tile);
+        background-color: var(--ld-color-tile);
         color: var(--mantine-color-foreground-0);
 
         &:is(a) {

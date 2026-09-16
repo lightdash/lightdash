@@ -30,7 +30,8 @@ import { LD_FIELD_COLORS } from './fieldColors';
  * token instead of a `light-dark()` pair.
  *
  * `--mantine-color-body` is the surface color (cards, inputs, popovers).
- * The page canvas behind the surfaces is `--ld-color-page`.
+ * The page canvas behind the surfaces is `--ld-color-page`, and dashboard
+ * tiles sit between the two on `--ld-color-tile`.
  *
  * Also bridges JS layout constants to global CSS variables so CSS modules can
  * reference them without re-declaring the literal values.
@@ -90,6 +91,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--mantine-color-disabled-color': 'var(--mantine-color-gray-4)',
         '--mantine-color-disabled-border': 'var(--mantine-color-gray-2)',
         '--ld-color-page': 'var(--mantine-color-gray-0)',
+        '--ld-color-tile': 'var(--mantine-color-background-0)',
     },
     dark: {
         ...darkLightVariantTints(theme),
@@ -101,6 +103,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--mantine-color-error': 'var(--mantine-color-red-5)',
         '--mantine-color-default-border': 'var(--mantine-color-dark-4)',
         '--mantine-color-default-hover': 'var(--mantine-color-dark-5)',
-        '--ld-color-page': 'var(--mantine-color-dark-7)',
+        '--ld-color-page': '#0b0c0c',
+        '--ld-color-tile': '#101112',
     },
 });
