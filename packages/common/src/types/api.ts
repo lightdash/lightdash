@@ -65,6 +65,7 @@ import type {
     ApiDataAppVizDeleteImpactResponse,
     ApiDataAppVizPreviewTokenResponse,
     ApiDataAppVizRenderMetadataResponse,
+    ApiDataAppVizUpgradeImpactResponse,
     ApiExternalConnectionAsCodeListResponse,
     ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
@@ -1593,6 +1594,7 @@ type ApiResults =
     | ApiInstallRegistryChartTypeResponse['results']
     | ApiGetDataAppVizResponse['results']
     | ApiDataAppVizDeleteImpactResponse['results']
+    | ApiDataAppVizUpgradeImpactResponse['results']
     | ApiDataAppVizRenderMetadataResponse['results']
     | ApiDataAppVizPreviewTokenResponse['results']
     | ApiMyAppsResponse['results']

@@ -786,11 +786,15 @@ export class SavedChartModel {
         this.contentVerificationModel = args.contentVerificationModel;
     }
 
-    async countChartsUsingDataAppViz(
+    /**
+     * Active saved charts (space or dashboard scoped) whose latest version
+     * renders the given data app viz. Callers add their own select/count.
+     */
+    private chartsUsingDataAppVizQuery(
         projectUuid: string,
         dataAppVizUuid: string,
-    ): Promise<number> {
-        const [result] = await this.database(SavedChartsTableName)
+    ) {
+        return this.database(SavedChartsTableName)
             .leftJoin(
                 DashboardsTableName,
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -801,7 +805,7 @@ export class SavedChartModel {
             )
             .joinRaw(
                 `CROSS JOIN LATERAL (
-                    SELECT chart_type, chart_config FROM ${SavedChartVersionsTableName}
+                    SELECT saved_queries_version_id, chart_type, chart_config FROM ${SavedChartVersionsTableName}
                     WHERE saved_query_id = ${SavedChartsTableName}.saved_query_id
                     ORDER BY created_at DESC, saved_queries_version_id DESC
                     LIMIT 1
@@ -814,10 +818,78 @@ export class SavedChartModel {
             .where('latest_version.chart_type', ChartType.DATA_APP_VIZ)
             .whereRaw("latest_version.chart_config->>'dataAppVizUuid' = ?", [
                 dataAppVizUuid,
-            ])
-            .count<{ count: string }[]>({ count: '*' });
+            ]);
+    }
+
+    async countChartsUsingDataAppViz(
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<number> {
+        const [result] = await this.chartsUsingDataAppVizQuery(
+            projectUuid,
+            dataAppVizUuid,
+        ).count<{ count: string }[]>({ count: '*' });
 
         return Number(result.count);
+    }
+
+    /** Usage counts for the upgrade confirmation: consumers, and how many pin a version. */
+    async getDataAppVizUsageCounts(
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<{ chartCount: number; pinnedChartCount: number }> {
+        const [result] = await this.chartsUsingDataAppVizQuery(
+            projectUuid,
+            dataAppVizUuid,
+        ).select<{ chart_count: string; pinned_chart_count: string }[]>(
+            this.database.raw('count(*) as chart_count'),
+            this.database.raw(
+                `count(*) filter (where jsonb_exists(latest_version.chart_config, 'dataAppVizVersion')) as pinned_chart_count`,
+            ),
+        );
+
+        return {
+            chartCount: Number(result.chart_count),
+            pinnedChartCount: Number(result.pinned_chart_count),
+        };
+    }
+
+    /**
+     * Move every pinned consumer of a data app viz onto `version`, in place on
+     * each chart's latest version row so older versions keep their pin for
+     * rollback. Unpinned charts already follow the latest version and are left
+     * untouched. Returns the number of charts moved.
+     */
+    async repinChartsUsingDataAppViz(
+        projectUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+    ): Promise<number> {
+        const pinned = await this.chartsUsingDataAppVizQuery(
+            projectUuid,
+            dataAppVizUuid,
+        )
+            .whereRaw(
+                "jsonb_exists(latest_version.chart_config, 'dataAppVizVersion')",
+            )
+            .select<{ saved_queries_version_id: number }[]>(
+                'latest_version.saved_queries_version_id',
+            );
+        if (pinned.length === 0) {
+            return 0;
+        }
+        await this.database(SavedChartVersionsTableName)
+            .whereIn(
+                'saved_queries_version_id',
+                pinned.map((row) => row.saved_queries_version_id),
+            )
+            .update({
+                chart_config: this.database.raw(
+                    `jsonb_set(chart_config, '{dataAppVizVersion}', to_jsonb(?::integer), true)`,
+                    [version],
+                ) as unknown as ChartConfig['config'],
+            });
+        return pinned.length;
     }
 
     /**

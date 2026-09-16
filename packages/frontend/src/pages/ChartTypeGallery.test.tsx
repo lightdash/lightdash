@@ -10,6 +10,7 @@ import { useDeleteApp } from '../features/apps/hooks/useDeleteApp';
 import { useDuplicateApp } from '../features/apps/hooks/useDuplicateApp';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useDataAppVizDeleteImpact } from '../features/chartTypes/hooks/useDataAppVizDeleteImpact';
+import { useDataAppVizUpgradeImpact } from '../features/chartTypes/hooks/useDataAppVizUpgradeImpact';
 import { useInstallRegistryChartType } from '../features/chartTypes/hooks/useInstallRegistryChartType';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { useExplores } from '../hooks/useExplores';
@@ -36,6 +37,10 @@ vi.mock('../features/chartTypes/hooks/useDataAppVisualizations', () => ({
 
 vi.mock('../features/chartTypes/hooks/useDataAppVizDeleteImpact', () => ({
     useDataAppVizDeleteImpact: vi.fn(),
+}));
+
+vi.mock('../features/chartTypes/hooks/useDataAppVizUpgradeImpact', () => ({
+    useDataAppVizUpgradeImpact: vi.fn(),
 }));
 
 vi.mock('../features/apps/hooks/useAppVersionHistory', () => ({
@@ -234,6 +239,12 @@ describe('ChartTypeGallery', () => {
             isError: false,
             refetch: vi.fn(),
         } as unknown as ReturnType<typeof useDataAppVizDeleteImpact>);
+        vi.mocked(useDataAppVizUpgradeImpact).mockReturnValue({
+            data: { chartCount: 3, pinnedChartCount: 2 },
+            isFetching: false,
+            isError: false,
+            refetch: vi.fn(),
+        } as unknown as ReturnType<typeof useDataAppVizUpgradeImpact>);
         setRegistryCharts([]);
         vi.mocked(useExplores).mockReturnValue({
             data: [
@@ -502,7 +513,7 @@ describe('ChartTypeGallery', () => {
         expect(screen.getByText('Update available')).toBeInTheDocument();
     });
 
-    it('upgrades an official chart type from the detail modal', () => {
+    it('upgrades an official chart type through the confirmation modal', () => {
         setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
         setRegistryCharts([
             {
@@ -519,14 +530,26 @@ describe('ChartTypeGallery', () => {
             screen.getByText('Update available: v1.2.0'),
         ).toBeInTheDocument();
 
+        // The button opens the blast-radius confirmation instead of
+        // upgrading directly.
         fireEvent.click(
             screen.getByRole('button', { name: 'Upgrade to v1.2.0' }),
         );
+        expect(mockedUpgradeMutate).not.toHaveBeenCalled();
+        expect(
+            screen.getByText('3 saved charts use this chart type'),
+        ).toBeInTheDocument();
 
-        expect(mockedUpgradeMutate).toHaveBeenCalledWith({
-            projectUuid: 'project-1',
-            chartSlug: 'radial-gauge',
-        });
+        fireEvent.click(screen.getByRole('button', { name: 'Upgrade' }));
+
+        expect(mockedUpgradeMutate).toHaveBeenCalledWith(
+            {
+                projectUuid: 'project-1',
+                chartSlug: 'radial-gauge',
+                upgradeConsumingCharts: false,
+            },
+            expect.anything(),
+        );
     });
 
     it('shows the registry version for installed official chart types', () => {

@@ -14,6 +14,7 @@ import {
     type ApiDataAppVizDeleteImpactResponse,
     type ApiDataAppVizPreviewTokenResponse,
     type ApiDataAppVizRenderMetadataResponse,
+    type ApiDataAppVizUpgradeImpactResponse,
     type ApiDeleteAppResponse,
     type ApiDuplicateAppRequest,
     type ApiDuplicateAppResponse,
@@ -40,6 +41,7 @@ import {
     type DataAppActivityFilters,
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
+    type InstallRegistryChartTypeBody,
     type MyAppsSortBy,
     type UpgradeAppRequestBody,
     type UUID,
@@ -205,6 +207,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() chartSlug: string,
+        @Body() body?: InstallRegistryChartTypeBody,
     ): Promise<ApiInstallRegistryChartTypeResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -213,6 +216,7 @@ export class AppGenerateController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 chartSlug,
+                body,
             );
         return {
             status: 'ok',
@@ -293,6 +297,31 @@ export class AppGenerateController extends BaseController {
             status: 'ok',
             results:
                 await this.getAppGenerateService().getDataAppVizDeleteImpact(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    dataAppVizUuid,
+                ),
+        };
+    }
+
+    /**
+     * @summary Get chart type upgrade impact
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations/{dataAppVizUuid}/upgrade-impact')
+    @OperationId('getDataAppVizUpgradeImpact')
+    async getDataAppVizUpgradeImpact(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() dataAppVizUuid: UUID,
+    ): Promise<ApiDataAppVizUpgradeImpactResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().getDataAppVizUpgradeImpact(
                     toSessionUser(req.account),
                     projectUuid,
                     dataAppVizUuid,

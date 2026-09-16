@@ -2095,6 +2095,8 @@ export type DataAppRegistryInstalledEvent = BaseTrack & {
         action: 'installed' | 'upgraded';
         /** The install revived a soft-deleted copy instead of creating one. */
         revived: boolean;
+        /** Saved charts repinned by the upgrade-consuming-charts sweep. */
+        upgradedChartCount: number;
     };
 };
 

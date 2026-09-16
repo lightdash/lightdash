@@ -1449,3 +1449,100 @@ describe('getDataAppVizDeleteImpact', () => {
         expect(countChartsUsingDataAppViz).not.toHaveBeenCalled();
     });
 });
+
+describe('getDataAppVizUpgradeImpact', () => {
+    it('returns consumer and pinned counts for a chart type installer', async () => {
+        const findVisualizationApp = vi
+            .fn()
+            .mockResolvedValue(makeDataAppVizRow());
+        const getDataAppVizUsageCounts = vi
+            .fn()
+            .mockResolvedValue({ chartCount: 5, pinnedChartCount: 3 });
+        const { service, user } = buildServiceWithRealAbility(
+            { findVisualizationApp },
+            OrganizationMemberRole.ADMIN,
+            'user-1',
+            { savedChartModel: { getDataAppVizUsageCounts } },
+        );
+
+        await expect(
+            service.getDataAppVizUpgradeImpact(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).resolves.toEqual({ chartCount: 5, pinnedChartCount: 3 });
+        expect(findVisualizationApp).toHaveBeenCalledWith(
+            'data-app-viz-1',
+            'project-1',
+        );
+        expect(getDataAppVizUsageCounts).toHaveBeenCalledWith(
+            'project-1',
+            'data-app-viz-1',
+        );
+    });
+
+    it('does not disclose counts to users who cannot install chart types', async () => {
+        const getDataAppVizUsageCounts = vi.fn();
+        const { service, user } = buildServiceWithRealAbility(
+            {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            },
+            OrganizationMemberRole.VIEWER,
+            'other-user',
+            { savedChartModel: { getDataAppVizUsageCounts } },
+        );
+
+        await expect(
+            service.getDataAppVizUpgradeImpact(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(getDataAppVizUsageCounts).not.toHaveBeenCalled();
+    });
+
+    it('rejects a missing chart type before querying consumers', async () => {
+        const getDataAppVizUsageCounts = vi.fn();
+        const service = buildService(
+            { findVisualizationApp: vi.fn().mockResolvedValue(undefined) },
+            { savedChartModel: { getDataAppVizUsageCounts } },
+        );
+
+        await expect(
+            service.getDataAppVizUpgradeImpact(
+                USER,
+                'project-1',
+                'missing-viz',
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(getDataAppVizUsageCounts).not.toHaveBeenCalled();
+    });
+
+    it('is gated on the chart type library flag', async () => {
+        const getDataAppVizUsageCounts = vi.fn();
+        const service = buildService(
+            {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            },
+            {
+                savedChartModel: { getDataAppVizUsageCounts },
+                featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+            },
+        );
+
+        await expect(
+            service.getDataAppVizUpgradeImpact(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(getDataAppVizUsageCounts).not.toHaveBeenCalled();
+    });
+});
