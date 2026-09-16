@@ -1,12 +1,5 @@
 import type { Element, Root } from 'hast';
 
-const getText = (node: Element['children'][number]): string =>
-    node.type === 'text'
-        ? node.value
-        : node.type === 'element'
-          ? node.children.map(getText).join('')
-          : '';
-
 const rehypeReportSections = () => (root: Root) => {
     const sections: Element[] = [];
     for (const node of root.children) {
@@ -32,15 +25,6 @@ const rehypeReportSections = () => (root: Root) => {
         if (section && node.type !== 'doctype') {
             section.children.push(node);
         }
-    }
-    const lastSection = sections.at(-1);
-    const lastHeading = lastSection?.children[0];
-    if (
-        lastSection?.tagName === 'report-section' &&
-        lastHeading &&
-        getText(lastHeading).trim().toLowerCase() === 'conclusion'
-    ) {
-        lastSection.tagName = 'report-conclusion';
     }
     for (const section of sections) {
         if (section.tagName !== 'report-introduction') {

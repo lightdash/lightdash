@@ -1,6 +1,7 @@
 .page {
     --page-header-height: var(--dashboard-header-height);
     --page-content-width: 0px;
+    --report-bottom-padding: var(--mantine-spacing-xl);
     --report-container-width: 80rem;
     --report-inline-padding: clamp(1.25rem, 4vw, 3rem);
     --report-controls-padding-right: var(--report-inline-padding);

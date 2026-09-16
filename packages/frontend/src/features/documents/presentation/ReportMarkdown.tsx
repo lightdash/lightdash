@@ -82,11 +82,6 @@ const ReportMarkdown = ({
                     {children as ReactNode}
                 </ReportSection>
             ),
-            'report-conclusion': ({ children }: Record<string, unknown>) => (
-                <ReportSection variant="conclusion">
-                    {children as ReactNode}
-                </ReportSection>
-            ),
             h1: ({ node, children }) => (
                 <ReportSectionHeading
                     order={1}

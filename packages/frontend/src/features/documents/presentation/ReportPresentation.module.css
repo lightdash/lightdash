@@ -77,7 +77,16 @@
 
 .report {
     margin-inline: auto;
-    padding: var(--mantine-spacing-lg) clamp(1.25rem, 4vw, 3rem) 6rem;
+    padding: var(--mantine-spacing-lg)
+        var(--report-inline-padding, clamp(1.25rem, 4vw, 3rem))
+        var(--report-bottom-padding, 6rem);
+}
+
+.documentCells > :last-child {
+    &:is(section),
+    section:last-child {
+        padding-bottom: 0;
+    }
 }
 
 .reportFallback {

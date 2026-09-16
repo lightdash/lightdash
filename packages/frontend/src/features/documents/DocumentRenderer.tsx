@@ -19,7 +19,9 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
             description={document.description}
             headings={headings}
         >
-            <Stack className={styles.structuredReport}>
+            <Stack
+                className={`${styles.structuredReport} ${styles.documentCells}`}
+            >
                 {cells.length === 0 && (
                     <Text c="dimmed">This document is empty.</Text>
                 )}

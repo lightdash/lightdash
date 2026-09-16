@@ -16,7 +16,7 @@ const renderMarkdown = (markdown: string) =>
     );
 
 describe('shared report markdown', () => {
-    test('uses introduction, finding and conclusion presentation within one Markdown cell', () => {
+    test('uses the same section presentation regardless of heading wording', () => {
         renderMarkdown(
             'Introduction\n\n## **Findings**\n\nNarrative\n\n## Conclusion\n\nNext steps',
         );
@@ -32,7 +32,7 @@ describe('shared report markdown', () => {
             screen
                 .getByRole('heading', { name: 'Conclusion' })
                 .closest('section'),
-        ).toHaveClass(styles.reportConclusion);
+        ).toHaveClass(styles.reportFinding);
         expect(screen.getByRole('heading', { name: 'Findings' })).toHaveClass(
             styles.reportFindingTitle,
         );
