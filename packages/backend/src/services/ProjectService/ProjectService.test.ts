@@ -1,5 +1,7 @@
 import { Ability, subject } from '@casl/ability';
 import {
+    BigqueryAuthenticationType,
+    BigqueryTokenError,
     ConflictError,
     convertExplores,
     CustomDimensionType,
@@ -26,6 +28,7 @@ import {
     MergeJoinType,
     MergeQueryErrorKind,
     MetricType,
+    MissingWarehouseCredentialsError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
@@ -39,6 +42,7 @@ import {
     WarehouseTypes,
     WeekDay,
     type ChartSummary,
+    type CreateBigqueryCredentials,
     type CreateProject,
     type CreateWarehouseCredentials,
     type DbtManifest,
@@ -2741,6 +2745,184 @@ describe('ProjectService', () => {
                     requireUserCredentials: true,
                 }),
             );
+        });
+
+        describe('optional BigQuery user credentials', () => {
+            const projectCredentials: CreateBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+                project: 'shared-project',
+                dataset: 'analytics',
+                executionProject: 'billing-project',
+                location: 'EU',
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                maximumBytesBilled: undefined,
+                keyfileContents: {
+                    type: 'service_account',
+                    client_email: 'shared@example.com',
+                    private_key: 'project-private-key',
+                },
+                requireUserCredentials: false,
+            };
+            const personalCredentials = {
+                uuid: 'personal-bigquery-credentials',
+                credentials: {
+                    type: WarehouseTypes.BIGQUERY,
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                    keyfileContents: {
+                        type: 'authorized_user',
+                        client_id: 'oauth-client',
+                        client_secret: 'oauth-secret',
+                        refresh_token: 'personal-refresh-token',
+                    },
+                },
+            } satisfies UserWarehouseCredentialsWithSecrets;
+            const findPersonalCredentials =
+                vi.fn<
+                    UserWarehouseCredentialsModel['findForProjectWithSecrets']
+                >();
+            const getCredentials = (
+                isRegisteredUser = true,
+                preloadedOrgWarehouseCredentialsUuid?: string,
+            ) =>
+                (
+                    service as unknown as {
+                        getWarehouseCredentials: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            preloadedOrgWarehouseCredentialsUuid?: string;
+                        }) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).getWarehouseCredentials({
+                    projectUuid,
+                    userId: sessionAccount.user.id,
+                    isRegisteredUser,
+                    preloadedOrgWarehouseCredentialsUuid,
+                });
+
+            beforeEach(() => {
+                findPersonalCredentials.mockReset();
+                findPersonalCredentials.mockResolvedValue(undefined);
+                vi.mocked(
+                    projectModel.getWarehouseCredentialsForProject,
+                ).mockResolvedValue(projectCredentials);
+                (
+                    service as unknown as {
+                        userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+                    }
+                ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                    findPersonalCredentials;
+            });
+
+            test.each([
+                BigqueryAuthenticationType.PRIVATE_KEY,
+                BigqueryAuthenticationType.SSO,
+                BigqueryAuthenticationType.ADC,
+            ])(
+                'uses personal OAuth with a %s project connection',
+                async (authenticationType) => {
+                    vi.mocked(
+                        projectModel.getWarehouseCredentialsForProject,
+                    ).mockResolvedValueOnce({
+                        ...projectCredentials,
+                        authenticationType,
+                    });
+                    findPersonalCredentials.mockResolvedValue(
+                        personalCredentials,
+                    );
+
+                    const credentials = await getCredentials();
+
+                    expect(findPersonalCredentials).toHaveBeenCalledWith(
+                        projectUuid,
+                        sessionAccount.user.id,
+                        WarehouseTypes.BIGQUERY,
+                    );
+                    expect(credentials).toEqual(
+                        expect.objectContaining({
+                            project: 'shared-project',
+                            dataset: 'analytics',
+                            executionProject: 'billing-project',
+                            location: 'EU',
+                            authenticationType: BigqueryAuthenticationType.SSO,
+                            keyfileContents:
+                                personalCredentials.credentials.keyfileContents,
+                            userWarehouseCredentialsUuid:
+                                personalCredentials.uuid,
+                        }),
+                    );
+                },
+            );
+
+            test('uses the shared connection when no personal credentials exist', async () => {
+                expect(await getCredentials()).toEqual({
+                    ...projectCredentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+            });
+
+            test('uses personal credentials with an organization connection', async () => {
+                findPersonalCredentials.mockResolvedValue(personalCredentials);
+
+                expect(await getCredentials(true, 'org-credentials')).toEqual(
+                    expect.objectContaining({
+                        keyfileContents:
+                            personalCredentials.credentials.keyfileContents,
+                        userWarehouseCredentialsUuid: personalCredentials.uuid,
+                    }),
+                );
+            });
+
+            test('requires personal credentials when the project requires them', async () => {
+                vi.mocked(
+                    projectModel.getWarehouseCredentialsForProject,
+                ).mockResolvedValueOnce({
+                    ...projectCredentials,
+                    requireUserCredentials: true,
+                });
+
+                await expect(getCredentials()).rejects.toThrow(
+                    MissingWarehouseCredentialsError,
+                );
+            });
+
+            test('keeps required mode when personal credentials are available', async () => {
+                vi.mocked(
+                    projectModel.getWarehouseCredentialsForProject,
+                ).mockResolvedValueOnce({
+                    ...projectCredentials,
+                    requireUserCredentials: true,
+                });
+                findPersonalCredentials.mockResolvedValue(personalCredentials);
+
+                expect(await getCredentials()).toEqual(
+                    expect.objectContaining({
+                        requireUserCredentials: true,
+                        userWarehouseCredentialsUuid: personalCredentials.uuid,
+                    }),
+                );
+            });
+
+            test('does not silently fall back when personal credentials are invalid', async () => {
+                findPersonalCredentials.mockRejectedValue(
+                    new BigqueryTokenError('Please reauthenticate'),
+                );
+
+                await expect(getCredentials()).rejects.toThrow(
+                    BigqueryTokenError,
+                );
+            });
+
+            test('uses the shared connection for embedded users', async () => {
+                expect(await getCredentials(false)).toEqual({
+                    ...projectCredentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+                expect(findPersonalCredentials).not.toHaveBeenCalled();
+            });
         });
 
         describe('optional Trino user credentials', () => {
