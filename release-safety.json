@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.235.0",
-  "previousVersion": "2.234.0",
-  "releaseDate": "2026-09-16T11:51:56.711Z",
+  "version": "2.236.0",
+  "previousVersion": "2.235.0",
+  "releaseDate": "2026-09-16T12:04:21.957Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260916110000_add_document_space_deletion_provenance.ts",
-        "edition": "core",
-        "tables": [
-          "documents"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

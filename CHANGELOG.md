@@ -1,3 +1,10 @@
+# [2.236.0](https://github.com/lightdash/lightdash/compare/2.235.0...2.236.0) (2026-09-16)
+
+
+### Features
+
+* **search:** add omnibar phase timing ([#29336](https://github.com/lightdash/lightdash/issues/29336)) ([9771407](https://github.com/lightdash/lightdash/commit/9771407c8aed40ca3c9ab468e29c4fa5be503f88))
+
 # [2.235.0](https://github.com/lightdash/lightdash/compare/2.234.0...2.235.0) (2026-09-16)
 
 
