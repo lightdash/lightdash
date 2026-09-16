@@ -451,6 +451,10 @@ describe('Document page', () => {
                 screen.getByRole('heading', { name: name.trim(), level: 1 }),
             ).toBeInTheDocument();
             expect(
+                screen.getByRole('heading', { name: name.trim(), level: 6 })
+                    .parentElement,
+            ).toHaveClass(reportStyles.reportControls);
+            expect(
                 screen.queryByRole('link', { name: 'Back' }),
             ).not.toBeInTheDocument();
             expect(

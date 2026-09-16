@@ -9,6 +9,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import TruncatedText from '../components/common/TruncatedText';
 import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
+import reportStyles from '../features/documents/presentation/ReportPresentation.module.css';
 import { useDocument } from '../features/documents/useDocument';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -52,12 +53,16 @@ const DocumentContent = ({
                 header={
                     <PageHeader
                         cardProps={{
-                            px: 'xl',
+                            px: 0,
                             py: 0,
                             h: DASHBOARD_HEADER_HEIGHT,
                         }}
                     >
-                        <Group w="100%" wrap="nowrap" justify="space-between">
+                        <Group
+                            className={reportStyles.reportControls}
+                            wrap="nowrap"
+                            justify="space-between"
+                        >
                             <Title order={6} flex={1} miw={0}>
                                 <TruncatedText
                                     maxWidth="100%"
