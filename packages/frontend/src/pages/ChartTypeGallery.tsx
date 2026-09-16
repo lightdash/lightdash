@@ -143,7 +143,7 @@ const ChartTypeGallery = () => {
 
     return (
         <Page
-            title="Gallery"
+            title="Chart types"
             withCenteredRoot
             withCenteredContent
             withXLargePaddedContent
@@ -153,7 +153,7 @@ const ChartTypeGallery = () => {
                 <PageBreadcrumbs
                     items={[
                         { title: 'Home', to: '/home' },
-                        { title: 'Gallery', active: true },
+                        { title: 'Chart types', active: true },
                     ]}
                 />
 
@@ -165,7 +165,7 @@ const ChartTypeGallery = () => {
                     <Tabs.List>
                         <Tabs.Tab value={GalleryTab.INSTALLED_CHARTS}>
                             <Group gap={6} wrap="nowrap">
-                                Installed charts
+                                Installed chart types
                                 {!isEmptyGallery && totalCount !== null && (
                                     <Text span fz="xs" c="dimmed">
                                         ({totalCount})
@@ -178,7 +178,7 @@ const ChartTypeGallery = () => {
                                 value={GalleryTab.CHART_LIBRARY}
                                 rightSection={<BetaBadge />}
                             >
-                                Chart library
+                                Chart type library
                             </Tabs.Tab>
                         )}
                     </Tabs.List>

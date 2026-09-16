@@ -13,6 +13,7 @@ import ProjectRoute from './components/ProjectRoute';
 import CreateProjectSettings from './components/Settings/CreateProjectSettings';
 import UserCompletionModal from './components/UserCompletionModal';
 import LegacyAppPreviewRedirect from './features/apps/LegacyAppPreviewRedirect';
+import LegacyChartTypeGalleryRedirect from './features/chartTypes/LegacyChartTypeGalleryRedirect';
 import { loadLazyRouteDefault } from './features/chunkErrorHandler';
 import { MetricCatalogView } from './features/metricsCatalog/types';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
@@ -630,6 +631,10 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     },
     {
         path: 'gallery',
+        element: <LegacyChartTypeGalleryRedirect />,
+    },
+    {
+        path: 'chart-types',
         lazy: async () => {
             const ChartTypeGallery = await loadLazyRouteDefault(
                 './pages/ChartTypeGallery',

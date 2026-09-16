@@ -48,9 +48,10 @@ describe('ExplorerChartTypeAuthoringHeader', () => {
     it('names the surface with a focused heading and says nothing while describing', () => {
         renderHeader();
 
+        expect(screen.getByText('Chart Studio')).toBeInTheDocument();
         const heading = screen.getByRole('heading', {
             level: 2,
-            name: 'Editing chart type · Revenue changes waterfall',
+            name: 'Revenue changes waterfall',
         });
         expect(heading).toHaveFocus();
         expect(screen.getByRole('status')).toHaveTextContent('');
@@ -124,7 +125,7 @@ describe('ExplorerChartTypeAuthoringHeader', () => {
             'true',
         );
         await userEvent.click(
-            screen.getByRole('button', { name: 'Close chart type builder' }),
+            screen.getByRole('button', { name: 'Close Chart Studio' }),
         );
         await userEvent.click(
             screen.getByRole('button', { name: 'Back to chart' }),

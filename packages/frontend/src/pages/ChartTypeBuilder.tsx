@@ -143,7 +143,7 @@ const ChartTypeBuilder: FC = () => {
 
     const isCreateFlow = urlVizUuid === undefined && build.appUuid === null;
     if (isCreateFlow && !canCreate) {
-        return <Navigate to={`/projects/${projectUuid}/gallery`} replace />;
+        return <Navigate to={`/projects/${projectUuid}/chart-types`} replace />;
     }
 
     if (appQuery.error?.error.statusCode === 404) {
@@ -156,10 +156,10 @@ const ChartTypeBuilder: FC = () => {
                         action={
                             <Button
                                 component={Link}
-                                to={`/projects/${projectUuid}/gallery`}
+                                to={`/projects/${projectUuid}/chart-types`}
                                 variant="default"
                             >
-                                Back to the gallery
+                                Back to chart types
                             </Button>
                         }
                     />
@@ -179,12 +179,16 @@ const ChartTypeBuilder: FC = () => {
             );
         }
         if (!canEdit) {
-            return <Navigate to={`/projects/${projectUuid}/gallery`} replace />;
+            return (
+                <Navigate to={`/projects/${projectUuid}/chart-types`} replace />
+            );
         }
         // Server-enforced (registry apps are read-only); this only keeps
         // the builder UI from being reached for an official chart type.
         if (appMeta.registrySlug !== null) {
-            return <Navigate to={`/projects/${projectUuid}/gallery`} replace />;
+            return (
+                <Navigate to={`/projects/${projectUuid}/chart-types`} replace />
+            );
         }
     }
 
@@ -210,13 +214,13 @@ const ChartTypeBuilder: FC = () => {
               },
           }
         : {
-              label: 'Gallery',
-              to: `/projects/${projectUuid}/gallery`,
+              label: 'Chart types',
+              to: `/projects/${projectUuid}/chart-types`,
           };
 
     return (
         <Box className={classes.root}>
-            <DocumentTitle title="Chart type builder" />
+            <DocumentTitle title="Chart Studio" />
             <ChartTypeBuilderHeader
                 projectUuid={projectUuid}
                 appUuidOrSlug={urlVizUuid}

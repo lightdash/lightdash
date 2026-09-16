@@ -65,7 +65,6 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
     const title = app
         ? getAppDisplayName(app.name, app.appUuid)
         : 'New chart type';
-    const headingText = app ? `Editing chart type · ${title}` : title;
 
     // Entering replaces what had focus; land on what this surface is.
     const titleRef = useRef<HTMLHeadingElement>(null);
@@ -84,6 +83,9 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
             >
                 Back to chart
             </Button>
+            <Text className={classes.studioLabel} fz="sm" fw={600} c="ldGray.8">
+                Chart Studio
+            </Text>
             <Box className={classes.divider} />
             <Box className={classes.nameCluster}>
                 {app && (
@@ -98,14 +100,9 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                     order={2}
                     className={classes.title}
                     fz="sm"
-                    title={headingText}
+                    title={title}
                     tabIndex={-1}
                 >
-                    {app && (
-                        <Text span fz="sm" fw={400} c="dimmed">
-                            {'Editing chart type · '}
-                        </Text>
-                    )}
                     {title}
                 </Title>
                 {app && app.description && (
@@ -160,10 +157,10 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                         History
                     </Button>
                 )}
-                <Tooltip label="Close chart type builder" position="bottom">
+                <Tooltip label="Close Chart Studio" position="bottom">
                     <ActionIcon
                         size="sm"
-                        aria-label="Close chart type builder"
+                        aria-label="Close Chart Studio"
                         onClick={onDone}
                     >
                         <MantineIcon icon={IconX} />

@@ -224,7 +224,7 @@ const builderRoutes = (path: string) => (
                 element={<ChartTypeBuilder />}
             />
             <Route
-                path="/projects/:projectUuid/gallery"
+                path="/projects/:projectUuid/chart-types"
                 element={<div>gallery</div>}
             />
             <Route
@@ -363,6 +363,7 @@ describe('ChartTypeBuilder', () => {
     it('starts the create flow with a prompt and nothing else', () => {
         renderBuilder('/projects/p1/chart-types/new');
 
+        expect(screen.getByText('Chart Studio')).toBeInTheDocument();
         expect(screen.getByText('Start with a prompt')).toBeInTheDocument();
         expect(
             screen.getByPlaceholderText('Describe a new chart type…'),
@@ -563,10 +564,9 @@ describe('ChartTypeBuilder', () => {
         );
         renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}`);
 
-        expect(screen.getByRole('link', { name: 'Gallery' })).toHaveAttribute(
-            'href',
-            '/projects/p1/gallery',
-        );
+        expect(
+            screen.getByRole('link', { name: 'Chart types' }),
+        ).toHaveAttribute('href', '/projects/p1/chart-types');
         fireEvent.click(
             screen.getByRole('button', { name: 'Preview in explorer' }),
         );
@@ -596,10 +596,9 @@ describe('ChartTypeBuilder', () => {
             '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001?create_saved_chart_version=not-json',
         );
 
-        expect(screen.getByRole('link', { name: 'Gallery' })).toHaveAttribute(
-            'href',
-            '/projects/p1/gallery',
-        );
+        expect(
+            screen.getByRole('link', { name: 'Chart types' }),
+        ).toHaveAttribute('href', '/projects/p1/chart-types');
     });
 
     it('keeps a drafted follow-up when the create route adopts the app', () => {

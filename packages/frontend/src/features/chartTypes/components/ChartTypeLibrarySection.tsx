@@ -115,7 +115,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
                 <Paper variant="dotted" p="xl">
                     <Text ta="center" fz="xs" c="dimmed">
                         {allInstalled
-                            ? 'Every chart type from the library is installed — find them in your installed charts.'
+                            ? 'Every chart type from the library is installed — find them in your installed chart types.'
                             : 'No chart types available in the registry yet.'}
                     </Text>
                 </Paper>

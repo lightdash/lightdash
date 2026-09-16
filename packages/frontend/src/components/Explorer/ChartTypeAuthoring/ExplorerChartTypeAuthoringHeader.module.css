@@ -18,6 +18,11 @@
     flex-shrink: 0;
 }
 
+.studioLabel {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
 .nameCluster {
     display: flex;
     align-items: center;

@@ -62,7 +62,7 @@ type CustomChartTypeItem = {
 const CREATE_NEW_CHART_TYPE_OPTION_VALUE = '__create_new_chart_type__';
 const CREATE_LABEL = 'Create new chart type';
 const BROWSE_GALLERY_OPTION_VALUE = '__browse_gallery__';
-const BROWSE_LABEL = 'Browse the gallery';
+const BROWSE_LABEL = 'Browse chart types';
 
 const fieldSummary = (dataAppViz: DataAppViz): string => {
     const count = dataAppViz.schema?.fields.length ?? 0;

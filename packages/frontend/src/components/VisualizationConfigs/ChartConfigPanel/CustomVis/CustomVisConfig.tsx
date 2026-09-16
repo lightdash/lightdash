@@ -288,7 +288,9 @@ export const ConfigTabs: React.FC = memo(() => {
                                 : null
                         }
                         onBrowseGallery={() =>
-                            void navigate(`/projects/${projectUuid}/gallery`)
+                            void navigate(
+                                `/projects/${projectUuid}/chart-types`,
+                            )
                         }
                     />
                 )}
