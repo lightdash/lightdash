@@ -1,5 +1,5 @@
 import { MantineProvider } from '@mantine/core';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminHomepageControls } from './AdminHomepageControls';
@@ -12,13 +12,18 @@ vi.mock('../../../providers/Ability', () => ({
     Can: ({ children }: PropsWithChildren) => children,
 }));
 
-const { settings } = vi.hoisted(() => ({
+const { authoringEnabled, settings } = vi.hoisted(() => ({
+    authoringEnabled: { current: true },
     settings: {
         current: { enabled: false, opening: null } as {
             enabled: boolean;
             opening: 'ask-first' | 'content-first' | null;
         },
     },
+}));
+
+vi.mock('../../../hooks/useContentAuthoringEnabled', () => ({
+    useContentAuthoringEnabled: () => authoringEnabled.current,
 }));
 
 vi.mock('./hooks/useOrgHomepageSettings', () => ({
@@ -29,18 +34,28 @@ vi.mock('./hooks/useOrgHomepageSettings', () => ({
     }),
 }));
 
-const renderControls = () =>
+const renderControls = ({ withPageRoot = false } = {}) =>
     render(
         <MantineProvider env="test">
-            <AdminHomepageControls
-                projectUuid="project-1"
-                organizationUuid="organization-1"
-            />
+            {withPageRoot ? (
+                <div id="page-root" data-testid="page-root">
+                    <AdminHomepageControls
+                        projectUuid="project-1"
+                        organizationUuid="organization-1"
+                    />
+                </div>
+            ) : (
+                <AdminHomepageControls
+                    projectUuid="project-1"
+                    organizationUuid="organization-1"
+                />
+            )}
         </MantineProvider>,
     );
 
 describe('AdminHomepageControls', () => {
     beforeEach(() => {
+        authoringEnabled.current = true;
         settings.current = { enabled: false, opening: null };
     });
 
@@ -77,5 +92,34 @@ describe('AdminHomepageControls', () => {
                 name: 'Switch back to classic homepage',
             }),
         ).toBeInTheDocument();
+    });
+
+    it('hides homepage controls when authoring is unavailable on phones', () => {
+        authoringEnabled.current = false;
+        renderControls();
+
+        expect(
+            screen.queryByRole('button', { name: 'Customize homepage' }),
+        ).toBeNull();
+    });
+
+    it('marks controls as hidden after the page scrolls', () => {
+        renderControls({ withPageRoot: true });
+        const pageRoot = screen.getByTestId('page-root');
+        const controls = screen
+            .getByRole('button', { name: 'Customize homepage' })
+            .closest('[data-page-scrolled]');
+
+        expect(controls).toHaveAttribute('data-page-scrolled', 'false');
+
+        act(() => {
+            Object.defineProperty(pageRoot, 'scrollTop', {
+                configurable: true,
+                value: 24,
+            });
+            fireEvent.scroll(pageRoot);
+        });
+
+        expect(controls).toHaveAttribute('data-page-scrolled', 'true');
     });
 });

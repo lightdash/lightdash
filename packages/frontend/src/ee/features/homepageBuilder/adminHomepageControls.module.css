@@ -51,7 +51,28 @@
     opacity: 1;
 }
 
+@media (max-width: 32em) {
+    .corner {
+        transition:
+            opacity 0.15s ease,
+            transform 0.15s ease,
+            visibility 0s linear;
+    }
+
+    .corner[data-page-scrolled='true'] {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-8px);
+        transition:
+            opacity 0.15s ease,
+            transform 0.15s ease,
+            visibility 0s linear 0.15s;
+        visibility: hidden;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
+    .corner,
     .tbBtn,
     .tbBtnLabel {
         transition: none;
