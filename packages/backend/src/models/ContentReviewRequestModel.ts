@@ -186,8 +186,14 @@ type SimilarContentScope = {
     accessibleSpaceUuids: string[];
 };
 
-// Cancels the server-side statement too, so slow lookups cannot pile up.
 const SIMILARITY_QUERY_TIMEOUT_MS = 5_000;
+
+// Knex clone() drops timeout options, so bound the builder that actually runs.
+// cancel: true also stops the server-side statement, so slow lookups cannot pile up.
+const cancelAfterTimeout = <TRecord extends {}, TResult>(
+    query: Knex.QueryBuilder<TRecord, TResult>,
+): Knex.QueryBuilder<TRecord, TResult> =>
+    query.timeout(SIMILARITY_QUERY_TIMEOUT_MS, { cancel: true });
 
 const escapeLikeWildcards = (value: string): string =>
     value.replace(/[%_\\]/g, '\\$&');
@@ -654,7 +660,6 @@ export class ContentReviewRequestModel {
                 spaceUuid: 'content.space_uuid',
                 spaceName: 'content.space_name',
             })
-            .timeout(SIMILARITY_QUERY_TIMEOUT_MS, { cancel: true })
             .from(branches.as('content'));
     }
 
@@ -720,32 +725,36 @@ export class ContentReviewRequestModel {
             ),
         ].slice(0, 20);
         const [fieldCandidates, nameCandidates] = await Promise.all([
-            query
-                .clone()
-                .modify((candidates) => {
-                    void candidates.select({
-                        fieldHits: fieldMatches.clone().count('*'),
-                    });
-                })
-                .whereExists(fieldMatches.clone().select('fields.name'))
-                .orderBy('fieldHits', 'desc')
-                .orderBy('content.saved_query_uuid')
-                .limit(12),
+            cancelAfterTimeout(
+                query
+                    .clone()
+                    .modify((candidates) => {
+                        void candidates.select({
+                            fieldHits: fieldMatches.clone().count('*'),
+                        });
+                    })
+                    .whereExists(fieldMatches.clone().select('fields.name'))
+                    .orderBy('fieldHits', 'desc')
+                    .orderBy('content.saved_query_uuid')
+                    .limit(12),
+            ),
             words.length === 0
                 ? []
-                : query
-                      .clone()
-                      .where((names) => {
-                          words.forEach((word) => {
-                              void names.orWhereILike(
-                                  'content.name',
-                                  `%${escapeLikeWildcards(word)}%`,
-                              );
-                          });
-                      })
-                      .orderBy('content.name')
-                      .orderBy('content.saved_query_uuid')
-                      .limit(12),
+                : cancelAfterTimeout(
+                      query
+                          .clone()
+                          .where((names) => {
+                              words.forEach((word) => {
+                                  void names.orWhereILike(
+                                      'content.name',
+                                      `%${escapeLikeWildcards(word)}%`,
+                                  );
+                              });
+                          })
+                          .orderBy('content.name')
+                          .orderBy('content.saved_query_uuid')
+                          .limit(12),
+                  ),
         ]);
         return [
             ...new Map(
@@ -791,14 +800,16 @@ export class ContentReviewRequestModel {
                 : [SIMILAR_SOURCES.chart, SIMILAR_SOURCES.sqlChart];
         const results = await Promise.all(
             sources.map(async (source) => {
-                const rows = await this.getSimilarityContentQuery(source, scope)
-                    .whereILike(
-                        'content.name',
-                        escapeLikeWildcards(name.trim()),
-                    )
-                    .orderBy('content.name')
-                    .orderBy(`content.${source.uuidColumn}`)
-                    .limit(limit);
+                const rows = await cancelAfterTimeout(
+                    this.getSimilarityContentQuery(source, scope)
+                        .whereILike(
+                            'content.name',
+                            escapeLikeWildcards(name.trim()),
+                        )
+                        .orderBy('content.name')
+                        .orderBy(`content.${source.uuidColumn}`)
+                        .limit(limit),
+                );
                 return rows.map((row) => ({
                     ...row,
                     contentType: source.contentType,
