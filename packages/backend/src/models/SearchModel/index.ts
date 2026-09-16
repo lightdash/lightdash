@@ -790,11 +790,32 @@ export class SearchModel {
             return [];
         }
 
-        const dashboardTabs = await this.database(DashboardTabsTableName)
+        const reducedDashboardTabs = 'reduced_dashboard_tabs';
+        const dashboardTabs = await this.database
+            .withMaterialized(reducedDashboardTabs, (queryBuilder) =>
+                queryBuilder
+                    .select(
+                        `${DashboardTabsTableName}.uuid`,
+                        `${DashboardTabsTableName}.dashboard_id`,
+                        `${DashboardTabsTableName}.name`,
+                    )
+                    .from(DashboardTabsTableName)
+                    .where(
+                        `${DashboardTabsTableName}.name`,
+                        'ilike',
+                        this.database.raw('?', [`%${query}%`]),
+                    )
+                    .groupBy(
+                        `${DashboardTabsTableName}.uuid`,
+                        `${DashboardTabsTableName}.dashboard_id`,
+                        `${DashboardTabsTableName}.name`,
+                    ),
+            )
+            .from(reducedDashboardTabs)
             .innerJoin(
                 DashboardsTableName,
                 `${DashboardsTableName}.dashboard_id`,
-                `${DashboardTabsTableName}.dashboard_id`,
+                `${reducedDashboardTabs}.dashboard_id`,
             )
             .leftJoin(
                 SpaceTableName,
@@ -807,8 +828,8 @@ export class SearchModel {
                 `${SpaceTableName}.project_id`,
             )
             .column<DashboardTabResult[]>(
-                { uuid: `${DashboardTabsTableName}.uuid` },
-                { name: `${DashboardTabsTableName}.name` },
+                { uuid: `${reducedDashboardTabs}.uuid` },
+                { name: `${reducedDashboardTabs}.name` },
                 { dashboardUuid: `${DashboardsTableName}.dashboard_uuid` },
                 { dashboardSlug: `${DashboardsTableName}.slug` },
                 { dashboardName: `${DashboardsTableName}.name` },
@@ -817,12 +838,7 @@ export class SearchModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`)
-            .andWhere(
-                `${DashboardTabsTableName}.name`,
-                'ilike',
-                this.database.raw('?', [`%${query}%`]),
-            )
-            .distinctOn(`${DashboardTabsTableName}.uuid`);
+            .distinctOn(`${reducedDashboardTabs}.uuid`);
 
         return dashboardTabs;
     }
