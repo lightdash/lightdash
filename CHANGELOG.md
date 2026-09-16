@@ -1,3 +1,10 @@
+## [2.242.3](https://github.com/lightdash/lightdash/compare/2.242.2...2.242.3) (2026-09-16)
+
+
+### Bug Fixes
+
+* **merge-queries:** state null placement on a sorted merge ([#29358](https://github.com/lightdash/lightdash/issues/29358)) ([a1be6ea](https://github.com/lightdash/lightdash/commit/a1be6ea7214b1d5a0534863fd9b84474b10766e7)), closes [#29338](https://github.com/lightdash/lightdash/issues/29338)
+
 ## [2.242.2](https://github.com/lightdash/lightdash/compare/2.242.1...2.242.2) (2026-09-16)
 
 

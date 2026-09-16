@@ -48755,6 +48755,11 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                    required: true,
+                },
                 terminalWrapper: {
                     dataType: 'union',
                     subSchemas: [

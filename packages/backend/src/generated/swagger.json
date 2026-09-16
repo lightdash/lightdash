@@ -48925,6 +48925,13 @@
                         ],
                         "nullable": true
                     },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "The sorts the merged result honours, by merged field id, each with\nits null placement stated. Empty on an error or an unsorted merge."
+                    },
                     "terminalWrapper": {
                         "allOf": [
                             {
@@ -48970,6 +48977,7 @@
                     "itemsMap",
                     "fields",
                     "columns",
+                    "sorts",
                     "terminalWrapper",
                     "typedColumns",
                     "coreSql",
@@ -63281,7 +63289,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.242.2",
+        "version": "2.242.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
