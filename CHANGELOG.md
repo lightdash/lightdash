@@ -1,3 +1,10 @@
+# [2.239.0](https://github.com/lightdash/lightdash/compare/2.238.2...2.239.0) (2026-09-16)
+
+
+### Features
+
+* **frontend:** make Lightdash responsive across mobile views ([#29213](https://github.com/lightdash/lightdash/issues/29213)) ([d4fe5ac](https://github.com/lightdash/lightdash/commit/d4fe5ac357e07e4b781f6d6a547d5ad172729957))
+
 ## [2.238.2](https://github.com/lightdash/lightdash/compare/2.238.1...2.238.2) (2026-09-16)
 
 
