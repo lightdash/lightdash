@@ -195,6 +195,8 @@ export class FavoritesService extends BaseService {
                 );
                 break;
             }
+            case ContentType.DOCUMENT:
+                throw new ParameterError('Documents cannot be favorited');
             default:
                 return assertUnreachable(
                     contentType,

@@ -3936,6 +3936,7 @@ export class AiAgentToolsService extends BaseService {
         return {
             spaceSlug,
             items: results.data
+                .filter((item) => item.contentType !== ContentType.DOCUMENT)
                 .filter(
                     (item) =>
                         item.contentType !== ContentType.SPACE ||

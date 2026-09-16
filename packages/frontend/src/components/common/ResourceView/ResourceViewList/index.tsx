@@ -1,6 +1,7 @@
 import {
     getResourceViewItemName,
     isResourceViewItemChart,
+    isResourceViewDocumentItem,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
     type ResourceViewItem,
@@ -233,6 +234,11 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                 </Box>
                                             )}
                                     </Group>
+                                    {isResourceViewDocumentItem(item) && (
+                                        <Text fz="xs" c="dimmed">
+                                            Document
+                                        </Text>
+                                    )}
                                     {canBelongToSpace && (
                                         <Text fz="xs" c="dimmed">
                                             {getResourceTypeName(item)} •{' '}

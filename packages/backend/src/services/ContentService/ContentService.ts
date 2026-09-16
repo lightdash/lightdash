@@ -13,6 +13,7 @@ import {
     DeletedContentItem,
     DeletedContentWithDescendants,
     DirectAccessResourceType,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     KnexPaginateArgs,
@@ -26,12 +27,14 @@ import {
 import { Knex } from 'knex';
 import { intersection } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { fromSession } from '../../auth/account';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import {
     ContentArgs,
     ContentFilters,
 } from '../../models/ContentModel/ContentModelTypes';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
@@ -39,12 +42,15 @@ import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
+import type { DocumentService } from '../DocumentService/DocumentService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { SpaceService } from '../SpaceService/SpaceService';
 
 type ContentServiceArguments = {
+    featureFlagModel: FeatureFlagModel;
+    documentService: DocumentService;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     contentModel: ContentModel;
@@ -61,6 +67,10 @@ type ContentServiceArguments = {
 };
 
 export class ContentService extends BaseService {
+    private readonly featureFlagModel: FeatureFlagModel;
+
+    private readonly documentService: DocumentService;
+
     analytics: LightdashAnalytics;
 
     projectModel: ProjectModel;
@@ -89,6 +99,8 @@ export class ContentService extends BaseService {
 
     constructor(args: ContentServiceArguments) {
         super();
+        this.featureFlagModel = args.featureFlagModel;
+        this.documentService = args.documentService;
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.contentModel = args.contentModel;
@@ -175,10 +187,20 @@ export class ContentService extends BaseService {
             );
         }
 
+        const { enabled: documentsEnabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.Documents,
+        });
         if (filters.sharedWithMe === true) {
             return this.findSharedWithMe(
                 user,
-                { ...filters, projectUuids: allowedProjectUuids },
+                {
+                    ...filters,
+                    projectUuids: allowedProjectUuids,
+                    documents: documentsEnabled
+                        ? { allowedSpaceUuids: [] }
+                        : undefined,
+                },
                 queryArgs,
                 paginateArgs,
             );
@@ -248,16 +270,57 @@ export class ContentService extends BaseService {
                     : [];
         }
 
+        const documentSpaces = documentsEnabled
+            ? await this.spacePermissionService.resolveAccessBatch(
+                  user.userUuid,
+                  [
+                      ...new Set([
+                          ...allowedSpaceUuids,
+                          ...(accessibleChildSpaceUuids ?? []),
+                      ]),
+                  ].map((spaceUuid) => ({ type: 'space', spaceUuid })),
+              )
+            : [];
+        const isAllDocuments =
+            documentsEnabled &&
+            !isInsideSpace &&
+            filters.contentTypes?.length === 1 &&
+            filters.contentTypes[0] === ContentType.DOCUMENT;
+        const grantedDocumentUuids = isAllDocuments
+            ? await this.getViewableGrantedDocumentUuids(
+                  user,
+                  allowedProjectUuids,
+              )
+            : undefined;
+        const documents = documentsEnabled
+            ? {
+                  ...(grantedDocumentUuids !== undefined
+                      ? { grantedUuids: grantedDocumentUuids }
+                      : {}),
+                  allowedSpaceUuids: documentSpaces.flatMap(
+                      ({ target, context }) =>
+                          context &&
+                          auditedAbility.can(
+                              'view',
+                              subject('Document', context),
+                          )
+                              ? [target.spaceUuid]
+                              : [],
+                  ),
+              }
+            : undefined;
+
         const results = await this.contentModel.findSummaryContents(
             {
                 ...filters,
                 projectUuids: allowedProjectUuids,
-                spaceUuids: allowedSpaceUuids,
+                spaceUuids: isAllDocuments ? undefined : allowedSpaceUuids,
                 space: {
                     rootSpaces: !isInsideSpace,
                     accessibleChildSpaceUuids,
                 },
                 dataApps,
+                documents,
             },
             queryArgs,
             paginateArgs,
@@ -294,17 +357,31 @@ export class ContentService extends BaseService {
         };
     }
 
+    private async getViewableGrantedDocumentUuids(
+        user: SessionUser,
+        projectUuids: string[],
+    ): Promise<string[]> {
+        if (!user.organizationUuid || projectUuids.length === 0) {
+            return [];
+        }
+        const { uuidsByType } =
+            await this.directAccessService.findSharedWithMeAccess(
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                },
+                projectUuids,
+            );
+        return this.documentService.filterViewableUuids(
+            fromSession(user),
+            projectUuids,
+            uuidsByType[DirectAccessResourceType.DOCUMENT],
+        );
+    }
+
     /**
-     * Shared with me: only resources directly granted to the caller or their
-     * groups, hydrated through the ordinary content configurations so parent
-     * metadata, filters, sorting, pagination, and counts behave exactly like
-     * the default listing. Never unions ordinary space-accessible content.
-     */
-    /**
-     * Attaches the viewer's direct-grant roles to each row. Space-derived
-     * access already reaches the client through the space list; grants do not,
-     * so without this the client cannot tell a granted resource it may manage
-     * from one it may only view.
+     * Space-derived access reaches the client through the Space list, but
+     * direct grants must be attached to the individual resource.
      */
     private async withDirectAccessRoles(
         user: SessionUser,
@@ -318,6 +395,9 @@ export class ContentService extends BaseService {
         >(
             (acc, row) => {
                 switch (row.contentType) {
+                    case ContentType.DOCUMENT:
+                        acc[DirectAccessResourceType.DOCUMENT].push(row.uuid);
+                        break;
                     case ContentType.DASHBOARD:
                         acc[DirectAccessResourceType.DASHBOARD].push(row.uuid);
                         break;
@@ -341,6 +421,7 @@ export class ContentService extends BaseService {
                 [DirectAccessResourceType.CHART]: [],
                 [DirectAccessResourceType.SQL_CHART]: [],
                 [DirectAccessResourceType.APP]: [],
+                [DirectAccessResourceType.DOCUMENT]: [],
             },
         );
 
@@ -386,6 +467,7 @@ export class ContentService extends BaseService {
             ContentType.DASHBOARD,
             ContentType.CHART,
             ContentType.DATA_APP,
+            ...(filters.documents ? [ContentType.DOCUMENT] : []),
         ];
         const contentTypes = filters.contentTypes
             ? filters.contentTypes.filter((contentType) =>
@@ -404,7 +486,17 @@ export class ContentService extends BaseService {
                 },
                 filters.projectUuids,
             );
+        const grantedDocumentUuids = contentTypes.includes(ContentType.DOCUMENT)
+            ? await this.documentService.filterViewableUuids(
+                  fromSession(user),
+                  filters.projectUuids,
+                  granted[DirectAccessResourceType.DOCUMENT],
+              )
+            : [];
         const grantedUuids = [
+            ...(contentTypes.includes(ContentType.DOCUMENT)
+                ? grantedDocumentUuids
+                : []),
             ...(contentTypes.includes(ContentType.DASHBOARD)
                 ? granted[DirectAccessResourceType.DASHBOARD]
                 : []),
@@ -437,6 +529,12 @@ export class ContentService extends BaseService {
                 search: filters.search,
                 dataAppVizsFilter: filters.dataAppVizsFilter,
                 sharedWithMe: true,
+                documents: filters.documents
+                    ? {
+                          allowedSpaceUuids: [],
+                          grantedUuids: grantedDocumentUuids,
+                      }
+                    : undefined,
             },
             queryArgs,
             paginateArgs,
@@ -464,6 +562,8 @@ export class ContentService extends BaseService {
         item: Exclude<SummaryContent, SpaceContentBase>,
     ): DirectAccessResourceType {
         switch (item.contentType) {
+            case ContentType.DOCUMENT:
+                return DirectAccessResourceType.DOCUMENT;
             case ContentType.DASHBOARD:
                 return DirectAccessResourceType.DASHBOARD;
             case ContentType.DATA_APP:
@@ -523,6 +623,12 @@ export class ContentService extends BaseService {
                 };
 
                 switch (c.contentType) {
+                    case ContentType.DOCUMENT:
+                        return this.documentService.moveToSpace(
+                            fromSession(user),
+                            moveToSpaceArgs,
+                            moveToSpaceOptions,
+                        );
                     case ContentType.CHART:
                         switch (c.source) {
                             case ChartSourceType.DBT_EXPLORE:
@@ -619,6 +725,12 @@ export class ContentService extends BaseService {
         };
 
         switch (item.contentType) {
+            case ContentType.DOCUMENT:
+                return this.documentService.moveToSpace(
+                    fromSession(user),
+                    moveToSpaceArgs,
+                    moveToSpaceOptions,
+                );
             case ContentType.CHART:
                 switch (item.source) {
                     case ChartSourceType.DBT_EXPLORE:
@@ -696,6 +808,8 @@ export class ContentService extends BaseService {
         item: ApiContentActionBody<ContentActionDelete>['item'],
     ): Promise<void> {
         switch (item.contentType) {
+            case ContentType.DOCUMENT:
+                throw new ParameterError('Document deletion is not available');
             case ContentType.CHART:
                 switch (item.source) {
                     case ChartSourceType.DBT_EXPLORE:

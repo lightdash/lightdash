@@ -8,6 +8,7 @@ import {
     ContentType,
     FeatureFlags,
     isResourceViewDataAppItem,
+    isResourceViewDocumentItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
@@ -33,6 +34,7 @@ import {
     IconAppWindow,
     IconChartBar,
     IconFolder,
+    IconFileText,
     IconFolderSymlink,
     IconLayoutDashboard,
     IconSearch,
@@ -60,6 +62,7 @@ import {
     type ContentTableVirtualizer,
 } from '../ContentTable';
 import MantineIcon from '../MantineIcon';
+import SuboptimalState from '../SuboptimalState/SuboptimalState';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import { UserSelect } from '../UserSelect';
 import ViewsCountPopover from '../ViewsCountPopover';
@@ -114,6 +117,7 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
         withAdminView: boolean;
     };
     showDataAppVersionStatus?: boolean;
+    errorStateTitle?: string;
 };
 
 const defaultSpaces: SpaceSummary[] = [];
@@ -200,6 +204,7 @@ const InfiniteResourceTable = ({
     initialAdminContentViewValue = 'shared',
     contentView,
     showDataAppVersionStatus = false,
+    errorStateTitle,
     ...contentTableProps
 }: ResourceView2Props) => {
     const projectRoute = useOptionalProjectRoute();
@@ -226,6 +231,9 @@ const InfiniteResourceTable = ({
     );
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
+    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
+    const documentsEnabled =
+        documentsFlag.data?.enabled === true && !documentsFlag.isError;
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
     });
@@ -366,7 +374,10 @@ const InfiniteResourceTable = ({
             header: 'Views',
             size: 100,
             Cell: ({ row }) => {
-                if (isResourceViewSpaceItem(row.original))
+                if (
+                    isResourceViewSpaceItem(row.original) ||
+                    isResourceViewDocumentItem(row.original)
+                )
                     return (
                         <Text fz="xs" fw={500} c="ldGray.7">
                             -
@@ -429,11 +440,19 @@ const InfiniteResourceTable = ({
                             chartCount,
                             childSpaceCount,
                             appCount,
+                            documentCount,
                         },
                     },
                 } = row;
                 return (
                     <Group>
+                        {documentsEnabled && documentCount !== undefined && (
+                            <AttributeCount
+                                Icon={IconFileText}
+                                count={documentCount}
+                                name="Documents"
+                            />
+                        )}
                         <AttributeCount
                             Icon={IconLayoutDashboard}
                             count={dashboardCount}
@@ -514,28 +533,36 @@ const InfiniteResourceTable = ({
         };
     }, [sorting]);
 
-    const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
-        useInfiniteContent(
-            {
-                spaceUuids: filters.spaceUuids,
-                contentTypes: selectedContentType
-                    ? [selectedContentType]
-                    : filters.contentTypes,
-                projectUuids: [filters.projectUuid],
-                page: 1,
-                pageSize: 25,
-                search,
-                sortBy: sortBy?.sortBy,
-                sortDirection: sortBy?.sortDirection,
-                includePersonalDataApps: filters.includePersonalDataApps,
-                dataAppVizsFilter: filters.dataAppVizsFilter,
-                sharedWithMe: filters.sharedWithMe,
-                ownerUserUuids: selectedOwnerUserUuid
-                    ? [selectedOwnerUserUuid]
-                    : undefined,
-            },
-            { keepPreviousData: true },
-        );
+    const {
+        data,
+        isInitialLoading,
+        isFetching,
+        hasNextPage,
+        fetchNextPage,
+        isError,
+        error,
+        refetch,
+    } = useInfiniteContent(
+        {
+            spaceUuids: filters.spaceUuids,
+            contentTypes: selectedContentType
+                ? [selectedContentType]
+                : filters.contentTypes,
+            projectUuids: [filters.projectUuid],
+            page: 1,
+            pageSize: 25,
+            search,
+            sortBy: sortBy?.sortBy,
+            sortDirection: sortBy?.sortDirection,
+            includePersonalDataApps: filters.includePersonalDataApps,
+            dataAppVizsFilter: filters.dataAppVizsFilter,
+            sharedWithMe: filters.sharedWithMe,
+            ownerUserUuids: selectedOwnerUserUuid
+                ? [selectedOwnerUserUuid]
+                : undefined,
+        },
+        { keepPreviousData: true },
+    );
 
     // Real parent names for rows whose space the viewer cannot access
     // (directly shared content): shown as non-navigable context.
@@ -576,6 +603,7 @@ const InfiniteResourceTable = ({
         return data.pages
             .flatMap((page) => page.data.map(contentToResourceViewItem))
             .filter((item) => {
+                if (isResourceViewDocumentItem(item)) return documentsEnabled;
                 if (!isResourceViewSpaceItem(item)) return true;
                 if (!userCanManageProject) return true;
                 if (
@@ -593,6 +621,7 @@ const InfiniteResourceTable = ({
         userCanManageProject,
         spaces,
         selectedAdminContentType,
+        documentsEnabled,
         contentView?.value,
     ]);
 
@@ -985,6 +1014,35 @@ const InfiniteResourceTable = ({
         },
         enableEditing: true,
         ...contentTableProps,
+        enableRowSelection: contentTableProps.enableRowSelection
+            ? (row) => {
+                  const allowed =
+                      typeof contentTableProps.enableRowSelection === 'function'
+                          ? contentTableProps.enableRowSelection(row)
+                          : true;
+                  if (!allowed || !isResourceViewDocumentItem(row.original)) {
+                      return allowed;
+                  }
+                  const item = row.original;
+                  const space = spaces.find(
+                      ({ uuid }) => uuid === item.data.spaceUuid,
+                  );
+                  return (
+                      user.data?.ability.can(
+                          'update',
+                          subject('Document', {
+                              organizationUuid: item.data.organizationUuid,
+                              projectUuid: item.data.projectUuid,
+                              inheritsFromOrgOrProject:
+                                  space?.inheritsFromOrgOrProject ?? false,
+                              access: space?.userAccess
+                                  ? [space.userAccess]
+                                  : [],
+                          }),
+                      ) === true
+                  );
+              }
+            : false,
         mantineSelectCheckboxProps: {
             size: 'sm',
         },
@@ -1024,10 +1082,11 @@ const InfiniteResourceTable = ({
                                     },
                                 ];
                             case ContentType.DASHBOARD:
+                            case ContentType.DOCUMENT:
                                 return [
                                     {
                                         uuid: item.data.uuid,
-                                        contentType: ContentType.DASHBOARD,
+                                        contentType: item.type,
                                     },
                                 ];
                             case ContentType.SPACE:
@@ -1063,6 +1122,25 @@ const InfiniteResourceTable = ({
     const selectedItems = table
         .getFilteredSelectedRowModel()
         .flatRows.map((row) => row.original);
+
+    if (errorStateTitle && isError) {
+        return (
+            <SuboptimalState
+                title={errorStateTitle}
+                description={error.error.message}
+                action={
+                    <Button
+                        variant="default"
+                        onClick={() => {
+                            void refetch();
+                        }}
+                    >
+                        Retry
+                    </Button>
+                }
+            />
+        );
+    }
 
     return (
         <>

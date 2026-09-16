@@ -75,6 +75,15 @@ const useInvalidateAfterDirectAccessMutation = (
             queryClient.invalidateQueries({
                 predicate: ({ queryKey }) => {
                     switch (ref.resourceType) {
+                        case DirectAccessResourceType.DOCUMENT:
+                            return (
+                                [
+                                    'document',
+                                    'documents',
+                                    'document-cell-query',
+                                ].includes(String(queryKey[0])) &&
+                                queryKey[1] === projectUuid
+                            );
                         case DirectAccessResourceType.CHART:
                             return (
                                 queryKey[0] === 'saved_query' &&

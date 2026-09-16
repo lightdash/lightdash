@@ -14,9 +14,12 @@ export enum ContentTypePriority {
     DASHBOARD = 2,
     CHART = 3,
     DATA_APP = 4,
+    DOCUMENT = 5,
 }
 
 export type ContentFilters = {
+    /** Server-resolved visibility; absent means Documents are disabled. */
+    documents?: { allowedSpaceUuids: string[]; grantedUuids?: string[] };
     projectUuids?: string[];
     spaceUuids?: string[];
     /** Restrict to specific content uuids (e.g. resolving curated collections) */

@@ -64,6 +64,8 @@ const getFavoriteItemUrl = (
             return `/projects/${projectUrlIdentifier}/spaces/${item.data.uuid}`;
         case ResourceViewItemType.DATA_APP:
             return `/projects/${projectUuid}/apps/${item.data.uuid}/view`;
+        case ResourceViewItemType.DOCUMENT:
+            return `/projects/${projectUuid}/documents/${item.data.uuid}`;
         default:
             return assertUnreachable(item, `Unknown favorite item type`);
     }
@@ -79,6 +81,8 @@ const getFavoriteItemIcon = (item: ResourceViewItem) => {
             return IconFolder;
         case ResourceViewItemType.DATA_APP:
             return IconAppWindow;
+        case ResourceViewItemType.DOCUMENT:
+            return IconFileText;
         default:
             return assertUnreachable(item, `Unknown favorite item type`);
     }

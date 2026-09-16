@@ -19,6 +19,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.unmock('@uiw/react-markdown-preview');
 vi.mock('../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../features/documents/DocumentActions', () => ({
+    default: () => null,
+}));
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));

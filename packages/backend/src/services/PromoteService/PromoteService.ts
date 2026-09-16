@@ -2027,6 +2027,7 @@ export class PromoteService extends BaseService {
                 dashboardCount: 0,
                 childSpaceCount: 0,
                 appCount: 0,
+                documentCount: 0,
             };
             return {
                 action: PromotionAction.CREATE,

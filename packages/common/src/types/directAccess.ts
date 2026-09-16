@@ -7,6 +7,7 @@ import { type SpaceMemberRole } from './space';
  * `AccessTarget` mapping, and grant tables — never a new handler hierarchy.
  */
 export enum DirectAccessResourceType {
+    DOCUMENT = 'document',
     DASHBOARD = 'dashboard',
     CHART = 'chart',
     SQL_CHART = 'sqlChart',

@@ -11,6 +11,7 @@ export enum ContentType {
     DASHBOARD = 'dashboard',
     SPACE = 'space',
     DATA_APP = 'data_app',
+    DOCUMENT = 'document',
 }
 
 export interface Content {
@@ -87,6 +88,11 @@ export interface DashboardContent extends Content {
     owner: DashboardOwner | null;
 }
 
+export interface DocumentContent extends Content {
+    contentType: ContentType.DOCUMENT;
+    directAccessRoles: SpaceMemberRole[];
+}
+
 // Data App types
 
 export interface DataAppContent extends Omit<Content, 'space' | 'pinnedList'> {
@@ -115,6 +121,7 @@ export interface SpaceContentBase extends Content {
     chartCount: number;
     childSpaceCount: number;
     appCount: number;
+    documentCount: number;
     pinnedList: {
         uuid: string;
         order: number;
@@ -134,6 +141,7 @@ export type SummaryContentBase =
     | ChartContent
     | DashboardContent
     | SpaceContentBase
+    | DocumentContent
     | DataAppContent;
 
 // What the API returns (spaces enriched with access data)
@@ -141,6 +149,7 @@ export type SummaryContent =
     | ChartContent
     | DashboardContent
     | SpaceContent
+    | DocumentContent
     | DataAppContent;
 
 // API types
@@ -181,6 +190,10 @@ type ItemPayload =
     | {
           uuid: string;
           contentType: ContentType.DATA_APP;
+      }
+    | {
+          uuid: string;
+          contentType: ContentType.DOCUMENT;
       };
 
 export type ContentAction = ContentActionMove | ContentActionDelete;

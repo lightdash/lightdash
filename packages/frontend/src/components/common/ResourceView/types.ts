@@ -2,6 +2,7 @@ import {
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
     type ResourceViewDataAppItem,
+    type ResourceViewDocumentItem,
     type ResourceViewItem,
     type ResourceViewSpaceItem,
 } from '@lightdash/common';
@@ -64,6 +65,7 @@ export type ResourceViewItemActionState =
               | ResourceViewChartItem
               | ResourceViewDashboardItem
               | ResourceViewSpaceItem
+              | ResourceViewDocumentItem
               | ResourceViewDataAppItem;
       }
     | {

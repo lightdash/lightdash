@@ -21,6 +21,11 @@ import {
     DashboardUserAccessTableName,
 } from '../database/entities/dashboardAccess';
 import { DashboardsTableName } from '../database/entities/dashboards';
+import {
+    DocumentGroupAccessTableName,
+    DocumentUserAccessTableName,
+} from '../database/entities/documentAccess';
+import { DocumentsTableName } from '../database/entities/documents';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
@@ -59,6 +64,11 @@ type DirectAccessTableConfig = {
 
 const TABLE_CONFIG: Record<DirectAccessResourceType, DirectAccessTableConfig> =
     {
+        [DirectAccessResourceType.DOCUMENT]: {
+            userTable: DocumentUserAccessTableName,
+            groupTable: DocumentGroupAccessTableName,
+            resourceColumn: 'document_uuid',
+        },
         [DirectAccessResourceType.DASHBOARD]: {
             userTable: DashboardUserAccessTableName,
             groupTable: DashboardGroupAccessTableName,
@@ -187,6 +197,49 @@ export class DirectAccessModel {
     // under lock to reject ownership races (a chart moving between a space
     // and a dashboard mid-grant).
     // ------------------------------------------------------------------
+
+    private static async getDocumentMutationTarget(
+        trx: Knex,
+        resourceUuid: string,
+        expectedOrganizationUuid: string,
+    ): Promise<DirectAccessMutationTarget> {
+        const context = await trx(DocumentsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DocumentsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(`${DocumentsTableName}.document_uuid`, resourceUuid)
+            .whereNull(`${DocumentsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                expectedOrganizationUuid,
+            )
+            .select<DirectAccessMutationContext>({
+                organizationId: `${OrganizationTableName}.organization_id`,
+                organizationUuid: `${OrganizationTableName}.organization_uuid`,
+                projectId: `${ProjectTableName}.project_id`,
+                projectUuid: `${ProjectTableName}.project_uuid`,
+            })
+            .forUpdate(DocumentsTableName)
+            .first();
+
+        if (context === undefined) {
+            throw new NotFoundError('Direct access target not found');
+        }
+        return { context, grantRestriction: null };
+    }
 
     private static async getDashboardMutationTarget(
         trx: Knex,
@@ -641,6 +694,12 @@ export class DirectAccessModel {
         expectedOrganizationUuid: string,
     ): Promise<DirectAccessMutationTarget> {
         switch (resourceType) {
+            case DirectAccessResourceType.DOCUMENT:
+                return DirectAccessModel.getDocumentMutationTarget(
+                    trx,
+                    resourceUuid,
+                    expectedOrganizationUuid,
+                );
             case DirectAccessResourceType.DASHBOARD:
                 return DirectAccessModel.getDashboardMutationTarget(
                     trx,
@@ -743,6 +802,48 @@ export class DirectAccessModel {
         expectedOrganizationUuid: string,
     ): Promise<DirectAccessResourceLocation | undefined> {
         switch (resourceType) {
+            case DirectAccessResourceType.DOCUMENT: {
+                const row = await this.database(DocumentsTableName)
+                    .innerJoin(
+                        SpaceTableName,
+                        `${SpaceTableName}.space_id`,
+                        `${DocumentsTableName}.space_id`,
+                    )
+                    .innerJoin(
+                        ProjectTableName,
+                        `${ProjectTableName}.project_id`,
+                        `${SpaceTableName}.project_id`,
+                    )
+                    .innerJoin(
+                        OrganizationTableName,
+                        `${OrganizationTableName}.organization_id`,
+                        `${ProjectTableName}.organization_id`,
+                    )
+                    .where(`${DocumentsTableName}.document_uuid`, resourceUuid)
+                    .whereNull(`${DocumentsTableName}.deleted_at`)
+                    .whereNull(`${SpaceTableName}.deleted_at`)
+                    .where(
+                        `${OrganizationTableName}.organization_uuid`,
+                        expectedOrganizationUuid,
+                    )
+                    .select<{
+                        organizationUuid: string;
+                        projectUuid: string;
+                        spaceUuid: string;
+                    }>({
+                        organizationUuid: `${OrganizationTableName}.organization_uuid`,
+                        projectUuid: `${ProjectTableName}.project_uuid`,
+                        spaceUuid: `${SpaceTableName}.space_uuid`,
+                    })
+                    .first();
+                return row === undefined
+                    ? undefined
+                    : {
+                          ...row,
+                          dashboardUuid: null,
+                          createdByUserUuid: null,
+                      };
+            }
             case DirectAccessResourceType.DASHBOARD: {
                 const row = await this.database(DashboardsTableName)
                     .innerJoin(

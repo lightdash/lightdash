@@ -76,6 +76,9 @@ const Space: FC = () => {
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
+    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
+    const documentsEnabled =
+        documentsFlag.data?.enabled === true && !documentsFlag.isError;
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -469,6 +472,9 @@ const Space: FC = () => {
                                     ContentType.CHART,
                                     ContentType.SPACE,
                                     ContentType.DATA_APP,
+                                    ...(documentsEnabled
+                                        ? [ContentType.DOCUMENT]
+                                        : []),
                                 ],
                                 // Vizs are spaceless today, but declare the
                                 // exclusion rather than rely on that invariant.
@@ -481,6 +487,9 @@ const Space: FC = () => {
                                     ContentType.CHART,
                                     ...(dataAppsEnabled
                                         ? [ContentType.DATA_APP]
+                                        : []),
+                                    ...(documentsEnabled
+                                        ? [ContentType.DOCUMENT]
                                         : []),
                                 ],
                             }}
@@ -546,6 +555,7 @@ const Space: FC = () => {
                                         chartCount: 0,
                                         childSpaceCount: 0,
                                         appCount: 0,
+                                        documentCount: 0,
                                     },
                                     type: ResourceViewItemType.SPACE,
                                 } satisfies ResourceViewSpaceItem,

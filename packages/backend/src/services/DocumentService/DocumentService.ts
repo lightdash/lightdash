@@ -3,6 +3,7 @@ import {
     applyDocumentCellOperations,
     buildMergeQueryFromSaved,
     ConflictError,
+    DirectAccessResourceType,
     DOCUMENT_SCHEMA_VERSION,
     FeatureFlags,
     ForbiddenError,
@@ -19,6 +20,7 @@ import {
     type UpdateDocumentContentRequest,
     type UpdateDocumentMetadataRequest,
 } from '@lightdash/common';
+import type { Knex } from 'knex';
 import { isEqual } from 'lodash';
 import pLimit from 'p-limit';
 import type { DocumentModel } from '../../models/DocumentModel';
@@ -26,11 +28,13 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
 import { normalizeFilterIds } from '../CoderService/filterIds';
+import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type DocumentServiceArguments = {
     documentModel: DocumentModel;
+    directAccessService: DirectAccessService;
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
     spacePermissionService: SpacePermissionService;
@@ -38,6 +42,7 @@ type DocumentServiceArguments = {
 };
 
 const MAX_CONCURRENT_CHART_VALIDATIONS = 4;
+const MAX_CONCURRENT_PROJECT_ACCESS_CHECKS = 4;
 
 export class DocumentService extends BaseService {
     constructor(private readonly dependencies: DocumentServiceArguments) {
@@ -82,12 +87,13 @@ export class DocumentService extends BaseService {
             input.content,
         );
         await this.validateCharts(account, projectUuid, content);
-        return this.dependencies.documentModel.create({
+        const created = await this.dependencies.documentModel.create({
             ...input,
             content,
             projectUuid,
             createdByUserUuid: account.user.userUuid,
         });
+        return this.authorizeDocument(account, created);
     }
 
     async updateMetadata(
@@ -104,11 +110,12 @@ export class DocumentService extends BaseService {
                 'At least one Document metadata field is required',
             );
         }
-        return this.dependencies.documentModel.updateMetadata(
+        const updated = await this.dependencies.documentModel.updateMetadata(
             projectUuid,
             documentUuid,
             { ...input, expectedSpaceUuid: document.spaceUuid },
         );
+        return this.authorizeDocument(account, updated);
     }
 
     async updateContent(
@@ -134,12 +141,13 @@ export class DocumentService extends BaseService {
             content,
             document.version.content,
         );
-        return this.dependencies.documentModel.updateContent(
+        const updated = await this.dependencies.documentModel.updateContent(
             projectUuid,
             documentUuid,
             { ...input, expectedSpaceUuid: document.spaceUuid },
             account.user.userUuid,
         );
+        return this.authorizeDocument(account, updated);
     }
 
     private async assertCanUpdate(
@@ -149,7 +157,11 @@ export class DocumentService extends BaseService {
         const context =
             await this.dependencies.spacePermissionService.resolveAccess(
                 account.user.userUuid,
-                { type: 'space', spaceUuid: document.spaceUuid },
+                {
+                    type: 'document',
+                    documentUuid: document.documentUuid,
+                    spaceUuid: document.spaceUuid,
+                },
             );
         if (
             this.createAuditedAbility(account).cannot(
@@ -161,6 +173,62 @@ export class DocumentService extends BaseService {
                 'You do not have permission to edit this Document',
             );
         }
+    }
+
+    async moveToSpace(
+        account: RegisteredAccount,
+        {
+            projectUuid,
+            itemUuid: documentUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        {
+            tx,
+        }: { tx?: Knex; checkForAccess?: boolean; trackEvent?: boolean } = {},
+    ): Promise<void> {
+        if (!targetSpaceUuid)
+            throw new ParameterError('Documents must belong to a Space');
+        const document = await this.get(account, projectUuid, documentUuid);
+        const contexts =
+            await this.dependencies.spacePermissionService.resolveAccessBatch(
+                account.user.userUuid,
+                [document.spaceUuid, targetSpaceUuid].map((spaceUuid) => ({
+                    type: 'space' as const,
+                    spaceUuid,
+                })),
+                tx ? { trx: tx } : {},
+            );
+        const ability = this.createAuditedAbility(account);
+        for (const [index, { context }] of contexts.entries()) {
+            if (
+                !context ||
+                context.projectUuid !== projectUuid ||
+                context.organizationUuid !== document.organizationUuid
+            )
+                throw new NotFoundError('Space not found');
+            if (
+                ability.cannot(
+                    index === 0 ? 'update' : 'create',
+                    subject('Document', context),
+                )
+            )
+                throw new ForbiddenError(
+                    'You must have edit access to the source Space and create access to the destination Space to move a Document',
+                );
+        }
+        await this.dependencies.documentModel.moveToSpace(
+            {
+                projectUuid,
+                documentUuid,
+                sourceSpaceUuid: document.spaceUuid,
+                targetSpaceUuid,
+            },
+            { tx },
+        );
     }
 
     private static validateMetadata(
@@ -345,8 +413,22 @@ export class DocumentService extends BaseService {
                 )
             );
         });
+        const shared =
+            await this.dependencies.directAccessService.findSharedWithMeUuids(
+                {
+                    userUuid: account.user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                },
+                [projectUuid],
+            );
+        const allowedDocumentUuids = await this.filterViewableUuids(
+            account,
+            [projectUuid],
+            shared[DirectAccessResourceType.DOCUMENT],
+        );
         const items = await this.dependencies.documentModel.list(projectUuid, {
             spaceUuids: allowedSpaceUuids,
+            documentUuids: allowedDocumentUuids,
             limit: limit + 1,
             offset,
         });
@@ -354,6 +436,65 @@ export class DocumentService extends BaseService {
             items: items.slice(0, limit),
             nextOffset: items.length > limit ? offset + limit : null,
         };
+    }
+
+    async filterViewableUuids(
+        account: RegisteredAccount,
+        projectUuids: string[],
+        documentUuids: string[],
+    ): Promise<string[]> {
+        if (documentUuids.length === 0) {
+            return [];
+        }
+        const ability = this.createAuditedAbility(account);
+        const limit = pLimit(MAX_CONCURRENT_PROJECT_ACCESS_CHECKS);
+        const allowed = await Promise.all(
+            [...new Set(projectUuids)].map((projectUuid) =>
+                limit(async () => {
+                    try {
+                        await this.assertProjectAccess(account, projectUuid);
+                    } catch (error) {
+                        if (
+                            error instanceof NotFoundError ||
+                            error instanceof ForbiddenError
+                        ) {
+                            return [];
+                        }
+                        throw error;
+                    }
+                    const candidates =
+                        await this.dependencies.documentModel.listSummariesByUuid(
+                            projectUuid,
+                            documentUuids,
+                        );
+                    const contexts =
+                        await this.dependencies.spacePermissionService.resolveAccessBatch(
+                            account.user.userUuid,
+                            candidates.map((document) => ({
+                                type: 'document' as const,
+                                documentUuid: document.documentUuid,
+                                spaceUuid: document.spaceUuid,
+                            })),
+                        );
+                    return candidates
+                        .filter((document, index) => {
+                            const context = contexts[index]?.context;
+                            return (
+                                context &&
+                                context.projectUuid === document.projectUuid &&
+                                context.organizationUuid ===
+                                    document.organizationUuid &&
+                                ability.can(
+                                    'view',
+                                    subject('Document', context),
+                                )
+                            );
+                        })
+                        .map(({ documentUuid }) => documentUuid);
+                }),
+            ),
+        );
+        return allowed.flat();
     }
 
     async get(
@@ -366,10 +507,21 @@ export class DocumentService extends BaseService {
             projectUuid,
             documentUuid,
         );
+        return this.authorizeDocument(account, document);
+    }
+
+    private async authorizeDocument(
+        account: RegisteredAccount,
+        document: Document,
+    ): Promise<Document> {
         const context =
             await this.dependencies.spacePermissionService.resolveAccess(
                 account.user.userUuid,
-                { type: 'space', spaceUuid: document.spaceUuid },
+                {
+                    type: 'document',
+                    documentUuid: document.documentUuid,
+                    spaceUuid: document.spaceUuid,
+                },
             );
         if (
             this.createAuditedAbility(account).cannot(
@@ -383,7 +535,19 @@ export class DocumentService extends BaseService {
         ) {
             throw new NotFoundError('Document not found');
         }
-        return document;
+        return {
+            ...document,
+            access: context.access.filter(
+                ({ userUuid }) => userUuid === account.user.userUuid,
+            ),
+            directAccessRoles: context.access
+                .filter(
+                    ({ userUuid, grantedVia }) =>
+                        userUuid === account.user.userUuid &&
+                        grantedVia === 'document',
+                )
+                .map(({ role }) => role),
+        };
     }
 
     private async assertProjectAccess(
