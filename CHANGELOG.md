@@ -1,3 +1,10 @@
+## [2.242.1](https://github.com/lightdash/lightdash/compare/2.242.0...2.242.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* **query-sdk:** match anomalies to rows keyed by the app short field names ([#29360](https://github.com/lightdash/lightdash/issues/29360)) ([b11055b](https://github.com/lightdash/lightdash/commit/b11055bc7a0b8463453b61ef84060140edaf0991))
+
 # [2.242.0](https://github.com/lightdash/lightdash/compare/2.241.1...2.242.0) (2026-09-16)
 
 
