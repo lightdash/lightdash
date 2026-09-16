@@ -1,6 +1,8 @@
 import {
     buildPivotRowTotalKey,
     formatItemValue,
+    getMergeTotalAggregation,
+    getMergeTotalUnavailableReason,
     getSubtotalKey,
     isCustomDimension,
     isDimension,
@@ -21,6 +23,7 @@ import {
     TableHeaderRegularLabel,
 } from '../../components/common/Table/Table.styles';
 import TotalCalculationErrorCell from '../../components/common/Table/TotalCalculationErrorCell';
+import TotalNotComputableCell from '../../components/common/Table/TotalNotComputableCell';
 import {
     columnHelper,
     type TableColumn,
@@ -41,6 +44,8 @@ type Args = {
     totals?: Record<string, number>;
     totalsLoading?: boolean;
     totalsError?: unknown;
+    /** Totals over a merged result exist only for some metric types. */
+    isMergedResult?: boolean;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
     subtotalsLoading?: boolean;
     subtotalsError?: unknown;
@@ -190,6 +195,7 @@ const getDataAndColumns = ({
     totals,
     totalsLoading,
     totalsError,
+    isMergedResult,
     groupedSubtotals,
     subtotalsLoading,
     subtotalsError,
@@ -266,6 +272,20 @@ const getDataAndColumns = ({
                                 totals[itemId],
                                 false,
                                 parameters,
+                            );
+                        }
+                        if (
+                            isMergedResult &&
+                            item !== undefined &&
+                            canHaveWarehouseTotal(item) &&
+                            getMergeTotalAggregation(item) === null
+                        ) {
+                            return (
+                                <TotalNotComputableCell
+                                    reason={getMergeTotalUnavailableReason(
+                                        item,
+                                    )}
+                                />
                             );
                         }
                         if (totalsError && canHaveWarehouseTotal(item)) {

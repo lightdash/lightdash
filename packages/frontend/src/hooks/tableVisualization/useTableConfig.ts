@@ -398,6 +398,8 @@ const useTableConfig = (
             totals: asyncTotals,
             totalsLoading: isCalculatingColumnTotals,
             totalsError: columnTotalsError,
+            isMergedResult:
+                isMerged && !!tableChartConfig?.showColumnCalculation,
             groupedSubtotals,
             subtotalsLoading: isCalculatingSubtotals,
             subtotalsError: columnSubtotalsError,
@@ -414,6 +416,8 @@ const useTableConfig = (
         getColumnWidth,
         getFieldLabelOverride,
         asyncTotals,
+        isMerged,
+        tableChartConfig?.showColumnCalculation,
         isCalculatingColumnTotals,
         columnTotalsError,
         groupedSubtotals,

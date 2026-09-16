@@ -5,6 +5,8 @@ import {
     getErrorMessage,
     getItemId,
     getItemMap,
+    getMergeTotalAggregation,
+    getMergeTotalUnavailableReason,
     getMetricOverridesWithPopInheritance,
     isCustomDimension,
     isDimension,
@@ -50,6 +52,7 @@ import {
     TableHeaderRegularLabel,
 } from '../components/common/Table/Table.styles';
 import TotalCalculationErrorCell from '../components/common/Table/TotalCalculationErrorCell';
+import TotalNotComputableCell from '../components/common/Table/TotalNotComputableCell';
 import {
     columnHelper,
     type TableColumn,
@@ -636,12 +639,21 @@ export const useColumns = (): TableColumn[] => {
         return result;
     }, [itemsMap, activeFields]);
 
-    const sourceQueryUuid = unpivotedEnabled
-        ? unpivotedQueryResults.queryUuid
-        : queryResults.queryUuid;
-    const sourceQueryStatus = unpivotedEnabled
-        ? unpivotedQueryResults.queryStatus
-        : queryResults.queryStatus;
+    // A merged result's totals come from the merged rows, so the merge run
+    // is the source; the unpivoted run when the chart run is pivoted
+    const mergeTotalsSource = mergeResults
+        ? (mergeResults.unpivotedResults ?? mergeResults.results)
+        : null;
+    const sourceQueryUuid =
+        mergeTotalsSource?.queryUuid ??
+        (unpivotedEnabled
+            ? unpivotedQueryResults.queryUuid
+            : queryResults.queryUuid);
+    const sourceQueryStatus =
+        mergeTotalsSource?.queryStatus ??
+        (unpivotedEnabled
+            ? unpivotedQueryResults.queryStatus
+            : queryResults.queryStatus);
     // Only request totals once the source query has succeeded
     const isInitialQueryReady = sourceQueryStatus === QueryHistoryStatus.READY;
     const hasMetricFields = !!resultsMetricQuery?.metrics.length;
@@ -659,10 +671,7 @@ export const useColumns = (): TableColumn[] => {
             isInitialQueryReady &&
             !!sourceQueryUuid &&
             hasMetricFields &&
-            totalsEnabledByDefault &&
-            // Totals are recomputed from the metric query behind the source
-            // query, which a merged result does not have.
-            !mergeResults,
+            totalsEnabledByDefault,
         invalidateCache: validQueryArgs?.invalidateCache,
     });
 
@@ -769,6 +778,23 @@ export const useColumns = (): TableColumn[] => {
                                 timezone,
                             );
                         }
+                        // Over merged rows only sums, counts, minimums and
+                        // maximums are exact; the rest say so instead of
+                        // showing a blank
+                        if (
+                            mergeResults &&
+                            totalsEnabledByDefault &&
+                            canHaveWarehouseTotal(item) &&
+                            getMergeTotalAggregation(item) === null
+                        ) {
+                            return (
+                                <TotalNotComputableCell
+                                    reason={getMergeTotalUnavailableReason(
+                                        item,
+                                    )}
+                                />
+                            );
+                        }
                         if (totalsError && canHaveWarehouseTotal(item)) {
                             return (
                                 <TotalCalculationErrorCell
@@ -862,6 +888,7 @@ export const useColumns = (): TableColumn[] => {
         totals,
         totalsError,
         isCalculatingTotals,
+        totalsEnabledByDefault,
         exploreData,
         parameters,
         timezone,

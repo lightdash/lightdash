@@ -218,6 +218,10 @@ import {
     buildMergeResultMetricQuery,
     MergeQueryComposer,
 } from '../../utils/QueryBuilder/MergeQueryComposer';
+import {
+    buildMergeTotalsSql,
+    MERGE_TOTALS_REFERENCE_TABLE,
+} from '../../utils/QueryBuilder/mergeTotalsSql';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -5659,6 +5663,18 @@ export class AsyncQueryService extends ProjectService {
             source,
         );
 
+        // A merged result has no single metric query to collapse: its totals
+        // are aggregated over the merged rows on the compose engine
+        if ('mergeQuery' in source.requestParameters) {
+            return this.executeAsyncCalculateMergeTotal({
+                account,
+                projectUuid,
+                source,
+                kind,
+                invalidateCache,
+            });
+        }
+
         // Reuse the source's parameter values so the totals query sees the
         // same parameter context as the original. The execution path
         // re-combines these against project defaults.
@@ -5687,6 +5703,88 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             source,
         );
+    }
+
+    /**
+     * Totals over a merged result, aggregated over its rows on the compose
+     * engine. Every source value appears once per key, because fan-out is
+     * refused, so sums, counts, minimums and maximums over the rows are
+     * exact. Columns with no exact aggregate are left out; the response's
+     * fields say which were totalled, and the table says why the rest were
+     * not.
+     */
+    private async executeAsyncCalculateMergeTotal({
+        account,
+        projectUuid,
+        source,
+        kind,
+        invalidateCache,
+    }: {
+        account: Account;
+        projectUuid: string;
+        source: QueryHistory;
+        kind: CalculateTotalKind;
+        invalidateCache?: boolean;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+        if (kind !== 'columnTotal' && kind !== 'grandTotal') {
+            throw new NotSupportedError(
+                `A merged result has column totals only, not ${kind}`,
+            );
+        }
+        if (source.pivotConfiguration) {
+            throw new NotSupportedError(
+                'Totals over a pivoted merged result are not computed yet',
+            );
+        }
+        const statement = buildMergeTotalsSql(
+            source.metricQuery.metrics,
+            source.fields,
+        );
+        if (!statement) {
+            throw new NotSupportedError(
+                'None of the merged columns can be totalled exactly over the merged rows',
+            );
+        }
+
+        const { queryUuid } = await this.executeAsyncDuckdbSourceQuery({
+            account,
+            projectUuid,
+            sql: statement.sql,
+            context: QueryExecutionContext.CALCULATE_TOTAL,
+            references: { [MERGE_TOTALS_REFERENCE_TABLE]: source.queryUuid },
+            parameters: source.requestParameters.parameters,
+            invalidateCache,
+            plan: {
+                columns: { mode: 'discover' },
+                engine: 'scopedToReferencedResults',
+                guard: null,
+                referenceLabels: {
+                    [MERGE_TOTALS_REFERENCE_TABLE]: 'Merged result',
+                },
+            },
+        });
+
+        return {
+            queryUuid,
+            cacheMetadata: { cacheHit: false },
+            metricQuery: {
+                ...source.metricQuery,
+                dimensions: [],
+                metrics: statement.fieldIds,
+                sorts: [],
+                limit: 1,
+            },
+            fields: Object.fromEntries(
+                statement.fieldIds.map((fieldId) => [
+                    fieldId,
+                    source.fields[fieldId],
+                ]),
+            ),
+            warnings: [],
+            parameterReferences: [],
+            usedParametersValues: source.requestParameters.parameters ?? {},
+            resolvedTimezone: null,
+        };
     }
 
     async executeAsyncFieldValueSearch({

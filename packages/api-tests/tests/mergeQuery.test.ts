@@ -555,6 +555,56 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         );
     }, 90_000);
 
+    // Totals for a merged result are aggregated over its rows on the compose
+    // engine. Every source value appears once per key, so a sum is exact;
+    // a distinct count is not, and is left out rather than approximated.
+    it('totals the merged result over its rows for exact metrics only', async () => {
+        const runResp = await admin.post<
+            Body<ApiExecuteAsyncMergeQueryResults>
+        >(`/api/v2/projects/${projectUuid}/query/merge-query`, {
+            mergeQuery,
+            context: QueryExecutionContext.EXPLORE,
+        });
+        expect(runResp.status).toBe(200);
+        if (runResp.body.results.outcome !== 'started') {
+            throw new Error(
+                `Merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+            );
+        }
+        const mergedQueryUuid = runResp.body.results.query.queryUuid;
+        const merged = await pollQueryResults(admin, mergedQueryUuid);
+        const expectedOrdersTotal = merged.rows.reduce(
+            (sum, row) =>
+                sum + (numeric(cellOf(row, ORDERS_FIELD_ID).raw) ?? 0),
+            0,
+        );
+
+        const started = await admin.post<
+            Body<ApiExecuteAsyncMetricQueryResults>
+        >(
+            `/api/v2/projects/${projectUuid}/query/${mergedQueryUuid}/calculate-total`,
+            { kind: 'columnTotal' },
+        );
+        expect(started.status).toBe(200);
+        // The sum is totalled; the distinct payment count is not exact over
+        // merged rows and is not offered.
+        expect(Object.keys(started.body.results.fields)).toEqual([
+            ORDERS_FIELD_ID,
+        ]);
+
+        const totals = await pollQueryResults(
+            admin,
+            started.body.results.queryUuid,
+        );
+        expect(totals.rows).toHaveLength(1);
+        const [totalsRow] = totals.rows;
+        expect(numeric(cellOf(totalsRow, ORDERS_FIELD_ID).raw)).toBeCloseTo(
+            expectedOrdersTotal,
+            2,
+        );
+        expect(totalsRow[PAYMENTS_FIELD_ID]).toBeUndefined();
+    }, 90_000);
+
     it('applies each source filter before aggregation and merging', async () => {
         const filteredOrders = {
             ...ordersByMonth,

@@ -406,6 +406,7 @@ export * from './utils/i18n/types';
 export * from './utils/i18n/uiStrings';
 export * from './utils/item';
 export * from './utils/mergeQueryItems';
+export * from './utils/mergeTotals';
 export * from './utils/queryHistoryList';
 export * from './utils/resultColumns';
 export * from './utils/loadLightdashProjectConfig';

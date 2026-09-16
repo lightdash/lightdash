@@ -21,6 +21,7 @@ import {
     MetricType,
     MissingConfigError,
     NotFoundError,
+    NotSupportedError,
     OrganizationAccessStatus,
     ParameterError,
     PersistentDownloadFileAccessMode,
@@ -5546,6 +5547,153 @@ describe('AsyncQueryService', () => {
             expect(runSpy.mock.calls[0][0]).toEqual(
                 expect.objectContaining({ dateZoom }),
             );
+        });
+    });
+
+    describe('executeAsyncCalculateTotalFromQueryHistory over a merged result', () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        const mergedField = (type: MetricType): ItemsMap[string] =>
+            ({
+                fieldType: FieldType.METRIC,
+                type,
+                name: 'x',
+                label: 'X',
+                table: 'a',
+                tableLabel: 'A',
+                sql: '',
+                hidden: false,
+            }) as ItemsMap[string];
+
+        const mergedRow = (
+            overrides: Partial<QueryHistory> = {},
+        ): QueryHistory =>
+            ({
+                queryUuid: 'merge-join-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                metricQuery: {
+                    exploreName: 'merge',
+                    dimensions: ['merge_join_key_0'],
+                    metrics: ['a_orders_total', 'b_payments_unique'],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                fields: {
+                    a_orders_total: mergedField(MetricType.SUM),
+                    b_payments_unique: mergedField(MetricType.COUNT_DISTINCT),
+                },
+                pivotConfiguration: null,
+                requestParameters: {
+                    context: QueryExecutionContext.EXPLORE,
+                    mergeQuery: {
+                        sources: [],
+                        joinKey: [],
+                        joinType: 'full',
+                        tableCalculations: [],
+                        limit: 500,
+                    },
+                    parameters: { region: 'EU' },
+                },
+                ...overrides,
+            }) as unknown as QueryHistory;
+
+        const setup = (row: QueryHistory) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(row);
+            const duckdbSpy = vi
+                .spyOn(service, 'executeAsyncDuckdbSourceQuery')
+                .mockResolvedValue({ queryUuid: 'totals-uuid' });
+            return { service, duckdbSpy };
+        };
+
+        // The join has no metric query to collapse; its totals are aggregated
+        // over the merged rows on the compose engine, exact only where the
+        // metric type allows it.
+        it('aggregates the exact columns over the merged rows and reports which', async () => {
+            const { service, duckdbSpy } = setup(mergedRow());
+
+            const result =
+                await service.executeAsyncCalculateTotalFromQueryHistory({
+                    account: buildAccount(),
+                    projectUuid,
+                    queryUuid: 'merge-join-uuid',
+                    kind: 'columnTotal',
+                });
+
+            expect(duckdbSpy).toHaveBeenCalledTimes(1);
+            const args = duckdbSpy.mock.calls[0][0];
+            expect(args.sql).toBe(
+                'SELECT SUM("a_orders_total") AS "a_orders_total"\nFROM "merged_result"',
+            );
+            expect(args.references).toEqual({
+                merged_result: 'merge-join-uuid',
+            });
+            expect(args.context).toBe(QueryExecutionContext.CALCULATE_TOTAL);
+            expect(args.parameters).toEqual({ region: 'EU' });
+            expect(result.queryUuid).toBe('totals-uuid');
+            expect(Object.keys(result.fields)).toEqual(['a_orders_total']);
+            expect(result.metricQuery.metrics).toEqual(['a_orders_total']);
+        });
+
+        it('has nothing to total when no merged column is exact over rows', async () => {
+            const { service, duckdbSpy } = setup(
+                mergedRow({
+                    fields: {
+                        b_payments_unique: mergedField(
+                            MetricType.COUNT_DISTINCT,
+                        ),
+                    },
+                    metricQuery: {
+                        exploreName: 'merge',
+                        dimensions: ['merge_join_key_0'],
+                        metrics: ['b_payments_unique'],
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                    },
+                } as Partial<QueryHistory>),
+            );
+
+            await expect(
+                service.executeAsyncCalculateTotalFromQueryHistory({
+                    account: buildAccount(),
+                    projectUuid,
+                    queryUuid: 'merge-join-uuid',
+                    kind: 'columnTotal',
+                }),
+            ).rejects.toThrow(NotSupportedError);
+            expect(duckdbSpy).not.toHaveBeenCalled();
+        });
+
+        it('does not total a pivoted merged result yet', async () => {
+            const { service, duckdbSpy } = setup(
+                mergedRow({
+                    pivotConfiguration: {
+                        indexColumn: [],
+                        valuesColumns: [],
+                        groupByColumns: [{ reference: 'merge_join_key_0' }],
+                        sortBy: undefined,
+                    },
+                } as Partial<QueryHistory>),
+            );
+
+            await expect(
+                service.executeAsyncCalculateTotalFromQueryHistory({
+                    account: buildAccount(),
+                    projectUuid,
+                    queryUuid: 'merge-join-uuid',
+                    kind: 'columnTotal',
+                }),
+            ).rejects.toThrow(NotSupportedError);
+            expect(duckdbSpy).not.toHaveBeenCalled();
         });
     });
 
