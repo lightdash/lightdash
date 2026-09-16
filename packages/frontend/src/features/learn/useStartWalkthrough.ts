@@ -14,7 +14,7 @@ import {
     createTrainingPreview,
     tourUrlInCopy,
 } from '../scopeTours/trainingCopy';
-import { markScopeStarted, useLearnProgress } from './progress';
+import { useLearnProgress, useLearnProgressActions } from './progress';
 
 /**
  * Start a walkthrough the way the library does: make the learner's copy
@@ -31,6 +31,7 @@ export const useStartWalkthrough = (
     const { user } = useApp();
     const { track } = useTracking();
     const { completed } = useLearnProgress();
+    const { markScopeStarted } = useLearnProgressActions();
     const [opening, setOpening] = useState<string | null>(null);
     const { mutate: openInCopy } = useMutation<
         CreateTrainingPreviewResults,
@@ -54,7 +55,7 @@ export const useStartWalkthrough = (
     const start = useCallback(
         (scope: string, source: LearnStartSource) => {
             if (!trainingProjectUuid || opening || !SCOPE_TOURS[scope]) return;
-            // Recorded together: the local progress the learner sees, and
+            // Recorded together: the progress the learner sees, and
             // the event that says who started what, and from where.
             markScopeStarted(scope);
             track({
@@ -73,6 +74,7 @@ export const useStartWalkthrough = (
             trainingProjectUuid,
             opening,
             openInCopy,
+            markScopeStarted,
             track,
             user.data?.organizationUuid,
             completed,

@@ -9,15 +9,34 @@ import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
 import LearnPage from './LearnPage';
 
-const { track, projectState, learnFlagState, availabilityState, accessState } =
-    vi.hoisted(() => ({
-        track: vi.fn(),
-        projectState: { current: [] as unknown[] },
-        learnFlagState: { current: { enabled: true }, isLoading: false },
-        availabilityState: { current: { isSettled: true } },
-        // Everything the learner can do, anywhere.
-        accessState: { current: [] as string[] },
-    }));
+const {
+    track,
+    projectState,
+    learnFlagState,
+    availabilityState,
+    accessState,
+    progressState,
+    learnActions,
+} = vi.hoisted(() => ({
+    track: vi.fn(),
+    projectState: { current: [] as unknown[] },
+    learnFlagState: { current: { enabled: true }, isLoading: false },
+    availabilityState: { current: { isSettled: true } },
+    // Everything the learner can do, anywhere.
+    accessState: { current: [] as string[] },
+    // What the instance holds for the learner.
+    progressState: {
+        current: {
+            completed: [] as string[],
+            started: [] as string[],
+            lastStarted: null as string | null,
+        },
+    },
+    learnActions: {
+        markScopeStarted: vi.fn(),
+        markScopeCompleted: vi.fn(),
+    },
+}));
 
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
@@ -48,6 +67,12 @@ vi.mock('./useLearnAccess', async () => {
         }),
     };
 });
+
+// Progress comes from the instance; the tests set what it answers.
+vi.mock('./progress', () => ({
+    useLearnProgress: () => ({ ...progressState.current, isSettled: true }),
+    useLearnProgressActions: () => learnActions,
+}));
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
@@ -110,7 +135,11 @@ const viewEvents = () =>
 
 describe('LearnPage analytics', () => {
     beforeEach(() => {
-        localStorage.clear();
+        progressState.current = {
+            completed: [],
+            started: [],
+            lastStarted: null,
+        };
         track.mockClear();
         learnFlagState.current = { enabled: true };
         learnFlagState.isLoading = false;
@@ -139,14 +168,11 @@ describe('LearnPage analytics', () => {
     });
 
     it('records one view per mount, with the progress the learner is looking at', () => {
-        localStorage.setItem(
-            'lightdash.learn.started',
-            JSON.stringify([catalogue[0].scope, catalogue[1].scope]),
-        );
-        localStorage.setItem(
-            'lightdash.learn.completed',
-            JSON.stringify([catalogue[0].scope]),
-        );
+        progressState.current = {
+            started: [catalogue[0].scope, catalogue[1].scope],
+            completed: [catalogue[0].scope],
+            lastStarted: catalogue[1].scope,
+        };
 
         const { rerender } = renderPage();
         rerender(
@@ -175,10 +201,11 @@ describe('LearnPage analytics', () => {
     });
 
     it('counts only the scopes this instance has modules for', () => {
-        localStorage.setItem(
-            'lightdash.learn.completed',
-            JSON.stringify([catalogue[0].scope, 'manage:SomethingRetired']),
-        );
+        progressState.current = {
+            started: [catalogue[0].scope, 'manage:SomethingRetired'],
+            completed: [catalogue[0].scope, 'manage:SomethingRetired'],
+            lastStarted: null,
+        };
 
         renderPage();
 
@@ -190,14 +217,11 @@ describe('LearnPage analytics', () => {
     it('matches the progress fraction and ignores unsupported-module progress', () => {
         const supported = catalogue.find((module) => module.available)!;
         const unsupported = catalogue.find((module) => !module.available)!;
-        localStorage.setItem(
-            'lightdash.learn.started',
-            JSON.stringify([supported.scope, unsupported.scope]),
-        );
-        localStorage.setItem(
-            'lightdash.learn.completed',
-            JSON.stringify([supported.scope, unsupported.scope]),
-        );
+        progressState.current = {
+            started: [supported.scope, unsupported.scope],
+            completed: [supported.scope, unsupported.scope],
+            lastStarted: null,
+        };
         const { container } = renderPage();
         const { moduleCount, startedCount, completedCount } =
             viewEvents()[0].properties;
@@ -255,7 +279,11 @@ describe('LearnPage access', () => {
     const catalogueScopes = catalogue.map((module) => module.scope);
 
     beforeEach(() => {
-        localStorage.clear();
+        progressState.current = {
+            completed: [],
+            started: [],
+            lastStarted: null,
+        };
         track.mockClear();
         learnFlagState.current = { enabled: true };
         availabilityState.current = { isSettled: true };
@@ -338,7 +366,11 @@ describe('LearnPage access', () => {
 
 describe('LearnPage unsupported modules', () => {
     beforeEach(() => {
-        localStorage.clear();
+        progressState.current = {
+            completed: [],
+            started: [],
+            lastStarted: null,
+        };
         track.mockClear();
         learnFlagState.current = { enabled: true };
         learnFlagState.isLoading = false;
@@ -350,10 +382,11 @@ describe('LearnPage unsupported modules', () => {
     });
 
     it('ignores old reading links and leaves progress unchanged', () => {
-        localStorage.setItem(
-            'lightdash.learn.completed',
-            JSON.stringify(['concept:view:Analytics']),
-        );
+        progressState.current = {
+            completed: ['concept:view:Analytics'],
+            started: ['concept:view:Analytics'],
+            lastStarted: null,
+        };
         const { container } = renderPage('?lesson=view%3AAnalytics');
         expect(screen.queryByRole('dialog')).toBeNull();
         expect(
@@ -367,8 +400,7 @@ describe('LearnPage unsupported modules', () => {
         expect(card.textContent).toContain('Coming Soon');
         expect(card.querySelector('button')).toBeDisabled();
         expect(card.textContent).not.toContain('Complete');
-        expect(localStorage.getItem('lightdash.learn.completed')).toBe(
-            JSON.stringify(['concept:view:Analytics']),
-        );
+        expect(learnActions.markScopeStarted).not.toHaveBeenCalled();
+        expect(learnActions.markScopeCompleted).not.toHaveBeenCalled();
     });
 });
