@@ -10,6 +10,7 @@ import { detectDataAppAnomalies, investigateDataAppAnomaly } from './api';
 import {
     hasInFlightQueries,
     selectCurrentViewSources,
+    selectMountedViewSources,
     sourcesSignature,
 } from './currentViewSources';
 
@@ -47,12 +48,13 @@ export const useDataAppAnalysis = ({
     /** Exact on-screen queries from an SDK that reports them; null otherwise. */
     mountedQueryUuids: string[] | null;
 }) => {
-    const sources = useMemo(() => {
-        const all = selectCurrentViewSources(queries);
-        if (mountedQueryUuids === null) return all;
-        const mounted = new Set(mountedQueryUuids);
-        return all.filter((s) => mounted.has(s.queryUuid));
-    }, [queries, mountedQueryUuids]);
+    const sources = useMemo(
+        () =>
+            mountedQueryUuids === null
+                ? selectCurrentViewSources(queries)
+                : selectMountedViewSources(queries, mountedQueryUuids),
+        [queries, mountedQueryUuids],
+    );
     const signature = useMemo(() => sourcesSignature(sources), [sources]);
     const inFlight = useMemo(() => hasInFlightQueries(queries), [queries]);
 

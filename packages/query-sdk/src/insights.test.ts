@@ -100,6 +100,16 @@ describe('insights channel', () => {
         ]);
     });
 
+    it('keeps posting to the host after a remount', () => {
+        mountInsights(host);
+        mountInsights(host);
+        posted.length = 0;
+        postInsightAction({ action: 'analyse' });
+        expect(posted).toEqual([
+            { type: INSIGHT_ACTION_MESSAGE, action: 'analyse' },
+        ]);
+    });
+
     it('reports mounted queries, coalesced per tick', async () => {
         mountInsights(host);
         posted.length = 0;

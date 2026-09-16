@@ -40,6 +40,29 @@ export const selectCurrentViewSources = (
         }));
 };
 
+/**
+ * The queries an SDK reports as on screen, taken as-is: two components can
+ * show two executions of the same source, so no per-key deduplication.
+ */
+export const selectMountedViewSources = (
+    queries: QueryEvent[],
+    mountedQueryUuids: string[],
+): DataAppAnalysisSource[] => {
+    const mounted = new Set(mountedQueryUuids);
+    return queries
+        .filter(
+            (event): event is QueryEvent & { queryUuid: string } =>
+                event.status === 'ready' &&
+                event.queryUuid !== null &&
+                mounted.has(event.queryUuid),
+        )
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .map((event) => ({
+            queryUuid: event.queryUuid,
+            label: event.label ?? event.exploreName ?? null,
+        }));
+};
+
 export const hasInFlightQueries = (queries: QueryEvent[]): boolean =>
     queries.some(
         (event) => event.status === 'pending' || event.status === 'running',

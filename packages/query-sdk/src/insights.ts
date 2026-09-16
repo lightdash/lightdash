@@ -248,6 +248,8 @@ let activeCleanup: (() => void) | null = null;
  */
 export function mountInsights(targetWindow: Window): () => void {
     if (typeof window === 'undefined') return () => {};
+    // Tear down the previous mount first: its cleanup nulls hostWindow.
+    activeCleanup?.();
     hostWindow = targetWindow;
     const store = getStore();
     const request: InsightsRequestMessage = { type: INSIGHTS_REQUEST_MESSAGE };
@@ -266,7 +268,6 @@ export function mountInsights(targetWindow: Window): () => void {
         if (payload) store.set(payload);
     };
 
-    activeCleanup?.();
     window.addEventListener('message', handler);
     const cleanup = () => {
         window.removeEventListener('message', handler);

@@ -2,6 +2,7 @@ import { type QueryEvent } from '../hooks/useAppSdkBridge';
 import {
     hasInFlightQueries,
     selectCurrentViewSources,
+    selectMountedViewSources,
     sourcesSignature,
 } from './currentViewSources';
 
@@ -75,6 +76,22 @@ describe('selectCurrentViewSources', () => {
             }),
         ]);
         expect(sources).toEqual([{ queryUuid: 'q-2', label: 'Orders' }]);
+    });
+
+    it('keeps every mounted execution of the same source', () => {
+        const sources = selectMountedViewSources(
+            [
+                event({ id: 'a', queryUuid: 'q-1', timestamp: 1 }),
+                event({ id: 'b', queryUuid: 'q-2', timestamp: 2 }),
+                event({ id: 'c', queryUuid: 'q-gone', timestamp: 3 }),
+                event({ id: 'd', queryUuid: null, status: 'pending' }),
+            ],
+            ['q-1', 'q-2'],
+        );
+        expect(sources).toEqual([
+            { queryUuid: 'q-1', label: 'Orders' },
+            { queryUuid: 'q-2', label: 'Orders' },
+        ]);
     });
 
     it('reports in-flight queries and a stable signature', () => {
