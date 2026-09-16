@@ -215,6 +215,67 @@ const mutate = (
 
 describe('DocumentService mutations', () => {
     test.each(['metadata', 'content'] as const)(
+        '%s edits recheck caller Space scope against the current Document',
+        async (mutation) => {
+            const { service, documentModel, projectService } = setup();
+            documentModel.get.mockResolvedValue({
+                ...document,
+                spaceUuid: 'moved-outside-scope',
+            });
+            const options = { allowedSpaceUuids: [spaceUuid] };
+            const request =
+                mutation === 'metadata'
+                    ? service.updateMetadata(
+                          makeAccount(),
+                          projectUuid,
+                          documentUuid,
+                          { name: 'Updated' },
+                          options,
+                      )
+                    : service.updateContent(
+                          makeAccount(),
+                          projectUuid,
+                          documentUuid,
+                          {
+                              baseVersionUuid,
+                              operations: [
+                                  { type: 'remove', cellId: markdown.id },
+                              ],
+                          },
+                          options,
+                      );
+            await expect(request).rejects.toThrow(
+                new NotFoundError('Document not found'),
+            );
+            expect(documentModel.updateMetadata).not.toHaveBeenCalled();
+            expect(documentModel.updateContent).not.toHaveBeenCalled();
+            expect(projectService.compileQuery).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([undefined, [], [spaceUuid]])(
+        'metadata edits retain unrestricted or matching Space scope: %j',
+        async (allowedSpaceUuids) => {
+            const { service, documentModel } = setup();
+            await service.updateMetadata(
+                makeAccount(),
+                projectUuid,
+                documentUuid,
+                { name: 'Updated' },
+                { allowedSpaceUuids },
+            );
+            expect(documentModel.updateMetadata).toHaveBeenCalledWith(
+                projectUuid,
+                documentUuid,
+                {
+                    name: 'Updated',
+                    expectedSpaceUuid: spaceUuid,
+                },
+            );
+        },
+    );
+
+    test.each(['metadata', 'content'] as const)(
         'uses the resolved authorization context for %s updates',
         async (mutation) => {
             const { service, spacePermissionService, context, documentModel } =

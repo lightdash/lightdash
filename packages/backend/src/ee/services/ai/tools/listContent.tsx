@@ -19,28 +19,42 @@ const renderContent = (content: Awaited<ReturnType<ListContentFn>>) => (
         totalPageCount={content.pagination?.totalPageCount ?? 1}
         spaceSlug={content.spaceSlug ?? ''}
     >
-        {content.items.map((item) =>
-            item.contentType === ContentType.SPACE ? (
+        {content.items.map((item) => {
+            if (item.contentType === ContentType.SPACE) {
+                return (
+                    <content
+                        contentType={item.contentType}
+                        name={item.name}
+                        slug={item.slug}
+                        href={item.href}
+                        chartCount={item.chartCount}
+                        dashboardCount={item.dashboardCount}
+                        childSpaceCount={item.childSpaceCount}
+                        appCount={item.appCount}
+                        directAccess={item.directAccess}
+                    />
+                );
+            }
+            if (item.contentType === ContentType.DOCUMENT) {
+                return (
+                    <content
+                        contentType={item.contentType}
+                        uuid={item.uuid}
+                        name={item.name}
+                        slug={item.slug}
+                        href={item.href}
+                    />
+                );
+            }
+            return (
                 <content
                     contentType={item.contentType}
                     name={item.name}
                     slug={item.slug}
                     href={item.href}
-                    chartCount={item.chartCount}
-                    dashboardCount={item.dashboardCount}
-                    childSpaceCount={item.childSpaceCount}
-                    appCount={item.appCount}
-                    directAccess={item.directAccess}
                 />
-            ) : (
-                <content
-                    contentType={item.contentType}
-                    name={item.name}
-                    slug={item.slug}
-                    href={item.href}
-                />
-            ),
-        )}
+            );
+        })}
     </contentList>
 );
 

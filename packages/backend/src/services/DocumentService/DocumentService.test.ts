@@ -98,6 +98,7 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
         restore: vi.fn().mockResolvedValue(undefined),
         permanentDelete: vi.fn().mockResolvedValue(undefined),
         get: vi.fn().mockResolvedValue(document),
+        getBySlug: vi.fn().mockResolvedValue(document),
         list: vi.fn().mockResolvedValue([document]),
         listSpaceUuids: vi.fn().mockResolvedValue([spaceUuid]),
         listSummariesByUuid: vi.fn().mockResolvedValue([]),
@@ -142,6 +143,62 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
 };
 
 describe('DocumentService', () => {
+    test('reads an exact project-scoped slug through normal Document authorization', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        await expect(
+            service.getBySlug(makeAccount(), projectUuid, document.slug),
+        ).resolves.toMatchObject(document);
+        expect(documentModel.getBySlug).toHaveBeenCalledWith(
+            projectUuid,
+            document.slug,
+        );
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            userUuid,
+            { type: 'document', documentUuid, spaceUuid },
+        );
+    });
+
+    test('slug lookup refuses disabled Documents before resolving the slug', async () => {
+        const { service, documentModel, featureFlagModel } = setup();
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        await expect(
+            service.getBySlug(makeAccount(), projectUuid, document.slug),
+        ).rejects.toThrow(ForbiddenError);
+        expect(documentModel.getBySlug).not.toHaveBeenCalled();
+    });
+
+    test('slug lookup refuses inaccessible projects before resolving the slug', async () => {
+        const { service, documentModel } = setup();
+        await expect(
+            service.getBySlug(
+                makeAccount(OrganizationMemberRole.MEMBER),
+                projectUuid,
+                document.slug,
+            ),
+        ).rejects.toThrow(new NotFoundError('Project not found'));
+        expect(documentModel.getBySlug).not.toHaveBeenCalled();
+    });
+
+    test('slug lookup hides private Documents without access', async () => {
+        const { service, spacePermissionService } = setup();
+        spacePermissionService.resolveAccess.mockResolvedValue(
+            makeContext([], false),
+        );
+        await expect(
+            service.getBySlug(makeAccount(), projectUuid, document.slug),
+        ).rejects.toThrow(new NotFoundError('Document not found'));
+    });
+
+    test('slug lookup preserves missing or deleted Document errors', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        const error = new NotFoundError('Document not found');
+        documentModel.getBySlug.mockRejectedValue(error);
+        await expect(
+            service.getBySlug(makeAccount(), projectUuid, document.slug),
+        ).rejects.toBe(error);
+        expect(spacePermissionService.resolveAccess).not.toHaveBeenCalled();
+    });
+
     test.each(['delete', 'restore', 'permanentDelete'] as const)(
         '%s refuses feature-off and cross-project callers before lifecycle reads',
         async (method) => {

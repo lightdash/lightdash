@@ -244,7 +244,18 @@ export type FindContentResult =
     | FindContentChartResult
     | FindContentDashboardResult
     | FindContentSpaceResult
-    | FindContentDataAppResult;
+    | FindContentDataAppResult
+    | {
+          contentType: 'document';
+          uuid: string;
+          name: string;
+          slug: string;
+          href: string;
+          description: string | null;
+          search_rank: number;
+          space: FindContentSpaceMetadata | null;
+          verification: null;
+      };
 
 export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];
@@ -260,6 +271,13 @@ export type ListContentFn = (args: {
 }) => Promise<{
     spaceSlug: string | null;
     items: Array<
+        | {
+              contentType: 'document';
+              uuid: string;
+              name: string;
+              slug: string;
+              href: string;
+          }
         | {
               contentType: 'chart' | 'dashboard' | 'data_app';
               name: string;

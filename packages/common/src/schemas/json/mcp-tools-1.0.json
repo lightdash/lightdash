@@ -25,157 +25,490 @@
                 "openWorldHint": false,
                 "readOnlyHint": false
             },
-            "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+            "description": "Create a dashboard, chart, or Document. Documents use schema version 3 with Markdown and semantic/merge chart-as-code cells. Returns the persisted content and canonical reference.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "content": {
                         "anyOf": [
                             {
-                                "additionalProperties": {},
+                                "additionalProperties": false,
+                                "description": "Document schema version 3. Ordered cells have stable IDs. Headings come from Markdown and chart names.",
                                 "properties": {
-                                    "config": {},
-                                    "contentType": {
-                                        "type": "string"
+                                    "content": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "cells": {
+                                                "items": {
+                                                    "anyOf": [
+                                                        {
+                                                            "additionalProperties": false,
+                                                            "properties": {
+                                                                "content": {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                        "markdown": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "markdown"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "id": {
+                                                                    "minLength": 1,
+                                                                    "type": "string"
+                                                                },
+                                                                "type": {
+                                                                    "const": "markdown",
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "id",
+                                                                "type",
+                                                                "content"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        {
+                                                            "additionalProperties": false,
+                                                            "properties": {
+                                                                "content": {
+                                                                    "anyOf": [
+                                                                        {
+                                                                            "additionalProperties": false,
+                                                                            "properties": {
+                                                                                "chart": {
+                                                                                    "additionalProperties": false,
+                                                                                    "properties": {
+                                                                                        "chartConfig": {},
+                                                                                        "description": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "metricQuery": {
+                                                                                            "additionalProperties": {},
+                                                                                            "properties": {
+                                                                                                "dimensions": {
+                                                                                                    "items": {},
+                                                                                                    "type": "array"
+                                                                                                },
+                                                                                                "exploreName": {},
+                                                                                                "filters": {},
+                                                                                                "limit": {},
+                                                                                                "metrics": {
+                                                                                                    "items": {},
+                                                                                                    "type": "array"
+                                                                                                },
+                                                                                                "sorts": {
+                                                                                                    "items": {},
+                                                                                                    "type": "array"
+                                                                                                },
+                                                                                                "tableCalculations": {
+                                                                                                    "items": {},
+                                                                                                    "type": "array"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "dimensions",
+                                                                                                "metrics",
+                                                                                                "sorts",
+                                                                                                "tableCalculations"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "name": {
+                                                                                            "minLength": 1,
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "parameters": {},
+                                                                                        "pivotConfig": {},
+                                                                                        "tableConfig": {},
+                                                                                        "tableName": {
+                                                                                            "minLength": 1,
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "name",
+                                                                                        "tableName",
+                                                                                        "metricQuery",
+                                                                                        "chartConfig"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                "source": {
+                                                                                    "const": "semantic",
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "source",
+                                                                                "chart"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        {
+                                                                            "additionalProperties": false,
+                                                                            "properties": {
+                                                                                "chart": {
+                                                                                    "additionalProperties": false,
+                                                                                    "properties": {
+                                                                                        "chartConfig": {},
+                                                                                        "description": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "merge": {
+                                                                                            "additionalProperties": false,
+                                                                                            "description": "Durable SavedMergeQuery. Query sources contain full metric queries, never query UUIDs or result rows.",
+                                                                                            "properties": {
+                                                                                                "joinKey": {
+                                                                                                    "items": {},
+                                                                                                    "type": "array"
+                                                                                                },
+                                                                                                "joinType": {
+                                                                                                    "enum": [
+                                                                                                        "full",
+                                                                                                        "left",
+                                                                                                        "inner"
+                                                                                                    ],
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "primarySourceId": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "sources": {
+                                                                                                    "items": {
+                                                                                                        "anyOf": [
+                                                                                                            {
+                                                                                                                "additionalProperties": false,
+                                                                                                                "properties": {
+                                                                                                                    "id": {
+                                                                                                                        "type": "string"
+                                                                                                                    },
+                                                                                                                    "kind": {
+                                                                                                                        "const": "chart",
+                                                                                                                        "type": "string"
+                                                                                                                    }
+                                                                                                                },
+                                                                                                                "required": [
+                                                                                                                    "id",
+                                                                                                                    "kind"
+                                                                                                                ],
+                                                                                                                "type": "object"
+                                                                                                            },
+                                                                                                            {
+                                                                                                                "additionalProperties": false,
+                                                                                                                "properties": {
+                                                                                                                    "id": {
+                                                                                                                        "type": "string"
+                                                                                                                    },
+                                                                                                                    "kind": {
+                                                                                                                        "const": "query",
+                                                                                                                        "type": "string"
+                                                                                                                    },
+                                                                                                                    "metricQuery": {
+                                                                                                                        "additionalProperties": {},
+                                                                                                                        "propertyNames": {
+                                                                                                                            "type": "string"
+                                                                                                                        },
+                                                                                                                        "type": "object"
+                                                                                                                    }
+                                                                                                                },
+                                                                                                                "required": [
+                                                                                                                    "id",
+                                                                                                                    "kind",
+                                                                                                                    "metricQuery"
+                                                                                                                ],
+                                                                                                                "type": "object"
+                                                                                                            }
+                                                                                                        ]
+                                                                                                    },
+                                                                                                    "type": "array"
+                                                                                                },
+                                                                                                "tableCalculations": {
+                                                                                                    "items": {},
+                                                                                                    "type": "array"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "primarySourceId",
+                                                                                                "sources",
+                                                                                                "joinKey",
+                                                                                                "joinType",
+                                                                                                "tableCalculations"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "metricQuery": {
+                                                                                            "additionalProperties": {},
+                                                                                            "properties": {
+                                                                                                "dimensions": {
+                                                                                                    "items": {},
+                                                                                                    "type": "array"
+                                                                                                },
+                                                                                                "exploreName": {},
+                                                                                                "filters": {},
+                                                                                                "limit": {},
+                                                                                                "metrics": {
+                                                                                                    "items": {},
+                                                                                                    "type": "array"
+                                                                                                },
+                                                                                                "sorts": {
+                                                                                                    "items": {},
+                                                                                                    "type": "array"
+                                                                                                },
+                                                                                                "tableCalculations": {
+                                                                                                    "items": {},
+                                                                                                    "type": "array"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "dimensions",
+                                                                                                "metrics",
+                                                                                                "sorts",
+                                                                                                "tableCalculations"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "name": {
+                                                                                            "minLength": 1,
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "parameters": {},
+                                                                                        "pivotConfig": {},
+                                                                                        "tableConfig": {},
+                                                                                        "tableName": {
+                                                                                            "minLength": 1,
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "name",
+                                                                                        "tableName",
+                                                                                        "metricQuery",
+                                                                                        "chartConfig",
+                                                                                        "merge"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                "source": {
+                                                                                    "const": "merge",
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "source",
+                                                                                "chart"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                "id": {
+                                                                    "minLength": 1,
+                                                                    "type": "string"
+                                                                },
+                                                                "type": {
+                                                                    "const": "chart",
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "id",
+                                                                "type",
+                                                                "content"
+                                                            ],
+                                                            "type": "object"
+                                                        }
+                                                    ]
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": ["cells"],
+                                        "type": "object"
                                     },
                                     "description": {
                                         "type": "string"
                                     },
-                                    "downloadedAt": {},
-                                    "filters": {},
                                     "name": {
                                         "minLength": 1,
                                         "type": "string"
                                     },
-                                    "parameters": {},
+                                    "schemaVersion": {
+                                        "const": 3,
+                                        "type": "number"
+                                    },
                                     "slug": {
-                                        "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
                                         "minLength": 1,
                                         "type": "string"
                                     },
                                     "spaceSlug": {
                                         "minLength": 1,
                                         "type": "string"
-                                    },
-                                    "tabs": {
-                                        "items": {},
-                                        "type": "array"
-                                    },
-                                    "tiles": {
-                                        "items": {},
-                                        "type": "array"
-                                    },
-                                    "updatedAt": {},
-                                    "verification": {},
-                                    "verified": {
-                                        "type": "boolean"
-                                    },
-                                    "version": {
-                                        "type": "number"
                                     }
                                 },
                                 "required": [
-                                    "slug",
                                     "name",
+                                    "slug",
+                                    "description",
                                     "spaceSlug",
-                                    "contentType",
-                                    "verified",
-                                    "tiles",
-                                    "tabs"
+                                    "schemaVersion",
+                                    "content"
                                 ],
                                 "type": "object"
                             },
                             {
-                                "additionalProperties": {},
-                                "properties": {
-                                    "chartConfig": {},
-                                    "contentType": {
-                                        "type": "string"
-                                    },
-                                    "dashboardSlug": {
-                                        "type": "string"
-                                    },
-                                    "description": {
-                                        "type": "string"
-                                    },
-                                    "downloadedAt": {},
-                                    "metricQuery": {
+                                "anyOf": [
+                                    {
                                         "additionalProperties": {},
                                         "properties": {
-                                            "dimensions": {
-                                                "items": {},
-                                                "type": "array"
+                                            "config": {},
+                                            "contentType": {
+                                                "type": "string"
                                             },
-                                            "exploreName": {},
+                                            "description": {
+                                                "type": "string"
+                                            },
+                                            "downloadedAt": {},
                                             "filters": {},
-                                            "limit": {},
-                                            "metrics": {
+                                            "name": {
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            "parameters": {},
+                                            "slug": {
+                                                "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            "spaceSlug": {
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            "tabs": {
                                                 "items": {},
                                                 "type": "array"
                                             },
-                                            "sorts": {
+                                            "tiles": {
                                                 "items": {},
                                                 "type": "array"
                                             },
-                                            "tableCalculations": {
-                                                "items": {},
-                                                "type": "array"
+                                            "updatedAt": {},
+                                            "verification": {},
+                                            "verified": {
+                                                "type": "boolean"
+                                            },
+                                            "version": {
+                                                "type": "number"
                                             }
                                         },
                                         "required": [
-                                            "dimensions",
-                                            "metrics",
-                                            "sorts",
-                                            "tableCalculations"
+                                            "slug",
+                                            "name",
+                                            "spaceSlug",
+                                            "contentType",
+                                            "verified",
+                                            "tiles",
+                                            "tabs"
                                         ],
                                         "type": "object"
                                     },
-                                    "name": {
-                                        "minLength": 1,
-                                        "type": "string"
-                                    },
-                                    "parameters": {},
-                                    "pivotConfig": {},
-                                    "slug": {
-                                        "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
-                                        "minLength": 1,
-                                        "type": "string"
-                                    },
-                                    "spaceSlug": {
-                                        "minLength": 1,
-                                        "type": "string"
-                                    },
-                                    "tableConfig": {},
-                                    "tableName": {
-                                        "minLength": 1,
-                                        "type": "string"
-                                    },
-                                    "updatedAt": {},
-                                    "verification": {},
-                                    "verified": {
-                                        "type": "boolean"
-                                    },
-                                    "version": {
-                                        "type": "number"
+                                    {
+                                        "additionalProperties": {},
+                                        "properties": {
+                                            "chartConfig": {},
+                                            "contentType": {
+                                                "type": "string"
+                                            },
+                                            "dashboardSlug": {
+                                                "type": "string"
+                                            },
+                                            "description": {
+                                                "type": "string"
+                                            },
+                                            "downloadedAt": {},
+                                            "metricQuery": {
+                                                "additionalProperties": {},
+                                                "properties": {
+                                                    "dimensions": {
+                                                        "items": {},
+                                                        "type": "array"
+                                                    },
+                                                    "exploreName": {},
+                                                    "filters": {},
+                                                    "limit": {},
+                                                    "metrics": {
+                                                        "items": {},
+                                                        "type": "array"
+                                                    },
+                                                    "sorts": {
+                                                        "items": {},
+                                                        "type": "array"
+                                                    },
+                                                    "tableCalculations": {
+                                                        "items": {},
+                                                        "type": "array"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "dimensions",
+                                                    "metrics",
+                                                    "sorts",
+                                                    "tableCalculations"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "name": {
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            "parameters": {},
+                                            "pivotConfig": {},
+                                            "slug": {
+                                                "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            "spaceSlug": {
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            "tableConfig": {},
+                                            "tableName": {
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            "updatedAt": {},
+                                            "verification": {},
+                                            "verified": {
+                                                "type": "boolean"
+                                            },
+                                            "version": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "required": [
+                                            "slug",
+                                            "name",
+                                            "spaceSlug",
+                                            "contentType",
+                                            "verified",
+                                            "tableName",
+                                            "metricQuery",
+                                            "dashboardSlug"
+                                        ],
+                                        "type": "object"
                                     }
-                                },
-                                "required": [
-                                    "slug",
-                                    "name",
-                                    "spaceSlug",
-                                    "contentType",
-                                    "verified",
-                                    "tableName",
-                                    "metricQuery",
-                                    "dashboardSlug"
-                                ],
-                                "type": "object"
+                                ]
                             }
                         ]
                     },
                     "type": {
-                        "description": "Type of Lightdash content to create.",
-                        "enum": ["dashboard", "chart"],
+                        "enum": ["dashboard", "chart", "document"],
                         "type": "string"
                     }
                 },
@@ -327,27 +660,1040 @@
                 "openWorldHint": false,
                 "readOnlyHint": false
             },
-            "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
+            "description": "Edit dashboards and charts with RFC6902 patch. For Documents, use documentEdit instead: stable cell-ID operations with baseVersionUuid, or a separate metadata update. Stale content versions are rejected; read again and retry.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
+                    "documentEdit": {
+                        "description": "Required for Documents instead of patch. Edit cells by ID, or update metadata in a separate call.",
+                        "oneOf": [
+                            {
+                                "additionalProperties": false,
+                                "properties": {
+                                    "baseVersionUuid": {
+                                        "description": "Version UUID from read_content. Stale edits fail; reload and retry.",
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string"
+                                    },
+                                    "operations": {
+                                        "items": {
+                                            "anyOf": [
+                                                {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "cell": {
+                                                            "oneOf": [
+                                                                {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                        "content": {
+                                                                            "additionalProperties": false,
+                                                                            "properties": {
+                                                                                "markdown": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "markdown"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "id": {
+                                                                            "minLength": 1,
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": {
+                                                                            "const": "markdown",
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "id",
+                                                                        "type",
+                                                                        "content"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                        "content": {
+                                                                            "oneOf": [
+                                                                                {
+                                                                                    "additionalProperties": false,
+                                                                                    "properties": {
+                                                                                        "chart": {
+                                                                                            "additionalProperties": false,
+                                                                                            "properties": {
+                                                                                                "chartConfig": {},
+                                                                                                "description": {
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "metricQuery": {
+                                                                                                    "additionalProperties": {},
+                                                                                                    "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                                                                                                    "properties": {
+                                                                                                        "dimensions": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "exploreName": {},
+                                                                                                        "filters": {},
+                                                                                                        "limit": {},
+                                                                                                        "metrics": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "sorts": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "tableCalculations": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "required": [
+                                                                                                        "dimensions",
+                                                                                                        "metrics",
+                                                                                                        "sorts",
+                                                                                                        "tableCalculations"
+                                                                                                    ],
+                                                                                                    "type": "object"
+                                                                                                },
+                                                                                                "name": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "parameters": {},
+                                                                                                "pivotConfig": {},
+                                                                                                "tableConfig": {},
+                                                                                                "tableName": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "name",
+                                                                                                "tableName",
+                                                                                                "metricQuery",
+                                                                                                "chartConfig"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "source": {
+                                                                                            "const": "semantic",
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "source",
+                                                                                        "chart"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                {
+                                                                                    "additionalProperties": false,
+                                                                                    "properties": {
+                                                                                        "chart": {
+                                                                                            "additionalProperties": false,
+                                                                                            "properties": {
+                                                                                                "chartConfig": {},
+                                                                                                "description": {
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "merge": {
+                                                                                                    "additionalProperties": false,
+                                                                                                    "description": "Durable SavedMergeQuery. Query sources contain full metric queries, never query UUIDs or result rows.",
+                                                                                                    "properties": {
+                                                                                                        "joinKey": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "joinType": {
+                                                                                                            "enum": [
+                                                                                                                "full",
+                                                                                                                "left",
+                                                                                                                "inner"
+                                                                                                            ],
+                                                                                                            "type": "string"
+                                                                                                        },
+                                                                                                        "primarySourceId": {
+                                                                                                            "minLength": 1,
+                                                                                                            "type": "string"
+                                                                                                        },
+                                                                                                        "sources": {
+                                                                                                            "items": {
+                                                                                                                "oneOf": [
+                                                                                                                    {
+                                                                                                                        "additionalProperties": false,
+                                                                                                                        "properties": {
+                                                                                                                            "id": {
+                                                                                                                                "type": "string"
+                                                                                                                            },
+                                                                                                                            "kind": {
+                                                                                                                                "const": "chart",
+                                                                                                                                "type": "string"
+                                                                                                                            }
+                                                                                                                        },
+                                                                                                                        "required": [
+                                                                                                                            "id",
+                                                                                                                            "kind"
+                                                                                                                        ],
+                                                                                                                        "type": "object"
+                                                                                                                    },
+                                                                                                                    {
+                                                                                                                        "additionalProperties": false,
+                                                                                                                        "properties": {
+                                                                                                                            "id": {
+                                                                                                                                "type": "string"
+                                                                                                                            },
+                                                                                                                            "kind": {
+                                                                                                                                "const": "query",
+                                                                                                                                "type": "string"
+                                                                                                                            },
+                                                                                                                            "metricQuery": {
+                                                                                                                                "additionalProperties": {},
+                                                                                                                                "propertyNames": {
+                                                                                                                                    "type": "string"
+                                                                                                                                },
+                                                                                                                                "type": "object"
+                                                                                                                            }
+                                                                                                                        },
+                                                                                                                        "required": [
+                                                                                                                            "id",
+                                                                                                                            "kind",
+                                                                                                                            "metricQuery"
+                                                                                                                        ],
+                                                                                                                        "type": "object"
+                                                                                                                    }
+                                                                                                                ]
+                                                                                                            },
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "tableCalculations": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "required": [
+                                                                                                        "primarySourceId",
+                                                                                                        "sources",
+                                                                                                        "joinKey",
+                                                                                                        "joinType",
+                                                                                                        "tableCalculations"
+                                                                                                    ],
+                                                                                                    "type": "object"
+                                                                                                },
+                                                                                                "metricQuery": {
+                                                                                                    "additionalProperties": {},
+                                                                                                    "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                                                                                                    "properties": {
+                                                                                                        "dimensions": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "exploreName": {},
+                                                                                                        "filters": {},
+                                                                                                        "limit": {},
+                                                                                                        "metrics": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "sorts": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "tableCalculations": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "required": [
+                                                                                                        "dimensions",
+                                                                                                        "metrics",
+                                                                                                        "sorts",
+                                                                                                        "tableCalculations"
+                                                                                                    ],
+                                                                                                    "type": "object"
+                                                                                                },
+                                                                                                "name": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "parameters": {},
+                                                                                                "pivotConfig": {},
+                                                                                                "tableConfig": {},
+                                                                                                "tableName": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "name",
+                                                                                                "tableName",
+                                                                                                "metricQuery",
+                                                                                                "chartConfig",
+                                                                                                "merge"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "source": {
+                                                                                            "const": "merge",
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "source",
+                                                                                        "chart"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                }
+                                                                            ]
+                                                                        },
+                                                                        "id": {
+                                                                            "minLength": 1,
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": {
+                                                                            "const": "chart",
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "id",
+                                                                        "type",
+                                                                        "content"
+                                                                    ],
+                                                                    "type": "object"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "type": {
+                                                            "const": "append",
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "type",
+                                                        "cell"
+                                                    ],
+                                                    "type": "object"
+                                                },
+                                                {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "cell": {
+                                                            "oneOf": [
+                                                                {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                        "content": {
+                                                                            "additionalProperties": false,
+                                                                            "properties": {
+                                                                                "markdown": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "markdown"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "id": {
+                                                                            "minLength": 1,
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": {
+                                                                            "const": "markdown",
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "id",
+                                                                        "type",
+                                                                        "content"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                        "content": {
+                                                                            "oneOf": [
+                                                                                {
+                                                                                    "additionalProperties": false,
+                                                                                    "properties": {
+                                                                                        "chart": {
+                                                                                            "additionalProperties": false,
+                                                                                            "properties": {
+                                                                                                "chartConfig": {},
+                                                                                                "description": {
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "metricQuery": {
+                                                                                                    "additionalProperties": {},
+                                                                                                    "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                                                                                                    "properties": {
+                                                                                                        "dimensions": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "exploreName": {},
+                                                                                                        "filters": {},
+                                                                                                        "limit": {},
+                                                                                                        "metrics": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "sorts": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "tableCalculations": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "required": [
+                                                                                                        "dimensions",
+                                                                                                        "metrics",
+                                                                                                        "sorts",
+                                                                                                        "tableCalculations"
+                                                                                                    ],
+                                                                                                    "type": "object"
+                                                                                                },
+                                                                                                "name": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "parameters": {},
+                                                                                                "pivotConfig": {},
+                                                                                                "tableConfig": {},
+                                                                                                "tableName": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "name",
+                                                                                                "tableName",
+                                                                                                "metricQuery",
+                                                                                                "chartConfig"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "source": {
+                                                                                            "const": "semantic",
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "source",
+                                                                                        "chart"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                {
+                                                                                    "additionalProperties": false,
+                                                                                    "properties": {
+                                                                                        "chart": {
+                                                                                            "additionalProperties": false,
+                                                                                            "properties": {
+                                                                                                "chartConfig": {},
+                                                                                                "description": {
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "merge": {
+                                                                                                    "additionalProperties": false,
+                                                                                                    "description": "Durable SavedMergeQuery. Query sources contain full metric queries, never query UUIDs or result rows.",
+                                                                                                    "properties": {
+                                                                                                        "joinKey": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "joinType": {
+                                                                                                            "enum": [
+                                                                                                                "full",
+                                                                                                                "left",
+                                                                                                                "inner"
+                                                                                                            ],
+                                                                                                            "type": "string"
+                                                                                                        },
+                                                                                                        "primarySourceId": {
+                                                                                                            "minLength": 1,
+                                                                                                            "type": "string"
+                                                                                                        },
+                                                                                                        "sources": {
+                                                                                                            "items": {
+                                                                                                                "oneOf": [
+                                                                                                                    {
+                                                                                                                        "additionalProperties": false,
+                                                                                                                        "properties": {
+                                                                                                                            "id": {
+                                                                                                                                "type": "string"
+                                                                                                                            },
+                                                                                                                            "kind": {
+                                                                                                                                "const": "chart",
+                                                                                                                                "type": "string"
+                                                                                                                            }
+                                                                                                                        },
+                                                                                                                        "required": [
+                                                                                                                            "id",
+                                                                                                                            "kind"
+                                                                                                                        ],
+                                                                                                                        "type": "object"
+                                                                                                                    },
+                                                                                                                    {
+                                                                                                                        "additionalProperties": false,
+                                                                                                                        "properties": {
+                                                                                                                            "id": {
+                                                                                                                                "type": "string"
+                                                                                                                            },
+                                                                                                                            "kind": {
+                                                                                                                                "const": "query",
+                                                                                                                                "type": "string"
+                                                                                                                            },
+                                                                                                                            "metricQuery": {
+                                                                                                                                "additionalProperties": {},
+                                                                                                                                "propertyNames": {
+                                                                                                                                    "type": "string"
+                                                                                                                                },
+                                                                                                                                "type": "object"
+                                                                                                                            }
+                                                                                                                        },
+                                                                                                                        "required": [
+                                                                                                                            "id",
+                                                                                                                            "kind",
+                                                                                                                            "metricQuery"
+                                                                                                                        ],
+                                                                                                                        "type": "object"
+                                                                                                                    }
+                                                                                                                ]
+                                                                                                            },
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "tableCalculations": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "required": [
+                                                                                                        "primarySourceId",
+                                                                                                        "sources",
+                                                                                                        "joinKey",
+                                                                                                        "joinType",
+                                                                                                        "tableCalculations"
+                                                                                                    ],
+                                                                                                    "type": "object"
+                                                                                                },
+                                                                                                "metricQuery": {
+                                                                                                    "additionalProperties": {},
+                                                                                                    "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                                                                                                    "properties": {
+                                                                                                        "dimensions": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "exploreName": {},
+                                                                                                        "filters": {},
+                                                                                                        "limit": {},
+                                                                                                        "metrics": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "sorts": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "tableCalculations": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "required": [
+                                                                                                        "dimensions",
+                                                                                                        "metrics",
+                                                                                                        "sorts",
+                                                                                                        "tableCalculations"
+                                                                                                    ],
+                                                                                                    "type": "object"
+                                                                                                },
+                                                                                                "name": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "parameters": {},
+                                                                                                "pivotConfig": {},
+                                                                                                "tableConfig": {},
+                                                                                                "tableName": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "name",
+                                                                                                "tableName",
+                                                                                                "metricQuery",
+                                                                                                "chartConfig",
+                                                                                                "merge"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "source": {
+                                                                                            "const": "merge",
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "source",
+                                                                                        "chart"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                }
+                                                                            ]
+                                                                        },
+                                                                        "id": {
+                                                                            "minLength": 1,
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": {
+                                                                            "const": "chart",
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "id",
+                                                                        "type",
+                                                                        "content"
+                                                                    ],
+                                                                    "type": "object"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "targetCellId": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": {
+                                                            "enum": [
+                                                                "insert_before",
+                                                                "insert_after"
+                                                            ],
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "type",
+                                                        "targetCellId",
+                                                        "cell"
+                                                    ],
+                                                    "type": "object"
+                                                },
+                                                {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "cell": {
+                                                            "oneOf": [
+                                                                {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                        "content": {
+                                                                            "additionalProperties": false,
+                                                                            "properties": {
+                                                                                "markdown": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "markdown"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "id": {
+                                                                            "minLength": 1,
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": {
+                                                                            "const": "markdown",
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "id",
+                                                                        "type",
+                                                                        "content"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                        "content": {
+                                                                            "oneOf": [
+                                                                                {
+                                                                                    "additionalProperties": false,
+                                                                                    "properties": {
+                                                                                        "chart": {
+                                                                                            "additionalProperties": false,
+                                                                                            "properties": {
+                                                                                                "chartConfig": {},
+                                                                                                "description": {
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "metricQuery": {
+                                                                                                    "additionalProperties": {},
+                                                                                                    "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                                                                                                    "properties": {
+                                                                                                        "dimensions": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "exploreName": {},
+                                                                                                        "filters": {},
+                                                                                                        "limit": {},
+                                                                                                        "metrics": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "sorts": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "tableCalculations": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "required": [
+                                                                                                        "dimensions",
+                                                                                                        "metrics",
+                                                                                                        "sorts",
+                                                                                                        "tableCalculations"
+                                                                                                    ],
+                                                                                                    "type": "object"
+                                                                                                },
+                                                                                                "name": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "parameters": {},
+                                                                                                "pivotConfig": {},
+                                                                                                "tableConfig": {},
+                                                                                                "tableName": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "name",
+                                                                                                "tableName",
+                                                                                                "metricQuery",
+                                                                                                "chartConfig"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "source": {
+                                                                                            "const": "semantic",
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "source",
+                                                                                        "chart"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                {
+                                                                                    "additionalProperties": false,
+                                                                                    "properties": {
+                                                                                        "chart": {
+                                                                                            "additionalProperties": false,
+                                                                                            "properties": {
+                                                                                                "chartConfig": {},
+                                                                                                "description": {
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "merge": {
+                                                                                                    "additionalProperties": false,
+                                                                                                    "description": "Durable SavedMergeQuery. Query sources contain full metric queries, never query UUIDs or result rows.",
+                                                                                                    "properties": {
+                                                                                                        "joinKey": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "joinType": {
+                                                                                                            "enum": [
+                                                                                                                "full",
+                                                                                                                "left",
+                                                                                                                "inner"
+                                                                                                            ],
+                                                                                                            "type": "string"
+                                                                                                        },
+                                                                                                        "primarySourceId": {
+                                                                                                            "minLength": 1,
+                                                                                                            "type": "string"
+                                                                                                        },
+                                                                                                        "sources": {
+                                                                                                            "items": {
+                                                                                                                "oneOf": [
+                                                                                                                    {
+                                                                                                                        "additionalProperties": false,
+                                                                                                                        "properties": {
+                                                                                                                            "id": {
+                                                                                                                                "type": "string"
+                                                                                                                            },
+                                                                                                                            "kind": {
+                                                                                                                                "const": "chart",
+                                                                                                                                "type": "string"
+                                                                                                                            }
+                                                                                                                        },
+                                                                                                                        "required": [
+                                                                                                                            "id",
+                                                                                                                            "kind"
+                                                                                                                        ],
+                                                                                                                        "type": "object"
+                                                                                                                    },
+                                                                                                                    {
+                                                                                                                        "additionalProperties": false,
+                                                                                                                        "properties": {
+                                                                                                                            "id": {
+                                                                                                                                "type": "string"
+                                                                                                                            },
+                                                                                                                            "kind": {
+                                                                                                                                "const": "query",
+                                                                                                                                "type": "string"
+                                                                                                                            },
+                                                                                                                            "metricQuery": {
+                                                                                                                                "additionalProperties": {},
+                                                                                                                                "propertyNames": {
+                                                                                                                                    "type": "string"
+                                                                                                                                },
+                                                                                                                                "type": "object"
+                                                                                                                            }
+                                                                                                                        },
+                                                                                                                        "required": [
+                                                                                                                            "id",
+                                                                                                                            "kind",
+                                                                                                                            "metricQuery"
+                                                                                                                        ],
+                                                                                                                        "type": "object"
+                                                                                                                    }
+                                                                                                                ]
+                                                                                                            },
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "tableCalculations": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "required": [
+                                                                                                        "primarySourceId",
+                                                                                                        "sources",
+                                                                                                        "joinKey",
+                                                                                                        "joinType",
+                                                                                                        "tableCalculations"
+                                                                                                    ],
+                                                                                                    "type": "object"
+                                                                                                },
+                                                                                                "metricQuery": {
+                                                                                                    "additionalProperties": {},
+                                                                                                    "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                                                                                                    "properties": {
+                                                                                                        "dimensions": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "exploreName": {},
+                                                                                                        "filters": {},
+                                                                                                        "limit": {},
+                                                                                                        "metrics": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "sorts": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        },
+                                                                                                        "tableCalculations": {
+                                                                                                            "items": {},
+                                                                                                            "type": "array"
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "required": [
+                                                                                                        "dimensions",
+                                                                                                        "metrics",
+                                                                                                        "sorts",
+                                                                                                        "tableCalculations"
+                                                                                                    ],
+                                                                                                    "type": "object"
+                                                                                                },
+                                                                                                "name": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "parameters": {},
+                                                                                                "pivotConfig": {},
+                                                                                                "tableConfig": {},
+                                                                                                "tableName": {
+                                                                                                    "minLength": 1,
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "name",
+                                                                                                "tableName",
+                                                                                                "metricQuery",
+                                                                                                "chartConfig",
+                                                                                                "merge"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "source": {
+                                                                                            "const": "merge",
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "source",
+                                                                                        "chart"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                }
+                                                                            ]
+                                                                        },
+                                                                        "id": {
+                                                                            "minLength": 1,
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": {
+                                                                            "const": "chart",
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "id",
+                                                                        "type",
+                                                                        "content"
+                                                                    ],
+                                                                    "type": "object"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "cellId": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": {
+                                                            "const": "replace",
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "type",
+                                                        "cellId",
+                                                        "cell"
+                                                    ],
+                                                    "type": "object"
+                                                },
+                                                {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "cellId": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": {
+                                                            "const": "remove",
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "type",
+                                                        "cellId"
+                                                    ],
+                                                    "type": "object"
+                                                },
+                                                {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "cellId": {
+                                                            "type": "string"
+                                                        },
+                                                        "targetCellId": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": {
+                                                            "enum": [
+                                                                "move_before",
+                                                                "move_after"
+                                                            ],
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "type",
+                                                        "cellId",
+                                                        "targetCellId"
+                                                    ],
+                                                    "type": "object"
+                                                }
+                                            ]
+                                        },
+                                        "minItems": 1,
+                                        "type": "array"
+                                    },
+                                    "type": {
+                                        "const": "content",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "type",
+                                    "baseVersionUuid",
+                                    "operations"
+                                ],
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": false,
+                                "properties": {
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                    },
+                                    "slug": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "const": "metadata",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["type"],
+                                "type": "object"
+                            }
+                        ]
+                    },
                     "patch": {
                         "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
                         "items": {},
                         "type": "array"
                     },
                     "slug": {
-                        "description": "Slug of the dashboard or chart to edit",
+                        "description": "Exact content slug, as returned by read_content.",
                         "minLength": 1,
                         "type": "string"
                     },
                     "type": {
-                        "description": "Type of Lightdash content to edit",
-                        "enum": ["dashboard", "chart"],
+                        "enum": ["dashboard", "chart", "document"],
                         "type": "string"
                     }
                 },
-                "required": ["slug", "type", "patch"],
+                "required": ["slug", "type"],
                 "type": "object"
             },
             "name": "edit_content",
@@ -2071,22 +3417,27 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Data apps are read-only and returned without code.",
+            "description": "Read a dashboard, chart, data app, or Document by slug. Documents include their latest version UUID, required for cell edits.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
+                    "documentUuid": {
+                        "description": "For Documents only: UUID from a canonical Document URL, instead of slug.",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                    },
                     "slug": {
-                        "description": "Slug of the dashboard, chart, or data app to read.",
+                        "description": "Content slug. Required unless reading a Document by documentUuid.",
                         "minLength": 1,
                         "type": "string"
                     },
                     "type": {
-                        "description": "Type of Lightdash content to read.",
-                        "enum": ["dashboard", "chart", "data_app"],
+                        "enum": ["dashboard", "chart", "data_app", "document"],
                         "type": "string"
                     }
                 },
-                "required": ["slug", "type"],
+                "required": ["type"],
                 "type": "object"
             },
             "name": "read_content",

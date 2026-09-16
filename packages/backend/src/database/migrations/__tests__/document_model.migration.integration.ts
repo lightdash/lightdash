@@ -644,6 +644,66 @@ describe('DocumentModel PostgreSQL integration', () => {
         });
     });
 
+    test('slug lookup is exact and scoped to its project', async () => {
+        const document = await model.create({
+            ...input,
+            slug: 'weekly-review',
+        });
+        const otherProjectUuid = randomUUID();
+        const otherSpaceUuid = randomUUID();
+        await transaction.raw('INSERT INTO projects VALUES (2, ?, 1)', [
+            otherProjectUuid,
+        ]);
+        await transaction.raw(
+            'INSERT INTO spaces (space_id, space_uuid, project_id) VALUES (2, ?, 2)',
+            [otherSpaceUuid],
+        );
+        const other = await model.create({
+            ...input,
+            projectUuid: otherProjectUuid,
+            spaceUuid: otherSpaceUuid,
+            slug: document.slug,
+        });
+        await expect(
+            model.getBySlug(input.projectUuid, document.slug),
+        ).resolves.toEqual(document);
+        await expect(
+            model.getBySlug(otherProjectUuid, document.slug),
+        ).resolves.toEqual(other);
+        await Promise.all(
+            ['weekly', 'Weekly-review', document.documentUuid].map((slug) =>
+                expect(
+                    model.getBySlug(input.projectUuid, slug),
+                ).rejects.toThrow('Document not found'),
+            ),
+        );
+        await expect(
+            model.getBySlug(randomUUID(), document.slug),
+        ).rejects.toThrow('Document not found');
+    });
+
+    test.each(['document', 'space'] as const)(
+        'slug lookup hides a deleted %s',
+        async (deletedResource) => {
+            const document = await model.create(input);
+            if (deletedResource === 'document') {
+                await transaction(DocumentsTableName)
+                    .where('document_uuid', document.documentUuid)
+                    .update({ deleted_at: new Date() });
+            } else {
+                await transaction('spaces')
+                    .where('space_uuid', input.spaceUuid)
+                    .update({
+                        deleted_at: new Date(),
+                        deleted_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                    });
+            }
+            await expect(
+                model.getBySlug(input.projectUuid, document.slug),
+            ).rejects.toThrow('Document not found');
+        },
+    );
+
     test('content updates append exactly one immutable version', async () => {
         const document = await model.create(input);
         const updated = await model.updateContent(

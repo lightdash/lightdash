@@ -652,6 +652,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedChartModel: models.getSavedChartModel(),
                     coderService: repository.getCoderService(),
                     contentService: repository.getContentService(),
+                    documentService: repository.getDocumentService(),
                     appGenerateService:
                         repository.getAppGenerateService<AppGenerateService>(),
                     organizationDesignModel:

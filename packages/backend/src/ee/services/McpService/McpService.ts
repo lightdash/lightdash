@@ -16,11 +16,9 @@ import {
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
-    createContentToolDefinition,
     createMcpCompatibleInputShape,
     createScheduledDeliveryToolDefinition,
     createToolRunSqlArgsSchema,
-    editContentToolDefinition,
     Explore,
     FeatureFlags,
     findContentToolDefinition,
@@ -55,16 +53,18 @@ import {
     MCP_QUERY_TIMING_NOTE,
     MCP_TASKS_EXTENSION_NAME,
     McpCancelTaskResult,
+    mcpCreateContentToolDefinition,
     McpCreateTaskResult,
+    mcpEditContentToolDefinition,
     McpGetTaskResult,
     mcpListProjectsToolDefinition,
+    mcpReadContentToolDefinition,
     MetricQuery,
     NotFoundError,
     OauthAccount,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
-    readContentToolDefinition,
     readSkillResourceToolDefinition,
     readSkillToolDefinition,
     renderChartToolDefinition,
@@ -300,16 +300,16 @@ const mcpListContentTool = withProjectScopeInput(
     listContentToolDefinition.for('mcp'),
 );
 const mcpReadContentTool = withProjectScopeInput(
-    readContentToolDefinition.for('mcp'),
+    mcpReadContentToolDefinition.for('mcp'),
 );
 const mcpResolveUrlTool = withProjectScopeInput(
     resolveUrlToolDefinition.for('mcp'),
 );
 const mcpCreateContentTool = withProjectScopeInput(
-    createContentToolDefinition.for('mcp'),
+    mcpCreateContentToolDefinition.for('mcp'),
 );
 const mcpEditContentTool = withProjectScopeInput(
-    editContentToolDefinition.for('mcp'),
+    mcpEditContentToolDefinition.for('mcp'),
 );
 const mcpCreateScheduledDeliveryTool = withProjectScopeInput(
     createScheduledDeliveryToolDefinition.for('mcp'),
@@ -1822,8 +1822,22 @@ export class McpService extends BaseService {
                 const createContentTool = getCreateContent({
                     createContent: toolsRuntime.createContent,
                 });
+                if (args.type === 'document') {
+                    const document = await toolsRuntime.createDocumentContent(
+                        args.content,
+                    );
+                    return this.buildScopedResponse(
+                        ctx,
+                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        document,
+                        projectUuid,
+                        args.agentUuid,
+                    );
+                }
                 const result = await createContentTool.execute!(
-                    argsWithProject,
+                    { ...argsWithProject, type: args.type } as Parameters<
+                        NonNullable<typeof createContentTool.execute>
+                    >[0],
                     {
                         toolCallId: '',
                         messages: [],
@@ -1865,10 +1879,42 @@ export class McpService extends BaseService {
                 const editContentTool = getEditContent({
                     editContent: toolsRuntime.editContent,
                 });
-                const result = await editContentTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                if (args.type === 'document') {
+                    if (
+                        args.patch !== undefined ||
+                        args.documentEdit === undefined
+                    ) {
+                        throw new ParameterError(
+                            'Documents require documentEdit instead of patch',
+                        );
+                    }
+                    const document = await toolsRuntime.editDocumentContent(
+                        args.slug,
+                        args.documentEdit,
+                    );
+                    return this.buildScopedResponse(
+                        ctx,
+                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        document,
+                        projectUuid,
+                        args.agentUuid,
+                    );
+                }
+                if (
+                    args.documentEdit !== undefined ||
+                    args.patch === undefined
+                ) {
+                    throw new ParameterError(
+                        'Charts and dashboards require patch instead of documentEdit',
+                    );
+                }
+                const result = await editContentTool.execute!(
+                    { ...argsWithProject, type: args.type, patch: args.patch },
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
 
                 return this.buildScopedResponse(
                     ctx,
@@ -2288,10 +2334,44 @@ export class McpService extends BaseService {
                 const readContentTool = getReadContent({
                     readContent: toolsRuntime.readContent,
                 });
-                const result = await readContentTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                if (args.type === 'document') {
+                    if (
+                        (args.slug === undefined) ===
+                        (args.documentUuid === undefined)
+                    ) {
+                        throw new ParameterError(
+                            'Reading a Document requires exactly one of slug or documentUuid',
+                        );
+                    }
+                    const identifier =
+                        args.documentUuid !== undefined
+                            ? { documentUuid: args.documentUuid }
+                            : { slug: args.slug as string };
+                    const document =
+                        await toolsRuntime.readDocumentContent(identifier);
+                    return this.buildScopedResponse(
+                        ctx,
+                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        document,
+                        projectUuid,
+                        args.agentUuid,
+                    );
+                }
+                if (
+                    args.slug === undefined ||
+                    args.documentUuid !== undefined
+                ) {
+                    throw new ParameterError(
+                        'Reading charts, dashboards and data apps requires slug',
+                    );
+                }
+                const result = await readContentTool.execute!(
+                    { ...argsWithProject, type: args.type, slug: args.slug },
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
 
                 return this.buildScopedResponse(
                     ctx,

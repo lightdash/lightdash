@@ -273,6 +273,16 @@ export class DocumentModel {
         return this.getWithDatabase(this.database, projectUuid, documentUuid);
     }
 
+    async getBySlug(projectUuid: string, slug: string): Promise<Document> {
+        const row = await this.activeDocuments(this.database, projectUuid)
+            .where('documents.slug', slug)
+            .first();
+        if (!row) {
+            throw new NotFoundError('Document not found');
+        }
+        return this.get(projectUuid, row.document_uuid);
+    }
+
     async moveToSpace(
         {
             projectUuid,
