@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.241.1",
-  "previousVersion": "2.241.0",
-  "releaseDate": "2026-09-16T15:42:36.493Z",
+  "version": "2.242.0",
+  "previousVersion": "2.241.1",
+  "releaseDate": "2026-09-16T15:55:44.157Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260916120000_disable_ai_agent_memory_for_all_organizations.ts",
+        "edition": "core",
+        "tables": [
+          "organizations"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": true,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -20,8 +33,10 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "PATCH /api/v1/aiAgents/admin/settings — removed the request property `aiAgentMemoryEnabled`"
+      ],
+      "advisoryCount": 1
     },
     "mcp": {
       "checked": true,

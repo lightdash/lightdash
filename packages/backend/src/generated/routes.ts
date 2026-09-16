@@ -41348,7 +41348,6 @@ const models: TsoaRoute.Models = {
                 mcpContentWritesEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: { dataType: 'boolean' },
                 deepResearchLimits: { ref: 'AiDeepResearchLimits' },
-                aiAgentMemoryEnabled: { dataType: 'boolean' },
                 aiAgentReviewsEnabled: { dataType: 'boolean' },
                 aiAgentsVisible: { dataType: 'boolean' },
             },

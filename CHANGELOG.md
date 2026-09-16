@@ -1,3 +1,15 @@
+# [2.242.0](https://github.com/lightdash/lightdash/compare/2.241.1...2.242.0) (2026-09-16)
+
+
+### Bug Fixes
+
+* rename chart type builders to Chart Studio ([#29357](https://github.com/lightdash/lightdash/issues/29357)) ([82c0d32](https://github.com/lightdash/lightdash/commit/82c0d32074a218c9a6ef5a2c6dc5a5c0e0e5b038))
+
+
+### Features
+
+* **ai-agent:** soft-deprecate AI agent memory, off for every organization ([#29359](https://github.com/lightdash/lightdash/issues/29359)) ([794dc63](https://github.com/lightdash/lightdash/commit/794dc639d3e2ab27461b093ac7442a45dcb53ccd))
+
 ## [2.241.1](https://github.com/lightdash/lightdash/compare/2.241.0...2.241.1) (2026-09-16)
 
 
