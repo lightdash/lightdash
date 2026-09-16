@@ -656,6 +656,147 @@ describe('get', () => {
     });
 });
 
+describe('getSimilarityContexts', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new SavedChartModel({
+        database,
+        lightdashConfig: lightdashConfigMock,
+    });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    test('loads every chart with one query per version table', async () => {
+        const version = (id: number) => ({
+            saved_queries_version_id: id,
+            explore_name: 'orders',
+            filters: {},
+            row_limit: 500,
+            metric_overrides: null,
+            dimension_overrides: null,
+            timezone: null,
+            parameters: null,
+        });
+        tracker.on.select(/from "saved_queries" left join/).responseOnce([
+            {
+                ...version(1),
+                saved_query_uuid: 'chart-1',
+                name: 'Revenue',
+                space_uuid: 'space-1',
+            },
+            {
+                ...version(2),
+                saved_query_uuid: 'chart-2',
+                name: 'Orders',
+                space_uuid: 'space-2',
+                parameters: { period: 'last_year' },
+            },
+        ]);
+        tracker.on.select('saved_queries_version_fields').responseOnce([
+            {
+                saved_queries_version_id: 1,
+                name: 'orders_revenue',
+                field_type: 'metric',
+                order: 1,
+            },
+            {
+                saved_queries_version_id: 1,
+                name: 'orders_month',
+                field_type: 'dimension',
+                order: 0,
+            },
+            {
+                saved_queries_version_id: 2,
+                name: 'orders_count',
+                field_type: 'metric',
+                order: 0,
+            },
+        ]);
+        tracker.on.select('saved_queries_version_sorts').responseOnce([
+            {
+                saved_queries_version_id: 2,
+                field_name: 'orders_count',
+                descending: true,
+                nulls_first: null,
+                pivot_values: null,
+            },
+        ]);
+        tracker.on
+            .select('saved_queries_version_table_calculations')
+            .responseOnce([]);
+        tracker.on
+            .select('saved_queries_version_additional_metrics')
+            .responseOnce([]);
+        tracker.on
+            .select('saved_queries_version_custom_sql_dimensions')
+            .responseOnce([]);
+        tracker.on
+            .select('saved_queries_version_custom_dimensions')
+            .responseOnce([]);
+        tracker.on.select('saved_queries_version_merges').responseOnce([]);
+
+        const contexts = await model.getSimilarityContexts({
+            projectUuid: 'project-1',
+            uuids: ['chart-1', 'chart-2'],
+        });
+
+        expect(tracker.history.select).toHaveLength(8);
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining(['chart-1', 'chart-2', 'project-1']),
+        );
+        expect(contexts).toEqual([
+            {
+                uuid: 'chart-1',
+                name: 'Revenue',
+                spaceUuid: 'space-1',
+                parameters: undefined,
+                merge: null,
+                metricQuery: expect.objectContaining({
+                    exploreName: 'orders',
+                    metrics: ['orders_revenue'],
+                    dimensions: ['orders_month'],
+                    sorts: [],
+                }),
+            },
+            {
+                uuid: 'chart-2',
+                name: 'Orders',
+                spaceUuid: 'space-2',
+                parameters: { period: 'last_year' },
+                merge: null,
+                metricQuery: expect.objectContaining({
+                    metrics: ['orders_count'],
+                    dimensions: [],
+                    sorts: [
+                        {
+                            fieldId: 'orders_count',
+                            descending: true,
+                            nullsFirst: undefined,
+                        },
+                    ],
+                }),
+            },
+        ]);
+    });
+
+    test('skips the version tables when no chart matches', async () => {
+        tracker.on.select(/from "saved_queries" left join/).responseOnce([]);
+        expect(
+            await model.getSimilarityContexts({
+                projectUuid: 'project-1',
+                uuids: ['missing'],
+            }),
+        ).toEqual([]);
+        expect(tracker.history.select).toHaveLength(1);
+    });
+});
+
 describe('getLatestVersionSummaries', () => {
     const model = new SavedChartModel({
         database: knex({ client: MockClient, dialect: 'pg' }),

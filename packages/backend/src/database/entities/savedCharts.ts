@@ -134,7 +134,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'timezone'
 >;
 
-type DbSavedChartVersionField = {
+export type DbSavedChartVersionField = {
     saved_queries_version_field_id: number;
     saved_queries_version_id: number;
     name: string;
@@ -153,7 +153,7 @@ export type SavedChartVersionFieldsTable = Knex.CompositeTableType<
     CreateDbSavedChartVersionField
 >;
 
-type DbSavedChartVersionSort = {
+export type DbSavedChartVersionSort = {
     saved_queries_version_sort_id: number;
     saved_queries_version_id: number;
     field_name: string;

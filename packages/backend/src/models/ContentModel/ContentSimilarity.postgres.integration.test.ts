@@ -178,6 +178,7 @@ describe('content similarity (PostgreSQL)', () => {
             uuid: string,
             metrics = ['orders_revenue'],
             dimensions: string[] = [],
+            explore = 'orders',
         ) => {
             const row = await tx('saved_queries')
                 .where('saved_query_uuid', uuid)
@@ -189,7 +190,7 @@ describe('content similarity (PostgreSQL)', () => {
             }>('saved_queries_versions')
                 .insert({
                     saved_query_id: row!.saved_query_id,
-                    explore_name: 'orders',
+                    explore_name: explore,
                 })
                 .returning('saved_queries_version_id');
             const fields = [
@@ -213,13 +214,12 @@ describe('content similarity (PostgreSQL)', () => {
                 );
         };
         const shortlist = (
-            name = 'Revenue report',
             excludeContentUuid: string | null = null,
+            source: ChartSimilarityContext = chart,
         ) =>
             model.findChartSimilarityCandidates({
                 projectUuid,
-                name,
-                chart,
+                chart: source,
                 excludeContentUuid,
                 accessibleSpaceUuids: [sharedSpace],
             });
@@ -232,11 +232,23 @@ describe('content similarity (PostgreSQL)', () => {
             ]);
             expect((await shortlist())[0]).not.toHaveProperty('score');
         });
-        it('uses name tokens to retrieve charts with different fields', async () => {
-            const uuid = await add('Revenue breakdown');
-            await addVersion(uuid, ['orders_count']);
-            expect(await shortlist()).toEqual([
-                expect.objectContaining({ uuid }),
+        it('does not retrieve charts through their name alone', async () => {
+            await addVersion(await add('Revenue report'), ['orders_count']);
+            expect(await shortlist()).toEqual([]);
+        });
+        it('ranks same-explore charts before better field matches elsewhere', async () => {
+            const other = await add('Other explore');
+            await addVersion(
+                other,
+                ['orders_revenue'],
+                ['orders_month'],
+                'customers',
+            );
+            const same = await add('Same explore');
+            await addVersion(same);
+            expect((await shortlist()).map((c) => c.uuid)).toEqual([
+                same,
+                other,
             ]);
         });
         it('matches dimensions with the correct field type', async () => {
@@ -313,36 +325,26 @@ describe('content similarity (PostgreSQL)', () => {
             ).toEqual([uuid]);
         });
 
-        it('keeps time-grain words available to the AI shortlist', async () => {
-            const uuid = await add('Monthly report');
-            await addVersion(uuid, ['customers_count']);
-            expect((await shortlist('Monthly')).map((c) => c.uuid)).toEqual([
-                uuid,
-            ]);
-        });
-        it('tokenizes Unicode names without an English stop-word list', async () => {
-            const uuid = await add('売上 月次');
-            await addVersion(uuid, ['customers_count']);
-            expect((await shortlist('月次')).map((c) => c.uuid)).toEqual([
-                uuid,
-            ]);
-        });
-        it('preserves the twelve field matches when name-only matches crowd the search', async () => {
-            const matching = await Promise.all(
-                Array.from({ length: 12 }, async () => {
-                    const uuid = await add('Executive overview');
-                    await addVersion(uuid);
+        it('caps the shortlist at six, keeping the strongest field matches', async () => {
+            const strong = await Promise.all(
+                Array.from({ length: 3 }, async () => {
+                    const uuid = await add('Overview');
+                    await addVersion(
+                        uuid,
+                        ['orders_revenue'],
+                        ['orders_month'],
+                    );
                     return uuid;
                 }),
             );
             await Promise.all(
-                Array.from({ length: 15 }, async () =>
-                    addVersion(await add('Revenue'), ['customers_count']),
+                Array.from({ length: 7 }, async () =>
+                    addVersion(await add('Overview')),
                 ),
             );
-            expect((await shortlist()).map((c) => c.uuid).sort()).toEqual(
-                matching.sort(),
-            );
+            const result = (await shortlist()).map((c) => c.uuid);
+            expect(result).toHaveLength(6);
+            expect(result.slice(0, 3).sort()).toEqual(strong.sort());
         });
         it('ignores historical versions and resolves ties by version ID', async () => {
             const uuid = await add('Executive overview');
@@ -363,9 +365,9 @@ describe('content similarity (PostgreSQL)', () => {
             await addVersion(self);
             const deleted = await add('Revenue', { deleted: true });
             await addVersion(deleted);
-            expect(await shortlist('Revenue', self)).toEqual([]);
+            expect(await shortlist(self)).toEqual([]);
         });
-        it('applies permission scope before the twelve-candidate cap', async () => {
+        it('applies permission scope before the six-candidate cap', async () => {
             await Promise.all(
                 Array.from({ length: 15 }, async () =>
                     addVersion(await add('Revenue', { space: privateSpace })),
@@ -379,21 +381,27 @@ describe('content similarity (PostgreSQL)', () => {
                     addVersion(await add('Revenue')),
                 ),
             );
-            expect(await shortlist()).toHaveLength(12);
+            expect(await shortlist()).toHaveLength(6);
         });
-        it('treats regex and SQL syntax as data', async () => {
+        it('treats explore names with SQL syntax as data', async () => {
             const uuid = await add('Executive overview');
             await addVersion(uuid);
-            expect(
-                (await shortlist(".*') OR true; --")).map((c) => c.uuid),
-            ).toEqual([uuid]);
+            const source = {
+                ...chart,
+                metricQuery: {
+                    ...chart.metricQuery,
+                    exploreName: ".*') OR true; --",
+                },
+            };
+            expect((await shortlist(null, source)).map((c) => c.uuid)).toEqual([
+                uuid,
+            ]);
         });
         it('returns nothing without accessible spaces', async () => {
             await addVersion(await add('Revenue'));
             expect(
                 await model.findChartSimilarityCandidates({
                     projectUuid,
-                    name: 'Revenue',
                     chart,
                     excludeContentUuid: null,
                     accessibleSpaceUuids: [],

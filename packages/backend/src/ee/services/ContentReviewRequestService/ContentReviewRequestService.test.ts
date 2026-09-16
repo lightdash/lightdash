@@ -209,7 +209,7 @@ const buildService = () => {
         isAmbientAiEnabled: vi.fn().mockResolvedValue(true),
         compareCharts: vi.fn().mockResolvedValue(undefined),
     };
-    const savedChartModel = { get: vi.fn() };
+    const savedChartModel = { getSimilarityContexts: vi.fn() };
     const savedChartService = {
         get: vi.fn().mockResolvedValue({ name: chartLocation.name }),
         moveToSpace: vi.fn().mockResolvedValue(undefined),
@@ -824,7 +824,9 @@ describe('Ambient AI content similarity', () => {
         deps.contentReviewRequestModel.findChartSimilarityCandidates.mockResolvedValue(
             [candidate],
         );
-        deps.savedChartModel.get.mockResolvedValue({ ...candidate, ...chart });
+        deps.savedChartModel.getSimilarityContexts.mockResolvedValue([
+            { ...candidate, ...chart },
+        ]);
         deps.savedChartService.get.mockResolvedValue({
             name: 'Authoritative saved name',
             ...chart,
@@ -902,10 +904,9 @@ describe('Ambient AI content similarity', () => {
     it('keeps filter differences in the comparison and its explanation', async () => {
         const deps = setup();
         const filtered = { ...chart, parameters: { period: 'last_year' } };
-        deps.savedChartModel.get.mockResolvedValue({
-            ...candidate,
-            ...filtered,
-        });
+        deps.savedChartModel.getSimilarityContexts.mockResolvedValue([
+            { ...candidate, ...filtered },
+        ]);
         deps.aiService.compareCharts.mockResolvedValue([
             {
                 uuid: 'existing',
@@ -965,7 +966,9 @@ describe('Ambient AI content similarity', () => {
             deps.contentReviewRequestModel.findChartSimilarityCandidates,
         ).not.toHaveBeenCalled();
         expect(deps.savedChartService.get).not.toHaveBeenCalled();
-        expect(deps.savedChartModel.get).not.toHaveBeenCalled();
+        expect(
+            deps.savedChartModel.getSimilarityContexts,
+        ).not.toHaveBeenCalled();
         expect(deps.aiService.compareCharts).not.toHaveBeenCalled();
     });
     it.each([
@@ -1027,11 +1030,9 @@ describe('Ambient AI content similarity', () => {
     );
     it('rechecks moved candidates before sending their queries to AI', async () => {
         const deps = setup();
-        deps.savedChartModel.get.mockResolvedValue({
-            ...candidate,
-            ...chart,
-            spaceUuid: PERSONAL_SPACE,
-        });
+        deps.savedChartModel.getSimilarityContexts.mockResolvedValue([
+            { ...candidate, ...chart, spaceUuid: PERSONAL_SPACE },
+        ]);
         expect(
             await deps.service.findSimilarContentWithAi(
                 requester,
@@ -1085,7 +1086,9 @@ describe('Ambient AI content similarity', () => {
         await expect(
             deps.service.findSimilarContentWithAi(requester, PROJECT, params),
         ).rejects.toThrow('not enabled');
-        expect(deps.savedChartModel.get).not.toHaveBeenCalled();
+        expect(
+            deps.savedChartModel.getSimilarityContexts,
+        ).not.toHaveBeenCalled();
         expect(deps.aiService.compareCharts).not.toHaveBeenCalled();
     });
 });

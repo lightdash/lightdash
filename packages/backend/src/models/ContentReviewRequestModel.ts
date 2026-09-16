@@ -140,6 +140,9 @@ type SimilarSource = {
     contentType: ContentReviewContentType;
     table: string;
     uuidColumn: string;
+    spaceColumn: 'space_id' | 'space_uuid';
+    ownerColumn: 'dashboard_uuid' | null;
+    versionKeyColumn: 'saved_query_id' | null;
 };
 
 const SIMILAR_SOURCES: Record<
@@ -150,16 +153,25 @@ const SIMILAR_SOURCES: Record<
         contentType: ContentReviewContentType.CHART,
         table: SavedChartsTableName,
         uuidColumn: 'saved_query_uuid',
+        spaceColumn: 'space_id',
+        ownerColumn: 'dashboard_uuid',
+        versionKeyColumn: 'saved_query_id',
     },
     sqlChart: {
         contentType: ContentReviewContentType.SQL_CHART,
         table: SavedSqlTableName,
         uuidColumn: 'saved_sql_uuid',
+        spaceColumn: 'space_uuid',
+        ownerColumn: 'dashboard_uuid',
+        versionKeyColumn: null,
     },
     dashboard: {
         contentType: ContentReviewContentType.DASHBOARD,
         table: DashboardsTableName,
         uuidColumn: 'dashboard_uuid',
+        spaceColumn: 'space_id',
+        ownerColumn: null,
+        versionKeyColumn: null,
     },
 };
 
@@ -173,6 +185,18 @@ type SimilarContentScope = {
     excludeContentUuid: string | null;
     accessibleSpaceUuids: string[];
 };
+
+const SIMILARITY_QUERY_TIMEOUT_MS = 5_000;
+
+// Shortlist size sent to the AI comparison.
+const CHART_CANDIDATE_LIMIT = 6;
+
+// Knex clone() drops timeout options, so bound the builder that actually runs.
+// cancel: true also stops the server-side statement, so slow lookups cannot pile up.
+const cancelAfterTimeout = <TRecord extends {}, TResult>(
+    query: Knex.QueryBuilder<TRecord, TResult>,
+): Knex.QueryBuilder<TRecord, TResult> =>
+    query.timeout(SIMILARITY_QUERY_TIMEOUT_MS, { cancel: true });
 
 const escapeLikeWildcards = (value: string): string =>
     value.replace(/[%_\\]/g, '\\$&');
@@ -558,6 +582,7 @@ export class ContentReviewRequestModel {
         );
     }
 
+    // UNION ALL keeps each branch on a space index; OR/coalesce joins seq-scan.
     private getSimilarityContentQuery(
         source: SimilarSource,
         {
@@ -566,95 +591,94 @@ export class ContentReviewRequestModel {
             accessibleSpaceUuids,
         }: SimilarContentScope,
     ): Knex.QueryBuilder<SimilarContentRow, SimilarContentRow[]> {
+        const candidates = (
+            spaceJoin: (query: Knex.QueryBuilder) => Knex.QueryBuilder,
+        ) =>
+            spaceJoin(
+                this.database
+                    .from({ content: source.table })
+                    .select([
+                        `content.${source.uuidColumn}`,
+                        'content.name',
+                        'content.slug',
+                        ...(source.versionKeyColumn === null
+                            ? []
+                            : [`content.${source.versionKeyColumn}`]),
+                        { space_uuid: 'spaces.space_uuid' },
+                        { space_name: 'spaces.name' },
+                    ]),
+            )
+                .join(
+                    { projects: ProjectTableName },
+                    'projects.project_id',
+                    'spaces.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .whereIn('spaces.space_uuid', accessibleSpaceUuids)
+                .where('spaces.is_default_user_space', false)
+                .whereNull('spaces.deleted_at')
+                .whereNull('content.deleted_at')
+                .modify((query) => {
+                    if (excludeContentUuid !== null) {
+                        void query.whereNot(
+                            `content.${source.uuidColumn}`,
+                            excludeContentUuid,
+                        );
+                    }
+                });
+        const inOwnSpace = candidates((query) =>
+            query.join(
+                { spaces: SpaceTableName },
+                `spaces.${source.spaceColumn}`,
+                `content.${source.spaceColumn}`,
+            ),
+        );
+        const inOwnerSpace =
+            source.ownerColumn === null
+                ? null
+                : candidates((query) =>
+                      query
+                          .whereNull(`content.${source.spaceColumn}`)
+                          .join({ owner: DashboardsTableName }, (join) => {
+                              join.on(
+                                  'owner.dashboard_uuid',
+                                  `content.${source.ownerColumn}`,
+                              ).onNull('owner.deleted_at');
+                          })
+                          .join(
+                              { spaces: SpaceTableName },
+                              'spaces.space_id',
+                              'owner.space_id',
+                          ),
+                  );
+        const branches =
+            inOwnerSpace === null
+                ? inOwnSpace
+                : this.database.unionAll([inOwnSpace, inOwnerSpace], true);
         return this.database
-            .from({ content: source.table })
             .select<SimilarContentRow[]>({
                 uuid: `content.${source.uuidColumn}`,
                 name: 'content.name',
                 slug: 'content.slug',
-                spaceUuid: 'spaces.space_uuid',
-                spaceName: 'spaces.name',
+                spaceUuid: 'content.space_uuid',
+                spaceName: 'content.space_name',
             })
-            .modify((query) => {
-                if (source.contentType === ContentReviewContentType.DASHBOARD) {
-                    void query.join(
-                        { spaces: SpaceTableName },
-                        'spaces.space_id',
-                        'content.space_id',
-                    );
-                    return;
-                }
-                const spaceKey =
-                    source.contentType === ContentReviewContentType.SQL_CHART
-                        ? 'space_uuid'
-                        : 'space_id';
-                void query
-                    .leftJoin({ owner: DashboardsTableName }, (join) => {
-                        join.on(
-                            'owner.dashboard_uuid',
-                            'content.dashboard_uuid',
-                        ).onNull('owner.deleted_at');
-                    })
-                    .join({ spaces: SpaceTableName }, (join) => {
-                        if (
-                            source.contentType ===
-                            ContentReviewContentType.CHART
-                        ) {
-                            join.on(
-                                'spaces.space_id',
-                                this.database.raw('coalesce(??, ??)', [
-                                    'content.space_id',
-                                    'owner.space_id',
-                                ]),
-                            );
-                            return;
-                        }
-                        join.on(
-                            `spaces.${spaceKey}`,
-                            `content.${spaceKey}`,
-                        ).orOn(function dashboardSpace() {
-                            this.onNull(`content.${spaceKey}`).andOn(
-                                'spaces.space_id',
-                                'owner.space_id',
-                            );
-                        });
-                    });
-            })
-            .join(
-                { projects: ProjectTableName },
-                'projects.project_id',
-                'spaces.project_id',
-            )
-            .where('projects.project_uuid', projectUuid)
-            .whereIn('spaces.space_uuid', accessibleSpaceUuids)
-            .where('spaces.is_default_user_space', false)
-            .whereNull('spaces.deleted_at')
-            .whereNull('content.deleted_at')
-            .modify((query) => {
-                if (excludeContentUuid !== null) {
-                    void query.whereNot(
-                        `content.${source.uuidColumn}`,
-                        excludeContentUuid,
-                    );
-                }
-            });
+            .from(branches.as('content'));
     }
 
-    // Two bounded searches: exact query fields first, then name tokens.
-    // These retrieve candidates; the AI comparison judges their relevance.
+    // One bounded search on shared query fields. Name-only matches never
+    // survive the AI sanitizer, so names are not searched here.
     async findChartSimilarityCandidates({
-        name,
         chart,
         ...scope
     }: SimilarContentScope & {
-        name: string;
         chart: ChartSimilarityContext;
     }): Promise<
         Omit<ContentReviewSimilarCandidate, 'score' | 'matchReason'>[]
     > {
         if (scope.accessibleSpaceUuids.length === 0) return [];
         const latestVersion = this.database(SavedChartVersionsTableName)
-            .select('saved_queries_version_id')
+            .select(['saved_queries_version_id', 'explore_name'])
             .where(
                 'saved_query_id',
                 this.database.ref('content.saved_query_id'),
@@ -662,10 +686,6 @@ export class ContentReviewRequestModel {
             .orderBy('created_at', 'desc')
             .orderBy('saved_queries_version_id', 'desc')
             .limit(1);
-        const query = this.getSimilarityContentQuery(
-            SIMILAR_SOURCES.chart,
-            scope,
-        ).joinRaw('JOIN LATERAL (?) AS version ON true', [latestVersion]);
         const fieldMatches = this.database(
             'saved_queries_version_fields as fields',
         )
@@ -692,66 +712,33 @@ export class ContentReviewRequestModel {
                             );
                     });
             });
-        const words = [
-            ...new Set(
-                name
-                    .normalize('NFKC')
-                    .toLowerCase()
-                    .split(/[^\p{L}\p{N}]+/u)
-                    .filter(Boolean),
-            ),
-        ].slice(0, 20);
-        const [fieldCandidates, nameCandidates] = await Promise.all([
-            query
-                .clone()
+        // modify() erases the row type, so restate it here.
+        const rows: SimilarContentRow[] = await cancelAfterTimeout(
+            this.getSimilarityContentQuery(SIMILAR_SOURCES.chart, scope)
+                .joinRaw('JOIN LATERAL (?) AS version ON true', [latestVersion])
                 .modify((candidates) => {
                     void candidates.select({
                         fieldHits: fieldMatches.clone().count('*'),
                     });
                 })
                 .whereExists(fieldMatches.clone().select('fields.name'))
+                // Duplicates almost always share the explore; other explores
+                // only fill the slots left over.
+                .orderByRaw('version.explore_name = ? desc', [
+                    chart.metricQuery.exploreName,
+                ])
                 .orderBy('fieldHits', 'desc')
                 .orderBy('content.saved_query_uuid')
-                .limit(12),
-            words.length === 0
-                ? []
-                : query
-                      .clone()
-                      .where((names) => {
-                          words.forEach((word) => {
-                              void names.orWhereILike(
-                                  'content.name',
-                                  `%${escapeLikeWildcards(word)}%`,
-                              );
-                          });
-                      })
-                      .orderBy('content.name')
-                      .orderBy('content.saved_query_uuid')
-                      .limit(12),
-        ]);
-        return [
-            ...new Map(
-                [...fieldCandidates, ...nameCandidates].map(
-                    ({
-                        uuid,
-                        name: candidateName,
-                        slug,
-                        spaceUuid,
-                        spaceName,
-                    }) => [
-                        uuid,
-                        {
-                            uuid,
-                            name: candidateName,
-                            slug,
-                            spaceUuid,
-                            spaceName,
-                            contentType: ContentReviewContentType.CHART,
-                        },
-                    ],
-                ),
-            ).values(),
-        ].slice(0, 12);
+                .limit(CHART_CANDIDATE_LIMIT),
+        );
+        return rows.map(({ uuid, name, slug, spaceUuid, spaceName }) => ({
+            uuid,
+            name,
+            slug,
+            spaceUuid,
+            spaceName,
+            contentType: ContentReviewContentType.CHART,
+        }));
     }
 
     /** @deprecated Retained only for GET /similar until its sunset. */
@@ -773,14 +760,16 @@ export class ContentReviewRequestModel {
                 : [SIMILAR_SOURCES.chart, SIMILAR_SOURCES.sqlChart];
         const results = await Promise.all(
             sources.map(async (source) => {
-                const rows = await this.getSimilarityContentQuery(source, scope)
-                    .whereILike(
-                        'content.name',
-                        escapeLikeWildcards(name.trim()),
-                    )
-                    .orderBy('content.name')
-                    .orderBy(`content.${source.uuidColumn}`)
-                    .limit(limit);
+                const rows = await cancelAfterTimeout(
+                    this.getSimilarityContentQuery(source, scope)
+                        .whereILike(
+                            'content.name',
+                            escapeLikeWildcards(name.trim()),
+                        )
+                        .orderBy('content.name')
+                        .orderBy(`content.${source.uuidColumn}`)
+                        .limit(limit),
+                );
                 return rows.map((row) => ({
                     ...row,
                     contentType: source.contentType,

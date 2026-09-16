@@ -1290,7 +1290,6 @@ export class ContentReviewRequestService extends BaseService {
                 await this.contentReviewRequestModel.findChartSimilarityCandidates(
                     {
                         projectUuid,
-                        name,
                         chart,
                         excludeContentUuid: params.excludeContentUuid,
                         accessibleSpaceUuids,
@@ -1304,29 +1303,30 @@ export class ContentReviewRequestService extends BaseService {
                 parameters: value.parameters,
                 merge: value.merge,
             });
-            const definitions = await Promise.all(
-                candidates.map(async (candidate) => {
-                    const saved = await this.savedChartModel.get(
-                        candidate.uuid,
-                        undefined,
-                        { projectUuid },
-                    );
-                    // Recheck location after retrieval, including moves during the request.
-                    if (
-                        saved.spaceUuid !== candidate.spaceUuid ||
-                        !accessibleSpaceUuids.includes(saved.spaceUuid)
-                    )
-                        return null;
-                    return {
+            const definitions =
+                await this.savedChartModel.getSimilarityContexts({
+                    projectUuid,
+                    uuids: candidates.map((candidate) => candidate.uuid),
+                });
+            const visible = candidates.flatMap((candidate) => {
+                const saved = definitions.find(
+                    (definition) => definition.uuid === candidate.uuid,
+                );
+                // Recheck location after retrieval, including moves during the request.
+                if (
+                    saved === undefined ||
+                    saved.spaceUuid !== candidate.spaceUuid ||
+                    !accessibleSpaceUuids.includes(saved.spaceUuid)
+                )
+                    return [];
+                return [
+                    {
                         ...context(saved),
                         uuid: candidate.uuid,
                         name: saved.name,
-                    };
-                }),
-            );
-            const visible = definitions.filter(
-                (definition) => definition !== null,
-            );
+                    },
+                ];
+            });
             if (visible.length === 0) return [];
             const matches = await this.aiService.compareCharts(
                 user,
@@ -1373,9 +1373,15 @@ export class ContentReviewRequestService extends BaseService {
         } catch (error) {
             // Ambient AI is advisory. Provider failures must not prevent saving
             // or submitting a review. Omit suggestions when the check fails.
-            this.logger.debug(
-                `Chart similarity AI unavailable: ${getErrorMessage(error)}`,
-            );
+            if (error instanceof Error && error.name === 'KnexTimeoutError') {
+                this.logger.warn(
+                    `Chart similarity lookup timed out for project ${projectUuid}`,
+                );
+            } else {
+                this.logger.debug(
+                    `Chart similarity AI unavailable: ${getErrorMessage(error)}`,
+                );
+            }
             return [];
         }
     }
