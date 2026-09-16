@@ -1,3 +1,10 @@
+## [2.238.1](https://github.com/lightdash/lightdash/compare/2.238.0...2.238.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* **learn:** remove Recently deleted from the Browse menu ([#29350](https://github.com/lightdash/lightdash/issues/29350)) ([07b1776](https://github.com/lightdash/lightdash/commit/07b1776e2bec1fe48745fe1c3f9a0b9e9d6cc22c))
+
 # [2.238.0](https://github.com/lightdash/lightdash/compare/2.237.0...2.238.0) (2026-09-16)
 
 

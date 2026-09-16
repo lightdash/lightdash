@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.238.0",
-  "previousVersion": "2.237.0",
-  "releaseDate": "2026-09-16T13:33:26.166Z",
+  "version": "2.238.1",
+  "previousVersion": "2.238.0",
+  "releaseDate": "2026-09-16T13:51:30.909Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260915210000_create_user_learn_progress_table.ts",
-        "edition": "core",
-        "tables": [
-          "user_learn_progress",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
