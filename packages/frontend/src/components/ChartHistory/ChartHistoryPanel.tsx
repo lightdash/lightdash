@@ -181,6 +181,7 @@ const ChartHistoryPanel: FC<Props> = ({
 
     return (
         <Page
+            sidebarTitle="Versions"
             withSidebarFooter={withSidebarFooter}
             withFullHeight
             withPaddedContent
