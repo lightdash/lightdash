@@ -365,7 +365,7 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(
             screen.getByText(
-                'Every chart type from the library is installed — find them in your installed charts.',
+                'Every chart type from the library is installed — find them in your installed chart types.',
             ),
         ).toBeInTheDocument();
         expect(screen.getByText('(0)')).toBeInTheDocument();

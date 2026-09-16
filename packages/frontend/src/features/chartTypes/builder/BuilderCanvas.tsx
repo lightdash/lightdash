@@ -2,7 +2,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     type DataAppVizContext,
 } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import AppPreview from '../../apps/components/AppPreview';
@@ -152,12 +152,12 @@ const BuilderCanvas: FC<Props> = ({
                     inert={isClarifyRoundOpen}
                 >
                     <Stack gap="xs" align="center">
-                        <Text size="md" fw={600} c="ldGray.8">
-                            Start with a prompt
-                        </Text>
+                        <Title order={1} size="md" fw={600} c="ldGray.8">
+                            Create with Chart Studio
+                        </Title>
                         <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
-                            Describe the chart type you need. Iterate from
-                            there.
+                            Describe the chart you’ve always wanted, or start
+                            from an example.
                         </Text>
                     </Stack>
                     {onPickExample && (

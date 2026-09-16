@@ -155,12 +155,12 @@ const LocationPathname = () => {
     return <div data-testid="location-pathname">{pathname}</div>;
 };
 
-const renderPage = (initialEntry = '/projects/project-1/gallery') =>
+const renderPage = (initialEntry = '/projects/project-1/chart-types') =>
     renderWithProviders(
         <MemoryRouter initialEntries={[initialEntry]}>
             <Routes>
                 <Route
-                    path="/projects/:projectUuid/gallery"
+                    path="/projects/:projectUuid/chart-types"
                     element={
                         <>
                             <ChartTypeGallery />
@@ -268,7 +268,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(screen.getByText('Bar race')).toBeInTheDocument();
-        expect(screen.getByText('Gallery')).toBeInTheDocument();
+        expect(screen.getByText('Chart types')).toBeInTheDocument();
         expect(screen.getByText('(2)')).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('Radial gauge'));
@@ -286,15 +286,15 @@ describe('ChartTypeGallery', () => {
         expect(screen.getByText('metric')).toBeInTheDocument();
     });
 
-    it('separates installed charts and the chart library into top-level tabs', () => {
+    it('separates installed chart types and the chart library into top-level tabs', () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
         const chartTypesTab = screen.getByRole('tab', {
-            name: 'Installed charts (1)',
+            name: 'Installed chart types (1)',
         });
         const libraryTab = screen.getByRole('tab', {
-            name: 'Chart library Beta',
+            name: 'Chart type library Beta',
         });
 
         expect(chartTypesTab).toHaveAttribute('aria-selected', 'true');
@@ -318,28 +318,32 @@ describe('ChartTypeGallery', () => {
 
     it('opens the chart library tab from a deep link', () => {
         setData([makeDataAppViz({})]);
-        renderPage('/projects/project-1/gallery?tab=chart-library');
+        renderPage('/projects/project-1/chart-types?tab=chart-library');
 
         expect(
-            screen.getByRole('tab', { name: 'Chart library Beta' }),
+            screen.getByRole('tab', { name: 'Chart type library Beta' }),
         ).toHaveAttribute('aria-selected', 'true');
         expect(
             screen.queryByRole('button', { name: 'Radial gauge' }),
         ).not.toBeInTheDocument();
     });
 
-    it('hides the library tab when the chart type registry is disabled', () => {
-        setFlags({ chartTypeRegistry: false });
-        setData([makeDataAppViz({})]);
-        renderPage();
+    it.each(['', '?tab=chart-library'])(
+        'shows chart types without tabs when the registry flag is disabled (%s)',
+        (query) => {
+            setFlags({ chartTypeRegistry: false });
+            setData([makeDataAppViz({})]);
+            renderPage(`/projects/project-1/chart-types${query}`);
 
-        expect(
-            screen.queryByRole('tab', { name: /Chart library/ }),
-        ).not.toBeInTheDocument();
-    });
+            expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+            expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+            expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+            expect(screen.getByText('Radial gauge')).toBeInTheDocument();
+        },
+    );
 
     it.each([{ registryEnabled: false, charts: [] }, undefined])(
-        'hides the library tab until the registry is available (%j)',
+        'shows chart types without tabs until the registry is available (%j)',
         (data) => {
             vi.mocked(useRegistryChartTypes).mockReturnValue({
                 data,
@@ -347,18 +351,18 @@ describe('ChartTypeGallery', () => {
                 error: null,
             } as unknown as ReturnType<typeof useRegistryChartTypes>);
             setData([makeDataAppViz({})]);
-            renderPage('/projects/project-1/gallery?tab=chart-library');
+            renderPage('/projects/project-1/chart-types?tab=chart-library');
 
             expect(useRegistryChartTypes).toHaveBeenCalledWith(
                 'project-1',
                 true,
             );
             expect(
-                screen.queryByRole('tab', { name: /Chart library/ }),
+                screen.queryByRole('tab', { name: /Chart type library/ }),
             ).not.toBeInTheDocument();
-            expect(
-                screen.getByRole('tab', { name: 'Installed charts (1)' }),
-            ).toHaveAttribute('aria-selected', 'true');
+            expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+            expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+            expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
             expect(screen.getByText('Radial gauge')).toBeInTheDocument();
         },
     );
@@ -718,7 +722,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(screen.queryByText('home')).not.toBeInTheDocument();
-        expect(screen.getByText('Installed charts')).toBeInTheDocument();
+        expect(screen.getByText('Installed chart types')).toBeInTheDocument();
     });
 
     it('hides the new-chart-type button with data apps off', () => {

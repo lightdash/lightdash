@@ -281,7 +281,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             <MantineModal
                 opened
                 onClose={handleDone}
-                title="Chart type builder"
+                title="Chart Studio"
                 fullScreen
                 withCloseButton={false}
                 cancelLabel={false}

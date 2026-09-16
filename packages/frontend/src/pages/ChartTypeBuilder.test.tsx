@@ -224,7 +224,7 @@ const builderRoutes = (path: string) => (
                 element={<ChartTypeBuilder />}
             />
             <Route
-                path="/projects/:projectUuid/gallery"
+                path="/projects/:projectUuid/chart-types"
                 element={<div>gallery</div>}
             />
             <Route
@@ -330,7 +330,26 @@ describe('ChartTypeBuilder', () => {
 
         expect(useGetApp).toHaveBeenCalledWith('p1', 'stream-graph');
         expect(screen.getByText('Stream graph')).toBeInTheDocument();
+        expect(
+            screen.getByText('Chart Studio', { exact: true }),
+        ).toBeInTheDocument();
     });
+
+    it.each(['', '   '])(
+        'omits an unnamed chart type from the header (%j)',
+        (name) => {
+            setApp(appMeta({ name }));
+            renderBuilder('/projects/p1/chart-types/stream-graph');
+
+            expect(screen.queryByText(/Untitled/)).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('heading', { level: 6 }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Edit chart type details' }),
+            ).toBeInTheDocument();
+        },
+    );
 
     it('hands non-viz apps to the app builder', () => {
         setApp(appMeta({ template: 'dashboard' as AppMeta['template'] }));
@@ -363,7 +382,28 @@ describe('ChartTypeBuilder', () => {
     it('starts the create flow with a prompt and nothing else', () => {
         renderBuilder('/projects/p1/chart-types/new');
 
-        expect(screen.getByText('Start with a prompt')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Chart Studio', { exact: true }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Describe the chart you’ve always wanted, or start from an example.',
+            ),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.queryByText('Untitled chart type'),
+        ).not.toBeInTheDocument();
+
+        expect(
+            screen.getByRole('heading', {
+                name: 'Create with Chart Studio',
+                level: 1,
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Start with a prompt'),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByPlaceholderText('Describe a new chart type…'),
         ).toBeInTheDocument();
@@ -563,10 +603,9 @@ describe('ChartTypeBuilder', () => {
         );
         renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}`);
 
-        expect(screen.getByRole('link', { name: 'Gallery' })).toHaveAttribute(
-            'href',
-            '/projects/p1/gallery',
-        );
+        expect(
+            screen.getByRole('link', { name: 'Chart types' }),
+        ).toHaveAttribute('href', '/projects/p1/chart-types');
         fireEvent.click(
             screen.getByRole('button', { name: 'Preview in explorer' }),
         );
@@ -596,10 +635,9 @@ describe('ChartTypeBuilder', () => {
             '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001?create_saved_chart_version=not-json',
         );
 
-        expect(screen.getByRole('link', { name: 'Gallery' })).toHaveAttribute(
-            'href',
-            '/projects/p1/gallery',
-        );
+        expect(
+            screen.getByRole('link', { name: 'Chart types' }),
+        ).toHaveAttribute('href', '/projects/p1/chart-types');
     });
 
     it('keeps a drafted follow-up when the create route adopts the app', () => {

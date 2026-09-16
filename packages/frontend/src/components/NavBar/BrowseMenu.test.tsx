@@ -80,7 +80,7 @@ describe('BrowseMenu', () => {
         const item = await screen.findByText('Chart types');
         expect(item.closest('a')).toHaveAttribute(
             'href',
-            `/projects/${projectUuid}/gallery`,
+            `/projects/${projectUuid}/chart-types`,
         );
     });
 

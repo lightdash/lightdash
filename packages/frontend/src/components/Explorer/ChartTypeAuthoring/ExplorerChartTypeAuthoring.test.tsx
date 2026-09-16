@@ -317,12 +317,12 @@ describe('ExplorerChartTypeAuthoring', () => {
 
         expect(
             screen.getByRole('dialog', {
-                name: 'Chart type builder',
+                name: 'Chart Studio',
             }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('heading', {
-                name: 'Editing chart type · Grouped bars',
+                name: 'Grouped bars',
             }),
         ).toBeInTheDocument();
         expect(screen.getByTestId('workspace')).toBeInTheDocument();
@@ -706,7 +706,7 @@ describe('ExplorerChartTypeAuthoring', () => {
             expect(
                 screen.getByRole('heading', {
                     level: 2,
-                    name: 'Editing chart type · Grouped bars',
+                    name: 'Grouped bars',
                 }),
             ).toHaveFocus();
 

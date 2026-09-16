@@ -249,7 +249,7 @@ describe('CustomChartTypePicker', () => {
         render({ onBrowseGallery, onSelectProjectType });
         openDropdown();
 
-        fireEvent.click(screen.getByText('Browse the gallery'));
+        fireEvent.click(screen.getByText('Browse chart types'));
 
         expect(onBrowseGallery).toHaveBeenCalledTimes(1);
         expect(onSelectProjectType).not.toHaveBeenCalled();
@@ -260,7 +260,7 @@ describe('CustomChartTypePicker', () => {
         render({ onBrowseGallery: null });
         openDropdown();
 
-        expect(screen.queryByText('Browse the gallery')).toBeNull();
+        expect(screen.queryByText('Browse chart types')).toBeNull();
     });
 
     it('clears the selection from the field too', () => {
