@@ -17,7 +17,7 @@ import {
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
-export const resolveAiAgentMemoryEnabled = (
+const resolveAiAgentMemoryEnabled = (
     settings:
         | Pick<
               ApiAiOrganizationRuntimeSettingsResponse['results'],

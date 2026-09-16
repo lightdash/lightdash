@@ -431,7 +431,6 @@ export type CreateAiOrganizationSettings = Omit<
 export type UpdateAiOrganizationSettings = {
     aiAgentsVisible?: boolean;
     aiAgentReviewsEnabled?: boolean;
-    aiAgentMemoryEnabled?: boolean;
     deepResearchLimits?: AiDeepResearchLimits;
     deepResearchRawSqlEnabled?: boolean;
     mcpContentWritesEnabled?: boolean;

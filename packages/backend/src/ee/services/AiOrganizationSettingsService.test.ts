@@ -301,22 +301,15 @@ describe('upsertSettings model validation', () => {
         storedDefault?: unknown;
     } = {}) => {
         const upsert = vi.fn(async (_org: string, data: unknown) => data);
-        const updateAiAgentMemoryEnabled = vi.fn();
-        const transaction = vi.fn(
-            async (callback: (trx: unknown) => Promise<unknown>) =>
-                callback('transaction'),
-        );
         const service = new AiOrganizationSettingsService({
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: async () => ({
                     defaultAiAgentModelConfig: storedDefault,
                 }),
                 upsert,
-                transaction,
             },
             organizationModel: {
                 getAiAgentMemoryEnabled: async () => false,
-                updateAiAgentMemoryEnabled,
             },
             commercialFeatureFlagModel: {
                 get: async () => ({ enabled: true }),
@@ -339,18 +332,7 @@ describe('upsertSettings model validation', () => {
         (
             service as unknown as { createAuditedAbility: () => unknown }
         ).createAuditedAbility = () => ({ can: () => true });
-        const getSettings = vi.fn().mockResolvedValue({
-            organizationUuid: 'org-uuid',
-            aiAgentMemoryEnabled: false,
-        });
-        service.getSettings = getSettings;
-        return {
-            service,
-            getSettings,
-            upsert,
-            transaction,
-            updateAiAgentMemoryEnabled,
-        };
+        return { service, upsert };
     };
 
     const user = { organizationUuid: 'org-uuid' } as never;
@@ -511,42 +493,6 @@ describe('upsertSettings model validation', () => {
         expect(upsert).toHaveBeenCalledWith('org-uuid', {
             deepResearchRawSqlEnabled: true,
         });
-    });
-
-    it('stores an explicit off setting without writing AI settings', async () => {
-        const { service, getSettings, upsert, updateAiAgentMemoryEnabled } =
-            buildService();
-
-        await service.upsertSettings(user, { aiAgentMemoryEnabled: false });
-
-        expect(upsert).not.toHaveBeenCalled();
-        expect(updateAiAgentMemoryEnabled).toHaveBeenCalledWith(
-            'org-uuid',
-            false,
-        );
-        expect(getSettings).toHaveBeenCalledWith(user);
-    });
-
-    it('updates memory with other settings in one transaction', async () => {
-        const { service, transaction, upsert, updateAiAgentMemoryEnabled } =
-            buildService();
-
-        await service.upsertSettings(user, {
-            aiAgentMemoryEnabled: false,
-            aiAgentsVisible: false,
-        });
-
-        expect(transaction).toHaveBeenCalledOnce();
-        expect(upsert).toHaveBeenCalledWith(
-            'org-uuid',
-            { aiAgentsVisible: false },
-            'transaction',
-        );
-        expect(updateAiAgentMemoryEnabled).toHaveBeenCalledWith(
-            'org-uuid',
-            false,
-            'transaction',
-        );
     });
 
     it('repoints a stored default that the new visibility hides', async () => {
