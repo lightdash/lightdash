@@ -59,7 +59,7 @@ describe('safeGetCachedExploreStorageBytes', () => {
 describe('summarizeCatalogSearchExploreRead', () => {
     afterEach(() => vi.restoreAllMocks());
 
-    it('serializes each distinct explore once and weights bytes by row occurrence', () => {
+    it('reports the bytes selected for each distinct explore once', () => {
         const orders = explore('orders', ['orders', 'customers']);
         const payments = explore('payments', ['payments']);
         const ordersBytes = Buffer.byteLength(JSON.stringify(orders), 'utf8');
@@ -69,18 +69,17 @@ describe('summarizeCatalogSearchExploreRead', () => {
         );
         const stringify = vi.spyOn(JSON, 'stringify');
 
-        const summary = summarizeCatalogSearchExploreRead([
-            { explore: orders },
-            { explore: orders },
-            { explore: payments },
-        ]);
+        const summary = summarizeCatalogSearchExploreRead(3, {
+            'cached-orders': orders,
+            'cached-payments': payments,
+        });
 
         expect(summary).toEqual({
             exploreCount: 2,
             tableFanOut: 3,
             returnedSqlRowCount: 3,
             distinctExploreCount: 2,
-            selectedExploreJsonBytes: ordersBytes * 2 + paymentsBytes,
+            selectedExploreJsonBytes: ordersBytes + paymentsBytes,
         });
         expect(stringify).toHaveBeenCalledTimes(2);
     });

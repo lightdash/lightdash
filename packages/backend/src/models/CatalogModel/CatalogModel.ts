@@ -109,6 +109,24 @@ type DbMetricsTreeWithLock = DbMetricsTree & {
     lock_acquired_at: Date | null;
 };
 
+type CatalogSearchPageRow = DbCatalog & {
+    search_rank: number;
+    owner_first_name?: string;
+    owner_last_name?: string;
+    owner_email?: string;
+};
+
+type HydratedCatalogSearchPageRow = CatalogSearchPageRow & {
+    __page_ordinal: string;
+    hydrated_explores: Record<string, Explore> | null;
+};
+
+const getHydratedExplores = (
+    rows: HydratedCatalogSearchPageRow[],
+): Record<string, Explore> =>
+    rows.find(({ hydrated_explores }) => hydrated_explores !== null)
+        ?.hydrated_explores ?? {};
+
 const parseLockInfo = (
     row: DbMetricsTreeWithLock,
 ): MetricsTreeLockInfo | null => {
@@ -506,13 +524,14 @@ export class CatalogModel {
                 `${CatalogTableName}.label`,
                 'description',
                 'type',
-                `${CachedExploreTableName}.explore`,
+                `${CatalogTableName}.cached_explore_uuid`,
                 `required_attributes`,
                 `any_attributes`,
                 `chart_usage`,
                 `${CatalogTableName}.joined_tables`,
                 `${CatalogTableName}.table_name`,
                 `${CatalogTableName}.yaml_tags`,
+                `${CatalogTableName}.ai_hints`,
                 `icon`,
                 `${CatalogTableName}.owner_user_uuid`,
                 `owner_user.first_name as owner_first_name`,
@@ -935,22 +954,98 @@ export class CatalogModel {
             }
         }
 
-        catalogItemsQuery = catalogItemsQuery.orderBy('search_rank', 'desc');
-
-        if (sortArgs) {
-            const { sort, order } = sortArgs;
-            catalogItemsQuery = catalogItemsQuery.orderBy(
-                getDbCatalogColumnFromCatalogProperty(
-                    sort as keyof CatalogItem, // Can be cast here since we have an exhaustive switch/case in getDbCatalogColumnFromCatalogProperty
+        const normalizedSortOrder =
+            sortArgs?.order === 'desc' ? ('desc' as const) : ('asc' as const);
+        const pageOrder = [
+            { column: 'filtered_catalog.search_rank', order: 'desc' as const },
+            ...(sortArgs
+                ? [
+                      {
+                          column: `filtered_catalog.${getDbCatalogColumnFromCatalogProperty(
+                              sortArgs.sort as keyof CatalogItem,
+                          )}`,
+                          order: normalizedSortOrder,
+                      },
+                  ]
+                : []),
+        ];
+        const ordinalOrderSql = pageOrder
+            .map(({ order }) => `?? ${order}`)
+            .join(', ');
+        const selectedPageQuery = this.database
+            .select('filtered_catalog.*')
+            .select(
+                this.database.raw(
+                    `ROW_NUMBER() OVER (ORDER BY ${ordinalOrderSql}) AS ??`,
+                    [
+                        ...pageOrder.map(({ column }) => column),
+                        '__page_ordinal',
+                    ],
                 ),
-                order,
-            );
-        }
+            )
+            .from(catalogItemsQuery.clone().as('filtered_catalog'))
+            .orderBy(pageOrder);
+        const countQuery = catalogItemsQuery
+            .clone()
+            .clearSelect()
+            .clearOrder()
+            .select(`${CatalogTableName}.catalog_search_uuid`);
+        const executePageQuery = () => {
+            const boundedPageQuery = selectedPageQuery.clone();
+            if (paginateArgs) {
+                boundedPageQuery
+                    .offset((paginateArgs.page - 1) * paginateArgs.pageSize)
+                    .limit(paginateArgs.pageSize);
+            }
+
+            return this.database
+                .withMaterialized('selected_page', boundedPageQuery)
+                .with('selected_explore_ids', (query) =>
+                    query.distinct('cached_explore_uuid').from('selected_page'),
+                )
+                .withMaterialized('hydrated_explores', (query) =>
+                    query
+                        .select(
+                            this.database.raw(
+                                `COALESCE(jsonb_object_agg(??, ??), '{}'::jsonb) AS ??`,
+                                [
+                                    'cached_explore.cached_explore_uuid',
+                                    'cached_explore.explore',
+                                    'explore_map',
+                                ],
+                            ),
+                        )
+                        .from(`${CachedExploreTableName} as cached_explore`)
+                        .innerJoin(
+                            'selected_explore_ids',
+                            'selected_explore_ids.cached_explore_uuid',
+                            'cached_explore.cached_explore_uuid',
+                        ),
+                )
+                .select<HydratedCatalogSearchPageRow[]>(
+                    'selected_page.*',
+                    this.database.raw(
+                        `CASE WHEN ?? = (SELECT MIN(??) FROM ??) THEN ?? ELSE NULL END AS ??`,
+                        [
+                            'selected_page.__page_ordinal',
+                            'selected_page.__page_ordinal',
+                            'selected_page',
+                            'hydrated_explores.explore_map',
+                            'hydrated_explores',
+                        ],
+                    ),
+                )
+                .from('selected_page')
+                .joinRaw('CROSS JOIN ??', ['hydrated_explores'])
+                .orderBy('selected_page.__page_ordinal');
+        };
 
         const pageReadContext = newCatalogSearchExploreCacheReadContext(
             paginateArgs?.page,
             paginateArgs?.pageSize,
         );
+        pageReadContext.readStrategy =
+            'catalog-search-distinct-explore-hydration';
         const measureQuery: KnexPaginateQueryMeasurer = async (
             query,
             queryType,
@@ -973,10 +1068,12 @@ export class CatalogModel {
             readContext.dbReadMs = durationMs;
 
             if (queryType === 'page' && Array.isArray(result)) {
+                const rows = result as HydratedCatalogSearchPageRow[];
                 Object.assign(
                     readContext,
                     summarizeCatalogSearchExploreRead(
-                        result as Array<{ explore: Explore }>,
+                        rows.length,
+                        getHydratedExplores(rows),
                     ),
                 );
             } else if (
@@ -986,6 +1083,7 @@ export class CatalogModel {
                 'rows' in result &&
                 Array.isArray(result.rows)
             ) {
+                readContext.readStrategy = 'catalog-search-count';
                 readContext.totalResultCount =
                     Number(result.rows[0]?.count) || 0;
             }
@@ -999,21 +1097,29 @@ export class CatalogModel {
 
             return result;
         };
-        const paginatedCatalogItems = await KnexPaginate.paginate(
-            catalogItemsQuery.select<
-                (DbCatalog & { explore: Explore; search_rank: number })[]
-            >(),
+        const paginatedCatalogItems = await KnexPaginate.paginate<
+            DbCatalog,
+            CatalogSearchPageRow[],
+            HydratedCatalogSearchPageRow[]
+        >(
+            catalogItemsQuery.select<CatalogSearchPageRow[]>(),
             paginateArgs,
-            undefined,
+            countQuery,
             measureQuery,
+            executePageQuery,
+        );
+        const hydratedExplores = getHydratedExplores(
+            paginatedCatalogItems.data,
+        );
+        const catalogRows = paginatedCatalogItems.data.map(
+            ({ __page_ordinal: _pageOrdinal, hydrated_explores, ...item }) =>
+                item,
         );
 
         const { result: tagsPerItem } = await measureTime(
             () =>
                 this.getTagsPerItem(
-                    paginatedCatalogItems.data.map(
-                        (item) => item.catalog_search_uuid,
-                    ),
+                    catalogRows.map((item) => item.catalog_search_uuid),
                 ),
             'CatalogModel.search.tags',
             Logger,
@@ -1035,20 +1141,22 @@ export class CatalogModel {
                 wrapSentryTransaction(
                     'CatalogModel.search.parse',
                     {
-                        catalogSize: paginatedCatalogItems.data.length,
+                        catalogSize: catalogRows.length,
                     },
                     async () => {
-                        const catalogItems = paginatedCatalogItems.data
+                        const catalogItems = catalogRows
                             .map((item) => {
-                                // Use the explore from filteredExplores if available, otherwise use from DB.
-                                // We match by explore name (from item.explore) since each catalog entry
-                                // is indexed under a specific explore via cached_explore_uuid.
-                                let explore = exploreByName
-                                    ? exploreByName.get(item.explore.name)
-                                    : undefined;
+                                const hydratedExplore =
+                                    hydratedExplores[item.cached_explore_uuid];
+                                let explore: Explore | undefined;
+                                if (exploreByName && hydratedExplore) {
+                                    explore = exploreByName.get(
+                                        hydratedExplore.name,
+                                    );
+                                }
 
                                 if (!explore) {
-                                    explore = item.explore;
+                                    explore = hydratedExplore;
                                 }
 
                                 if (!explore) {

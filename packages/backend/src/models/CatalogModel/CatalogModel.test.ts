@@ -1,10 +1,13 @@
 import {
     AlreadyExistsError,
+    CatalogCategoryFilterMode,
+    CatalogFilter,
     CatalogType,
     FieldType,
     MetricType,
     SupportedDbtAdapter,
     TableSelectionType,
+    type CompiledTable,
     type Explore,
 } from '@lightdash/common';
 import knex, { Knex } from 'knex';
@@ -17,15 +20,22 @@ import {
     MetricsTreesTableName,
     type DbCatalog,
 } from '../../database/entities/catalog';
-import Logger from '../../logging/logger';
 import { CatalogModel, CatalogSearchContext } from './CatalogModel';
 
+type StructuredLogMetadata = {
+    name: string;
+    duration: number;
+    context: Record<string, unknown>;
+};
+
+const loggerMocks = vi.hoisted(() => ({
+    error: vi.fn(),
+    info: vi.fn<(message: string, metadata: StructuredLogMetadata) => void>(),
+    warn: vi.fn(),
+}));
+
 vi.mock('../../logging/logger', () => ({
-    default: {
-        error: vi.fn(),
-        info: vi.fn(),
-        warn: vi.fn(),
-    },
+    default: loggerMocks,
 }));
 
 const MOCK_PROJECT_UUID = 'project-uuid-1';
@@ -68,13 +78,50 @@ const buildExplore = (name: string): Explore => ({
     targetDatabase: SupportedDbtAdapter.POSTGRES,
 });
 
+const buildExploreWithJoinedTable = (): Explore => {
+    const explore = buildExplore('orders');
+    explore.tables.customers = {
+        name: 'customers',
+        label: 'Customers',
+        database: 'database',
+        schema: 'schema',
+        sqlTable: 'customers',
+        lineageGraph: {},
+        dimensions: {},
+        metrics: {
+            lifetime_value: {
+                name: 'lifetime_value',
+                label: 'Lifetime value',
+                table: 'customers',
+                tableLabel: 'Customers',
+                fieldType: FieldType.METRIC,
+                type: MetricType.SUM,
+                sql: 'SUM(${TABLE}.lifetime_value)',
+                compiledSql: 'SUM("customers".lifetime_value)',
+                hidden: false,
+                tablesReferences: ['customers'],
+                tags: ['customer'],
+            },
+        },
+    } satisfies CompiledTable;
+    explore.joinedTables = [
+        {
+            table: 'customers',
+            sqlOn: '${orders.customer_id} = ${customers.customer_id}',
+            compiledSqlOn: '"orders"."customer_id" = "customers"."customer_id"',
+        },
+    ];
+    return explore;
+};
+
 type CatalogSearchRow = DbCatalog & {
-    explore: Explore;
     search_rank: number;
+    owner_first_name?: string;
+    owner_last_name?: string;
+    owner_email?: string;
 };
 
 const buildCatalogSearchRow = (
-    explore: Explore,
     overrides: Partial<CatalogSearchRow> = {},
 ): CatalogSearchRow => ({
     catalog_search_uuid: 'catalog-revenue',
@@ -97,7 +144,6 @@ const buildCatalogSearchRow = (
     joined_tables: null,
     owner_user_uuid: null,
     has_time_dimension: false,
-    explore,
     search_rank: 1,
     ...overrides,
 });
@@ -136,17 +182,27 @@ describe('CatalogModel', () => {
     describe('search instrumentation', () => {
         test('logs distinct driver-read and Node spans without changing queries or response', async () => {
             const orders = buildExplore('orders');
-            const rows = [
-                buildCatalogSearchRow(orders),
-                buildCatalogSearchRow(orders, {
-                    catalog_search_uuid: 'catalog-stale',
-                    name: 'removed_metric',
-                }),
-            ];
             const ordersJsonBytes = Buffer.byteLength(
                 JSON.stringify(orders),
                 'utf8',
             );
+            const rows = [
+                {
+                    ...buildCatalogSearchRow(),
+                    __page_ordinal: '3',
+                    hydrated_explores: {
+                        'cached-orders': orders,
+                    },
+                },
+                {
+                    ...buildCatalogSearchRow({
+                        catalog_search_uuid: 'catalog-stale',
+                        name: 'removed_metric',
+                    }),
+                    __page_ordinal: '4',
+                    hydrated_explores: null,
+                },
+            ];
             const stringify = vi.spyOn(JSON, 'stringify');
 
             tracker.on
@@ -155,8 +211,8 @@ describe('CatalogModel', () => {
             tracker.on
                 .select(
                     ({ sql }) =>
-                        sql.includes('from "catalog_search"') &&
-                        !sql.includes('catalog_search_tags'),
+                        sql.includes('"selected_page" as materialized') &&
+                        sql.includes('jsonb_object_agg'),
                 )
                 .response(rows);
             tracker.on
@@ -212,13 +268,7 @@ describe('CatalogModel', () => {
 
             expect(tracker.history.all).toHaveLength(3);
 
-            type StructuredLogMetadata = {
-                name: string;
-                duration: number;
-                context: Record<string, unknown>;
-            };
-            const loggerInfoCalls = vi.mocked(Logger.info).mock
-                .calls as unknown as Array<[string, StructuredLogMetadata]>;
+            const loggerInfoCalls = vi.mocked(loggerMocks.info).mock.calls;
             const logEntries = loggerInfoCalls.map(([, metadata]) => metadata);
             expect(logEntries.map(({ name }) => name)).toEqual(
                 expect.arrayContaining([
@@ -239,13 +289,13 @@ describe('CatalogModel', () => {
             expect(pageContext).toEqual(
                 expect.objectContaining({
                     codePath: 'catalog-search',
-                    readStrategy: 'full-explore-read',
+                    readStrategy: 'catalog-search-distinct-explore-hydration',
                     page: 2,
                     pageSize: 2,
                     returnedSqlRowCount: 2,
                     distinctExploreCount: 1,
                     exploreCount: 1,
-                    selectedExploreJsonBytes: ordersJsonBytes * 2,
+                    selectedExploreJsonBytes: ordersJsonBytes,
                     returnedCatalogRowCount: undefined,
                 }),
             );
@@ -267,6 +317,7 @@ describe('CatalogModel', () => {
             )?.context;
             expect(countContext).toEqual(
                 expect.objectContaining({
+                    readStrategy: 'catalog-search-count',
                     page: 2,
                     pageSize: 2,
                     totalResultCount: 2,
@@ -284,6 +335,312 @@ describe('CatalogModel', () => {
                 }),
             );
         });
+
+        test('reuses one hydrated explore for base, joined, table, and stale rows', async () => {
+            const orders = buildExploreWithJoinedTable();
+            const rows = [
+                {
+                    ...buildCatalogSearchRow(),
+                    __page_ordinal: '1',
+                    hydrated_explores: { 'cached-orders': orders },
+                },
+                {
+                    ...buildCatalogSearchRow({
+                        catalog_search_uuid: 'catalog-lifetime-value',
+                        name: 'lifetime_value',
+                        label: 'Lifetime value',
+                        table_name: 'customers',
+                        yaml_tags: ['customer'],
+                        owner_user_uuid: MOCK_USER_UUID,
+                        owner_first_name: 'Ada',
+                        owner_last_name: 'Lovelace',
+                        owner_email: 'ada@example.com',
+                        search_rank: 0.8,
+                    }),
+                    __page_ordinal: '2',
+                    hydrated_explores: null,
+                },
+                {
+                    ...buildCatalogSearchRow({
+                        catalog_search_uuid: 'catalog-orders',
+                        name: 'orders',
+                        label: 'Orders catalog',
+                        type: CatalogType.Table,
+                        field_type: undefined,
+                        joined_tables: ['customers'],
+                        search_rank: 0.7,
+                    }),
+                    __page_ordinal: '3',
+                    hydrated_explores: null,
+                },
+                {
+                    ...buildCatalogSearchRow({
+                        catalog_search_uuid: 'catalog-stale',
+                        name: 'removed_metric',
+                        search_rank: 0.6,
+                    }),
+                    __page_ordinal: '4',
+                    hydrated_explores: null,
+                },
+            ];
+
+            tracker.on
+                .any(({ sql }) => sql.includes('WITH count_cte AS'))
+                .response({ rows: [{ count: '4' }] });
+            tracker.on
+                .select(({ sql }) => sql.includes('jsonb_object_agg'))
+                .response(rows);
+            tracker.on
+                .select(({ sql }) => sql.includes('catalog_search_tags'))
+                .response([
+                    {
+                        catalog_search_uuid: 'catalog-lifetime-value',
+                        tag_uuid: 'tag-certified',
+                        name: 'Certified',
+                        color: '#123456',
+                        yaml_reference: null,
+                    },
+                ]);
+
+            const result = await model.search({
+                projectUuid: MOCK_PROJECT_UUID,
+                catalogSearch: {},
+                tablesConfiguration: {
+                    tableSelection: {
+                        type: TableSelectionType.ALL,
+                        value: null,
+                    },
+                },
+                userAttributes: {},
+                paginateArgs: { page: 1, pageSize: 4 },
+                context: CatalogSearchContext.METRICS_EXPLORER,
+            });
+
+            expect(result.pagination).toEqual({
+                page: 1,
+                pageSize: 4,
+                totalPageCount: 1,
+                totalResults: 4,
+            });
+            expect(result.data.map(({ name }) => name)).toEqual([
+                'revenue',
+                'lifetime_value',
+                'orders',
+            ]);
+            expect(result.data[1]).toEqual(
+                expect.objectContaining({
+                    tableName: 'customers',
+                    tableLabel: 'Customers',
+                    tags: ['finance', 'customer'],
+                    categories: [
+                        {
+                            tagUuid: 'tag-certified',
+                            name: 'Certified',
+                            color: '#123456',
+                            yamlReference: null,
+                        },
+                    ],
+                    owner: {
+                        userUuid: MOCK_USER_UUID,
+                        firstName: 'Ada',
+                        lastName: 'Lovelace',
+                        email: 'ada@example.com',
+                    },
+                }),
+            );
+            expect(result.data[2]).toEqual(
+                expect.objectContaining({
+                    type: CatalogType.Table,
+                    tags: ['finance'],
+                    joinedTables: ['customers'],
+                }),
+            );
+        });
+
+        test('fails when a selected page references missing cache data', async () => {
+            tracker.on
+                .any(({ sql }) => sql.includes('WITH count_cte AS'))
+                .response({ rows: [{ count: '1' }] });
+            tracker.on
+                .select(({ sql }) => sql.includes('jsonb_object_agg'))
+                .response([
+                    {
+                        ...buildCatalogSearchRow(),
+                        __page_ordinal: '1',
+                        hydrated_explores: {},
+                    },
+                ]);
+            tracker.on
+                .select(({ sql }) => sql.includes('catalog_search_tags'))
+                .response([]);
+
+            await expect(
+                model.search({
+                    projectUuid: MOCK_PROJECT_UUID,
+                    catalogSearch: {},
+                    tablesConfiguration: {
+                        tableSelection: {
+                            type: TableSelectionType.ALL,
+                            value: null,
+                        },
+                    },
+                    userAttributes: {},
+                    paginateArgs: { page: 1, pageSize: 1 },
+                    context: CatalogSearchContext.METRICS_EXPLORER,
+                }),
+            ).rejects.toThrow(
+                'Explore not found for field revenue in table orders',
+            );
+        });
+
+        test('keeps filters and permissions inside page selection before hydration', async () => {
+            tracker.on
+                .any(({ sql }) => sql.includes('WITH count_cte AS'))
+                .response({ rows: [{ count: '0' }] });
+            tracker.on
+                .select(({ sql }) => sql.includes('jsonb_object_agg'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('catalog_search_tags'))
+                .response([]);
+
+            await model.search({
+                projectUuid: MOCK_PROJECT_UUID,
+                catalogSearch: {
+                    catalogTags: ['tag-certified'],
+                    catalogTagsFilterMode: CatalogCategoryFilterMode.AND,
+                    filter: CatalogFilter.Metrics,
+                    searchQuery: 'revenue',
+                    type: CatalogType.Field,
+                    tables: ['orders'],
+                    ownerUserUuids: [MOCK_USER_UUID],
+                },
+                tablesConfiguration: {
+                    tableSelection: {
+                        type: TableSelectionType.WITH_TAGS,
+                        value: ['finance'],
+                    },
+                },
+                userAttributes: { department: ['sales'] },
+                paginateArgs: { page: 2, pageSize: 5 },
+                sortArgs: { sort: 'name', order: 'desc' },
+                context: CatalogSearchContext.METRICS_EXPLORER,
+                tags: ['finance'],
+            });
+
+            const pageSql = tracker.history.select.find(({ sql }) =>
+                sql.includes('jsonb_object_agg'),
+            )?.sql;
+            expect(pageSql).toEqual(expect.any(String));
+            expect(pageSql).toContain('"selected_page" as materialized');
+            expect(pageSql).toContain('"selected_explore_ids" as');
+            expect(pageSql).toContain('jsonb_object_agg');
+            expect(pageSql).toContain('jsonb_array_elements_text');
+            expect(pageSql).toContain('"required_attributes"');
+            expect(pageSql).toContain('"any_attributes"');
+            expect(pageSql).toContain('"catalog_search".search_vector @@');
+            expect(pageSql).toContain('"catalog_search"."field_type" =');
+            expect(pageSql).toContain('"catalog_search"."table_name" in');
+            expect(pageSql).toContain('"catalog_search"."owner_user_uuid" in');
+            expect(pageSql).toContain(
+                'ROW_NUMBER() OVER (ORDER BY "filtered_catalog"."search_rank" desc, "filtered_catalog"."name" desc)',
+            );
+            expect(pageSql).toMatch(/limit \$\d+ offset \$\d+/);
+
+            const countSql = tracker.history.all.find(({ sql }) =>
+                sql.includes('WITH count_cte AS'),
+            )?.sql;
+            expect(countSql).toEqual(expect.any(String));
+            expect(countSql).not.toContain('search_rank');
+            expect(countSql).not.toContain('order by');
+            expect(tracker.history.all).toHaveLength(3);
+        });
+
+        test('normalizes malformed runtime sort directions before building SQL', async () => {
+            tracker.on
+                .any(({ sql }) => sql.includes('WITH count_cte AS'))
+                .response({ rows: [{ count: '0' }] });
+            tracker.on
+                .select(({ sql }) => sql.includes('jsonb_object_agg'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('catalog_search_tags'))
+                .response([]);
+
+            await model.search({
+                projectUuid: MOCK_PROJECT_UUID,
+                catalogSearch: {},
+                tablesConfiguration: {
+                    tableSelection: {
+                        type: TableSelectionType.ALL,
+                        value: null,
+                    },
+                },
+                userAttributes: {},
+                paginateArgs: { page: 1, pageSize: 10 },
+                sortArgs: {
+                    sort: 'name',
+                    order: 'desc; DROP TABLE users' as 'desc',
+                },
+                context: CatalogSearchContext.METRICS_EXPLORER,
+            });
+
+            const pageSql = tracker.history.select.find(({ sql }) =>
+                sql.includes('jsonb_object_agg'),
+            )?.sql;
+            expect(pageSql).toContain('"filtered_catalog"."name" asc');
+            expect(pageSql).not.toContain('DROP TABLE');
+        });
+
+        test.each([
+            ['name', 'name'],
+            ['label', 'label'],
+            ['description', 'description'],
+            ['type', 'type'],
+            ['chartUsage', 'chart_usage'],
+            ['requiredAttributes', 'required_attributes'],
+            ['anyAttributes', 'any_attributes'],
+            ['catalogSearchUuid', 'catalog_search_uuid'],
+            ['aiHints', 'ai_hints'],
+            ['icon', 'icon'],
+            ['tableLabel', 'table_name'],
+            ['owner', 'owner_user_uuid'],
+        ])(
+            'orders by mapped %s through the outer page alias',
+            async (sort, column) => {
+                tracker.on
+                    .any(({ sql }) => sql.includes('WITH count_cte AS'))
+                    .response({ rows: [{ count: '0' }] });
+                tracker.on
+                    .select(({ sql }) => sql.includes('jsonb_object_agg'))
+                    .response([]);
+                tracker.on
+                    .select(({ sql }) => sql.includes('catalog_search_tags'))
+                    .response([]);
+
+                await model.search({
+                    projectUuid: MOCK_PROJECT_UUID,
+                    catalogSearch: {},
+                    tablesConfiguration: {
+                        tableSelection: {
+                            type: TableSelectionType.ALL,
+                            value: null,
+                        },
+                    },
+                    userAttributes: {},
+                    paginateArgs: { page: 1, pageSize: 10 },
+                    sortArgs: { sort, order: 'desc' },
+                    context: CatalogSearchContext.METRICS_EXPLORER,
+                });
+
+                const pageSql = tracker.history.select.find(({ sql }) =>
+                    sql.includes('jsonb_object_agg'),
+                )?.sql;
+                expect(pageSql).toContain(
+                    `"filtered_catalog"."${column}" desc`,
+                );
+            },
+        );
     });
 
     describe('createMetricsTree', () => {
