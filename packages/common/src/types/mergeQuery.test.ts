@@ -6,10 +6,13 @@ import {
     MergeJoinType,
     MergeQueryErrorKind,
     parseSavedMergeQuery,
+    resolveMergeSorts,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
+    toMergedSorts,
     validateMergeQuery,
     type MergeQuery,
     type MergeQuerySource,
+    type SavedMergeQuery,
 } from './mergeQuery';
 import { type MetricQuery } from './metricQuery';
 import { TimeFrames } from './timeFrames';
@@ -542,5 +545,100 @@ describe('getMergeCompiledSqlText', () => {
 
     it('is null when the merge did not compile', () => {
         expect(getMergeCompiledSqlText({ legs: [], sql: null })).toBeNull();
+    });
+});
+
+describe('merge sorts', () => {
+    const joinKey = [
+        {
+            name: 'join_key_0',
+            fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
+        },
+    ];
+    const primary = metricQuery(
+        'orders',
+        ['orders_month', 'orders_status'],
+        ['orders_total'],
+    );
+
+    // The Explorer's sort state belongs to the primary query, so a sort set
+    // before merging names a primary field; the merged result knows that
+    // field by its source-prefixed id, or as the join key column.
+    it('maps a primary field sort to its merged column, and a key sort to the join key column', () => {
+        expect(
+            toMergedSorts({
+                sorts: [
+                    { fieldId: 'orders_total', descending: true },
+                    { fieldId: 'orders_month', descending: false },
+                ],
+                primarySourceId: 'a',
+                primaryMetricQuery: primary,
+                joinKey,
+            }),
+        ).toEqual([
+            { fieldId: 'a_orders_total', descending: true },
+            { fieldId: 'merge_join_key_0', descending: false },
+        ]);
+    });
+
+    it('passes a sort set on the merged table through unchanged', () => {
+        expect(
+            toMergedSorts({
+                sorts: [{ fieldId: 'b_payments_count', descending: true }],
+                primarySourceId: 'a',
+                primaryMetricQuery: primary,
+                joinKey,
+            }),
+        ).toEqual([{ fieldId: 'b_payments_count', descending: true }]);
+    });
+
+    it('keeps only the sorts the merged result can honour', () => {
+        expect(
+            resolveMergeSorts(
+                [
+                    { fieldId: 'a_orders_total', descending: true },
+                    { fieldId: 'gone', descending: false },
+                ],
+                ['merge_join_key_0', 'a_orders_total'],
+            ),
+        ).toEqual([{ fieldId: 'a_orders_total', descending: true }]);
+        expect(resolveMergeSorts(undefined, ['a_orders_total'])).toEqual([]);
+    });
+
+    it('carries a saved chart sort onto the rebuilt merge', () => {
+        const saved: SavedMergeQuery = {
+            primarySourceId: 'orders',
+            sources: [
+                { id: 'orders', kind: 'chart' },
+                {
+                    id: 'payments',
+                    kind: 'query',
+                    metricQuery: metricQuery(
+                        'payments',
+                        ['payments_month'],
+                        ['payments_count'],
+                    ),
+                },
+            ],
+            joinKey: [
+                {
+                    name: 'month',
+                    fieldIdBySourceId: {
+                        orders: 'orders_month',
+                        payments: 'payments_month',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.LEFT,
+            tableCalculations: [],
+        };
+        const chart = {
+            ...metricQuery('orders', ['orders_month'], ['orders_total']),
+            sorts: [{ fieldId: 'orders_total', descending: true }],
+        };
+
+        expect(buildMergeQueryFromSaved(chart, saved).sorts).toEqual([
+            { fieldId: 'orders_orders_total', descending: true },
+        ]);
     });
 });

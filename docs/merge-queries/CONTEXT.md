@@ -49,6 +49,15 @@ sources. Distinct from a source's own table calculations, which are evaluated
 before the join.
 _Avoid_: post-join calculation, combined calculation
 
+**Merged sort**:
+The ordering of the merged result, by merged field id, applied once on the
+merged statement. A leg never sorts: a sorted leg under the row cap would
+contribute only its top rows and the join would look complete. The Explorer's
+sort state belongs to the primary query, so a sort it set before the merge is
+mapped to that field's merged column. A sort naming a field the merged result
+does not carry is dropped, not refused, as a single query drops it.
+_Avoid_: leg sort, source order
+
 **Fan-out**:
 The failure mode where a source carries a dimension that is neither joined on
 nor pivoted, so its rows multiply across the join and its metrics are counted
@@ -107,9 +116,10 @@ filters as WHERE, metric filters as HAVING), so a join-key filter reaches both
 sides and the join stays aligned; a filter no source has is dropped as it is
 for any tile, except one that names a merged output column, which is refused
 because the merge has no post-join filter stage. The tile echo attributes the
-applied filters per source. Dashboard sorts and date zoom are left unapplied
-on merged tiles: a merge carries no sort input and a grain cannot be applied
-to one side only without misaligning the join.
+applied filters per source. The chart's own sort rides on the merge as its
+merged sort. Dashboard sort overrides and date zoom are left unapplied on
+merged tiles: the override has no merge-level input yet, and a grain cannot
+be applied to one side only without misaligning the join.
 
 ## Related
 

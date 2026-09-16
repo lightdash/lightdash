@@ -329,8 +329,7 @@ describe('MergeQueryBuilder', () => {
                     joinKeyNames: ['date_day'],
                     joinType: MergeJoinType.FULL,
                     warehouseSqlBuilder: mockWarehouseSqlBuilder,
-                    sorts,
-                }).toSql(),
+                }).toSql(undefined, sorts),
             );
 
         it('orders by the join key when no sort is asked for', () => {
@@ -377,8 +376,7 @@ describe('MergeQueryBuilder', () => {
                             sql: '${a.new_organic} / ${b.total_followers}',
                         },
                     ],
-                    sorts: [{ column: 'ratio', descending: true }],
-                }).toSql(),
+                }).toSql(undefined, [{ column: 'ratio', descending: true }]),
             );
 
             expect(sql).toContain('AS merged_result ORDER BY "ratio" DESC');

@@ -6403,6 +6403,42 @@ describe('ProjectService', () => {
             );
         });
 
+        // Sorts name merged fields: a second-source value column and the join
+        // key column here. A sort the Explorer left behind on a primary field
+        // id is not a merged field and is dropped, never refused.
+        test('orders the merged result by merged fields and drops sorts it cannot honour', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    sorts: [
+                        { fieldId: 'b_a_met1', descending: true },
+                        { fieldId: 'merge_dim1', descending: false },
+                        { fieldId: 'a_met1', descending: true },
+                    ],
+                }),
+            });
+
+            expect(result.errors).toEqual([]);
+            expect(result.terminalWrapper?.orderBy).toEqual([
+                '"b_a_met1" DESC',
+                '"merge_dim1"',
+            ]);
+            expect(result.sql).toContain(
+                'ORDER BY "b_a_met1" DESC, "merge_dim1"',
+            );
+        });
+
+        test('orders by the join key when the merge carries no sort', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery(),
+            });
+
+            expect(result.terminalWrapper?.orderBy).toEqual(['"merge_dim1"']);
+        });
+
         describe('merge calculation SQL authorization', () => {
             const withAbility = (
                 rules: ConstructorParameters<

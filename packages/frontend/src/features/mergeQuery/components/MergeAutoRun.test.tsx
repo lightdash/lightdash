@@ -1,20 +1,33 @@
-import { MergeQueryErrorKind, type MergeQueryError } from '@lightdash/common';
+import {
+    MergeQueryErrorKind,
+    type MergeQueryError,
+    type SortField,
+} from '@lightdash/common';
 import { render } from '@testing-library/react';
 import { MergeAutoRun } from './MergeAutoRun';
 
 type FanOut = { sourceId: string; fields: string[] };
 
+type MergeResultsStub = {
+    queryUuid: string;
+    columnOrder: string[];
+    metricQuery: { sorts: SortField[] };
+};
+
 const state = vi.hoisted(() => ({
     merge: {
         wasRestored: true,
         isRunning: false,
-        mergeResults: null as { queryUuid: string } | null,
+        mergeResults: null as MergeResultsStub | null,
         refuseRestoredRun: vi.fn(),
     },
     setup: {
         canRun: true,
         handleRun: vi.fn(),
-        mergeQuery: { sources: [] } as { sources: unknown[] } | null,
+        mergeQuery: { sources: [], sorts: [] } as {
+            sources: unknown[];
+            sorts: SortField[];
+        } | null,
         setupStep: null as string | null,
         joinKeyErrors: [] as MergeQueryError[],
         fanOut: [] as FanOut[],
@@ -40,7 +53,7 @@ describe('MergeAutoRun', () => {
         state.merge.isRunning = false;
         state.merge.mergeResults = null;
         state.setup.canRun = true;
-        state.setup.mergeQuery = { sources: [] };
+        state.setup.mergeQuery = { sources: [], sorts: [] };
         state.setup.setupStep = null;
         state.setup.joinKeyErrors = [];
         state.setup.fanOut = [];
@@ -100,5 +113,70 @@ describe('MergeAutoRun', () => {
 
         expect(state.merge.refuseRestoredRun).not.toHaveBeenCalled();
         expect(state.setup.handleRun).not.toHaveBeenCalled();
+    });
+
+    describe('a sort changed after the merge ran', () => {
+        const ranBy = (sorts: SortField[]): MergeResultsStub => ({
+            queryUuid: 'q1',
+            columnOrder: ['merge_join_key_0', 'b_payments_count'],
+            metricQuery: { sorts },
+        });
+
+        beforeEach(() => {
+            state.merge.wasRestored = false;
+        });
+
+        it('re-runs the merge with the new sort', () => {
+            state.merge.mergeResults = ranBy([]);
+            state.setup.mergeQuery = {
+                sources: [],
+                sorts: [{ fieldId: 'b_payments_count', descending: true }],
+            };
+
+            render(<MergeAutoRun />);
+
+            expect(state.setup.handleRun).toHaveBeenCalledTimes(1);
+        });
+
+        it('stays put once the result reports the wanted sort', () => {
+            state.merge.mergeResults = ranBy([
+                { fieldId: 'b_payments_count', descending: true },
+            ]);
+            state.setup.mergeQuery = {
+                sources: [],
+                sorts: [{ fieldId: 'b_payments_count', descending: true }],
+            };
+
+            render(<MergeAutoRun />);
+
+            expect(state.setup.handleRun).not.toHaveBeenCalled();
+        });
+
+        // A sort on a field the merged result does not carry is dropped by the
+        // run, so it must not keep asking for a run that can never satisfy it.
+        it('ignores a sort the merged result cannot honour', () => {
+            state.merge.mergeResults = ranBy([]);
+            state.setup.mergeQuery = {
+                sources: [],
+                sorts: [{ fieldId: 'orders_total', descending: true }],
+            };
+
+            render(<MergeAutoRun />);
+
+            expect(state.setup.handleRun).not.toHaveBeenCalled();
+        });
+
+        it('waits for the current run before re-running', () => {
+            state.merge.isRunning = true;
+            state.merge.mergeResults = ranBy([]);
+            state.setup.mergeQuery = {
+                sources: [],
+                sorts: [{ fieldId: 'b_payments_count', descending: true }],
+            };
+
+            render(<MergeAutoRun />);
+
+            expect(state.setup.handleRun).not.toHaveBeenCalled();
+        });
     });
 });

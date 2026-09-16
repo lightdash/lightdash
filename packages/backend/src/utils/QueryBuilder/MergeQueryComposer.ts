@@ -9,6 +9,7 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
     type PivotConfiguration,
+    type SortField,
     type WarehouseClient,
 } from '@lightdash/common';
 import { applyMergeTerminalWrapper } from './MergeQueryBuilder';
@@ -25,6 +26,8 @@ export type MergeQueryComposerArguments = {
     typedColumns: MergeTypedColumn[];
     /** Field ids the merged result carries, in the order it returns them. */
     columnOrder: string[];
+    /** Sort of the merged result, by merged field id. */
+    sorts: SortField[];
     limit: number;
     parameterReferences: string[];
     usedParametersValues: ParametersValuesMap;
@@ -43,10 +46,12 @@ export type MergeQueryComposerArguments = {
 export const buildMergeResultMetricQuery = ({
     itemsMap,
     columnOrder,
+    sorts,
     limit,
 }: {
     itemsMap: ItemsMap;
     columnOrder: string[];
+    sorts: SortField[];
     limit: number;
 }): MetricQuery => {
     const dimensions = columnOrder.filter((fieldId) => {
@@ -59,7 +64,7 @@ export const buildMergeResultMetricQuery = ({
         dimensions,
         metrics: columnOrder.filter((fieldId) => !dimensions.includes(fieldId)),
         filters: {},
-        sorts: [],
+        sorts,
         limit,
         tableCalculations: [],
     };
@@ -100,6 +105,7 @@ export class MergeQueryComposer extends QueryComposer {
             itemsMap,
             typedColumns,
             columnOrder,
+            sorts,
             limit,
             parameterReferences,
             usedParametersValues,
@@ -112,6 +118,7 @@ export class MergeQueryComposer extends QueryComposer {
                 metricQuery: buildMergeResultMetricQuery({
                     itemsMap,
                     columnOrder,
+                    sorts,
                     limit,
                 }),
                 pivotConfiguration,
