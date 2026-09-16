@@ -1,3 +1,10 @@
+# [2.228.0](https://github.com/lightdash/lightdash/compare/2.227.0...2.228.0) (2026-09-16)
+
+
+### Features
+
+* expose data app usage events in analytics projects ([#29316](https://github.com/lightdash/lightdash/issues/29316)) ([49aadf8](https://github.com/lightdash/lightdash/commit/49aadf8b8bcc71f257265c50afe14cd53bd9c84e))
+
 # [2.227.0](https://github.com/lightdash/lightdash/compare/2.226.2...2.227.0) (2026-09-16)
 
 
