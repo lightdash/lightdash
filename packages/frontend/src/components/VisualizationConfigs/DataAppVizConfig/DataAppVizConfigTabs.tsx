@@ -235,6 +235,11 @@ export const ConfigTabs: FC = memo(() => {
 
         const settings = (
             <Stack>
+                {dataAppViz?.schema?.inputGuidance && (
+                    <Text fz="xs" c="dimmed" lh={1.5}>
+                        {dataAppViz.schema.inputGuidance}
+                    </Text>
+                )}
                 {unboundRequired.length > 0 && (
                     <Text fz="xs" c="dimmed">
                         Select{' '}

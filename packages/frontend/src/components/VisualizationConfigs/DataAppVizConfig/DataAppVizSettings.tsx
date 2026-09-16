@@ -16,6 +16,7 @@ import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getD
 import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
+import DataAppVizFieldGuidance from './DataAppVizFieldGuidance';
 
 type Props = {
     itemsMap: ItemsMap;
@@ -84,6 +85,10 @@ const DataAppVizSettings: FC<Props> = ({
                     <Config key={field.name}>
                         <Config.Section>
                             <Config.Heading>{field.label}</Config.Heading>
+                            <DataAppVizFieldGuidance
+                                field={field}
+                                showMappingHint={!selectedId}
+                            />
                             <FieldSelect
                                 size="xs"
                                 // A disabled, empty select says nothing on its

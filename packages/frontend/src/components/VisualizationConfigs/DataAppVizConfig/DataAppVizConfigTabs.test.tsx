@@ -224,7 +224,14 @@ const tableCalculation: TableCalculation = {
 };
 
 const declaredFields: DataAppVizField[] = [
-    { name: 'source', label: 'Source', type: 'dimension', required: true },
+    {
+        name: 'source',
+        label: 'Source',
+        type: 'dimension',
+        required: true,
+        description: 'The label for each funnel stage',
+        examples: ['Listing started', 'Price entered'],
+    },
     { name: 'value', label: 'Value', type: 'metric', required: true },
 ];
 
@@ -250,6 +257,7 @@ const mockSchema = (
     configOptions: DataAppVizConfigOption[],
     colorPalette: DataAppVizPaletteDeclaration | null = null,
     viz: Partial<DataAppViz> = {},
+    inputGuidance?: string,
 ) => {
     vi.mocked(useDataAppVisualization).mockReturnValue({
         data: {
@@ -258,7 +266,12 @@ const mockSchema = (
             description: '',
             spaceUuid: null,
             createdByUserUuid: MOCK_USER_UUID,
-            schema: { fields: declaredFields, configOptions, colorPalette },
+            schema: {
+                fields: declaredFields,
+                configOptions,
+                colorPalette,
+                inputGuidance,
+            },
             ...viz,
         },
     } as unknown as ReturnType<typeof useDataAppVisualization>);
@@ -815,6 +828,33 @@ describe('DataAppVizConfigTabs', () => {
                 'Select fields for “Source” and “Value” to display your chart.',
             ),
         ).toBeInTheDocument();
+    });
+
+    it('shows reusable row-shape guidance and field help beside mappings', () => {
+        mockContext({}, 'data-app-viz-uuid', {}, {});
+        mockSchema(
+            [],
+            null,
+            {},
+            'Use one row per stage in order; reshape the query when it returns a different row shape.',
+        );
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            screen.getByText(
+                'Use one row per stage in order; reshape the query when it returns a different row shape.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('The label for each funnel stage'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Examples: Listing started, Price entered'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getAllByText('Map this required field to continue.'),
+        ).toHaveLength(2);
     });
 
     it('clearly distinguishes a field named To from the instruction', () => {

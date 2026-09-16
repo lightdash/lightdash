@@ -5,9 +5,14 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type DataAppVizField,
+    type DataAppVizSchema,
     type ItemsMap,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import {
+    buildTestMetricQuery,
+    isMappingComplete,
+} from '../components/dataAppVizTestQuery';
 import {
     autoMapDataAppVizFields,
     getUnboundRequiredDataAppVizFields,
@@ -48,6 +53,31 @@ const field = (
     type: DataAppVizField['type'],
     required = true,
 ): DataAppVizField => ({ name, label: name, type, required });
+
+const funnelSchema: DataAppVizSchema = {
+    fields: [
+        {
+            name: 'step',
+            label: 'Step',
+            type: 'dimension',
+            required: true,
+            description: 'The label for each funnel stage.',
+            examples: ['Listing started', 'Price entered'],
+        },
+        {
+            name: 'count',
+            label: 'Count',
+            type: 'metric',
+            required: true,
+            description: 'The number that reached the stage.',
+            examples: [120, 83],
+        },
+    ],
+    configOptions: [],
+    colorPalette: null,
+    inputGuidance:
+        'Use one row per stage in the intended order. Reshape separate metrics or boolean flags into stage/count rows before mapping.',
+};
 
 describe('autoMapDataAppVizFields', () => {
     it('binds nothing when the contract declares no slots', () => {
@@ -303,5 +333,74 @@ describe('getUnboundRequiredDataAppVizFields', () => {
             fields[0],
             fields[1],
         ]);
+    });
+});
+
+describe('representative funnel query shapes', () => {
+    it('leaves Step unbound for separate stage measures and directs the required-field recovery', () => {
+        const mapping = autoMapDataAppVizFields(
+            funnelSchema.fields,
+            itemsMap(metric('listing_started'), metric('price_entered')),
+        );
+
+        expect(mapping).toEqual({ count: 'orders_listing_started' });
+        expect(isMappingComplete(funnelSchema, mapping)).toBe(false);
+        expect(
+            getUnboundRequiredDataAppVizFields(
+                funnelSchema.fields,
+                mapping,
+            ).map((field) => field.label),
+        ).toEqual(['Step']);
+        expect(funnelSchema.inputGuidance).toContain(
+            'Reshape separate metrics or boolean flags into stage/count rows',
+        );
+    });
+
+    it('can map a boolean stage flag without claiming that the field has funnel semantics', () => {
+        const booleanFlag = {
+            ...dimension('reached_price'),
+            type: DimensionType.BOOLEAN,
+        };
+        const mapping = autoMapDataAppVizFields(
+            funnelSchema.fields,
+            itemsMap(booleanFlag, metric('count')),
+        );
+
+        expect(mapping).toEqual({
+            step: 'orders_reached_price',
+            count: 'orders_count',
+        });
+        expect(isMappingComplete(funnelSchema, mapping)).toBe(true);
+        expect(funnelSchema.inputGuidance).toContain('boolean flags');
+    });
+
+    it('maps a reshaped stage/count query and keeps the same help for different field ids', () => {
+        const firstMapping = autoMapDataAppVizFields(
+            funnelSchema.fields,
+            itemsMap(dimension('stage'), metric('count')),
+        );
+        const reshapedMapping = autoMapDataAppVizFields(
+            funnelSchema.fields,
+            itemsMap(dimension('funnel_stage'), metric('funnel_count')),
+        );
+
+        expect(isMappingComplete(funnelSchema, reshapedMapping)).toBe(true);
+        expect(
+            getUnboundRequiredDataAppVizFields(
+                funnelSchema.fields,
+                reshapedMapping,
+            ),
+        ).toEqual([]);
+        expect(
+            buildTestMetricQuery('orders', funnelSchema, reshapedMapping),
+        ).toMatchObject({
+            dimensions: ['orders_funnel_stage'],
+            metrics: ['orders_funnel_count'],
+        });
+        expect(firstMapping).toEqual({
+            step: 'orders_stage',
+            count: 'orders_count',
+        });
+        expect(funnelSchema.inputGuidance).toContain('one row per stage');
     });
 });

@@ -811,6 +811,10 @@ export type DataAppVizField = {
     label: string;
     type: DataAppVizFieldType;
     required: boolean;
+    /** Explain what belongs in this slot for a reusable visualization. */
+    description?: string;
+    /** Scalar display examples for this slot, independent of any one query. */
+    examples?: Array<string | number | boolean | null>;
 };
 
 /** The full declaration a data app viz emits: data-binding fields + config form. */
@@ -819,10 +823,28 @@ export type DataAppVizSchema = {
     configOptions: DataAppVizConfigOption[];
     /** Null when the viz colours nothing from the resolved palette. */
     colorPalette: DataAppVizPaletteDeclaration | null;
+    /** Explains the row shape, ordering, and recovery needed to use this viz. */
+    inputGuidance?: string;
 };
 
 const uniqueNames = <T extends { name: string }>(arr: T[]): boolean =>
     new Set(arr.map((a) => a.name)).size === arr.length;
+
+const nullableOptionalString = z
+    .string()
+    .nullable()
+    .transform((value) => value ?? undefined)
+    .optional();
+
+const nullableOptionalFieldExamples = z
+    .array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
+    .nullable()
+    .transform((value) => value ?? undefined)
+    .optional();
+
+const vizInputGuidance = nullableOptionalString.describe(
+    'Optional reusable guidance describing the expected row grain, ordering where relevant, and a concrete recovery when the query shape differs.',
+);
 
 const optionBase = {
     name: z
@@ -866,6 +888,12 @@ const vizFields = z
                 .describe(
                     'false only when the chart still renders with this field unmapped.',
                 ),
+            description: nullableOptionalString.describe(
+                'Optional reusable explanation of what this field represents and how to choose it.',
+            ),
+            examples: nullableOptionalFieldExamples.describe(
+                'Optional scalar display examples for this field. Each value stands alone; do not provide paired rows or query fixtures.',
+            ),
         }),
     )
     .describe(
@@ -960,6 +988,7 @@ export const dataAppVizSchema = z.object({
         .default([])
         .refine(uniqueNames, 'duplicate option name'),
     colorPalette: vizColorPalette.default(null),
+    inputGuidance: vizInputGuidance,
 });
 
 // The stricter contract handed to the generator CLI: `configOptions` and
@@ -973,6 +1002,7 @@ export const dataAppVizGenerationSchema = z.object({
             'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
         ),
     colorPalette: vizColorPalette,
+    inputGuidance: vizInputGuidance,
 });
 
 // Compile-time guard: the zod schema's output type must match the explicit

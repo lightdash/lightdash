@@ -92,12 +92,21 @@ import { useQueryExecutor } from '../../../providers/Explorer/useQueryExecutor';
 
 const schema: DataAppVizSchema = {
     fields: [
-        { name: 'source', label: 'Source', type: 'dimension', required: true },
+        {
+            name: 'source',
+            label: 'Source',
+            type: 'dimension',
+            required: true,
+            description: 'The label for each funnel stage',
+            examples: ['Listing started', 0, false, null],
+        },
         { name: 'target', label: 'Target', type: 'series', required: false },
         { name: 'value', label: 'Value', type: 'metric', required: true },
     ],
     configOptions: [],
     colorPalette: null,
+    inputGuidance:
+        'Use one row per stage in order. Reshape separate metrics or flags into stage/count rows before mapping.',
 };
 
 const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({
@@ -334,6 +343,28 @@ describe('DataAppVizTestPanel', () => {
         // Declared fields are visible before an explore is chosen.
         expect(screen.getByText('Source')).toBeInTheDocument();
         expect(screen.getByText('Value')).toBeInTheDocument();
+    });
+
+    it('explains the expected row shape and field examples before mapping', () => {
+        renderWithProviders(
+            <TestDataAppVizPanel
+                projectUuid="p1"
+                schema={schema}
+                onContextChange={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.getByText(
+                'Use one row per stage in order. Reshape separate metrics or flags into stage/count rows before mapping.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('The label for each funnel stage'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Examples: Listing started, 0, false, null'),
+        ).toBeInTheDocument();
     });
 
     it('requests the same filtered Explore list as Explorer', () => {

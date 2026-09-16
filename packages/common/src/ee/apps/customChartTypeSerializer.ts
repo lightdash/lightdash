@@ -109,12 +109,25 @@ export const serializeCustomChartTypeSchema = (
     if (type.description) {
         lines.push(`description: ${type.description}`);
     }
+    if (type.schema.inputGuidance) {
+        lines.push(`inputGuidance: ${type.schema.inputGuidance}`);
+    }
     lines.push('fields:');
     for (const field of type.schema.fields) {
+        const details = [
+            field.description ? `description: ${field.description}` : null,
+            field.examples
+                ? `examples: ${field.examples
+                      .map((example) => JSON.stringify(example))
+                      .join(' | ')}`
+                : null,
+        ]
+            .filter((detail): detail is string => detail !== null)
+            .join(', ');
         lines.push(
             `- ${field.name} "${field.label}" (${field.type}, ${
                 field.required ? 'required' : 'optional'
-            })`,
+            })${details ? ` — ${details}` : ''}`,
         );
     }
     if (type.schema.configOptions.length === 0) {

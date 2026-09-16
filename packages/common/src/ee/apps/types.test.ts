@@ -48,6 +48,32 @@ describe('dataAppVizSchema', () => {
         expect(dataAppVizSchema.safeParse({ fields: [] }).success).toBe(true);
     });
 
+    it('persists optional field help while keeping legacy declarations valid', () => {
+        const parsed = dataAppVizSchema.parse({
+            fields: [
+                {
+                    name: 'stage',
+                    label: 'Stage',
+                    type: 'dimension',
+                    required: true,
+                    description: 'The label for each stage.',
+                    examples: ['Listing started', 0, false, null],
+                },
+            ],
+            inputGuidance:
+                'Use one row per stage in order; reshape the query when it returns a different row shape.',
+        });
+
+        expect(parsed.fields[0]).toMatchObject({
+            description: 'The label for each stage.',
+            examples: ['Listing started', 0, false, null],
+        });
+        expect(parsed.inputGuidance).toContain('one row per stage');
+        const legacy = dataAppVizSchema.parse(validFields);
+        expect(legacy).not.toHaveProperty('inputGuidance');
+        expect(legacy.fields[0]).not.toHaveProperty('description');
+    });
+
     it('rejects non-object / nullish values', () => {
         expect(dataAppVizSchema.safeParse(null).success).toBe(false);
         expect(dataAppVizSchema.safeParse(undefined).success).toBe(false);
@@ -439,11 +465,17 @@ describe('dataAppVizGenerationSchema', () => {
                     },
                 ],
                 colorPalette: { group: null },
+                inputGuidance: null,
+                fields: validFields.fields.map((field) => ({
+                    ...field,
+                    description: null,
+                    examples: null,
+                })),
             }),
         ).toEqual({
             success: true,
             data: {
-                ...validFields,
+                fields: validFields.fields,
                 configOptions: [
                     {
                         name: 'barWidth',

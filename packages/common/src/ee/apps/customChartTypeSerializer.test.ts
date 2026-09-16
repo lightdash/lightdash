@@ -16,12 +16,16 @@ const cohortWaterfall: CustomChartType = {
                 label: 'Cohort period',
                 type: 'dimension',
                 required: true,
+                description: 'The stage label for each funnel row',
+                examples: ['Listing started', 'Price entered'],
             },
             {
                 name: 'revenue',
                 label: 'Revenue',
                 type: 'metric',
                 required: true,
+                description: 'The number at that stage',
+                examples: [120, 83],
             },
             {
                 name: 'segment',
@@ -72,6 +76,8 @@ const cohortWaterfall: CustomChartType = {
             },
         ],
         colorPalette: null,
+        inputGuidance:
+            'Use one row per stage in the intended order. Reshape separate metrics or flags into stage/count rows before mapping.',
     },
 };
 
@@ -135,9 +141,10 @@ describe('serializeCustomChartTypeSchema', () => {
                 'name: Cohort Waterfall',
                 'slug: cohort-waterfall',
                 'description: Retention by signup cohort',
+                'inputGuidance: Use one row per stage in the intended order. Reshape separate metrics or flags into stage/count rows before mapping.',
                 'fields:',
-                '- cohort_period "Cohort period" (dimension, required)',
-                '- revenue "Revenue" (metric, required)',
+                '- cohort_period "Cohort period" (dimension, required) — description: The stage label for each funnel row, examples: "Listing started" | "Price entered"',
+                '- revenue "Revenue" (metric, required) — description: The number at that stage, examples: 120 | 83',
                 '- segment "Segment" (series, optional)',
                 'configOptions:',
                 '- show_labels "Show labels" [boolean] default: true',

@@ -2,6 +2,7 @@ import { getItemId, type DataAppVizSchema } from '@lightdash/common';
 import { Group, Select, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
+import DataAppVizFieldGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
 import { type DataAppVizTestContextState } from '../hooks/useDataAppVizTestContext';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
 
@@ -25,6 +26,11 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
 
     return (
         <Stack gap="xs">
+            {schema.inputGuidance && (
+                <Text size="xs" c="dimmed" lh={1.4}>
+                    {schema.inputGuidance}
+                </Text>
+            )}
             <Select
                 size="xs"
                 label="Test with data"
@@ -51,6 +57,10 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                 </Text>
                                 <DataAppVizFieldTypeBadge type={field.type} />
                             </Group>
+                            <DataAppVizFieldGuidance
+                                field={field}
+                                showMappingHint={!selectedId}
+                            />
                             {exploreName && (
                                 <FieldSelect
                                     size="xs"
