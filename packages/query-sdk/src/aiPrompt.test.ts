@@ -6,14 +6,7 @@ import {
     peekHostContext,
     resetHostContext,
 } from './hostContext';
-import type { QueryResult } from './types';
-
-const result = (queryUuid?: string): QueryResult => ({
-    rows: [],
-    columns: [],
-    format: () => '',
-    queryUuid,
-});
+const result = (queryUuid: string | null) => ({ queryUuid });
 
 describe('buildAiPromptRequest', () => {
     it('keeps only sources with a query uuid and stringifies the focus row', () => {
@@ -22,7 +15,7 @@ describe('buildAiPromptRequest', () => {
                 prompt: 'Why did returns spike?',
                 sources: [
                     { result: result('q1'), label: 'Orders' },
-                    { result: result(undefined) },
+                    { result: result(null) },
                     { result: null },
                     { result: result('q2') },
                 ],
@@ -43,7 +36,7 @@ describe('buildAiPromptRequest', () => {
         expect(() =>
             buildAiPromptRequest('app-1', {
                 prompt: 'x',
-                sources: [{ result: result(undefined) }],
+                sources: [{ result: result(null) }],
             }),
         ).toThrow(/at least one loaded/);
     });

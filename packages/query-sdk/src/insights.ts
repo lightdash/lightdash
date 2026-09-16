@@ -246,9 +246,6 @@ const getStore = (): InsightsStore => {
 
 let hostWindow: Window | null = null;
 let activeCleanup: (() => void) | null = null;
-// Set once the host has pushed any analysis payload. A host that never does
-// (embeds, dashboard tiles, old hosts) is not wired for runtime AI at all.
-let hostPayloadReceived = false;
 
 /**
  * Listen for the host's analysis and ask for the current one now. Called by
@@ -273,10 +270,7 @@ export function mountInsights(targetWindow: Window): () => void {
         }
         if (data?.type !== INSIGHTS_MESSAGE) return;
         const payload = parseInsightsPayload(data.payload);
-        if (payload) {
-            hostPayloadReceived = true;
-            store.set(payload);
-        }
+        if (payload) store.set(payload);
     };
 
     window.addEventListener('message', handler);
@@ -395,14 +389,14 @@ function useInsightsPayload(): InsightsPayload {
 }
 
 /**
- * Whether the host has AI turned on for this app: it pushed an analysis
- * payload and that payload is not `unavailable`.
+ * Whether the host has AI turned on for this app. The store starts
+ * `unavailable` and only a host push can change that.
  */
 export function useHostAiAvailable(): boolean {
     const store = getStore();
     return useSyncExternalStore(
         store.subscribe,
-        () => hostPayloadReceived && store.get().status !== 'unavailable',
+        () => store.get().status !== 'unavailable',
         () => false,
     );
 }
@@ -483,7 +477,7 @@ export function peekInsights(): InsightsPayload {
 }
 
 export function peekHostAiAvailable(): boolean {
-    return hostPayloadReceived && getStore().get().status !== 'unavailable';
+    return getStore().get().status !== 'unavailable';
 }
 
 /** Test-only seam. */
@@ -491,7 +485,6 @@ export function resetInsightsState(): void {
     activeCleanup?.();
     sharedStore = null;
     hostWindow = null;
-    hostPayloadReceived = false;
     mounted.clear();
     flushScheduled = false;
 }

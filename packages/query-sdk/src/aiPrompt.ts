@@ -8,16 +8,12 @@ import { useCallback, useState } from 'react';
 import { useHostAppUuid } from './hostContext';
 import { useHostAiAvailable } from './insights';
 import { useTransport } from './LightdashProvider';
-import type {
-    AiPromptRequest,
-    AiPromptResult,
-    QueryResult,
-    Row,
-} from './types';
+import type { AiPromptRequest, AiPromptResult, Row } from './types';
 
 export type AiPromptSource = {
-    /** A `useLightdash` result (its `data`); null while still loading. */
-    result: Pick<QueryResult, 'queryUuid'> | null;
+    /** A `useLightdash` result (or any object carrying its `queryUuid`);
+     *  entries without a query uuid yet are skipped. */
+    result: { queryUuid?: string | null } | null;
     /** Shown to the model as the section title; defaults to "Query N". */
     label?: string;
 };

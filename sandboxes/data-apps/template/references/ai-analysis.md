@@ -209,10 +209,10 @@ Never open a dialog for the investigation yourself; the app renders state, Light
 import { useAiPrompt, useLightdash } from '@lightdash/query-sdk';
 
 function RevenueTakeaway() {
-    const { data: revenue } = useLightdash(revenueByMonth);
+    const revenue = useLightdash(revenueByMonth);
     const ai = useAiPrompt();
 
-    if (!ai.available || !revenue) return null;
+    if (!ai.available || revenue.loading) return null;
 
     return (
         <div>
@@ -234,7 +234,7 @@ function RevenueTakeaway() {
 }
 ```
 
-- `sources` are `useLightdash` results (with an optional `label` the model sees as the section title). Only these rows reach the model; Lightdash reads them from the viewer's own query history, so the app sends no data.
+- `sources` are whole `useLightdash` results, passed as `{ result, label? }` (the `label` is the section title the model sees). Only these rows reach the model; Lightdash reads them from the viewer's own query history, so the app sends no data.
 - `focus: { row }` narrows the question to one row of a source, for example from a clicked data point: `ai.ask({ prompt: 'Why is this month unusual?', sources: [{ result: revenue }], focus: { row } })`.
 - `available` is false outside a Lightdash host or when the organisation has not turned AI on for data apps. Hide the control; do not fall back to another provider.
 - Trigger `ask` from a user action, or at most once per loaded view. Never on a timer, never per row. Prompts are rate limited per viewer.
