@@ -530,9 +530,7 @@ const SavedChartsHeader: FC = () => {
                                 onConfirm={() => setIsRenamingChart(false)}
                             />
                             {!isFullscreen && (
-                                <HeaderMetadata
-                                    gap="xs"
-                                >
+                                <HeaderMetadata gap="xs">
                                     <UpdatedInfo
                                         updatedAt={savedChart.updatedAt}
                                         user={

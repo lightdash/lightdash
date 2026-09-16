@@ -113,8 +113,6 @@ const TreeItem: React.FC<Props> = ({
                     }}
                     size="xs"
                     variant="transparent"
-                    aria-label={`${expanded ? 'Collapse' : 'Expand'} ${stringLabel}`}
-                    aria-expanded={hasChildren ? expanded : undefined}
                 >
                     <span
                         className={classes.folderToggle}

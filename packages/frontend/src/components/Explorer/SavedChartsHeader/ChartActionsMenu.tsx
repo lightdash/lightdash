@@ -141,6 +141,7 @@ type Props = {
  * actions; reads the chart from the explorer store it is rendered under.
  */
 const ChartActionsMenu: FC<Props> = ({
+    children,
     host,
     withLabel = false,
     onOpenVersionHistory,
