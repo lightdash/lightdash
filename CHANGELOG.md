@@ -1,3 +1,10 @@
+## [2.229.1](https://github.com/lightdash/lightdash/compare/2.229.0...2.229.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* **ci:** export retained assets without pulling the full image ([#29320](https://github.com/lightdash/lightdash/issues/29320)) ([0ed0c4d](https://github.com/lightdash/lightdash/commit/0ed0c4d9da8904fd2761e8dad85d1bcf61747bdc))
+
 # [2.229.0](https://github.com/lightdash/lightdash/compare/2.228.1...2.229.0) (2026-09-16)
 
 
