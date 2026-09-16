@@ -313,6 +313,7 @@ describe('buildComposeMergeSql', () => {
             itemsMap,
             typedColumns,
             columnOrder: ['merge_month', 'a_orders_count', 'b_payments_sum'],
+            sorts: [],
             limit: 500,
             parameterReferences: [],
             usedParametersValues: {},

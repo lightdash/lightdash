@@ -1,9 +1,16 @@
+import { resolveMergeSorts, type SortField } from '@lightdash/common';
 import { useEffect, useRef, type FC } from 'react';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 
+const sortsKey = (sorts: SortField[]) =>
+    JSON.stringify(
+        sorts.map(({ fieldId, descending }) => [fieldId, descending]),
+    );
+
 /**
- * Runs a restored merge once, headlessly.
+ * Runs a restored merge once, headlessly, and re-runs a merge whose sort
+ * changed after it ran.
  *
  * A merge that arrived with the chart has to run itself: without this a saved
  * merged chart opens showing only the primary source's results — the wrong numbers, presented
@@ -47,6 +54,23 @@ export const MergeAutoRun: FC = () => {
         isRefused,
         refuseRestoredRun,
     ]);
+
+    // A sort is an input of the merge, not of a leg, so changing it re-runs
+    // only the join over the cached legs. What ran is what the result's
+    // metric query reports; what is wanted is the sort the result can honour.
+    const wantedSorts = mergeResults
+        ? sortsKey(
+              resolveMergeSorts(mergeQuery?.sorts, mergeResults.columnOrder),
+          )
+        : null;
+    const ranSorts = mergeResults
+        ? sortsKey(mergeResults.metricQuery.sorts)
+        : null;
+    useEffect(() => {
+        if (wantedSorts === null || wantedSorts === ranSorts) return;
+        if (isRunning || !canRun || isRefused) return;
+        handleRun();
+    }, [wantedSorts, ranSorts, isRunning, canRun, isRefused, handleRun]);
 
     return null;
 };

@@ -201,6 +201,7 @@ import {
     ReplaceCustomFieldsPayload,
     RequestMethod,
     ResolvedProjectColorPalette,
+    resolveMergeSorts,
     resolveQueryTimezone,
     ResultRow,
     ResultsCacheProjectSettings,
@@ -7058,8 +7059,23 @@ export class ProjectService extends BaseService {
         // Named by field id, so results are keyed by the same ids the
         // items map is keyed by and every lookup downstream resolves
         const coreSql = mergeQueryBuilder.toCoreSql(fieldIdByColumn);
-        const terminalWrapper =
-            mergeQueryBuilder.buildTerminalWrapper(fieldIdByColumn);
+        const columnByFieldId = Object.fromEntries(
+            Object.entries(fieldIdByColumn).map(([column, fieldId]) => [
+                fieldId,
+                column,
+            ]),
+        );
+        const sorts = resolveMergeSorts(
+            mergeQuery.sorts,
+            Object.values(fieldIdByColumn),
+        ).map(({ fieldId, descending }) => ({
+            column: columnByFieldId[fieldId],
+            descending,
+        }));
+        const terminalWrapper = mergeQueryBuilder.buildTerminalWrapper(
+            fieldIdByColumn,
+            sorts,
+        );
 
         return {
             sql: applyMergeTerminalWrapper(coreSql, terminalWrapper),

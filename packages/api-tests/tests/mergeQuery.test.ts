@@ -378,6 +378,64 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         });
     }, 60_000);
 
+    // A sort is a merge-level input: the legs still run whole and unsorted,
+    // and the merged statement orders once, by a merged field from either
+    // side. Here by the second source's metric, which the primary query
+    // could never sort by on its own.
+    it('orders the merged result by a second-source metric', async () => {
+        const sorted = {
+            ...mergeQuery,
+            sorts: [
+                { fieldId: PAYMENTS_FIELD_ID, descending: true },
+                { fieldId: KEY_FIELD_ID, descending: false },
+            ],
+        };
+        const compiled = await admin.post<Body<ApiCompiledMergeQueryResults>>(
+            `/api/v1/projects/${projectUuid}/mergeQuery/compile`,
+            { mergeQuery: sorted },
+        );
+        expect(compiled.status).toBe(200);
+        expect(compiled.body.results.errors).toEqual([]);
+        // The SQL shown is the SQL that runs: the sort sits on the merged
+        // statement. A leg keeps only its compile's default ordering, never
+        // the merge's, since a sorted leg under the row cap would join only
+        // its top rows.
+        expect(compiled.body.results.sql).toContain(
+            `ORDER BY "${PAYMENTS_FIELD_ID}" DESC, "${KEY_FIELD_ID}"`,
+        );
+        compiled.body.results.legs.forEach((leg) => {
+            expect(leg.sql).not.toContain(
+                'payments_unique_payment_count" DESC',
+            );
+        });
+
+        const runResp = await admin.post<
+            Body<ApiExecuteAsyncMergeQueryResults>
+        >(`/api/v2/projects/${projectUuid}/query/merge-query`, {
+            mergeQuery: sorted,
+            context: QueryExecutionContext.EXPLORE,
+        });
+        expect(runResp.status).toBe(200);
+        if (runResp.body.results.outcome !== 'started') {
+            throw new Error(
+                `Merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+            );
+        }
+        expect(runResp.body.results.query.metricQuery.sorts).toEqual(
+            sorted.sorts,
+        );
+
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.query.queryUuid,
+        );
+        const counts = results.rows.map(
+            (row) => numeric(cellOf(row, PAYMENTS_FIELD_ID).raw) as number,
+        );
+        expect(new Set(counts).size).toBeGreaterThan(1);
+        expect(counts).toEqual([...counts].sort((a, b) => b - a));
+    }, 60_000);
+
     it('applies each source filter before aggregation and merging', async () => {
         const filteredOrders = {
             ...ordersByMonth,
@@ -936,6 +994,67 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
             new Set([...ordersByKey.keys(), ...paymentsByKey.keys()]).size,
         );
         expectMergedValues(results.rows, ordersByKey, paymentsByKey);
+    }, 90_000);
+
+    // The chart's sort is the Explorer's, so it may name the primary field
+    // rather than its merged column. Opening the chart maps it and the tile
+    // orders the way the Explorer showed it.
+    it('keeps a saved merged chart sorted by its primary metric', async () => {
+        const merge: SavedMergeQuery = {
+            primarySourceId: 'orders',
+            sources: [
+                { id: 'orders', kind: 'chart' },
+                { id: 'payments', kind: 'query', metricQuery: paymentsByMonth },
+            ],
+            joinKey: mergeQuery.joinKey,
+            joinType: MergeJoinType.FULL,
+            tableCalculations: [],
+        };
+        const created = await admin.post<Body<SavedChart>>(
+            `/api/v1/projects/${projectUuid}/saved`,
+            {
+                name: uniqueName('Merged chart sorted'),
+                tableName: 'orders',
+                metricQuery: {
+                    ...ordersByMonth,
+                    sorts: [
+                        {
+                            fieldId: 'orders_total_order_amount',
+                            descending: true,
+                        },
+                    ],
+                },
+                chartConfig: { type: ChartType.TABLE },
+                tableConfig: { columnOrder: [] },
+                merge,
+                dashboardUuid: null,
+                spaceUuid: undefined,
+            } satisfies CreateChartInSpace,
+        );
+        expect(created.status).toBe(200);
+        const chartUuid = created.body.results.uuid;
+        createdChartUuids.push(chartUuid);
+
+        const started = await admin.post<
+            Body<ApiExecuteAsyncMetricQueryResults>
+        >(`/api/v2/projects/${projectUuid}/query/chart`, {
+            chartUuid,
+            context: QueryExecutionContext.CHART,
+        });
+        expect(started.status).toBe(200);
+        expect(started.body.results.metricQuery.sorts).toEqual([
+            { fieldId: ORDERS_FIELD_ID, descending: true },
+        ]);
+
+        const results = await pollQueryResults(
+            admin,
+            started.body.results.queryUuid,
+        );
+        const amounts = results.rows.map(
+            (row) => numeric(cellOf(row, ORDERS_FIELD_ID).raw) as number,
+        );
+        expect(new Set(amounts).size).toBeGreaterThan(1);
+        expect(amounts).toEqual([...amounts].sort((a, b) => b - a));
     }, 90_000);
 
     // On a dashboard the merged chart is an ordinary saved_chart tile, and a

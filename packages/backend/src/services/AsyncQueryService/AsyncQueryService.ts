@@ -97,6 +97,7 @@ import {
     QueryHistoryListFilters,
     QueryHistoryStatus,
     QuerySourceType,
+    resolveMergeSorts,
     resolveQueryTimezone,
     ResultRow,
     ResultsExpiredError,
@@ -6601,9 +6602,10 @@ export class AsyncQueryService extends ProjectService {
 
     /**
      * A merged chart on a dashboard tile: the tile's dashboard filters are
-     * pushed into each source before the join. Dashboard sorts and date zoom
-     * have no merge-level input yet, so they are left unapplied rather than
-     * applied to one side only.
+     * pushed into each source before the join and the chart's own sort rides
+     * on the merge. Dashboard sort overrides and date zoom have no
+     * merge-level input yet, so they are left unapplied rather than applied
+     * to one side only.
      */
     private async executeAsyncDashboardMergeQuery({
         account,
@@ -9127,6 +9129,10 @@ export class AsyncQueryService extends ProjectService {
                     buildMergeResultMetricQuery({
                         itemsMap: compiledMerge.itemsMap,
                         columnOrder,
+                        sorts: resolveMergeSorts(
+                            effectiveMergeQuery.sorts,
+                            columnOrder,
+                        ),
                         limit: effectiveMergeQuery.limit,
                     }),
                     compiledMerge.itemsMap,
@@ -9289,6 +9295,7 @@ export class AsyncQueryService extends ProjectService {
                 itemsMap: compiledMerge.itemsMap,
                 typedColumns: compiledMerge.typedColumns,
                 columnOrder,
+                sorts: resolveMergeSorts(mergeQuery.sorts, columnOrder),
                 limit: mergeQuery.limit,
                 parameterReferences: compiledMerge.parameterReferences,
                 usedParametersValues: compiledMerge.usedParametersValues,
@@ -9397,6 +9404,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: buildMergeResultMetricQuery({
                 itemsMap: compiledMerge.itemsMap,
                 columnOrder,
+                sorts: resolveMergeSorts(mergeQuery.sorts, columnOrder),
                 limit: mergeQuery.limit,
             }),
             fields: compiledMerge.itemsMap,

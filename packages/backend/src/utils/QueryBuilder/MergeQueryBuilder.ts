@@ -114,8 +114,6 @@ export class MergeQueryBuilder {
 
     private readonly tableCalculations: MergeTableCalculation[];
 
-    private readonly sorts: MergeSort[];
-
     constructor({
         sources,
         joinKeyNames,
@@ -124,7 +122,6 @@ export class MergeQueryBuilder {
         limit,
         tableCalculations,
         stringJoinKeyNames,
-        sorts,
     }: {
         sources: MergeQuerySourceSql[];
         joinKeyNames: string[];
@@ -133,8 +130,6 @@ export class MergeQueryBuilder {
         limit?: number;
         /** Calculations over the merged result. */
         tableCalculations?: MergeTableCalculation[];
-        /** Sort the merged result. Defaults to the join key when omitted. */
-        sorts?: MergeSort[];
         /** Keys modeled as strings. Cast source values before comparing so a
          * physically numeric column is comparable with a string. */
         stringJoinKeyNames?: string[];
@@ -146,7 +141,6 @@ export class MergeQueryBuilder {
         this.limit = limit;
         this.stringJoinKeyNames = new Set(stringJoinKeyNames ?? []);
         this.tableCalculations = tableCalculations ?? [];
-        this.sorts = sorts ?? [];
         // Index-prefixed so two source ids that differ only in punctuation
         // cannot collapse to the same identifier.
         this.cteNames = sources.map(
@@ -405,22 +399,27 @@ export class MergeQueryBuilder {
      * The terminal stage the run path attaches over the core: sort and limit.
      * Ordered outside the calculation wrapper, so a sort can name a
      * calculated column and so the ordering is not left inside a subquery,
-     * where the engine is free to discard it.
+     * where the engine is free to discard it. Sorts name merged columns and
+     * default to the join key when omitted.
      */
     buildTerminalWrapper(
         outputAliasByColumn?: Record<string, string>,
+        sorts: MergeSort[] = [],
     ): MergeTerminalWrapper {
         return {
-            orderBy: this.getOrderBy(outputAliasByColumn),
+            orderBy: this.getOrderBy(outputAliasByColumn, sorts),
             limit: this.limit ?? null,
             sourceLimitExceededSql: null,
         };
     }
 
-    toSql(outputAliasByColumn?: Record<string, string>): string {
+    toSql(
+        outputAliasByColumn?: Record<string, string>,
+        sorts: MergeSort[] = [],
+    ): string {
         return applyMergeTerminalWrapper(
             this.toCoreSql(outputAliasByColumn),
-            this.buildTerminalWrapper(outputAliasByColumn),
+            this.buildTerminalWrapper(outputAliasByColumn, sorts),
         );
     }
 
@@ -475,14 +474,15 @@ export class MergeQueryBuilder {
      */
     private getOrderBy(
         outputAliasByColumn: Record<string, string> | undefined,
+        sorts: MergeSort[],
     ): string[] {
         // The ordering sits above the renaming projection, so it names the
         // columns by whatever they are called there.
         const outputName = (column: string) =>
             outputAliasByColumn?.[column] ?? column;
 
-        if (this.sorts.length > 0) {
-            return this.sorts.map(({ column, descending }) => {
+        if (sorts.length > 0) {
+            return sorts.map(({ column, descending }) => {
                 if (!this.orderableColumns().has(column)) {
                     throw new Error(
                         `Cannot sort the merged result by "${column}", which it has no column for.`,

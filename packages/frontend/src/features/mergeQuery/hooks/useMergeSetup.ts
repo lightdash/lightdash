@@ -9,6 +9,7 @@ import {
     isCustomDimension,
     isDimension,
     MergeQueryErrorKind,
+    toMergedSorts,
     validateMergeQuery,
     type MergeFieldTypes,
     type MergeQuery,
@@ -458,6 +459,14 @@ export const useMergeSetup = () => {
             joinKey,
             joinType,
             tableCalculations: [],
+            // The Explorer's sort state lives on the primary query; the merge
+            // sorts its own result by the merged field it maps to
+            sorts: toMergedSorts({
+                sorts: metricQuery.sorts,
+                primarySourceId: PRIMARY_SOURCE_ID,
+                primaryMetricQuery: metricQuery,
+                joinKey,
+            }),
             limit: metricQuery.limit,
         };
     }, [

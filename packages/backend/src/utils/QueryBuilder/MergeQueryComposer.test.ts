@@ -95,6 +95,7 @@ const compose = () =>
         itemsMap,
         typedColumns,
         columnOrder: ['merge_k0', 'a_followers_count'],
+        sorts: [{ fieldId: 'a_followers_count', descending: true }],
         limit: 500,
         ...parameterMetadata,
         warehouseClient: mockWarehouseClient,
@@ -133,11 +134,15 @@ describe('MergeQueryComposer', () => {
         );
     });
 
-    it('leaves filters and sorts empty, since the sources own them', () => {
+    // Filters belong to the sources; the sort belongs to the merged result,
+    // and the pivot stage reads it from here.
+    it('leaves filters empty and carries the merged result sort', () => {
         const metricQuery = compose().getMetricQuery();
 
         expect(metricQuery.filters).toEqual({});
-        expect(metricQuery.sorts).toEqual([]);
+        expect(metricQuery.sorts).toEqual([
+            { fieldId: 'a_followers_count', descending: true },
+        ]);
         expect(metricQuery.limit).toEqual(500);
     });
 
@@ -151,6 +156,7 @@ describe('MergeQueryComposer', () => {
             itemsMap,
             typedColumns,
             columnOrder: ['merge_k0', 'merge_k1', 'a_followers_count'],
+            sorts: [],
             limit: 500,
             ...parameterMetadata,
             warehouseClient: mockWarehouseClient,
@@ -182,6 +188,7 @@ describe('MergeQueryComposer', () => {
             itemsMap,
             typedColumns,
             columnOrder: ['merge_k0', 'merge_k1', 'a_followers_count'],
+            sorts: [],
             limit: 500,
             ...parameterMetadata,
             warehouseClient: mockWarehouseClient,

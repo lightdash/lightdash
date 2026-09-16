@@ -1,10 +1,11 @@
+import { getItemId } from '../utils/item';
 import {
     DimensionType,
     type FieldId,
     type ItemsMap,
     type TimestampDomain,
 } from './field';
-import { type MetricQuery } from './metricQuery';
+import { type MetricQuery, type SortField } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfiguration } from './pivot';
 import { type TimeFrames } from './timeFrames';
@@ -57,6 +58,8 @@ export type MetricSourcedMergeQuery = {
     joinKey: MergeJoinKeyPart[];
     joinType: MergeJoinType;
     tableCalculations: MergeTableCalculation[];
+    // Optional for compatibility with merges stored before sorting existed
+    sorts?: SortField[];
     limit: number;
 };
 
@@ -106,6 +109,12 @@ export type MergeQuery = {
     joinType: MergeJoinType;
     /** Calculations over the merged result. Applied last, after any pivot. */
     tableCalculations: MergeTableCalculation[];
+    /**
+     * Sort of the merged result, by merged field id. Legs always run
+     * unsorted. Optional for compatibility with merges from before it
+     * existed; absent means join-key order.
+     */
+    sorts?: SortField[];
     limit: number;
 };
 
@@ -305,6 +314,71 @@ export const getUnaccountedDimensions = (
  * merged result.
  */
 export const MERGE_TABLE_NAME = 'merge';
+
+/**
+ * The sorts a merge can honour: those naming a field the merged result
+ * carries. A sort left behind by a field no longer selected is dropped, as
+ * the Explorer drops it for a single query, rather than refusing the merge.
+ */
+export const resolveMergeSorts = (
+    sorts: SortField[] | undefined,
+    mergedFieldIds: string[],
+): SortField[] => {
+    const known = new Set(mergedFieldIds);
+    return (sorts ?? []).filter((sort) => known.has(sort.fieldId));
+};
+
+/**
+ * Sorts as the Explorer holds them, in merged-field space. The Explorer's
+ * sort state belongs to the primary source's metric query, so a sort set
+ * before merging names a primary field: it maps to that field's merged
+ * column, or to the join key column when the field is a key. A sort set on
+ * the merged table already names a merged field and passes through.
+ */
+export const toMergedSorts = ({
+    sorts,
+    primarySourceId,
+    primaryMetricQuery,
+    joinKey,
+}: {
+    sorts: SortField[];
+    primarySourceId: string;
+    primaryMetricQuery: Pick<
+        MetricQuery,
+        'dimensions' | 'metrics' | 'tableCalculations'
+    >;
+    joinKey: MergeJoinKeyPart[];
+}): SortField[] => {
+    const primaryFieldIds = new Set([
+        ...primaryMetricQuery.dimensions,
+        ...primaryMetricQuery.metrics,
+        ...primaryMetricQuery.tableCalculations.map(({ name }) => name),
+    ]);
+    return sorts.map((sort) => {
+        const keyPart = joinKey.find(
+            (part) => part.fieldIdBySourceId[primarySourceId] === sort.fieldId,
+        );
+        if (keyPart) {
+            return {
+                ...sort,
+                fieldId: getItemId({
+                    table: MERGE_TABLE_NAME,
+                    name: keyPart.name,
+                }),
+            };
+        }
+        if (primaryFieldIds.has(sort.fieldId)) {
+            return {
+                ...sort,
+                fieldId: getItemId({
+                    table: primarySourceId,
+                    name: sort.fieldId,
+                }),
+            };
+        }
+        return sort;
+    });
+};
 
 export const validateMergeQuery = (
     mergeQuery: MergeQuery,
@@ -718,6 +792,14 @@ export const buildMergeQueryFromSaved = (
         joinKey: saved.joinKey,
         joinType: saved.joinType,
         tableCalculations: saved.tableCalculations,
+        // The chart's sort state is the Explorer's, so it may still name
+        // primary fields from before the merge was built
+        sorts: toMergedSorts({
+            sorts: chartMetricQuery.sorts,
+            primarySourceId: saved.primarySourceId,
+            primaryMetricQuery: chartMetricQuery,
+            joinKey: saved.joinKey,
+        }),
         limit: chartMetricQuery.limit,
     };
 };
