@@ -29190,6 +29190,10 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 limit: { dataType: 'double', required: true },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                },
                 tableCalculations: {
                     dataType: 'array',
                     array: {
@@ -48829,6 +48833,10 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 limit: { dataType: 'double', required: true },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                },
                 tableCalculations: {
                     dataType: 'array',
                     array: {

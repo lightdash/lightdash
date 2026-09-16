@@ -1,3 +1,10 @@
+## [2.242.2](https://github.com/lightdash/lightdash/compare/2.242.1...2.242.2) (2026-09-16)
+
+
+### Bug Fixes
+
+* **merge-queries:** sort the merged result by the Explorer's sort ([#29338](https://github.com/lightdash/lightdash/issues/29338)) ([ebc3a7d](https://github.com/lightdash/lightdash/commit/ebc3a7d5dbb00c8a83d98a8e501770ff25fc02ba)), closes [#29299](https://github.com/lightdash/lightdash/issues/29299)
+
 ## [2.242.1](https://github.com/lightdash/lightdash/compare/2.242.0...2.242.1) (2026-09-16)
 
 
