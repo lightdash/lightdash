@@ -441,9 +441,11 @@ export class DataAppAnalysisService extends BaseService {
     private assertPromptRate(userUuid: string, appUuid: string): void {
         const key = `${userUuid}:${appUuid}`;
         const now = Date.now();
-        const recent = (this.promptTimestamps.get(key) ?? []).filter(
-            (t) => now - t < PROMPT_RATE_LIMIT.windowMs,
-        );
+        const isRecent = (t: number) => now - t < PROMPT_RATE_LIMIT.windowMs;
+        this.promptTimestamps.forEach((timestamps, k) => {
+            if (!timestamps.some(isRecent)) this.promptTimestamps.delete(k);
+        });
+        const recent = (this.promptTimestamps.get(key) ?? []).filter(isRecent);
         if (recent.length >= PROMPT_RATE_LIMIT.max) {
             throw new TooManyRequestsError(
                 `At most ${PROMPT_RATE_LIMIT.max} AI prompts per minute per app`,
@@ -510,16 +512,27 @@ export class DataAppAnalysisService extends BaseService {
             appUuid,
         );
         this.assertPromptRate(user.userUuid, appUuid);
-        const { content } = await this.buildContent(
+        const { content, grounding } = await this.buildContent(
             account,
             projectUuid,
             body.sources,
         );
+        // Only field ids the sources actually carry reach the model.
+        const knownFieldIds = new Set(
+            grounding.flatMap((source) => [...source.fieldIds]),
+        );
+        const groundedFocus = Object.fromEntries(
+            Object.entries(focus ?? {}).filter(([fieldId]) =>
+                knownFieldIds.has(fieldId),
+            ),
+        );
+        const focusForModel =
+            Object.keys(groundedFocus).length > 0 ? groundedFocus : null;
         const { text, modelId } = await this.aiService.answerDataAppPrompt(
             user,
-            { content, prompt, focus, projectUuid },
+            { content, prompt, focus: focusForModel, projectUuid },
         );
-        const result = { prompt, focus, text };
+        const result = { prompt, focus: focusForModel, text };
         const row = await this.dataAppAnalysisModel.create({
             organizationUuid: user.organizationUuid!,
             projectUuid,
