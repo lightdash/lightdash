@@ -1,5 +1,7 @@
 import {
     type AppColorScheme,
+    type DataAppInsightAction,
+    type DataAppInsightsPayload,
     type DataAppVizContext,
     type DashboardFilters,
     type QueryExecutionContext,
@@ -137,6 +139,10 @@ type Props = {
      *  `MinimalApp` so scheduled screenshots don't depend on whichever theme
      *  the rendering browser happens to have stored. */
     forceColorScheme?: AppColorScheme;
+    /** The host's AI analysis of the current view, pushed into the app. */
+    insights?: DataAppInsightsPayload | null;
+    onInsightAction?: (action: DataAppInsightAction) => void;
+    onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
 
 /**
@@ -195,6 +201,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             urlStateSync,
             onSdkManifest,
             forceColorScheme,
+            insights,
+            onInsightAction,
+            onMountedQueriesChange,
         },
         ref,
     ) => {
@@ -296,6 +305,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
             colorScheme,
+            insights,
+            onInsightAction,
+            onMountedQueriesChange,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 

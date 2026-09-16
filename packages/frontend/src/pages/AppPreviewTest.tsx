@@ -10,6 +10,7 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import { AskAiAgentMenuItem } from '../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import DataAppAnalysisPanel from '../features/apps/analysis/DataAppAnalysisPanel';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
+import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../features/apps/AppIframePreview';
@@ -107,6 +108,14 @@ export default function AppPreviewTest() {
         analysisAvailability.status === 'available' ||
         (analysisAvailability.status === 'unavailable' &&
             analysisAvailability.reason !== 'not_rolled_out');
+    const openAnalysis = useCallback(() => setAnalysisOpened(true), []);
+    const analysisController = useDataAppAnalysisController({
+        projectUuid,
+        appUuid,
+        queries: inspector.panelProps.queries,
+        availability: analysisAvailability,
+        onNeedsAgent: openAnalysis,
+    });
 
     // Manual refresh: bumping the counter changes the iframe URL, forcing a
     // reload so the app's metric queries re-fire. `invalidateCache` latches on
@@ -243,6 +252,13 @@ export default function AppPreviewTest() {
                     invalidateCache={invalidateCache}
                     urlStateSync
                     capabilities={{ gsheetExport: true }}
+                    insights={
+                        showAnalysis ? analysisController.insightsPayload : null
+                    }
+                    onInsightAction={analysisController.handleAction}
+                    onMountedQueriesChange={
+                        analysisController.setMountedQueryUuids
+                    }
                     {...inspector.iframeProps}
                 />
                 {!inspector.hidden && !isFullscreen && (
@@ -257,10 +273,9 @@ export default function AppPreviewTest() {
                     <DataAppAnalysisPanel
                         opened={analysisOpened}
                         onClose={() => setAnalysisOpened(false)}
-                        projectUuid={projectUuid}
                         appUuid={appUuid}
-                        queries={inspector.panelProps.queries}
                         availability={analysisAvailability}
+                        controller={analysisController}
                         lineageAvailable={inspector.panelProps.lineageAvailable}
                         onHoverQuery={inspector.panelProps.onHoverQuery}
                     />

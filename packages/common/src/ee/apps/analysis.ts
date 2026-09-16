@@ -93,3 +93,32 @@ export type DataAppAnalysisRecord =
     | ({ operation: 'investigate' } & DataAppInvestigation);
 
 export type ApiDataAppAnalysisResponse = ApiSuccess<DataAppAnalysisRecord>;
+
+/** Per-anomaly investigation state as pushed into the app. */
+export type DataAppInsightInvestigation = {
+    status: 'idle' | 'running' | 'ready' | 'error';
+    explanation: string | null;
+    partial: boolean;
+    threadUuid: string | null;
+    error: string | null;
+};
+
+/**
+ * The analysis of the current view as the host pushes it into the app over
+ * postMessage. Shape mirrors `InsightsPayload` in the query SDK.
+ */
+export type DataAppInsightsPayload = {
+    status: 'idle' | 'analysing' | 'ready' | 'error' | 'unavailable';
+    analysisId: string | null;
+    headline: string | null;
+    summary: string | null;
+    limitations: string[];
+    dataAsOf: string | null;
+    generatedAt: string | null;
+    stale: boolean;
+    canInvestigate: boolean;
+    error: string | null;
+    anomalies: (DataAppAnomaly & {
+        investigation: DataAppInsightInvestigation;
+    })[];
+};

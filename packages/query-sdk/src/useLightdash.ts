@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTransport } from './LightdashProvider';
+import { useMountedQuery } from './insights';
 import { QueryBuilder } from './query';
 import { savedChartQueryKey, type SavedChartQuery } from './savedChart';
 import type {
@@ -118,6 +119,7 @@ export function useLightdash(
     }, []);
 
     const lineage = useMemo(() => buildLineageProps(queryUuid), [queryUuid]);
+    useMountedQuery(queryUuid);
 
     useEffect(() => {
         let cancelled = false;

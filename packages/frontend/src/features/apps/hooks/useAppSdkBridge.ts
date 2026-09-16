@@ -2,6 +2,10 @@ import {
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+    APP_SDK_INSIGHT_ACTION_MESSAGE,
+    APP_SDK_INSIGHTS_MESSAGE,
+    APP_SDK_INSIGHTS_REQUEST_MESSAGE,
+    APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH,
@@ -15,6 +19,8 @@ import {
     LightdashSignedDownloadHeader,
     type AppColorScheme,
     type DashboardFilters,
+    type DataAppInsightAction,
+    type DataAppInsightsPayload,
     type DataAppVizContext,
     type ExternalFetchResponse,
     type QueryExecutionContext,
@@ -157,6 +163,20 @@ export type ExternalRequestEvent = {
 // Keep in sync with MAX_URL_STATE_CHARS in packages/query-sdk/src/urlState.ts.
 // Caps what an app can push into the host page's URL / browser history.
 const MAX_URL_STATE_CHARS = 4096;
+
+const UNAVAILABLE_INSIGHTS: DataAppInsightsPayload = {
+    status: 'unavailable',
+    analysisId: null,
+    headline: null,
+    summary: null,
+    limitations: [],
+    dataAsOf: null,
+    generatedAt: null,
+    stale: false,
+    canInvestigate: false,
+    error: null,
+    anomalies: [],
+};
 
 const isMetricQueryPost = (method: string, path: string): boolean =>
     method.toUpperCase() === 'POST' &&
@@ -312,6 +332,16 @@ export type UseAppSdkBridgeParams = {
      * SDK understood the message ignore it.
      */
     colorScheme: AppColorScheme;
+    /**
+     * The host's AI analysis of the current view, pushed into the app on
+     * change and whenever the SDK asks. Null when the feature is off; the
+     * app's `useInsights()` then stays idle.
+     */
+    insights?: DataAppInsightsPayload | null;
+    /** The viewer clicked an analysis action the app rendered. */
+    onInsightAction?: (action: DataAppInsightAction) => void;
+    /** Which query uuids the app currently has on screen (SDKs that report). */
+    onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
 
 export function useAppSdkBridge({
@@ -340,6 +370,9 @@ export function useAppSdkBridge({
     captureRender,
     queryContextOverride,
     colorScheme,
+    insights = null,
+    onInsightAction,
+    onMountedQueriesChange,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -387,6 +420,19 @@ export function useAppSdkBridge({
             '*',
         );
     }, [iframeRef, colorScheme]);
+
+    // Push the analysis in; the SDK validates the payload on its side.
+    // A host with nothing to offer says so, so the app hides its AI controls
+    // instead of showing an "Analyse" that the backend would reject.
+    const pushInsights = useCallback(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+            {
+                type: APP_SDK_INSIGHTS_MESSAGE,
+                payload: insights ?? UNAVAILABLE_INSIGHTS,
+            },
+            '*',
+        );
+    }, [iframeRef, insights]);
 
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
@@ -451,6 +497,38 @@ export function useAppSdkBridge({
             // listener is live, so it can't miss the load-time push.
             if (data?.type === APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE) {
                 pushColorScheme();
+                return;
+            }
+
+            if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
+                pushInsights();
+                return;
+            }
+
+            if (data?.type === APP_SDK_INSIGHT_ACTION_MESSAGE) {
+                const { action, anomalyId } = data as {
+                    action?: unknown;
+                    anomalyId?: unknown;
+                };
+                if (action === 'analyse') {
+                    onInsightAction?.({ action });
+                } else if (
+                    (action === 'investigate' || action === 'continue') &&
+                    typeof anomalyId === 'string'
+                ) {
+                    onInsightAction?.({ action, anomalyId });
+                }
+                return;
+            }
+
+            if (data?.type === APP_SDK_MOUNTED_QUERIES_MESSAGE) {
+                const { queryUuids } = data as { queryUuids?: unknown };
+                if (
+                    Array.isArray(queryUuids) &&
+                    queryUuids.every((q) => typeof q === 'string')
+                ) {
+                    onMountedQueriesChange?.(queryUuids);
+                }
                 return;
             }
 
@@ -1141,6 +1219,9 @@ export function useAppSdkBridge({
             user.data,
             deliveryCapture,
             queryContextOverride,
+            pushInsights,
+            onInsightAction,
+            onMountedQueriesChange,
         ],
     );
 
@@ -1155,6 +1236,10 @@ export function useAppSdkBridge({
     useEffect(() => {
         pushColorScheme();
     }, [pushColorScheme]);
+
+    useEffect(() => {
+        pushInsights();
+    }, [pushInsights]);
 
     const handleIframeLoad = useCallback(() => {
         // `*` because the load event fires once for the initial about:blank
@@ -1173,7 +1258,8 @@ export function useAppSdkBridge({
             '*',
         );
         pushColorScheme();
-    }, [iframeRef, pushColorScheme, captureRender]);
+        pushInsights();
+    }, [iframeRef, pushColorScheme, pushInsights, captureRender]);
 
     // Re-push the render context whenever the host's field mapping or rows
     // change, so an already-loaded iframe re-renders live. The initial delivery
