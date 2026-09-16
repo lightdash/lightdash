@@ -348,8 +348,9 @@ export type QueryInsights = {
     status: InsightsStatus;
     /** Anomalies that refer to this query's rows. */
     anomalies: Insight[];
-    /** The anomalies whose dimension values match this row, if any. */
-    matches: (row: Row) => Insight[];
+    /** The anomalies whose dimension values match this row, if any. Safe to
+     *  call with the missing datum chart libraries pass between points. */
+    matches: (row: Row | null | undefined) => Insight[];
     canInvestigate: boolean;
     investigate: (anomalyId: string) => void;
     continueInAskAi: (anomalyId: string) => void;
@@ -357,11 +358,14 @@ export type QueryInsights = {
 
 /** Exported for tests; hooks wrap it. */
 export const rowMatchesInsight = (
-    row: Row,
+    row: Row | null | undefined,
     dimensionValues: Record<string, string>,
     format?: InsightSource['format'],
     rowKeys?: InsightSource['rowKeys'],
 ): boolean =>
+    // Chart libraries call tooltip and dot renderers with no datum between
+    // points; a missing row is "no match", never a crash of the whole app.
+    !!row &&
     Object.entries(dimensionValues).every(([fieldId, value]) => {
         const key = rowKeys?.[fieldId] ?? fieldId;
         if (!(key in row)) return false;
@@ -423,7 +427,7 @@ export function useInsights(
         [payload.anomalies, queryUuid, source],
     );
     const matches = useCallback(
-        (row: Row) =>
+        (row: Row | null | undefined) =>
             anomalies.filter((a) =>
                 rowMatchesInsight(row, a.dimensionValues, format, rowKeys),
             ),

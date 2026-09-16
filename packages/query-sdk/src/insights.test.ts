@@ -165,6 +165,12 @@ describe('insights channel', () => {
         );
     });
 
+    it('treats a missing row as no match instead of throwing', () => {
+        const dims = { orders_status: 'returned' };
+        expect(rowMatchesInsight(undefined, dims)).toBe(false);
+        expect(rowMatchesInsight(null, dims)).toBe(false);
+    });
+
     it('matches rows keyed by the app short names through rowKeys', () => {
         const dims = { orders_order_date_month: '2025-01-01' };
         const rowKeys = { orders_order_date_month: 'order_date_month' };
