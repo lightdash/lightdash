@@ -260,10 +260,10 @@ const TableTypeToggle: FC<{
             value: option.value,
             label: (
                 <Tooltip label={option.label} openDelay={400}>
-                    <Box component="span" lh={0} display="inline-block">
+                    <Box component="span" lh={0} display="flex">
                         <MantineIcon
                             icon={option.icon}
-                            size="sm"
+                            size={14}
                             aria-label={option.label}
                         />
                     </Box>

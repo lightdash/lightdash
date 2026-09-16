@@ -64,17 +64,23 @@
 
 .searchSection[data-position='right'] {
     justify-content: flex-end;
+    align-items: center;
     padding-inline-end: rem(4px);
 }
 
+/* Mantine 9 uses --sc-padding for labels and a separate root inset.
+   Keep this compact enough to sit inside the 32px search field. */
 .typeFilter {
-    height: rem(24px);
+    --sc-padding: 0 rem(6px);
+    height: rem(26px);
+    padding: rem(2px);
 }
 
 .typeFilterLabel {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: rem(24px);
-    padding-inline: rem(6px);
+    height: 100%;
+    min-height: 0;
+    line-height: 0;
 }
