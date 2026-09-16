@@ -1,3 +1,21 @@
+# [2.243.0](https://github.com/lightdash/lightdash/compare/2.242.4...2.243.0) (2026-09-16)
+
+
+### Bug Fixes
+
+* **catalog:** skip browse reads for search (SPK-2141) ([#29325](https://github.com/lightdash/lightdash/issues/29325)) ([eda8ada](https://github.com/lightdash/lightdash/commit/eda8ada0b67999bbc105a4e087c5bd4b7cc19823))
+* keep chart builder narration scrollable ([#29371](https://github.com/lightdash/lightdash/issues/29371)) ([b8533cc](https://github.com/lightdash/lightdash/commit/b8533cc051c3c979b42a9b1912223adda034490d))
+
+
+### Features
+
+* **ai-agents:** simplify mobile thread layout ([#29374](https://github.com/lightdash/lightdash/issues/29374)) ([6dd8581](https://github.com/lightdash/lightdash/commit/6dd8581fe5a0e49657ae9d6816faef2b6a68136b)), closes [#29372](https://github.com/lightdash/lightdash/issues/29372) [#29373](https://github.com/lightdash/lightdash/issues/29373) [#29375](https://github.com/lightdash/lightdash/issues/29375)
+* **dashboards:** improve mobile tile layout ([#29375](https://github.com/lightdash/lightdash/issues/29375)) ([e2db8ac](https://github.com/lightdash/lightdash/commit/e2db8ac2a27728f1de13ce868b53966ca3b533b4)), closes [#29372](https://github.com/lightdash/lightdash/issues/29372) [#29373](https://github.com/lightdash/lightdash/issues/29373) [#29374](https://github.com/lightdash/lightdash/issues/29374)
+* **homepage:** hide mobile controls on scroll ([#29373](https://github.com/lightdash/lightdash/issues/29373)) ([66a90d8](https://github.com/lightdash/lightdash/commit/66a90d879a4363601b885b9da7969d94a2b75408)), closes [#29372](https://github.com/lightdash/lightdash/issues/29372) [#29374](https://github.com/lightdash/lightdash/issues/29374) [#29375](https://github.com/lightdash/lightdash/issues/29375)
+* **merge-queries:** total a merged result over its rows on the compose engine ([#29365](https://github.com/lightdash/lightdash/issues/29365)) ([2a4ebf1](https://github.com/lightdash/lightdash/commit/2a4ebf1530075db249d54237ca722a70f09c70d6)), closes [#29300](https://github.com/lightdash/lightdash/issues/29300)
+* **merge-queries:** visible merge control beside the explore name ([#29363](https://github.com/lightdash/lightdash/issues/29363)) ([ecbde85](https://github.com/lightdash/lightdash/commit/ecbde855697fc46984efd1294054f7d2450001f5)), closes [#29306](https://github.com/lightdash/lightdash/issues/29306)
+* **navigation:** streamline mobile drawer ([#29372](https://github.com/lightdash/lightdash/issues/29372)) ([e825caa](https://github.com/lightdash/lightdash/commit/e825caad0a49cb81de1d09df0e169825dd0ea41a))
+
 ## [2.242.4](https://github.com/lightdash/lightdash/compare/2.242.3...2.242.4) (2026-09-16)
 
 
