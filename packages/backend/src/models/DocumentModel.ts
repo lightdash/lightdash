@@ -33,6 +33,11 @@ export type CreateDocument = {
     createdByUserUuid: string | null;
 };
 
+export type DocumentContentUpdate = { baseVersionUuid: string } & (
+    | { operations: DocumentCellOperation[] }
+    | { content: DocumentContentV3 }
+);
+
 type DocumentRow = DbDocument & {
     organization_uuid: string;
     space_uuid: string;
@@ -273,6 +278,16 @@ export class DocumentModel {
         return this.getWithDatabase(this.database, projectUuid, documentUuid);
     }
 
+    async getBySlug(projectUuid: string, slug: string): Promise<Document> {
+        const row = await this.activeDocuments(this.database, projectUuid)
+            .where('documents.slug', slug)
+            .first();
+        if (!row) {
+            throw new NotFoundError('Document not found');
+        }
+        return this.get(projectUuid, row.document_uuid);
+    }
+
     async moveToSpace(
         {
             projectUuid,
@@ -437,10 +452,8 @@ export class DocumentModel {
     async updateContent(
         projectUuid: string,
         documentUuid: string,
-        input: {
+        input: DocumentContentUpdate & {
             expectedSpaceUuid: string;
-            baseVersionUuid: string;
-            operations: DocumentCellOperation[];
         },
         createdByUserUuid: string,
     ): Promise<Document> {
@@ -467,10 +480,16 @@ export class DocumentModel {
                     'Document has changed. Reload the latest version before editing.',
                 );
             }
-            const content = applyDocumentCellOperations(
-                document.version.content,
-                input.operations,
-            );
+            const content =
+                'content' in input
+                    ? parseDocumentContent(
+                          DOCUMENT_SCHEMA_VERSION,
+                          input.content,
+                      )
+                    : applyDocumentCellOperations(
+                          document.version.content,
+                          input.operations,
+                      );
             await transaction(DocumentVersionsTableName).insert({
                 document_id: row.document_id,
                 version_number: document.version.versionNumber + 1,

@@ -17,14 +17,16 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
     type RegisteredAccount,
-    type UpdateDocumentContentRequest,
     type UpdateDocumentMetadataRequest,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
 import { isEqual } from 'lodash';
 import pLimit from 'p-limit';
 import type { LightdashConfig } from '../../config/parseConfig';
-import type { DocumentModel } from '../../models/DocumentModel';
+import type {
+    DocumentContentUpdate,
+    DocumentModel,
+} from '../../models/DocumentModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
@@ -256,8 +258,10 @@ export class DocumentService extends BaseService {
         projectUuid: string,
         documentUuid: string,
         input: UpdateDocumentMetadataRequest,
+        { allowedSpaceUuids }: { allowedSpaceUuids?: string[] } = {},
     ): Promise<Document> {
         const document = await this.get(account, projectUuid, documentUuid);
+        DocumentService.assertSpaceScope(document, allowedSpaceUuids);
         await this.assertCanUpdate(account, document);
         DocumentService.validateMetadata(input);
         if (Object.values(input).every((value) => value === undefined)) {
@@ -277,19 +281,24 @@ export class DocumentService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         documentUuid: string,
-        input: UpdateDocumentContentRequest,
+        input: DocumentContentUpdate,
+        { allowedSpaceUuids }: { allowedSpaceUuids?: string[] } = {},
     ): Promise<Document> {
         const document = await this.get(account, projectUuid, documentUuid);
+        DocumentService.assertSpaceScope(document, allowedSpaceUuids);
         await this.assertCanUpdate(account, document);
         if (document.version.versionUuid !== input.baseVersionUuid) {
             throw new ConflictError(
                 'Document has changed. Reload it and retry with the latest version UUID',
             );
         }
-        const content = applyDocumentCellOperations(
-            document.version.content,
-            input.operations,
-        );
+        const content =
+            'content' in input
+                ? parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content)
+                : applyDocumentCellOperations(
+                      document.version.content,
+                      input.operations,
+                  );
         await this.validateCharts(
             account,
             projectUuid,
@@ -303,6 +312,19 @@ export class DocumentService extends BaseService {
             account.user.userUuid,
         );
         return this.authorizeDocument(account, updated);
+    }
+
+    private static assertSpaceScope(
+        document: Document,
+        allowedSpaceUuids: string[] | undefined,
+    ): void {
+        if (
+            allowedSpaceUuids &&
+            allowedSpaceUuids.length > 0 &&
+            !allowedSpaceUuids.includes(document.spaceUuid)
+        ) {
+            throw new NotFoundError('Document not found');
+        }
     }
 
     private async assertCanUpdate(
@@ -664,6 +686,19 @@ export class DocumentService extends BaseService {
         const document = await this.dependencies.documentModel.get(
             projectUuid,
             documentUuid,
+        );
+        return this.authorizeDocument(account, document);
+    }
+
+    async getBySlug(
+        account: RegisteredAccount,
+        projectUuid: string,
+        slug: string,
+    ): Promise<Document> {
+        await this.assertProjectAccess(account, projectUuid);
+        const document = await this.dependencies.documentModel.getBySlug(
+            projectUuid,
+            slug,
         );
         return this.authorizeDocument(account, document);
     }

@@ -15,7 +15,7 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
     return (
         <DocumentReportLayout
             title={document.name}
-            eyebrow="Document"
+            contentsLabel={null}
             description={document.description}
             headings={headings}
         >
@@ -30,7 +30,6 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
                         <ReportSection
                             key={`${document.version.versionUuid}:${cell.id}`}
                             title={cell.content.chart.name}
-                            id={getDocumentHeadingId(cell.id)}
                         >
                             <ErrorBoundary>
                                 <DocumentChart

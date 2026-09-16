@@ -34,12 +34,7 @@ export const getDocumentHeadingId = (cellId: string, offset?: number) =>
 export const getDocumentHeadings = (cells: DocumentCellV3[]): ReportHeading[] =>
     cells.flatMap((cell) => {
         if (cell.type === 'chart') {
-            return [
-                {
-                    id: getDocumentHeadingId(cell.id),
-                    label: cell.content.chart.name,
-                },
-            ];
+            return [];
         }
         const headings: ReportHeading[] = [];
         visit(
@@ -47,7 +42,7 @@ export const getDocumentHeadings = (cells: DocumentCellV3[]): ReportHeading[] =>
             'heading',
             (heading) => {
                 if (
-                    heading.depth <= 2 &&
+                    heading.depth === 1 &&
                     heading.position?.start.offset !== undefined
                 ) {
                     const label = getNodeText(heading);

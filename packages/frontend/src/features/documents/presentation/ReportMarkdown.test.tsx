@@ -16,12 +16,37 @@ const renderMarkdown = (markdown: string) =>
     );
 
 describe('shared report markdown', () => {
+    test('keeps all headings and prose in one Markdown cell section', () => {
+        const { container } = renderMarkdown(
+            '# Channel mix and next steps\n\n## Channel mix\n\n### What this measures\n\nNarrative\n\n# Another heading\n\nMore text',
+        );
+        expect(container.querySelectorAll('section')).toHaveLength(1);
+        const title = screen.getByRole('heading', {
+            level: 1,
+            name: 'Channel mix and next steps',
+        });
+        const subtitle = screen.getByRole('heading', {
+            level: 2,
+            name: 'Channel mix',
+        });
+        const detail = screen.getByRole('heading', {
+            level: 3,
+            name: 'What this measures',
+        });
+        expect(title.closest(`.${styles.documentMarkdown}`)).not.toBeNull();
+        expect(subtitle.parentElement).toBe(title.parentElement);
+        expect(detail.parentElement).toBe(title.parentElement);
+        expect(subtitle).not.toHaveClass(styles.reportFindingTitle);
+        expect(screen.getByText('Narrative').closest('section')).toBe(
+            screen.getByText('More text').closest('section'),
+        );
+    });
     test('uses the same section presentation regardless of heading wording', () => {
         renderMarkdown(
             'Introduction\n\n## **Findings**\n\nNarrative\n\n## Conclusion\n\nNext steps',
         );
         expect(screen.getByText('Introduction').closest('section')).toHaveClass(
-            styles.reportIntroduction,
+            styles.reportFinding,
         );
         expect(
             screen
@@ -33,8 +58,8 @@ describe('shared report markdown', () => {
                 .getByRole('heading', { name: 'Conclusion' })
                 .closest('section'),
         ).toHaveClass(styles.reportFinding);
-        expect(screen.getByRole('heading', { name: 'Findings' })).toHaveClass(
-            styles.reportFindingTitle,
+        expect(screen.getByRole('heading', { name: 'Findings' }).tagName).toBe(
+            'H2',
         );
     });
 
@@ -49,7 +74,7 @@ describe('shared report markdown', () => {
 
     test('preserves static full-source offsets for repeated, setext and nested Markdown headings', () => {
         const markdown =
-            'Intro\n\nResults\n===\n\n## Results\n\n> ## Nested\n\n## Final';
+            'Intro\n\nResults\n===\n\n# Results\n\n> # Nested\n\n## Detail\n\n# Final';
         const headings = getDocumentHeadings([
             { id: 'cell', type: 'markdown', content: { markdown } },
         ]);

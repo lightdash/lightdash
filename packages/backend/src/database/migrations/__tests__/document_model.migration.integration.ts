@@ -644,6 +644,131 @@ describe('DocumentModel PostgreSQL integration', () => {
         });
     });
 
+    test('slug lookup is exact and scoped to its project', async () => {
+        const document = await model.create({
+            ...input,
+            slug: 'weekly-review',
+        });
+        const otherProjectUuid = randomUUID();
+        const otherSpaceUuid = randomUUID();
+        await transaction<{
+            project_id: number;
+            project_uuid: string;
+            organization_id: number;
+        }>('projects').insert({
+            project_id: 2,
+            project_uuid: otherProjectUuid,
+            organization_id: 1,
+        });
+        await transaction<{
+            space_id: number;
+            space_uuid: string;
+            project_id: number;
+        }>('spaces').insert({
+            space_id: 2,
+            space_uuid: otherSpaceUuid,
+            project_id: 2,
+        });
+        const other = await model.create({
+            ...input,
+            projectUuid: otherProjectUuid,
+            spaceUuid: otherSpaceUuid,
+            slug: document.slug,
+        });
+        await expect(
+            model.getBySlug(input.projectUuid, document.slug),
+        ).resolves.toEqual(document);
+        await expect(
+            model.getBySlug(otherProjectUuid, document.slug),
+        ).resolves.toEqual(other);
+        await Promise.all(
+            ['weekly', 'Weekly-review', document.documentUuid].map((slug) =>
+                expect(
+                    model.getBySlug(input.projectUuid, slug),
+                ).rejects.toThrow('Document not found'),
+            ),
+        );
+        await expect(
+            model.getBySlug(randomUUID(), document.slug),
+        ).rejects.toThrow('Document not found');
+    });
+
+    test.each(['document', 'space'] as const)(
+        'slug lookup hides a deleted %s',
+        async (deletedResource) => {
+            const document = await model.create(input);
+            if (deletedResource === 'document') {
+                await transaction(DocumentsTableName)
+                    .where('document_uuid', document.documentUuid)
+                    .update({ deleted_at: new Date() });
+            } else {
+                await transaction('spaces')
+                    .where('space_uuid', input.spaceUuid)
+                    .update({
+                        deleted_at: new Date(),
+                        deleted_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                    });
+            }
+            await expect(
+                model.getBySlug(input.projectUuid, document.slug),
+            ).rejects.toThrow('Document not found');
+        },
+    );
+
+    test('whole-content replacement preserves history and rejects stale writes', async () => {
+        const document = await model.create(input);
+        const replacement = {
+            cells: [
+                {
+                    id: randomUUID(),
+                    type: 'markdown' as const,
+                    content: { markdown: '# Replacement' },
+                },
+            ],
+        };
+        const request = {
+            expectedSpaceUuid: input.spaceUuid,
+            baseVersionUuid: document.version.versionUuid,
+            content: replacement,
+        };
+        const updated = await model.updateContent(
+            input.projectUuid,
+            document.documentUuid,
+            request,
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        expect(updated.version.content).toEqual(replacement);
+        expect(updated.version.versionNumber).toBe(2);
+        await expect(
+            model.updateContent(
+                input.projectUuid,
+                document.documentUuid,
+                request,
+                SEED_ORG_1_ADMIN.user_uuid,
+            ),
+        ).rejects.toThrow('Document has changed');
+        const cleared = await model.updateContent(
+            input.projectUuid,
+            document.documentUuid,
+            {
+                ...request,
+                baseVersionUuid: updated.version.versionUuid,
+                content: { cells: [] },
+            },
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        expect(cleared.version.content.cells).toEqual([]);
+        expect(cleared.version.versionNumber).toBe(3);
+        const versions = await transaction(DocumentVersionsTableName)
+            .select('content')
+            .orderBy('version_number');
+        expect(versions.map((version) => version.content)).toEqual([
+            input.content,
+            replacement,
+            { cells: [] },
+        ]);
+    });
+
     test('content updates append exactly one immutable version', async () => {
         const document = await model.create(input);
         const updated = await model.updateContent(

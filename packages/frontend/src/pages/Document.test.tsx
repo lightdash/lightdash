@@ -99,7 +99,7 @@ const document: Document = {
                     id: 'intro',
                     type: 'markdown',
                     content: {
-                        markdown: '## Findings\n\nSupporting findings',
+                        markdown: '# Findings\n\nSupporting findings',
                     },
                 },
                 chart,
@@ -107,7 +107,7 @@ const document: Document = {
                     id: 'end',
                     type: 'markdown',
                     content: {
-                        markdown: '## Recommendations\n\nNext steps',
+                        markdown: '# Recommendations\n\nNext steps',
                     },
                 },
             ],
@@ -202,6 +202,15 @@ describe('Document page', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByText('Revenue and next steps')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Document', { exact: true }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Contents', { exact: true }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('navigation', { name: 'Report contents' }),
+        ).toBeInTheDocument();
         expect(mocks.api).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project-uuid/documents/document-uuid',
@@ -211,7 +220,7 @@ describe('Document page', () => {
         expect(
             Array.from(
                 container.querySelectorAll(
-                    'h2, [data-testid="document-chart"]',
+                    'h1[data-report-heading], h2, [data-testid="document-chart"]',
                 ),
             ).map((element) => element.textContent),
         ).toEqual([
@@ -247,7 +256,7 @@ describe('Document page', () => {
             screen.getByRole('button', { name: 'Findings' }),
         ).toBeInTheDocument();
         expect(heading).toHaveAttribute('id', 'document-heading-intro-0');
-        expect(heading).toHaveClass(reportStyles.reportFindingTitle);
+        expect(heading.tagName).toBe('H1');
         expect(heading.closest('section')).toHaveClass(
             reportStyles.reportFinding,
         );
@@ -256,7 +265,7 @@ describe('Document page', () => {
         ).toHaveAttribute('id', 'document-heading-end-0');
     });
 
-    test('indexes chart names and Markdown headings in the contents', async () => {
+    test('omits chart names and Markdown H2s from the contents', async () => {
         mocks.api.mockResolvedValue({
             ...document,
             version: {
@@ -288,19 +297,19 @@ describe('Document page', () => {
                 name: 'Chart section',
                 level: 2,
             }),
-        ).toHaveAttribute('id', 'document-chart-chart');
+        ).not.toHaveAttribute('data-report-heading');
         expect(
-            screen.getByRole('button', { name: 'Chart section' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('button', { name: 'Chart section' }),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByRole('heading', { name: 'Embedded heading' }),
-        ).toHaveAttribute('data-report-heading');
+        ).not.toHaveAttribute('data-report-heading');
         expect(
-            screen.getByRole('button', { name: 'Embedded heading' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('button', { name: 'Embedded heading' }),
+        ).not.toBeInTheDocument();
     });
 
-    test('preserves the chart section title and navigation when its renderer throws', async () => {
+    test('preserves the chart title and Markdown navigation when its renderer throws', async () => {
         mocks.chartFails = true;
         const errorLog = vi
             .spyOn(console, 'error')
@@ -333,17 +342,15 @@ describe('Document page', () => {
                     name: 'Failed chart section',
                     level: 2,
                 }),
-            ).toHaveAttribute('id', 'document-chart-chart');
+            ).not.toHaveAttribute('data-report-heading');
             expect(
-                screen.getByRole('button', { name: 'Failed chart section' }),
-            ).toBeInTheDocument();
+                screen.queryByRole('button', { name: 'Failed chart section' }),
+            ).not.toBeInTheDocument();
             const title = screen.getByRole('heading', {
-                name: 'Failed chart section',
+                name: 'Findings',
             });
             title.scrollIntoView = vi.fn();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Failed chart section' }),
-            );
+            fireEvent.click(screen.getByRole('button', { name: 'Findings' }));
             expect(title.scrollIntoView).toHaveBeenCalledWith({
                 block: 'start',
             });
@@ -382,7 +389,9 @@ describe('Document page', () => {
         expect(
             await screen.findByRole('heading', { name: title }),
         ).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: title })).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: title }),
+        ).not.toBeInTheDocument();
         expect(container.querySelector('img, [onerror], strong')).toBeNull();
     });
 

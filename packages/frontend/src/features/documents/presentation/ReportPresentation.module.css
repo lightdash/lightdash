@@ -188,6 +188,32 @@
     }
 }
 
+.reportMarkdown.documentMarkdown {
+    h1 {
+        font-size: var(--mantine-h1-font-size);
+    }
+
+    h2 {
+        font-size: var(--mantine-h3-font-size);
+    }
+
+    h3 {
+        font-size: var(--mantine-h5-font-size);
+    }
+
+    h1,
+    h2,
+    h3 {
+        margin-top: var(--mantine-spacing-xl);
+        margin-bottom: var(--mantine-spacing-sm);
+        scroll-margin-top: var(--mantine-spacing-xl);
+    }
+
+    :is(h1, h2, h3):first-child {
+        margin-top: 0;
+    }
+}
+
 .reportEvidence {
     min-width: 0;
     padding: 1.5rem 1.75rem 1rem;

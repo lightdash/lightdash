@@ -246,6 +246,20 @@ const renderContent = (
                 : null}
             {sortedContent.map((content) => {
                 switch (content.contentType) {
+                    case 'document':
+                        return (
+                            <document
+                                uuid={content.uuid}
+                                name={content.name}
+                                slug={content.slug}
+                                href={content.href}
+                            >
+                                {truncate(
+                                    content.description ?? '',
+                                    toolDescriptionMaxChars,
+                                )}
+                            </document>
+                        );
                     case 'space':
                         return renderSpace(content);
                     case 'data_app':

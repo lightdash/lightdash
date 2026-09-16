@@ -14,6 +14,11 @@ import { ChartType } from '../types/savedCharts';
 
 export const DOCUMENT_SCHEMA_VERSION = 3;
 
+export const getDocumentUrl = (
+    projectUuid: string,
+    documentUuid: string,
+): string => `/projects/${projectUuid}/documents/${documentUuid}`;
+
 const chartProperties = {
     name: chartAsCodeSchema.properties.name,
     description: chartAsCodeSchema.properties.description,

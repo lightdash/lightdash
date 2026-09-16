@@ -82,6 +82,15 @@ export type DocumentVersion = {
 
 export type Document = DocumentSummary & { version: DocumentVersion };
 
+export type DocumentAsCode = Pick<
+    DocumentSummary,
+    'name' | 'slug' | 'description'
+> & {
+    spaceSlug: string;
+    schemaVersion: 3;
+    content: DocumentContentV3;
+};
+
 export type ApiDocumentResponse = ApiSuccess<Document>;
 export type DocumentList = {
     items: DocumentSummary[];

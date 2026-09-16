@@ -2,12 +2,14 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AnyType,
+    assertRegisteredAccount,
     assertUnreachable,
     CatalogFilter,
     CatalogType,
     ContentType,
     dataAppVizSchema,
     DimensionType,
+    documentAsCodeSchema,
     Explore,
     FeatureFlags,
     filterExploreByTags,
@@ -16,6 +18,7 @@ import {
     ForbiddenError,
     getConnectionDefaults,
     getContentAsCodePathFromLtreePath,
+    getDocumentUrl,
     getErrorMessage,
     getItemMap,
     getLtreePathFromContentAsCodePath,
@@ -26,8 +29,10 @@ import {
     isFilterAutocompleteManualOnly,
     isGitProjectType,
     JobStatusType,
+    mcpDocumentEditSchema,
     NotFoundError,
     ParameterError,
+    parseDocumentContent,
     QueryExecutionContext,
     QueryHistoryStatus,
     RequestMethod,
@@ -45,12 +50,16 @@ import {
     type CustomChartType,
     type DashboardAsCode,
     type DataAppVizSchema,
+    type Document,
     type FieldValueSearchResult,
+    type McpDocumentAsCode,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
+import { isEqual } from 'lodash';
+import { randomUUID } from 'node:crypto';
 import { type DbApp } from '../../../database/entities/apps';
 import Logger from '../../../logging/logger';
 import { AppModel } from '../../../models/AppModel';
@@ -71,6 +80,7 @@ import { CatalogService } from '../../../services/CatalogService/CatalogService'
 import { CoderService } from '../../../services/CoderService/CoderService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
+import { DocumentService } from '../../../services/DocumentService/DocumentService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
@@ -285,6 +295,14 @@ export type McpAiAgentToolsRuntime = Omit<
     | 'iterateDataApp'
     | 'listDataAppThemes'
 > & {
+    createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
+    readDocumentContent: (
+        identifier: { slug: string } | { documentUuid: string },
+    ) => Promise<DocumentContentResult>;
+    editDocumentContent: (
+        slug: string,
+        edit: unknown,
+    ) => Promise<DocumentContentResult>;
     getExplore: (
         args: Parameters<GetExploreFn>[0],
     ) => Promise<McpRuntimeResult<GetExploreRuntimeResult>>;
@@ -294,6 +312,14 @@ export type McpAiAgentToolsRuntime = Omit<
     findFields: (
         args: Parameters<FindFieldsFn>[0],
     ) => Promise<McpRuntimeResult<FindFieldsRuntimeResult>>;
+};
+
+export type DocumentContentResult = {
+    type: 'document';
+    content: McpDocumentAsCode;
+    uuid: string;
+    href: string;
+    versionUuid: string;
 };
 
 type BuiltInSkillsClient = Pick<
@@ -329,6 +355,7 @@ type AiAgentToolsServiceDependencies = {
     savedChartModel: SavedChartModel;
     coderService: CoderService;
     contentService: ContentService;
+    documentService: DocumentService;
     appGenerateService: AppGenerateService;
     organizationDesignModel: Pick<
         OrganizationDesignModel,
@@ -391,6 +418,7 @@ export class AiAgentToolsService extends BaseService {
     private readonly coderService: CoderService;
 
     private readonly contentService: ContentService;
+    private readonly documentService: DocumentService;
 
     private readonly appGenerateService: AppGenerateService;
 
@@ -472,6 +500,7 @@ export class AiAgentToolsService extends BaseService {
         savedChartModel,
         coderService,
         contentService,
+        documentService,
         appGenerateService,
         organizationDesignModel,
         aiAgentContentValidation,
@@ -506,6 +535,7 @@ export class AiAgentToolsService extends BaseService {
         this.savedChartModel = savedChartModel;
         this.coderService = coderService;
         this.contentService = contentService;
+        this.documentService = documentService;
         this.appGenerateService = appGenerateService;
         this.organizationDesignModel = organizationDesignModel;
         this.aiAgentContentValidation = aiAgentContentValidation;
@@ -695,7 +725,7 @@ export class AiAgentToolsService extends BaseService {
         };
 
         return context.source === 'mcp'
-            ? this.withMcpRuntimeResults(runtime)
+            ? this.withMcpRuntimeResults(runtime, context)
             : {
                   ...runtime,
                   updateUserName: (args) => this.updateUserName(context, args),
@@ -714,9 +744,16 @@ export class AiAgentToolsService extends BaseService {
             | 'iterateDataApp'
             | 'listDataAppThemes'
         >,
+        context: AiAgentToolsRuntimeContext,
     ): McpAiAgentToolsRuntime {
         return {
             ...runtime,
+            createDocumentContent: (content) =>
+                this.createDocumentContent(context, content),
+            readDocumentContent: (slug) =>
+                this.readDocumentContent(context, slug),
+            editDocumentContent: (slug, edit) =>
+                this.editDocumentContent(context, slug, edit),
             getExplore: this.withMcpRuntimeResult(
                 'get_explore',
                 runtime.getExplore,
@@ -1471,7 +1508,23 @@ export class AiAgentToolsService extends BaseService {
                         }),
                     );
 
-                return { content: [...spaceResults, ...contentResults] };
+                const documentResults =
+                    context.source === 'mcp' && !verifiedOnly
+                        ? await this.findDocumentContent(
+                              context,
+                              args.searchQuery.label,
+                              scopedSpaceUuids,
+                              spacesByUuid,
+                              spacesByPath,
+                          )
+                        : [];
+                return {
+                    content: [
+                        ...spaceResults,
+                        ...contentResults,
+                        ...documentResults,
+                    ],
+                };
             },
         );
     }
@@ -3927,6 +3980,7 @@ export class AiAgentToolsService extends BaseService {
                     ContentType.CHART,
                     ContentType.SPACE,
                     ContentType.DATA_APP,
+                    ...(context.source === 'mcp' ? [ContentType.DOCUMENT] : []),
                 ],
             },
             {},
@@ -3936,7 +3990,11 @@ export class AiAgentToolsService extends BaseService {
         return {
             spaceSlug,
             items: results.data
-                .filter((item) => item.contentType !== ContentType.DOCUMENT)
+                .filter(
+                    (item) =>
+                        context.source === 'mcp' ||
+                        item.contentType !== ContentType.DOCUMENT,
+                )
                 .filter(
                     (item) =>
                         item.contentType !== ContentType.SPACE ||
@@ -3964,6 +4022,18 @@ export class AiAgentToolsService extends BaseService {
                     }
 
                     switch (item.contentType) {
+                        case ContentType.DOCUMENT: {
+                            return {
+                                contentType: ContentType.DOCUMENT,
+                                uuid: item.uuid,
+                                name: item.name,
+                                slug: item.slug,
+                                href: getDocumentUrl(
+                                    context.projectUuid,
+                                    item.uuid,
+                                ),
+                            };
+                        }
                         case ContentType.DASHBOARD:
                             return {
                                 contentType: item.contentType,
@@ -4005,6 +4075,218 @@ export class AiAgentToolsService extends BaseService {
                 }),
             pagination: results.pagination,
         };
+    }
+
+    private async findDocumentContent(
+        context: AiAgentToolsRuntimeContext,
+        search: string,
+        scopedSpaceUuids: Set<string> | null,
+        spacesByUuid: Map<string, ProjectSpace>,
+        spacesByPath: Map<string, ProjectSpace>,
+    ): Promise<FindContentResult[]> {
+        const agentSpaceUuids = context.spaceAccess?.length
+            ? context.spaceAccess
+            : undefined;
+        const allowedSpaceUuids =
+            scopedSpaceUuids === null
+                ? agentSpaceUuids
+                : [...scopedSpaceUuids].filter((uuid) =>
+                      AiAgentToolsService.hasAgentSpaceAccess(
+                          context.spaceAccess,
+                          uuid,
+                      ),
+                  );
+        if (allowedSpaceUuids?.length === 0) {
+            return [];
+        }
+        const results = await this.contentService.find(
+            context.user,
+            {
+                projectUuids: [context.projectUuid],
+                contentTypes: [ContentType.DOCUMENT],
+                spaceUuids: allowedSpaceUuids,
+                search,
+            },
+            {},
+            { page: 1, pageSize: 25 },
+        );
+        return results.data
+            .filter((item) => item.contentType === ContentType.DOCUMENT)
+            .map((item): FindContentResult => {
+                const space = spacesByUuid.get(item.space.uuid);
+                return {
+                    contentType: 'document',
+                    uuid: item.uuid,
+                    name: item.name,
+                    slug: item.slug,
+                    href: getDocumentUrl(context.projectUuid, item.uuid),
+                    description: item.description,
+                    search_rank: 0,
+                    space: space
+                        ? AiAgentToolsService.getSpaceMetadata(
+                              space,
+                              spacesByPath,
+                          )
+                        : null,
+                    verification: null,
+                };
+            });
+    }
+
+    private async documentContentResult(
+        context: AiAgentToolsRuntimeContext,
+        document: Document,
+    ): Promise<DocumentContentResult> {
+        if (
+            !AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                document.spaceUuid,
+            )
+        ) {
+            throw new NotFoundError('Document not found');
+        }
+        const [space] = await this.spaceModel.find({
+            projectUuid: context.projectUuid,
+            spaceUuids: [document.spaceUuid],
+        });
+        if (!space) {
+            throw new NotFoundError('Document not found');
+        }
+        return {
+            type: 'document',
+            uuid: document.documentUuid,
+            href: getDocumentUrl(context.projectUuid, document.documentUuid),
+            versionUuid: document.version.versionUuid,
+            content: {
+                name: document.name,
+                slug: document.slug,
+                description: document.description,
+                spaceSlug: getContentAsCodePathFromLtreePath(space.path),
+                schemaVersion: document.version.schemaVersion,
+                content: {
+                    cells: document.version.content.cells.map(
+                        ({ id: _id, ...cell }) => cell,
+                    ),
+                },
+            },
+        };
+    }
+
+    private async readDocumentContent(
+        context: AiAgentToolsRuntimeContext,
+        identifier: { slug: string } | { documentUuid: string },
+    ) {
+        assertRegisteredAccount(context.account);
+        const document =
+            'documentUuid' in identifier
+                ? await this.documentService.get(
+                      context.account,
+                      context.projectUuid,
+                      identifier.documentUuid,
+                  )
+                : await this.documentService.getBySlug(
+                      context.account,
+                      context.projectUuid,
+                      identifier.slug,
+                  );
+        return this.documentContentResult(context, document);
+    }
+
+    private async createDocumentContent(
+        context: AiAgentToolsRuntimeContext,
+        raw: unknown,
+    ) {
+        assertRegisteredAccount(context.account);
+        const input = documentAsCodeSchema.parse(raw);
+        await this.assertContentSpaceInScope(
+            context,
+            input.spaceSlug,
+            'Space not found',
+        );
+        const [space] = await this.spaceModel.find({
+            projectUuid: context.projectUuid,
+            path: getLtreePathFromContentAsCodePath(input.spaceSlug),
+        });
+        if (
+            !space ||
+            !AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                space.uuid,
+            )
+        ) {
+            throw new NotFoundError('Space not found');
+        }
+        const document = await this.documentService.create(
+            context.account,
+            context.projectUuid,
+            {
+                name: input.name,
+                slug: input.slug,
+                description: input.description,
+                spaceUuid: space.uuid,
+                schemaVersion: input.schemaVersion,
+                content: parseDocumentContent(input.schemaVersion, {
+                    cells: input.content.cells.map((cell) => ({
+                        ...cell,
+                        id: randomUUID(),
+                    })),
+                }),
+            },
+        );
+        return this.documentContentResult(context, document);
+    }
+
+    private async editDocumentContent(
+        context: AiAgentToolsRuntimeContext,
+        slug: string,
+        raw: unknown,
+    ) {
+        assertRegisteredAccount(context.account);
+        const edit = mcpDocumentEditSchema.parse(raw);
+        const existing = await this.documentService.getBySlug(
+            context.account,
+            context.projectUuid,
+            slug,
+        );
+        const current = await this.documentContentResult(context, existing);
+        if (edit.type === 'metadata') {
+            const { type: _type, ...metadata } = edit;
+            const document = await this.documentService.updateMetadata(
+                context.account,
+                context.projectUuid,
+                current.uuid,
+                metadata,
+                { allowedSpaceUuids: context.spaceAccess ?? undefined },
+            );
+            return this.documentContentResult(context, document);
+        }
+        const unmatchedCells = [...existing.version.content.cells];
+        const content = parseDocumentContent(3, {
+            cells: edit.content.cells.map((cell) => {
+                const index = unmatchedCells.findIndex(
+                    (previous) =>
+                        previous.type === cell.type &&
+                        isEqual(previous.content, cell.content),
+                );
+                // Retain unchanged chart IDs so narrative edits do not require chart-authoring permissions.
+                const id =
+                    index < 0
+                        ? randomUUID()
+                        : unmatchedCells.splice(index, 1)[0].id;
+                return { ...cell, id };
+            }),
+        });
+        const document = await this.documentService.updateContent(
+            context.account,
+            context.projectUuid,
+            current.uuid,
+            {
+                baseVersionUuid: edit.baseVersionUuid,
+                content,
+            },
+            { allowedSpaceUuids: context.spaceAccess ?? undefined },
+        );
+        return this.documentContentResult(context, document);
     }
 
     private static transactionPrefix(context: AiAgentToolsRuntimeContext) {

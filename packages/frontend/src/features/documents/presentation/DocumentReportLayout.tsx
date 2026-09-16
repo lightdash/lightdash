@@ -18,6 +18,7 @@ type Props = {
     eyebrow?: ReactNode;
     description?: ReactNode;
     headings: ReportHeading[];
+    contentsLabel?: ReactNode;
     children: ReactNode;
     headerProps?: HTMLAttributes<HTMLHeadingElement> & {
         [key: `data-${string}`]: string;
@@ -31,6 +32,7 @@ const DocumentReportLayout = ({
     eyebrow,
     description,
     headings,
+    contentsLabel = 'Contents',
     children,
     headerProps,
     headingSelector,
@@ -62,7 +64,11 @@ const DocumentReportLayout = ({
                         className={styles.contentsNav}
                         aria-label="Report contents"
                     >
-                        <Text className={styles.contentsLabel}>Contents</Text>
+                        {contentsLabel && (
+                            <Text className={styles.contentsLabel}>
+                                {contentsLabel}
+                            </Text>
+                        )}
                         <Box className={styles.contentsList}>
                             {entries.map((heading) => (
                                 <UnstyledButton
