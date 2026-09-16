@@ -18,6 +18,8 @@ jobs:
   # ============================================================================
   build-and-push-images:
     name: Build and Push Images
+    outputs:
+      image-digest: ${{ steps.build-and-push.outputs.digest }}
     runs-on: depot-ubuntu-24.04-4
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -139,13 +141,36 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
+      - name: Set up Depot CLI
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1
+      - name: Authenticate the remote asset export
+        run: gcloud auth configure-docker us-docker.pkg.dev --quiet
+      - name: Report disk space before export
+        run: df -h .
+      - name: Export only the published frontend assets from Depot
+        uses: depot/build-push-action@5f3b3c2e5a00f0093de47f657aeaefcedff27d18 # v1
+        with:
+          project: bgbbt3d0kc
+          token: ${{ secrets.DEPOT_PROJECT_TOKEN }}
+          context: ./docker
+          file: docker/static-assets.Dockerfile
+          platforms: linux/amd64
+          build-args: |
+            RELEASE_IMAGE=us-docker.pkg.dev/lightdash-containers/lightdash/lightdash@${{ needs.build-and-push-images.outputs.image-digest }}
+          outputs: type=local,dest=retained-static-assets
+      - name: Report exported size and disk space
+        run: |
+          du -sh retained-static-assets
+          df -h .
       - name: Upload the published image assets
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
+          IMAGE_DIGEST: ${{ needs.build-and-push-images.outputs.image-digest }}
         run: |
-          gcloud auth configure-docker us-docker.pkg.dev --quiet
           node .github/scripts/upload-static-assets.mts \
             --image "us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${RELEASE_TAG}-commercial" \
+            --image-digest "$IMAGE_DIGEST" \
+            --directory retained-static-assets/assets \
             --bucket lightdash-static-assets-us \
             --bucket lightdash-static-assets-eu \
             --bucket lightdash-static-assets-staging

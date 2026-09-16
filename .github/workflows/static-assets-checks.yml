@@ -3,6 +3,8 @@ name: Static asset uploader checks
 on:
   pull_request:
     paths:
+      - 'docker/static-assets.Dockerfile'
+      - '.github/scripts/test-static-assets-export.sh'
       - '.github/scripts/upload-static-assets.mts'
       - '.github/scripts/upload-static-assets.test.mts'
       - '.github/workflows/static-assets-checks.yml'
@@ -20,3 +22,4 @@ jobs:
         with:
           node-version: '24'
       - run: node --test .github/scripts/upload-static-assets.test.mts
+      - run: bash .github/scripts/test-static-assets-export.sh
