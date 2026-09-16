@@ -8,6 +8,7 @@
     height: var(--header-height, var(--page-header-height));
     padding: var(--mantine-spacing-md)
         var(--header-padding-x, var(--mantine-spacing-lg));
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .root[data-header-variant='query'] {

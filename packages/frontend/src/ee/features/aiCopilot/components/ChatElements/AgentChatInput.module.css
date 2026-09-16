@@ -2,6 +2,16 @@
     position: relative;
 }
 
+.agentComposer.agentComposer {
+    @mixin dark {
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-dark-6) 65%,
+            var(--mantine-color-dark-7)
+        );
+    }
+}
+
 .modelGroup {
     display: inline-flex;
     align-items: stretch;

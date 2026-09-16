@@ -95,7 +95,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
     },
     dark: {
         ...darkLightVariantTints(theme),
-        '--mantine-color-body': 'var(--mantine-color-dark-6)',
+        '--mantine-color-body': 'var(--mantine-color-background-0)',
         '--mantine-color-text': 'var(--mantine-color-dark-0)',
         '--mantine-color-dimmed': 'var(--mantine-color-dark-2)',
         '--mantine-color-placeholder': 'var(--mantine-color-dark-3)',
