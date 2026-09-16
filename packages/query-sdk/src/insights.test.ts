@@ -65,9 +65,9 @@ describe('insights channel', () => {
         expect(posted).toContainEqual({ type: INSIGHTS_REQUEST_MESSAGE });
     });
 
-    it('stores a valid payload from the host', () => {
+    it('is unavailable until the host pushes, then stores the payload', () => {
         mountInsights(host);
-        expect(peekInsights().status).toBe('idle');
+        expect(peekInsights().status).toBe('unavailable');
         dispatch(host, { type: INSIGHTS_MESSAGE, payload });
         expect(peekInsights().headline).toBe('Returns doubled');
         expect(peekInsights().anomalies).toHaveLength(2);
@@ -80,7 +80,7 @@ describe('insights channel', () => {
             type: INSIGHTS_MESSAGE,
             payload: { ...payload, anomalies: [{ id: 1 }] },
         });
-        expect(peekInsights().status).toBe('idle');
+        expect(peekInsights().status).toBe('unavailable');
     });
 
     it('posts actions to the host', () => {

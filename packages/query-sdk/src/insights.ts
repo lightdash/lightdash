@@ -96,8 +96,11 @@ export const MOUNTED_QUERIES_MESSAGE = 'lightdash:sdk:mounted-queries';
 
 const SDK_READY_MESSAGE = 'lightdash:sdk:ready';
 
+// Unavailable until the host pushes a payload: hosts without the feature
+// (embeds, dashboard tiles, old versions, rollout off) never push one, and the
+// app must render no AI controls for them.
 export const EMPTY_INSIGHTS: InsightsPayload = {
-    status: 'idle',
+    status: 'unavailable',
     analysisId: null,
     headline: null,
     summary: null,

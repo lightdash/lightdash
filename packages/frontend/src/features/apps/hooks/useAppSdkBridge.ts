@@ -164,6 +164,20 @@ export type ExternalRequestEvent = {
 // Caps what an app can push into the host page's URL / browser history.
 const MAX_URL_STATE_CHARS = 4096;
 
+const UNAVAILABLE_INSIGHTS: DataAppInsightsPayload = {
+    status: 'unavailable',
+    analysisId: null,
+    headline: null,
+    summary: null,
+    limitations: [],
+    dataAsOf: null,
+    generatedAt: null,
+    stale: false,
+    canInvestigate: false,
+    error: null,
+    anomalies: [],
+};
+
 const isMetricQueryPost = (method: string, path: string): boolean =>
     method.toUpperCase() === 'POST' &&
     /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/.test(path);
@@ -408,10 +422,14 @@ export function useAppSdkBridge({
     }, [iframeRef, colorScheme]);
 
     // Push the analysis in; the SDK validates the payload on its side.
+    // A host with nothing to offer says so, so the app hides its AI controls
+    // instead of showing an "Analyse" that the backend would reject.
     const pushInsights = useCallback(() => {
-        if (insights === null) return;
         iframeRef.current?.contentWindow?.postMessage(
-            { type: APP_SDK_INSIGHTS_MESSAGE, payload: insights },
+            {
+                type: APP_SDK_INSIGHTS_MESSAGE,
+                payload: insights ?? UNAVAILABLE_INSIGHTS,
+            },
             '*',
         );
     }, [iframeRef, insights]);

@@ -2,6 +2,7 @@ import {
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+    APP_SDK_INSIGHTS_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     FilterOperator,
     JWT_HEADER_NAME,
@@ -1588,6 +1589,11 @@ describe('color scheme push', () => {
         expect(postSpy.mock.calls.map(([message]) => message)).toEqual([
             { type: 'lightdash:sdk:ready' },
             { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
+            // No insights supplied: the host says so instead of staying silent.
+            {
+                type: APP_SDK_INSIGHTS_MESSAGE,
+                payload: expect.objectContaining({ status: 'unavailable' }),
+            },
         ]);
     });
 

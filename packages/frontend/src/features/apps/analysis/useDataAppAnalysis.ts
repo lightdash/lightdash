@@ -4,7 +4,7 @@ import {
     type DataAppAnalysisSource,
     type DataAppInvestigation,
 } from '@lightdash/common';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type QueryEvent } from '../hooks/useAppSdkBridge';
 import { detectDataAppAnomalies, investigateDataAppAnomaly } from './api';
 import {
@@ -29,6 +29,20 @@ export type DataAppAnalysisState =
 const errorMessage = (e: unknown): string =>
     (e as ApiError)?.error?.message ??
     (e instanceof Error ? e.message : 'Something went wrong');
+
+type ScopedState = {
+    scope: string;
+    state: DataAppAnalysisState;
+    analysedSignature: string | null;
+    investigations: Record<string, InvestigationState>;
+};
+
+const freshState = (scope: string): ScopedState => ({
+    scope,
+    state: { status: 'idle' },
+    analysedSignature: null,
+    investigations: {},
+});
 
 /**
  * Drives one "Analyse this view" panel: picks the current view's sources
@@ -58,23 +72,37 @@ export const useDataAppAnalysis = ({
     const signature = useMemo(() => sourcesSignature(sources), [sources]);
     const inFlight = useMemo(() => hasInFlightQueries(queries), [queries]);
 
-    const [state, setState] = useState<DataAppAnalysisState>({
-        status: 'idle',
-    });
-    const [analysedSignature, setAnalysedSignature] = useState<string | null>(
-        null,
-    );
-    const [investigations, setInvestigations] = useState<
-        Record<string, InvestigationState>
-    >({});
+    // All analysis state is keyed by project+app and read through the current
+    // key, so switching apps never renders the previous app's analysis, not
+    // even for the render before the reset effect runs.
+    const scope = `${projectUuid}:${appUuid}`;
+    const [stored, setStored] = useState<ScopedState>(() => freshState(scope));
+    const current = stored.scope === scope ? stored : freshState(scope);
     const runRef = useRef(0);
+
+    useEffect(() => {
+        if (stored.scope === scope) return;
+        runRef.current += 1;
+        setStored(freshState(scope));
+    }, [scope, stored.scope]);
+
+    const patch = useCallback(
+        (requestScope: string, update: (prev: ScopedState) => ScopedState) =>
+            setStored((prev) =>
+                prev.scope === requestScope ? update(prev) : prev,
+            ),
+        [],
+    );
 
     const analyse = useCallback(
         async (sourcesToAnalyse: DataAppAnalysisSource[]) => {
             runRef.current += 1;
             const run = runRef.current;
-            setState({ status: 'analysing' });
-            setInvestigations({});
+            patch(scope, (prev) => ({
+                ...prev,
+                state: { status: 'analysing' },
+                investigations: {},
+            }));
             try {
                 const analysis = await detectDataAppAnomalies({
                     projectUuid,
@@ -82,25 +110,37 @@ export const useDataAppAnalysis = ({
                     sources: sourcesToAnalyse,
                 });
                 if (run !== runRef.current) return;
-                setAnalysedSignature(sourcesSignature(sourcesToAnalyse));
-                setState({ status: 'ready', analysis, stale: false });
+                patch(scope, (prev) => ({
+                    ...prev,
+                    analysedSignature: sourcesSignature(sourcesToAnalyse),
+                    state: { status: 'ready', analysis, stale: false },
+                }));
             } catch (e) {
                 if (run !== runRef.current) return;
-                setState({ status: 'error', message: errorMessage(e) });
+                patch(scope, (prev) => ({
+                    ...prev,
+                    state: { status: 'error', message: errorMessage(e) },
+                }));
             }
         },
-        [projectUuid, appUuid],
+        [projectUuid, appUuid, scope, patch],
     );
 
+    const { state } = current;
     const investigate = useCallback(
         async (anomalyId: string, agentUuid: string) => {
             if (state.status !== 'ready') return;
             const { analysisId } = state.analysis;
             const run = runRef.current;
-            setInvestigations((prev) => ({
-                ...prev,
-                [anomalyId]: { status: 'running' },
-            }));
+            const setInvestigation = (value: InvestigationState) =>
+                patch(scope, (prev) => ({
+                    ...prev,
+                    investigations: {
+                        ...prev.investigations,
+                        [anomalyId]: value,
+                    },
+                }));
+            setInvestigation({ status: 'running' });
             try {
                 const investigation = await investigateDataAppAnomaly({
                     projectUuid,
@@ -110,31 +150,25 @@ export const useDataAppAnalysis = ({
                     agentUuid,
                 });
                 if (run !== runRef.current) return;
-                setInvestigations((prev) => ({
-                    ...prev,
-                    [anomalyId]: { status: 'ready', investigation },
-                }));
+                setInvestigation({ status: 'ready', investigation });
             } catch (e) {
                 if (run !== runRef.current) return;
-                setInvestigations((prev) => ({
-                    ...prev,
-                    [anomalyId]: { status: 'error', message: errorMessage(e) },
-                }));
+                setInvestigation({ status: 'error', message: errorMessage(e) });
             }
         },
-        [projectUuid, appUuid, state],
+        [projectUuid, appUuid, scope, state, patch],
     );
 
     const stale =
         state.status === 'ready' &&
-        analysedSignature !== null &&
-        analysedSignature !== signature;
+        current.analysedSignature !== null &&
+        current.analysedSignature !== signature;
 
     return {
         sources,
         inFlight,
         state: state.status === 'ready' ? { ...state, stale } : state,
-        investigations,
+        investigations: current.investigations,
         analyse: () => analyse(sources),
         investigate,
     };
