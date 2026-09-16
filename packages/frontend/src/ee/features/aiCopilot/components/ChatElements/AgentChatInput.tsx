@@ -20,6 +20,7 @@ import {
     Paper,
     Text,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
     IconArrowUp,
     IconCheck,
@@ -316,6 +317,9 @@ export const AgentChatInput = ({
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const app = useApp();
+    const isPhoneLayout = useMediaQuery('(max-width: 32em)', undefined, {
+        getInitialValueInEffect: false,
+    });
     const [value, setValueState] = useState(defaultValue ?? '');
     const [externalSourceAttachments, setExternalSourceAttachments] = useState<
         ExternalSourceAttachment[]
@@ -926,6 +930,7 @@ export const AgentChatInput = ({
                 onImpression={handleImpression}
                 align={isThreadInput ? 'left' : 'center'}
                 showPromptAffordance={isThreadInput}
+                maxVisible={isPhoneLayout ? 2 : undefined}
             />
         );
     }, [
@@ -936,6 +941,7 @@ export const AgentChatInput = ({
         handleChipClick,
         handleImpression,
         isThreadInput,
+        isPhoneLayout,
     ]);
     const shouldReserveEmptyStateSuggestions =
         !isThreadInput &&

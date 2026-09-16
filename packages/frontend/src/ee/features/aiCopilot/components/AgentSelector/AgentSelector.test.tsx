@@ -80,4 +80,25 @@ describe('agent walkthrough anchors', () => {
             ).toHaveAttribute('data-tour-value', agent.name);
         }
     });
+
+    it('includes agent settings in the selector when provided', () => {
+        render(
+            <MantineProvider>
+                <MemoryRouter>
+                    <AgentSelector
+                        agents={agents}
+                        selectedAgent={agents[0]}
+                        projectUuid="training-copy"
+                        settingsHref="/projects/training-copy/ai-agents/first-agent/edit"
+                    />
+                </MemoryRouter>
+            </MantineProvider>,
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: /Revenue analyst/ }),
+        );
+
+        expect(screen.getByText('Agent settings')).toBeInTheDocument();
+    });
 });
