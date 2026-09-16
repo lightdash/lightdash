@@ -179,7 +179,7 @@ const darkModeColors = {
     ldGray: neutralDark,
     ldDark: neutralDark,
 
-    background: createColorTuple('#1e1e21'),
+    background: createColorTuple('#141417'),
     foreground: createColorTuple('#ececee'),
 
     ldBrandGray: lightdashBrandGray,

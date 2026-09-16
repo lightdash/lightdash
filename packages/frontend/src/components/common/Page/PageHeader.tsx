@@ -22,7 +22,6 @@ const PageHeader: FC<Props> = ({
             data-header-variant={variant}
             bg="background"
             withBorder={false}
-            shadow="bottomFade"
             radius="unset"
             classNames={{ root: classes.root }}
             {...cardProps}
