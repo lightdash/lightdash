@@ -1,3 +1,10 @@
+## [2.228.1](https://github.com/lightdash/lightdash/compare/2.228.0...2.228.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* **direct-access:** skip eligibility queries without matching grants ([#29321](https://github.com/lightdash/lightdash/issues/29321)) ([b6f2031](https://github.com/lightdash/lightdash/commit/b6f2031b8c013275ff1c5e36b5edd93dbafe3fa6))
+
 # [2.228.0](https://github.com/lightdash/lightdash/compare/2.227.0...2.228.0) (2026-09-16)
 
 
