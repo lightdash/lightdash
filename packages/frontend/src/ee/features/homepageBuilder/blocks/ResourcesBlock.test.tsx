@@ -74,6 +74,43 @@ describe('ResourcesBlockView', () => {
         );
     });
 
+    it('shows a Claude artifact thumbnail when the unfurl returned a real one', () => {
+        const thumb =
+            'https://abc.frame.claudeusercontent.com/_f/123/_thumb.img';
+        wrap(
+            <ResourcesBlockView
+                itemSpan={null}
+                projectUuid="p1"
+                block={block({
+                    layout: 'card',
+                    items: [
+                        {
+                            ...claudeItem,
+                            url: 'https://claude.ai/artifact/abc',
+                            imageUrl: thumb,
+                        },
+                    ],
+                })}
+            />,
+        );
+        expect(
+            screen.getByRole('img', { name: 'Palette Lab' }),
+        ).toHaveAttribute('src', thumb);
+    });
+
+    it("never renders Claude's generic branded card as the thumbnail", () => {
+        wrap(
+            <ResourcesBlockView
+                itemSpan={null}
+                projectUuid="p1"
+                block={block({ layout: 'card', items: [claudeItem] })}
+            />,
+        );
+        expect(
+            document.querySelector(`img[src="${claudeItem.imageUrl}"]`),
+        ).toBeNull();
+    });
+
     it('derives a data app href from appUuid, ignoring the stored url', () => {
         const dataAppItem = {
             url: '/projects/p1/nabc-123', // malformed url persisted by an old builder version
@@ -251,11 +288,13 @@ describe('ResourcesBlockBuild smart paste', () => {
     beforeEach(() => mockFetch.mockReset());
 
     it('resolves an allowlisted URL into a fully-populated item', async () => {
+        const thumb =
+            'https://abc.frame.claudeusercontent.com/_f/123/_thumb.img';
         mockFetch.mockResolvedValue({
             kind: 'claude',
             title: 'Palette Lab',
             description: 'Generate color palettes',
-            imageUrl: 'https://claude.ai/images/claude_ogimage.png',
+            imageUrl: thumb,
         });
         const onChange = vi.fn();
         wrap(
@@ -275,7 +314,39 @@ describe('ResourcesBlockBuild smart paste', () => {
 
         await waitFor(() => expect(onChange).toHaveBeenCalled());
         const committed = onChange.mock.calls.at(-1)![0];
-        expect(committed.config.items).toEqual([claudeItem]);
+        expect(committed.config.items).toEqual([
+            { ...claudeItem, imageUrl: thumb },
+        ]);
+    });
+
+    it('drops a description that only repeats the title', async () => {
+        mockFetch.mockResolvedValue({
+            kind: 'claude',
+            title: 'Palette Lab',
+            description: 'Palette Lab',
+            imageUrl: null,
+        });
+        const onChange = vi.fn();
+        wrap(
+            <ResourcesBlockBuild
+                itemSpan={null}
+                projectUuid="p1"
+                onChange={onChange}
+                block={block({ layout: 'card', items: [] })}
+            />,
+        );
+
+        fireEvent.change(
+            screen.getByPlaceholderText(/Paste a Claude artifact/i),
+            { target: { value: claudeItem.url } },
+        );
+        fireEvent.click(screen.getByLabelText('Add resource'));
+
+        await waitFor(() => expect(onChange).toHaveBeenCalled());
+        const committed = onChange.mock.calls.at(-1)![0];
+        expect(committed.config.items).toEqual([
+            { url: claudeItem.url, kind: 'claude', title: 'Palette Lab' },
+        ]);
     });
 
     it('falls back to a plain link when the host is not allowlisted', async () => {

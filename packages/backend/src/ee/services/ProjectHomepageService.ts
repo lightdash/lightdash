@@ -56,12 +56,16 @@ import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import type { RecentContentService } from '../../services/RecentContentService/RecentContentService';
-import { secureFetch } from '../../utils/secureFetch/secureFetch';
+import {
+    secureFetch,
+    type SecureFetchResult,
+} from '../../utils/secureFetch/secureFetch';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import { downloadHomepageConfig, uploadHomepageConfig } from './homepageAsCode';
 import {
     classifyResourceUrl,
+    isBlockedUnfurl,
     parseOpenGraph,
     parseYoutubeOembed,
 } from './homepageLinkMetadata';
@@ -82,11 +86,13 @@ const ALLOWED_ANNOUNCEMENT_IMAGE_MIME_TYPES = new Set([
 
 const LINK_METADATA_TIMEOUT_MS = 5_000;
 const LINK_METADATA_MAX_BYTES = 256 * 1024;
-// Some providers (e.g. claude.ai) only server-render per-page OpenGraph tags for
-// recognised link-unfurl crawlers, so identify as one while staying honest about
-// who we are.
+const LINK_METADATA_MAX_ATTEMPTS = 3;
+// Some providers (e.g. claude.ai) only serve per-page OpenGraph tags, and skip
+// their bot challenge, for recognised link-unfurl crawlers. Carry Slack's exact
+// unfurler token after our own name so we pass while staying honest about who
+// we are.
 const LINK_PREVIEW_USER_AGENT =
-    'Lightdash-LinkPreview/1.0 (+https://www.lightdash.com; like Slackbot-LinkExpanding)';
+    'Lightdash-LinkPreview/1.0 (+https://www.lightdash.com) Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)';
 
 // Slack's `markdown` block renders standard markdown natively. Not yet in the
 // pinned @slack/types, but it structurally satisfies the SDK's base Block type.
@@ -912,38 +918,60 @@ export class ProjectHomepageService extends BaseService {
         await this.assertCanManage(user, projectUuid);
 
         const provider = classifyResourceUrl(url);
+        const empty: HomepageLinkMetadata = {
+            kind: provider.kind,
+            title: null,
+            description: null,
+            imageUrl: null,
+        };
         try {
             if (provider.fetchKind === 'oembed') {
-                const { bodyText } = await secureFetch(provider.fetchUrl, {
+                const response = await secureFetch(provider.fetchUrl, {
                     method: 'GET',
                     timeoutMs: LINK_METADATA_TIMEOUT_MS,
                     maxResponseBytes: LINK_METADATA_MAX_BYTES,
                     allowedContentTypes: ['application/json'],
                     headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT },
                 });
+                if (isBlockedUnfurl(response)) return empty;
                 let json: unknown = null;
                 try {
-                    json = JSON.parse(bodyText);
+                    json = JSON.parse(response.bodyText);
                 } catch {
                     json = null;
                 }
                 return { kind: provider.kind, ...parseYoutubeOembed(json) };
             }
-            const { bodyText } = await secureFetch(provider.fetchUrl, {
-                method: 'GET',
-                timeoutMs: LINK_METADATA_TIMEOUT_MS,
-                maxResponseBytes: LINK_METADATA_MAX_BYTES,
-                allowedContentTypes: ['text/html'],
-                headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT },
-            });
-            return { kind: provider.kind, ...parseOpenGraph(bodyText) };
-        } catch {
+            const fetchHtml = () =>
+                secureFetch(provider.fetchUrl, {
+                    method: 'GET',
+                    timeoutMs: LINK_METADATA_TIMEOUT_MS,
+                    maxResponseBytes: LINK_METADATA_MAX_BYTES,
+                    allowedContentTypes: ['text/html'],
+                    headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT },
+                });
+            // Bot challenges are intermittent for the same URL, so a retry
+            // usually gets the real page.
+            const fetchUnblockedHtml = async (
+                attempt: number,
+            ): Promise<SecureFetchResult> => {
+                const response = await fetchHtml();
+                if (
+                    !isBlockedUnfurl(response) ||
+                    attempt >= LINK_METADATA_MAX_ATTEMPTS
+                ) {
+                    return response;
+                }
+                return fetchUnblockedHtml(attempt + 1);
+            };
+            const response = await fetchUnblockedHtml(1);
+            if (isBlockedUnfurl(response)) return empty;
             return {
                 kind: provider.kind,
-                title: null,
-                description: null,
-                imageUrl: null,
+                ...parseOpenGraph(response.bodyText),
             };
+        } catch {
+            return empty;
         }
     }
 

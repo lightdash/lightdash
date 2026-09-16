@@ -116,6 +116,19 @@ const readMeta = (html: string, key: string): string | null => {
     return null;
 };
 
+/**
+ * Bot-protection challenges (e.g. Cloudflare's "Just a moment…" page) come back
+ * as a 403 HTML document whose <title> would otherwise be mistaken for the
+ * real page title. Any non-2xx or challenge-flagged response is unusable.
+ */
+export const isBlockedUnfurl = (response: {
+    status: number;
+    headers: Record<string, string>;
+}): boolean =>
+    response.status < 200 ||
+    response.status >= 300 ||
+    response.headers['cf-mitigated'] === 'challenge';
+
 export type ParsedLinkMetadata = {
     title: string | null;
     description: string | null;

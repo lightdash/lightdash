@@ -1,6 +1,7 @@
 import { ParameterError } from '@lightdash/common';
 import {
     classifyResourceUrl,
+    isBlockedUnfurl,
     parseOpenGraph,
     parseYoutubeOembed,
 } from './homepageLinkMetadata';
@@ -69,6 +70,32 @@ describe('classifyResourceUrl', () => {
     it('rejects URLs longer than 2048 chars before parsing', () => {
         const longUrl = `https://claude.ai/${'a'.repeat(2048)}`;
         expect(() => classifyResourceUrl(longUrl)).toThrow(ParameterError);
+    });
+});
+
+describe('isBlockedUnfurl', () => {
+    it('accepts a plain 2xx response', () => {
+        expect(isBlockedUnfurl({ status: 200, headers: {} })).toBe(false);
+    });
+
+    it('flags a bot challenge so its "Just a moment" title is never parsed', () => {
+        expect(
+            isBlockedUnfurl({
+                status: 403,
+                headers: { 'cf-mitigated': 'challenge' },
+            }),
+        ).toBe(true);
+        expect(
+            isBlockedUnfurl({
+                status: 200,
+                headers: { 'cf-mitigated': 'challenge' },
+            }),
+        ).toBe(true);
+    });
+
+    it('flags any other non-2xx status', () => {
+        expect(isBlockedUnfurl({ status: 404, headers: {} })).toBe(true);
+        expect(isBlockedUnfurl({ status: 500, headers: {} })).toBe(true);
     });
 });
 
