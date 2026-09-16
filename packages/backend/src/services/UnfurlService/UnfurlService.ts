@@ -1175,20 +1175,23 @@ export class UnfurlService extends BaseService {
                     'The requested chart tile does not belong to this dashboard',
                 );
             }
-            const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.resolveAccess(user.userUuid, {
-                    type: 'dashboard',
-                    dashboardUuid: dashboard.uuid,
-                    spaceUuid: dashboard.spaceUuid,
-                });
+            const {
+                inheritsFromOrgOrProject: dashboardInheritsFromOrgOrProject,
+                access: dashboardAccess,
+            } = await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            });
             if (
                 auditedAbility.cannot(
                     'view',
                     subject('Dashboard', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        inheritsFromOrgOrProject,
-                        access,
+                        inheritsFromOrgOrProject:
+                            dashboardInheritsFromOrgOrProject,
+                        access: dashboardAccess,
                         metadata: {
                             dashboardUuid: dashboard.uuid,
                             dashboardName: dashboard.name,
