@@ -15,7 +15,7 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
     return (
         <DocumentReportLayout
             title={document.name}
-            eyebrow="Document"
+            contentsLabel={null}
             description={document.description}
             headings={headings}
         >

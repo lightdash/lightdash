@@ -202,6 +202,15 @@ describe('Document page', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByText('Revenue and next steps')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Document', { exact: true }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Contents', { exact: true }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('navigation', { name: 'Report contents' }),
+        ).toBeInTheDocument();
         expect(mocks.api).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project-uuid/documents/document-uuid',
