@@ -29,8 +29,9 @@ export type ExploreCacheReadContext = {
     requestedExploreCount: number | undefined;
     /**
      * Sum of `pg_column_size(explore)` for the matched rows, in bytes.
-     * `undefined` if the storage-size query failed - never block or slow
-     * the request for this.
+     * Explore-summary reads populate this from their required strategy
+     * probe. Other reads leave it undefined when optional measurement is
+     * disabled or fails.
      */
     storedExploreBytes: number | undefined;
     storedBytesPerExplore: number | undefined;

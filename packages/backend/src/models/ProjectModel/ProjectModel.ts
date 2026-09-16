@@ -311,6 +311,9 @@ type CachedExploreStorageStats = {
 const isJsonObject = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const toOptionalJsonScalarText = (value: unknown): string | undefined =>
+    value == null ? undefined : String(value);
+
 export const toExploreTableSummaryRecord = (
     explore: unknown,
 ): ExploreTableSummaryRecord | undefined => {
@@ -345,8 +348,8 @@ export const toExploreTableSummaryRecord = (
 
     return {
         name: explore.name,
-        type: (explore.type ?? undefined) as ExploreType | undefined,
-        baseTable: (explore.baseTable ?? '') as string,
+        type: toOptionalJsonScalarText(explore.type) as ExploreType | undefined,
+        baseTable: toOptionalJsonScalarText(explore.baseTable) ?? '',
         tables,
         ...(Object.hasOwn(explore, 'errors') ? { errors: true as const } : {}),
     };
@@ -2128,8 +2131,8 @@ export class ProjectModel {
      * Sums the on-disk (TOAST) byte size of the `explore` column for the
      * matched rows via `pg_column_size`, which reads the stored/compressed
      * size from the TOAST pointer rather than detoasting the full JSONB
-     * value. Used only to bucket request cost for perf instrumentation
-     * (SPK-2121) - never gate behaviour on this value.
+     * value. Used for cache-read telemetry and to select the explore-summary
+     * read strategy.
      */
     async getCachedExploreStorageBytes(
         projectUuid: string,
@@ -2208,7 +2211,10 @@ export class ProjectModel {
 
                 if (exploreCount === 0) {
                     span.setAttribute('foundExplores', false);
-                    return {};
+                    return Object.create(null) as Record<
+                        string,
+                        ExploreTableSummaryRecord
+                    >;
                 }
 
                 if (shouldReadFullExplores) {
@@ -2285,6 +2291,9 @@ export class ProjectModel {
                     .where(
                         `${CachedExploreTableName}.project_uuid`,
                         projectUuid,
+                    )
+                    .whereRaw(
+                        `jsonb_typeof(${CachedExploreTableName}.explore->'name') = 'string'`,
                     )
                     .whereNotNull('explore_summary.name');
 

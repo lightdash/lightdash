@@ -306,6 +306,9 @@ describe('ProjectModel', () => {
             expect(tracker.history.select[0].sql).toContain(
                 "jsonb_typeof(table_entry.value) = 'object'",
             );
+            expect(tracker.history.select[0].sql).toContain(
+                "jsonb_typeof(cached_explore.explore->'name') = 'string'",
+            );
         });
 
         test('preserves error presence and malformed scalar truthiness', async () => {
@@ -445,16 +448,16 @@ describe('ProjectModel', () => {
             const fullRead = vi.spyOn(model, 'findExploresFromCache');
             const context = newExploreCacheReadContext('catalog', undefined);
 
-            await expect(
-                model.findExploreTableSummariesFromCache(
-                    projectUuid,
-                    undefined,
-                    context,
-                ),
-            ).resolves.toEqual({});
+            const result = await model.findExploreTableSummariesFromCache(
+                projectUuid,
+                undefined,
+                context,
+            );
 
+            expect(result).toEqual({});
             expect(fullRead).not.toHaveBeenCalled();
             expect(tracker.history.select).toHaveLength(0);
+            expect(Object.getPrototypeOf(result)).toBeNull();
             expect(context).toMatchObject({
                 readStrategy: 'table-summary-projection',
                 storedExploreBytes: 0,
@@ -542,6 +545,24 @@ describe('ProjectModel', () => {
                     tables: 1,
                 },
             },
+            {
+                name: 'numeric base table',
+                fixture: {
+                    name: 'numeric_base_table',
+                    type: ExploreType.DEFAULT,
+                    baseTable: 123,
+                    tables: {},
+                },
+            },
+            {
+                name: 'numeric explore type',
+                fixture: {
+                    name: 'numeric_explore_type',
+                    type: 123,
+                    baseTable: '',
+                    tables: {},
+                },
+            },
         ])('maps $name like the projection reducer', ({ fixture }) => {
             const tableEntries =
                 typeof fixture.tables === 'object' &&
@@ -559,8 +580,12 @@ describe('ProjectModel', () => {
             ).map(([tableKey, table]) => {
                 const tableRecord = table as Record<string, unknown> | null;
                 return summaryRow(fixture.name, tableKey, {
-                    exploreType: fixture.type ?? null,
-                    baseTable: fixture.baseTable ?? null,
+                    exploreType:
+                        fixture.type == null ? null : String(fixture.type),
+                    baseTable:
+                        fixture.baseTable == null
+                            ? null
+                            : String(fixture.baseTable),
                     hasErrors: Object.hasOwn(fixture, 'errors'),
                     tableName: tableRecord?.name ?? null,
                     originalName: tableRecord?.originalName ?? null,

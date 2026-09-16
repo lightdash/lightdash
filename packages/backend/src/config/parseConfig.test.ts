@@ -67,6 +67,20 @@ describe('explore summary projection threshold', () => {
                 .exploreSummaryProjectionMinStoredBytesPerExplore,
         ).toBe(0);
     });
+
+    test.each([
+        '-1',
+        '0.5',
+        '2048bytes',
+        '2e3',
+        '9007199254740992',
+        'Infinity',
+    ])('rejects an invalid threshold: %s', (value) => {
+        process.env.LIGHTDASH_EXPLORE_SUMMARY_PROJECTION_MIN_STORED_BYTES_PER_EXPLORE =
+            value;
+
+        expect(() => parseConfig()).toThrow(ParseError);
+    });
 });
 
 describe('query history retention', () => {
