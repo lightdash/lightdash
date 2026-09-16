@@ -1164,11 +1164,11 @@ export function createApiTransport(
         },
 
         async aiPrompt(request: AiPromptRequest): Promise<AiPromptResult> {
-            const { appUuid, ...body } = request;
+            const { appUuid, prompt, sources, focus } = request;
             const { text } = await fetchFn<{ text: string }>(
                 'POST',
                 `/api/v2/projects/${config.projectUuid}/apps/${appUuid}/analysis/prompt`,
-                body,
+                { prompt, sources, ...(focus ? { focus } : {}) },
             );
             return { text };
         },

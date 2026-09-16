@@ -6,6 +6,7 @@
 
 import { useCallback, useState } from 'react';
 import { useHostAppUuid } from './hostContext';
+import { useHostAiAvailable } from './insights';
 import { useTransport } from './LightdashProvider';
 import type {
     AiPromptRequest,
@@ -15,7 +16,8 @@ import type {
 } from './types';
 
 export type AiPromptSource = {
-    result: QueryResult;
+    /** A `useLightdash` result (its `data`); null while still loading. */
+    result: Pick<QueryResult, 'queryUuid'> | null;
     /** Shown to the model as the section title; defaults to "Query N". */
     label?: string;
 };
@@ -53,7 +55,7 @@ export const buildAiPromptRequest = (
     options: AiPromptOptions,
 ): AiPromptRequest => {
     const sources = options.sources.flatMap(({ result, label }) =>
-        result.queryUuid
+        result?.queryUuid
             ? [{ queryUuid: result.queryUuid, label: label ?? null }]
             : [],
     );
@@ -73,17 +75,19 @@ export const buildAiPromptRequest = (
 export function useAiPrompt(): AiPrompt {
     const transport = useTransport();
     const appUuid = useHostAppUuid();
+    const hostAiAvailable = useHostAiAvailable();
     const [loading, setLoading] = useState(false);
     const [text, setText] = useState<string | null>(null);
     const [error, setError] = useState<Error | null>(null);
 
-    const available = appUuid !== null && transport.aiPrompt !== undefined;
+    const available =
+        appUuid !== null && transport.aiPrompt !== undefined && hostAiAvailable;
 
     const ask = useCallback(
         async (options: AiPromptOptions): Promise<AiPromptResult> => {
-            if (!appUuid || !transport.aiPrompt) {
+            if (!appUuid || !transport.aiPrompt || !hostAiAvailable) {
                 throw new Error(
-                    'useAiPrompt: AI prompts are only available inside a Lightdash data app',
+                    'useAiPrompt: AI is not available for this app; check `available` before calling ask',
                 );
             }
             setLoading(true);
@@ -102,7 +106,7 @@ export function useAiPrompt(): AiPrompt {
                 setLoading(false);
             }
         },
-        [appUuid, transport],
+        [appUuid, transport, hostAiAvailable],
     );
 
     return { available, ask, loading, text, error };

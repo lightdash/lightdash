@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildAiPromptRequest } from './aiPrompt';
+import { createApiTransport } from './apiTransport';
 import {
     mountHostContext,
     peekHostContext,
@@ -22,6 +23,7 @@ describe('buildAiPromptRequest', () => {
                 sources: [
                     { result: result('q1'), label: 'Orders' },
                     { result: result(undefined) },
+                    { result: null },
                     { result: result('q2') },
                 ],
                 focus: { row: { orders_status: 'returned', n: 12, ok: null } },
@@ -44,6 +46,34 @@ describe('buildAiPromptRequest', () => {
                 sources: [{ result: result(undefined) }],
             }),
         ).toThrow(/at least one loaded/);
+    });
+});
+
+describe('api transport aiPrompt', () => {
+    it('posts to the app route and omits focus when there is none', async () => {
+        const calls: unknown[] = [];
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'proj-1' },
+            async <T>(method: string, path: string, body?: unknown) => {
+                calls.push([method, path, body]);
+                return { text: 'answer' } as T;
+            },
+        );
+        await expect(
+            transport.aiPrompt?.({
+                appUuid: 'app-1',
+                prompt: 'q',
+                sources: [{ queryUuid: 'q1', label: null }],
+                focus: null,
+            }),
+        ).resolves.toEqual({ text: 'answer' });
+        expect(calls).toEqual([
+            [
+                'POST',
+                '/api/v2/projects/proj-1/apps/app-1/analysis/prompt',
+                { prompt: 'q', sources: [{ queryUuid: 'q1', label: null }] },
+            ],
+        ]);
     });
 });
 
