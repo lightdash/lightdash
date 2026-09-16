@@ -194,7 +194,13 @@ const getResourceUserCanManage = (
 
 const getResourceUserCanDelete = (
     item: ResourceViewItem,
-    { spaces, grantAccess, user, organizationUuid, projectUuid }: ResourceAccessContext,
+    {
+        spaces,
+        grantAccess,
+        user,
+        organizationUuid,
+        projectUuid,
+    }: ResourceAccessContext,
 ): boolean => {
     if (item.type !== ResourceViewItemType.DASHBOARD) return false;
     const userAccess = spaces.find(

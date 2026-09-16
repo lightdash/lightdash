@@ -2895,7 +2895,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         sources: [
             'packages/frontend/src/components/PinnedItemsPanel/index.tsx',
             'packages/frontend/src/ee/features/homepageBuilder/DayOneHomepage.tsx',
-            'packages/frontend/src/components/common/ResourceView/ResourceActionMenu.tsx',
+            'packages/frontend/src/components/common/ResourceView/ResourceActionMenuItems.tsx',
         ],
         steps: [
             {

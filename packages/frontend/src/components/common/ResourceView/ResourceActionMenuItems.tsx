@@ -448,30 +448,30 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                 {allowDelete &&
                     (item.type !== ResourceViewItemType.DASHBOARD ||
                         userCanDelete) && (
-                    <>
-                        <Menu.Divider />
+                        <>
+                            <Menu.Divider />
 
-                        <Menu.Item
-                            component="button"
-                            role="menuitem"
-                            color="red"
-                            leftSection={
-                                <MantineIcon icon={IconTrash} size={18} />
-                            }
-                            onClick={() => {
-                                onAction({
-                                    type: ResourceViewItemAction.DELETE,
-                                    item,
-                                });
-                            }}
-                        >
-                            Delete{' '}
-                            {item.type === ResourceViewItemType.DATA_APP
-                                ? 'data app'
-                                : item.type}
-                        </Menu.Item>
-                    </>
-                )}
+                            <Menu.Item
+                                component="button"
+                                role="menuitem"
+                                color="red"
+                                leftSection={
+                                    <MantineIcon icon={IconTrash} size={18} />
+                                }
+                                onClick={() => {
+                                    onAction({
+                                        type: ResourceViewItemAction.DELETE,
+                                        item,
+                                    });
+                                }}
+                            >
+                                Delete{' '}
+                                {item.type === ResourceViewItemType.DATA_APP
+                                    ? 'data app'
+                                    : item.type}
+                            </Menu.Item>
+                        </>
+                    )}
             </>
         )}
     </>
