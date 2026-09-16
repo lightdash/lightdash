@@ -1,3 +1,10 @@
+## [2.243.3](https://github.com/lightdash/lightdash/compare/2.243.2...2.243.3) (2026-09-16)
+
+
+### Bug Fixes
+
+* **backend:** stop loading full explore JSON for catalog, dbt exposures and split lookup (SPK-2155) ([#29379](https://github.com/lightdash/lightdash/issues/29379)) ([8617ff3](https://github.com/lightdash/lightdash/commit/8617ff3082c2922cf544ef5b8babb0874054ecf8))
+
 ## [2.243.2](https://github.com/lightdash/lightdash/compare/2.243.1...2.243.2) (2026-09-16)
 
 
