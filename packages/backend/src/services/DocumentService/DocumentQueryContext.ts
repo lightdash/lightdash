@@ -4,7 +4,7 @@ import {
     ForbiddenError,
     NotFoundError,
     type Account,
-    type DocumentCellV2,
+    type DocumentCellV3,
     type DocumentQueryReference,
     type MergeQuery,
     type MetricQuery,
@@ -15,7 +15,7 @@ import { isEqual } from 'lodash';
 import { normalizeFilterIds } from '../CoderService/filterIds';
 import type { DocumentService } from './DocumentService';
 
-type ChartCell = Extract<DocumentCellV2, { type: 'chart' }>;
+type ChartCell = Extract<DocumentCellV3, { type: 'chart' }>;
 
 const comparable = (value: unknown): unknown =>
     JSON.parse(JSON.stringify(value));

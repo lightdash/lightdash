@@ -1,19 +1,17 @@
 import { type Document } from '@lightdash/common';
-import { Box, Stack, Text, Title } from '@mantine/core';
-import MarkdownPreview from '@uiw/react-markdown-preview';
+import { Stack, Text } from '@mantine/core';
 import { useMemo } from 'react';
-import markdownStyles from '../../components/common/AiMarkdown/AiMarkdown.module.css';
-import { markdownSanitizeRehypePlugins } from '../../utils/markdownUtils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import DocumentChart from './DocumentChart';
 import { getDocumentHeadingId, getDocumentHeadings } from './documentHeadings';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
+import ReportMarkdown from './presentation/ReportMarkdown';
 import styles from './presentation/ReportPresentation.module.css';
+import ReportSection from './presentation/ReportSection';
 
 const DocumentRenderer = ({ document }: { document: Document }) => {
     const { cells } = document.version.content;
     const headings = useMemo(() => getDocumentHeadings(cells), [cells]);
-
     return (
         <DocumentReportLayout
             title={document.name}
@@ -25,42 +23,14 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
                 {cells.length === 0 && (
                     <Text c="dimmed">This document is empty.</Text>
                 )}
-                {cells.map((cell, index) => (
-                    <Box
-                        component="section"
-                        className={
-                            cell.content.title
-                                ? styles.reportFinding
-                                : styles.reportIntroduction
-                        }
-                        key={`${document.version.versionUuid}:${cell.id}`}
-                    >
-                        {cell.content.title && (
-                            <Title
-                                order={2}
-                                className={styles.reportFindingTitle}
-                                id={getDocumentHeadingId(cell.id)}
-                                data-report-heading=""
-                            >
-                                {cell.content.title}
-                            </Title>
-                        )}
-                        <ErrorBoundary>
-                            {cell.type === 'markdown' ? (
-                                <MarkdownPreview
-                                    prefixCls=""
-                                    className={`${markdownStyles.aiMarkdown} ${index === 0 && !cell.content.title ? styles.reportIntroductionProse : styles.reportProse}`}
-                                    source={cell.content.markdown}
-                                    skipHtml
-                                    pluginsFilter={(type, plugins) =>
-                                        type === 'rehype'
-                                            ? markdownSanitizeRehypePlugins
-                                            : plugins
-                                    }
-                                />
-                            ) : cell.type === 'chart' &&
-                              (cell.content.source === 'semantic' ||
-                                  cell.content.source === 'merge') ? (
+                {cells.map((cell, index) =>
+                    cell.type === 'chart' ? (
+                        <ReportSection
+                            key={`${document.version.versionUuid}:${cell.id}`}
+                            title={cell.content.chart.name}
+                            id={getDocumentHeadingId(cell.id)}
+                        >
+                            <ErrorBoundary>
                                 <DocumentChart
                                     projectUuid={document.projectUuid}
                                     spaceUuid={document.spaceUuid}
@@ -68,17 +38,30 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
                                     versionUuid={document.version.versionUuid}
                                     cell={cell}
                                 />
-                            ) : (
-                                <Text c="dimmed">
-                                    This content type is not supported yet.
-                                </Text>
-                            )}
+                            </ErrorBoundary>
+                        </ReportSection>
+                    ) : cell.type === 'markdown' ? (
+                        <ErrorBoundary
+                            key={`${document.version.versionUuid}:${cell.id}`}
+                        >
+                            <ReportMarkdown
+                                markdown={cell.content.markdown}
+                                headingId={(offset) =>
+                                    getDocumentHeadingId(cell.id, offset)
+                                }
+                            />
                         </ErrorBoundary>
-                    </Box>
-                ))}
+                    ) : (
+                        <Text
+                            key={`${document.version.versionUuid}:${index}`}
+                            c="dimmed"
+                        >
+                            This content type is not supported yet.
+                        </Text>
+                    ),
+                )}
             </Stack>
         </DocumentReportLayout>
     );
 };
-
 export default DocumentRenderer;

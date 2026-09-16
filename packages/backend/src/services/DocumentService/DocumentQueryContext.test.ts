@@ -45,7 +45,6 @@ const document = {
                     id: reference.cellId,
                     type: 'chart',
                     content: {
-                        title: 'Orders overview',
                         source: 'semantic',
                         chart,
                     },
@@ -186,7 +185,6 @@ describe('DocumentQueryContext', () => {
                             id: 'chart',
                             type: 'chart',
                             content: {
-                                title: 'Combined orders',
                                 source: 'merge',
                                 chart: {
                                     ...chart,

@@ -1,8 +1,9 @@
 import { type ParsedDeepResearchReport } from '@lightdash/common';
-import { Box, Group, Stack, Title } from '@mantine/core';
+import { Box, Stack } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import ReportChartFrame from '../../../../../features/documents/presentation/ReportChartFrame';
 import styles from '../../../../../features/documents/presentation/ReportPresentation.module.css';
+import ReportSection from '../../../../../features/documents/presentation/ReportSection';
 import { DeepResearchExploreLink } from './DeepResearchExploreLink';
 import { DeepResearchInlineMarkdown } from './DeepResearchInlineMarkdown';
 import {
@@ -34,39 +35,29 @@ export const DeepResearchReportContent: FC<Props> = ({
 
     return (
         <Stack className={styles.structuredReport}>
-            <Box className={styles.reportIntroduction}>
+            <ReportSection variant="introduction">
                 {renderMarkdown(
                     report.introductionMarkdown,
                     styles.reportIntroductionProse,
                 )}
-            </Box>
+            </ReportSection>
 
             {report.findings.map((finding, index) => (
-                <Box
-                    component="section"
-                    className={styles.reportFinding}
+                <ReportSection
                     key={`${finding.title}-${index}`}
-                >
-                    <Group
-                        justify="space-between"
-                        align="baseline"
-                        gap="md"
-                        wrap="nowrap"
-                    >
-                        <Title order={2} className={styles.reportFindingTitle}>
-                            <DeepResearchInlineMarkdown
-                                markdown={finding.title}
-                            />
-                        </Title>
-                        {finding.evidenceQueryUuid && !renderEvidence ? (
+                    title={
+                        <DeepResearchInlineMarkdown markdown={finding.title} />
+                    }
+                    actions={
+                        finding.evidenceQueryUuid && !renderEvidence ? (
                             <DeepResearchExploreLink
                                 projectUuid={projectUuid}
                                 runUuid={runUuid}
                                 queryUuid={finding.evidenceQueryUuid}
                             />
-                        ) : null}
-                    </Group>
-
+                        ) : undefined
+                    }
+                >
                     {finding.evidenceQueryUuid ? (
                         <>
                             {renderEvidence ? (
@@ -90,18 +81,15 @@ export const DeepResearchReportContent: FC<Props> = ({
                             styles.reportProse,
                         )}
                     </Box>
-                </Box>
+                </ReportSection>
             ))}
 
-            <Box component="section" className={styles.reportConclusion}>
-                <Title order={2} className={styles.reportFindingTitle}>
-                    Conclusion
-                </Title>
+            <ReportSection variant="conclusion" title="Conclusion">
                 {renderMarkdown(
                     report.conclusionMarkdown,
                     styles.reportConclusionProse,
                 )}
-            </Box>
+            </ReportSection>
         </Stack>
     );
 };

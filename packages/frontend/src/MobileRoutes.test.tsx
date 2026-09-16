@@ -4,6 +4,30 @@ import { type ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import MobileRoutes from './MobileRoutes';
 
+vi.mock('./components/PrivateRoute', () => ({
+    default: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('./components/AppRoute', () => ({
+    default: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('./components/ProjectRoute', () => ({
+    default: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('./components/Mobile/MobileNavBar', () => ({
+    MobileNavBar: () => null,
+}));
+
+vi.mock('./pages/Documents', () => ({
+    default: () => <div data-testid="documents-page" />,
+}));
+
+vi.mock('./pages/Document', () => ({
+    default: () => <div data-testid="document-page" />,
+}));
+
 vi.mock('./pages/Invite', () => ({
     default: () => <div data-testid="invite-page" />,
 }));
@@ -37,6 +61,15 @@ const renderMobileRouteAt = (pathname: string) => {
 };
 
 describe('MobileRoutes', () => {
+    it.each([
+        ['/projects/project/documents', 'documents-page'],
+        ['/projects/project/documents/document', 'document-page'],
+    ])('opens the direct document route %s', async (pathname, page) => {
+        renderMobileRouteAt(pathname);
+
+        expect(await screen.findByTestId(page)).toBeInTheDocument();
+    });
+
     it('renders the invite activation page', async () => {
         renderMobileRouteAt('/invite/some-invite-code');
 

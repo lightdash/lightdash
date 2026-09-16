@@ -1,7 +1,7 @@
 import {
     ChartType,
     type Document,
-    type DocumentCellV2,
+    type DocumentCellV3,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -43,7 +43,7 @@ vi.mock('../features/documents/DocumentChart', () => ({
     default: ({
         cell,
     }: {
-        cell: Extract<DocumentCellV2, { type: 'chart' }>;
+        cell: Extract<DocumentCellV3, { type: 'chart' }>;
     }) => {
         if (mocks.chartFails) {
             throw new Error('Chart rendering failed');
@@ -54,7 +54,7 @@ vi.mock('../features/documents/DocumentChart', () => ({
     },
 }));
 
-const chart: DocumentCellV2 = {
+const chart: DocumentCellV3 = {
     id: 'chart',
     type: 'chart',
     content: {
@@ -89,15 +89,14 @@ const document: Document = {
     version: {
         versionUuid: 'version-uuid',
         versionNumber: 1,
-        schemaVersion: 2,
+        schemaVersion: 3,
         content: {
             cells: [
                 {
                     id: 'intro',
                     type: 'markdown',
                     content: {
-                        title: 'Findings',
-                        markdown: 'Supporting findings',
+                        markdown: '## Findings\n\nSupporting findings',
                     },
                 },
                 chart,
@@ -105,8 +104,7 @@ const document: Document = {
                     id: 'end',
                     type: 'markdown',
                     content: {
-                        title: 'Recommendations',
-                        markdown: 'Next steps',
+                        markdown: '## Recommendations\n\nNext steps',
                     },
                 },
             ],
@@ -210,7 +208,12 @@ describe('Document page', () => {
                     'h2, [data-testid="document-chart"]',
                 ),
             ).map((element) => element.textContent),
-        ).toEqual(['Findings', 'Orders chart', 'Recommendations']);
+        ).toEqual([
+            'Findings',
+            'Orders chart',
+            'Orders chart',
+            'Recommendations',
+        ]);
     });
 
     test('shows unavailable content without leaking the server error', async () => {
@@ -237,17 +240,17 @@ describe('Document page', () => {
         expect(
             screen.getByRole('button', { name: 'Findings' }),
         ).toBeInTheDocument();
-        expect(heading).toHaveAttribute('id', 'document-intro');
+        expect(heading).toHaveAttribute('id', 'document-heading-intro-0');
         expect(heading).toHaveClass(reportStyles.reportFindingTitle);
         expect(heading.closest('section')).toHaveClass(
             reportStyles.reportFinding,
         );
         expect(
             screen.getByRole('heading', { name: 'Recommendations' }),
-        ).toHaveAttribute('id', 'document-end');
+        ).toHaveAttribute('id', 'document-heading-end-0');
     });
 
-    test('indexes chart titles and leaves Markdown headings out of the contents', async () => {
+    test('indexes chart names and Markdown headings in the contents', async () => {
         mocks.api.mockResolvedValue({
             ...document,
             version: {
@@ -263,7 +266,10 @@ describe('Document page', () => {
                             ...chart,
                             content: {
                                 ...chart.content,
-                                title: 'Chart section',
+                                chart: {
+                                    ...chart.content.chart,
+                                    name: 'Chart section',
+                                },
                             },
                         },
                     ],
@@ -276,16 +282,16 @@ describe('Document page', () => {
                 name: 'Chart section',
                 level: 2,
             }),
-        ).toHaveAttribute('id', 'document-chart');
+        ).toHaveAttribute('id', 'document-chart-chart');
         expect(
             screen.getByRole('button', { name: 'Chart section' }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('heading', { name: 'Embedded heading' }),
-        ).not.toHaveAttribute('data-report-heading');
+        ).toHaveAttribute('data-report-heading');
         expect(
-            screen.queryByRole('button', { name: 'Embedded heading' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('button', { name: 'Embedded heading' }),
+        ).toBeInTheDocument();
     });
 
     test('preserves the chart section title and navigation when its renderer throws', async () => {
@@ -303,7 +309,10 @@ describe('Document page', () => {
                             ...chart,
                             content: {
                                 ...chart.content,
-                                title: 'Failed chart section',
+                                chart: {
+                                    ...chart.content.chart,
+                                    name: 'Failed chart section',
+                                },
                             },
                         },
                         document.version.content.cells[0],
@@ -318,7 +327,7 @@ describe('Document page', () => {
                     name: 'Failed chart section',
                     level: 2,
                 }),
-            ).toHaveAttribute('id', 'document-chart');
+            ).toHaveAttribute('id', 'document-chart-chart');
             expect(
                 screen.getByRole('button', { name: 'Failed chart section' }),
             ).toBeInTheDocument();
@@ -353,8 +362,11 @@ describe('Document page', () => {
                     cells: [
                         {
                             id: 'safe-title',
-                            type: 'markdown',
-                            content: { title, markdown: '' },
+                            type: 'chart',
+                            content: {
+                                ...chart.content,
+                                chart: { ...chart.content.chart, name: title },
+                            },
                         },
                     ],
                 },
@@ -388,7 +400,6 @@ describe('Document page', () => {
                     cells: [
                         document.version.content.cells[0],
                         { id: 'widget', type: 'widget', content: {} },
-                        { ...chart, content: { source: 'sql', chart: {} } },
                     ],
                 },
             },
@@ -399,7 +410,7 @@ describe('Document page', () => {
         ).toBeInTheDocument();
         expect(
             screen.getAllByText('This content type is not supported yet.'),
-        ).toHaveLength(2);
+        ).toHaveLength(1);
         expect(screen.queryByTestId('document-chart')).not.toBeInTheDocument();
     });
 
