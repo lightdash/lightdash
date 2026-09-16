@@ -1,5 +1,6 @@
 import { DashboardTileTypes, type Dashboard } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { Menu } from '@mantine/core';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import TileBase from './index';
@@ -65,5 +66,52 @@ describe('TileBase chart page link', () => {
         renderTile({ minimal: true });
 
         expect(screen.queryByRole('link', { name: 'View chart' })).toBeNull();
+    });
+
+    it('collapses phone actions into a vertical overflow menu', async () => {
+        const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation(
+            (query) =>
+                ({
+                    matches: query === '(width < 32em)',
+                    media: query,
+                    onchange: null,
+                    addEventListener: vi.fn(),
+                    removeEventListener: vi.fn(),
+                    addListener: vi.fn(),
+                    removeListener: vi.fn(),
+                    dispatchEvent: vi.fn(),
+                }) as MediaQueryList,
+        );
+
+        renderWithProviders(
+            <TileBase
+                tile={hiddenTitleTile}
+                title="Revenue"
+                titleHref={CHART_HREF}
+                isEditMode={false}
+                lockHeaderVisibility
+                mobileMenuItems={<Menu.Item>Ask AI Agent</Menu.Item>}
+                onEdit={vi.fn()}
+                onDelete={vi.fn()}
+            >
+                <div>chart</div>
+            </TileBase>,
+        );
+
+        expect(screen.queryByRole('link', { name: 'View chart' })).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Tile actions' }));
+
+        expect(
+            await screen.findByRole('menuitem', { name: 'Ask AI Agent' }),
+        ).toBeVisible();
+        expect(
+            screen.getByRole('menuitem', { name: 'View chart' }),
+        ).toHaveAttribute('href', CHART_HREF);
+        expect(
+            screen.getByTestId('tile-icon-more-vertical'),
+        ).toBeInTheDocument();
+
+        matchMedia.mockRestore();
     });
 });

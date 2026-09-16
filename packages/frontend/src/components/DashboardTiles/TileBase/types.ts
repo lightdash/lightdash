@@ -19,6 +19,7 @@ export type TileBaseProps<T> = {
     hasError?: boolean;
     chartKind?: ChartKind | null;
     extraMenuItems?: ReactNode;
+    mobileMenuItems?: ReactNode;
     onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;
     children?: ReactNode;

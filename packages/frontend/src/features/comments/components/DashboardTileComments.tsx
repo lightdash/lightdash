@@ -8,6 +8,7 @@ import {
     Divider,
     Group,
     Indicator,
+    Menu,
     Popover,
     Stack,
     Text,
@@ -36,13 +37,20 @@ import { DashboardCommentAndReplies } from './DashboardCommentAndReplies';
 
 type Props = {
     dashboardTileUuid: string;
+    targetVariant?: 'actionIcon' | 'menuItem';
 };
 
 const COMMENTS_LIST_MAX_HEIGHT = 500;
 
 export const DashboardTileComments: FC<
     Props & Pick<PopoverProps, 'opened' | 'onClose' | 'onOpen'>
-> = ({ dashboardTileUuid, opened, onClose, onOpen }) => {
+> = ({
+    dashboardTileUuid,
+    opened,
+    onClose,
+    onOpen,
+    targetVariant = 'actionIcon',
+}) => {
     const getUiString = useUiStrings();
     const { user } = useApp();
     const { track } = useTracking();
@@ -348,51 +356,62 @@ export const DashboardTileComments: FC<
             </Popover.Dropdown>
 
             <Popover.Target ref={targetRefComments}>
-                <Indicator
-                    inline
-                    label={comments && comments.length}
-                    size={12}
-                    disabled={!showIndicator}
-                    offset={3}
-                    color={indicatorColor}
-                    styles={{
-                        indicator: {
-                            fontSize: 10,
-                            padding: 0,
-                        },
-                    }}
-                >
-                    <Tooltip
-                        label={getUiString('comments.title')}
-                        position="top"
-                        disabled={openedComments}
+                {targetVariant === 'menuItem' ? (
+                    <Menu.Item
+                        closeMenuOnClick={false}
+                        leftSection={<MantineIcon icon={IconMessage} />}
+                        rightSection={showIndicator ? comments.length : null}
+                        onClick={handleTargetClick}
                     >
-                        <ActionIcon
-                            aria-label={getUiString('comments.title')}
-                            display="block"
-                            size="sm"
-                            onClick={handleTargetClick}
-                            // Walkthrough anchor (data-tour-via) for the
-                            // commenting walkthroughs, and the action of
-                            // view:DashboardComments.
-                            data-tour-anchor="tile-comments"
-                            data-tour-hint="Open the tile's comments"
-                            // Walkthrough action for view:DashboardComments.
-                            // Tiles with comments keep this visible, so the
-                            // first one on the page is a commented tile.
-                            data-tour-scope="view:DashboardComments"
-                            data-tour-step="2"
-                            data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
-                            data-tour-label="Open the tile's comments"
-                            data-tour-title="Read the conversation on a dashboard"
-                            data-tour-interactive="true"
-                            data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"]'
-                            data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:2"
+                        {getUiString('comments.title')}
+                    </Menu.Item>
+                ) : (
+                    <Indicator
+                        inline
+                        label={comments && comments.length}
+                        size={12}
+                        disabled={!showIndicator}
+                        offset={3}
+                        color={indicatorColor}
+                        styles={{
+                            indicator: {
+                                fontSize: 10,
+                                padding: 0,
+                            },
+                        }}
+                    >
+                        <Tooltip
+                            label={getUiString('comments.title')}
+                            position="top"
+                            disabled={openedComments}
                         >
-                            <MantineIcon icon={IconMessage} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Indicator>
+                            <ActionIcon
+                                aria-label={getUiString('comments.title')}
+                                display="block"
+                                size="sm"
+                                onClick={handleTargetClick}
+                                // Walkthrough anchor (data-tour-via) for the
+                                // commenting walkthroughs, and the action of
+                                // view:DashboardComments.
+                                data-tour-anchor="tile-comments"
+                                data-tour-hint="Open the tile's comments"
+                                // Walkthrough action for view:DashboardComments.
+                                // Tiles with comments keep this visible, so the
+                                // first one on the page is a commented tile.
+                                data-tour-scope="view:DashboardComments"
+                                data-tour-step="2"
+                                data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                                data-tour-label="Open the tile's comments"
+                                data-tour-title="Read the conversation on a dashboard"
+                                data-tour-interactive="true"
+                                data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"]'
+                                data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:2"
+                            >
+                                <MantineIcon icon={IconMessage} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Indicator>
+                )}
             </Popover.Target>
         </Popover>
     );

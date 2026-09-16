@@ -16,7 +16,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { useDebouncedValue, useHover, useToggle } from '@mantine/hooks';
+import {
+    useDebouncedValue,
+    useHover,
+    useMediaQuery,
+    useToggle,
+} from '@mantine/hooks';
 import {
     IconArrowAutofitContent,
     IconCircleCheckFilled,
@@ -26,6 +31,7 @@ import {
     IconGripVertical,
     IconLink,
     IconTrash,
+    IconDotsVertical,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useState } from 'react';
@@ -54,6 +60,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     hasError = false,
     chartKind,
     extraMenuItems = null,
+    mobileMenuItems,
     onDelete,
     onEdit,
     children,
@@ -88,6 +95,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     });
     const [titleHovered, setTitleHovered] = useState(false);
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
+    const isPhoneLayout = useMediaQuery('(width < 32em)', undefined, {
+        getInitialValueInEffect: false,
+    });
 
     const hideTitle =
         hasError ||
@@ -117,7 +127,116 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         isMenuOpen ||
         lockHeaderVisibility ||
         !!visibleHeaderElement;
-    const headerActions = hasHeaderContent ? (
+    const menuItems = (
+        <>
+            {canCopyTileLink && (
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconLink} />}
+                    onClick={copyTileLink}
+                >
+                    Copy link to tile
+                </Menu.Item>
+            )}
+            {canCopyTileLink && (!!extraMenuItems || isEditMode) && (
+                <Menu.Divider />
+            )}
+            {extraMenuItems}
+            {isEditMode && extraMenuItems && <Menu.Divider />}
+            {isEditMode && (
+                <>
+                    <Box>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconEdit} />}
+                            onClick={() => setIsEditingTileContent(true)}
+                        >
+                            Edit tile content
+                        </Menu.Item>
+                    </Box>
+                    {tabs && tabs.length > 1 && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconArrowAutofitContent} />
+                            }
+                            onClick={() => setIsMovingTabs(true)}
+                        >
+                            Move to another tab
+                        </Menu.Item>
+                    )}
+                    <Menu.Divider />
+                    {belongsToDashboard ? (
+                        <Menu.Item
+                            color="red"
+                            onClick={() =>
+                                setIsDeletingChartThatBelongsToDashboard(true)
+                            }
+                        >
+                            Delete chart
+                        </Menu.Item>
+                    ) : (
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={() => onDelete(tile)}
+                        >
+                            Remove tile
+                        </Menu.Item>
+                    )}
+                </>
+            )}
+        </>
+    );
+    const useCompactActions = isPhoneLayout && mobileMenuItems !== undefined;
+    const headerActions = useCompactActions ? (
+        <FloatingActionsPill
+            visible
+            className={clsx('non-draggable', styles.tileTooltip)}
+        >
+            <Menu
+                withArrow
+                position="bottom-end"
+                offset={4}
+                arrowOffset={10}
+                opened={isMenuOpen}
+                onOpen={() => toggleMenu(true)}
+                onClose={() => toggleMenu(false)}
+            >
+                <Menu.Dropdown>
+                    {mobileMenuItems}
+                    {mobileMenuItems && (canViewChart || hasMenuContent) && (
+                        <Menu.Divider />
+                    )}
+                    {canViewChart && (
+                        <Menu.Item
+                            component="a"
+                            href={titleHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            leftSection={
+                                <MantineIcon icon={IconExternalLink} />
+                            }
+                        >
+                            View chart
+                        </Menu.Item>
+                    )}
+                    {canViewChart && hasMenuContent && <Menu.Divider />}
+                    {menuItems}
+                </Menu.Dropdown>
+
+                <Menu.Target>
+                    <ActionIcon
+                        aria-label={getUiString('tileMenu.actions')}
+                        size="sm"
+                        style={{ position: 'relative', zIndex: 1 }}
+                    >
+                        <MantineIcon
+                            data-testid="tile-icon-more-vertical"
+                            icon={IconDotsVertical}
+                        />
+                    </ActionIcon>
+                </Menu.Target>
+            </Menu>
+        </FloatingActionsPill>
+    ) : hasHeaderContent ? (
         <FloatingActionsPill
             visible={showHeaderActions}
             className={clsx('non-draggable', styles.tileTooltip)}
@@ -175,73 +294,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     onOpen={() => toggleMenu(true)}
                     onClose={() => toggleMenu(false)}
                 >
-                    <Menu.Dropdown>
-                        {canCopyTileLink && (
-                            <Menu.Item
-                                leftSection={<MantineIcon icon={IconLink} />}
-                                onClick={copyTileLink}
-                            >
-                                Copy link to tile
-                            </Menu.Item>
-                        )}
-                        {canCopyTileLink &&
-                            (!!extraMenuItems || isEditMode) && (
-                                <Menu.Divider />
-                            )}
-                        {extraMenuItems}
-                        {isEditMode && extraMenuItems && <Menu.Divider />}
-                        {isEditMode && (
-                            <>
-                                <Box>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconEdit} />
-                                        }
-                                        onClick={() =>
-                                            setIsEditingTileContent(true)
-                                        }
-                                    >
-                                        Edit tile content
-                                    </Menu.Item>
-                                </Box>
-                                {tabs && tabs.length > 1 && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconArrowAutofitContent}
-                                            />
-                                        }
-                                        onClick={() => setIsMovingTabs(true)}
-                                    >
-                                        Move to another tab
-                                    </Menu.Item>
-                                )}
-                                <Menu.Divider />
-                                {belongsToDashboard ? (
-                                    <Menu.Item
-                                        color="red"
-                                        onClick={() =>
-                                            setIsDeletingChartThatBelongsToDashboard(
-                                                true,
-                                            )
-                                        }
-                                    >
-                                        Delete chart
-                                    </Menu.Item>
-                                ) : (
-                                    <Menu.Item
-                                        color="red"
-                                        leftSection={
-                                            <MantineIcon icon={IconTrash} />
-                                        }
-                                        onClick={() => onDelete(tile)}
-                                    >
-                                        Remove tile
-                                    </Menu.Item>
-                                )}
-                            </>
-                        )}
-                    </Menu.Dropdown>
+                    <Menu.Dropdown>{menuItems}</Menu.Dropdown>
 
                     <Menu.Target>
                         <ActionIcon
