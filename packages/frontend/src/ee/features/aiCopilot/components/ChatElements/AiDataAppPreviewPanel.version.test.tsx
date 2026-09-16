@@ -170,6 +170,9 @@ describe('AiDataAppPreviewPanel versions', () => {
         expect(await openInNewTabHref(user)).toBe(
             '/projects/project-uuid/apps/app-uuid/view',
         );
+        expect(
+            screen.getByRole('menuitem', { name: 'Continue in builder' }),
+        ).toBeInTheDocument();
     });
 
     it('shows the pill and hides the picker on an older version', async () => {

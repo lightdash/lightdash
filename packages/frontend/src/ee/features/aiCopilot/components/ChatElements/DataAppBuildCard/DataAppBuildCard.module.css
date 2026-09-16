@@ -25,23 +25,6 @@
     );
 }
 
-.split {
-    display: flex;
-    align-items: stretch;
-}
-
-.splitMain {
-    border-start-end-radius: 0;
-    border-end-end-radius: 0;
-}
-
-.splitMenuButton {
-    height: auto;
-    border-start-start-radius: 0;
-    border-end-start-radius: 0;
-    border-left: 0;
-}
-
 .cardUnavailable {
     background-color: light-dark(
         var(--mantine-color-ldGray-0),

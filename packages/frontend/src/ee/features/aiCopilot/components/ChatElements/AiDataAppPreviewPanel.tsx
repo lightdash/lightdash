@@ -1,5 +1,6 @@
 import {
     getAppDisplayName,
+    getDataAppBuilderPath,
     getSdkFeatureTargetForTemplate,
     isAppVersionInProgress,
 } from '@lightdash/common';
@@ -13,8 +14,9 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { IconExternalLink, IconX } from '@tabler/icons-react';
+import { IconArrowRight, IconExternalLink, IconX } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type FC, type ReactNode } from 'react';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import AppIframePreview, {
@@ -63,6 +65,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     showInspector,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
+    const navigate = useNavigate();
     const {
         appUuid,
         projectUuid,
@@ -430,20 +433,40 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                 latestReadyVersion !== null ? 'ready' : null
                             }
                             navItem={
-                                <Menu.Item
-                                    component="a"
-                                    href={appUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconExternalLink}
-                                            size={14}
-                                        />
-                                    }
-                                >
-                                    Open in new tab
-                                </Menu.Item>
+                                <>
+                                    <Menu.Item
+                                        component="a"
+                                        href={appUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                                size={14}
+                                            />
+                                        }
+                                    >
+                                        Open in new tab
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconArrowRight}
+                                                size={14}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            void navigate(
+                                                getDataAppBuilderPath(
+                                                    projectUuid,
+                                                    appUuid,
+                                                ),
+                                            )
+                                        }
+                                    >
+                                        Continue in builder
+                                    </Menu.Item>
+                                </>
                             }
                             askAiItem={null}
                             viewNetwork={

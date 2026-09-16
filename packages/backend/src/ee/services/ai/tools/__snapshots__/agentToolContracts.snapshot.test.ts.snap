@@ -52,7 +52,7 @@ Themes are organization-wide looks the coding agent applies from theme files it 
 - iterateDataApp: themeSlug switches the app's theme. Pass it only when the user asked to switch the theme in this request; an ordinary change keeps the app's current theme.
 - An unknown slug returns an error naming the valid slugs and starts no build: retry with the matching one, or ask the user which they meant.
 
-When the user later asks about the app, read the outcome from the earlier tool result: "success" carries the app name, slug, and the builder link (href) to share; "error" carries the failure message; "pending" means still building. readContent (type data_app) reads a finished app; the content tools create and edit charts and dashboards, never data apps.
+When the user later asks about the app, read the outcome from the earlier tool result: "success" carries the app name, slug, and href; the user views the app from this thread; "error" carries the failure message; "pending" means still building. readContent (type data_app) reads a finished app; the content tools create and edit charts and dashboards, never data apps.
 
 ## Scheduled deliveries
 

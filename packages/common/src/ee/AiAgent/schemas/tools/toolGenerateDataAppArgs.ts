@@ -146,14 +146,14 @@ export const getGenerateDataAppBuildOutcome = ({
         return null;
     }
     if (status === 'ready') {
-        // Canonical URL: the thread renders it as a link and the agent shares it.
+        // Canonical URL, kept in metadata for Slack outcomes and cards.
         const href = `${siteUrl}${getDataAppBuilderPath(projectUuid, appUuid)}`;
         const readyPhrase =
             version === 1
                 ? `The data app "${name}" is ready.`
                 : `Version ${version} of the data app "${name}" is ready.`;
         return {
-            result: `${readyPhrase} Share this link so the user can open it in the builder: ${href}`,
+            result: `${readyPhrase} The user can view it from this thread.`,
             metadata: { status: 'success', appUuid, version, name, slug, href },
         };
     }
