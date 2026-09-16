@@ -1,3 +1,10 @@
+# [2.240.0](https://github.com/lightdash/lightdash/compare/2.239.0...2.240.0) (2026-09-16)
+
+
+### Features
+
+* enable AI agent turn reviews for new organizations ([#29337](https://github.com/lightdash/lightdash/issues/29337)) ([06e87e3](https://github.com/lightdash/lightdash/commit/06e87e33b20a60bf206ac4cc58cb6ab717d70abd))
+
 # [2.239.0](https://github.com/lightdash/lightdash/compare/2.238.2...2.239.0) (2026-09-16)
 
 
