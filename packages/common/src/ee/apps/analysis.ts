@@ -88,9 +88,36 @@ export type DataAppInvestigateJobPayload = TraceTaskBase & {
 
 export type ApiDataAppInvestigateResponse = ApiSuccess<{ jobId: string }>;
 
+/**
+ * A free-form question an app asks about the viewer's own query results.
+ * `focus` narrows the question to one row (field id → value as shown).
+ */
+export type DataAppPromptRequest = {
+    prompt: string;
+    sources: DataAppAnalysisSource[];
+    focus?: Record<string, string>;
+};
+
+export type DataAppPromptResult = {
+    prompt: string;
+    focus: Record<string, string> | null;
+    text: string;
+};
+
+export type DataAppPromptAnswer = DataAppPromptResult & {
+    promptId: string;
+    appUuid: string;
+    appVersion: number;
+    sources: DataAppAnalysisSource[];
+    generatedAt: Date;
+};
+
+export type ApiDataAppPromptResponse = ApiSuccess<DataAppPromptAnswer>;
+
 export type DataAppAnalysisRecord =
     | ({ operation: 'detect' } & DataAppAnalysis)
-    | ({ operation: 'investigate' } & DataAppInvestigation);
+    | ({ operation: 'investigate' } & DataAppInvestigation)
+    | ({ operation: 'prompt' } & DataAppPromptAnswer);
 
 export type ApiDataAppAnalysisResponse = ApiSuccess<DataAppAnalysisRecord>;
 

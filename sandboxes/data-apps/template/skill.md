@@ -693,7 +693,7 @@ For any external HTTP API call, read `/app/references/external-apis.md` and use 
 
 ### AI analysis — executive summary and anomalies
 
-When the user asks for an executive summary, "what changed and why", anomaly callouts, or any AI-generated insight about the data on the page, read `/app/references/ai-analysis.md` and use `useInsights` from the SDK. Lightdash runs the analysis over the queries the app already loaded and pushes the result in; the app renders it (a summary block, markers on flagged points, an Investigate action) and never sends prompts, rows or keys. Render nothing when `status === 'unavailable'`.
+When the user asks for an executive summary, "what changed and why", anomaly callouts, or any AI-generated insight about the data on the page, read `/app/references/ai-analysis.md` and use `useInsights` from the SDK. Lightdash runs the analysis over the queries the app already loaded and pushes the result in; the app renders it (a summary block, markers on flagged points, an Investigate action) and never sends rows or keys. Render nothing when `status === 'unavailable'`. For an author-written question over loaded results (a takeaway under a chart, "explain this row"), use `useAiPrompt` from the same reference.
 
 ## Visual Design
 

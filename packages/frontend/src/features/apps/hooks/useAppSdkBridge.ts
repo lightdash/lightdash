@@ -1254,12 +1254,14 @@ export function useAppSdkBridge({
                 // which ignore unknown fields — and new SDKs on old hosts
                 // both default to `useDeliveryRender() === false`.
                 ...(captureRender ? { deliveryRender: true } : {}),
+                // Lets the SDK address app-scoped routes (AI prompts).
+                ...(appUuid ? { appUuid } : {}),
             },
             '*',
         );
         pushColorScheme();
         pushInsights();
-    }, [iframeRef, pushColorScheme, pushInsights, captureRender]);
+    }, [iframeRef, pushColorScheme, pushInsights, captureRender, appUuid]);
 
     // Re-push the render context whenever the host's field mapping or rows
     // change, so an already-loaded iframe re-renders live. The initial delivery

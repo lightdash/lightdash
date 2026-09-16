@@ -52,6 +52,7 @@ import {
     detectDataAppAnomalies,
     type DataAppDetection,
 } from '../ai/agents/dataAppAnomalyDetector';
+import { answerDataAppPrompt } from '../ai/agents/dataAppPromptAnswerer';
 import {
     generateFormulaTableCalculation as generateFormulaTableCalculationFromContext,
     sanitizeCustomFormat as sanitizeFormulaCustomFormat,
@@ -638,6 +639,35 @@ export class AiService extends BaseService {
         });
         return {
             detection,
+            modelId:
+                getLanguageModelAttribution(modelOptions.model).model ?? null,
+        };
+    }
+
+    async answerDataAppPrompt(
+        user: SessionUser,
+        {
+            content,
+            prompt,
+            focus,
+            projectUuid,
+        }: {
+            content: string;
+            prompt: string;
+            focus: Record<string, string> | null;
+            projectUuid: string;
+        },
+    ): Promise<{ text: string; modelId: string | null }> {
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+        const text = await answerDataAppPrompt(modelOptions, {
+            content,
+            prompt,
+            focus,
+        });
+        return {
+            text,
             modelId:
                 getLanguageModelAttribution(modelOptions.model).model ?? null,
         };

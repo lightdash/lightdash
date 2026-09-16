@@ -62,6 +62,7 @@ import type {
     ApiDataAppAnalysisResponse,
     ApiDataAppDetectResponse,
     ApiDataAppInvestigateResponse,
+    ApiDataAppPromptResponse,
     ApiDataAppVizDeleteImpactResponse,
     ApiDataAppVizPreviewTokenResponse,
     ApiDataAppVizRenderMetadataResponse,
@@ -1555,6 +1556,7 @@ type ApiResults =
     | ApiDataAppDetectResponse['results']
     | ApiDataAppAnalysisResponse['results']
     | ApiDataAppInvestigateResponse['results']
+    | ApiDataAppPromptResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']

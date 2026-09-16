@@ -21,6 +21,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | thumbnails / screenshots / scheduled deliveries | `screenshot` | required — see below |
 | drill down, click into a chart | `drill-down` | app code opt-in |
 | drill into a viz data point (reusable visualization) | `viz-drill-down` | app code opt-in |
+| "ask the AI", one-line takeaway, explain this row | `ai-prompt` | app code opt-in |
 | "share this view", URL that restores state | `url-state` | app code opt-in |
 | Google Sheets export | `gsheet-export` | app code opt-in |
 | "delivery has all tabs", full data in scheduled deliveries | `delivery-render` | app code opt-in |
@@ -122,6 +123,11 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   points can be marked, with `investigate(id)` / `continueInAskAi(id)` for the
   action menu. Render a summary block and markers; render nothing when
   `status === 'unavailable'`. Full contract in `/app/references/ai-analysis.md`.
+- `ai-prompt`: `useAiPrompt()` returns `{ available, ask, loading, text, error }`;
+  `ask({ prompt, sources: [{ result, label }], focus?: { row } })` sends an
+  author-written question over loaded `useLightdash` results and resolves to
+  plain text. Hide the control when `available` is false; trigger from a user
+  action. Full contract in `/app/references/ai-analysis.md`.
 - `delivery-render`: `useDeliveryRender()` is `true` during scheduled-delivery
   and delivery-preview capture renders. Gate tab/slide DATA mounting on it so
   every tab's queries execute during capture while only the active tab stays

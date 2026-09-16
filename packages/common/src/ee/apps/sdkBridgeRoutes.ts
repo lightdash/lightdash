@@ -62,6 +62,11 @@ export const APP_SDK_ALLOWED_ROUTES: AppSdkAllowedRoute[] = [
         method: 'GET',
         pattern: /^\/api\/v1\/schedulers\/job\/[^/]+\/status$/,
     },
+    // Ask the org-approved AI a question about the viewer's own results
+    {
+        method: 'POST',
+        pattern: /^\/api\/v2\/projects\/[^/]+\/apps\/[^/]+\/analysis\/prompt$/,
+    },
     // Get current user
     { method: 'GET', pattern: /^\/api\/v1\/user$/ },
 ];

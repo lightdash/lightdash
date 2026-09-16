@@ -3,9 +3,11 @@ import {
     type ApiDataAppAnalysisResponse,
     type ApiDataAppDetectResponse,
     type ApiDataAppInvestigateResponse,
+    type ApiDataAppPromptResponse,
     type ApiErrorPayload,
     type DataAppDetectRequest,
     type DataAppInvestigateRequest,
+    type DataAppPromptRequest,
 } from '@lightdash/common';
 import {
     Body,
@@ -53,6 +55,34 @@ export class DataAppAnalysisController extends BaseController {
         }
         this.setStatus(200);
         const results = await this.getService().detect(
+            req.account,
+            projectUuid,
+            appUuid,
+            body,
+        );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Answer a question the app asks about the viewer's own query results.
+     * Plain-text answer from the fast model; no tools, no warehouse access.
+     * @summary Ask the AI about a data app view
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/prompt')
+    @OperationId('promptDataAppAi')
+    async prompt(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Body() body: DataAppPromptRequest,
+    ): Promise<ApiDataAppPromptResponse> {
+        if (!req.account) {
+            throw new ForbiddenError('Account is required');
+        }
+        this.setStatus(200);
+        const results = await this.getService().prompt(
             req.account,
             projectUuid,
             appUuid,

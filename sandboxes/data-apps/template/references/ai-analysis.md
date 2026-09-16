@@ -201,9 +201,48 @@ Then render the investigation state wherever the anomaly is shown (a card under 
 
 Never open a dialog for the investigation yourself; the app renders state, Lightdash owns the run.
 
+## Free-form prompts (`useAiPrompt`)
+
+`useInsights` is the host's analysis; `useAiPrompt` lets the app ask its own question about results it already loaded. Use it for an author-written takeaway under a chart, a "what stands out in this row" explanation, or a narrative tailored to the app's domain. Answers are short plain text, not Markdown.
+
+```tsx
+import { useAiPrompt, useLightdash } from '@lightdash/query-sdk';
+
+function RevenueTakeaway() {
+    const { data: revenue } = useLightdash(revenueByMonth);
+    const ai = useAiPrompt();
+
+    if (!ai.available || !revenue) return null;
+
+    return (
+        <div>
+            <button
+                disabled={ai.loading}
+                onClick={() =>
+                    ai.ask({
+                        prompt: 'In two sentences, what should a sales lead take away from the last six months of revenue?',
+                        sources: [{ result: revenue, label: 'Revenue by month' }],
+                    })
+                }
+            >
+                {ai.loading ? 'Thinking…' : 'Summarise'}
+            </button>
+            {ai.text && <p>{ai.text}</p>}
+            {ai.error && <p role="alert">{ai.error.message}</p>}
+        </div>
+    );
+}
+```
+
+- `sources` are `useLightdash` results (with an optional `label` the model sees as the section title). Only these rows reach the model; Lightdash reads them from the viewer's own query history, so the app sends no data.
+- `focus: { row }` narrows the question to one row of a source, for example from a clicked data point: `ai.ask({ prompt: 'Why is this month unusual?', sources: [{ result: revenue }], focus: { row } })`.
+- `available` is false outside a Lightdash host or when the organisation has not turned AI on for data apps. Hide the control; do not fall back to another provider.
+- Trigger `ask` from a user action, or at most once per loaded view. Never on a timer, never per row. Prompts are rate limited per viewer.
+- Prompts are capped at 2000 characters; write them as instructions to an analyst, and name the audience and the length you want.
+
 ## What the app must not do
 
-- Do not send prompts, rows or field values anywhere. The hook exposes results; Lightdash already has the data.
+- Do not send rows or field values anywhere. The hooks expose results; Lightdash already has the data.
 - Do not add an external connection to a model provider for summaries or explanations. Use this hook.
 - Do not fabricate insights when the status is `idle` or `unavailable`; render the state.
 - Do not render `explanation` as HTML. It is Markdown; render it as text or through a Markdown component.

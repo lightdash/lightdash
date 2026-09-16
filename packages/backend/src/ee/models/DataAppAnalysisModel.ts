@@ -2,6 +2,7 @@ import type {
     DataAppAnalysisSource,
     DataAppDetectResult,
     DataAppInvestigateResult,
+    DataAppPromptResult,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -35,6 +36,7 @@ export type CreateDataAppAnalysis = CreateBase &
               agentUuid: string;
               threadUuid: string;
           }
+        | { operation: 'prompt'; result: DataAppPromptResult }
     );
 
 export class DataAppAnalysisModel {
