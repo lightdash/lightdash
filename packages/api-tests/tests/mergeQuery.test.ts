@@ -487,10 +487,12 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
 
     // The join runs on the compose engine, whose default null order is not
     // every warehouse's. Under a limit that decides which rows survive, so
-    // the merge states the project warehouse's placement on every sort.
+    // the merge states the project warehouse's placement on every sort. The
+    // expectation is read from the same merge run unlimited, because each
+    // warehouse's dataset carries its own share of null months.
     it('places nulls under a limit the way the project warehouse does', async () => {
-        // Coupon payments cover a few months, so a FULL merge leaves the
-        // payments count null on most rows.
+        // Coupon payments cover only some months, so a FULL merge leaves
+        // the payments count null on the rest.
         const couponPayments = {
             ...paymentsByMonth,
             filters: {
@@ -507,44 +509,51 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
                 },
             },
         };
-        const runResp = await admin.post<
-            Body<ApiExecuteAsyncMergeQueryResults>
-        >(`/api/v2/projects/${projectUuid}/query/merge-query`, {
-            mergeQuery: {
-                ...mergeQuery,
-                sources: [
-                    { id: 'orders', metricQuery: ordersByMonth },
-                    { id: 'payments', metricQuery: couponPayments },
-                ],
-                sorts: [{ fieldId: PAYMENTS_FIELD_ID, descending: true }],
-                limit: 5,
-            },
-            context: QueryExecutionContext.EXPLORE,
-        });
-        expect(runResp.status).toBe(200);
-        if (runResp.body.results.outcome !== 'started') {
-            throw new Error(
-                `Merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+        const runSorted = async (limit: number) => {
+            const runResp = await admin.post<
+                Body<ApiExecuteAsyncMergeQueryResults>
+            >(`/api/v2/projects/${projectUuid}/query/merge-query`, {
+                mergeQuery: {
+                    ...mergeQuery,
+                    sources: [
+                        { id: 'orders', metricQuery: ordersByMonth },
+                        { id: 'payments', metricQuery: couponPayments },
+                    ],
+                    sorts: [{ fieldId: PAYMENTS_FIELD_ID, descending: true }],
+                    limit,
+                },
+                context: QueryExecutionContext.EXPLORE,
+            });
+            expect(runResp.status).toBe(200);
+            if (runResp.body.results.outcome !== 'started') {
+                throw new Error(
+                    `Merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+                );
+            }
+            const results = await pollQueryResults(
+                admin,
+                runResp.body.results.query.queryUuid,
             );
-        }
+            return results.rows.map((row) =>
+                numeric(cellOf(row, PAYMENTS_FIELD_ID).raw),
+            );
+        };
 
-        const results = await pollQueryResults(
-            admin,
-            runResp.body.results.query.queryUuid,
+        const [everyRow, limitedRows] = await Promise.all([
+            runSorted(500),
+            runSorted(5),
+        ]);
+        expect(everyRow.some((count) => count === null)).toBe(true);
+        expect(limitedRows).toHaveLength(Math.min(5, everyRow.length));
+        // The limited run keeps the head of the unlimited run's order: the
+        // null rows first or last per the warehouse, values descending.
+        expect(limitedRows).toEqual(
+            orderedForWarehouse(everyRow, { descending: true }).slice(
+                0,
+                limitedRows.length,
+            ),
         );
-        const counts = results.rows.map((row) =>
-            numeric(cellOf(row, PAYMENTS_FIELD_ID).raw),
-        );
-        expect(counts).toHaveLength(5);
-        if (getWarehouseDefaultNullsFirst(adapter, true)) {
-            expect(counts).toEqual([null, null, null, null, null]);
-        } else {
-            counts.forEach((count) => expect(count).not.toBeNull());
-            expect(counts).toEqual(
-                [...counts].sort((a, b) => (b as number) - (a as number)),
-            );
-        }
-    }, 60_000);
+    }, 90_000);
 
     it('applies each source filter before aggregation and merging', async () => {
         const filteredOrders = {
