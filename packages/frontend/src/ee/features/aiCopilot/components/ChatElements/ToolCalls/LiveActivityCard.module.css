@@ -498,6 +498,8 @@
 }
 
 .reasoningBody {
+    max-height: var(--reasoning-body-max-height, none);
+    overflow-y: var(--reasoning-body-overflow-y, visible);
     padding: 2px 12px 6px var(--reasoning-inset);
     font-style: italic;
     color: var(--mantine-color-ldGray-7);
