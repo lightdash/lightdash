@@ -1,0 +1,13 @@
+{
+    // Emit config for dist/types: everything tsconfig.json typechecks, minus test-only sources.
+    // tsconfig.json keeps the tests so `typecheck`, editors and Vitest still see them.
+    "extends": "./tsconfig.json",
+    "exclude": [
+        "dist",
+        "node_modules",
+        "src/**/*.test.ts",
+        "src/**/*.mock.ts",
+        "src/**/__snapshots__",
+        "src/authorization/roleToScopeMapping.testUtils.ts"
+    ]
+}

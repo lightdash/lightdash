@@ -20,10 +20,10 @@
     "include": ["src/**/*.ts", "src/**/*.json"],
     "references": [
         {
-            "path": "../common"
+            "path": "../common/tsconfig.types.json"
         },
         {
-            "path": "../warehouses"
+            "path": "../warehouses/tsconfig.build.json"
         }
     ]
 }

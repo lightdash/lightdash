@@ -10,7 +10,7 @@
         "generate-api:build": "pnpm run generate-api && pnpm run formatter --write ./src/generated",
         "generate-api-dev": "pnpm run generate-api:build && chokidar './src/**/controllers/**/*.ts' -c 'pnpm run generate-api:build'",
         "dev": "LIGHTDASH_MODE=${LIGHTDASH_MODE:-development} HEADLESS=true tsx watch --clear-screen=false --inspect=0.0.0.0:9229 src/index.ts",
-        "build": "pnpm run generate-api:build && tsc --build tsconfig.json",
+        "build": "pnpm run generate-api:build && tsc --build tsconfig.build.json",
         "build:mcp-app": "pnpm -F @lightdash/mcp-chart-app build",
         "build-sourcemaps": "pnpm run generate-api:build && tsc --build tsconfig.sentry.json",
         "typecheck": "tsc --project tsconfig.json --noEmit",
