@@ -30,11 +30,23 @@ webhook integration.
 ## Compatibility and publication
 
 The desired compatibility metadata is prepared before publishing the compiled
-explores. The aggregation query uses the same compiler as warehouse execution,
-with a fixed reference clock and canonical effective relative-date descriptors
-for comparison. The comparison also includes the effective execution context and
-physical output contract. Presentation metadata and the refresh schedule are not
-part of compatibility.
+explores. Compatibility hashes canonical definition data: the pre-aggregate definition,
+materialization query, entire normalized source explore, effective execution
+context (including access attributes), and physical output contract. Generated
+filter IDs, compiled SQL, and presentation metadata are excluded at their owning
+objects. Relative-date rules remain structured data; fingerprinting adds no
+special rendering mode to the compiler. The refresh schedule is excluded.
+
+The entire source explore is deliberately included, so edits to unused fields or
+serving-only formulas in that explore can cause an extra refresh. This avoids
+missing always-joins, filter dependencies, or intermediate join tables. Password
+rotation does not invalidate compatibility, but source or effective identity
+changes do. Increment `PRE_AGGREGATE_COMPATIBILITY_VERSION` whenever execution
+semantics change without corresponding definition changes.
+
+The prepared definition and access context are also pinned until submission.
+Execution renders relative dates normally at preparation time; `evaluatedAt` is
+provenance, not a compiler clock override.
 
 The ordinary query-history cache key remains unchanged. It represents an exact
 query execution and its cache lifetime, which is distinct from long-lived
