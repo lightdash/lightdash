@@ -1,7 +1,9 @@
 import {
+    applyDocumentCellOperations,
     ConflictError,
     Document,
     DOCUMENT_SCHEMA_VERSION,
+    DocumentCellOperation,
     DocumentContentV3,
     DocumentSummary,
     NotFoundError,
@@ -206,6 +208,110 @@ export class DocumentModel {
                 input.projectUuid,
                 document.document_uuid,
             );
+        });
+    }
+
+    async updateContent(
+        projectUuid: string,
+        documentUuid: string,
+        input: {
+            expectedSpaceUuid: string;
+            baseVersionUuid: string;
+            operations: DocumentCellOperation[];
+        },
+        createdByUserUuid: string,
+    ): Promise<Document> {
+        return this.database.transaction(async (transaction) => {
+            const row = await this.activeDocuments(transaction, projectUuid)
+                .where('documents.document_uuid', documentUuid)
+                .forUpdate('documents')
+                .first();
+            if (!row) {
+                throw new NotFoundError('Document not found');
+            }
+            if (row.space_uuid !== input.expectedSpaceUuid) {
+                throw new ConflictError(
+                    'Document has moved. Reload it and retry',
+                );
+            }
+            const document = await this.getWithDatabase(
+                transaction,
+                projectUuid,
+                documentUuid,
+            );
+            if (document.version.versionUuid !== input.baseVersionUuid) {
+                throw new ConflictError(
+                    'Document has changed. Reload the latest version before editing.',
+                );
+            }
+            const content = applyDocumentCellOperations(
+                document.version.content,
+                input.operations,
+            );
+            await transaction(DocumentVersionsTableName).insert({
+                document_id: row.document_id,
+                version_number: document.version.versionNumber + 1,
+                schema_version: DOCUMENT_SCHEMA_VERSION,
+                content,
+                created_by_user_uuid: createdByUserUuid,
+            });
+            await transaction(DocumentsTableName)
+                .where('document_id', row.document_id)
+                .update({ updated_at: new Date() });
+            return this.getWithDatabase(transaction, projectUuid, documentUuid);
+        });
+    }
+
+    async updateMetadata(
+        projectUuid: string,
+        documentUuid: string,
+        input: {
+            expectedSpaceUuid: string;
+            name?: string;
+            slug?: string;
+            description?: string;
+        },
+    ): Promise<Document> {
+        return this.database.transaction(async (transaction) => {
+            if (input.slug !== undefined) {
+                await acquireProjectSlugLock(
+                    transaction,
+                    projectUuid,
+                    input.slug,
+                );
+            }
+            const row = await this.activeDocuments(transaction, projectUuid)
+                .where('documents.document_uuid', documentUuid)
+                .forUpdate('documents')
+                .first();
+            if (!row) {
+                throw new NotFoundError('Document not found');
+            }
+            if (row.space_uuid !== input.expectedSpaceUuid) {
+                throw new ConflictError(
+                    'Document has moved. Reload it and retry',
+                );
+            }
+            if (input.slug !== undefined) {
+                const existing = await transaction(DocumentsTableName)
+                    .where({ project_uuid: projectUuid, slug: input.slug })
+                    .whereNot('document_uuid', documentUuid)
+                    .first('document_id');
+                if (existing) {
+                    throw new ConflictError(
+                        'A document with this slug already exists in this project',
+                    );
+                }
+            }
+            await transaction(DocumentsTableName)
+                .where('document_id', row.document_id)
+                .update({
+                    name: input.name,
+                    slug: input.slug,
+                    description: input.description,
+                    updated_at: new Date(),
+                });
+            return this.getWithDatabase(transaction, projectUuid, documentUuid);
         });
     }
 }

@@ -409,6 +409,7 @@ export class ServiceRepository
             () =>
                 new DocumentService({
                     documentModel: this.models.getDocumentModel(),
+                    projectService: this.getProjectService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),
                     spacePermissionService: this.getSpacePermissionService(),
