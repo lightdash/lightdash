@@ -90,16 +90,7 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 
-/**
- * Distinguishes the three ways the 'catalog-browse' cached-explore read is
- * triggered (SPK-2121): a browse page load, a search request (both via
- * getFilteredExplores), or the background index job. Browse and search share
- * a code path up to getFilteredExplores but diverge immediately after - a
- * search request discards the returned filteredExplores and searches the
- * catalog_search index instead, so the cached_explore read it just paid for
- * is wasted. They must not share a log bucket.
- */
-type CatalogBrowseTrigger = 'browse' | 'search' | 'index';
+type CatalogBrowseTrigger = 'browse' | 'index';
 
 export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     lightdashConfig: LightdashConfig;
@@ -372,10 +363,8 @@ export class CatalogService<
         user: SessionUser,
         organizationUuid: string,
         projectUuid: string,
-        requestKind: Extract<CatalogBrowseTrigger, 'browse' | 'search'>,
+        requestKind: Extract<CatalogBrowseTrigger, 'browse'>,
     ) {
-        // /dataCatalog browse+search - PROD-10912 deliberately does not
-        // touch this path, but it shares the same cached-explore read.
         const browseReadContext: ExploreCacheReadContext & {
             trigger: CatalogBrowseTrigger;
         } = {
@@ -787,13 +776,6 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const filteredExplores = await this.getFilteredExplores(
-            user,
-            organizationUuid,
-            projectUuid,
-            catalogSearch.searchQuery ? 'search' : 'browse',
-        );
-
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
@@ -812,6 +794,13 @@ export class CatalogService<
                 paginateArgs: { page: 1, pageSize: 50 },
             });
         }
+
+        const filteredExplores = await this.getFilteredExplores(
+            user,
+            organizationUuid,
+            projectUuid,
+            'browse',
+        );
 
         if (catalogSearch.type === CatalogType.Field) {
             return {
