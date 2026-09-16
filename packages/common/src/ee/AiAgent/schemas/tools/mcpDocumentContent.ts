@@ -46,14 +46,12 @@ const mergeSchema = z
 export const mcpDocumentCellSchema = z.discriminatedUnion('type', [
     z
         .object({
-            id: z.string().min(1),
             type: z.literal('markdown'),
             content: z.object({ markdown: z.string() }).strict(),
         })
         .strict(),
     z
         .object({
-            id: z.string().min(1),
             type: z.literal('chart'),
             content: z.discriminatedUnion('source', [
                 z
@@ -84,36 +82,8 @@ export const documentAsCodeSchema = z
     })
     .strict()
     .describe(
-        'Document schema version 3. Ordered cells have stable IDs. Headings come from Markdown and chart names.',
+        'Document schema version 3. Supply ordered cells without IDs; IDs are server-managed. Headings come from Markdown and chart names.',
     );
-
-const cellOperationSchema = z.union([
-    z
-        .object({ type: z.literal('append'), cell: mcpDocumentCellSchema })
-        .strict(),
-    z
-        .object({
-            type: z.enum(['insert_before', 'insert_after']),
-            targetCellId: z.string(),
-            cell: mcpDocumentCellSchema,
-        })
-        .strict(),
-    z
-        .object({
-            type: z.literal('replace'),
-            cellId: z.string(),
-            cell: mcpDocumentCellSchema,
-        })
-        .strict(),
-    z.object({ type: z.literal('remove'), cellId: z.string() }).strict(),
-    z
-        .object({
-            type: z.enum(['move_before', 'move_after']),
-            cellId: z.string(),
-            targetCellId: z.string(),
-        })
-        .strict(),
-]);
 
 export const mcpDocumentEditSchema = z.discriminatedUnion('type', [
     z
@@ -125,7 +95,9 @@ export const mcpDocumentEditSchema = z.discriminatedUnion('type', [
                 .describe(
                     'Version UUID from read_content. Stale edits fail; reload and retry.',
                 ),
-            operations: z.array(cellOperationSchema).min(1),
+            content: documentAsCodeSchema.shape.content.describe(
+                'Complete replacement content. Include all cells to keep, including unchanged charts. Omitted cells are removed.',
+            ),
         })
         .strict(),
     z
@@ -174,8 +146,9 @@ export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
     documentEdit: mcpDocumentEditSchema
         .optional()
         .describe(
-            'Required for Documents instead of patch. Edit cells by ID, or update metadata in a separate call.',
+            'Required for Documents instead of patch. Replace all content with baseVersionUuid, or update metadata separately. Cell IDs are server-managed.',
         ),
 });
 
 export type McpDocumentEdit = z.infer<typeof mcpDocumentEditSchema>;
+export type McpDocumentAsCode = z.infer<typeof documentAsCodeSchema>;

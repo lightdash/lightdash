@@ -1,4 +1,5 @@
 import {
+    ChartType,
     ConflictError,
     ContentType,
     ForbiddenError,
@@ -48,7 +49,7 @@ const content = {
     description: document.description,
     spaceSlug: 'reports',
     schemaVersion: 3,
-    content: document.version.content,
+    content: { cells: [{ type: cell.type, content: cell.content }] },
 };
 const account = {
     user: { type: 'registered', id: 'user', userUuid: 'user' },
@@ -341,7 +342,7 @@ describe('MCP Document runtime', () => {
                 description: document.description,
                 spaceUuid,
                 schemaVersion: 3,
-                content: document.version.content,
+                content: { cells: [{ ...cell, id: expect.any(String) }] },
             },
         );
     });
@@ -360,9 +361,7 @@ describe('MCP Document runtime', () => {
                               : {
                                     type: 'content',
                                     baseVersionUuid: versionUuid,
-                                    operations: [
-                                        { type: 'remove', cellId: cell.id },
-                                    ],
+                                    content: { cells: [] },
                                 },
                       );
             await expect(request).rejects.toThrow(NotFoundError);
@@ -390,18 +389,15 @@ describe('MCP Document runtime', () => {
         expect(documentService.create).not.toHaveBeenCalled();
     });
 
-    test('content edits preserve stable cell operations and forward the version and Space scope', async () => {
+    test('content edits assign server IDs and forward the complete content, version and Space scope', async () => {
         const { runtime, documentService } = setup([spaceUuid]);
-        const operations = [
-            { type: 'append', cell: { ...cell, id: 'summary' } },
-            { type: 'replace', cellId: cell.id, cell },
-            { type: 'move_after', cellId: cell.id, targetCellId: 'summary' },
-            { type: 'remove', cellId: 'summary' },
-        ];
+        const replacement = {
+            cells: [content.content.cells[0], content.content.cells[0]],
+        };
         await runtime.editDocumentContent(document.slug, {
             type: 'content',
             baseVersionUuid: versionUuid,
-            operations,
+            content: replacement,
         });
         expect(documentService.updateContent).toHaveBeenCalledWith(
             account,
@@ -409,11 +405,19 @@ describe('MCP Document runtime', () => {
             document.documentUuid,
             {
                 baseVersionUuid: versionUuid,
-                operations,
+                content: {
+                    cells: replacement.cells.map((item) => ({
+                        ...item,
+                        id: expect.any(String),
+                    })),
+                },
             },
             { allowedSpaceUuids: [spaceUuid] },
         );
         expect(documentService.updateMetadata).not.toHaveBeenCalled();
+        const savedCells =
+            documentService.updateContent.mock.calls[0][3].content.cells;
+        expect(savedCells[0].id).not.toBe(savedCells[1].id);
     });
 
     test('metadata edits remain separate from version writes and forward Space scope', async () => {
@@ -432,6 +436,55 @@ describe('MCP Document runtime', () => {
         expect(documentService.updateContent).not.toHaveBeenCalled();
     });
 
+    test('reuses retained chart IDs across reordering without exposing IDs to the author', async () => {
+        const { runtime, documentService } = setup();
+        const chartCell = {
+            id: 'existing-chart',
+            type: 'chart' as const,
+            content: {
+                source: 'semantic' as const,
+                chart: {
+                    name: 'Orders',
+                    tableName: 'orders',
+                    metricQuery: {
+                        exploreName: 'orders',
+                        dimensions: [],
+                        metrics: ['orders_count'],
+                        filters: {},
+                        sorts: [],
+                        limit: 100,
+                        tableCalculations: [],
+                    },
+                    chartConfig: { type: ChartType.TABLE },
+                },
+            },
+        };
+        documentService.getBySlug.mockResolvedValue({
+            ...document,
+            version: {
+                ...document.version,
+                content: { cells: [cell, chartCell] },
+            },
+        });
+        await runtime.editDocumentContent(document.slug, {
+            type: 'content',
+            baseVersionUuid: versionUuid,
+            content: {
+                cells: [
+                    { type: chartCell.type, content: chartCell.content },
+                    {
+                        type: cell.type,
+                        content: { markdown: '# Changed narrative' },
+                    },
+                ],
+            },
+        });
+        const saved =
+            documentService.updateContent.mock.calls[0][3].content.cells;
+        expect(saved[0]).toEqual(chartCell);
+        expect(saved[1].id).not.toBe(cell.id);
+    });
+
     test('stale version conflicts are forwarded without retrying the write', async () => {
         const { runtime, documentService } = setup();
         const error = new ConflictError('Document has changed');
@@ -440,7 +493,7 @@ describe('MCP Document runtime', () => {
             runtime.editDocumentContent(document.slug, {
                 type: 'content',
                 baseVersionUuid: versionUuid,
-                operations: [{ type: 'remove', cellId: cell.id }],
+                content: { cells: [] },
             }),
         ).rejects.toBe(error);
         expect(documentService.updateContent).toHaveBeenCalledOnce();

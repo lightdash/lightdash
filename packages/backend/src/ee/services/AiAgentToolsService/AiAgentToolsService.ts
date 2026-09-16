@@ -51,14 +51,15 @@ import {
     type DashboardAsCode,
     type DataAppVizSchema,
     type Document,
-    type DocumentAsCode,
-    type DocumentCellOperation,
     type FieldValueSearchResult,
+    type McpDocumentAsCode,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
+import { isEqual } from 'lodash';
+import { randomUUID } from 'node:crypto';
 import { type DbApp } from '../../../database/entities/apps';
 import Logger from '../../../logging/logger';
 import { AppModel } from '../../../models/AppModel';
@@ -315,7 +316,7 @@ export type McpAiAgentToolsRuntime = Omit<
 
 export type DocumentContentResult = {
     type: 'document';
-    content: DocumentAsCode;
+    content: McpDocumentAsCode;
     uuid: string;
     href: string;
     versionUuid: string;
@@ -4162,7 +4163,11 @@ export class AiAgentToolsService extends BaseService {
                 description: document.description,
                 spaceSlug: getContentAsCodePathFromLtreePath(space.path),
                 schemaVersion: document.version.schemaVersion,
-                content: document.version.content,
+                content: {
+                    cells: document.version.content.cells.map(
+                        ({ id: _id, ...cell }) => cell,
+                    ),
+                },
             },
         };
     }
@@ -4220,10 +4225,12 @@ export class AiAgentToolsService extends BaseService {
                 description: input.description,
                 spaceUuid: space.uuid,
                 schemaVersion: input.schemaVersion,
-                content: parseDocumentContent(
-                    input.schemaVersion,
-                    input.content,
-                ),
+                content: parseDocumentContent(input.schemaVersion, {
+                    cells: input.content.cells.map((cell) => ({
+                        ...cell,
+                        id: randomUUID(),
+                    })),
+                }),
             },
         );
         return this.documentContentResult(context, document);
@@ -4236,7 +4243,12 @@ export class AiAgentToolsService extends BaseService {
     ) {
         assertRegisteredAccount(context.account);
         const edit = mcpDocumentEditSchema.parse(raw);
-        const current = await this.readDocumentContent(context, { slug });
+        const existing = await this.documentService.getBySlug(
+            context.account,
+            context.projectUuid,
+            slug,
+        );
+        const current = await this.documentContentResult(context, existing);
         if (edit.type === 'metadata') {
             const { type: _type, ...metadata } = edit;
             const document = await this.documentService.updateMetadata(
@@ -4248,24 +4260,29 @@ export class AiAgentToolsService extends BaseService {
             );
             return this.documentContentResult(context, document);
         }
-        const operations: DocumentCellOperation[] = edit.operations.map(
-            (operation) => {
-                if ('cell' in operation) {
-                    const { cells } = parseDocumentContent(3, {
-                        cells: [operation.cell],
-                    });
-                    return { ...operation, cell: cells[0] };
-                }
-                return operation;
-            },
-        );
+        const unmatchedCells = [...existing.version.content.cells];
+        const content = parseDocumentContent(3, {
+            cells: edit.content.cells.map((cell) => {
+                const index = unmatchedCells.findIndex(
+                    (previous) =>
+                        previous.type === cell.type &&
+                        isEqual(previous.content, cell.content),
+                );
+                // Retain unchanged chart IDs so narrative edits do not require chart-authoring permissions.
+                const id =
+                    index < 0
+                        ? randomUUID()
+                        : unmatchedCells.splice(index, 1)[0].id;
+                return { ...cell, id };
+            }),
+        });
         const document = await this.documentService.updateContent(
             context.account,
             context.projectUuid,
             current.uuid,
             {
                 baseVersionUuid: edit.baseVersionUuid,
-                operations,
+                content,
             },
             { allowedSpaceUuids: context.spaceAccess ?? undefined },
         );

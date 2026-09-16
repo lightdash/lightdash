@@ -651,13 +651,24 @@ describe('DocumentModel PostgreSQL integration', () => {
         });
         const otherProjectUuid = randomUUID();
         const otherSpaceUuid = randomUUID();
-        await transaction.raw('INSERT INTO projects VALUES (2, ?, 1)', [
-            otherProjectUuid,
-        ]);
-        await transaction.raw(
-            'INSERT INTO spaces (space_id, space_uuid, project_id) VALUES (2, ?, 2)',
-            [otherSpaceUuid],
-        );
+        await transaction<{
+            project_id: number;
+            project_uuid: string;
+            organization_id: number;
+        }>('projects').insert({
+            project_id: 2,
+            project_uuid: otherProjectUuid,
+            organization_id: 1,
+        });
+        await transaction<{
+            space_id: number;
+            space_uuid: string;
+            project_id: number;
+        }>('spaces').insert({
+            space_id: 2,
+            space_uuid: otherSpaceUuid,
+            project_id: 2,
+        });
         const other = await model.create({
             ...input,
             projectUuid: otherProjectUuid,
@@ -703,6 +714,60 @@ describe('DocumentModel PostgreSQL integration', () => {
             ).rejects.toThrow('Document not found');
         },
     );
+
+    test('whole-content replacement preserves history and rejects stale writes', async () => {
+        const document = await model.create(input);
+        const replacement = {
+            cells: [
+                {
+                    id: randomUUID(),
+                    type: 'markdown' as const,
+                    content: { markdown: '# Replacement' },
+                },
+            ],
+        };
+        const request = {
+            expectedSpaceUuid: input.spaceUuid,
+            baseVersionUuid: document.version.versionUuid,
+            content: replacement,
+        };
+        const updated = await model.updateContent(
+            input.projectUuid,
+            document.documentUuid,
+            request,
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        expect(updated.version.content).toEqual(replacement);
+        expect(updated.version.versionNumber).toBe(2);
+        await expect(
+            model.updateContent(
+                input.projectUuid,
+                document.documentUuid,
+                request,
+                SEED_ORG_1_ADMIN.user_uuid,
+            ),
+        ).rejects.toThrow('Document has changed');
+        const cleared = await model.updateContent(
+            input.projectUuid,
+            document.documentUuid,
+            {
+                ...request,
+                baseVersionUuid: updated.version.versionUuid,
+                content: { cells: [] },
+            },
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        expect(cleared.version.content.cells).toEqual([]);
+        expect(cleared.version.versionNumber).toBe(3);
+        const versions = await transaction(DocumentVersionsTableName)
+            .select('content')
+            .orderBy('version_number');
+        expect(versions.map((version) => version.content)).toEqual([
+            input.content,
+            replacement,
+            { cells: [] },
+        ]);
+    });
 
     test('content updates append exactly one immutable version', async () => {
         const document = await model.create(input);

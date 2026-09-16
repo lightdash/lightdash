@@ -17,14 +17,16 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
     type RegisteredAccount,
-    type UpdateDocumentContentRequest,
     type UpdateDocumentMetadataRequest,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
 import { isEqual } from 'lodash';
 import pLimit from 'p-limit';
 import type { LightdashConfig } from '../../config/parseConfig';
-import type { DocumentModel } from '../../models/DocumentModel';
+import type {
+    DocumentContentUpdate,
+    DocumentModel,
+} from '../../models/DocumentModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
@@ -279,7 +281,7 @@ export class DocumentService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         documentUuid: string,
-        input: UpdateDocumentContentRequest,
+        input: DocumentContentUpdate,
         { allowedSpaceUuids }: { allowedSpaceUuids?: string[] } = {},
     ): Promise<Document> {
         const document = await this.get(account, projectUuid, documentUuid);
@@ -290,10 +292,13 @@ export class DocumentService extends BaseService {
                 'Document has changed. Reload it and retry with the latest version UUID',
             );
         }
-        const content = applyDocumentCellOperations(
-            document.version.content,
-            input.operations,
-        );
+        const content =
+            'content' in input
+                ? parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content)
+                : applyDocumentCellOperations(
+                      document.version.content,
+                      input.operations,
+                  );
         await this.validateCharts(
             account,
             projectUuid,

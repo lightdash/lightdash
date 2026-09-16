@@ -29,17 +29,14 @@ const chart = {
     chartConfig: { type: ChartType.TABLE },
 };
 const markdown = {
-    id: 'introduction',
     type: 'markdown',
     content: { markdown: '## Findings\n\nOrders are shown below.' },
 };
 const semantic = {
-    id: 'orders',
     type: 'chart',
     content: { source: 'semantic', chart },
 };
 const merge = {
-    id: 'merged-orders',
     type: 'chart',
     content: {
         source: 'merge',
@@ -81,8 +78,13 @@ describe('MCP Document content', () => {
         const parsed = documentAsCodeSchema.parse(document);
         expect(parsed).toEqual(document);
         expect(
-            parseDocumentContent(parsed.schemaVersion, parsed.content),
-        ).toEqual(document.content);
+            parseDocumentContent(parsed.schemaVersion, {
+                cells: parsed.content.cells.map((cell, index) => ({
+                    ...cell,
+                    id: String(index),
+                })),
+            }).cells.map(({ id: _id, ...cell }) => cell),
+        ).toEqual(document.content.cells);
         expect(
             mcpCreateContentArgsSchema.parse({
                 type: 'document',
@@ -110,6 +112,7 @@ describe('MCP Document content', () => {
     );
 
     test.each([
+        { ...markdown, id: 'client-id' },
         { ...markdown, title: 'Extra title' },
         { ...markdown, content: { ...markdown.content, title: 'Extra title' } },
         { ...semantic, content: { ...semantic.content, title: 'Extra title' } },
@@ -164,7 +167,9 @@ describe('MCP Document content', () => {
                     },
                 },
             });
-            expect(() => parseDocumentContent(3, { cells: [cell] })).toThrow();
+            expect(() =>
+                parseDocumentContent(3, { cells: [{ ...cell, id: 'test' }] }),
+            ).toThrow();
         },
     );
 
@@ -192,7 +197,9 @@ describe('MCP Document content', () => {
                 },
             },
         });
-        expect(() => parseDocumentContent(3, { cells: [cell] })).toThrow();
+        expect(() =>
+            parseDocumentContent(3, { cells: [{ ...cell, id: 'test' }] }),
+        ).toThrow();
     });
 
     test.each([1, 2, 4])(
@@ -205,43 +212,38 @@ describe('MCP Document content', () => {
         },
     );
 
-    test.each([
-        { type: 'append', cell: markdown },
-        { type: 'insert_before', targetCellId: semantic.id, cell: markdown },
-        { type: 'insert_after', targetCellId: semantic.id, cell: markdown },
-        { type: 'replace', cellId: markdown.id, cell: markdown },
-        { type: 'remove', cellId: markdown.id },
-        { type: 'move_before', cellId: markdown.id, targetCellId: semantic.id },
-        { type: 'move_after', cellId: markdown.id, targetCellId: semantic.id },
-    ])('preserves stable ID operation %j', (operation) => {
-        const edit = {
-            type: 'content',
-            baseVersionUuid,
-            operations: [operation],
-        };
-        expect(mcpDocumentEditSchema.parse(edit)).toEqual(edit);
-        expect(
-            mcpEditContentArgsSchema.parse({
+    test.each([document.content, { cells: [] }])(
+        'accepts whole-content replacement %j',
+        (content) => {
+            const edit = {
+                type: 'content',
+                baseVersionUuid,
+                content,
+            };
+            expect(mcpDocumentEditSchema.parse(edit)).toEqual(edit);
+            expect(
+                mcpEditContentArgsSchema.parse({
+                    type: 'document',
+                    slug: document.slug,
+                    documentEdit: edit,
+                }),
+            ).toEqual({
                 type: 'document',
                 slug: document.slug,
                 documentEdit: edit,
-            }),
-        ).toEqual({
-            type: 'document',
-            slug: document.slug,
-            documentEdit: edit,
-        });
-    });
+            });
+        },
+    );
 
     test.each([
         {
             type: 'content',
-            operations: [{ type: 'remove', cellId: markdown.id }],
+            content: document.content,
         },
         {
             type: 'content',
             baseVersionUuid: 'stale',
-            operations: [{ type: 'remove', cellId: markdown.id }],
+            content: document.content,
         },
         { type: 'content', baseVersionUuid, operations: [] },
         {
@@ -252,7 +254,7 @@ describe('MCP Document content', () => {
         {
             type: 'content',
             baseVersionUuid,
-            operations: [{ type: 'move_after', cellId: markdown.id }],
+            operations: [{ type: 'move_after', cellId: 'introduction' }],
         },
         {
             type: 'content',

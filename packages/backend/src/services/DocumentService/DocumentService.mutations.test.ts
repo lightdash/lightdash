@@ -181,7 +181,7 @@ const setup = () => {
     };
 };
 
-const mutations = ['create', 'metadata', 'content'] as const;
+const mutations = ['create', 'metadata', 'content', 'replacement'] as const;
 const mutate = (
     service: DocumentService,
     mutation: (typeof mutations)[number],
@@ -207,6 +207,11 @@ const mutate = (
                         },
                     },
                 ],
+            });
+        case 'replacement':
+            return service.updateContent(account, projectUuid, documentUuid, {
+                baseVersionUuid,
+                content: { cells: [semantic] },
             });
         default:
             return assertUnreachable(mutation, 'Unknown Document mutation');
@@ -464,18 +469,29 @@ describe('DocumentService mutations', () => {
         expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
     });
 
-    test('rejects stale base versions before chart compilation', async () => {
-        const { service, documentModel, projectService } = setup();
+    test.each([
+        { operations: [{ type: 'append' as const, cell: semantic }] },
+        { content: { cells: [semantic] } },
+    ])(
+        'rejects stale base versions before chart compilation: %j',
+        async (replacement) => {
+            const { service, documentModel, projectService } = setup();
 
-        await expect(
-            service.updateContent(makeAccount(), projectUuid, documentUuid, {
-                baseVersionUuid: 'stale',
-                operations: [{ type: 'append', cell: semantic }],
-            }),
-        ).rejects.toThrow(ConflictError);
-        expect(documentModel.updateContent).not.toHaveBeenCalled();
-        expect(projectService.compileQuery).not.toHaveBeenCalled();
-    });
+            await expect(
+                service.updateContent(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                    {
+                        baseVersionUuid: 'stale',
+                        ...replacement,
+                    },
+                ),
+            ).rejects.toThrow(ConflictError);
+            expect(documentModel.updateContent).not.toHaveBeenCalled();
+            expect(projectService.compileQuery).not.toHaveBeenCalled();
+        },
+    );
 
     test.each<DocumentCellOperation[]>([
         [
@@ -536,6 +552,47 @@ describe('DocumentService mutations', () => {
         expect(projectService.compileQuery).not.toHaveBeenCalled();
         expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
     });
+
+    test.each([semantic, merge])(
+        'whole-content replacement does not recompile retained charts',
+        async (cell) => {
+            const { service, documentModel, projectService } = setup();
+            documentModel.get.mockResolvedValue({
+                ...document,
+                version: {
+                    ...document.version,
+                    content: { cells: [cell, markdown] },
+                },
+            });
+            projectService.compileQuery.mockRejectedValue(
+                new ForbiddenError('No chart authoring'),
+            );
+            projectService.compileMergeQuery.mockRejectedValue(
+                new ForbiddenError('No chart authoring'),
+            );
+            await expect(
+                service.updateContent(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                    {
+                        baseVersionUuid,
+                        content: {
+                            cells: [
+                                {
+                                    ...markdown,
+                                    content: { markdown: '# Revised' },
+                                },
+                                cell,
+                            ],
+                        },
+                    },
+                ),
+            ).resolves.toMatchObject(document);
+            expect(projectService.compileQuery).not.toHaveBeenCalled();
+            expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
+        },
+    );
 
     test.each([semantic, merge])(
         'rejects retired section titles before compilation or persistence',

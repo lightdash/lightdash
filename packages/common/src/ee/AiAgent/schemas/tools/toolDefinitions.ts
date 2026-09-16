@@ -1953,7 +1953,7 @@ export const mcpEditContentToolDefinition = defineTool({
     name: 'editContent',
     title: 'Edit content',
     description:
-        'Edit dashboards and charts with RFC6902 patch. For Documents, use documentEdit instead: stable cell-ID operations with baseVersionUuid, or a separate metadata update. Stale content versions are rejected; read again and retry.',
+        'Edit dashboards and charts with RFC6902 patch. For Documents, use documentEdit to replace all content with baseVersionUuid, or update metadata separately. Include every cell to keep, without cell IDs. Stale versions are rejected; read again and retry.',
     availability: ['mcp'],
     inputSchema: mcpEditContentArgsSchema,
     mcp: { name: 'edit_content', annotations: destructiveWriteAnnotations },

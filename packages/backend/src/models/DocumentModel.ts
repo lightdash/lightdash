@@ -33,6 +33,11 @@ export type CreateDocument = {
     createdByUserUuid: string | null;
 };
 
+export type DocumentContentUpdate = { baseVersionUuid: string } & (
+    | { operations: DocumentCellOperation[] }
+    | { content: DocumentContentV3 }
+);
+
 type DocumentRow = DbDocument & {
     organization_uuid: string;
     space_uuid: string;
@@ -447,10 +452,8 @@ export class DocumentModel {
     async updateContent(
         projectUuid: string,
         documentUuid: string,
-        input: {
+        input: DocumentContentUpdate & {
             expectedSpaceUuid: string;
-            baseVersionUuid: string;
-            operations: DocumentCellOperation[];
         },
         createdByUserUuid: string,
     ): Promise<Document> {
@@ -477,10 +480,16 @@ export class DocumentModel {
                     'Document has changed. Reload the latest version before editing.',
                 );
             }
-            const content = applyDocumentCellOperations(
-                document.version.content,
-                input.operations,
-            );
+            const content =
+                'content' in input
+                    ? parseDocumentContent(
+                          DOCUMENT_SCHEMA_VERSION,
+                          input.content,
+                      )
+                    : applyDocumentCellOperations(
+                          document.version.content,
+                          input.operations,
+                      );
             await transaction(DocumentVersionsTableName).insert({
                 document_id: row.document_id,
                 version_number: document.version.versionNumber + 1,
