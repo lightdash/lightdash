@@ -193,7 +193,10 @@ describe('Document page', () => {
     test('renders ordered markdown and chart cells with title and description', async () => {
         const { container } = renderPage();
         expect(
-            await screen.findByRole('heading', { name: 'Weekly review' }),
+            await screen.findByRole('heading', {
+                name: 'Weekly review',
+                level: 1,
+            }),
         ).toBeInTheDocument();
         expect(screen.getByText('Revenue and next steps')).toBeInTheDocument();
         expect(mocks.api).toHaveBeenCalledWith(
@@ -415,6 +418,7 @@ describe('Document page', () => {
     });
 
     test('returns to a validated internal research location', async () => {
+        mocks.api.mockRejectedValue({ error: { statusCode: 404 } });
         const { router } = renderPage(
             '/projects/project-uuid/research?run=123#report',
         );
@@ -425,11 +429,35 @@ describe('Document page', () => {
     });
 
     test('replaces an external return location with the canonical document list', async () => {
+        mocks.api.mockRejectedValue({ error: { statusCode: 404 } });
         renderPage('https://example.com/projects/project-uuid/research');
         expect(
             await screen.findByRole('link', { name: 'Back' }),
         ).toHaveAttribute('href', '/projects/project-uuid/documents');
     });
+
+    test.each(['Weekly review', 'A long document name '.repeat(20)])(
+        'shows the document name in the toolbar without Back: %s',
+        async (name) => {
+            mocks.api.mockResolvedValue({ ...document, name });
+            renderPage('/projects/project-uuid/research');
+            expect(
+                await screen.findByRole('heading', {
+                    name: name.trim(),
+                    level: 6,
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('heading', { name: name.trim(), level: 1 }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('link', { name: 'Back' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Back' }),
+            ).not.toBeInTheDocument();
+        },
+    );
 
     test('renders real markdown without raw HTML or unsafe URL schemes', async () => {
         mocks.api.mockResolvedValue({

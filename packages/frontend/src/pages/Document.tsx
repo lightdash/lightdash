@@ -1,15 +1,14 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Box, Button, Group } from '@mantine/core';
-import { IconArrowLeft } from '@tabler/icons-react';
+import { Box, Button, Group, Title } from '@mantine/core';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
+import { DASHBOARD_HEADER_HEIGHT } from '../components/common/Dashboard/dashboard.constants';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
-import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageHeader from '../components/common/Page/PageHeader';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import TruncatedText from '../components/common/TruncatedText';
 import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
-import reportStyles from '../features/documents/presentation/ReportPresentation.module.css';
 import { useDocument } from '../features/documents/useDocument';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -51,26 +50,24 @@ const DocumentContent = ({
                 title={document.name}
                 noContentPadding
                 header={
-                    <PageHeader>
-                        <Group
-                            className={reportStyles.reportControls}
-                            justify="space-between"
-                        >
-                            <Button
-                                component={Link}
-                                to={backUrl}
-                                variant="subtle"
-                                radius="xl"
-                                size="xs"
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconArrowLeft}
-                                        size={14}
-                                    />
-                                }
-                            >
-                                Back
-                            </Button>
+                    <PageHeader
+                        cardProps={{
+                            px: 'xl',
+                            py: 0,
+                            h: DASHBOARD_HEADER_HEIGHT,
+                        }}
+                    >
+                        <Group w="100%" wrap="nowrap" justify="space-between">
+                            <Title order={6} flex={1} miw={0}>
+                                <TruncatedText
+                                    maxWidth="100%"
+                                    inline
+                                    inherit
+                                    display="block"
+                                >
+                                    {document.name}
+                                </TruncatedText>
+                            </Title>
                         </Group>
                     </PageHeader>
                 }
