@@ -328,18 +328,22 @@ describe('ChartTypeGallery', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('hides the library tab when the chart type registry is disabled', () => {
-        setFlags({ chartTypeRegistry: false });
-        setData([makeDataAppViz({})]);
-        renderPage();
+    it.each(['', '?tab=chart-library'])(
+        'shows chart types without tabs when the registry flag is disabled (%s)',
+        (query) => {
+            setFlags({ chartTypeRegistry: false });
+            setData([makeDataAppViz({})]);
+            renderPage(`/projects/project-1/chart-types${query}`);
 
-        expect(
-            screen.queryByRole('tab', { name: /Chart type library/ }),
-        ).not.toBeInTheDocument();
-    });
+            expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+            expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+            expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+            expect(screen.getByText('Radial gauge')).toBeInTheDocument();
+        },
+    );
 
     it.each([{ registryEnabled: false, charts: [] }, undefined])(
-        'hides the library tab until the registry is available (%j)',
+        'shows chart types without tabs until the registry is available (%j)',
         (data) => {
             vi.mocked(useRegistryChartTypes).mockReturnValue({
                 data,
@@ -356,11 +360,9 @@ describe('ChartTypeGallery', () => {
             expect(
                 screen.queryByRole('tab', { name: /Chart type library/ }),
             ).not.toBeInTheDocument();
-            expect(
-                screen.getByRole('tab', {
-                    name: 'Installed chart types (1)',
-                }),
-            ).toHaveAttribute('aria-selected', 'true');
+            expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+            expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+            expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
             expect(screen.getByText('Radial gauge')).toBeInTheDocument();
         },
     );
