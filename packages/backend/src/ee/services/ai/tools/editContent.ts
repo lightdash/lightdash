@@ -1,5 +1,12 @@
-import { editContentToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
+import {
+    editContentToolDefinition,
+    mcpEditContentArgsSchema,
+    mcpEditContentToolDefinition,
+    ParameterError,
+    toolEditContentArgsSchema,
+} from '@lightdash/common';
+import { tool, type FlexibleSchema } from 'ai';
+import { z } from 'zod';
 import type { EditContentFn } from '../types/aiAgentDependencies';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -7,6 +14,7 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     editContent: EditContentFn;
+    documentsEnabled?: boolean;
 };
 
 const toolDefinition = editContentToolDefinition.for('agent');
@@ -19,7 +27,7 @@ const contentResult = ({
 }: {
     content: unknown;
     href: string;
-    type: 'dashboard' | 'chart';
+    type: 'dashboard' | 'chart' | 'document';
     warnings: string[];
 }) => {
     const warningText =
@@ -31,12 +39,43 @@ const contentResult = ({
     )}${warningText}`;
 };
 
-export const getEditContent = ({ editContent }: Dependencies) =>
-    tool({
-        ...toolDefinition,
-        execute: async ({ slug, type, patch }) => {
+export const getEditContent = ({
+    editContent,
+    documentsEnabled = false,
+}: Dependencies) => {
+    const definition = documentsEnabled
+        ? mcpEditContentToolDefinition.for('agent')
+        : toolDefinition;
+    const inputSchema: FlexibleSchema<
+        z.infer<typeof mcpEditContentArgsSchema>
+    > = definition.inputSchema;
+    return tool({
+        ...definition,
+        inputSchema,
+        execute: async (args) => {
+            const { slug, type, patch, documentEdit } = args;
             try {
-                const result = await editContent({ slug, type, patch });
+                (documentsEnabled
+                    ? mcpEditContentArgsSchema
+                    : toolEditContentArgsSchema
+                ).parse(args);
+                const getEditArgs = (): Parameters<EditContentFn>[0] => {
+                    if (type === 'document') {
+                        if (patch !== undefined || documentEdit === undefined) {
+                            throw new ParameterError(
+                                'Documents require documentEdit instead of patch.',
+                            );
+                        }
+                        return { slug, type, documentEdit };
+                    }
+                    if (documentEdit !== undefined || patch === undefined) {
+                        throw new ParameterError(
+                            'Charts and dashboards require patch instead of documentEdit.',
+                        );
+                    }
+                    return { slug, type, patch };
+                };
+                const result = await editContent(getEditArgs());
                 const warnings = getContentWarnings(result);
                 const metadata = {
                     status: 'success' as const,
@@ -44,13 +83,25 @@ export const getEditContent = ({ editContent }: Dependencies) =>
                     name: result.content.name,
                     uuid: result.uuid,
                     href: result.href,
-                    versionUuids: result.versionUuids,
+                    versionUuids:
+                        result.type === 'document'
+                            ? {
+                                  before:
+                                      documentEdit?.type === 'content'
+                                          ? documentEdit.baseVersionUuid
+                                          : null,
+                                  after: result.versionUuid,
+                              }
+                            : result.versionUuids,
                     warnings,
                 };
 
                 return {
                     result: contentResult({
-                        content: result.content,
+                        content:
+                            result.type === 'document'
+                                ? result
+                                : result.content,
                         href: metadata.href,
                         type: result.type,
                         warnings,
@@ -61,7 +112,7 @@ export const getEditContent = ({ editContent }: Dependencies) =>
                 return {
                     result: toolErrorHandler(
                         error,
-                        `Error editing ${type} "${slug}". Patch was not applied.`,
+                        `Error editing ${type} "${slug}". Changes were not applied.`,
                     ),
                     metadata: {
                         status: 'error' as const,
@@ -71,3 +122,4 @@ export const getEditContent = ({ editContent }: Dependencies) =>
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
+};

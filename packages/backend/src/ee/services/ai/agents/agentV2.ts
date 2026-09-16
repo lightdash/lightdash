@@ -877,6 +877,7 @@ export const getAgentTools = (
     );
 
     const enableContentTools = args.enableDataAccess && args.enableContentTools;
+    const documentsEnabled = enableContentTools && args.enableDocuments;
 
     const grepFields = getGrepFields({
         availableExplores,
@@ -937,6 +938,7 @@ export const getAgentTools = (
 
     const readContent = getReadContent({
         readContent: dependencies.readContent,
+        documentsEnabled,
     });
 
     const resolveUrl = getResolveUrl({
@@ -1035,9 +1037,11 @@ export const getAgentTools = (
 
     const editContent = getEditContent({
         editContent: dependencies.editContent,
+        documentsEnabled,
     });
     const createContent = getCreateContent({
         createContent: dependencies.createContent,
+        documentsEnabled,
     });
     const createScheduledDelivery = getCreateScheduledDelivery({
         createScheduledDelivery: dependencies.createScheduledDelivery,
@@ -1605,6 +1609,10 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         enableContentTools: args.enableDataAccess && args.enableContentTools,
+        enableDocuments:
+            args.enableDataAccess &&
+            args.enableContentTools &&
+            args.enableDocuments,
         enableGenerateDataApp: args.enableGenerateDataApp,
         slackChannelId: args.slackChannelId,
         canRunSql: args.canRunSql,

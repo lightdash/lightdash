@@ -223,6 +223,7 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
+    enableDocuments: boolean;
     // Data apps enabled + user may create them + content tools (trusted identity).
     enableGenerateDataApp: boolean;
     enableAiWriteback: boolean;

@@ -9,7 +9,7 @@ import { ToolCallChip } from '../ToolCallChip';
 type Props = {
     action: 'read' | 'edit' | 'create';
     slug: string;
-    type: ReadContentType;
+    type: ReadContentType | 'document';
 };
 
 export const ContentEditorToolCallDescription: FC<Props> = ({
@@ -19,7 +19,7 @@ export const ContentEditorToolCallDescription: FC<Props> = ({
 }) => (
     <Text c="dimmed" size="xs">
         {action === 'read' ? 'Read' : action === 'edit' ? 'Edited' : 'Created'}{' '}
-        {READ_CONTENT_TYPE_LABELS[type]}{' '}
+        {type === 'document' ? 'Document' : READ_CONTENT_TYPE_LABELS[type]}{' '}
         <ToolCallChip mx={rem(2)}>{slug}</ToolCallChip>
     </Text>
 );

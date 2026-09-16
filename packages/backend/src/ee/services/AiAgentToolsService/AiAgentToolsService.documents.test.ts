@@ -119,6 +119,97 @@ const setup = (spaceAccess: string[] | null = null) => {
 };
 
 describe('MCP Document runtime', () => {
+    test('AI Agent generic tools reuse Document persistence without artifact methods', async () => {
+        const { service, context, documentService } = setup([spaceUuid]);
+        const runtime = service.createRuntime({
+            ...context,
+            source: 'ai_agent',
+            enableDocuments: true,
+        });
+        const created = await runtime.createContent({
+            type: 'document',
+            content: { ...content, schemaVersion: 3 },
+        });
+        expect(created).toMatchObject({
+            type: 'document',
+            uuid: document.documentUuid,
+            versionUuid,
+        });
+        expect(documentService.create).toHaveBeenCalledOnce();
+        const read = await runtime.readContent({
+            type: 'document',
+            documentUuid: document.documentUuid,
+        });
+        expect(read).toMatchObject({ type: 'document', content });
+        await runtime.editContent({
+            type: 'document',
+            slug: document.slug,
+            documentEdit: {
+                type: 'content',
+                baseVersionUuid: versionUuid,
+                content: content.content,
+            },
+        });
+        expect(documentService.updateContent).toHaveBeenCalledWith(
+            account,
+            projectUuid,
+            document.documentUuid,
+            { baseVersionUuid: versionUuid, content: { cells: [cell] } },
+            { allowedSpaceUuids: [spaceUuid] },
+        );
+    });
+
+    test('enabled AI Agent discovery includes Documents', async () => {
+        const { service, context } = setup([spaceUuid]);
+        const runtime = service.createRuntime({
+            ...context,
+            source: 'ai_agent',
+            enableDocuments: true,
+        });
+        expect(
+            await runtime.listContent({ spaceSlug: 'reports', page: 1 }),
+        ).toMatchObject({
+            items: [{ contentType: 'document', slug: document.slug }],
+        });
+        expect(
+            await runtime.findContent({
+                searchQuery: { label: 'weekly' },
+                spaceSlug: null,
+                verifiedOnly: false,
+            }),
+        ).toMatchObject({
+            content: [{ contentType: 'document', slug: document.slug }],
+        });
+    });
+
+    test('AI Agent Document reads and writes preserve Space restrictions', async () => {
+        const { service, context, documentService } = setup([
+            'different-space',
+        ]);
+        const runtime = service.createRuntime({
+            ...context,
+            source: 'ai_agent',
+            enableDocuments: true,
+        });
+        await expect(
+            runtime.createContent({
+                type: 'document',
+                content: { ...content, schemaVersion: 3 },
+            }),
+        ).rejects.toThrow(NotFoundError);
+        await expect(
+            runtime.readContent({ type: 'document', slug: document.slug }),
+        ).rejects.toThrow(NotFoundError);
+        await expect(
+            runtime.editContent({
+                type: 'document',
+                slug: document.slug,
+                documentEdit: { type: 'metadata', name: 'New title' },
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(documentService.create).not.toHaveBeenCalled();
+        expect(documentService.updateMetadata).not.toHaveBeenCalled();
+    });
     test('MCP Space listing includes lightweight Document references', async () => {
         const { runtime, contentService, documentService } = setup([spaceUuid]);
         const result = await runtime.listContent({

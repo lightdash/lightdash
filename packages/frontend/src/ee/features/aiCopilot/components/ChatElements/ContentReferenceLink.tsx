@@ -8,6 +8,7 @@ import {
     IconChartBar,
     IconClick,
     IconFile,
+    IconFileText,
     IconFileSpreadsheet,
     IconFlask,
     IconGitPullRequest,
@@ -28,6 +29,7 @@ type ContentReferenceKind =
     | 'artifact'
     | 'chart'
     | 'dashboard'
+    | 'document'
     | 'data_app'
     | 'data_app_element'
     | 'design'
@@ -66,6 +68,12 @@ const getIconMeta = ({
     kind: ContentReferenceKind;
 }): { color: string; fill: string; icon: Icon } => {
     switch (kind) {
+        case 'document':
+            return {
+                color: 'ldGray.7',
+                fill: 'ldGray.4',
+                icon: IconFileText,
+            };
         case 'dashboard':
             return {
                 color: 'green.7',
