@@ -1,9 +1,7 @@
 import { assertUnreachable } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Button,
-    Menu,
     Paper,
     Stack,
     Text,
@@ -13,8 +11,6 @@ import {
 import {
     IconAlertTriangle,
     IconAppWindow,
-    IconArrowRight,
-    IconChevronDown,
     IconCircleMinus,
     IconEye,
 } from '@tabler/icons-react';
@@ -55,7 +51,6 @@ type Props = {
     compact: boolean;
     /** This app is the one open in the preview panel. */
     isActive: boolean;
-    onOpenBuilder: () => void;
     onView: () => void;
 };
 
@@ -76,55 +71,16 @@ const readySubtitle = (
     return parts.join(' · ');
 };
 
-const BuilderButton: FC<{
-    label: 'Continue in builder' | 'Open in builder';
-    onClick: () => void;
-}> = ({ label, onClick }) => (
-    <Button variant="default" size="compact-xs" onClick={onClick}>
-        {label}
+/** View opens the preview panel; it is the card's only action. */
+const ViewButton: FC<{ onView: () => void }> = ({ onView }) => (
+    <Button
+        variant="default"
+        size="compact-xs"
+        leftSection={<MantineIcon icon={IconEye} size={14} />}
+        onClick={onView}
+    >
+        View
     </Button>
-);
-
-/** View opens the preview; the chevron holds the secondary actions. */
-const ViewSplitButton: FC<{
-    onView: () => void;
-    onOpenBuilder: () => void;
-}> = ({ onView, onOpenBuilder }) => (
-    <Box className={styles.split}>
-        <Button
-            variant="default"
-            size="compact-xs"
-            className={styles.splitMain}
-            leftSection={<MantineIcon icon={IconEye} size={14} />}
-            onClick={onView}
-        >
-            View
-        </Button>
-        <Menu position="bottom-end">
-            <Menu.Target>
-                <ActionIcon
-                    variant="default"
-                    size={22}
-                    className={styles.splitMenuButton}
-                    aria-label="More actions"
-                >
-                    <MantineIcon icon={IconChevronDown} size={12} />
-                </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown p={4}>
-                <Menu.Item
-                    fz="xs"
-                    py={4}
-                    leftSection={
-                        <MantineIcon icon={IconArrowRight} size={14} />
-                    }
-                    onClick={onOpenBuilder}
-                >
-                    Continue in builder
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
-    </Box>
 );
 
 const CardIcon: FC<{ tone: 'default' | 'error' | 'muted' }> = ({ tone }) => (
@@ -241,7 +197,6 @@ const InlineTitle: FC<{ title: string; detail: string }> = ({
 const renderCells = (
     state: DataAppBuildCardState,
     compact: boolean,
-    onOpenBuilder: () => void,
     onView: () => void,
 ): ReactNode => {
     switch (state.kind) {
@@ -251,12 +206,6 @@ const renderCells = (
                     <Lead icon={<CardIcon tone="default" />}>
                         <Title>Building data app</Title>
                     </Lead>
-                    <Actions>
-                        <BuilderButton
-                            label="Continue in builder"
-                            onClick={onOpenBuilder}
-                        />
-                    </Actions>
                     <Body>
                         <Muted>
                             Starting the build. This can take a few minutes.
@@ -281,18 +230,12 @@ const renderCells = (
                             isLive
                         />
                     </Box>
-                    <Box className={styles.lead}>
+                    <Box className={styles.full}>
                         <Muted>
                             Builds in the background, so it's safe to close the
                             tab.
                         </Muted>
                     </Box>
-                    <Actions>
-                        <BuilderButton
-                            label="Continue in builder"
-                            onClick={onOpenBuilder}
-                        />
-                    </Actions>
                 </>
             );
         case 'ready':
@@ -306,10 +249,7 @@ const renderCells = (
                             />
                         </Lead>
                         <Actions>
-                            <ViewSplitButton
-                                onView={onView}
-                                onOpenBuilder={onOpenBuilder}
-                            />
+                            <ViewButton onView={onView} />
                         </Actions>
                     </>
                 );
@@ -321,10 +261,7 @@ const renderCells = (
                         <Muted>{readySubtitle(state)}</Muted>
                     </Lead>
                     <Actions>
-                        <ViewSplitButton
-                            onView={onView}
-                            onOpenBuilder={onOpenBuilder}
-                        />
+                        <ViewButton onView={onView} />
                     </Actions>
                     <Body>
                         <Summary>{state.completionMessage}</Summary>
@@ -340,12 +277,6 @@ const renderCells = (
                                 {`${FAILED_TITLE}. ${state.message}`}
                             </Text>
                         </Lead>
-                        <Actions>
-                            <BuilderButton
-                                label="Open in builder"
-                                onClick={onOpenBuilder}
-                            />
-                        </Actions>
                     </>
                 );
             }
@@ -354,12 +285,6 @@ const renderCells = (
                     <Lead icon={<CardIcon tone="error" />}>
                         <Title>{FAILED_TITLE}</Title>
                     </Lead>
-                    <Actions>
-                        <BuilderButton
-                            label="Open in builder"
-                            onClick={onOpenBuilder}
-                        />
-                    </Actions>
                     <Body>
                         <Muted>{state.message}</Muted>
                     </Body>
@@ -377,12 +302,6 @@ const renderCells = (
                     >
                         <Title>Build cancelled</Title>
                     </Lead>
-                    <Actions>
-                        <BuilderButton
-                            label="Open in builder"
-                            onClick={onOpenBuilder}
-                        />
-                    </Actions>
                 </>
             );
         case 'unavailable':
@@ -404,7 +323,6 @@ export const DataAppBuildCard: FC<Props> = ({
     state,
     compact,
     isActive,
-    onOpenBuilder,
     onView,
 }) => (
     <Paper
@@ -416,7 +334,7 @@ export const DataAppBuildCard: FC<Props> = ({
         })}
     >
         <Box className={styles.layout}>
-            {renderCells(state, compact, onOpenBuilder, onView)}
+            {renderCells(state, compact, onView)}
         </Box>
     </Paper>
 );

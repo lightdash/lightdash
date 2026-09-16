@@ -1,9 +1,5 @@
-import {
-    getDataAppBuilderPath,
-    type ToolGenerateDataAppOutput,
-} from '@lightdash/common';
+import { type ToolGenerateDataAppOutput } from '@lightdash/common';
 import { useEffect, useRef, type FC } from 'react';
-import { useNavigate } from 'react-router';
 import { addBuildWatch } from '../../../store/buildWatchesSlice';
 import { useAiAgentStoreDispatch } from '../../../store/hooks';
 import { DataAppBuildCard } from './DataAppBuildCard';
@@ -35,7 +31,6 @@ export const AiDataAppBuildCard: FC<Props> = ({
     messageUuid,
     compact,
 }) => {
-    const navigate = useNavigate();
     const dispatch = useAiAgentStoreDispatch();
     const { appUuid } = metadata;
     const { source, isActive, openPreview } = useDataAppCardPreview({
@@ -105,9 +100,6 @@ export const AiDataAppBuildCard: FC<Props> = ({
             state={state}
             compact={compact}
             isActive={isActive}
-            onOpenBuilder={() =>
-                void navigate(getDataAppBuilderPath(projectUuid, appUuid))
-            }
             onView={openPreview}
         />
     );

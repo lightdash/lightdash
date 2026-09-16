@@ -1,6 +1,4 @@
-import { getDataAppBuilderPath } from '@lightdash/common';
 import { type FC } from 'react';
-import { useNavigate } from 'react-router';
 import { DataAppBuildCard } from './DataAppBuildCard';
 import {
     getDataAppRestoreCardState,
@@ -29,7 +27,6 @@ export const AiDataAppRestoreCard: FC<Props> = ({
     messageUuid,
     compact,
 }) => {
-    const navigate = useNavigate();
     const { source, isActive, openPreview } = useDataAppCardPreview({
         projectUuid,
         agentUuid,
@@ -44,9 +41,6 @@ export const AiDataAppRestoreCard: FC<Props> = ({
             state={getDataAppRestoreCardState(item, completionMessage, source)}
             compact={compact}
             isActive={isActive}
-            onOpenBuilder={() =>
-                void navigate(getDataAppBuilderPath(projectUuid, item.appUuid))
-            }
             onView={openPreview}
         />
     );

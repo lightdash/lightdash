@@ -33,14 +33,16 @@ describe('getGenerateDataAppBuildOutcome', () => {
         });
     });
 
-    it('words a first ready version as the app being ready', () => {
+    it('words a first ready version as the app being ready in the thread', () => {
         expect(
             getGenerateDataAppBuildOutcome({
                 ...base,
                 version: 1,
                 status: 'ready',
             })?.result,
-        ).toContain('The data app "Revenue app" is ready.');
+        ).toBe(
+            'The data app "Revenue app" is ready. The user can view it from this thread.',
+        );
     });
 
     it('names the version in the ready copy after the first version', () => {

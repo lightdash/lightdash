@@ -47,7 +47,6 @@ const meta: Meta<typeof DataAppBuildCard> = {
     args: {
         compact: false,
         isActive: false,
-        onOpenBuilder: fn(),
         onView: fn(),
     },
     decorators: [

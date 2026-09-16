@@ -31,7 +31,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
@@ -40,14 +39,12 @@ describe('DataAppBuildCard', () => {
         ).toBeVisible();
     });
 
-    it('queued: explains the wait and offers the builder', async () => {
-        const onOpenBuilder = vi.fn();
+    it('queued: explains the wait and offers no action', () => {
         renderWithProviders(
             <DataAppBuildCard
                 state={{ kind: 'queued' }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={onOpenBuilder}
                 onView={noop}
             />,
         );
@@ -57,10 +54,7 @@ describe('DataAppBuildCard', () => {
                 'Starting the build. This can take a few minutes.',
             ),
         ).toBeVisible();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Continue in builder' }),
-        );
-        expect(onOpenBuilder).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('building: shows the live status message and narration rows', () => {
@@ -76,7 +70,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
@@ -90,12 +83,11 @@ describe('DataAppBuildCard', () => {
             ),
         ).toBeVisible();
         expect(
-            screen.getByRole('button', { name: 'Continue in builder' }),
-        ).toBeVisible();
+            screen.queryByText('Continue in builder'),
+        ).not.toBeInTheDocument();
     });
 
-    it('ready: names the app, version, duration; View is primary and the builder sits in its menu', async () => {
-        const onOpenBuilder = vi.fn();
+    it('ready: names the app, version, duration; View is the only action', async () => {
         const onView = vi.fn();
         renderWithProviders(
             <DataAppBuildCard
@@ -110,7 +102,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={onOpenBuilder}
                 onView={onView}
             />,
         );
@@ -119,18 +110,10 @@ describe('DataAppBuildCard', () => {
         expect(screen.getByText('Your app is ready.')).toBeVisible();
         await userEvent.click(screen.getByRole('button', { name: 'View' }));
         expect(onView).toHaveBeenCalledTimes(1);
+        expect(screen.getAllByRole('button')).toHaveLength(1);
         expect(
             screen.queryByText('Continue in builder'),
         ).not.toBeInTheDocument();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'More actions' }),
-        );
-        await userEvent.click(
-            await screen.findByRole('menuitem', {
-                name: 'Continue in builder',
-            }),
-        );
-        expect(onOpenBuilder).toHaveBeenCalledTimes(1);
     });
 
     it('ready: omits the duration when unknown', () => {
@@ -147,7 +130,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
@@ -168,7 +150,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
@@ -194,7 +175,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
@@ -223,7 +203,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
@@ -247,7 +226,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
@@ -256,8 +234,7 @@ describe('DataAppBuildCard', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('failed: shows the builder failure message and opens the builder', async () => {
-        const onOpenBuilder = vi.fn();
+    it('failed: shows the builder failure message and no action', () => {
         renderWithProviders(
             <DataAppBuildCard
                 state={{
@@ -266,7 +243,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={onOpenBuilder}
                 onView={noop}
             />,
         );
@@ -274,26 +250,20 @@ describe('DataAppBuildCard', () => {
         expect(
             screen.getByText('Build failed while generating.'),
         ).toBeVisible();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Open in builder' }),
-        );
-        expect(onOpenBuilder).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    it('cancelled: one row with the builder action', () => {
+    it('cancelled: one row with no action', () => {
         renderWithProviders(
             <DataAppBuildCard
                 state={{ kind: 'cancelled' }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
         expect(screen.getByText('Build cancelled')).toBeVisible();
-        expect(
-            screen.getByRole('button', { name: 'Open in builder' }),
-        ).toBeVisible();
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('unavailable: no actions at all', () => {
@@ -302,7 +272,6 @@ describe('DataAppBuildCard', () => {
                 state={{ kind: 'unavailable' }}
                 compact={false}
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
@@ -326,7 +295,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
@@ -336,9 +304,7 @@ describe('DataAppBuildCard', () => {
             screen.queryByText('Your app is ready.'),
         ).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'View' })).toBeVisible();
-        expect(
-            screen.getByRole('button', { name: 'More actions' }),
-        ).toBeVisible();
+        expect(screen.getAllByRole('button')).toHaveLength(1);
     });
 
     it('compact failed: one row joining title and message', () => {
@@ -350,7 +316,6 @@ describe('DataAppBuildCard', () => {
                 }}
                 compact
                 isActive={false}
-                onOpenBuilder={noop}
                 onView={noop}
             />,
         );
@@ -359,6 +324,6 @@ describe('DataAppBuildCard', () => {
                 "The app couldn't be built. Build failed while generating.",
             ),
         ).toBeVisible();
-        expect(screen.getAllByRole('button')).toHaveLength(1);
+        expect(screen.queryAllByRole('button')).toHaveLength(0);
     });
 });
