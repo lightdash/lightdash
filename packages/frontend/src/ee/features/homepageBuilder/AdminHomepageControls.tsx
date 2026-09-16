@@ -1,10 +1,11 @@
 import { subject } from '@casl/ability';
 import { Text } from '@mantine/core';
 import { IconArrowBackUp, IconEdit, IconPlus } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import { Can } from '../../../providers/Ability';
 import classes from './adminHomepageControls.module.css';
 import {
@@ -77,8 +78,30 @@ export const AdminHomepageControls: FC<Props> = ({
     showNewHomepage = false,
 }) => {
     const navigate = useNavigate();
+    const contentAuthoringEnabled = useContentAuthoringEnabled();
+    const [isPageScrolled, setIsPageScrolled] = useState(false);
+
+    useEffect(() => {
+        const pageRoot = document.getElementById('page-root');
+        if (!pageRoot) return;
+
+        const updateScrolledState = () => {
+            setIsPageScrolled(pageRoot.scrollTop > 8);
+        };
+
+        updateScrolledState();
+        pageRoot.addEventListener('scroll', updateScrolledState, {
+            passive: true,
+        });
+
+        return () =>
+            pageRoot.removeEventListener('scroll', updateScrolledState);
+    }, []);
+
+    if (!contentAuthoringEnabled) return null;
+
     return (
-        <div className={classes.corner}>
+        <div className={classes.corner} data-page-scrolled={isPageScrolled}>
             <SwitchBackButton organizationUuid={organizationUuid} />
             <Can
                 I="manage"
