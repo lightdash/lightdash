@@ -167,7 +167,13 @@
 }
 
 .mobileNavigation :global(.mantine-Button-section[data-position='left']) {
+    /* Fixed icon column so stroke SVGs and the Ask AI orb share one axis. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
     margin-inline-end: 12px;
+    flex-shrink: 0;
 }
 
 .mobileNavigation :global(.mantine-Button-section[data-position='right']) {
@@ -182,6 +188,11 @@
     width: 20px !important;
     height: 20px !important;
     flex-shrink: 0;
+}
+
+/* AiAgentIcon is a span, not an svg — match the 20px column above. */
+.mobileNavigation :global([data-ai-agent-icon]) {
+    --ai-agent-icon-size: 20px;
 }
 
 .mobileNavigation :global(.mantine-Menu-dropdown) {

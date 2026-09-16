@@ -170,12 +170,20 @@ const SavedExplorer = () => {
             currentSavedChart?.tableName !== data.tableName;
 
         if (isNewChart || isExploreChanged) {
+            // Switching charts must never inherit the previous session's
+            // handover, even if create_saved_chart_version is still briefly
+            // in the URL while cleanup races the route change.
+            const isSwitchingCharts =
+                currentSavedChart !== undefined &&
+                currentSavedChart.uuid !== data.uuid;
             const initialState = buildInitialExplorerState({
                 savedChart: data,
                 isEditMode,
                 expandedSections: [ExplorerSection.VISUALIZATION],
                 defaultLimit: health.data?.query.defaultLimit,
-                unsavedChartVersionOverride: urlChartVersion,
+                unsavedChartVersionOverride: isSwitchingCharts
+                    ? undefined
+                    : urlChartVersion,
             });
             store.dispatch(explorerActions.reset(initialState));
         } else {
