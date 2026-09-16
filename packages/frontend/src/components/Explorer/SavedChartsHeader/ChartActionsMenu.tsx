@@ -323,7 +323,11 @@ const ChartActionsMenu: FC<Props> = ({
                 width={200}
                 disabled={!unsavedChartVersion.tableName}
             >
-                <Menu.Dropdown>
+                <Menu.Dropdown
+                    mah="calc(100dvh - 24px)"
+                    style={{ overflowY: 'auto' }}
+                >
+                    {children}
                     <AskAiAgentMenuItem
                         projectUuid={projectUuid}
                         chartUuid={savedChart.uuid}

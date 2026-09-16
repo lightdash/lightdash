@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import { type PossibleAbilities } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -56,6 +57,7 @@ const renderMenu = (
     host: ChartActionsHost,
     savedChart = chart,
     abilityRules = [manageChartRule],
+    children?: ReactNode,
 ) => {
     const onOpenVersionHistory = vi.fn();
     const store = createExplorerStore({
@@ -79,7 +81,9 @@ const renderMenu = (
                         onOpenVersionHistory={onOpenVersionHistory}
                         onDeleted={vi.fn()}
                         onMovedToSpace={vi.fn()}
-                    />
+                    >
+                        {children}
+                    </ChartActionsMenu>
                 </Provider>
             </AbilityContext.Provider>
         </MemoryRouter>,
@@ -89,6 +93,25 @@ const renderMenu = (
 };
 
 describe('ChartActionsMenu', () => {
+    it('renders compact header actions inside the shared menu', async () => {
+        renderMenu(
+            'page',
+            { ...chart, dashboardUuid: null },
+            [manageChartRule],
+            <button type="button" role="menuitem">
+                Edit chart
+            </button>,
+        );
+
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'Chart actions' }),
+        );
+
+        expect(
+            screen.getByRole('menuitem', { name: 'Edit chart' }),
+        ).toBeVisible();
+    });
+
     it.each([false, true])(
         'uses phone capability for actions at tablet width (phone=%s)',
         async (isPhone) => {
