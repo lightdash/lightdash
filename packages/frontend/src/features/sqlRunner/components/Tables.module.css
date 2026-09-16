@@ -76,11 +76,12 @@
     padding: rem(2px);
 }
 
-.typeFilterLabel {
+.typeFilter .typeFilterLabel {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 100%;
     min-height: 0;
     line-height: 0;
+    padding: 0 rem(6px);
 }
