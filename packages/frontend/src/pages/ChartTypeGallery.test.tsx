@@ -338,6 +338,31 @@ describe('ChartTypeGallery', () => {
         ).not.toBeInTheDocument();
     });
 
+    it.each([{ registryEnabled: false, charts: [] }, undefined])(
+        'hides the library tab until the registry is available (%j)',
+        (data) => {
+            vi.mocked(useRegistryChartTypes).mockReturnValue({
+                data,
+                isInitialLoading: data === undefined,
+                error: null,
+            } as unknown as ReturnType<typeof useRegistryChartTypes>);
+            setData([makeDataAppViz({})]);
+            renderPage('/projects/project-1/gallery?tab=chart-library');
+
+            expect(useRegistryChartTypes).toHaveBeenCalledWith(
+                'project-1',
+                true,
+            );
+            expect(
+                screen.queryByRole('tab', { name: /Chart library/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('tab', { name: 'Installed charts (1)' }),
+            ).toHaveAttribute('aria-selected', 'true');
+            expect(screen.getByText('Radial gauge')).toBeInTheDocument();
+        },
+    );
+
     it('shows origin author and last update in the detail modal', () => {
         const originVersion = {
             version: 1,
