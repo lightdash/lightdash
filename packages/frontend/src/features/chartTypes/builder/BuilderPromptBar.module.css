@@ -145,6 +145,9 @@
 }
 
 .liveNarration {
+    --reasoning-body-max-height: min(240px, 20dvh);
+    --reasoning-body-overflow-y: auto;
+
     position: relative;
     z-index: 3;
     padding: 5px 6px;
