@@ -365,7 +365,10 @@ export const rowMatchesInsight = (
 ): boolean =>
     // Chart libraries call tooltip and dot renderers with no datum between
     // points; a missing row is "no match", never a crash of the whole app.
+    // A finding with no dimension values is about the table as a whole and
+    // belongs in the summary, not on every point.
     !!row &&
+    Object.keys(dimensionValues).length > 0 &&
     Object.entries(dimensionValues).every(([fieldId, value]) => {
         const key = rowKeys?.[fieldId] ?? fieldId;
         if (!(key in row)) return false;

@@ -171,6 +171,12 @@ describe('insights channel', () => {
         expect(rowMatchesInsight(null, dims)).toBe(false);
     });
 
+    it('never matches a whole-table finding to a row', () => {
+        expect(rowMatchesInsight({ orders_status: 'returned' }, {})).toBe(
+            false,
+        );
+    });
+
     it('matches rows keyed by the app short names through rowKeys', () => {
         const dims = { orders_order_date_month: '2025-01-01' };
         const rowKeys = { orders_order_date_month: 'order_date_month' };
