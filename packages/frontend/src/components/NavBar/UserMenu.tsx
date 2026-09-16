@@ -14,11 +14,11 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { UserAvatar } from '../UserAvatar';
-import { useNavBarPortalTarget } from './NavBarPortalContext';
+import { useNavBarMenuProps } from './NavBarPortalContext';
 import { ThemeSwitcherMenuItem } from './ThemeSwitcher';
 
 const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
-    const portalTarget = useNavBarPortalTarget();
+    const menuProps = useNavBarMenuProps();
     const { user } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
     const queryHistoryFlag = useServerFeatureFlag(FeatureFlags.QueryHistory);
@@ -30,12 +30,11 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
 
     return (
         <Menu
-            withArrow
             position="bottom-end"
             arrowOffset={16}
             offset={-2}
             zIndex={getDefaultZIndex('max')}
-            portalProps={{ target: portalTarget }}
+            {...menuProps}
         >
             <Menu.Target>
                 {withLabel ? (

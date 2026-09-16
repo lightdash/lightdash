@@ -23,7 +23,7 @@ import {
 } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
-import { useNavBarPortalTarget } from '../NavBarPortalContext';
+import { useNavBarMenuProps } from '../NavBarPortalContext';
 import classes from './NotificationsMenu.module.css';
 import { ValidationErrorNotification } from './ValidationErrorNotification';
 
@@ -31,7 +31,7 @@ export const NotificationsMenu: FC<{
     projectUuid: string;
     withLabel?: boolean;
 }> = ({ projectUuid, withLabel = false }) => {
-    const portalTarget = useNavBarPortalTarget();
+    const menuProps = useNavBarMenuProps();
     const { user } = useApp();
 
     // Validator notifications
@@ -155,12 +155,11 @@ export const NotificationsMenu: FC<{
 
     return shouldDisplayMenu ? (
         <Menu
-            withArrow
             position="bottom-end"
             arrowOffset={16}
             offset={-2}
             zIndex={getDefaultZIndex('max')}
-            portalProps={{ target: portalTarget }}
+            {...menuProps}
         >
             <Menu.Target>
                 <Button

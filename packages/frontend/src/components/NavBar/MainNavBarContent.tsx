@@ -16,7 +16,11 @@ import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
 import classes from './MainNavBarContent.module.css';
 import { MetricsLink } from './MetricsLink';
-import { NavBarPortalContext } from './NavBarPortalContext';
+import {
+    MOBILE_NAVIGATION_PORTAL_TARGET,
+    NavBarPortalContext,
+    revealInlineNavMenuOnToggle,
+} from './NavBarPortalContext';
 import { NotificationsMenu } from './NotificationsMenu';
 import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
@@ -95,14 +99,21 @@ export const MainNavBarContent: FC<Props> = ({
                     <>
                         <NavGroup className={classes.buttonGroup}>
                             {compact && (
-                                <Button
-                                    component={Link}
-                                    to={homeUrl}
-                                    leftSection={<IconHome size={20} />}
-                                    variant="subtle"
-                                >
-                                    Home
-                                </Button>
+                                <>
+                                    <Button
+                                        component={Link}
+                                        to={homeUrl}
+                                        leftSection={<IconHome size={20} />}
+                                        variant="subtle"
+                                    >
+                                        Home
+                                    </Button>
+                                    <ProjectSwitcher
+                                        portalTarget={
+                                            MOBILE_NAVIGATION_PORTAL_TARGET
+                                        }
+                                    />
+                                </>
                             )}
                             <ExploreMenu
                                 projectUuid={activeProjectUuid}
@@ -191,9 +202,6 @@ export const MainNavBarContent: FC<Props> = ({
                 >
                     <Logo />
                 </ActionIcon>
-                <Box className={classes.compactProjectSwitcher}>
-                    <ProjectSwitcher portalTarget="#navbar-header" />
-                </Box>
                 <Group className={classes.compactActions} gap={0} wrap="nowrap">
                     {activeProjectUuid && (
                         <>
@@ -207,9 +215,6 @@ export const MainNavBarContent: FC<Props> = ({
                             </Suspense>
                         </>
                     )}
-                    <Box className={classes.compactAccount}>
-                        <UserMenu />
-                    </Box>
                     <ActionIcon
                         className={classes.menuButton}
                         variant="subtle"
@@ -246,10 +251,13 @@ export const MainNavBarContent: FC<Props> = ({
                 }}
                 portalProps={{ target: '#navbar-header' }}
             >
-                <NavBarPortalContext.Provider value="#navbar-navigation-content">
+                <NavBarPortalContext.Provider
+                    value={MOBILE_NAVIGATION_PORTAL_TARGET}
+                >
                     <Box
                         id="navbar-navigation-content"
                         className={classes.mobileNavigation}
+                        onClick={revealInlineNavMenuOnToggle}
                     >
                         {content}
                     </Box>
