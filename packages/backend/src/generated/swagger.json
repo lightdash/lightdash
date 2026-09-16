@@ -57636,6 +57636,32 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSuccess_ApiExecuteAsyncMetricQueryResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentCellQueryResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults_"
+            },
+            "ExecuteDocumentCellQueryRequest": {
+                "properties": {
+                    "versionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["versionUuid"],
+                "type": "object"
+            },
             "DocumentSummary": {
                 "properties": {
                     "updatedAt": {
@@ -57685,40 +57711,6 @@
                     "documentUuid"
                 ],
                 "type": "object"
-            },
-            "DocumentList": {
-                "properties": {
-                    "nextOffset": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "items": {
-                        "items": {
-                            "$ref": "#/components/schemas/DocumentSummary"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["nextOffset", "items"],
-                "type": "object"
-            },
-            "ApiSuccess_DocumentList_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DocumentList"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiDocumentListResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_DocumentList_"
             },
             "Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
                 "properties": {
@@ -57969,6 +57961,182 @@
             },
             "ApiDocumentResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_Document_"
+            },
+            "CreateDocumentRequest": {
+                "properties": {
+                    "content": {
+                        "$ref": "#/components/schemas/DocumentContentV3"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [3],
+                        "nullable": false
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "content",
+                    "schemaVersion",
+                    "spaceUuid",
+                    "description",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "UpdateDocumentMetadataRequest": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentCellOperation": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "cell": {
+                                "$ref": "#/components/schemas/DocumentCellV3"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["append"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["cell", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "cell": {
+                                "$ref": "#/components/schemas/DocumentCellV3"
+                            },
+                            "targetCellId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["insert_before", "insert_after"]
+                            }
+                        },
+                        "required": ["cell", "targetCellId", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "cell": {
+                                "$ref": "#/components/schemas/DocumentCellV3"
+                            },
+                            "cellId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["replace"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["cell", "cellId", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "cellId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["remove"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["cellId", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "targetCellId": {
+                                "type": "string"
+                            },
+                            "cellId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["move_before", "move_after"]
+                            }
+                        },
+                        "required": ["targetCellId", "cellId", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "UpdateDocumentContentRequest": {
+                "properties": {
+                    "operations": {
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentCellOperation"
+                        },
+                        "type": "array"
+                    },
+                    "baseVersionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["operations", "baseVersionUuid"],
+                "type": "object"
+            },
+            "DocumentList": {
+                "properties": {
+                    "nextOffset": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "items": {
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["nextOffset", "items"],
+                "type": "object"
+            },
+            "ApiSuccess_DocumentList_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DocumentList"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DocumentList_"
             },
             "KnexPaginatedData_ValidationResponse-Array_": {
                 "properties": {
@@ -59620,37 +59788,64 @@
                     }
                 ]
             },
+            "DocumentQueryReference": {
+                "properties": {
+                    "cellId": {
+                        "type": "string"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "documentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["cellId", "versionUuid", "documentUuid"],
+                "type": "object"
+            },
             "ExecuteAsyncQueryRequestParams": {
-                "anyOf": [
+                "allOf": [
                     {
-                        "$ref": "#/components/schemas/ExecuteAsyncMetricQueryRequestParams"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncMetricQueryRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncMergeQueryRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncComposeMergeQueryRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncSqlQueryRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncDashboardChartRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncUnderlyingDataRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncFieldValueSearchRequestParams"
+                            }
+                        ]
                     },
                     {
-                        "$ref": "#/components/schemas/ExecuteAsyncMergeQueryRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncComposeMergeQueryRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncSqlQueryRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncDashboardChartRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncUnderlyingDataRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncFieldValueSearchRequestParams"
+                        "properties": {
+                            "documentSource": {
+                                "$ref": "#/components/schemas/DocumentQueryReference"
+                            }
+                        },
+                        "type": "object"
                     }
                 ]
             },
@@ -60304,20 +60499,6 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/ApiGetAsyncQueryResults"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiSuccess_ApiExecuteAsyncMetricQueryResults_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
                     },
                     "status": {
                         "type": "string",
@@ -62708,7 +62889,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.232.0",
+        "version": "2.233.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -98603,7 +98784,119 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/cells/{cellId}/query": {
+            "post": {
+                "operationId": "ExecuteDocumentCellQuery",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentCellQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "cellId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteDocumentCellQueryRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/documents": {
+            "post": {
+                "operationId": "CreateDocument",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateDocumentRequest"
+                            }
+                        }
+                    }
+                }
+            },
             "get": {
                 "operationId": "ListDocuments",
                 "responses": {
@@ -98661,6 +98954,61 @@
             }
         },
         "/api/v1/projects/{projectUuid}/documents/{documentUuid}": {
+            "patch": {
+                "operationId": "UpdateDocumentMetadata",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateDocumentMetadataRequest"
+                            }
+                        }
+                    }
+                }
+            },
             "get": {
                 "operationId": "GetDocument",
                 "responses": {
@@ -98705,6 +99053,63 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/versions": {
+            "post": {
+                "operationId": "UpdateDocumentContent",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateDocumentContentRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/validate": {

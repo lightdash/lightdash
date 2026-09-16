@@ -57697,6 +57697,40 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_ApiExecuteAsyncMetricQueryResults_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'ApiExecuteAsyncMetricQueryResults',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDocumentCellQueryResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_ApiExecuteAsyncMetricQueryResults_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteDocumentCellQueryRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                versionUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DocumentSummary: {
         dataType: 'refAlias',
         type: {
@@ -57722,46 +57756,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DocumentList: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                nextOffset: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                items: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'DocumentSummary' },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSuccess_DocumentList_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { ref: 'DocumentList', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiDocumentListResponse: {
-        dataType: 'refAlias',
-        type: { ref: 'ApiSuccess_DocumentList_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_':
@@ -58023,6 +58017,168 @@ const models: TsoaRoute.Models = {
     ApiDocumentResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_Document_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateDocumentRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                content: { ref: 'DocumentContentV3', required: true },
+                schemaVersion: { dataType: 'enum', enums: [3], required: true },
+                spaceUuid: { dataType: 'string', required: true },
+                description: { dataType: 'string', required: true },
+                slug: { dataType: 'string' },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateDocumentMetadataRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                description: { dataType: 'string' },
+                slug: { dataType: 'string' },
+                name: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DocumentCellOperation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        cell: { ref: 'DocumentCellV3', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['append'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        cell: { ref: 'DocumentCellV3', required: true },
+                        targetCellId: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['insert_before'] },
+                                { dataType: 'enum', enums: ['insert_after'] },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        cell: { ref: 'DocumentCellV3', required: true },
+                        cellId: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['replace'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        cellId: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['remove'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        targetCellId: { dataType: 'string', required: true },
+                        cellId: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['move_before'] },
+                                { dataType: 'enum', enums: ['move_after'] },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateDocumentContentRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                operations: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DocumentCellOperation',
+                    },
+                    required: true,
+                },
+                baseVersionUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DocumentList: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                nextOffset: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                items: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DocumentSummary' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_DocumentList_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'DocumentList', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDocumentListResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_DocumentList_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'KnexPaginatedData_ValidationResponse-Array_': {
@@ -59543,21 +59699,45 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DocumentQueryReference: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                cellId: { dataType: 'string', required: true },
+                versionUuid: { dataType: 'string', required: true },
+                documentUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExecuteAsyncQueryRequestParams: {
         dataType: 'refAlias',
         type: {
-            dataType: 'union',
+            dataType: 'intersection',
             subSchemas: [
-                { ref: 'ExecuteAsyncMetricQueryRequestParams' },
-                { ref: 'ExecuteAsyncMergeQueryRequestParams' },
-                { ref: 'ExecuteAsyncComposeMergeQueryRequestParams' },
-                { ref: 'ExecuteAsyncSqlQueryRequestParams' },
-                { ref: 'ExecuteAsyncComposeSqlQueryRequestParams' },
-                { ref: 'ExecuteAsyncSavedChartRequestParams' },
-                { ref: 'ExecuteAsyncDashboardChartRequestParams' },
-                { ref: 'ExecuteAsyncUnderlyingDataRequestParams' },
-                { ref: 'ExecuteAsyncDashboardSqlChartRequestParams' },
-                { ref: 'ExecuteAsyncFieldValueSearchRequestParams' },
+                {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ExecuteAsyncMetricQueryRequestParams' },
+                        { ref: 'ExecuteAsyncMergeQueryRequestParams' },
+                        { ref: 'ExecuteAsyncComposeMergeQueryRequestParams' },
+                        { ref: 'ExecuteAsyncSqlQueryRequestParams' },
+                        { ref: 'ExecuteAsyncComposeSqlQueryRequestParams' },
+                        { ref: 'ExecuteAsyncSavedChartRequestParams' },
+                        { ref: 'ExecuteAsyncDashboardChartRequestParams' },
+                        { ref: 'ExecuteAsyncUnderlyingDataRequestParams' },
+                        { ref: 'ExecuteAsyncDashboardSqlChartRequestParams' },
+                        { ref: 'ExecuteAsyncFieldValueSearchRequestParams' },
+                    ],
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        documentSource: { ref: 'DocumentQueryReference' },
+                    },
+                },
             ],
             validators: {},
         },
@@ -60260,21 +60440,6 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: { ref: 'ApiGetAsyncQueryResults', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSuccess_ApiExecuteAsyncMetricQueryResults_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    ref: 'ApiExecuteAsyncMetricQueryResults',
-                    required: true,
-                },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -117167,6 +117332,290 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDocumentController_executeCellQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        documentUuid: {
+            in: 'path',
+            name: 'documentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        cellId: {
+            in: 'path',
+            name: 'cellId',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ExecuteDocumentCellQueryRequest',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/documents/:documentUuid/cells/:cellId/query',
+        ...fetchMiddlewares<RequestHandler>(DocumentController),
+        ...fetchMiddlewares<RequestHandler>(
+            DocumentController.prototype.executeCellQuery,
+        ),
+
+        async function DocumentController_executeCellQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDocumentController_executeCellQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DocumentController>(DocumentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'executeCellQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDocumentController_create: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateDocumentRequest',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/documents',
+        ...fetchMiddlewares<RequestHandler>(DocumentController),
+        ...fetchMiddlewares<RequestHandler>(
+            DocumentController.prototype.create,
+        ),
+
+        async function DocumentController_create(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDocumentController_create,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DocumentController>(DocumentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'create',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDocumentController_updateMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        documentUuid: {
+            in: 'path',
+            name: 'documentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateDocumentMetadataRequest',
+        },
+    };
+    app.patch(
+        '/api/v1/projects/:projectUuid/documents/:documentUuid',
+        ...fetchMiddlewares<RequestHandler>(DocumentController),
+        ...fetchMiddlewares<RequestHandler>(
+            DocumentController.prototype.updateMetadata,
+        ),
+
+        async function DocumentController_updateMetadata(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDocumentController_updateMetadata,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DocumentController>(DocumentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateMetadata',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDocumentController_updateContent: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        documentUuid: {
+            in: 'path',
+            name: 'documentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateDocumentContentRequest',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/documents/:documentUuid/versions',
+        ...fetchMiddlewares<RequestHandler>(DocumentController),
+        ...fetchMiddlewares<RequestHandler>(
+            DocumentController.prototype.updateContent,
+        ),
+
+        async function DocumentController_updateContent(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDocumentController_updateContent,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DocumentController>(DocumentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateContent',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
                 });
             } catch (err) {
                 return next(err);

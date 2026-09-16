@@ -1,3 +1,15 @@
+# [2.233.0](https://github.com/lightdash/lightdash/compare/2.232.0...2.233.0) (2026-09-16)
+
+
+### Features
+
+* **ai-agent:** move "Continue in builder" from the build card to the preview panel menu ([#29328](https://github.com/lightdash/lightdash/issues/29328)) ([5f0d032](https://github.com/lightdash/lightdash/commit/5f0d032c7131ddd5ddf27b3cec09c92040fe3552))
+* **ai-agent:** open the thread preview panel when a data app build starts ([#29330](https://github.com/lightdash/lightdash/issues/29330)) ([5a74d35](https://github.com/lightdash/lightdash/commit/5a74d3563a6fbcec31bf58e3e30cae467b1665ab)), closes [#29328](https://github.com/lightdash/lightdash/issues/29328)
+* **documents:** add atomic versioned editing APIs ([#29271](https://github.com/lightdash/lightdash/issues/29271)) ([eb5dba3](https://github.com/lightdash/lightdash/commit/eb5dba3a8998c6746c98c90e169f91db0b8a71eb))
+* **documents:** show documents with live saved charts ([#29275](https://github.com/lightdash/lightdash/issues/29275)) ([0978e9d](https://github.com/lightdash/lightdash/commit/0978e9dbbf7320bcfa9c6e783e74389741f7cb0e))
+* **homepage:** show Claude artifact thumbnails on resource cards ([#29333](https://github.com/lightdash/lightdash/issues/29333)) ([a90a989](https://github.com/lightdash/lightdash/commit/a90a98959c7cd435190f0b1c3d71304690c14fd7))
+* support optional personal BigQuery credentials ([#29319](https://github.com/lightdash/lightdash/issues/29319)) ([3098a50](https://github.com/lightdash/lightdash/commit/3098a50dc6d2a8a2e4423b2cb09f86e383f7d9df)), closes [#28526](https://github.com/lightdash/lightdash/issues/28526)
+
 # [2.232.0](https://github.com/lightdash/lightdash/compare/2.231.0...2.232.0) (2026-09-16)
 
 
