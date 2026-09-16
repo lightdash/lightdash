@@ -1,3 +1,10 @@
+# [2.237.0](https://github.com/lightdash/lightdash/compare/2.236.1...2.237.0) (2026-09-16)
+
+
+### Features
+
+* **query-sdk:** useInsights renders the host's AI analysis inside the app ([#29276](https://github.com/lightdash/lightdash/issues/29276)) ([743f2fc](https://github.com/lightdash/lightdash/commit/743f2fc37f1f557ce4481da82947228227cb21f4))
+
 ## [2.236.1](https://github.com/lightdash/lightdash/compare/2.236.0...2.236.1) (2026-09-16)
 
 
