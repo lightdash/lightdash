@@ -30,6 +30,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | "view underlying data", raw rows behind a point (viz only) | `viz-underlying-data` | app code opt-in |
 | Lightdash-owned "View underlying data" dialog (viz only) | `viz-host-underlying-data` | app code opt-in |
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
+| "executive summary", "what changed", anomaly callouts, "AI insight", "Analyse this view" | `ai-insights` | app code opt-in |
 
 ## Automatic (zero wiring — active on any current-SDK bundle)
 
@@ -115,6 +116,12 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
 - `external-fetch`: `client.externalFetch(alias, opts)` calls an external
   connection linked to this app. The connection must already be linked by the
   host; you cannot add one from app code.
+- `ai-insights`: `useInsights()` returns the host's AI analysis of the current
+  view (headline, summary, limitations, anomalies) plus `analyse()`;
+  `useInsights(result)` narrows to one chart and adds `matches(row)` so flagged
+  points can be marked, with `investigate(id)` / `continueInAskAi(id)` for the
+  action menu. Render a summary block and markers; render nothing when
+  `status === 'unavailable'`. Full contract in `/app/references/ai-analysis.md`.
 - `delivery-render`: `useDeliveryRender()` is `true` during scheduled-delivery
   and delivery-preview capture renders. Gate tab/slide DATA mounting on it so
   every tab's queries execute during capture while only the active tab stays
