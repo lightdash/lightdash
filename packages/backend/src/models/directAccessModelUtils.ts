@@ -49,6 +49,53 @@ export type DirectAccessResetResult = DirectAccessMutationContext & {
     revokedGroups: number;
 };
 
+// Keep the empty-grant path separate so PostgreSQL never plans the eligibility joins.
+export const hasDirectAccessGrants = async ({
+    trx,
+    userTable,
+    groupTable,
+    resourceColumn,
+    resourceUuids,
+    userUuid,
+}: {
+    trx: Knex;
+    userTable: string;
+    groupTable: string;
+    resourceColumn: string;
+    resourceUuids: string[];
+    userUuid: string;
+}): Promise<boolean> => {
+    const rows = await trx(userTable)
+        .select(trx.raw('1'))
+        .where(`${userTable}.user_uuid`, userUuid)
+        .whereRaw('?? = ANY(?::uuid[])', [
+            `${userTable}.${resourceColumn}`,
+            resourceUuids,
+        ])
+        .unionAll(
+            trx(groupTable)
+                .select(trx.raw('1'))
+                .innerJoin(
+                    GroupMembershipTableName,
+                    `${GroupMembershipTableName}.group_uuid`,
+                    `${groupTable}.group_uuid`,
+                )
+                .innerJoin(
+                    UserTableName,
+                    `${UserTableName}.user_id`,
+                    `${GroupMembershipTableName}.user_id`,
+                )
+                .where(`${UserTableName}.user_uuid`, userUuid)
+                .whereRaw('?? = ANY(?::uuid[])', [
+                    `${groupTable}.${resourceColumn}`,
+                    resourceUuids,
+                ]),
+        )
+        .limit(1);
+
+    return rows.length > 0;
+};
+
 /**
  * Direct grants cannot create project membership. This predicate keeps stored
  * grants inert unless the principal still has a current project access path.

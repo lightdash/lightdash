@@ -189,6 +189,56 @@ describe('dashboard direct access model PostgreSQL integration', () => {
         });
     });
 
+    it('reads uncommitted group-only grants through an explicit transaction', async () => {
+        await transaction(DashboardUserAccessTableName)
+            .where('dashboard_uuid', dashboardUuid)
+            .delete();
+        const outsideModel = new DashboardAccessModel(database);
+
+        await expect(
+            outsideModel.getUserAccess(
+                [dashboardUuid],
+                SEED_ORG_1_ADMIN.user_uuid,
+                {
+                    organizationUuid,
+                    trx: transaction,
+                },
+            ),
+        ).resolves.toMatchObject({
+            [dashboardUuid]: {
+                userRole: null,
+                groupRoles: [SpaceMemberRole.ADMIN],
+            },
+        });
+
+        await transaction(GroupMembershipTableName)
+            .where({ group_uuid: groupUuid, user_id: userId })
+            .delete();
+        await expect(
+            outsideModel.getUserAccess(
+                [dashboardUuid],
+                SEED_ORG_1_ADMIN.user_uuid,
+                {
+                    organizationUuid,
+                    trx: transaction,
+                },
+            ),
+        ).resolves.toEqual({});
+    });
+
+    it('returns no grants when only other resources or principals have grants', async () => {
+        await expect(
+            model.getUserAccess([randomUUID()], SEED_ORG_1_ADMIN.user_uuid, {
+                organizationUuid,
+            }),
+        ).resolves.toEqual({});
+        await expect(
+            model.getUserAccess([dashboardUuid], randomUUID(), {
+                organizationUuid,
+            }),
+        ).resolves.toEqual({});
+    });
+
     it('makes a group grant inert immediately after membership removal', async () => {
         await transaction(GroupMembershipTableName)
             .where({ group_uuid: groupUuid, user_id: userId })

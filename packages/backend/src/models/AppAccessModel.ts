@@ -14,6 +14,7 @@ import {
     getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
     groupDirectAccessRows,
+    hasDirectAccessGrants,
     type DirectAccess,
     type DirectAccessRow,
 } from './directAccessModelUtils';
@@ -36,6 +37,17 @@ export class AppAccessModel {
     ): Promise<Record<string, DirectAccess>> {
         const uniqueAppUuids = [...new Set(appUuids)];
         if (uniqueAppUuids.length === 0) {
+            return {};
+        }
+        const hasGrants = await hasDirectAccessGrants({
+            trx,
+            userTable: AppUserAccessTableName,
+            groupTable: AppGroupAccessTableName,
+            resourceColumn: 'app_uuid',
+            resourceUuids: uniqueAppUuids,
+            userUuid,
+        });
+        if (!hasGrants) {
             return {};
         }
 

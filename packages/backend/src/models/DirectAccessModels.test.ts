@@ -24,8 +24,29 @@ describe.each([
         getTracker().reset();
     });
 
+    it('skips eligibility queries when no user or group grants match', async () => {
+        const tracker = getTracker();
+        tracker.on
+            .select((query) => query.sql.startsWith('select 1 '))
+            .response([]);
+
+        await expect(
+            new AccessModel(database).getUserAccess(
+                [randomUUID()],
+                randomUUID(),
+                {
+                    organizationUuid: randomUUID(),
+                },
+            ),
+        ).resolves.toEqual({});
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
     it('keeps the bind count constant as the grant set grows', async () => {
         const tracker = getTracker();
+        tracker.on
+            .select((query) => query.sql.startsWith('select 1 '))
+            .response([{}]);
         tracker.on.select(() => true).response([]);
         const model = new AccessModel(database);
         const resourceUuids = Array.from({ length: 1000 }, () => randomUUID());
@@ -43,7 +64,7 @@ describe.each([
             },
         );
 
-        const [small, large] = tracker.history.select;
+        const [, small, , large] = tracker.history.select;
         expect(large.bindings).toHaveLength(small.bindings.length);
         expect(large.bindings.filter(Array.isArray)).toEqual([
             resourceUuids,
@@ -73,6 +94,9 @@ describe('dashboard direct access read model', () => {
     });
 
     it('resolves direct user and current group roles', async () => {
+        tracker.on
+            .select((query) => query.sql.startsWith('select 1 '))
+            .responseOnce([{}]);
         tracker.on.select(DashboardUserAccessTableName).responseOnce([
             {
                 resourceUuid: 'resource-a',
@@ -135,6 +159,9 @@ describe('app direct access read model', () => {
     });
 
     it('preserves personal app location while grouping user and group roles', async () => {
+        tracker.on
+            .select((query) => query.sql.startsWith('select 1 '))
+            .responseOnce([{}]);
         tracker.on.select(AppUserAccessTableName).responseOnce([
             {
                 resourceUuid: 'app-a',

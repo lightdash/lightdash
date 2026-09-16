@@ -14,6 +14,7 @@ import {
     getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
     groupDirectAccessRows,
+    hasDirectAccessGrants,
     type DirectAccess,
     type DirectAccessRow,
 } from './directAccessModelUtils';
@@ -40,6 +41,17 @@ export class DashboardAccessModel {
     ): Promise<Record<string, DashboardDirectAccess>> {
         const uniqueDashboardUuids = [...new Set(dashboardUuids)];
         if (uniqueDashboardUuids.length === 0) {
+            return {};
+        }
+        const hasGrants = await hasDirectAccessGrants({
+            trx,
+            userTable: DashboardUserAccessTableName,
+            groupTable: DashboardGroupAccessTableName,
+            resourceColumn: 'dashboard_uuid',
+            resourceUuids: uniqueDashboardUuids,
+            userUuid,
+        });
+        if (!hasGrants) {
             return {};
         }
 
