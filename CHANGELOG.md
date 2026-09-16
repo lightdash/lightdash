@@ -1,3 +1,10 @@
+## [2.242.4](https://github.com/lightdash/lightdash/compare/2.242.3...2.242.4) (2026-09-16)
+
+
+### Bug Fixes
+
+* **merge-queries:** check the save warning against the merged result ([#29362](https://github.com/lightdash/lightdash/issues/29362)) ([4998683](https://github.com/lightdash/lightdash/commit/499868349a4d570f86d1bfd532e9f3f169edcc4a)), closes [#29301](https://github.com/lightdash/lightdash/issues/29301)
+
 ## [2.242.3](https://github.com/lightdash/lightdash/compare/2.242.2...2.242.3) (2026-09-16)
 
 
