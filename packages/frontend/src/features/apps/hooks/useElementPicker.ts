@@ -41,6 +41,8 @@ export const useElementPicker = ({
     onEnabledChange,
     onEnabled,
     onPick,
+    maxRefs,
+    refsIdentityKey,
 }: {
     identityKey: string;
     enabled?: boolean;
@@ -49,6 +51,11 @@ export const useElementPicker = ({
     onEnabled?: () => void;
     /** Receives each picked reference instead of the hook keeping `refs`. */
     onPick?: (ref: ElementRef) => void;
+    /** Optional cap for compact composers. */
+    maxRefs?: number;
+    /** Clear references when this resource changes, while `identityKey`
+     * continues to reset iframe capability for each bundle version. */
+    refsIdentityKey?: string;
 }): UseElementPickerResult => {
     const [uncontrolledEnabled, setUncontrolledEnabled] = useState(false);
     const enabled = enabledProp ?? uncontrolledEnabled;
@@ -77,31 +84,42 @@ export const useElementPicker = ({
         setAvailable(false);
     }, [identityKey, setEnabled]);
 
+    const previousRefsIdentityKeyRef = useRef(refsIdentityKey);
+    useEffect(() => {
+        if (previousRefsIdentityKeyRef.current === refsIdentityKey) return;
+        previousRefsIdentityKeyRef.current = refsIdentityKey;
+        if (refsIdentityKey !== undefined) setRefs([]);
+    }, [refsIdentityKey]);
+
     const toggle = useCallback(() => {
         const next = !enabled;
         setEnabled(next);
         if (next) onEnabledRef.current?.();
     }, [enabled, setEnabled]);
 
-    const select = useCallback((event: ElementSelectedEvent) => {
-        const ref = parseElementRefLabel(event.label);
-        if (!ref) {
-            console.warn(
-                '[apps] Ignoring unrecognised element picker label:',
-                event.label,
+    const select = useCallback(
+        (event: ElementSelectedEvent) => {
+            const ref = parseElementRefLabel(event.label);
+            if (!ref) {
+                console.warn(
+                    '[apps] Ignoring unrecognised element picker label:',
+                    event.label,
+                );
+                return;
+            }
+            if (onPickRef.current) {
+                onPickRef.current(ref);
+                return;
+            }
+            setRefs((prev) =>
+                prev.some((r) => elementRefKey(r) === elementRefKey(ref)) ||
+                (maxRefs !== undefined && prev.length >= maxRefs)
+                    ? prev
+                    : [...prev, ref],
             );
-            return;
-        }
-        if (onPickRef.current) {
-            onPickRef.current(ref);
-            return;
-        }
-        setRefs((prev) =>
-            prev.some((r) => elementRefKey(r) === elementRefKey(ref))
-                ? prev
-                : [...prev, ref],
-        );
-    }, []);
+        },
+        [maxRefs],
+    );
 
     const remove = useCallback((ref: ElementRef) => {
         setRefs((prev) =>

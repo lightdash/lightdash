@@ -334,6 +334,58 @@ describe('AppGenerateService pipeline external connection samples', () => {
 
         expect(resolveSpy).toHaveBeenCalledWith('app-1');
     });
+
+    it('omits the explores catalog and stale model files for chart types', async () => {
+        const sandbox = makeSandbox();
+        const { service } = buildService();
+        vi.spyOn(
+            service as unknown as PrivateWithSamples,
+            'resolveExternalConnectionSamples',
+        ).mockResolvedValue([]);
+        const getAllExploresFromCache = vi.fn();
+        const find = vi.fn();
+        const privateService = service as unknown as {
+            writeCatalogAndPrompt: (...args: unknown[]) => Promise<{
+                tableCount: number;
+                dimensionCount: number;
+                metricCount: number;
+            }>;
+            projectModel: { getAllExploresFromCache: import('vitest').Mock };
+            projectParametersModel: { find: import('vitest').Mock };
+        };
+        privateService.projectModel = { getAllExploresFromCache };
+        privateService.projectParametersModel = { find };
+
+        const result = await privateService.writeCatalogAndPrompt(
+            sandbox,
+            'app-1',
+            'project-1',
+            'build a chart type',
+            undefined,
+            {} as never,
+            'bucket',
+            undefined,
+            undefined,
+            undefined,
+            true,
+        );
+
+        expect(result).toMatchObject({
+            tableCount: 0,
+            dimensionCount: 0,
+            metricCount: 0,
+        });
+        expect(getAllExploresFromCache).not.toHaveBeenCalled();
+        expect(find).not.toHaveBeenCalled();
+        expect(sandbox.commands.run).toHaveBeenCalledWith(
+            expect.stringContaining('rm -f /tmp/dbt-repo/models.tar'),
+            expect.anything(),
+        );
+        expect(sandbox.files.write).not.toHaveBeenCalledWith(
+            expect.stringMatching(/^\/tmp\/dbt-repo\//),
+            expect.anything(),
+        );
+    });
 });
 
 describe('AppGenerateService.linkExternalConnections', () => {

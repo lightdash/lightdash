@@ -23,7 +23,7 @@ type Args = {
 export type VizComposerAttachments = {
     attachments: VizAttachment[];
     isUploading: boolean;
-    add: (files: File[]) => void;
+    add: (files: File[], options?: { kind?: 'screenshot' }) => void;
     remove: (key: string) => void;
     clear: () => void;
     fileIds: string[];
@@ -66,7 +66,7 @@ export const useVizComposerAttachments = ({
     }, [releasePreviews]);
 
     const add = useCallback(
-        (files: File[]) => {
+        (files: File[], options?: { kind?: 'screenshot' }) => {
             if (!projectUuid) return;
             const withinSize = files.flatMap((file) => {
                 const error = getAppFileSizeError(file);
@@ -106,7 +106,12 @@ export const useVizComposerAttachments = ({
                         { fileId: null, filename: file.name, previewUrl, key },
                     ]);
 
-                    void uploadFile({ projectUuid, appUuid, file })
+                    void uploadFile({
+                        projectUuid,
+                        appUuid,
+                        file,
+                        kind: options?.kind,
+                    })
                         .then(({ fileId }) =>
                             setAttachments((prev) =>
                                 prev.map((a) =>

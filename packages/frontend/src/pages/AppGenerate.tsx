@@ -18,6 +18,7 @@ import {
     Badge,
     Box,
     Button,
+    Checkbox,
     Divider,
     Group,
     Image,
@@ -157,6 +158,7 @@ import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMes
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
@@ -1265,6 +1267,21 @@ const AppGenerate: FC = () => {
     // data-app-viz renders with real result rows instead of mock data.
     const [testVizContext, setTestVizContext] =
         useState<DataAppVizContext | null>(null);
+    const [includeTestVizSampleRows, setIncludeTestVizSampleRows] =
+        useState(false);
+    useEffect(() => {
+        if (!testVizContext) setIncludeTestVizSampleRows(false);
+    }, [testVizContext]);
+    useEffect(() => {
+        if (isViewingOlderVersion) setIncludeTestVizSampleRows(false);
+    }, [isViewingOlderVersion]);
+    const isVizBuilder =
+        appPersistedTemplate === DATA_APP_VIZ_TEMPLATE ||
+        selectedTemplate === DATA_APP_VIZ_TEMPLATE;
+    const showVizSampleConsent =
+        isVizBuilder &&
+        !isViewingOlderVersion &&
+        Boolean(testVizContext?.rows.length);
     // Latched on by the first manual refresh: a refresh means "show me fresh
     // data", so from then on the preview's queries bypass the warehouse cache.
     // Starts false so the initial load can still serve cached results fast.
@@ -1553,6 +1570,26 @@ const AppGenerate: FC = () => {
         const trimmed = [typed, ...elementPicker.refs.map(refToWireString)]
             .filter(Boolean)
             .join('\n');
+        const vizContext =
+            testVizContext && isVizBuilder
+                ? {
+                      ...(latestReadyVersion?.resources?.vizSchema
+                          ? { schema: latestReadyVersion.resources.vizSchema }
+                          : {}),
+                      fieldMapping: testVizContext.fieldMapping,
+                      ...(showVizSampleConsent && includeTestVizSampleRows
+                          ? {
+                                sampleRows: vizBuildSampleRows(
+                                    testVizContext.rows,
+                                    testVizContext.fieldMapping,
+                                ),
+                            }
+                          : {}),
+                  }
+                : null;
+        const agentPrompt = vizContext
+            ? `${trimmed}\n\n[Current chart-type contract — preserve compatible field names unless the user asks to change them]\n${JSON.stringify(vizContext, null, 2)}`
+            : trimmed;
 
         isSubmittingRef.current = true;
         // Morph the centered composer into the split sidebar layout. Only the
@@ -1714,6 +1751,7 @@ const AppGenerate: FC = () => {
             setIsPromptEmpty(true);
             setFileAttachments([]);
             setIsCapturingScreenshot(false);
+            setIncludeTestVizSampleRows(false);
             setSelectedCharts([]);
             setSelectedDashboard(null);
             setSelectedConnections([]);
@@ -1726,7 +1764,7 @@ const AppGenerate: FC = () => {
                     {
                         projectUuid,
                         appUuid: activeAppUuid,
-                        prompt: trimmed,
+                        prompt: agentPrompt,
                         creationExperience: 'app_builder',
                         fileIds,
                         charts,
@@ -1740,7 +1778,7 @@ const AppGenerate: FC = () => {
                 // A first build clarifies before generating; the round calls
                 // back into runBuildRef once it resolves, answered or not.
                 clarification.send({
-                    prompt: trimmed,
+                    prompt: agentPrompt,
                     template: starterTemplate,
                     fileIds,
                     appUuid: targetAppUuid,
@@ -2523,6 +2561,19 @@ const AppGenerate: FC = () => {
 
                         {!isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
+                                {showVizSampleConsent && (
+                                    <Checkbox
+                                        size="xs"
+                                        pb="xs"
+                                        label="Include current test rows with next build"
+                                        checked={includeTestVizSampleRows}
+                                        onChange={(event) =>
+                                            setIncludeTestVizSampleRows(
+                                                event.currentTarget.checked,
+                                            )
+                                        }
+                                    />
+                                )}
                                 {/* No `accept` — any text-based file is
                                     allowed regardless of extension; validation
                                     happens in handleFileAttach. */}
@@ -3229,6 +3280,7 @@ const AppGenerate: FC = () => {
                                         dataAppVizContext={
                                             testVizContext ?? undefined
                                         }
+                                        dataAppVizMode={isVizBuilder}
                                         onSdkManifest={handleSdkManifest}
                                         insights={
                                             showAnalysisInPreview

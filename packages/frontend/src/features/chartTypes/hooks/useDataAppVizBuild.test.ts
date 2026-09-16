@@ -7,7 +7,7 @@ import { useCancelAppVersion } from '../../apps/hooks/useCancelAppVersion';
 import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
 import { useGenerateApp } from '../../apps/hooks/useGenerateApp';
 import { useIterateApp } from '../../apps/hooks/useIterateApp';
-import { useDataAppVizBuild } from './useDataAppVizBuild';
+import { useDataAppVizBuild, type VizBuildRequest } from './useDataAppVizBuild';
 
 vi.mock('../../apps/hooks/useGenerateApp', () => ({ useGenerateApp: vi.fn() }));
 vi.mock('../../apps/hooks/useIterateApp', () => ({ useIterateApp: vi.fn() }));
@@ -102,6 +102,7 @@ describe('useDataAppVizBuild', () => {
     const setup = (
         initialDataAppVizUuid: string | null = null,
         onCreated = vi.fn(),
+        chartReference?: { uuid: string; includeSampleData: boolean },
     ) => {
         const rendered = renderHookWithProviders(
             ({ dataAppVizUuid }: { dataAppVizUuid: string | null }) =>
@@ -111,6 +112,7 @@ describe('useDataAppVizBuild', () => {
                     itemsMap,
                     dataAppVizUuid,
                     onCreated,
+                    chartReference,
                 }),
             undefined,
             { initialProps: { dataAppVizUuid: initialDataAppVizUuid } },
@@ -153,6 +155,81 @@ describe('useDataAppVizBuild', () => {
         expect(generate.mock.lastCall?.[0]).toMatchObject({
             creationExperience: 'chart_type_builder',
         });
+    });
+
+    it('does not attach sample rows from the current chart without opt-in', () => {
+        const { result } = setup(null, vi.fn(), {
+            uuid: 'saved-chart-1',
+            includeSampleData: false,
+        });
+
+        act(() =>
+            result.current.send({
+                description: 'a donut of orders by status',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [],
+                externalConnections: [],
+            }),
+        );
+
+        expect(generate.mock.lastCall?.[0].charts).toEqual([
+            { uuid: 'saved-chart-1', includeSampleData: false },
+        ]);
+    });
+
+    it('attaches sample rows from the current chart only after opt-in', () => {
+        const { result } = setup(null, vi.fn(), {
+            uuid: 'saved-chart-1',
+            includeSampleData: false,
+        });
+
+        act(() =>
+            result.current.send({
+                description: 'a donut of orders by status',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [],
+                externalConnections: [],
+                includeSampleData: true,
+            }),
+        );
+
+        expect(generate.mock.lastCall?.[0].charts).toEqual([
+            { uuid: 'saved-chart-1', includeSampleData: true },
+        ]);
+    });
+
+    it('uses bounded current explorer rows for an unsaved chart only after opt-in', () => {
+        const { result } = setup();
+        const sampleRows = Array.from({ length: 12 }, (_, i) => ({
+            orders_status: `current-${i}`,
+        }));
+        const request = {
+            description: 'Use the visible results',
+            fileIds: [],
+            claudeModel: 'sonnet' as const,
+            clarifications: [],
+            externalConnections: [],
+            context: {
+                schema: { fields: [] },
+                fieldMapping: {},
+                sampleRows,
+            },
+        } as unknown as VizBuildRequest;
+
+        act(() => result.current.send(request));
+        expect(generate.mock.lastCall?.[0].prompt).not.toContain('current-0');
+
+        const { result: optedIn } = setup();
+        act(() =>
+            optedIn.current.send({ ...request, includeSampleData: true }),
+        );
+        const prompt = generate.mock.lastCall?.[0].prompt as string;
+        expect(prompt).toContain('current-0');
+        expect(prompt).toContain('current-9');
+        expect(prompt).not.toContain('current-10');
+        expect(generate.mock.lastCall?.[0].charts).toBeUndefined();
     });
 
     it('sends an explicit theme selection for new builds and retries it', () => {

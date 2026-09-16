@@ -4,10 +4,12 @@ import {
     getErrorMessage,
     type ApiAppVersionSummary,
     type AppClarification,
+    type AppChartReference,
     type AppVersionExternalConnectionResource,
     type DataAppClaudeModel,
     type DataAppCodexModel,
     type DataAppVizFieldMapping,
+    type DataAppVizSchema,
     type ItemsMap,
 } from '@lightdash/common';
 import { useCallback, useState } from 'react';
@@ -26,6 +28,8 @@ type Args = {
     dataAppVizUuid: string | null;
     /** The surface the build is reported from in analytics. */
     creationExperience: DataAppCreationExperience;
+    /** The saved chart whose field types and formatting seed this build. */
+    chartReference?: AppChartReference;
     /** Called once a new visualization lands ready with the chart still
      *  pointing at nothing, with its contract bound. */
     onCreated: (
@@ -43,6 +47,16 @@ export type VizBuildRequest = {
     clarifications: AppClarification[];
     /** Connections to link before this generate/iterate. Empty when none. */
     externalConnections: AppVersionExternalConnectionResource[];
+    /** Sends a bounded sample only when the builder user opts in. */
+    includeSampleData?: boolean;
+    /** Contract from the currently rendered chart. Kept separate from the
+     * user-facing description, then supplied to the coding agent at build. */
+    context?: {
+        schema?: DataAppVizSchema;
+        fieldMapping?: DataAppVizFieldMapping;
+        elementReferences?: string[];
+        sampleRows?: Record<string, string>[];
+    };
     /**
      * The selected theme for this build. Undefined preserves the server's
      * default selection, while null explicitly removes the theme.
@@ -115,6 +129,7 @@ export const useDataAppVizBuild = ({
     itemsMap,
     dataAppVizUuid,
     creationExperience,
+    chartReference,
     onCreated,
 }: Args): DataAppVizBuildState => {
     // The request in flight, and the app it is building — both null when idle.
@@ -174,7 +189,38 @@ export const useDataAppVizBuild = ({
             setFailed(null);
             setCancelError(null);
             setInFlight(request);
-            const prompt = request.description;
+            const context = request.context
+                ? {
+                      ...(request.context.schema
+                          ? { schema: request.context.schema }
+                          : {}),
+                      ...(request.context.fieldMapping
+                          ? { fieldMapping: request.context.fieldMapping }
+                          : {}),
+                      ...(request.context.elementReferences?.length
+                          ? {
+                                elementReferences:
+                                    request.context.elementReferences.slice(
+                                        0,
+                                        5,
+                                    ),
+                            }
+                          : {}),
+                      ...(request.includeSampleData &&
+                      request.context.sampleRows?.length
+                          ? {
+                                sampleRows: request.context.sampleRows.slice(
+                                    0,
+                                    10,
+                                ),
+                            }
+                          : {}),
+                  }
+                : null;
+            const hasContext = context && Object.keys(context).length > 0;
+            const prompt = hasContext
+                ? `${request.description}\n\n[Current chart-type contract — preserve compatible field names unless the user asks to change them]\n${JSON.stringify(context, null, 2)}`
+                : request.description;
             const files =
                 request.fileIds.length > 0 ? request.fileIds : undefined;
             const externalConnections =
@@ -186,6 +232,16 @@ export const useDataAppVizBuild = ({
                           }),
                       )
                     : undefined;
+            const charts = chartReference
+                ? [
+                      {
+                          ...chartReference,
+                          includeSampleData:
+                              request.includeSampleData === true &&
+                              !request.context?.sampleRows?.length,
+                      },
+                  ]
+                : undefined;
             const onError = (err: unknown) => {
                 setInFlight(null);
                 setFailed({ message: getErrorMessage(err), request });
@@ -200,6 +256,7 @@ export const useDataAppVizBuild = ({
                         creationExperience,
                         appUuid: draftAppUuid,
                         fileIds: files,
+                        charts,
                         externalConnections,
                         ...(request.designUuid !== undefined
                             ? { designUuid: request.designUuid }
@@ -234,6 +291,7 @@ export const useDataAppVizBuild = ({
                     prompt,
                     creationExperience,
                     fileIds: files,
+                    charts,
                     externalConnections,
                     ...(request.designUuid !== undefined
                         ? { designUuid: request.designUuid }
@@ -258,6 +316,7 @@ export const useDataAppVizBuild = ({
             projectUuid,
             dataAppVizUuid,
             creationExperience,
+            chartReference,
             building,
             draftAppUuid,
             generateApp,

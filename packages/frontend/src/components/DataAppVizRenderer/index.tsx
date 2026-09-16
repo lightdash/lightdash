@@ -644,6 +644,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                     appUuid={dataAppVizUuid}
                     identityKey={dataAppVizUuid}
                     dataAppVizContext={dataAppVizContext}
+                    dataAppVizMode
                     onScreenshotAvailabilityChange={
                         handleScreenshotAvailabilityChange
                     }

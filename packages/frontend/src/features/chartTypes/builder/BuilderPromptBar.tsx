@@ -4,6 +4,7 @@ import {
     Anchor,
     Box,
     Button,
+    Checkbox,
     Pill,
     Stack,
     Group,
@@ -14,6 +15,7 @@ import {
 } from '@mantine/core';
 import {
     IconArrowUp,
+    IconCamera,
     IconPlugConnected,
     IconPlayerStop,
     IconX,
@@ -21,6 +23,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import {
     forwardRef,
+    useCallback,
     useEffect,
     useImperativeHandle,
     useRef,
@@ -39,8 +42,12 @@ import {
     type SelectedConnection,
 } from '../../apps/AppResourcePicker';
 import AppVersionNarration from '../../apps/components/AppVersionNarration';
+import { ElementPickerButton } from '../../apps/components/ElementPickerButton';
+import { ElementRefPill } from '../../apps/components/ElementRefPill';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
 import { type DataAppModelSelection } from '../../apps/hooks/useDataAppModelSelection';
+import { type UseElementPickerResult } from '../../apps/hooks/useElementPicker';
+import { elementRefKey } from '../../apps/utils/elementRefs';
 import {
     hasVersionNarration,
     type AppVersionNarrationData,
@@ -76,6 +83,10 @@ type Props = {
     onCancelBuild: (() => void) | null;
     narration: AppVersionNarrationData;
     modelSelection: DataAppModelSelection;
+    /** Existing schema and host-field mapping supplied with every revision. */
+    buildContext?: VizBuildRequest['context'];
+    elementPicker?: UseElementPickerResult;
+    onCaptureScreenshot?: () => Promise<File>;
     /** The pre-build clarifying round every send passes through. */
     clarification: ClarificationRound<VizBuildRequest>;
 };
@@ -169,6 +180,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             narration,
             modelSelection,
             clarification,
+            buildContext,
+            elementPicker,
+            onCaptureScreenshot,
         },
         ref,
     ) {
@@ -194,6 +208,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const [selectedConnections, setSelectedConnections] = useState<
             SelectedConnection[]
         >([]);
+        const [includeSampleData, setIncludeSampleData] = useState(false);
         const queryClient = useQueryClient();
         const [composerPanel, setComposerPanel] = useState<ComposerPanel>(null);
         const { data: linkedConnections = [] } = useAppExternalConnections(
@@ -280,6 +295,25 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             const description = composerRef.current?.getText().trim() ?? '';
             if (!description || !canSubmit) return;
             const editing = editingPrompt.current;
+            const context = buildContext
+                ? {
+                      ...(buildContext.schema
+                          ? { schema: buildContext.schema }
+                          : {}),
+                      ...(buildContext.fieldMapping
+                          ? { fieldMapping: buildContext.fieldMapping }
+                          : {}),
+                      ...(buildContext.elementReferences?.length
+                          ? {
+                                elementReferences:
+                                    buildContext.elementReferences.slice(0, 5),
+                            }
+                          : {}),
+                      ...(includeSampleData && buildContext.sampleRows?.length
+                          ? { sampleRows: buildContext.sampleRows.slice(0, 10) }
+                          : {}),
+                  }
+                : undefined;
             const request: VizBuildRequest = {
                 description,
                 fileIds:
@@ -289,6 +323,10 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 ...modelSelection.modelRequest,
                 clarifications: [],
                 externalConnections: selectedConnections,
+                ...(includeSampleData ? { includeSampleData: true } : {}),
+                ...(context && Object.keys(context).length > 0
+                    ? { context }
+                    : {}),
                 ...(isNewChart && !isBuilding && themesQuery.isSuccess
                     ? { designUuid: initialThemeUuid }
                     : {}),
@@ -359,18 +397,59 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             cancelActiveBuild();
         };
 
+        const refreshQueuedRequest = useCallback(
+            (request: VizBuildRequest): VizBuildRequest => {
+                if (!buildContext) return request;
+                const context = {
+                    ...(buildContext.schema
+                        ? { schema: buildContext.schema }
+                        : {}),
+                    ...(buildContext.fieldMapping
+                        ? { fieldMapping: buildContext.fieldMapping }
+                        : {}),
+                    ...(request.context?.elementReferences?.length
+                        ? {
+                              elementReferences:
+                                  request.context.elementReferences.slice(0, 5),
+                          }
+                        : {}),
+                    ...(request.includeSampleData &&
+                    request.context?.sampleRows?.length
+                        ? {
+                              sampleRows: request.context.sampleRows.slice(
+                                  0,
+                                  10,
+                              ),
+                          }
+                        : {}),
+                };
+                return {
+                    ...request,
+                    context:
+                        Object.keys(context).length > 0 ? context : undefined,
+                };
+            },
+            [buildContext],
+        );
+
         // Backend completion is the event that advances this session-local
         // queue; composer click handlers cannot know when that has settled.
         useEffect(
             function advanceQueueAfterBuildSettles() {
                 if (isBuilding || isCancelling || buildError !== null) return;
                 if (queuePausedByStop.current) return;
+                if (
+                    latestReadyVersion !== null &&
+                    buildContext &&
+                    !buildContext.schema
+                )
+                    return;
 
                 if (interruptNext) {
                     interruptPending.current = false;
                     setInterruptNext(null);
                     setSendingPrompt(interruptNext);
-                    sendBuild(interruptNext.request);
+                    sendBuild(refreshQueuedRequest(interruptNext.request));
                     return;
                 }
 
@@ -385,15 +464,17 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 }
                 setQueuedPrompts(remaining);
                 setSendingPrompt(next);
-                sendBuild(next.request);
+                sendBuild(refreshQueuedRequest(next.request));
             },
             [
                 buildError,
+                buildContext,
                 interruptNext,
                 isBuilding,
                 isCancelling,
                 latestReadyVersion,
                 queuedPrompts,
+                refreshQueuedRequest,
                 sendBuild,
             ],
         );
@@ -411,6 +492,17 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const handleDrop: DragEventHandler = (event) => {
             event.preventDefault();
             attachments.add(Array.from(event.dataTransfer.files));
+        };
+
+        const handleCaptureScreenshot = async () => {
+            if (!onCaptureScreenshot) return;
+            try {
+                attachments.add([await onCaptureScreenshot()], {
+                    kind: 'screenshot',
+                });
+            } catch {
+                // Capture availability is announced by the iframe SDK.
+            }
         };
 
         const visibleSendingPrompt =
@@ -794,19 +886,45 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     }
                     attachments={
                         attachments.attachments.length > 0 ||
+                        !!elementPicker?.refs.length ||
                         questions !== null ? (
                             <Stack gap="xs" pb="xs">
-                                <SelectedAttachmentSection
-                                    attachments={attachments.attachments.map(
-                                        (attachment) => ({
-                                            id: attachment.key,
-                                            previewUrl: attachment.previewUrl,
-                                            filename: attachment.filename,
-                                        }),
-                                    )}
-                                    onRemove={attachments.remove}
-                                    disabled={isComposerLocked}
-                                />
+                                {!!elementPicker?.refs.length && (
+                                    <Group gap={4}>
+                                        {elementPicker.refs.map(
+                                            (elementRef) => (
+                                                <ElementRefPill
+                                                    key={elementRefKey(
+                                                        elementRef,
+                                                    )}
+                                                    elementRef={elementRef}
+                                                    onRemove={
+                                                        isComposerLocked
+                                                            ? undefined
+                                                            : () =>
+                                                                  elementPicker.remove(
+                                                                      elementRef,
+                                                                  )
+                                                    }
+                                                />
+                                            ),
+                                        )}
+                                    </Group>
+                                )}
+                                {attachments.attachments.length > 0 && (
+                                    <SelectedAttachmentSection
+                                        attachments={attachments.attachments.map(
+                                            (attachment) => ({
+                                                id: attachment.key,
+                                                previewUrl:
+                                                    attachment.previewUrl,
+                                                filename: attachment.filename,
+                                            }),
+                                        )}
+                                        onRemove={attachments.remove}
+                                        disabled={isComposerLocked}
+                                    />
+                                )}
                                 {questions !== null ? (
                                     <Text size="xs" c="dimmed">
                                         Answer or skip first
@@ -829,6 +947,41 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 }
                                 visibleModels={modelSelection.visibleModels}
                                 codingAgent={modelSelection.codingAgent}
+                            />
+                            {elementPicker?.available && (
+                                <ElementPickerButton
+                                    enabled={elementPicker.enabled}
+                                    onToggle={elementPicker.toggle}
+                                    disabled={isComposerLocked}
+                                />
+                            )}
+                            {onCaptureScreenshot && (
+                                <Tooltip label="Attach screenshot of current render">
+                                    <ActionIcon
+                                        variant="subtle"
+                                        aria-label="Attach screenshot"
+                                        onClick={() =>
+                                            void handleCaptureScreenshot()
+                                        }
+                                        disabled={isComposerLocked}
+                                    >
+                                        <MantineIcon
+                                            icon={IconCamera}
+                                            size={16}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            <Checkbox
+                                size="xs"
+                                label="Include sample rows"
+                                checked={includeSampleData}
+                                onChange={(event) =>
+                                    setIncludeSampleData(
+                                        event.currentTarget.checked,
+                                    )
+                                }
+                                disabled={isComposerLocked}
                             />
                             {isBuilding && isEmpty ? (
                                 <ComposerSubmitButton

@@ -3265,58 +3265,60 @@ export class AppGenerateService extends BaseService {
     }> {
         const start = performance.now();
 
-        // Source the synthetic schema from the compiled explore cache (not the
-        // flattened catalog summary) so it carries joins, real dimension/metric
-        // types, and parameters. See exploresToModelFiles.
-        const [exploresByUuid, chartUsageByTable] = await Promise.all([
-            this.projectModel.getAllExploresFromCache(projectUuid),
-            this.catalogModel.getChartUsageByTable(projectUuid),
-        ]);
-        const explores = Object.values(exploresByUuid).filter(
-            (explore): explore is Explore => !isExploreError(explore),
-        );
-        const {
-            files: modelFiles,
-            tableCount,
-            dimensionCount,
-            metricCount,
-            totalBytes,
-        } = AppGenerateService.exploresToModelFiles(
-            explores,
-            chartUsageByTable,
-        );
-
-        // Project-level parameters are global (not attached to any one explore)
-        // and live in lightdash.config.yml — the location skill.md already tells
-        // the agent to look. Write them there so `.parameters()` is usable.
-        const globalParameters =
-            await this.projectParametersModel.find(projectUuid);
-        const configYaml =
-            AppGenerateService.projectParametersToConfigYaml(globalParameters);
-
         // Remove files that may have been created by a previous run with
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -rf /tmp/dbt-repo/models 2>/dev/null; rm -f /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
+            'rm -rf /tmp/dbt-repo/models 2>/dev/null; rm -f /tmp/dbt-repo/models.tar /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
-        // One round trip per model file would cost minutes on a large project,
-        // so ship the whole directory as a single archive and unpack in place.
-        await sandbox.files.write(
-            '/tmp/dbt-repo/models.tar',
-            await AppGenerateService.packModelFiles(modelFiles),
-        );
-        await sandbox.commands.run(
-            'mkdir -p /tmp/dbt-repo/models && tar -xf /tmp/dbt-repo/models.tar -C /tmp/dbt-repo/models && rm -f /tmp/dbt-repo/models.tar',
-            { timeoutMs: 60_000 },
-        );
-        if (configYaml) {
-            await sandbox.files.write(
-                '/tmp/dbt-repo/lightdash.config.yml',
-                configYaml,
+        let modelFiles: ModelFile[] = [];
+        let tableCount = 0;
+        let dimensionCount = 0;
+        let metricCount = 0;
+        let totalBytes = 0;
+        if (!isDataAppViz) {
+            // Source the synthetic schema from the compiled explore cache (not
+            // the flattened catalog summary) so it carries joins, real field
+            // types, and parameters. A chart type receives host rows instead.
+            const [exploresByUuid, chartUsageByTable] = await Promise.all([
+                this.projectModel.getAllExploresFromCache(projectUuid),
+                this.catalogModel.getChartUsageByTable(projectUuid),
+            ]);
+            const explores = Object.values(exploresByUuid).filter(
+                (explore): explore is Explore => !isExploreError(explore),
             );
+            const catalog = AppGenerateService.exploresToModelFiles(
+                explores,
+                chartUsageByTable,
+            );
+            modelFiles = catalog.files;
+            tableCount = catalog.tableCount;
+            dimensionCount = catalog.dimensionCount;
+            metricCount = catalog.metricCount;
+            totalBytes = catalog.totalBytes;
+
+            const globalParameters =
+                await this.projectParametersModel.find(projectUuid);
+            const configYaml =
+                AppGenerateService.projectParametersToConfigYaml(
+                    globalParameters,
+                );
+            await sandbox.files.write(
+                '/tmp/dbt-repo/models.tar',
+                await AppGenerateService.packModelFiles(modelFiles),
+            );
+            await sandbox.commands.run(
+                'mkdir -p /tmp/dbt-repo/models && tar -xf /tmp/dbt-repo/models.tar -C /tmp/dbt-repo/models && rm -f /tmp/dbt-repo/models.tar',
+                { timeoutMs: 60_000 },
+            );
+            if (configYaml) {
+                await sandbox.files.write(
+                    '/tmp/dbt-repo/lightdash.config.yml',
+                    configYaml,
+                );
+            }
         }
 
         // Write chart reference files and prepend summary to prompt

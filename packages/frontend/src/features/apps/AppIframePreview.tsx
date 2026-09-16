@@ -119,6 +119,8 @@ type Props = {
     // Render context for data app vizs: the field mapping + host rows, pushed
     // into the iframe over the SDK bridge. Undefined for ordinary data apps.
     dataAppVizContext?: DataAppVizContext;
+    /** Enables the restricted bridge contract used by custom chart types. */
+    dataAppVizMode?: boolean;
     /** Rewrites the viz underlying-data virtual route into the real API
      *  request. Only set by DataAppVizRenderer when the capability is on. */
     rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
@@ -195,6 +197,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onIframeLoad,
             capabilities,
             dataAppVizContext,
+            dataAppVizMode,
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
@@ -299,6 +302,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageSelected,
             onExternalRequestEvent,
             dataAppVizContext,
+            dataAppVizMode,
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,

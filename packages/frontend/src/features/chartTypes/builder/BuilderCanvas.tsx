@@ -3,8 +3,9 @@ import {
     type DataAppVizContext,
 } from '@lightdash/common';
 import { Box, Stack, Text, Title } from '@mantine/core';
-import { type FC, type ReactNode } from 'react';
+import { type FC, type ReactNode, type RefObject } from 'react';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
+import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
 import AppPreview from '../../apps/components/AppPreview';
 import { type SdkManifest } from '../../apps/hooks/useAppSdkBridge';
 import classes from './BuilderCanvas.module.css';
@@ -33,6 +34,14 @@ type Props = {
     onSdkManifest: (manifest: SdkManifest) => void;
     /** Whether the previewed viz may write its own state into the page URL. */
     syncPreviewUrlState: boolean;
+    elementPickerProps: {
+        inspectorEnabled: boolean;
+        onElementSelected: (event: { label: string }) => void;
+        onInspectorAvailabilityChange: (available: boolean) => void;
+        onInspectorCancelled: () => void;
+    };
+    previewRef: RefObject<AppIframePreviewHandle | null>;
+    onScreenshotAvailabilityChange: (available: boolean) => void;
 };
 
 /** Same footprint and viewBox as an example card's thumbnail, so the canvas
@@ -88,6 +97,9 @@ const BuilderCanvas: FC<Props> = ({
     onPickExample,
     onSdkManifest,
     syncPreviewUrlState,
+    elementPickerProps,
+    previewRef,
+    onScreenshotAvailabilityChange,
 }) => {
     const hasPreview = appUuid !== null && previewVersion !== null;
     const isFirstBuild = isBuilding && !hasPreview;
@@ -107,11 +119,17 @@ const BuilderCanvas: FC<Props> = ({
                     )}
                     <Box className={classes.preview}>
                         <AppPreview
+                            ref={previewRef}
                             projectUuid={projectUuid}
                             appUuid={appUuid}
                             version={previewVersion}
                             refreshKey={0}
                             dataAppVizContext={previewContext ?? undefined}
+                            dataAppVizMode
+                            {...elementPickerProps}
+                            onScreenshotAvailabilityChange={
+                                onScreenshotAvailabilityChange
+                            }
                             onSdkManifest={onSdkManifest}
                             urlStateSync={syncPreviewUrlState}
                         />
