@@ -1,3 +1,10 @@
+## [2.238.2](https://github.com/lightdash/lightdash/compare/2.238.1...2.238.2) (2026-09-16)
+
+
+### Bug Fixes
+
+* hide chart library tab when registry is unavailable ([#29353](https://github.com/lightdash/lightdash/issues/29353)) ([8880a2b](https://github.com/lightdash/lightdash/commit/8880a2bb041e4fe41f2f3ce21d407e586b60714e))
+
 ## [2.238.1](https://github.com/lightdash/lightdash/compare/2.238.0...2.238.1) (2026-09-16)
 
 
