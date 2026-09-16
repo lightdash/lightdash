@@ -1,5 +1,13 @@
 # AI agent memory
 
+> **Status: deprecated.** Memory is switched off for every organization and
+> the enable toggle is gone. Nothing is distilled, consolidated, or pulled
+> into prompts; stored memories stay readable on the admin Memories page and
+> old citations keep resolving. Re-enabling one organization is a direct
+> database update of `organizations.ai_agent_memory_enabled`, nothing in the
+> product or API. Everything below describes dark code kept for a later
+> removal.
+
 Per-user, per-project knowledge the AI agent learns from a user's own
 threads and recalls on their future threads. Memory is recall, not authority:
 current catalog truth and project context always outrank it.

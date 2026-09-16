@@ -231,17 +231,6 @@ export class OrganizationModel {
         return org?.ai_agent_memory_enabled ?? null;
     }
 
-    async updateAiAgentMemoryEnabled(
-        organizationUuid: string,
-        enabled: boolean,
-        database: Knex = this.database,
-    ): Promise<void> {
-        const updated = await database(OrganizationTableName)
-            .where('organization_uuid', organizationUuid)
-            .update({ ai_agent_memory_enabled: enabled });
-        if (updated === 0) throw new NotFoundError('No organization found');
-    }
-
     async get(organizationUuid: string): Promise<Organization> {
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)

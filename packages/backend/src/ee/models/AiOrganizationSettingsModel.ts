@@ -445,12 +445,6 @@ export class AiOrganizationSettingsModel {
         );
     }
 
-    async transaction<T>(
-        callback: (trx: Knex.Transaction) => Promise<T>,
-    ): Promise<T> {
-        return this.database.transaction(callback);
-    }
-
     async delete(organizationUuid: string): Promise<void> {
         await this.database<AiOrganizationSettingsTable>(
             AiOrganizationSettingsTableName,

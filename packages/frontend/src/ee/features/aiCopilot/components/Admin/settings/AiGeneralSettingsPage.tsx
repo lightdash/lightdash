@@ -29,7 +29,6 @@ import {
     useDefaultAiAgentModel,
 } from '../../../hooks/useAiAgentModelSelection';
 import {
-    resolveAiAgentMemoryEnabled,
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
@@ -93,7 +92,6 @@ export const AiGeneralSettingsPage = () => {
     const reviewsPausedByByok = settings?.aiAgentReviewsPausedByByok ?? false;
     const reviewsEffectivelyOn =
         Boolean(settings?.aiAgentReviewsEnabled) && !reviewsPausedByByok;
-    const aiAgentMemoryEnabled = resolveAiAgentMemoryEnabled(settings);
     const {
         fallbackModelLabel: systemDefaultModelLabel,
         selectedModel: selectedDefaultModel,
@@ -444,55 +442,6 @@ export const AiGeneralSettingsPage = () => {
                                     <ReviewNotificationsSettings />
                                 )}
                             </Stack>
-                        </SettingsCard>
-
-                        <SettingsCard>
-                            <Group
-                                justify="space-between"
-                                wrap="nowrap"
-                                align="flex-start"
-                                gap="md"
-                            >
-                                <Box maw={620}>
-                                    <Group gap="xs" mb={4}>
-                                        <Title order={5}>
-                                            Enable AI agent memories
-                                        </Title>
-                                        <BetaBadge />
-                                    </Group>
-                                    <Text c="dimmed" fz="xs">
-                                        Let Ask AI learn from each user&apos;s
-                                        agent conversations and reuse those
-                                        memories in future answers. Disable to
-                                        stop learning from and using memories
-                                        while keeping existing data intact.
-                                        {aiAgentMemoryEnabled && (
-                                            <>
-                                                {' '}
-                                                Manage them in{' '}
-                                                <Anchor
-                                                    component={Link}
-                                                    to="/generalSettings/ai/memories"
-                                                >
-                                                    Ask AI &gt; Memories
-                                                </Anchor>
-                                                .
-                                            </>
-                                        )}
-                                    </Text>
-                                </Box>
-                                <Switch
-                                    size="md"
-                                    checked={aiAgentMemoryEnabled}
-                                    disabled={isUpdatingSettings}
-                                    onChange={(event) =>
-                                        updateSettings({
-                                            aiAgentMemoryEnabled:
-                                                event.currentTarget.checked,
-                                        })
-                                    }
-                                />
-                            </Group>
                         </SettingsCard>
                     </Section>
 

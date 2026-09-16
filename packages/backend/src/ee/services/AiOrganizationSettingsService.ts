@@ -559,7 +559,7 @@ export class AiOrganizationSettingsService extends BaseService {
 
     async upsertSettings(
         user: SessionUser,
-        data: UpdateAiOrganizationSettings,
+        aiSettingsUpdate: UpdateAiOrganizationSettings,
     ): Promise<AiOrganizationSettings> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -567,19 +567,6 @@ export class AiOrganizationSettingsService extends BaseService {
         }
 
         await this.checkAiSettingsAccess(user, organizationUuid);
-
-        const { aiAgentMemoryEnabled, ...aiSettingsUpdate } = data;
-        const isMemoryOnlyUpdate =
-            aiAgentMemoryEnabled !== undefined &&
-            Object.keys(aiSettingsUpdate).length === 0;
-
-        if (isMemoryOnlyUpdate) {
-            await this.organizationModel.updateAiAgentMemoryEnabled(
-                organizationUuid,
-                aiAgentMemoryEnabled,
-            );
-            return this.getSettings(user);
-        }
 
         if (aiSettingsUpdate.deepResearchLimits !== undefined) {
             validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);
@@ -743,34 +730,14 @@ export class AiOrganizationSettingsService extends BaseService {
                       ...aiSettingsUpdate,
                       defaultAiAgentModelConfig: reconciledDefaultModelConfig,
                   };
-        const settings =
-            aiAgentMemoryEnabled === undefined
-                ? await this.aiOrganizationSettingsModel.upsert(
-                      organizationUuid,
-                      update,
-                  )
-                : await this.aiOrganizationSettingsModel.transaction(
-                      async (trx) => {
-                          const updatedSettings =
-                              await this.aiOrganizationSettingsModel.upsert(
-                                  organizationUuid,
-                                  update,
-                                  trx,
-                              );
-                          await this.organizationModel.updateAiAgentMemoryEnabled(
-                              organizationUuid,
-                              aiAgentMemoryEnabled,
-                              trx,
-                          );
-                          return updatedSettings;
-                      },
-                  );
+        const settings = await this.aiOrganizationSettingsModel.upsert(
+            organizationUuid,
+            update,
+        );
 
         return {
             ...settings,
-            aiAgentMemoryEnabled:
-                aiAgentMemoryEnabled ??
-                (await this.isAiAgentMemoryEnabled(user)),
+            aiAgentMemoryEnabled: await this.isAiAgentMemoryEnabled(user),
         };
     }
 
