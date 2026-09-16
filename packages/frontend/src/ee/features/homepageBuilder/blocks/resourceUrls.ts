@@ -26,9 +26,13 @@ export const faviconUrl = (url: string): string | null => {
     }
 };
 
+// Claude serves this one branded card for artifacts it has no preview of, so
+// it says nothing about the item and the favicon tile reads better.
+const GENERIC_CLAUDE_CARD = 'https://claude.ai/images/claude_ogimage.png';
+
 // Config is API-writable, so only https images are ever used as <img> sources.
-export const safeImageUrl = (url: string | undefined): string | null =>
-    url?.startsWith('https://') ? url : null;
+export const safeImageUrl = (url: string | null | undefined): string | null =>
+    url?.startsWith('https://') && url !== GENERIC_CLAUDE_CARD ? url : null;
 
 const normalizeUrl = (raw: string): string =>
     /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
@@ -46,12 +50,19 @@ export const resolveResourceUrl = async (
     const url = normalizeUrl(rawUrl.trim());
     try {
         const meta = await fetchHomepageLinkMetadata(projectUuid, url);
+        const imageUrl = safeImageUrl(meta.imageUrl);
+        const title = meta.title ?? hostnameOf(url);
+        // Providers without a description echo the title into og:description.
+        const description =
+            meta.description && meta.description !== title
+                ? meta.description
+                : null;
         return {
             url,
             kind: meta.kind,
-            title: meta.title ?? hostnameOf(url),
-            ...(meta.description ? { description: meta.description } : {}),
-            ...(meta.imageUrl ? { imageUrl: meta.imageUrl } : {}),
+            title,
+            ...(description ? { description } : {}),
+            ...(imageUrl ? { imageUrl } : {}),
         };
     } catch {
         // Host outside the allowlist (or fetch failure) → plain link.

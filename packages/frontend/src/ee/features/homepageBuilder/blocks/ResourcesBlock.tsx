@@ -136,9 +136,9 @@ const UrlCardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     const favicon = faviconUrl(item.url);
     const imageUrl = safeImageUrl(item.imageUrl);
 
-    // A real per-item photo (e.g. a YouTube still) fills the frame sharply.
-    // Claude's og:image is generic/soft, so it's treated as a backdrop instead.
-    if (imageUrl && item.kind !== 'claude' && !imgFailed) {
+    // A real per-item image (a YouTube still, a Claude artifact screenshot)
+    // fills the frame; safeImageUrl already drops provider placeholders.
+    if (imageUrl && !imgFailed) {
         return (
             <div className={classes.resThumb}>
                 <img

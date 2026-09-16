@@ -33,5 +33,17 @@ describe('safeImageUrl', () => {
         expect(safeImageUrl('javascript:alert(1)')).toBeNull();
         expect(safeImageUrl('data:image/svg+xml;base64,PHN2Zz4=')).toBeNull();
         expect(safeImageUrl(undefined)).toBeNull();
+        expect(safeImageUrl(null)).toBeNull();
+    });
+
+    it("drops Claude's generic branded card but keeps a real artifact thumbnail", () => {
+        expect(
+            safeImageUrl('https://claude.ai/images/claude_ogimage.png'),
+        ).toBeNull();
+        expect(
+            safeImageUrl(
+                'https://abc.frame.claudeusercontent.com/_f/123/_thumb.img',
+            ),
+        ).toBe('https://abc.frame.claudeusercontent.com/_f/123/_thumb.img');
     });
 });
