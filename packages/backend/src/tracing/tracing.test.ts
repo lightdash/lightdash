@@ -6,12 +6,14 @@ import {
     trace,
 } from '@opentelemetry/api';
 import { SamplingDecision, type Sampler } from '@opentelemetry/sdk-trace-base';
+import * as Sentry from '@sentry/node';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Logger from '../logging/logger';
 import {
     AlwaysSampleAiRootsSampler,
     configureOtelTraceExport,
     createOtelInstrumentations,
+    getActiveSpanId,
     getOtelDatabaseTraceMaxQueryLength,
     initOtelTracing,
     installRedactingOtelDiagnostics,
@@ -108,6 +110,29 @@ describe('otelDatabaseTracingEnabled', () => {
                     '@opentelemetry/instrumentation-knex',
             ),
         ).toBe(false);
+    });
+});
+
+describe('getActiveSpanId', () => {
+    it('returns the active Sentry span id in Sentry mode', () => {
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', undefined);
+        const span = {
+            spanContext: () => ({ spanId: SPAN_ID }),
+        } as never;
+
+        Sentry.withActiveSpan(span, () => {
+            expect(getActiveSpanId()).toBe(SPAN_ID);
+        });
+    });
+
+    it('returns the active OpenTelemetry span id in OpenTelemetry mode', () => {
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', 'true');
+        vi.stubEnv('OTEL_SDK_DISABLED', undefined);
+        vi.spyOn(trace, 'getActiveSpan').mockReturnValue({
+            spanContext: () => ({ spanId: SPAN_ID }),
+        } as never);
+
+        expect(getActiveSpanId()).toBe(SPAN_ID);
     });
 });
 

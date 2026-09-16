@@ -45,6 +45,11 @@ import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
+import {
+    OmnibarSearchTiming,
+    timeOmnibarSearch,
+    timeOmnibarSearchSync,
+} from '../../logging/omnibarSearchTiming';
 import { AppModel } from '../AppModel';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import {
@@ -1595,11 +1600,20 @@ export class SearchModel {
         }));
     }
 
-    private async getProjectExplores(projectUuid: string): Promise<Explore[]> {
-        const projects = await this.database(ProjectTableName)
-            .select(['table_selection_type', 'table_selection_value'])
-            .where('project_uuid', projectUuid)
-            .limit(1);
+    private async getProjectExplores(
+        projectUuid: string,
+        timing?: OmnibarSearchTiming,
+    ): Promise<Explore[]> {
+        const getProjects = () =>
+            this.database(ProjectTableName)
+                .select(['table_selection_type', 'table_selection_value'])
+                .where('project_uuid', projectUuid)
+                .limit(1);
+        const projects = await timeOmnibarSearch(
+            timing,
+            'exploreSelection',
+            getProjects,
+        );
         if (projects.length === 0) {
             throw new NotFoundError(
                 `Cannot find project with id: ${projectUuid}`,
@@ -1615,33 +1629,39 @@ export class SearchModel {
         // request. The pre-aggregate exclusion is pushed into SQL so those rows never leave
         // Postgres. Explores with no type predate the column and must be kept, hence
         // IS DISTINCT FROM rather than <>.
-        const rows = await this.database(CachedExploreTableName)
-            .select<{ explore: Explore | ExploreError }[]>('explore')
-            .where('project_uuid', projectUuid)
-            .whereRaw("explore->>'type' IS DISTINCT FROM ?", [
-                ExploreType.PRE_AGGREGATE,
-            ])
-            .orderBy('name');
+        const getRows = () =>
+            this.database(CachedExploreTableName)
+                .select<{ explore: Explore | ExploreError }[]>('explore')
+                .where('project_uuid', projectUuid)
+                .whereRaw("explore->>'type' IS DISTINCT FROM ?", [
+                    ExploreType.PRE_AGGREGATE,
+                ])
+                .orderBy('name');
+        const rows = await timeOmnibarSearch(timing, 'exploreRows', getRows);
 
-        return rows
-            .map(({ explore }) => explore)
-            .filter((explore: Explore | ExploreError) => {
-                if (tableSelection.type === TableSelectionType.WITH_TAGS) {
-                    return (
-                        hasIntersection(
-                            explore.tags || [],
-                            tableSelection.value || [],
-                        ) || isUserManagedExplore(explore)
-                    );
-                }
-                if (tableSelection.type === TableSelectionType.WITH_NAMES) {
-                    return (
-                        (tableSelection.value || []).includes(explore.name) ||
-                        isUserManagedExplore(explore)
-                    );
-                }
-                return true;
-            }) as Explore[];
+        const filterRows = () =>
+            rows
+                .map(({ explore }) => explore)
+                .filter((explore: Explore | ExploreError) => {
+                    if (tableSelection.type === TableSelectionType.WITH_TAGS) {
+                        return (
+                            hasIntersection(
+                                explore.tags || [],
+                                tableSelection.value || [],
+                            ) || isUserManagedExplore(explore)
+                        );
+                    }
+                    if (tableSelection.type === TableSelectionType.WITH_NAMES) {
+                        return (
+                            (tableSelection.value || []).includes(
+                                explore.name,
+                            ) || isUserManagedExplore(explore)
+                        );
+                    }
+                    return true;
+                }) as Explore[];
+
+        return timeOmnibarSearchSync(timing, 'exploreFilter', filterRows);
     }
 
     static searchTablesAndFields(
@@ -1838,6 +1858,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        timing?: OmnibarSearchTiming,
     ): Promise<SearchResults> {
         const verifiedOnly = filters?.verifiedOnly === true;
         const contentOptions: SearchContentOptions = { verifiedOnly };
@@ -1845,26 +1866,35 @@ export class SearchModel {
         // Verified is only meaningful for charts and dashboards — skip every
         // other type so the Item type filter behaves as a verified-content view.
         if (verifiedOnly) {
-            const [dashboards, savedCharts, sqlCharts] = await Promise.all([
-                this.searchDashboards(
-                    projectUuid,
-                    query,
-                    filters,
-                    contentOptions,
-                ),
-                this.searchSavedCharts(
-                    projectUuid,
-                    query,
-                    filters,
-                    contentOptions,
-                ),
-                this.searchSqlCharts(
-                    projectUuid,
-                    query,
-                    filters,
-                    contentOptions,
-                ),
-            ]);
+            const searchContent = () =>
+                Promise.all([
+                    timeOmnibarSearch(timing, 'dashboards', () =>
+                        this.searchDashboards(
+                            projectUuid,
+                            query,
+                            filters,
+                            contentOptions,
+                        ),
+                    ),
+                    timeOmnibarSearch(timing, 'savedCharts', () =>
+                        this.searchSavedCharts(
+                            projectUuid,
+                            query,
+                            filters,
+                            contentOptions,
+                        ),
+                    ),
+                    timeOmnibarSearch(timing, 'sqlCharts', () =>
+                        this.searchSqlCharts(
+                            projectUuid,
+                            query,
+                            filters,
+                            contentOptions,
+                        ),
+                    ),
+                ]);
+            const [dashboards, savedCharts, sqlCharts] =
+                await timeOmnibarSearch(timing, 'contentGroup', searchContent);
 
             return {
                 spaces: [],
@@ -1879,39 +1909,77 @@ export class SearchModel {
             };
         }
 
-        const spaces = await this.searchSpaces(projectUuid, query, filters);
-        const [dashboards, savedCharts, sqlCharts] = await Promise.all([
-            searchReservingVerified(false, (opts) =>
-                this.searchDashboards(projectUuid, query, filters, opts),
-            ),
-            searchReservingVerified(false, (opts) =>
-                this.searchSavedCharts(projectUuid, query, filters, opts),
-            ),
-            searchReservingVerified(false, (opts) =>
-                this.searchSqlCharts(projectUuid, query, filters, opts),
-            ),
-        ]);
-        const dashboardTabs = await this.searchDashboardTabs(
-            projectUuid,
-            query,
-            filters,
+        const searchSpaces = () =>
+            this.searchSpaces(projectUuid, query, filters);
+        const spaces = await timeOmnibarSearch(timing, 'spaces', searchSpaces);
+        const searchContent = () =>
+            Promise.all([
+                timeOmnibarSearch(timing, 'dashboards', () =>
+                    searchReservingVerified(false, (opts) =>
+                        this.searchDashboards(
+                            projectUuid,
+                            query,
+                            filters,
+                            opts,
+                        ),
+                    ),
+                ),
+                timeOmnibarSearch(timing, 'savedCharts', () =>
+                    searchReservingVerified(false, (opts) =>
+                        this.searchSavedCharts(
+                            projectUuid,
+                            query,
+                            filters,
+                            opts,
+                        ),
+                    ),
+                ),
+                timeOmnibarSearch(timing, 'sqlCharts', () =>
+                    searchReservingVerified(false, (opts) =>
+                        this.searchSqlCharts(projectUuid, query, filters, opts),
+                    ),
+                ),
+            ]);
+        const [dashboards, savedCharts, sqlCharts] = await timeOmnibarSearch(
+            timing,
+            'contentGroup',
+            searchContent,
         );
-        const dataApps = await this.searchDataApps(projectUuid, query, filters);
+        const searchDashboardTabs = () =>
+            this.searchDashboardTabs(projectUuid, query, filters);
+        const dashboardTabs = await timeOmnibarSearch(
+            timing,
+            'dashboardTabs',
+            searchDashboardTabs,
+        );
+        const searchDataApps = () =>
+            this.searchDataApps(projectUuid, query, filters);
+        const dataApps = await timeOmnibarSearch(
+            timing,
+            'dataAppsSearch',
+            searchDataApps,
+        );
 
-        const explores = await this.getProjectExplores(projectUuid);
-        const tableErrors = await this.searchTableErrors(
-            projectUuid,
-            query,
-            explores,
+        const explores = await this.getProjectExplores(projectUuid, timing);
+        const searchTableErrors = () =>
+            this.searchTableErrors(projectUuid, query, explores);
+        const tableErrors = await timeOmnibarSearch(
+            timing,
+            'tableErrors',
+            searchTableErrors,
         );
-        const [tables, fields] = SearchModel.searchTablesAndFields(
-            query,
-            explores,
-            filters,
+        const searchTablesAndFields = () =>
+            SearchModel.searchTablesAndFields(query, explores, filters);
+        const [tables, fields] = timeOmnibarSearchSync(
+            timing,
+            'tablesFields',
+            searchTablesAndFields,
         );
 
         const tablesAndErrors = [...tables, ...tableErrors];
-        const pages = SearchModel.searchPages(projectUuid, query, filters);
+        const searchPages = () =>
+            SearchModel.searchPages(projectUuid, query, filters);
+        const pages = timeOmnibarSearchSync(timing, 'pages', searchPages);
 
         return {
             spaces,

@@ -18,6 +18,11 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
+import {
+    OmnibarSearchTiming,
+    timeOmnibarSearch,
+    timeOmnibarSearchSync,
+} from '../../logging/omnibarSearchTiming';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { searchReservingVerified } from '../../models/SearchModel/utils/search';
@@ -244,316 +249,385 @@ export class SearchService extends BaseService {
         source: 'omnibar' | 'ai_search_box' = 'omnibar',
         filters?: SearchFilters,
     ): Promise<SearchResults> {
-        const { organizationUuid, name: projectName } =
-            await this.projectModel.getSummary(projectUuid);
+        const timing =
+            source === 'omnibar'
+                ? new OmnibarSearchTiming({
+                      verifiedOnly: filters?.verifiedOnly === true,
+                  })
+                : undefined;
+        let outcome: 'success' | 'error' = 'error';
+        try {
+            const getProjectSummary = () =>
+                this.projectModel.getSummary(projectUuid);
+            const { organizationUuid, name: projectName } =
+                await timeOmnibarSearch(
+                    timing,
+                    'projectSummary',
+                    getProjectSummary,
+                );
 
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: { projectUuid, projectName },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
+            const search = () =>
+                this.searchModel.search(projectUuid, query, filters, timing);
+            const results = await timeOmnibarSearch(
+                timing,
+                'searchModel',
+                search,
+            );
+
+            const spaceUuids = [
+                ...new Set(results.spaces.map((space) => space.uuid)),
+            ];
+
+            const getAccessibleSpaceUuids = () =>
+                this.spacePermissionService.getAccessibleSpaceUuids(
+                    'view',
+                    user,
+                    spaceUuids,
+                );
+            const accessibleSpaceUuids = await timeOmnibarSearch(
+                timing,
+                'spaceAccess',
+                getAccessibleSpaceUuids,
+            );
+
+            // Content rows resolve resource-aware access in one batch so direct
+            // grants count exactly like space access; spaces themselves cannot
+            // carry grants and keep the plain space check above.
+            type SearchAccessEntry =
+                | {
+                      kind: 'dashboard';
+                      index: number;
+                      target: AccessTarget;
+                      name: string;
+                      uuid: string;
+                  }
+                | {
+                      kind: 'dashboardTab';
+                      index: number;
+                      target: AccessTarget;
+                      name: string;
+                      uuid: string;
+                  }
+                | {
+                      kind: 'savedChart';
+                      index: number;
+                      target: AccessTarget;
+                      name: string;
+                      uuid: string;
+                  }
+                | {
+                      kind: 'sqlChart';
+                      index: number;
+                      target: AccessTarget;
+                      name: string;
+                      uuid: string;
+                  };
+            const accessEntries: SearchAccessEntry[] = [
+                ...results.dashboards.map((dashboard, index) => ({
+                    kind: 'dashboard' as const,
+                    index,
+                    target: {
+                        type: 'dashboard' as const,
+                        dashboardUuid: dashboard.uuid,
+                        spaceUuid: dashboard.spaceUuid,
+                    },
+                    name: dashboard.name,
+                    uuid: dashboard.uuid,
+                })),
+                ...results.dashboardTabs.map((dashboardTab, index) => ({
+                    kind: 'dashboardTab' as const,
+                    index,
+                    target: {
+                        type: 'dashboard' as const,
+                        dashboardUuid: dashboardTab.dashboardUuid,
+                        spaceUuid: dashboardTab.spaceUuid,
+                    },
+                    name: dashboardTab.dashboardName,
+                    uuid: dashboardTab.dashboardUuid,
+                })),
+                ...results.savedCharts.map((savedChart, index) => ({
+                    kind: 'savedChart' as const,
+                    index,
+                    target: {
+                        type: 'chart' as const,
+                        chartUuid: savedChart.uuid,
+                        dashboardUuid: savedChart.dashboardUuid,
+                        spaceUuid: savedChart.spaceUuid,
+                    },
+                    name: savedChart.name,
+                    uuid: savedChart.uuid,
+                })),
+                // Dashboard-owned SQL definitions have no own space and drop here,
+                // matching the previous space-membership behavior.
+                ...results.sqlCharts.flatMap((sqlChart, index) =>
+                    sqlChart.spaceUuid
+                        ? [
+                              {
+                                  kind: 'sqlChart' as const,
+                                  index,
+                                  target: {
+                                      type: 'sqlChart' as const,
+                                      savedSqlUuid: sqlChart.uuid,
+                                      spaceUuid: sqlChart.spaceUuid,
+                                  },
+                                  name: sqlChart.name,
+                                  uuid: sqlChart.uuid,
+                              },
+                          ]
+                        : [],
+                ),
+            ];
+            const resolveContentAccess = () =>
+                this.spacePermissionService.resolveAccessBatch(
+                    user.userUuid,
+                    accessEntries.map(({ target }) => target),
+                );
+            const resolvedContexts = await timeOmnibarSearch(
+                timing,
+                'contentAccess',
+                resolveContentAccess,
+            );
+            const entriesWithContext = accessEntries.flatMap((entry, index) => {
+                const context = resolvedContexts[index]?.context;
+                return context ? [{ entry, context }] : [];
+            });
+            const entryAccessResults = auditedAbility.canBulk(
                 'view',
-                subject('Project', {
+                entriesWithContext.map(({ entry, context }) =>
+                    entry.kind === 'dashboard' || entry.kind === 'dashboardTab'
+                        ? subject('Dashboard', {
+                              ...context,
+                              metadata: {
+                                  dashboardUuid: entry.uuid,
+                                  dashboardName: entry.name,
+                              },
+                          })
+                        : subject('SavedChart', {
+                              ...context,
+                              metadata: {
+                                  savedChartUuid: entry.uuid,
+                                  savedChartName: entry.name,
+                              },
+                          }),
+                ),
+            );
+            const allowedIndexes: Record<
+                SearchAccessEntry['kind'],
+                Set<number>
+            > = {
+                dashboard: new Set(),
+                dashboardTab: new Set(),
+                savedChart: new Set(),
+                sqlChart: new Set(),
+            };
+            entriesWithContext.forEach(({ entry }, index) => {
+                if (entryAccessResults[index]) {
+                    allowedIndexes[entry.kind].add(entry.index);
+                }
+            });
+
+            const hasExploreAccess = auditedAbility.can(
+                'manage',
+                subject('Explore', {
                     organizationUuid,
                     projectUuid,
                     metadata: { projectUuid, projectName },
                 }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const results = await this.searchModel.search(
-            projectUuid,
-            query,
-            filters,
-        );
-
-        const spaceUuids = [
-            ...new Set(results.spaces.map((space) => space.uuid)),
-        ];
-
-        const accessibleSpaceUuids =
-            await this.spacePermissionService.getAccessibleSpaceUuids(
-                'view',
-                user,
-                spaceUuids,
             );
 
-        // Content rows resolve resource-aware access in one batch so direct
-        // grants count exactly like space access; spaces themselves cannot
-        // carry grants and keep the plain space check above.
-        type SearchAccessEntry =
-            | {
-                  kind: 'dashboard';
-                  index: number;
-                  target: AccessTarget;
-                  name: string;
-                  uuid: string;
-              }
-            | {
-                  kind: 'dashboardTab';
-                  index: number;
-                  target: AccessTarget;
-                  name: string;
-                  uuid: string;
-              }
-            | {
-                  kind: 'savedChart';
-                  index: number;
-                  target: AccessTarget;
-                  name: string;
-                  uuid: string;
-              }
-            | {
-                  kind: 'sqlChart';
-                  index: number;
-                  target: AccessTarget;
-                  name: string;
-                  uuid: string;
-              };
-        const accessEntries: SearchAccessEntry[] = [
-            ...results.dashboards.map((dashboard, index) => ({
-                kind: 'dashboard' as const,
-                index,
-                target: {
-                    type: 'dashboard' as const,
-                    dashboardUuid: dashboard.uuid,
-                    spaceUuid: dashboard.spaceUuid,
-                },
-                name: dashboard.name,
-                uuid: dashboard.uuid,
-            })),
-            ...results.dashboardTabs.map((dashboardTab, index) => ({
-                kind: 'dashboardTab' as const,
-                index,
-                target: {
-                    type: 'dashboard' as const,
-                    dashboardUuid: dashboardTab.dashboardUuid,
-                    spaceUuid: dashboardTab.spaceUuid,
-                },
-                name: dashboardTab.dashboardName,
-                uuid: dashboardTab.dashboardUuid,
-            })),
-            ...results.savedCharts.map((savedChart, index) => ({
-                kind: 'savedChart' as const,
-                index,
-                target: {
-                    type: 'chart' as const,
-                    chartUuid: savedChart.uuid,
-                    dashboardUuid: savedChart.dashboardUuid,
-                    spaceUuid: savedChart.spaceUuid,
-                },
-                name: savedChart.name,
-                uuid: savedChart.uuid,
-            })),
-            // Dashboard-owned SQL definitions have no own space and drop here,
-            // matching the previous space-membership behavior.
-            ...results.sqlCharts.flatMap((sqlChart, index) =>
-                sqlChart.spaceUuid
-                    ? [
-                          {
-                              kind: 'sqlChart' as const,
-                              index,
-                              target: {
-                                  type: 'sqlChart' as const,
-                                  savedSqlUuid: sqlChart.uuid,
-                                  spaceUuid: sqlChart.spaceUuid,
-                              },
-                              name: sqlChart.name,
-                              uuid: sqlChart.uuid,
-                          },
-                      ]
-                    : [],
-            ),
-        ];
-        const resolvedContexts =
-            await this.spacePermissionService.resolveAccessBatch(
-                user.userUuid,
-                accessEntries.map(({ target }) => target),
+            const dimensionsHaveUserAttributes = results.fields.some(
+                (field) =>
+                    field.requiredAttributes !== undefined ||
+                    field.anyAttributes !== undefined ||
+                    Object.values(field.tablesRequiredAttributes || {}).some(
+                        (tableHaveUserAttributes) =>
+                            tableHaveUserAttributes !== undefined,
+                    ) ||
+                    Object.values(field.tablesAnyAttributes || {}).some(
+                        (tableHaveUserAttributes) =>
+                            tableHaveUserAttributes !== undefined,
+                    ),
             );
-        const entriesWithContext = accessEntries.flatMap((entry, index) => {
-            const context = resolvedContexts[index]?.context;
-            return context ? [{ entry, context }] : [];
-        });
-        const entryAccessResults = auditedAbility.canBulk(
-            'view',
-            entriesWithContext.map(({ entry, context }) =>
-                entry.kind === 'dashboard' || entry.kind === 'dashboardTab'
-                    ? subject('Dashboard', {
-                          ...context,
-                          metadata: {
-                              dashboardUuid: entry.uuid,
-                              dashboardName: entry.name,
-                          },
-                      })
-                    : subject('SavedChart', {
-                          ...context,
-                          metadata: {
-                              savedChartUuid: entry.uuid,
-                              savedChartName: entry.name,
-                          },
-                      }),
-            ),
-        );
-        const allowedIndexes: Record<SearchAccessEntry['kind'], Set<number>> = {
-            dashboard: new Set(),
-            dashboardTab: new Set(),
-            savedChart: new Set(),
-            sqlChart: new Set(),
-        };
-        entriesWithContext.forEach(({ entry }, index) => {
-            if (entryAccessResults[index]) {
-                allowedIndexes[entry.kind].add(entry.index);
-            }
-        });
-
-        const hasExploreAccess = auditedAbility.can(
-            'manage',
-            subject('Explore', {
-                organizationUuid,
-                projectUuid,
-                metadata: { projectUuid, projectName },
-            }),
-        );
-
-        const dimensionsHaveUserAttributes = results.fields.some(
-            (field) =>
-                field.requiredAttributes !== undefined ||
-                field.anyAttributes !== undefined ||
-                Object.values(field.tablesRequiredAttributes || {}).some(
-                    (tableHaveUserAttributes) =>
-                        tableHaveUserAttributes !== undefined,
-                ) ||
-                Object.values(field.tablesAnyAttributes || {}).some(
-                    (tableHaveUserAttributes) =>
-                        tableHaveUserAttributes !== undefined,
-                ),
-        );
-        const tablesHaveUserAttributes = results.tables.some(
-            (table) =>
-                !isTableErrorSearchResult(table) &&
-                (table.requiredAttributes !== undefined ||
-                    table.anyAttributes !== undefined),
-        );
-        let filteredFields: FieldSearchResult[] = [];
-        let filteredTables: (TableSearchResult | TableErrorSearchResult)[] = [];
-        if (hasExploreAccess) {
-            if (dimensionsHaveUserAttributes || tablesHaveUserAttributes) {
-                const userAttributes =
-                    await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        {
-                            organizationUuid,
-                            userUuid: user.userUuid,
-                        },
+            const tablesHaveUserAttributes = results.tables.some(
+                (table) =>
+                    !isTableErrorSearchResult(table) &&
+                    (table.requiredAttributes !== undefined ||
+                        table.anyAttributes !== undefined),
+            );
+            let filteredFields: FieldSearchResult[] = [];
+            let filteredTables: (TableSearchResult | TableErrorSearchResult)[] =
+                [];
+            if (hasExploreAccess) {
+                if (dimensionsHaveUserAttributes || tablesHaveUserAttributes) {
+                    const getUserAttributes = () =>
+                        this.userAttributesModel.getAttributeValuesForOrgMember(
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
+                    const userAttributes = await timeOmnibarSearch(
+                        timing,
+                        'userAttributes',
+                        getUserAttributes,
                     );
-                filteredFields = results.fields.filter((field) => {
-                    // Check field-level attributes
-                    if (
-                        !checkUserAttributesAccess(
-                            field.requiredAttributes,
-                            field.anyAttributes,
-                            userAttributes,
+                    filteredFields = results.fields.filter((field) => {
+                        // Check field-level attributes
+                        if (
+                            !checkUserAttributesAccess(
+                                field.requiredAttributes,
+                                field.anyAttributes,
+                                userAttributes,
+                            )
                         )
-                    )
-                        return false;
+                            return false;
 
-                    // Check table-level attributes for all referenced tables
-                    const tableRefs = new Set([
-                        ...Object.keys(field.tablesRequiredAttributes || {}),
-                        ...Object.keys(field.tablesAnyAttributes || {}),
-                    ]);
-                    return [...tableRefs].every((tableRef) =>
-                        checkUserAttributesAccess(
-                            field.tablesRequiredAttributes?.[tableRef],
-                            field.tablesAnyAttributes?.[tableRef],
-                            userAttributes,
-                        ),
+                        // Check table-level attributes for all referenced tables
+                        const tableRefs = new Set([
+                            ...Object.keys(
+                                field.tablesRequiredAttributes || {},
+                            ),
+                            ...Object.keys(field.tablesAnyAttributes || {}),
+                        ]);
+                        return [...tableRefs].every((tableRef) =>
+                            checkUserAttributesAccess(
+                                field.tablesRequiredAttributes?.[tableRef],
+                                field.tablesAnyAttributes?.[tableRef],
+                                userAttributes,
+                            ),
+                        );
+                    });
+                    filteredTables = results.tables.filter(
+                        (table) =>
+                            isTableErrorSearchResult(table) ||
+                            checkUserAttributesAccess(
+                                table.requiredAttributes,
+                                table.anyAttributes,
+                                userAttributes,
+                            ),
                     );
-                });
-                filteredTables = results.tables.filter(
-                    (table) =>
-                        isTableErrorSearchResult(table) ||
-                        checkUserAttributesAccess(
-                            table.requiredAttributes,
-                            table.anyAttributes,
-                            userAttributes,
-                        ),
+                } else {
+                    filteredFields = results.fields;
+                    filteredTables = results.tables;
+                }
+            }
+
+            const accessibleSpaceUuidSet = new Set(accessibleSpaceUuids);
+
+            // Data apps are EE-only and have a per-app permission shape (space
+            // access OR creator self-access). Skip entirely on OSS builds and
+            // when the feature flag is off; otherwise filter via the bulk helper.
+            let filteredDataApps: SearchResults['dataApps'] = [];
+            if (this.appGenerateService && results.dataApps.length > 0) {
+                const { appGenerateService } = this;
+                const filterDataApps = async () => {
+                    const dataAppsEnabled =
+                        await appGenerateService.dataAppsEnabledFor(user);
+                    if (dataAppsEnabled) {
+                        return appGenerateService.filterAppsUserCanView(
+                            user,
+                            organizationUuid,
+                            projectUuid,
+                            results.dataApps,
+                        );
+                    }
+                    return [];
+                };
+                filteredDataApps = await timeOmnibarSearch(
+                    timing,
+                    'dataAppAccess',
+                    filterDataApps,
                 );
-            } else {
-                filteredFields = results.fields;
-                filteredTables = results.tables;
             }
-        }
 
-        const accessibleSpaceUuidSet = new Set(accessibleSpaceUuids);
+            const assembleResults = () => {
+                const filteredResults = {
+                    ...results,
+                    tables: filteredTables,
+                    fields: filteredFields,
+                    dashboards: results.dashboards.filter((_, index) =>
+                        allowedIndexes.dashboard.has(index),
+                    ),
+                    dashboardTabs: results.dashboardTabs.filter((_, index) =>
+                        allowedIndexes.dashboardTab.has(index),
+                    ),
+                    savedCharts: results.savedCharts.filter((_, index) =>
+                        allowedIndexes.savedChart.has(index),
+                    ),
+                    sqlCharts: results.sqlCharts.filter((_, index) =>
+                        allowedIndexes.sqlChart.has(index),
+                    ),
+                    spaces: results.spaces.filter((space) =>
+                        accessibleSpaceUuidSet.has(space.uuid),
+                    ),
+                    pages: auditedAbility.can(
+                        'view',
+                        subject('Analytics', {
+                            organizationUuid,
+                            metadata: { projectUuid, projectName },
+                        }),
+                    )
+                        ? results.pages
+                        : [],
+                    dataApps: filteredDataApps,
+                };
 
-        // Data apps are EE-only and have a per-app permission shape (space
-        // access OR creator self-access). Skip entirely on OSS builds and
-        // when the feature flag is off; otherwise filter via the bulk helper.
-        let filteredDataApps: SearchResults['dataApps'] = [];
-        if (this.appGenerateService && results.dataApps.length > 0) {
-            const dataAppsEnabled =
-                await this.appGenerateService.dataAppsEnabledFor(user);
-            if (dataAppsEnabled) {
-                filteredDataApps =
-                    await this.appGenerateService.filterAppsUserCanView(
-                        user,
-                        organizationUuid,
-                        projectUuid,
-                        results.dataApps,
+                this.analytics.track({
+                    event: 'project.search',
+                    userId: user.userUuid,
+                    properties: {
+                        projectId: projectUuid,
+                        spacesResultsCount: filteredResults.spaces.length,
+                        dashboardsResultsCount:
+                            filteredResults.dashboards.length,
+                        savedChartsResultsCount:
+                            filteredResults.savedCharts.length,
+                        sqlChartsResultsCount: filteredResults.sqlCharts.length,
+                        tablesResultsCount: filteredResults.tables.length,
+                        fieldsResultsCount: filteredResults.fields.length,
+                        dashboardTabsResultsCount:
+                            filteredResults.dashboardTabs.length,
+                        dataAppsResultsCount: filteredResults.dataApps.length,
+                        source,
+                        verifiedOnly: filters?.verifiedOnly === true,
+                        typeFilter: filters?.type ?? null,
+                    },
+                });
+
+                return filteredResults;
+            };
+            const filteredResults = timeOmnibarSearchSync(
+                timing,
+                'resultAssembly',
+                assembleResults,
+            );
+            outcome = 'success';
+            return filteredResults;
+        } finally {
+            if (timing) {
+                try {
+                    this.logger.info(
+                        'Omnibar search timing completed',
+                        timing.snapshot(outcome),
                     );
+                } catch (loggingError) {
+                    void loggingError;
+                }
             }
         }
-
-        const filteredResults = {
-            ...results,
-            tables: filteredTables,
-            fields: filteredFields,
-            dashboards: results.dashboards.filter((_, index) =>
-                allowedIndexes.dashboard.has(index),
-            ),
-            dashboardTabs: results.dashboardTabs.filter((_, index) =>
-                allowedIndexes.dashboardTab.has(index),
-            ),
-            savedCharts: results.savedCharts.filter((_, index) =>
-                allowedIndexes.savedChart.has(index),
-            ),
-            sqlCharts: results.sqlCharts.filter((_, index) =>
-                allowedIndexes.sqlChart.has(index),
-            ),
-            spaces: results.spaces.filter((space) =>
-                accessibleSpaceUuidSet.has(space.uuid),
-            ),
-            pages: auditedAbility.can(
-                'view',
-                subject('Analytics', {
-                    organizationUuid,
-                    metadata: { projectUuid, projectName },
-                }),
-            )
-                ? results.pages
-                : [], // For now there is only 1 page and it is for admins only
-            dataApps: filteredDataApps,
-        };
-
-        this.analytics.track({
-            event: 'project.search',
-            userId: user.userUuid,
-            properties: {
-                projectId: projectUuid,
-                spacesResultsCount: filteredResults.spaces.length,
-                dashboardsResultsCount: filteredResults.dashboards.length,
-                savedChartsResultsCount: filteredResults.savedCharts.length,
-                sqlChartsResultsCount: filteredResults.sqlCharts.length,
-                tablesResultsCount: filteredResults.tables.length,
-                fieldsResultsCount: filteredResults.fields.length,
-                dashboardTabsResultsCount: filteredResults.dashboardTabs.length,
-                dataAppsResultsCount: filteredResults.dataApps.length,
-                source,
-                verifiedOnly: filters?.verifiedOnly === true,
-                typeFilter: filters?.type ?? null,
-            },
-        });
-
-        return filteredResults;
     }
 }
