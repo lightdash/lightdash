@@ -4172,6 +4172,10 @@
                                 ],
                                 "description": "Position of data labels"
                             },
+                            "color": {
+                                "type": "string",
+                                "description": "Custom data label color (hex code)"
+                            },
                             "show": {
                                 "type": "boolean",
                                 "description": "Show data labels on points"
@@ -4518,6 +4522,9 @@
                     },
                     "showPercentage": {
                         "type": "boolean"
+                    },
+                    "valueLabelColor": {
+                        "type": "string"
                     }
                 },
                 "type": "object",
@@ -4573,6 +4580,10 @@
                     "groupLabelOverrides": {
                         "$ref": "#/components/schemas/Record_string.string_",
                         "description": "Custom labels for each group/slice"
+                    },
+                    "valueLabelColor": {
+                        "type": "string",
+                        "description": "Custom color for value labels"
                     },
                     "showPercentage": {
                         "type": "boolean",
@@ -62363,7 +62374,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.229.1",
+        "version": "2.230.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

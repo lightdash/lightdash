@@ -4159,6 +4159,7 @@ const models: TsoaRoute.Models = {
                                 { dataType: 'enum', enums: ['inside'] },
                             ],
                         },
+                        color: { dataType: 'string' },
                         show: { dataType: 'boolean' },
                     },
                 },
@@ -4522,6 +4523,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                valueLabelColor: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -4564,6 +4572,7 @@ const models: TsoaRoute.Models = {
                 },
                 groupColorOverrides: { ref: 'Record_string.string_' },
                 groupLabelOverrides: { ref: 'Record_string.string_' },
+                valueLabelColor: { dataType: 'string' },
                 showPercentage: { dataType: 'boolean' },
                 showValue: { dataType: 'boolean' },
                 valueLabel: { ref: 'PieChartValueLabel' },
@@ -26972,6 +26981,25 @@ const models: TsoaRoute.Models = {
                                                 status: {
                                                     dataType: 'enum',
                                                     enums: ['success'],
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                status: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['error'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['success'],
+                                                        },
+                                                    ],
                                                     required: true,
                                                 },
                                             },

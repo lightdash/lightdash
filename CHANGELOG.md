@@ -1,3 +1,10 @@
+# [2.230.0](https://github.com/lightdash/lightdash/compare/2.229.1...2.230.0) (2026-09-16)
+
+
+### Features
+
+* **data-apps:** "Analyse this view" panel on the app viewer ([#29256](https://github.com/lightdash/lightdash/issues/29256)) ([fe7553c](https://github.com/lightdash/lightdash/commit/fe7553c18676fcb7bad53a039419a6f3253c9cd4))
+
 ## [2.229.1](https://github.com/lightdash/lightdash/compare/2.229.0...2.229.1) (2026-09-16)
 
 
