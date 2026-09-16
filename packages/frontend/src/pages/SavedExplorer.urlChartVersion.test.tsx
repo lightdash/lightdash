@@ -88,9 +88,11 @@ vi.mock('../components/Explorer', async () => {
                 <button
                     type="button"
                     onClick={() =>
-                        navigate(
-                            '/projects/9a0b7a3c-0000-4000-8000-000000000001/saved/other-chart/edit',
-                        )
+                        navigate({
+                            pathname:
+                                '/projects/9a0b7a3c-0000-4000-8000-000000000001/saved/other-chart/edit',
+                            search: '',
+                        })
                     }
                 >
                     open another chart
@@ -330,6 +332,11 @@ describe('SavedExplorer with an unsaved chart version in the url', () => {
         renderSavedExplorer(searchWithChartVersion(urlChartVersion), 'edit');
         await waitFor(() =>
             expect(screen.getByTestId('session')).toHaveTextContent('25|true'),
+        );
+        await waitFor(() =>
+            expect(screen.getByTestId('search')).not.toHaveTextContent(
+                'create_saved_chart_version',
+            ),
         );
 
         await user.click(screen.getByText('open another chart'));
