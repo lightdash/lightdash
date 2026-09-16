@@ -55,7 +55,7 @@ const ChartTypeGallery = () => {
     const chartTypeRegistryFlag = useServerFeatureFlag(
         FeatureFlags.ChartTypeRegistry,
     );
-    const isLibraryEnabled = chartTypeRegistryFlag.data?.enabled === true;
+    const isLibraryFlagEnabled = chartTypeRegistryFlag.data?.enabled === true;
 
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -79,7 +79,12 @@ const ChartTypeGallery = () => {
     );
     // Registry context for installed official chart types: upgrade offers
     // and the registry (semver) version live here in the installed tab.
-    const registryQuery = useRegistryChartTypes(projectUuid, isLibraryEnabled);
+    const registryQuery = useRegistryChartTypes(
+        projectUuid,
+        isLibraryFlagEnabled,
+    );
+    const isLibraryEnabled =
+        isLibraryFlagEnabled && registryQuery.data?.registryEnabled === true;
     const registryEntriesBySlug = useMemo(() => {
         const entries = new Map<string, RegistryChartTypeListItem>();
         for (const chart of registryQuery.data?.charts ?? []) {
