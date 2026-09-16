@@ -80,6 +80,7 @@ export type TraceHeaders = {
 type TracingStrategy = {
     initialize(): void;
     shutdown(): Promise<void>;
+    getActiveSpanId(): string | undefined;
     getTraceHeaders(): TraceHeaders;
     continueTrace<T>(headers: TraceHeaders, callback: () => T): T;
     startSpan<T>(
@@ -467,6 +468,10 @@ class SentryTracingStrategy implements TracingStrategy {
         return Promise.resolve();
     }
 
+    getActiveSpanId(): string | undefined {
+        return this.sentry.getActiveSpan()?.spanContext().spanId;
+    }
+
     getTraceHeaders(): TraceHeaders {
         const span = this.sentry.getActiveSpan();
         if (!span) return {};
@@ -607,6 +612,12 @@ class OtelTracingStrategy implements TracingStrategy {
         await this.sdk?.shutdown();
     }
 
+    getActiveSpanId(): string | undefined {
+        return this.isEnabled()
+            ? trace.getActiveSpan()?.spanContext().spanId
+            : undefined;
+    }
+
     getTraceHeaders(): TraceHeaders {
         if (!this.isEnabled()) return {};
 
@@ -713,6 +724,10 @@ class TracingService {
         await this.sentry.shutdown();
     }
 
+    getActiveSpanId(): string | undefined {
+        return this.strategy.getActiveSpanId();
+    }
+
     getTraceHeaders(): TraceHeaders {
         return this.strategy.getTraceHeaders();
     }
@@ -744,6 +759,8 @@ const tracingService = new TracingService(
 export const initOtelTracing = () => tracingService.initialize();
 
 export const shutdownOtelTracing = async () => tracingService.shutdown();
+
+export const getActiveSpanId = () => tracingService.getActiveSpanId();
 
 export const getTraceHeaders = () => tracingService.getTraceHeaders();
 
