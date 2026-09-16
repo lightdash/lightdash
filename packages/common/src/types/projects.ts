@@ -45,7 +45,7 @@ export enum WarehouseTypes {
  * connection when they don't, regardless of `requireUserCredentials`.
  */
 export const WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS: WarehouseTypes[] =
-    [WarehouseTypes.DATABRICKS, WarehouseTypes.TRINO];
+    [WarehouseTypes.DATABRICKS, WarehouseTypes.TRINO, WarehouseTypes.BIGQUERY];
 
 export const supportsOptionalUserCredentials = (
     warehouseType: WarehouseTypes | undefined,
