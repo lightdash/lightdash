@@ -18274,6 +18274,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['dimension'] },
                 { dataType: 'enum', enums: ['metric'] },
                 { dataType: 'enum', enums: ['series'] },
+                { dataType: 'enum', enums: ['column'] },
             ],
             validators: {},
         },

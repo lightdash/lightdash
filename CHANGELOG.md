@@ -1,3 +1,15 @@
+# [2.227.0](https://github.com/lightdash/lightdash/compare/2.226.2...2.227.0) (2026-09-16)
+
+
+### Bug Fixes
+
+* **ai-agent:** scope data app preview panel to the on-screen thread ([#29315](https://github.com/lightdash/lightdash/issues/29315)) ([8ee903b](https://github.com/lightdash/lightdash/commit/8ee903b0dec782c4099bd41ca2218750d3c1f69a))
+
+
+### Features
+
+* 'column' data app viz field type — slots that accept any result column ([#29278](https://github.com/lightdash/lightdash/issues/29278)) ([64866ff](https://github.com/lightdash/lightdash/commit/64866ff84600eec9e061d5334111ee2c26e07f94))
+
 ## [2.226.2](https://github.com/lightdash/lightdash/compare/2.226.1...2.226.2) (2026-09-15)
 
 
