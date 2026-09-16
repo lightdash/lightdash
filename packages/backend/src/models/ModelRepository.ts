@@ -83,6 +83,7 @@ import { TagsModel } from './TagsModel';
 import { UserAttributesModel } from './UserAttributesModel';
 import { UserAvatarModel } from './UserAvatarModel';
 import { UserFavoritesModel } from './UserFavoritesModel';
+import { UserLearnProgressModel } from './UserLearnProgressModel';
 import { UserModel } from './UserModel';
 import { UserOAuthGrantsModel } from './UserOAuthGrantsModel';
 import { UserOnboardingModel } from './UserOnboardingModel';
@@ -134,6 +135,7 @@ export type ModelManifest = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userAvatarModel: UserAvatarModel;
     userOnboardingModel: UserOnboardingModel;
+    userLearnProgressModel: UserLearnProgressModel;
     organizationModel: OrganizationModel;
     organizationDomainVerificationModel: OrganizationDomainVerificationModel;
     organizationEmailDomainModel: OrganizationEmailDomainModel;
@@ -612,6 +614,13 @@ export class ModelRepository
         return this.getModel(
             'userOnboardingModel',
             () => new UserOnboardingModel({ database: this.database }),
+        );
+    }
+
+    public getUserLearnProgressModel(): UserLearnProgressModel {
+        return this.getModel(
+            'userLearnProgressModel',
+            () => new UserLearnProgressModel({ database: this.database }),
         );
     }
 

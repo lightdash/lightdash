@@ -30,6 +30,7 @@ import {
     getErrorMessage,
     getMicrosoftAuthority,
     getMicrosoftIssuer,
+    getScopes,
     getUserAvatarUrl,
     hasInviteCode,
     hasProperty,
@@ -43,6 +44,7 @@ import {
     isUserAvatarColorValue,
     isUserWithOrg,
     isValidTimezone,
+    LearnProgress,
     LightdashMode,
     LightdashUser,
     LocalIssuerTypes,
@@ -133,6 +135,7 @@ import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../models/RolesModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
+import { UserLearnProgressModel } from '../models/UserLearnProgressModel';
 import { CreatePasswordlessUserArgs, UserModel } from '../models/UserModel';
 import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserOnboardingModel } from '../models/UserOnboardingModel';
@@ -186,6 +189,7 @@ type UserServiceArguments = {
     featureFlagModel: FeatureFlagModel;
     userAvatarModel: UserAvatarModel;
     userOnboardingModel: UserOnboardingModel;
+    userLearnProgressModel: UserLearnProgressModel;
     rolesModel: RolesModel;
 };
 
@@ -283,6 +287,8 @@ export class UserService extends BaseService {
 
     private readonly userOnboardingModel: UserOnboardingModel;
 
+    private readonly userLearnProgressModel: UserLearnProgressModel;
+
     private readonly groupsModel: GroupsModel;
 
     private readonly sessionModel: SessionModel;
@@ -347,6 +353,7 @@ export class UserService extends BaseService {
         featureFlagModel,
         userAvatarModel,
         userOnboardingModel,
+        userLearnProgressModel,
         rolesModel,
     }: UserServiceArguments) {
         super();
@@ -374,6 +381,7 @@ export class UserService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.userAvatarModel = userAvatarModel;
         this.userOnboardingModel = userOnboardingModel;
+        this.userLearnProgressModel = userLearnProgressModel;
         this.rolesModel = rolesModel;
     }
 
@@ -1937,6 +1945,81 @@ export class UserService extends BaseService {
             account.user.userUuid,
             tour,
         );
+    }
+
+    /**
+     * Learn walkthrough progress for the caller (CS-186): what the library
+     * shows as complete, started, and up next, from any browser.
+     */
+    async getLearnProgress(account: RegisteredAccount): Promise<LearnProgress> {
+        return this.userLearnProgressModel.get(account.user.userUuid);
+    }
+
+    async markLearnScopeStarted(
+        account: RegisteredAccount,
+        scope: string,
+    ): Promise<LearnProgress> {
+        UserService.assertLearnScope(scope);
+        await this.userLearnProgressModel.markStarted(
+            account.user.userUuid,
+            scope,
+        );
+        return this.userLearnProgressModel.get(account.user.userUuid);
+    }
+
+    async markLearnScopeCompleted(
+        account: RegisteredAccount,
+        scope: string,
+    ): Promise<LearnProgress> {
+        UserService.assertLearnScope(scope);
+        await this.userLearnProgressModel.markCompleted(
+            account.user.userUuid,
+            scope,
+        );
+        return this.userLearnProgressModel.get(account.user.userUuid);
+    }
+
+    /**
+     * Progress a browser kept before the instance did, taken in once. Only
+     * registry scopes count, so a client cannot inflate its counts with
+     * invented names; anything else in the body is dropped, not rejected,
+     * because a retired module's scope is a legitimate leftover.
+     */
+    async mergeLearnProgress(
+        account: RegisteredAccount,
+        progress: LearnProgress,
+    ): Promise<LearnProgress> {
+        const known = UserService.learnScopeNames();
+        const keep = (scopes: unknown): string[] =>
+            Array.isArray(scopes)
+                ? scopes.filter(
+                      (scope): scope is string =>
+                          typeof scope === 'string' && known.has(scope),
+                  )
+                : [];
+        const lastStarted =
+            typeof progress.lastStarted === 'string' &&
+            known.has(progress.lastStarted)
+                ? progress.lastStarted
+                : null;
+        await this.userLearnProgressModel.merge(account.user.userUuid, {
+            completed: keep(progress.completed),
+            started: keep(progress.started),
+            lastStarted,
+        });
+        return this.userLearnProgressModel.get(account.user.userUuid);
+    }
+
+    private static learnScopeNames(): Set<string> {
+        return new Set(
+            getScopes({ isEnterprise: true }).map((scope) => scope.name),
+        );
+    }
+
+    private static assertLearnScope(scope: string): void {
+        if (!UserService.learnScopeNames().has(scope)) {
+            throw new ParameterError(`Unknown Learn scope: ${scope}`);
+        }
     }
 
     async deleteAvatar(user: SessionUser): Promise<void> {
