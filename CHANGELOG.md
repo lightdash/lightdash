@@ -1,3 +1,10 @@
+## [2.236.1](https://github.com/lightdash/lightdash/compare/2.236.0...2.236.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* enable content editing for provisioned Aurora agents ([#29339](https://github.com/lightdash/lightdash/issues/29339)) ([c4a0595](https://github.com/lightdash/lightdash/commit/c4a0595e5ad24077d04c56215e11be0520482254))
+
 # [2.236.0](https://github.com/lightdash/lightdash/compare/2.235.0...2.236.0) (2026-09-16)
 
 
