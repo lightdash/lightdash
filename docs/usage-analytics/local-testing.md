@@ -48,14 +48,14 @@ window.location.assign(body.results.url);
 
 The endpoint accepts no configuration: organization identity comes from the
 authenticated session. After authorization, it verifies signed Parquet access
-before creating any project, then compiles both backend-owned system explores in
+before creating any project, then compiles the backend-owned system explores in
 memory and returns `{ projectUuid, url, created }`. Storage failures leave no new
 project. The name produces `lightdash-analytics` unless that slug is taken;
 normal collision handling chooses a unique suffix. An existing analytics project
 is found by its marker, never by a name or slug.
 
 Concurrent requests are serialized per organization using a database advisory
-lock. Re-running refreshes both models and repairs a failed model-save attempt
+lock. Re-running refreshes the models and repairs a failed model-save attempt
 without replacing the project or deleting saved charts. Analytics previews do
 not expire automatically. They are visible only to enabled org admins in the
 projects API (for slug resolution), and omitted from the normal switcher as
@@ -83,7 +83,9 @@ versioned content sync remain separate follow-ups.
 ## Read path and safeguards
 
 The backend lists `events/compacted/org_id=<uuid>/stream=<name>/dt=<date>/*.parquet`
-for `query_events` and `ai_usage` across all retained dates. Filter dates in
+for `query_events`, `ai_usage`, `data_app_events` and `export_events` across all
+retained dates, plus the exact current charts, dashboards and users snapshot keys
+under the same org prefix. Filter dates in
 Explore; legacy `LIGHTDASH_LOCAL_ANALYTICS_START_DATE` and
 `LIGHTDASH_LOCAL_ANALYTICS_END_DATE` settings are no longer read.
 Files and authentication are refreshed per session. DuckDB views bind exact
@@ -91,8 +93,10 @@ HTTPS URLs; Explore SQL uses table names. Reads use HTTP ranges, with no import
 into a persistent database and no writes to the source bucket.
 
 Each query gets an isolated in-memory instance, signed GET URLs, a 256 MB
-memory limit and two threads. External access is restricted to the exact file
-manifest; disk spilling and file/metadata caches are disabled. Existing
+memory limit and 32 threads for remote reads, unless explicitly overridden.
+These reader settings differ from the single-threaded background exporter.
+External access is restricted to the exact file manifest; disk spilling is
+disabled and file/metadata caches are confined to the query's private instance. Existing
 SELECT-only and file-function SQL validation remain enabled. Catalog queries that
 could expose signed view SQL are blocked, and native errors are sanitized. Broad
 writer keys never enter DuckDB; signed URLs are not persisted in project
@@ -103,6 +107,36 @@ analytics flag and organization-admin access. Export and scheduled-download
 creation are unavailable for analytics previews, including for admins, so this
 slice does not issue export URLs that outlive these checks.
 
+## Verify dimension refreshes and joins
+
+Use the [dimension smoke test](dimensions.md#local-verification) to exercise real
+Postgres → Parquet → local MinIO → Explore-generated joins. It uses a disposable
+schema and bucket, supports a million-row fixture, and checks overwrite behavior,
+renames, missing lookups, tenant isolation and preservation of the previous file
+after an interrupted export.
+
+For manual testing, click **Sync content** or re-run
+`POST /api/v1/org/analytics-project` to compile the lookup fields, then select
+**Users → User name** and **Total queries** in Query Events. Sync updates models
+and managed sample dashboards but does not refresh snapshots. Names update after
+the next successful daily refresh.
+
+To verify deployment before the first users snapshot exists, use an isolated
+instance and a dedicated bucket:
+
+1. Back up the organization's `dim=users/users.parquet` object, including its
+   metadata, then remove that exact object while keeping event files available.
+2. Click **Sync content** and re-run the provisioning endpoint for an existing
+   project. Both should succeed. Run the joined query in Explore and verify
+   `Unknown user` with unchanged event counts.
+3. For an organization without an analytics project, keep a supported event file
+   available and its users snapshot absent. Provisioning should create a project
+   successfully. With no supported event files, it should instead return
+   `No analytics data is available yet`.
+4. Restore the original snapshot and verify a fresh query resolves the user name
+   without recreating the project. Remove only the temporary project and fixtures
+   created for the test. Do not delete shared MinIO prefixes.
+
 ## Before customer rollout
 
 - Review effective IAM and shared-instance isolation. Dedicated read-only
@@ -111,21 +145,22 @@ slice does not issue export URLs that outlive these checks.
 - Review every permissions and cached/downloaded-results surface. Finish SQL
   Runner, scheduling, AI and model-editing exclusions. Local org-admin checks are
   not the final metadata-project role design.
-- Production provisioning, admin navigation, and feature-flag-service integration.
-- Latest resource names, additional domain metrics, schema evolution, empty
+- Production provisioning and final project lifecycle/role design.
+- Additional entity-name lookups, domain metrics, schema evolution, empty
   streams, retention and query performance.
 - Result-cache freshness, date-aware discovery and manifest/view caching at scale
   (PROD-11111). All retained dates are exposed, subject to fail-closed listing/file
   caps; large-history and concurrent query performance still need benchmarking.
-- Reevaluate direct Parquet writes and optional compaction separately. This
-  slice only reads existing compacted data; the writer/nightly job is unchanged.
+- Validate background refresh database load and temporary disk capacity. The
+  daily job now also overwrites current dimension snapshots; see
+  [resource and retry limits](dimensions.md#export-and-failure-behavior).
 
 Actual GCS reads and isolated MinIO tests verify the signed-URL path; AWS S3 and
 production multi-tenant rollout remain unverified.
 Production execution supports Console organization flags or ENV enablement through
 the standard feature-flag resolver; see [live testing](live-testing.md).
 
-## Incremental PR stack
+## Original provisioning stack
 
 1. Internal Parquet connector, source resolver, and shared `analytics-project` flag.
 2. Signed-URL bucket access using the existing writer's backend credentials.

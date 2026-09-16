@@ -31,6 +31,7 @@ export const buildDimensionsFromColumns = (args: {
     tableLabel: string;
     columns: VizColumn[];
     warehouseSqlBuilder: WarehouseSqlBuilder;
+    qualifyColumnReferences?: boolean;
 }): Record<string, Dimension> => {
     const { tableName, tableLabel, columns, warehouseSqlBuilder } = args;
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
@@ -41,11 +42,14 @@ export const buildDimensionsFromColumns = (args: {
     return columns.reduce<Record<string, Dimension>>((acc, column) => {
         const type = column.type ?? DimensionType.STRING;
         const columnLabel = friendlyName(column.reference);
-        const columnSql = quoteFieldReference(
+        const columnReference = quoteFieldReference(
             column.reference,
             fieldQuoteChar,
             adapterType,
         );
+        const columnSql = args.qualifyColumnReferences
+            ? `\${TABLE}.${columnReference}`
+            : columnReference;
         const isIntervalBase = isIntervalColumnType(type);
 
         acc[column.reference] = {

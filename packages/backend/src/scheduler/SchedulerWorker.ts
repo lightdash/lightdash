@@ -23,6 +23,7 @@ import type { PoolClient } from 'pg';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
+import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { MigrationLeaseProbe } from './MigrationLeaseProbe';
@@ -40,6 +41,7 @@ import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
 
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
+    usageDimensionsModel: UsageDimensionsModel;
     // When omitted, no pg-ping interval runs and the health probe falls back to
     // job-activity events alone.
     workerHealth?: SchedulerWorkerHealth;
@@ -111,6 +113,8 @@ export class SchedulerWorker extends SchedulerTask {
 
     private readonly prometheusMetrics: PrometheusMetrics | null;
 
+    private readonly usageDimensionsModel: UsageDimensionsModel;
+
     private readonly managedRunners = new Set<ManagedRunner>();
 
     private readonly expectedRunnerStops = new Set<Runner>();
@@ -128,6 +132,7 @@ export class SchedulerWorker extends SchedulerTask {
         this.resolveOrganizationName =
             schedulerWorkerArgs.resolveOrganizationName;
         this.prometheusMetrics = schedulerWorkerArgs.prometheusMetrics ?? null;
+        this.usageDimensionsModel = schedulerWorkerArgs.usageDimensionsModel;
     }
 
     async run() {
@@ -440,6 +445,7 @@ export class SchedulerWorker extends SchedulerTask {
                 task: SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
                 pattern: '30 0 * * *', // 00:30 UTC daily
                 options: {
+                    queueName: 'usage-events-compaction',
                     backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
                     maxAttempts: 3,
                 },
@@ -1634,6 +1640,7 @@ export class SchedulerWorker extends SchedulerTask {
                 const compactor = new UsageEventsCompactor({
                     s3Config: usageEvents.s3,
                     prometheusMetrics: this.prometheusMetrics,
+                    usageDimensionsModel: this.usageDimensionsModel,
                 });
                 const summary = await compactor.run();
                 Sentry.getActiveSpan()?.setAttributes({

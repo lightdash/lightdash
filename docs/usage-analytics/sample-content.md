@@ -103,9 +103,10 @@ applies the definitions shipped with the current backend. Version detection and
 broader content synchronization are tracked in PROD-11152. Creation timestamps
 alone would not indicate the version after an in-place sync.
 
-Keep bundle/chart keys stable when changing metrics or dimensions. A future
-user-name lookup and joined user table should be introduced through the system
-explores first, then referenced by the sample charts. Preserve existing field IDs
-where possible to avoid breaking user-created charts. Sync compiles the explores
-before applying chart definitions; incompatible model changes can still break
-custom charts that reference removed fields.
+Keep bundle/chart keys stable when changing metrics or dimensions. The system
+explores now expose a joined Users table with **User name**; Query Events also
+exposes Charts and Dashboards. See [current dimensions](dimensions.md). Existing
+sample chart definitions are not automatically rewritten to use these joins.
+Preserve existing field IDs where possible to avoid breaking user-created charts.
+Sync compiles the explores before applying chart definitions; incompatible model
+changes can still break custom charts that reference removed fields.

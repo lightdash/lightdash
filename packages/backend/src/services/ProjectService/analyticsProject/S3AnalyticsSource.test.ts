@@ -74,7 +74,7 @@ describe('signed analytics file manifests', () => {
         expect(command).toBeInstanceOf(GetObjectCommand);
         expect(command.input).toEqual({ Bucket: 'example-bucket', Key: key() });
         expect(options).toEqual({ expiresIn: 900 });
-        expect(source).toEqual({
+        expect(source).toMatchObject({
             scope: `https://storage.googleapis.com/example-bucket/events/compacted/org_id%3D${org}/`,
             signedUrls: true,
             tables: [{ name: 'query_events', urls: ['signed-url'] }],
@@ -121,6 +121,37 @@ describe('signed analytics file manifests', () => {
             key('export_events'),
         ]);
         expect(send.mock.calls[1][0].input.ContinuationToken).toBe('next');
+    });
+
+    it('signs only the deterministic dimension snapshots and supplies missing lookup schemas', async () => {
+        send.mockResolvedValue({
+            Contents: [
+                { Key: key() },
+                { Key: `${prefix}dim=charts/charts.parquet` },
+                { Key: `${prefix}dim=charts/old.parquet` },
+                { Key: `${prefix}dim=users/users.parquet` },
+                { Key: `${prefix}dim=users/backup/users.parquet` },
+            ],
+        });
+        const source = await createS3AnalyticsSourceResolver(config)();
+        expect(source.tables.map(({ name }) => name)).toEqual([
+            'query_events',
+            'lightdash_charts',
+            'lightdash_users',
+        ]);
+        expect(source.emptyTables?.map(({ name }) => name)).toEqual([
+            'lightdash_dashboards',
+        ]);
+        expect(getSignedUrl).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not treat dimension-only storage as captured event data', async () => {
+        send.mockResolvedValue({
+            Contents: [{ Key: `${prefix}dim=users/users.parquet` }],
+        });
+        await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
+            noDataMessage,
+        );
     });
 
     it('refreshes the manifest and signatures on each query', async () => {
