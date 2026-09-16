@@ -161,6 +161,24 @@ const APP_ROUTES: RouteObject[] = [
                 children: [
                     { index: true, element: <Navigate to="home" replace /> },
                     {
+                        path: 'documents',
+                        lazy: async () => ({
+                            Component: await loadLazyRouteDefault(
+                                './pages/Documents',
+                                () => import('./pages/Documents'),
+                            ),
+                        }),
+                    },
+                    {
+                        path: 'documents/:documentUuid',
+                        lazy: async () => ({
+                            Component: await loadLazyRouteDefault(
+                                './pages/Document',
+                                () => import('./pages/Document'),
+                            ),
+                        }),
+                    },
+                    {
                         path: 'onboarding/agent',
                         lazy: async () => {
                             const AgentOnboardingStartPage =

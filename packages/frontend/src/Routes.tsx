@@ -515,6 +515,24 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     ...SOURCE_CODE_ROUTES,
     ...CHART_ROUTES,
     ...DASHBOARD_LIST_ROUTES,
+    {
+        path: 'documents',
+        lazy: async () => ({
+            Component: await loadLazyRouteDefault(
+                './pages/Documents',
+                () => import('./pages/Documents'),
+            ),
+        }),
+    },
+    {
+        path: 'documents/:documentUuid',
+        lazy: async () => ({
+            Component: await loadLazyRouteDefault(
+                './pages/Document',
+                () => import('./pages/Document'),
+            ),
+        }),
+    },
     ...SPACES_ROUTES,
     ...METRICS_ROUTES,
     {

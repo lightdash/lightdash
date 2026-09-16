@@ -1,7 +1,4 @@
-import {
-    AI_DEEP_RESEARCH_MARKDOWN_TAGS,
-    renderDeepResearchChartRefs,
-} from '@lightdash/common';
+import { renderDeepResearchChartRefs } from '@lightdash/common';
 import {
     createContext,
     useContext,
@@ -10,15 +7,14 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
-import rehypeRaw from 'rehype-raw';
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { type StreamdownProps } from 'streamdown';
-import { AiMarkdown } from '../../../../../components/common/AiMarkdown/AiMarkdown';
 import Callout from '../../../../../components/common/Callout';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
+import ReportChartFrame from '../../../../../features/documents/presentation/ReportChartFrame';
+import ReportMarkdown from '../../../../../features/documents/presentation/ReportMarkdown';
+import styles from '../../../../../features/documents/presentation/ReportPresentation.module.css';
 import { useDeepResearchChartQuery } from '../../hooks/useDeepResearch';
 import { DeepResearchChartTile } from './DeepResearchChartTile';
-import styles from './DeepResearchReport.module.css';
 
 const DeepResearchReportContext = createContext<{
     projectUuid: string;
@@ -39,13 +35,19 @@ export const QueryBackedChart: FC<{
         queryUuid,
     });
     if (chartQuery.isLoading) {
-        return <EmptyStateLoader title="Loading report chart" />;
+        return (
+            <ReportChartFrame>
+                <EmptyStateLoader title="Loading report chart" />
+            </ReportChartFrame>
+        );
     }
     if (!chartQuery.data) {
         return (
-            <Callout variant="warning" title="Chart unavailable">
-                This chart could not be displayed.
-            </Callout>
+            <ReportChartFrame>
+                <Callout variant="warning" title="Chart unavailable">
+                    This chart could not be displayed.
+                </Callout>
+            </ReportChartFrame>
         );
     }
     return (
@@ -96,49 +98,7 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
     );
 };
 
-// Streamdown's `allowedTags` prop cannot be used here: it rewrites blank
-// lines inside whitelisted tags into HTML comments so the whole region
-// becomes one raw HTML block, which stops markdown (lists, bold) inside
-// callouts from being parsed. Wiring raw -> sanitize ourselves keeps the
-// tag whitelist while letting the callout children parse as markdown.
-const SANITIZE_SCHEMA = {
-    ...defaultSchema,
-    tagNames: [
-        ...(defaultSchema.tagNames ?? []).filter(
-            (tagName) => tagName !== 'img',
-        ),
-        ...Object.keys(AI_DEEP_RESEARCH_MARKDOWN_TAGS),
-    ],
-    attributes: {
-        ...defaultSchema.attributes,
-        ...AI_DEEP_RESEARCH_MARKDOWN_TAGS,
-    },
-};
-
-const REHYPE_PLUGINS: StreamdownProps['rehypePlugins'] = [
-    rehypeRaw,
-    [rehypeSanitize, SANITIZE_SCHEMA],
-];
-
-// Custom tag props arrive untyped (and lowercased) from rehype-raw.
-const renderCallout =
-    (variant: 'info' | 'warning' | 'success', hideIcon = false) =>
-    ({ children, title }: Record<string, unknown>) => (
-        <Callout
-            variant={variant}
-            hideIcon={hideIcon}
-            my="md"
-            title={typeof title === 'string' ? title : undefined}
-        >
-            {children as ReactNode}
-        </Callout>
-    );
-
 const MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
-    note: renderCallout('info', true),
-    info: renderCallout('info'),
-    warning: renderCallout('warning'),
-    tip: renderCallout('success'),
     // The components map's custom-tag index signature and the `a` key demand
     // contradictory prop types; the runtime contract is plain anchor props.
     a: ReportLink as unknown as NonNullable<StreamdownProps['components']>['a'],
@@ -173,13 +133,11 @@ export const DeepResearchMarkdownReport: FC<Props> = ({
     );
     return (
         <DeepResearchReportContext.Provider value={contextValue}>
-            <AiMarkdown
+            <ReportMarkdown
                 className={className}
-                rehypePlugins={REHYPE_PLUGINS}
                 components={MARKDOWN_COMPONENTS}
-            >
-                {renderMarkdown}
-            </AiMarkdown>
+                markdown={renderMarkdown}
+            />
         </DeepResearchReportContext.Provider>
     );
 };

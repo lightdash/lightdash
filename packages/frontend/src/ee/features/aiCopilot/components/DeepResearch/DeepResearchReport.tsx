@@ -1,18 +1,10 @@
 import { parseDeepResearchReport } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Drawer,
-    Group,
-    ScrollArea,
-    Stack,
-    TableOfContents,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Button, Drawer, Group, Text } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
+import DocumentReportLayout from '../../../../../features/documents/presentation/DocumentReportLayout';
+import reportStyles from '../../../../../features/documents/presentation/ReportPresentation.module.css';
 import { DeepResearchBetaBadge } from '../../deepResearch/DeepResearchBetaBadge';
 import {
     getDeepResearchReportHeadings,
@@ -46,17 +38,6 @@ const reportTourProps = {
 };
 
 export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
-    const reportRef = useRef<HTMLElement | null>(null);
-    const scrollViewportRef = useRef<HTMLDivElement | null>(null);
-    const reinitializeContents = useRef<() => void>(() => undefined);
-    const [activeSection, setActiveSection] = useState('report-summary');
-    const reportHeadings = useMemo(
-        () =>
-            run.resultMarkdown
-                ? getDeepResearchReportHeadings(run.resultMarkdown)
-                : [],
-        [run.resultMarkdown],
-    );
     const parsedReport = useMemo(
         () =>
             run.resultMarkdown
@@ -64,78 +45,31 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                 : null,
         [run.resultMarkdown],
     );
-    const contents = useMemo(
-        () => [
-            { id: 'report-summary', value: 'Summary', depth: 1 },
-            ...reportHeadings,
-        ],
-        [reportHeadings],
-    );
-    const updateActiveSection = useCallback(() => {
-        if (!reportRef.current || !scrollViewportRef.current) {
-            return;
+    const headings = useMemo(() => {
+        if (!run.resultMarkdown) {
+            return [];
         }
-        const viewport = scrollViewportRef.current;
-        const viewportTop = viewport.getBoundingClientRect().top;
-        const headings = [
-            ...reportRef.current.querySelectorAll<HTMLElement>(
-                '[data-report-heading]',
-            ),
-        ];
-        const active = headings
-            .filter(
-                (heading) =>
-                    heading.getBoundingClientRect().top - viewportTop <= 48,
-            )
-            .at(-1);
-        const isAtEnd =
-            viewport.scrollHeight -
-                viewport.scrollTop -
-                viewport.clientHeight <=
-            2;
-
-        setActiveSection(
-            isAtEnd
-                ? (headings.at(-1)?.id ?? 'report-summary')
-                : (active?.id ?? 'report-summary'),
+        const sourceCount =
+            run.sourceCount ??
+            getDeepResearchReportSourceCount(run.resultMarkdown) ??
+            '—';
+        return getDeepResearchReportHeadings(run.resultMarkdown).map(
+            (heading) => ({
+                id: heading.id,
+                label: heading.value,
+                badge: heading.value === 'Sources' ? sourceCount : undefined,
+            }),
         );
-    }, []);
-
-    useEffect(() => {
-        if (!opened) {
-            return undefined;
-        }
-        const frame = window.requestAnimationFrame(() => {
-            const headings =
-                reportRef.current?.querySelectorAll<HTMLElement>('h2') ?? [];
-            headings.forEach((heading, index) => {
-                const data = reportHeadings[index];
-                if (data) {
-                    heading.id = data.id;
-                    heading.dataset.reportHeading = '';
-                    heading.dataset.headingLabel = data.value;
-                }
-            });
-            reinitializeContents.current();
-        });
-        return () => window.cancelAnimationFrame(frame);
-    }, [opened, reportHeadings]);
-
+    }, [run.resultMarkdown, run.sourceCount]);
     if (!run.resultMarkdown || !run.completedAt) {
         return null;
     }
-
-    const sourceCount =
-        run.sourceCount ??
-        getDeepResearchReportSourceCount(run.resultMarkdown) ??
-        '—';
-
     return (
         <Drawer
             opened={opened}
             onClose={onClose}
             title={
-                <Group className={styles.reportControls} wrap="nowrap">
+                <Group className={reportStyles.reportControls} wrap="nowrap">
                     <Text className={styles.visuallyHidden}>Deep research</Text>
                     <Button
                         variant="subtle"
@@ -161,133 +95,43 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
             }}
             __vars={{ '--drawer-top-offset': `${NAVBAR_HEIGHT}px` }}
         >
-            <ScrollArea
-                className={styles.reportScroll}
-                viewportRef={scrollViewportRef}
-                onScrollPositionChange={updateActiveSection}
+            <DocumentReportLayout
+                title={
+                    parsedReport ? (
+                        <DeepResearchInlineMarkdown
+                            markdown={parsedReport.title}
+                        />
+                    ) : (
+                        run.question
+                    )
+                }
+                eyebrow={
+                    <Group gap="xs" align="baseline" wrap="wrap">
+                        <Text inherit className={styles.eyebrow}>
+                            Deep research
+                        </Text>
+                        <DeepResearchBetaBadge />
+                    </Group>
+                }
+                headings={headings}
+                headingSelector="h2"
+                headerProps={reportTourProps}
+                variant={parsedReport ? 'structured' : 'markdown'}
             >
-                <Box
-                    className={`${styles.reportLayout} ${
-                        parsedReport ? styles.structuredReportLayout : ''
-                    }`}
-                >
-                    <Box component="aside" className={styles.contentsRail}>
-                        <Box
-                            component="nav"
-                            className={styles.contentsNav}
-                            aria-label="Report contents"
-                        >
-                            <Text className={styles.contentsLabel}>
-                                Contents
-                            </Text>
-                            <TableOfContents
-                                variant="light"
-                                color="gray"
-                                size="xs"
-                                radius="sm"
-                                initialData={contents}
-                                reinitializeRef={reinitializeContents}
-                                minDepthToOffset={1}
-                                classNames={{
-                                    root: styles.contentsList,
-                                    control: styles.contentsControl,
-                                }}
-                                scrollSpyOptions={{
-                                    selector:
-                                        '[data-deep-research-report] [data-report-heading]',
-                                    getDepth: () => 1,
-                                    getValue: (element) =>
-                                        element.dataset.headingLabel ?? '',
-                                }}
-                                getControlProps={({ data }) => ({
-                                    onClick: () => {
-                                        setActiveSection(data.id);
-                                        data.getNode().scrollIntoView({
-                                            block: 'start',
-                                        });
-                                    },
-                                    children:
-                                        data.value === 'Sources' ? (
-                                            <Group gap={5} wrap="nowrap">
-                                                <span>Sources</span>
-                                                <Text
-                                                    component="span"
-                                                    className={
-                                                        styles.sourceCount
-                                                    }
-                                                >
-                                                    {sourceCount}
-                                                </Text>
-                                            </Group>
-                                        ) : (
-                                            data.value
-                                        ),
-                                    title: data.value,
-                                    'data-active':
-                                        data.id === activeSection || undefined,
-                                    'aria-current':
-                                        data.id === activeSection
-                                            ? 'location'
-                                            : undefined,
-                                })}
-                            />
-                        </Box>
-                    </Box>
-                    <Box
-                        component="article"
-                        ref={reportRef}
-                        className={`${styles.report} ${
-                            parsedReport
-                                ? styles.structuredReportPage
-                                : styles.reportFallback
-                        }`}
-                        data-deep-research-report
-                    >
-                        <Stack gap="xl">
-                            <Box
-                                component="header"
-                                id="report-summary"
-                                className={styles.reportHeader}
-                                data-report-heading
-                                data-heading-label="Summary"
-                            >
-                                <Group gap="xs" align="baseline" wrap="wrap">
-                                    <Text className={styles.eyebrow}>
-                                        Deep research
-                                    </Text>
-                                    <DeepResearchBetaBadge />
-                                </Group>
-                                <Title
-                                    order={1}
-                                    className={styles.reportTitle}
-                                    {...reportTourProps}
-                                >
-                                    {parsedReport ? (
-                                        <DeepResearchInlineMarkdown
-                                            markdown={parsedReport.title}
-                                        />
-                                    ) : (
-                                        run.question
-                                    )}
-                                </Title>
-                            </Box>
-                            {parsedReport ? (
-                                <DeepResearchReportContent
-                                    report={parsedReport}
-                                    projectUuid={run.projectUuid}
-                                    runUuid={run.uuid}
-                                />
-                            ) : (
-                                <DeepResearchMarkdownReport
-                                    markdown={run.resultMarkdown}
-                                    projectUuid={run.projectUuid}
-                                    runUuid={run.uuid}
-                                />
-                            )}
-                        </Stack>
-                    </Box>
-                </Box>
-            </ScrollArea>
+                {parsedReport ? (
+                    <DeepResearchReportContent
+                        report={parsedReport}
+                        projectUuid={run.projectUuid}
+                        runUuid={run.uuid}
+                    />
+                ) : (
+                    <DeepResearchMarkdownReport
+                        markdown={run.resultMarkdown}
+                        projectUuid={run.projectUuid}
+                        runUuid={run.uuid}
+                    />
+                )}
+            </DocumentReportLayout>
         </Drawer>
     );
 };

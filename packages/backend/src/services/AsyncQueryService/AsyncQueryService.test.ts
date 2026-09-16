@@ -36,6 +36,8 @@ import {
     VizIndexType,
     WarehouseClient,
     WarehouseTypes,
+    type Document,
+    type DocumentQueryReference,
     type Explore,
     type ItemsMap,
     type MergeFieldTypes,
@@ -45,6 +47,7 @@ import {
     type ParameterDefinitions,
     type PivotConfiguration,
     type ProjectDefaults,
+    type RegisteredAccount,
     type UserAccessControls,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
@@ -104,6 +107,7 @@ import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
+import type { DocumentService } from '../DocumentService/DocumentService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
@@ -352,11 +356,18 @@ const inMemoryDuckdbHistory = ({
 const getMockedAsyncQueryService = (
     lightdashConfig: LightdashConfig,
     overrides: Partial<AsyncQueryService> = {},
+    documentService?: Pick<DocumentService, 'get'>,
 ) => {
     // The registry is built over the service under test, so a merge's DAG
     // nodes reach the same mocks a direct call would
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
+        getDocumentService: () =>
+            (documentService ?? {
+                get: vi
+                    .fn()
+                    .mockRejectedValue(new NotFoundError('Document not found')),
+            }) as DocumentService,
         getQuerySourceService: () => {
             querySourceService ??= new QuerySourceService({
                 projectModel: (service as AnyType).projectModel,
@@ -6398,6 +6409,237 @@ describe('AsyncQueryService', () => {
     });
 });
 
+describe('saved Document chart queries', () => {
+    const reference: DocumentQueryReference = {
+        documentUuid: 'document-uuid',
+        versionUuid: 'version-uuid',
+        cellId: 'chart-cell',
+    };
+    const document = {
+        documentUuid: reference.documentUuid,
+        projectUuid,
+        version: {
+            versionUuid: reference.versionUuid,
+            content: {
+                cells: [
+                    {
+                        id: reference.cellId,
+                        type: 'chart',
+                        content: {
+                            source: 'semantic',
+                            chart: {
+                                name: 'Document chart',
+                                tableName: metricQueryMock.exploreName,
+                                metricQuery: metricQueryMock,
+                                chartConfig: { type: ChartType.TABLE },
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+    } as Document;
+    const viewer = () => {
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'Document', action: 'view' },
+        ]);
+        return account;
+    };
+
+    test('a Document-only viewer executes its persisted custom-SQL chart but cannot run arbitrary metric queries', async () => {
+        const get = vi.fn().mockResolvedValue(document);
+        const service = getMockedAsyncQueryService(
+            lightdashConfigMock,
+            {},
+            { get },
+        );
+        const account = viewer();
+        const controls = {
+            userAttributes: { region: ['east'] },
+            intrinsicUserAttributes: {},
+        };
+        const resolveExplore = vi
+            .spyOn(service, 'getExploreWithUserAccessControls')
+            .mockResolvedValue({
+                explore: validExplore,
+                userAccessControls: controls,
+            });
+        const prepare = vi
+            .spyOn(
+                service as unknown as {
+                    prepareMetricQueryAsyncQueryArgs: (
+                        args: unknown,
+                    ) => Promise<QueryComposer>;
+                },
+                'prepareMetricQueryAsyncQueryArgs',
+            )
+            .mockResolvedValue(
+                createQueryComposerMock({ userAccessControls: controls }),
+            );
+        const execute = vi
+            .spyOn(
+                service as unknown as {
+                    executeAsyncQuery: (
+                        args: unknown,
+                        parameters: ExecuteAsyncQueryRequestParams,
+                    ) => Promise<ExecuteAsyncQueryReturn>;
+                },
+                'executeAsyncQuery',
+            )
+            .mockResolvedValue({
+                queryUuid: 'document-query',
+                cacheMetadata: { cacheHit: false },
+            });
+
+        const result = await service.executeAsyncDocumentCellQuery({
+            account,
+            projectUuid,
+            reference,
+        });
+        expect(result.queryUuid).toBe('document-query');
+        expect(get).toHaveBeenCalledWith(
+            account,
+            projectUuid,
+            reference.documentUuid,
+        );
+        expect(resolveExplore).toHaveBeenCalledWith(
+            account,
+            projectUuid,
+            metricQueryMock.exploreName,
+            projectSummary.organizationUuid,
+        );
+        expect(prepare).toHaveBeenCalledWith(
+            expect.objectContaining({
+                account,
+                preloadedUserAccessControls: controls,
+                userAttributeOverrides: {},
+            }),
+        );
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({ account }),
+            expect.objectContaining({ documentSource: reference }),
+        );
+        await expect(
+            service.executeAsyncMetricQuery({
+                account,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(execute).toHaveBeenCalledTimes(1);
+    });
+
+    test.each([false, true])(
+        'result reads reauthorize Document access (referenced=%s)',
+        async (referenced) => {
+            const account = viewer();
+            const get = vi.fn().mockResolvedValue(document);
+            const source = {
+                queryUuid: 'document-query',
+                context: QueryExecutionContext.CHART,
+                status: QueryHistoryStatus.ERROR,
+                error: 'old query error',
+                metricQuery: metricQueryMock,
+                requestParameters: {
+                    context: QueryExecutionContext.CHART,
+                    query: metricQueryMock,
+                    documentSource: reference,
+                },
+            } as QueryHistory;
+            const derived = {
+                ...source,
+                queryUuid: 'derived-query',
+                requestParameters: {
+                    query: metricQueryMock,
+                    references: { source: source.queryUuid },
+                },
+            } as QueryHistory;
+            const requested = referenced ? derived : source;
+            const service = getMockedAsyncQueryService(
+                lightdashConfigMock,
+                {
+                    queryHistoryModel: {
+                        get: vi.fn(async (uuid) =>
+                            uuid === source.queryUuid ? source : derived,
+                        ),
+                    } as unknown as QueryHistoryModel,
+                },
+                { get },
+            );
+            await expect(
+                service.getAsyncQueryResults({
+                    account,
+                    projectUuid,
+                    queryUuid: requested.queryUuid,
+                }),
+            ).resolves.toMatchObject({ status: QueryHistoryStatus.ERROR });
+            expect(get).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                reference.documentUuid,
+            );
+            for (const error of [
+                new ForbiddenError('Access revoked'),
+                new NotFoundError('Deleted'),
+                new ForbiddenError('Documents disabled'),
+            ]) {
+                get.mockRejectedValue(error);
+                // eslint-disable-next-line no-await-in-loop -- Verify permission changes between successive reads.
+                await expect(
+                    service.getAsyncQueryResults({
+                        account,
+                        projectUuid,
+                        queryUuid: requested.queryUuid,
+                    }),
+                ).rejects.toBe(error);
+            }
+        },
+    );
+
+    test('totals and unlimited replays refuse a revoked Document before compiling', async () => {
+        const account = viewer();
+        const error = new ForbiddenError('Document access revoked');
+        const get = vi.fn().mockRejectedValue(error);
+        const source = {
+            queryUuid: 'document-query',
+            metricQuery: metricQueryMock,
+            requestParameters: {
+                query: metricQueryMock,
+                documentSource: reference,
+            },
+        } as QueryHistory;
+        const service = getMockedAsyncQueryService(
+            lightdashConfigMock,
+            {
+                queryHistoryModel: {
+                    get: vi.fn().mockResolvedValue(source),
+                } as unknown as QueryHistoryModel,
+            },
+            { get },
+        );
+        await expect(
+            service.executeAsyncUnboundedRerunFromQueryHistory({
+                account,
+                projectUuid,
+                queryUuid: source.queryUuid,
+                context: QueryExecutionContext.CHART,
+            }),
+        ).rejects.toBe(error);
+        await expect(
+            service.executeAsyncCalculateTotalFromQueryHistory({
+                account,
+                projectUuid,
+                queryUuid: source.queryUuid,
+                kind: 'columnTotal',
+            }),
+        ).rejects.toBe(error);
+        expect(get).toHaveBeenCalledTimes(2);
+    });
+});
+
 describe('checkDashboardChartQueryPermissions', () => {
     const owningDashboardUuid = 'owned-dashboard-uuid';
     const chartSpace = {
@@ -8069,6 +8311,101 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         count: number,
     ) =>
         vi.waitFor(() => expect(mergeEvents(trackAccount)).toHaveLength(count));
+
+    it('runs a saved Document merge for a view-only reader with RLS and provenance on every leg and root', async () => {
+        const {
+            service,
+            create,
+            executeAsyncQuery,
+            compiledLegs,
+            trackAccount,
+        } = buildServiceWithCompiledLegs();
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'Document', action: 'view' },
+        ]);
+        const reference = {
+            documentUuid: 'saved-doc',
+            versionUuid: 'saved-version',
+            cellId: 'merged-cell',
+        };
+        const { sources } = attributeScopedMergeQuery;
+        if (!('metricQuery' in sources[0]) || !('metricQuery' in sources[1])) {
+            throw new Error('Expected metric sources');
+        }
+        const document = {
+            documentUuid: reference.documentUuid,
+            projectUuid,
+            version: {
+                versionUuid: reference.versionUuid,
+                content: {
+                    cells: [
+                        {
+                            id: reference.cellId,
+                            type: 'chart',
+                            content: {
+                                source: 'merge',
+                                chart: {
+                                    name: 'Saved merge',
+                                    tableName:
+                                        sources[0].metricQuery.exploreName,
+                                    metricQuery: sources[0].metricQuery,
+                                    chartConfig: { type: ChartType.TABLE },
+                                    merge: {
+                                        primarySourceId: 'a',
+                                        sources: [
+                                            { id: 'a', kind: 'chart' },
+                                            {
+                                                id: 'b',
+                                                kind: 'query',
+                                                metricQuery:
+                                                    sources[1].metricQuery,
+                                            },
+                                        ],
+                                        joinKey:
+                                            attributeScopedMergeQuery.joinKey,
+                                        joinType:
+                                            attributeScopedMergeQuery.joinType,
+                                        tableCalculations: [],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        } as unknown as Document;
+        vi.spyOn(
+            service as unknown as { getDocumentService: () => DocumentService },
+            'getDocumentService',
+        ).mockReturnValue({
+            get: vi.fn().mockResolvedValue(document),
+        } as unknown as DocumentService);
+        const result = await service.executeAsyncDocumentCellQuery({
+            account,
+            projectUuid,
+            reference,
+        });
+        expect(result.queryUuid).toBe('merge-query-uuid');
+        expect(executeAsyncQuery).toHaveBeenCalledTimes(2);
+        expect(executeAsyncQuery).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ account }),
+            expect.objectContaining({ documentSource: reference }),
+        );
+        expect(executeAsyncQuery).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ account }),
+            expect.objectContaining({ documentSource: reference }),
+        );
+        expect(create.mock.calls[0][1].requestParameters).toMatchObject({
+            documentSource: reference,
+        });
+        expect(compiledLegs()).toHaveLength(2);
+        compiledLegs().forEach(({ sql }) => expect(sql).toContain('base'));
+        await drainMergeEvents(trackAccount, 1);
+    });
 
     it('refuses a pivot the composer rejects before any leg runs', async () => {
         const { service, create } = buildService({

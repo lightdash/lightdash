@@ -11,12 +11,12 @@ import { useMemo } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import ReportChartFrame from '../../../../../features/documents/presentation/ReportChartFrame';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useDeepResearchChartLiveQuery } from '../../hooks/useDeepResearch';
 import AgentVisualizationFilters from '../ChatElements/AgentVisualizationFilters';
 import { AiVisualizationRenderer } from '../ChatElements/AiVisualizationRenderer';
 import { shouldDisplayVisualizationFilters } from '../ChatElements/AiVisualizationRenderer.utils';
-import styles from './DeepResearchReport.module.css';
 import { useDeepResearchOpenInExploreUrl } from './useDeepResearchExploreUrl';
 
 type Props = {
@@ -70,32 +70,31 @@ export const DeepResearchChartTile = ({
     );
 
     return (
-        <Box
-            component="figure"
-            className={styles.chartTile}
-            aria-label={chart.title}
+        <ReportChartFrame
+            ariaLabel={chart.title}
+            actions={
+                withExploreLink && openInExploreUrl ? (
+                    <Group justify="flex-end" mb="xs">
+                        <Anchor
+                            href={openInExploreUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            size="xs"
+                            fw={500}
+                            aria-label={`Open ${chart.title} in Explore`}
+                        >
+                            <Group component="span" gap={4} wrap="nowrap">
+                                Open in Explore
+                                <MantineIcon
+                                    icon={IconExternalLink}
+                                    size={13}
+                                />
+                            </Group>
+                        </Anchor>
+                    </Group>
+                ) : null
+            }
         >
-            {withExploreLink && openInExploreUrl ? (
-                <Group
-                    className={styles.chartActions}
-                    justify="flex-end"
-                    mb="xs"
-                >
-                    <Anchor
-                        href={openInExploreUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        size="xs"
-                        fw={500}
-                        aria-label={`Open ${chart.title} in Explore`}
-                    >
-                        <Group component="span" gap={4} wrap="nowrap">
-                            Open in Explore
-                            <MantineIcon icon={IconExternalLink} size={13} />
-                        </Group>
-                    </Anchor>
-                </Group>
-            ) : null}
             <Box>
                 {liveError ? (
                     <InlineErrorState
@@ -139,6 +138,6 @@ export const DeepResearchChartTile = ({
                     />
                 )}
             </Box>
-        </Box>
+        </ReportChartFrame>
     );
 };
