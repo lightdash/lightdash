@@ -25,7 +25,8 @@ const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
 export const createAnalyticsExplores = (): Explore[] => {
     const sqlBuilder = warehouseSqlBuilderFromType(WarehouseTypes.DUCKDB);
     const compiler = new ExploreCompiler(sqlBuilder);
-    return (['query_events', 'ai_usage'] as const).map((name) => {
+    const streams = ['query_events', 'ai_usage', 'data_app_events'] as const;
+    return streams.map((name) => {
         const columns = compactedStreamSchemas[name];
         const label = friendlyName(name);
         const base = {

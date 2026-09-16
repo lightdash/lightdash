@@ -1,17 +1,60 @@
-import { MetricType, type Metric } from '@lightdash/common';
+import { FilterOperator, MetricType, type Metric } from '@lightdash/common';
 
 type SystemMetricDefinition = Pick<
     Metric,
-    'name' | 'description' | 'percentile'
+    'name' | 'description' | 'percentile' | 'filters'
 > & {
     type: MetricType;
     column: string;
 };
 
 export const systemStreamMetrics: Record<
-    'query_events' | 'ai_usage',
+    'query_events' | 'ai_usage' | 'data_app_events',
     SystemMetricDefinition[]
 > = {
+    data_app_events: [
+        {
+            name: 'total_events',
+            description: 'Total number of data app activity events',
+            type: MetricType.COUNT,
+            column: 'event_name',
+        },
+        {
+            name: 'total_views',
+            description:
+                'Data app HTML loads, including builder previews and reloads',
+            type: MetricType.COUNT,
+            column: 'event_name',
+            filters: [
+                {
+                    id: 'data-app-views',
+                    target: { fieldRef: 'event_name' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['data_app.view'],
+                },
+            ],
+        },
+        {
+            name: 'unique_viewers',
+            description: 'Distinct users with a data app view event',
+            type: MetricType.COUNT_DISTINCT,
+            column: 'user_id',
+            filters: [
+                {
+                    id: 'data-app-viewers',
+                    target: { fieldRef: 'event_name' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['data_app.view'],
+                },
+            ],
+        },
+        {
+            name: 'unique_apps',
+            description: 'Distinct data apps with any activity event',
+            type: MetricType.COUNT_DISTINCT,
+            column: 'app_id',
+        },
+    ],
     query_events: [
         {
             name: 'total_queries',

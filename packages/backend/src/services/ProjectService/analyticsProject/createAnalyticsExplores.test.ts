@@ -3,8 +3,24 @@ import { createAnalyticsExplores } from './createAnalyticsExplores';
 
 describe('createAnalyticsExplores', () => {
     it('compiles curated metrics and time dimensions against internal views', () => {
-        const [queries, ai] = createAnalyticsExplores();
-        expect([queries.name, ai.name]).toEqual(['query_events', 'ai_usage']);
+        const explores = createAnalyticsExplores();
+        const [queries, ai, apps] = explores;
+        expect(explores.map(({ name }) => name)).toEqual([
+            'query_events',
+            'ai_usage',
+            'data_app_events',
+        ]);
+        expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();
+        expect(apps.tables.data_app_events.dimensions.user_id).toBeDefined();
+        expect(
+            apps.tables.data_app_events.dimensions.event_ts_day,
+        ).toBeDefined();
+        expect(apps.tables.data_app_events.metrics.total_views.type).toBe(
+            MetricType.COUNT,
+        );
+        expect(apps.tables.data_app_events.metrics.unique_viewers.type).toBe(
+            MetricType.COUNT_DISTINCT,
+        );
         expect(queries.tables.query_events.sqlTable).toBe('"query_events"');
         expect(queries.tables.query_events.metrics.total_queries.type).toBe(
             MetricType.COUNT,

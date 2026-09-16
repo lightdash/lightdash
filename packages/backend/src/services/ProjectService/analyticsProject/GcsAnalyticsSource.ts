@@ -62,7 +62,7 @@ export const resolveGcsAnalyticsSource = async ({
             if (!name.startsWith(prefix))
                 throw new Error('Unexpected cross-org analytics object');
             const match =
-                /^stream=(query_events|ai_usage)\/dt=(\d{4}-\d{2}-\d{2})\/[^/]+\.parquet$/.exec(
+                /^stream=(query_events|ai_usage|data_app_events)\/dt=(\d{4}-\d{2}-\d{2})\/[^/]+\.parquet$/.exec(
                     name.slice(prefix.length),
                 );
             if (match && match[2] >= startDate && match[2] <= endDate) {

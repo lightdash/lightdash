@@ -92,20 +92,31 @@ describe('signed analytics file manifests', () => {
             ],
             IsTruncated: true,
             NextContinuationToken: 'next',
-        }).mockResolvedValueOnce({ Contents: [{ Key: key('ai_usage') }] });
+        }).mockResolvedValueOnce({
+            Contents: [
+                { Key: key('ai_usage') },
+                { Key: key('data_app_events') },
+            ],
+        });
         const source = await createS3AnalyticsSourceResolver(config)();
         expect(source.tables.map(({ name }) => name)).toEqual([
             'query_events',
             'ai_usage',
+            'data_app_events',
         ]);
-        expect(getSignedUrl).toHaveBeenCalledTimes(3);
+        expect(getSignedUrl).toHaveBeenCalledTimes(4);
         expect(
             vi
                 .mocked(getSignedUrl)
                 .mock.calls.map(
                     ([, command]) => (command as GetObjectCommand).input.Key,
                 ),
-        ).toEqual([key('query_events', '2025-09-07'), key(), key('ai_usage')]);
+        ).toEqual([
+            key('query_events', '2025-09-07'),
+            key(),
+            key('ai_usage'),
+            key('data_app_events'),
+        ]);
         expect(send.mock.calls[1][0].input.ContinuationToken).toBe('next');
     });
 
