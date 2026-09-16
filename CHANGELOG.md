@@ -1,3 +1,10 @@
+## [2.241.1](https://github.com/lightdash/lightdash/compare/2.241.0...2.241.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* refresh chart library after uninstall ([#29355](https://github.com/lightdash/lightdash/issues/29355)) ([c24e240](https://github.com/lightdash/lightdash/commit/c24e240cb629de5c62e7648f5fd328bd1e8650ec))
+
 # [2.241.0](https://github.com/lightdash/lightdash/compare/2.240.0...2.241.0) (2026-09-16)
 
 
