@@ -30,6 +30,9 @@ export const useDeleteApp = () => {
             void queryClient.invalidateQueries({ queryKey: ['content'] });
             void queryClient.invalidateQueries({ queryKey: ['data-app-vizs'] });
             void queryClient.invalidateQueries({
+                queryKey: ['registry-chart-types', variables.projectUuid],
+            });
+            void queryClient.invalidateQueries({
                 queryKey: ['app', variables.projectUuid, variables.appUuid],
             });
             void queryClient.invalidateQueries({
