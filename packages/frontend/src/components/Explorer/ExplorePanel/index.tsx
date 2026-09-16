@@ -38,6 +38,7 @@ import {
 import { ExternalSourceBadge } from '../../../features/externalSources/components/ExternalSourceBadge';
 import { ExternalSourceExploreMenu } from '../../../features/externalSources/components/ExternalSourceExploreMenu';
 import { JoinWithWarehouseHint } from '../../../features/externalSources/components/JoinWithWarehouseHint';
+import { MergeEntryButton } from '../../../features/mergeQuery/components/MergeEntryButton';
 import { MergeJoinBar } from '../../../features/mergeQuery/components/MergeJoinBar';
 import { MergeQuerySidebar } from '../../../features/mergeQuery/components/MergeQuerySidebar';
 import {
@@ -311,6 +312,12 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 </HoverCard.Dropdown>
                             </HoverCard>
                         )}
+                        {explore.type !== ExploreType.EXTERNAL_SOURCE &&
+                            canMergeAnotherQuery && (
+                                <MergeEntryButton
+                                    onClick={handleAddMergeSource}
+                                />
+                            )}
                     </Group>
                     {explore.type === ExploreType.VIRTUAL &&
                         (canEditVirtualView ||
