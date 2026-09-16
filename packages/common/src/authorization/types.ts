@@ -56,6 +56,7 @@ export type CaslSubjectNames =
     | 'DataApp'
     | 'DataAppDependency'
     | 'Dashboard'
+    | 'Document'
     | 'DeployProject'
     | 'DashboardComments'
     | 'DeletedContent'

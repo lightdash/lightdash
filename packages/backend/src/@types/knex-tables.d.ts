@@ -100,6 +100,12 @@ import {
     DashboardSlugMappingTable,
 } from '../database/entities/dashboardSlugMappings';
 import {
+    DocumentsTable,
+    DocumentsTableName,
+    DocumentVersionsTable,
+    DocumentVersionsTableName,
+} from '../database/entities/documents';
+import {
     DownloadAuditTable,
     DownloadAuditTableName,
 } from '../database/entities/downloadAudit';
@@ -642,6 +648,8 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [DocumentsTableName]: DocumentsTable;
+        [DocumentVersionsTableName]: DocumentVersionsTable;
         [InviteLinkTableName]: InviteLinkTable;
         [OrganizationTableName]: OrganizationTable;
         [UserTableName]: UserTable;

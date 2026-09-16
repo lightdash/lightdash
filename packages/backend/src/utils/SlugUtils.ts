@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { DashboardSlugMappingsTableName } from '../database/entities/dashboardSlugMappings';
+import { DocumentsTableName } from '../database/entities/documents';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedChartSlugMappingsTableName } from '../database/entities/savedChartSlugMappings';
@@ -10,6 +11,7 @@ import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 
 type ProjectUuidSlugTable =
+    | typeof DocumentsTableName
     | typeof AppsTableName
     | typeof SavedChartsTableName
     | typeof SavedSqlTableName
@@ -44,6 +46,7 @@ const getSlugCandidate = (
                 MAX_GENERATED_APP_SLUG_LENGTH - suffix.length,
             )}${suffix}`;
         case DashboardsTableName:
+        case DocumentsTableName:
         case SavedSqlTableName:
         case SpaceTableName:
             return `${baseSlug}${suffix}`;
@@ -134,6 +137,7 @@ export async function generateUniqueSlugScopedToProject(
         const candidate = getSlugCandidate(tableName, baseSlug, increment);
         if (
             tableName === SavedChartsTableName ||
+            tableName === DocumentsTableName ||
             tableName === DashboardsTableName
         ) {
             // Alias and canonical rows cannot share a database constraint, so
