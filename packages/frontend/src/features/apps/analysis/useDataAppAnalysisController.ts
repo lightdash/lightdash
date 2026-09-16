@@ -68,6 +68,7 @@ export const useDataAppAnalysisController = ({
     queries,
     availability,
     onNeedsAgent,
+    openThread,
 }: {
     projectUuid: string | undefined;
     appUuid: string | undefined;
@@ -75,6 +76,8 @@ export const useDataAppAnalysisController = ({
     availability: DataAppAnalysisAvailability;
     /** Called when the app asks to investigate but no agent is picked yet. */
     onNeedsAgent: () => void;
+    /** Where "Continue in Ask AI" goes; defaults to the launcher panel. */
+    openThread?: (thread: { threadUuid: string; agentUuid: string }) => void;
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
@@ -142,6 +145,10 @@ export const useDataAppAnalysisController = ({
             if (investigation?.status !== 'ready') return;
             const { threadUuid, agentUuid, anomaly } =
                 investigation.investigation;
+            if (openThread) {
+                openThread({ threadUuid, agentUuid });
+                return;
+            }
             addDockItem({
                 threadId: threadUuid,
                 agentUuid,
@@ -150,7 +157,7 @@ export const useDataAppAnalysisController = ({
             });
             dispatch(openPanel({ threadId: threadUuid, agentUuid }));
         },
-        [addDockItem, dispatch, investigations],
+        [addDockItem, dispatch, investigations, openThread],
     );
 
     const handleAction = useCallback(

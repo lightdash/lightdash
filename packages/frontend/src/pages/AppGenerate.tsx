@@ -73,6 +73,9 @@ import {
 import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRouting';
+import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
+import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
@@ -1073,6 +1076,29 @@ const AppGenerate: FC = () => {
     }, [pin, activeAppUuid, latestReadyVersion, allVersions]);
 
     // Effective preview target: derived pin wins over latest ready.
+    // AI analysis for the app under construction: the same controller as the
+    // viewer page, pushed into the preview so an app using useInsights() can
+    // be exercised while it's being built. The launcher is hidden on this
+    // route, so "Continue in Ask AI" opens the thread page in a new tab.
+    const analysisAvailability = useDataAppAnalysisAvailability();
+    const openAnalysisThread = useCallback(
+        ({
+            threadUuid,
+            agentUuid,
+        }: {
+            threadUuid: string;
+            agentUuid: string;
+        }) => {
+            if (!projectUuid) return;
+            window.open(
+                getAiAgentThreadPath(projectUuid, agentUuid, threadUuid),
+                '_blank',
+                'noopener',
+            );
+        },
+        [projectUuid],
+    );
+
     const previewApp = useMemo(() => {
         if (!activeAppUuid) return null;
         if (effectivePinnedVersion !== null) {
@@ -1081,6 +1107,20 @@ const AppGenerate: FC = () => {
         if (!latestReadyVersion) return null;
         return { appUuid: activeAppUuid, version: latestReadyVersion.version };
     }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
+
+    const analysisController = useDataAppAnalysisController({
+        projectUuid,
+        appUuid: previewApp?.appUuid,
+        queries: trackedQueries,
+        availability: analysisAvailability,
+        // No agent picker in the builder yet; the first accessible agent is used.
+        onNeedsAgent: () => {},
+        openThread: openAnalysisThread,
+    });
+    const showAnalysisInPreview =
+        analysisAvailability.status === 'available' ||
+        (analysisAvailability.status === 'unavailable' &&
+            analysisAvailability.reason !== 'not_rolled_out');
 
     // Upgrade offer for the header menu. Keyed to the latest ready bundle —
     // the one an upgrade would rebuild from — not to whatever version the
@@ -3116,6 +3156,17 @@ const AppGenerate: FC = () => {
                                             testVizContext ?? undefined
                                         }
                                         onSdkManifest={handleSdkManifest}
+                                        insights={
+                                            showAnalysisInPreview
+                                                ? analysisController.insightsPayload
+                                                : null
+                                        }
+                                        onInsightAction={
+                                            analysisController.handleAction
+                                        }
+                                        onMountedQueriesChange={
+                                            analysisController.setMountedQueryUuids
+                                        }
                                     />
                                 ) : (
                                     <Box className={classes.previewEmpty}>
