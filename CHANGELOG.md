@@ -1,3 +1,10 @@
+# [2.234.0](https://github.com/lightdash/lightdash/compare/2.233.0...2.234.0) (2026-09-16)
+
+
+### Features
+
+* **documents:** add space discovery and direct sharing ([#29281](https://github.com/lightdash/lightdash/issues/29281)) ([5509612](https://github.com/lightdash/lightdash/commit/550961263796bdc1050ffd973d7df0071c516125))
+
 # [2.233.0](https://github.com/lightdash/lightdash/compare/2.232.0...2.233.0) (2026-09-16)
 
 

@@ -987,7 +987,7 @@
                 "type": "object"
             },
             "ContentType": {
-                "enum": ["chart", "dashboard", "space", "data_app"],
+                "enum": ["chart", "dashboard", "space", "data_app", "document"],
                 "type": "string"
             },
             "ContentSlugRenameRequest": {
@@ -8999,6 +8999,10 @@
                                 "type": "string",
                                 "format": "date-time"
                             },
+                            "documentCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "appCount": {
                                 "type": "number",
                                 "format": "double"
@@ -9017,6 +9021,7 @@
                             }
                         },
                         "required": [
+                            "documentCount",
                             "appCount",
                             "childSpaceCount",
                             "dashboardCount",
@@ -15753,7 +15758,13 @@
             },
             "GrantSource": {
                 "type": "string",
-                "enum": ["app", "dashboard", "saved_chart", "sql_chart"]
+                "enum": [
+                    "app",
+                    "dashboard",
+                    "saved_chart",
+                    "sql_chart",
+                    "document"
+                ]
             },
             "SpaceAccess": {
                 "properties": {
@@ -35292,7 +35303,7 @@
             },
             "DirectAccessResourceType": {
                 "description": "Closed registry of resource types that support direct access grants.\nGrowing this union means adding a resource registry entry, an\n`AccessTarget` mapping, and grant tables — never a new handler hierarchy.",
-                "enum": ["dashboard", "chart", "sqlChart", "app"],
+                "enum": ["document", "dashboard", "chart", "sqlChart", "app"],
                 "type": "string"
             },
             "DirectAccessPrincipalType": {
@@ -51218,6 +51229,10 @@
                             },
                             {
                                 "properties": {
+                                    "documentCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "appCount": {
                                         "type": "number",
                                         "format": "double"
@@ -51411,7 +51426,7 @@
                 "type": "object"
             },
             "ResourceViewItemType": {
-                "enum": ["chart", "dashboard", "space", "data_app"],
+                "enum": ["chart", "dashboard", "space", "data_app", "document"],
                 "type": "string"
             },
             "Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data.uuid-or-pinnedListOrder_": {
@@ -57696,6 +57711,18 @@
                     },
                     "documentUuid": {
                         "type": "string"
+                    },
+                    "directAccessRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceMemberRole"
+                        },
+                        "type": "array"
+                    },
+                    "access": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceAccess"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": [
@@ -61688,6 +61715,10 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "documentCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "parentSpaceUuid": {
                         "type": "string",
                         "nullable": true
@@ -61724,9 +61755,170 @@
                     "chartCount",
                     "childSpaceCount",
                     "appCount",
+                    "documentCount",
                     "parentSpaceUuid",
                     "path",
                     "access"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ContentType.DOCUMENT": {
+                "enum": ["document"],
+                "type": "string"
+            },
+            "DocumentContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DOCUMENT"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "directAccessRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceMemberRole"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt",
+                    "verification",
+                    "directAccessRoles"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -62063,6 +62255,9 @@
                         "$ref": "#/components/schemas/SpaceContent"
                     },
                     {
+                        "$ref": "#/components/schemas/DocumentContent"
+                    },
+                    {
                         "$ref": "#/components/schemas/DataAppContent"
                     }
                 ]
@@ -62163,6 +62358,18 @@
                         "properties": {
                             "contentType": {
                                 "$ref": "#/components/schemas/ContentType.DATA_APP"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["contentType", "uuid"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.DOCUMENT"
                             },
                             "uuid": {
                                 "type": "string"
@@ -62889,7 +63096,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.233.0",
+        "version": "2.234.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

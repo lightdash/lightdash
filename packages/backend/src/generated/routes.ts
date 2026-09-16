@@ -1363,7 +1363,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ContentType: {
         dataType: 'refEnum',
-        enums: ['chart', 'dashboard', 'space', 'data_app'],
+        enums: ['chart', 'dashboard', 'space', 'data_app', 'document'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ContentSlugRenameRequest: {
@@ -8702,6 +8702,7 @@ const models: TsoaRoute.Models = {
                             },
                         },
                         deletedAt: { dataType: 'datetime' },
+                        documentCount: { dataType: 'double', required: true },
                         appCount: { dataType: 'double', required: true },
                         childSpaceCount: { dataType: 'double', required: true },
                         dashboardCount: { dataType: 'double', required: true },
@@ -15250,6 +15251,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['dashboard'] },
                 { dataType: 'enum', enums: ['saved_chart'] },
                 { dataType: 'enum', enums: ['sql_chart'] },
+                { dataType: 'enum', enums: ['document'] },
             ],
             validators: {},
         },
@@ -34963,7 +34965,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DirectAccessResourceType: {
         dataType: 'refEnum',
-        enums: ['dashboard', 'chart', 'sqlChart', 'app'],
+        enums: ['document', 'dashboard', 'chart', 'sqlChart', 'app'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DirectAccessPrincipalType: {
@@ -51280,6 +51282,7 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                documentCount: { dataType: 'double' },
                                 appCount: {
                                     dataType: 'double',
                                     required: true,
@@ -51470,7 +51473,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ResourceViewItemType: {
         dataType: 'refEnum',
-        enums: ['chart', 'dashboard', 'space', 'data_app'],
+        enums: ['chart', 'dashboard', 'space', 'data_app', 'document'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data.uuid-or-pinnedListOrder_':
@@ -57753,6 +57756,14 @@ const models: TsoaRoute.Models = {
                 organizationUuid: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 documentUuid: { dataType: 'string', required: true },
+                directAccessRoles: {
+                    dataType: 'array',
+                    array: { dataType: 'refEnum', ref: 'SpaceMemberRole' },
+                },
+                access: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SpaceAccess' },
+                },
             },
             validators: {},
         },
@@ -61711,6 +61722,7 @@ const models: TsoaRoute.Models = {
             chartCount: { dataType: 'double', required: true },
             childSpaceCount: { dataType: 'double', required: true },
             appCount: { dataType: 'double', required: true },
+            documentCount: { dataType: 'double', required: true },
             parentSpaceUuid: {
                 dataType: 'union',
                 subSchemas: [
@@ -61723,6 +61735,135 @@ const models: TsoaRoute.Models = {
             access: {
                 dataType: 'array',
                 array: { dataType: 'string' },
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ContentType.DOCUMENT': {
+        dataType: 'refEnum',
+        enums: ['document'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DocumentContent: {
+        dataType: 'refObject',
+        properties: {
+            contentType: { ref: 'ContentType.DOCUMENT', required: true },
+            uuid: { dataType: 'string', required: true },
+            slug: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            description: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            createdAt: { dataType: 'datetime', required: true },
+            createdBy: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            lastName: { dataType: 'string', required: true },
+                            firstName: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            lastUpdatedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            lastUpdatedBy: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            lastName: { dataType: 'string', required: true },
+                            firstName: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            project: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
+            organization: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
+            space: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
+            pinnedList: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            views: { dataType: 'double', required: true },
+            firstViewedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            lastViewedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
+            verification: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'ContentVerificationInfo' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            directAccessRoles: {
+                dataType: 'array',
+                array: { dataType: 'refEnum', ref: 'SpaceMemberRole' },
                 required: true,
             },
         },
@@ -62020,6 +62161,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'ChartContent' },
                 { ref: 'DashboardContent' },
                 { ref: 'SpaceContent' },
+                { ref: 'DocumentContent' },
                 { ref: 'DataAppContent' },
             ],
             validators: {},
@@ -62121,6 +62263,16 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         contentType: {
                             ref: 'ContentType.DATA_APP',
+                            required: true,
+                        },
+                        uuid: { dataType: 'string', required: true },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        contentType: {
+                            ref: 'ContentType.DOCUMENT',
                             required: true,
                         },
                         uuid: { dataType: 'string', required: true },
