@@ -1039,6 +1039,38 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
 
         expect(onScreenshotReady).not.toHaveBeenCalled();
     });
+
+    it('signals ready when a pending render-metadata request settles with a generic error', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.metadata.current = undefined;
+        const view = renderRenderer({ onScreenshotReady });
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        mocks.metadataError.current = apiError(500);
+        view.rerender(rendererElement({ onScreenshotReady }));
+
+        expect(
+            screen.getByText('Custom chart type could not be loaded.'),
+        ).toBeInTheDocument();
+        expect(mocks.iframePreview).not.toHaveBeenCalled();
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('signals ready when a pending preview-token request settles with a generic error', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.token.current = undefined;
+        const view = renderRenderer({ onScreenshotReady });
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        mocks.tokenError.current = apiError(500);
+        view.rerender(rendererElement({ onScreenshotReady }));
+
+        expect(
+            screen.getByText('Custom chart type could not be loaded.'),
+        ).toBeInTheDocument();
+        expect(mocks.iframePreview).not.toHaveBeenCalled();
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('DataAppVizRenderer underlying-data gating', () => {

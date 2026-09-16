@@ -22,6 +22,7 @@
         "@types/js-yaml": "4.0.9",
         "oxlint": "1.75.0",
         "oxlint-tsgolint": "7.0.2001",
+        "sharp": "0.35.4",
         "typescript": "7.0.2",
         "vitest": "4.1.11"
     }

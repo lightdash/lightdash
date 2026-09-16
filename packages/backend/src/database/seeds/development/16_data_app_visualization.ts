@@ -9,6 +9,8 @@ import {
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { pack as tarPack } from 'tar-stream';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { lightdashConfig } from '../../../config/lightdashConfig';
@@ -31,28 +33,10 @@ const buildSourceTar = (): Promise<Buffer> =>
         p.finalize();
     });
 
-// The served bundle the builder/explorer preview iframes load. Without an
-// index.html under the version prefix the app-view route 404s, so every
-// fresh environment showed raw `{"status":"error"...}` JSON in the preview
-// pane, and the bundle-servable check reported the version unavailable.
-const SEED_INDEX_HTML = `<!doctype html>
-<html>
-    <head>
-        <meta charset="utf-8" />
-        <title>${SEED_DATA_APP_VIZ.name}</title>
-    </head>
-    <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: #6b7280;">
-        ${SEED_DATA_APP_VIZ.name} (static seed bundle)
-    </body>
-</html>
-`;
-
 /**
- * Stores the version's source archive and a minimal servable bundle so this
- * seeded app matches production invariants: a 'ready' version always has
- * its source in object storage (the CLI download of content referencing
- * this custom chart type fails with "Source not found" without it) and an
- * index.html the app-view route can serve.
+ * Stores the version's source archive and a servable delayed SDK bundle.
+ * The source archive keeps CLI downloads valid; the bundle exercises the
+ * real iframe paint handshake during headless captures.
  */
 const uploadVersionArtifacts = async (): Promise<void> => {
     const s3Config = lightdashConfig.appRuntime.s3; // pragma: allowlist secret (product-name false positive)
@@ -64,6 +48,11 @@ const uploadVersionArtifacts = async (): Promise<void> => {
     }
     const client = createS3ClientFromConfig(s3Config);
     const sourceTar = await buildSourceTar();
+    const fixtureDirectory = join(__dirname, 'fixtures/slow-data-app-viz');
+    const fixtureScript = readFileSync(
+        join(fixtureDirectory, 'fixture.js.txt'),
+    );
+    const fixtureIndex = readFileSync(join(fixtureDirectory, 'index.html'));
     const prefix = versionPrefix(
         SEED_DATA_APP_VIZ.appUuid,
         SEED_DATA_APP_VIZ.version,
@@ -80,8 +69,16 @@ const uploadVersionArtifacts = async (): Promise<void> => {
         await client.send(
             new PutObjectCommand({
                 Bucket: s3Config.bucket,
+                Key: `${prefix}assets/slow-viz.js`,
+                Body: fixtureScript,
+                ContentType: 'text/javascript',
+            }),
+        );
+        await client.send(
+            new PutObjectCommand({
+                Bucket: s3Config.bucket,
                 Key: `${prefix}index.html`,
-                Body: SEED_INDEX_HTML,
+                Body: fixtureIndex,
                 ContentType: 'text/html',
             }),
         );

@@ -14,7 +14,7 @@
         "build:mcp-app": "pnpm -F @lightdash/mcp-chart-app build",
         "build-sourcemaps": "pnpm run generate-api:build && tsc --build tsconfig.sentry.json",
         "typecheck": "tsc --project tsconfig.json --noEmit",
-        "postbuild": "copyfiles --error --up 1 'src/**/*.html' 'src/**/*.png' 'src/**/*.md' dist",
+        "postbuild": "copyfiles --error --up 1 'src/**/*.html' 'src/**/*.png' 'src/**/*.md' 'src/database/seeds/development/fixtures/slow-data-app-viz/*.txt' dist",
         "start": "node dist/index.js",
         "scheduler": "node dist/scheduler.js",
         "scheduler-dev": "tsx watch --clear-screen=false src/scheduler.ts",

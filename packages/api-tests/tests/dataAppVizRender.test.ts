@@ -1,15 +1,20 @@
 import {
+    DashboardTileTypes,
     SEED_DATA_APP_VIZ,
     SEED_ORG_1,
     SEED_PROJECT,
     type ApiError,
+    type ApiExportChartImageRequest,
     type ApiImportAppCodeResponse,
+    type CreateDashboard,
     type CreateEmbedJwt,
+    type Dashboard,
     type DataAppCode,
     type DecodedEmbed,
     type UpdateEmbed,
 } from '@lightdash/common';
 import { randomUUID } from 'node:crypto';
+import sharp from 'sharp';
 import {
     ApiClient,
     fetchWithConnectionRetry,
@@ -22,6 +27,7 @@ import {
     loginWithEmail,
     loginWithPermissions,
 } from '../helpers/auth';
+import { uniqueName } from '../helpers/test-isolation';
 
 const embedApiPrefix = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
 
@@ -32,6 +38,55 @@ const chartRenderBaseUrl = (savedChartUuid: string, dataAppVizUuid: string) =>
     `/api/v1/ee/projects/${SEED_PROJECT.project_uuid}/apps/visualizations/${dataAppVizUuid}/charts/${savedChartUuid}`;
 
 const appsBaseUrl = `/api/v1/ee/projects/${SEED_PROJECT.project_uuid}/apps`;
+
+const fetchChartImage = (
+    client: ApiClient,
+    savedChartUuid: string,
+    dashboardContext?: ApiExportChartImageRequest,
+): Promise<Response> =>
+    fetchWithConnectionRetry(
+        new URL(
+            `/api/v1/saved/${savedChartUuid}/export-image?projectUuid=${SEED_PROJECT.project_uuid}`,
+            SITE_URL,
+        ).href,
+        {
+            method: 'POST',
+            headers: {
+                Cookie: client.cookieHeader,
+                'Content-Type': 'application/json',
+            },
+            body: dashboardContext
+                ? JSON.stringify(dashboardContext)
+                : undefined,
+        },
+    );
+
+const expectPaintedChartImage = async (response: Response): Promise<void> => {
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('image/png');
+    expect(response.headers.get('content-disposition')).toContain(
+        'attachment; filename="chart.png"',
+    );
+    const image = Buffer.from(await response.arrayBuffer());
+    expect(image.subarray(0, 8)).toEqual(
+        Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    );
+    const { data, info } = await sharp(image)
+        .removeAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+    let paintedPixels = 0;
+    for (let offset = 0; offset < data.length; offset += info.channels) {
+        if (
+            data[offset] === 255 &&
+            data[offset + 1] === 0 &&
+            data[offset + 2] === 204
+        ) {
+            paintedPixels += 1;
+        }
+    }
+    expect(paintedPixels).toBeGreaterThanOrEqual(20_000);
+};
 
 const createNonVisualizationDataApp = async (
     client: ApiClient,
@@ -220,27 +275,58 @@ describe('Data app visualization render endpoints', () => {
     });
 
     it('returns a PNG from the permissioned image-stream endpoint', async () => {
-        const response = await fetchWithConnectionRetry(
-            new URL(
-                `/api/v1/saved/${savedChartUuid}/export-image?projectUuid=${SEED_PROJECT.project_uuid}`,
-                SITE_URL,
-            ).href,
+        await expectPaintedChartImage(
+            await fetchChartImage(admin, savedChartUuid),
+        );
+    });
+
+    it('captures a painted chart tile on the second dashboard tab', async () => {
+        const firstTabUuid = randomUUID();
+        const secondTabUuid = randomUUID();
+        const dashboardResponse = await admin.post<Body<Dashboard>>(
+            `/api/v1/projects/${SEED_PROJECT.project_uuid}/dashboards`,
             {
-                method: 'POST',
-                headers: {
-                    Cookie: admin.cookieHeader,
-                    'Content-Type': 'application/json',
-                },
-            },
+                name: uniqueName('Slow viz second-tab export'),
+                tabs: [
+                    { uuid: firstTabUuid, name: 'First', order: 0 },
+                    { uuid: secondTabUuid, name: 'Chart', order: 1 },
+                ],
+                tiles: [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        w: 12,
+                        h: 8,
+                        tabUuid: secondTabUuid,
+                        properties: { savedChartUuid },
+                    },
+                ],
+            } satisfies CreateDashboard,
         );
-        expect(response.status).toBe(200);
-        expect(response.headers.get('content-type')).toContain('image/png');
-        expect(response.headers.get('content-disposition')).toContain(
-            'attachment; filename="chart.png"',
-        );
-        expect(
-            Buffer.from(await response.arrayBuffer()).subarray(0, 8),
-        ).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+        expect(dashboardResponse.status).toBe(201);
+        const dashboard = dashboardResponse.body.results;
+        try {
+            const tile = dashboard.tiles.find(
+                (candidate) =>
+                    candidate.type === DashboardTileTypes.SAVED_CHART &&
+                    candidate.tabUuid === secondTabUuid &&
+                    candidate.properties.savedChartUuid === savedChartUuid,
+            );
+            expect(tile).toBeDefined();
+            if (!tile) throw new Error('Expected the chart on the second tab');
+
+            await expectPaintedChartImage(
+                await fetchChartImage(admin, savedChartUuid, {
+                    dashboardUuid: dashboard.uuid,
+                    dashboardTileUuid: tile.uuid,
+                }),
+            );
+        } finally {
+            await admin.delete(`/api/v1/dashboards/${dashboard.uuid}`, {
+                failOnStatusCode: false,
+            });
+        }
     });
 
     it('uses view:SavedChart rather than view:DataApp on the chart route', async () => {

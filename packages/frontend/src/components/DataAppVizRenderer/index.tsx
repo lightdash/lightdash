@@ -486,6 +486,8 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         !projectUuid ||
         dataAppVizUuid === null ||
         !!terminalRequestErrorMessage ||
+        (!renderMetadata && !!renderMetadataError) ||
+        (!!readyMetadata && !token && !!previewTokenError) ||
         renderMetadata?.state === 'building' ||
         renderMetadata?.state === 'unavailable' ||
         renderMetadata?.state === 'failed';

@@ -92,12 +92,11 @@ const MinimalExplorerContent = memo(() => {
     const [chartHasPainted, setChartHasPainted] = useState(false);
     const hasSignaledReady = useRef(false);
 
-    // Custom (Vega-Lite) charts render asynchronously: react-vega is lazy-imported,
-    // then Vega compiles the spec and constructs its view before the chart paints.
-    // For this type we wait for the chart's own paint signal — gating only on
-    // data-loaded fires the screenshot indicator before Vega has rendered, which
-    // produces blank export PNGs.
-    const needsPaintSignal = savedChart?.chartConfig.type === ChartType.CUSTOM;
+    // Vega and custom chart type iframes render asynchronously. Query completion
+    // alone cannot mark the page ready before the visualization has painted.
+    const needsPaintSignal =
+        savedChart?.chartConfig.type === ChartType.CUSTOM ||
+        savedChart?.chartConfig.type === ChartType.DATA_APP_VIZ;
 
     const handleChartScreenshotReady = useCallback(() => {
         setChartHasPainted(true);
