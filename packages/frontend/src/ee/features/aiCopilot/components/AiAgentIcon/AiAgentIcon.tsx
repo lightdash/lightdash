@@ -23,6 +23,7 @@ export const AiAgentIcon: FC<Props> = ({
     return (
         <span
             aria-hidden="true"
+            data-ai-agent-icon=""
             className={[styles.wrap, className].filter(Boolean).join(' ')}
             style={
                 {
