@@ -25,6 +25,7 @@ export const lightdashConfigWithNoSMTP: Pick<
 
         retryQueryOnTransientErrors: false,
         enableTimezoneSupport: undefined,
+        exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
 };
 
@@ -64,6 +65,7 @@ export const lightdashConfigWithBasicSMTP: Pick<
 
         retryQueryOnTransientErrors: false,
         enableTimezoneSupport: undefined,
+        exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
 };
 
@@ -90,6 +92,7 @@ export const lightdashConfigWithOauth2SMTP: Pick<
 
         retryQueryOnTransientErrors: false,
         enableTimezoneSupport: undefined,
+        exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
 };
 
@@ -112,6 +115,7 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
 
         retryQueryOnTransientErrors: false,
         enableTimezoneSupport: undefined,
+        exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
 };
 

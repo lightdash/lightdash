@@ -312,7 +312,6 @@ import { seedMissingTrainingCopyMetricsTrees } from '../../ee/services/ProjectSe
 import { errorHandler } from '../../errors';
 import {
     newExploreCacheReadContext,
-    safeGetCachedExploreStorageBytes,
     summarizeExploreCacheRead,
 } from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
@@ -9966,20 +9965,14 @@ export class ProjectService extends BaseService {
         );
         const { result: cachedExplores } = await measureTime(
             async () => {
-                const [explores, storedExploreBytes] = await Promise.all([
-                    this.projectModel.findExploresFromCache(
+                const explores =
+                    await this.projectModel.findExploreTableSummariesFromCache(
                         projectUuid,
-                        'name',
-                    ),
-                    safeGetCachedExploreStorageBytes(() =>
-                        this.projectModel.getCachedExploreStorageBytes(
-                            projectUuid,
-                        ),
-                    ),
-                ]);
+                        undefined,
+                        catalogReadContext,
+                    );
                 Object.assign(catalogReadContext, {
                     ...summarizeExploreCacheRead(explores),
-                    storedExploreBytes,
                 });
                 return explores;
             },
@@ -9990,7 +9983,7 @@ export class ProjectService extends BaseService {
         const explores = Object.values(cachedExplores);
 
         return (explores || []).reduce<ProjectCatalog>((acc, explore) => {
-            if (!isExploreError(explore)) {
+            if (!('errors' in explore)) {
                 Object.values(explore.tables).forEach(
                     ({ database, schema, name, description, sqlTable }) => {
                         acc[database] = acc[database] || {};
@@ -11920,26 +11913,23 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        const charts =
+            await this.savedChartModel.findInfoForDbtExposures(projectUuid);
+        const exploreNames = uniq(charts.map((chart) => chart.tableName));
         const dbtExposuresReadContext = newExploreCacheReadContext(
             'dbt-exposures',
-            undefined,
+            exploreNames.length,
         );
         const { result: cachedExplores } = await measureTime(
             async () => {
-                const [explores, storedExploreBytes] = await Promise.all([
-                    this.projectModel.findExploresFromCache(
+                const explores =
+                    await this.projectModel.findExploreTableSummariesFromCache(
                         projectUuid,
-                        'name',
-                    ),
-                    safeGetCachedExploreStorageBytes(() =>
-                        this.projectModel.getCachedExploreStorageBytes(
-                            projectUuid,
-                        ),
-                    ),
-                ]);
+                        exploreNames,
+                        dbtExposuresReadContext,
+                    );
                 Object.assign(dbtExposuresReadContext, {
                     ...summarizeExploreCacheRead(explores),
-                    storedExploreBytes,
                 });
                 return explores;
             },
@@ -11954,13 +11944,6 @@ export class ProjectService extends BaseService {
                 !isUserManagedExplore(explore) &&
                 explore.type !== ExploreType.PRE_AGGREGATE,
         );
-
-        if (!validExplores) {
-            throw new NotFoundError('No explores found');
-        }
-
-        const charts =
-            await this.savedChartModel.findInfoForDbtExposures(projectUuid);
 
         const chartExposures = charts.reduce<DbtExposure[]>((acc, chart) => {
             const dependsOn = Object.values(

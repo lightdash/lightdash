@@ -437,9 +437,10 @@ const makeService = ({
             getPreviewAiAgentUuid: vi
                 .fn()
                 .mockResolvedValue(PREVIEW_AGENT_UUID),
-            findExploresFromCache: vi.fn().mockResolvedValue({
+            findExploreTableSummariesFromCache: vi.fn().mockResolvedValue({
                 orders: {
                     name: 'orders',
+                    baseTable: 'orders',
                     tables: {
                         orders: {
                             name: 'orders',
@@ -677,7 +678,7 @@ describe('AiAgentAdminService review access', () => {
     });
 
     it('forbids starting writeback without manage:SourceCode', async () => {
-        const findExploresFromCache = vi.fn();
+        const findExploreTableSummariesFromCache = vi.fn();
         const aiAgentReviewWriteback = vi.fn();
         const service = makeService({
             aiAgentReviewClassifierModel: {
@@ -694,7 +695,7 @@ describe('AiAgentAdminService review access', () => {
                     organizationUuid: ORGANIZATION_UUID,
                     dbtConnection: { type: DbtProjectType.GITHUB },
                 }),
-                findExploresFromCache,
+                findExploreTableSummariesFromCache,
             },
             githubAppInstallationsModel: {
                 findInstallationId: vi.fn().mockResolvedValue('installation-1'),
@@ -708,7 +709,7 @@ describe('AiAgentAdminService review access', () => {
                 'fingerprint-1',
             ),
         ).rejects.toThrow(ForbiddenError);
-        expect(findExploresFromCache).not.toHaveBeenCalled();
+        expect(findExploreTableSummariesFromCache).not.toHaveBeenCalled();
         expect(aiAgentReviewWriteback).not.toHaveBeenCalled();
     });
 
@@ -2855,9 +2856,10 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                 setReviewItemWritebackStatus,
             },
             projectModel: {
-                findExploresFromCache: vi.fn().mockResolvedValue({
+                findExploreTableSummariesFromCache: vi.fn().mockResolvedValue({
                     orders: {
                         name: 'orders',
+                        baseTable: 'orders',
                         tables: {
                             orders: {
                                 name: 'orders',
@@ -2919,26 +2921,29 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                     setReviewItemWritebackStatus,
                 },
                 projectModel: {
-                    findExploresFromCache: vi.fn().mockResolvedValue(
-                        Object.fromEntries(
-                            sourceUuids.map((dbtSourceUuid, index) => {
-                                const modelName = modelNames[index];
-                                return [
-                                    modelName,
-                                    {
-                                        name: modelName,
-                                        tables: {
-                                            [modelName]: {
-                                                name: modelName,
-                                                ymlPath: `models/${modelName}.yml`,
-                                                dbtSourceUuid,
+                    findExploreTableSummariesFromCache: vi
+                        .fn()
+                        .mockResolvedValue(
+                            Object.fromEntries(
+                                sourceUuids.map((dbtSourceUuid, index) => {
+                                    const modelName = modelNames[index];
+                                    return [
+                                        modelName,
+                                        {
+                                            name: modelName,
+                                            baseTable: modelName,
+                                            tables: {
+                                                [modelName]: {
+                                                    name: modelName,
+                                                    ymlPath: `models/${modelName}.yml`,
+                                                    dbtSourceUuid,
+                                                },
                                             },
                                         },
-                                    },
-                                ];
-                            }),
+                                    ];
+                                }),
+                            ),
                         ),
-                    ),
                 },
                 aiAgentService: { generateAgentThreadResponse },
             });

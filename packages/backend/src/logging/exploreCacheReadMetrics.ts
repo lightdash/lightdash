@@ -1,8 +1,4 @@
-import {
-    isExploreError,
-    type Explore,
-    type ExploreError,
-} from '@lightdash/common';
+import { type Explore } from '@lightdash/common';
 
 const isExploreCacheReadStorageBytesEnabled = () =>
     process.env.LIGHTDASH_EXPLORE_CACHE_READ_STORAGE_BYTES !== 'false';
@@ -24,6 +20,7 @@ export type ExploreCacheReadContext = {
     codePath: ExploreCacheReadCodePath;
     readStrategy:
         | 'full-explore-read'
+        | 'table-summary-projection'
         | 'catalog-search-count'
         | 'catalog-search-distinct-explore-hydration';
     exploreCount: number;
@@ -32,10 +29,13 @@ export type ExploreCacheReadContext = {
     requestedExploreCount: number | undefined;
     /**
      * Sum of `pg_column_size(explore)` for the matched rows, in bytes.
-     * `undefined` if the storage-size query failed - never block or slow
-     * the request for this.
+     * Explore-summary reads populate this from their required strategy
+     * probe. Other reads leave it undefined when optional measurement is
+     * disabled or fails.
      */
     storedExploreBytes: number | undefined;
+    storedBytesPerExplore: number | undefined;
+    projectionThresholdBytesPerExplore: number | undefined;
     /**
      * Driver-read time for the cache read, in ms. This includes query
      * execution, transfer, protocol decoding, driver JSON parsing, scheduling
@@ -72,6 +72,8 @@ export const newExploreCacheReadContext = (
     tableFanOut: 0,
     requestedExploreCount,
     storedExploreBytes: undefined,
+    storedBytesPerExplore: undefined,
+    projectionThresholdBytesPerExplore: undefined,
     dbReadMs: undefined,
     attributeFilterMs: undefined,
 });
@@ -115,13 +117,22 @@ export const safeGetCachedExploreStorageBytes = async (
  * not re-serialize or otherwise re-read the underlying JSONB payload.
  */
 export const summarizeExploreCacheRead = (
-    explores: Record<string, Explore | ExploreError>,
+    explores: Record<
+        string,
+        {
+            errors?: unknown;
+            isExploreError?: boolean;
+            tables?: Record<string, unknown>;
+        }
+    >,
 ): Pick<ExploreCacheReadContext, 'exploreCount' | 'tableFanOut'> => {
     const values = Object.values(explores);
     const tableFanOut = values.reduce(
         (sum, explore) =>
             sum +
-            (isExploreError(explore) ? 0 : Object.keys(explore.tables).length),
+            (explore.isExploreError || 'errors' in explore
+                ? 0
+                : Object.keys(explore.tables ?? {}).length),
         0,
     );
     return { exploreCount: values.length, tableFanOut };

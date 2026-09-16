@@ -40,6 +40,49 @@ beforeEach(() => {
     };
 });
 
+describe('explore summary projection threshold', () => {
+    test('defaults to 2048 stored bytes per explore', () => {
+        expect(
+            parseConfig().query
+                .exploreSummaryProjectionMinStoredBytesPerExplore,
+        ).toBe(2048);
+    });
+
+    test('parses an explicit stored bytes threshold', () => {
+        process.env.LIGHTDASH_EXPLORE_SUMMARY_PROJECTION_MIN_STORED_BYTES_PER_EXPLORE =
+            '4096';
+
+        expect(
+            parseConfig().query
+                .exploreSummaryProjectionMinStoredBytesPerExplore,
+        ).toBe(4096);
+    });
+
+    test('preserves zero as the always-project value', () => {
+        process.env.LIGHTDASH_EXPLORE_SUMMARY_PROJECTION_MIN_STORED_BYTES_PER_EXPLORE =
+            '0';
+
+        expect(
+            parseConfig().query
+                .exploreSummaryProjectionMinStoredBytesPerExplore,
+        ).toBe(0);
+    });
+
+    test.each([
+        '-1',
+        '0.5',
+        '2048bytes',
+        '2e3',
+        '9007199254740992',
+        'Infinity',
+    ])('rejects an invalid threshold: %s', (value) => {
+        process.env.LIGHTDASH_EXPLORE_SUMMARY_PROJECTION_MIN_STORED_BYTES_PER_EXPLORE =
+            value;
+
+        expect(() => parseConfig()).toThrow(ParseError);
+    });
+});
+
 describe('query history retention', () => {
     it('warns when cleanup can expire charts before their Deep Research reports', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

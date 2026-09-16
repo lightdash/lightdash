@@ -178,8 +178,8 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import {
     newExploreCacheReadContext,
-    safeGetCachedExploreStorageBytes,
     summarizeExploreCacheRead,
+    type ExploreCacheReadContext,
 } from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -266,6 +266,135 @@ type RawSummaryRow = {
     aiHint: Explore['aiHint'] | null;
     customMeta: Explore['customMeta'] | null;
 };
+
+export type ExploreTableSummary = Pick<
+    CompiledTable,
+    | 'name'
+    | 'originalName'
+    | 'database'
+    | 'schema'
+    | 'description'
+    | 'sqlTable'
+    | 'ymlPath'
+    | 'dbtSourceUuid'
+>;
+
+export type ExploreTableSummaryRecord = {
+    name: string;
+    type: ExploreType | undefined;
+    baseTable: string;
+    tables: Record<string, ExploreTableSummary>;
+} & ({ errors: true } | { errors?: never });
+
+type RawExploreTableSummaryRow = {
+    exploreName: string;
+    exploreType: ExploreType | null;
+    baseTable: string | null;
+    hasErrors: boolean;
+    tableKey: string | null;
+    tableName: unknown;
+    originalName: unknown;
+    database: unknown;
+    schema: unknown;
+    description: unknown;
+    hasDescription: boolean;
+    sqlTable: unknown;
+    ymlPath: unknown;
+    dbtSourceUuid: unknown;
+};
+
+type CachedExploreStorageStats = {
+    exploreCount: number;
+    totalBytes: number;
+};
+
+const isJsonObject = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const toOptionalJsonScalarText = (value: unknown): string | undefined =>
+    value == null ? undefined : String(value);
+
+export const toExploreTableSummaryRecord = (
+    explore: unknown,
+): ExploreTableSummaryRecord | undefined => {
+    if (!isJsonObject(explore) || typeof explore.name !== 'string') {
+        return undefined;
+    }
+
+    const tables = Object.create(null) as Record<string, ExploreTableSummary>;
+    if (isJsonObject(explore.tables)) {
+        Object.entries(explore.tables).forEach(([tableKey, table]) => {
+            if (!isJsonObject(table)) {
+                return;
+            }
+            tables[tableKey] = {
+                name: (table.name ?? null) as string,
+                database: (table.database ?? null) as string,
+                schema: (table.schema ?? null) as string,
+                sqlTable: (table.sqlTable ?? null) as string,
+                ...(table.originalName
+                    ? { originalName: table.originalName as string }
+                    : {}),
+                ...(Object.hasOwn(table, 'description')
+                    ? { description: table.description as string }
+                    : {}),
+                ...(table.ymlPath ? { ymlPath: table.ymlPath as string } : {}),
+                ...(table.dbtSourceUuid == null
+                    ? {}
+                    : { dbtSourceUuid: table.dbtSourceUuid as string }),
+            };
+        });
+    }
+
+    return {
+        name: explore.name,
+        type: toOptionalJsonScalarText(explore.type) as ExploreType | undefined,
+        baseTable: toOptionalJsonScalarText(explore.baseTable) ?? '',
+        tables,
+        ...(Object.hasOwn(explore, 'errors') ? { errors: true as const } : {}),
+    };
+};
+
+export const reduceExploreTableSummaryRows = (
+    rows: RawExploreTableSummaryRow[],
+): Record<string, ExploreTableSummaryRecord> =>
+    rows.reduce<Record<string, ExploreTableSummaryRecord>>(
+        (acc, row) => {
+            const explore = acc[row.exploreName] ?? {
+                name: row.exploreName,
+                type: row.exploreType ?? undefined,
+                baseTable: row.baseTable ?? '',
+                tables: Object.create(null) as Record<
+                    string,
+                    ExploreTableSummary
+                >,
+                ...(row.hasErrors ? { errors: true as const } : {}),
+            };
+
+            if (row.tableKey !== null) {
+                explore.tables[row.tableKey] = {
+                    name: row.tableName as string,
+                    database: row.database as string,
+                    schema: row.schema as string,
+                    sqlTable: row.sqlTable as string,
+                    ...(row.originalName
+                        ? { originalName: row.originalName as string }
+                        : {}),
+                    ...(row.hasDescription
+                        ? { description: row.description as string }
+                        : {}),
+                    ...(row.ymlPath ? { ymlPath: row.ymlPath as string } : {}),
+                    ...(row.dbtSourceUuid === null
+                        ? {}
+                        : { dbtSourceUuid: row.dbtSourceUuid as string }),
+                };
+            }
+
+            acc[row.exploreName] = explore;
+            return acc;
+        },
+        Object.create(null) as Record<string, ExploreTableSummaryRecord>,
+    );
 
 type PreviewChartUuidMapping = {
     sourceChartUuid: string;
@@ -1907,6 +2036,9 @@ export class ProjectModel {
         const convertedExplore = { ...explore };
         if (convertedExplore.tables) {
             Object.values(convertedExplore.tables).forEach((table) => {
+                if (!isJsonObject(table)) {
+                    return;
+                }
                 if (table.metrics) {
                     Object.values(table.metrics).forEach((metric) => {
                         if (metric.filters) {
@@ -1967,17 +2099,26 @@ export class ProjectModel {
                     () =>
                         explores.reduce<Record<string, Explore | ExploreError>>(
                             (acc, { explore, cached_explore_uuid }) => {
+                                if (
+                                    !isJsonObject(explore) ||
+                                    typeof explore.name !== 'string'
+                                ) {
+                                    return acc;
+                                }
                                 const exploreKey =
                                     key === 'name'
                                         ? explore.name
                                         : cached_explore_uuid;
                                 acc[exploreKey] =
                                     ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                                        explore,
+                                        explore as Explore | ExploreError,
                                     );
                                 return acc;
                             },
-                            {},
+                            Object.create(null) as Record<
+                                string,
+                                Explore | ExploreError
+                            >,
                         ),
                 );
 
@@ -1990,20 +2131,31 @@ export class ProjectModel {
      * Sums the on-disk (TOAST) byte size of the `explore` column for the
      * matched rows via `pg_column_size`, which reads the stored/compressed
      * size from the TOAST pointer rather than detoasting the full JSONB
-     * value. Used only to bucket request cost for perf instrumentation
-     * (SPK-2121) - never gate behaviour on this value.
+     * value. Used for cache-read telemetry and to select the explore-summary
+     * read strategy.
      */
     async getCachedExploreStorageBytes(
         projectUuid: string,
         exploreNamesWithDuplicates?: string[],
     ): Promise<number> {
+        const { totalBytes } = await this.getCachedExploreStorageStats(
+            projectUuid,
+            exploreNamesWithDuplicates,
+        );
+        return totalBytes;
+    }
+
+    async getCachedExploreStorageStats(
+        projectUuid: string,
+        exploreNamesWithDuplicates?: string[],
+    ): Promise<CachedExploreStorageStats> {
         const exploreNames = exploreNamesWithDuplicates
             ? [...new Set(exploreNamesWithDuplicates)]
             : undefined;
         const query = this.database(CachedExploreTableName)
-            .select<{ totalBytes: string }[]>(
+            .select<{ exploreCount: string; totalBytes: string }[]>(
                 this.database.raw(
-                    'COALESCE(SUM(pg_column_size("explore")), 0)::bigint as "totalBytes"',
+                    'COUNT(*)::bigint as "exploreCount", COALESCE(SUM(pg_column_size("explore")), 0)::bigint as "totalBytes"',
                 ),
             )
             .where('project_uuid', projectUuid);
@@ -2011,7 +2163,157 @@ export class ProjectModel {
             void query.whereIn('name', exploreNames);
         }
         const [row] = await query;
-        return Number(row?.totalBytes ?? 0);
+        return {
+            exploreCount: Number(row?.exploreCount ?? 0),
+            totalBytes: Number(row?.totalBytes ?? 0),
+        };
+    }
+
+    async findExploreTableSummariesFromCache(
+        projectUuid: string,
+        exploreNamesWithDuplicates?: string[],
+        readContext?: ExploreCacheReadContext,
+    ): Promise<Record<string, ExploreTableSummaryRecord>> {
+        const exploreNames = exploreNamesWithDuplicates
+            ? [...new Set(exploreNamesWithDuplicates)]
+            : undefined;
+
+        return wrapSentryTransaction(
+            'ProjectModel.findExploreTableSummariesFromCache',
+            { projectUuid, exploreNames },
+            async (span) => {
+                const { exploreCount, totalBytes } =
+                    await this.getCachedExploreStorageStats(
+                        projectUuid,
+                        exploreNames,
+                    );
+                const storedBytesPerExplore =
+                    exploreCount === 0 ? undefined : totalBytes / exploreCount;
+                const projectionThresholdBytesPerExplore =
+                    this.lightdashConfig.query
+                        .exploreSummaryProjectionMinStoredBytesPerExplore;
+                const shouldReadFullExplores =
+                    exploreCount > 0 &&
+                    projectionThresholdBytesPerExplore > 0 &&
+                    storedBytesPerExplore !== undefined &&
+                    storedBytesPerExplore < projectionThresholdBytesPerExplore;
+
+                if (readContext) {
+                    Object.assign(readContext, {
+                        readStrategy: shouldReadFullExplores
+                            ? ('full-explore-read' as const)
+                            : ('table-summary-projection' as const),
+                        storedExploreBytes: totalBytes,
+                        storedBytesPerExplore,
+                        projectionThresholdBytesPerExplore,
+                    });
+                }
+
+                if (exploreCount === 0) {
+                    span.setAttribute('foundExplores', false);
+                    return Object.create(null) as Record<
+                        string,
+                        ExploreTableSummaryRecord
+                    >;
+                }
+
+                if (shouldReadFullExplores) {
+                    const fullExplores = await this.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                        exploreNames,
+                    );
+                    const summaries = Object.values(fullExplores).reduce<
+                        Record<string, ExploreTableSummaryRecord>
+                    >((acc, explore) => {
+                        const summary = toExploreTableSummaryRecord(explore);
+                        if (summary) {
+                            acc[summary.name] = summary;
+                        }
+                        return acc;
+                    }, Object.create(null));
+                    span.setAttribute(
+                        'foundExplores',
+                        !!Object.keys(summaries).length,
+                    );
+                    return summaries;
+                }
+
+                const query = this.database(CachedExploreTableName)
+                    .select<RawExploreTableSummaryRow[]>(
+                        this.database.raw(`
+                            explore_summary.name as "exploreName",
+                            explore_summary.type as "exploreType",
+                            explore_summary."baseTable" as "baseTable",
+                            explore_summary."hasErrors" as "hasErrors",
+                            table_entry.key as "tableKey",
+                            table_entry.value->'name' as "tableName",
+                            table_entry.value->'originalName' as "originalName",
+                            table_entry.value->'database' as "database",
+                            table_entry.value->'schema' as "schema",
+                            table_entry.value->'description' as "description",
+                            jsonb_exists(table_entry.value, 'description') as "hasDescription",
+                            table_entry.value->'sqlTable' as "sqlTable",
+                            table_entry.value->'ymlPath' as "ymlPath",
+                            table_entry.value->'dbtSourceUuid' as "dbtSourceUuid"
+                        `),
+                    )
+                    .joinRaw(
+                        `LEFT JOIN LATERAL (
+                            SELECT
+                                explore_fields.name,
+                                explore_fields.type,
+                                explore_fields."baseTable",
+                                explore_fields.tables,
+                                jsonb_exists(${CachedExploreTableName}.explore, 'errors') as "hasErrors"
+                            FROM jsonb_to_record(
+                                CASE
+                                    WHEN jsonb_typeof(${CachedExploreTableName}.explore) = 'object'
+                                        THEN ${CachedExploreTableName}.explore
+                                    ELSE '{}'::jsonb
+                                END
+                            ) AS explore_fields(
+                                name text,
+                                type text,
+                                "baseTable" text,
+                                tables jsonb
+                            )
+                            OFFSET 0
+                        ) AS explore_summary ON TRUE
+                        LEFT JOIN LATERAL jsonb_each(
+                            CASE
+                                WHEN jsonb_typeof(explore_summary.tables) = 'object' THEN explore_summary.tables
+                                ELSE '{}'::jsonb
+                            END
+                        ) AS table_entry(key, value)
+                            ON jsonb_typeof(table_entry.value) = 'object'`,
+                    )
+                    .where(
+                        `${CachedExploreTableName}.project_uuid`,
+                        projectUuid,
+                    )
+                    .whereRaw(
+                        `jsonb_typeof(${CachedExploreTableName}.explore->'name') = 'string'`,
+                    )
+                    .whereNotNull('explore_summary.name');
+
+                if (exploreNames) {
+                    void query.whereIn(
+                        `${CachedExploreTableName}.name`,
+                        exploreNames,
+                    );
+                }
+
+                const rows = await query;
+                const explores = reduceExploreTableSummaryRows(rows);
+
+                span.setAttribute(
+                    'foundExplores',
+                    !!Object.keys(explores).length,
+                );
+                return explores;
+            },
+        );
     }
 
     async getCachedExploreNames(projectUuid: string): Promise<string[]> {
@@ -2153,15 +2455,13 @@ export class ProjectModel {
         );
         const { result: allCachedExplores } = await measureTime(
             async () => {
-                const [explores, storedExploreBytes] = await Promise.all([
-                    this.findExploresFromCache(projectUuid, 'name'),
-                    safeGetCachedExploreStorageBytes(() =>
-                        this.getCachedExploreStorageBytes(projectUuid),
-                    ),
-                ]);
+                const explores = await this.findExploreTableSummariesFromCache(
+                    projectUuid,
+                    undefined,
+                    splitLookupReadContext,
+                );
                 Object.assign(splitLookupReadContext, {
                     ...summarizeExploreCacheRead(explores),
-                    storedExploreBytes,
                 });
                 return explores;
             },

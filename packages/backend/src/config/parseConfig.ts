@@ -122,6 +122,23 @@ export const getPositiveIntegerFromEnvironmentVariable = (
     return value;
 };
 
+const getNonNegativeIntegerFromEnvironmentVariable = (
+    name: string,
+    defaultValue: number,
+): number => {
+    const raw = process.env[name];
+    if (!raw) {
+        return defaultValue;
+    }
+    const value = Number(raw);
+    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value)) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be a non-negative safe integer but ${name}=${raw}`,
+        );
+    }
+    return value;
+};
+
 export const getFloatFromEnvironmentVariable = (
     name: string,
 ): number | undefined => {
@@ -1664,6 +1681,7 @@ export type LightdashConfig = {
         maxPageSize: number;
         retryQueryOnTransientErrors: boolean;
         enableTimezoneSupport: boolean | undefined;
+        exploreSummaryProjectionMinStoredBytesPerExplore: number;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -3471,6 +3489,11 @@ export const parseConfig = (): LightdashConfig => {
             enableTimezoneSupport: process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT
                 ? process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT === 'true'
                 : undefined,
+            exploreSummaryProjectionMinStoredBytesPerExplore:
+                getNonNegativeIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_EXPLORE_SUMMARY_PROJECTION_MIN_STORED_BYTES_PER_EXPLORE',
+                    2048,
+                ),
         },
         dashboard: {
             maxTilesPerTab:
