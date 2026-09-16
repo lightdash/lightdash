@@ -1,3 +1,10 @@
+# [2.241.0](https://github.com/lightdash/lightdash/compare/2.240.0...2.241.0) (2026-09-16)
+
+
+### Features
+
+* **documents:** add MCP authoring ([#29342](https://github.com/lightdash/lightdash/issues/29342)) ([d2aa39b](https://github.com/lightdash/lightdash/commit/d2aa39b1f8b5c604ae25c6e5d7a1350ca0baf34f))
+
 # [2.240.0](https://github.com/lightdash/lightdash/compare/2.239.0...2.240.0) (2026-09-16)
 
 
