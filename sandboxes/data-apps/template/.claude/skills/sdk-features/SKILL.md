@@ -126,7 +126,8 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
 - `ai-prompt`: `useAiPrompt()` returns `{ available, ask, loading, text, error }`;
   `ask({ prompt, sources: [{ result, label }], focus?: { row } })` sends an
   author-written question over loaded `useLightdash` results and resolves to
-  plain text. Hide the control when `available` is false; trigger from a user
+  plain text. `result` is the object `useLightdash` returns (keep a reference
+  to it even when destructuring), never a rebuilt `{ data, columns }`. Hide the control when `available` is false; trigger from a user
   action. Full contract in `/app/references/ai-analysis.md`.
 - `delivery-render`: `useDeliveryRender()` is `true` during scheduled-delivery
   and delivery-preview capture renders. Gate tab/slide DATA mounting on it so

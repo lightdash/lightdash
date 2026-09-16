@@ -11,9 +11,12 @@ import { useTransport } from './LightdashProvider';
 import type { AiPromptRequest, AiPromptResult, Row } from './types';
 
 export type AiPromptSource = {
-    /** A `useLightdash` result (or any object carrying its `queryUuid`);
-     *  entries without a query uuid yet are skipped. */
-    result: { queryUuid?: string | null } | null;
+    /** The object returned by `useLightdash`. Entries still loading (no
+     *  query uuid yet) are skipped. */
+    result: {
+        queryUuid?: string | null;
+        lineage?: { 'data-ld-query'?: string };
+    } | null;
     /** Shown to the model as the section title; defaults to "Query N". */
     label?: string;
 };
@@ -45,19 +48,25 @@ const rowToFocus = (row: Row): Record<string, string> =>
         ]),
     );
 
+// Apps often destructure the hook and rebuild an object; the lineage prop
+// they keep for chart roots carries the same query uuid.
+const sourceQueryUuid = (result: AiPromptSource['result']): string | null =>
+    result?.queryUuid ?? result?.lineage?.['data-ld-query'] ?? null;
+
 /** Pure request builder; throws when no source carries a query uuid. */
 export const buildAiPromptRequest = (
     appUuid: string,
     options: AiPromptOptions,
 ): AiPromptRequest => {
-    const sources = options.sources.flatMap(({ result, label }) =>
-        result?.queryUuid
-            ? [{ queryUuid: result.queryUuid, label: label ?? null }]
-            : [],
-    );
+    const sources = options.sources.flatMap(({ result, label }) => {
+        const queryUuid = sourceQueryUuid(result);
+        return queryUuid ? [{ queryUuid, label: label ?? null }] : [];
+    });
     if (sources.length === 0) {
         throw new Error(
-            'useAiPrompt: pass at least one loaded useLightdash result as a source',
+            options.sources.length === 0
+                ? 'useAiPrompt: pass at least one useLightdash result as a source'
+                : 'useAiPrompt: no source has a queryUuid yet. Pass the object returned by useLightdash itself (const orders = useLightdash(q); sources: [{ result: orders }]) once it has loaded',
         );
     }
     return {

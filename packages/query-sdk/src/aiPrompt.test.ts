@@ -17,7 +17,7 @@ describe('buildAiPromptRequest', () => {
                     { result: result('q1'), label: 'Orders' },
                     { result: result(null) },
                     { result: null },
-                    { result: result('q2') },
+                    { result: { lineage: { 'data-ld-query': 'q2' } } },
                 ],
                 focus: { row: { orders_status: 'returned', n: 12, ok: null } },
             }),
@@ -38,7 +38,10 @@ describe('buildAiPromptRequest', () => {
                 prompt: 'x',
                 sources: [{ result: result(null) }],
             }),
-        ).toThrow(/at least one loaded/);
+        ).toThrow(/no source has a queryUuid/);
+        expect(() =>
+            buildAiPromptRequest('app-1', { prompt: 'x', sources: [] }),
+        ).toThrow(/at least one/);
     });
 });
 
