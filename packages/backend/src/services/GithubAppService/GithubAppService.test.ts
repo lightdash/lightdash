@@ -1,14 +1,19 @@
 import {
     defineUserAbility,
     ForbiddenError,
+    MissingConfigError,
     OrganizationMemberRole,
     ProjectMemberRole,
     PullRequestProvider,
 } from '@lightdash/common';
 import type { SessionUser } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { getOrRefreshToken } from '../../clients/github/Github';
+import {
+    getOrRefreshToken,
+    isGithubAppConfigured,
+} from '../../clients/github/Github';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import type { LightdashConfig } from '../../config/parseConfig';
 import type { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { GitUserCredentialsModel } from '../../models/GitUserCredentials/GitUserCredentialsModel';
 import type { UserModel } from '../../models/UserModel';
@@ -19,7 +24,13 @@ vi.mock('../../clients/github/Github', () => ({
         .fn()
         .mockReturnValue('https://github.com/login/oauth/authorize'),
     getOrRefreshToken: vi.fn(),
+    isGithubAppConfigured: vi.fn().mockReturnValue(true),
 }));
+
+const configWithAppName = (appName: string | undefined): LightdashConfig => ({
+    ...lightdashConfigMock,
+    github: { ...lightdashConfigMock.github, appName },
+});
 
 const organizationUuid = 'org-uuid';
 const userFields = {
@@ -54,10 +65,12 @@ const buildService = ({
     findCredential,
     deleteCredential = vi.fn(),
     updateTokens = vi.fn(),
+    lightdashConfig = lightdashConfigMock,
 }: {
     findCredential?: import('vitest').Mock;
     deleteCredential?: import('vitest').Mock;
     updateTokens?: import('vitest').Mock;
+    lightdashConfig?: LightdashConfig;
 } = {}) =>
     new GithubAppService({
         githubAppInstallationsModel:
@@ -69,7 +82,7 @@ const buildService = ({
             updateTokens,
         } as unknown as GitUserCredentialsModel,
         userModel: {} as unknown as UserModel,
-        lightdashConfig: lightdashConfigMock,
+        lightdashConfig,
         analytics: analyticsMock,
     });
 
@@ -84,6 +97,49 @@ describe('GithubAppService', () => {
 
             await expect(service.getRepos(projectDeveloper)).rejects.toThrow(
                 ForbiddenError,
+            );
+        });
+    });
+
+    describe('installRedirect', () => {
+        beforeEach(() => {
+            (isGithubAppConfigured as import('vitest').Mock).mockReturnValue(
+                true,
+            );
+        });
+
+        it('builds the install url from the configured app name', async () => {
+            const service = buildService({
+                lightdashConfig: configWithAppName('acme-lightdash'),
+            });
+
+            const { installUrl } = await service.installRedirect(user);
+
+            expect(installUrl).toContain(
+                'https://github.com/apps/acme-lightdash/installations/new',
+            );
+        });
+
+        it('throws when the instance has no app name configured', async () => {
+            const service = buildService({
+                lightdashConfig: configWithAppName(undefined),
+            });
+
+            await expect(service.installRedirect(user)).rejects.toThrow(
+                MissingConfigError,
+            );
+        });
+
+        it('throws when the instance has no app credentials configured', async () => {
+            (isGithubAppConfigured as import('vitest').Mock).mockReturnValue(
+                false,
+            );
+            const service = buildService({
+                lightdashConfig: configWithAppName('acme-lightdash'),
+            });
+
+            await expect(service.installRedirect(user)).rejects.toThrow(
+                MissingConfigError,
             );
         });
     });

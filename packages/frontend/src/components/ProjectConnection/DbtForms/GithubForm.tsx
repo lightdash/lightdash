@@ -15,6 +15,7 @@ import {
 import { useInterval } from '@mantine/hooks';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
 import React, { useEffect, type FC } from 'react';
+import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
 import githubIcon from '../../../svgs/github-icon.svg';
 import {
@@ -245,6 +246,10 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject, isDbtSource } = useProjectFormContext();
     const form = useFormContext();
     const { data: githubConfig } = useGithubConfig();
+    const health = useHealth();
+    // Without GitHub App credentials on this instance the install flow has no
+    // app to install, so only the personal access token method is offered
+    const isGithubAppAvailable = !health.isSuccess || health.data.hasGithub;
 
     if (form.values.dbt.type !== DbtProjectType.GITHUB) {
         throw new Error('GithubForm can only be used for Github projects');
@@ -253,12 +258,15 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const isNative = form.values.dbt.semanticLayer === 'lightdash';
 
     const formAuthorizationMethod = form.values.dbt?.authorization_method;
-    const authorizationMethod: DbtGithubProjectConfig['authorization_method'] =
-        formAuthorizationMethod ??
-        (savedProject?.dbtConnection.type === DbtProjectType.GITHUB &&
+    const savedAuthorizationMethod: DbtGithubProjectConfig['authorization_method'] =
+        savedProject?.dbtConnection.type === DbtProjectType.GITHUB &&
         savedProject?.dbtConnection?.personal_access_token !== undefined
             ? 'personal_access_token'
-            : 'installation_id');
+            : 'installation_id';
+    const authorizationMethod: DbtGithubProjectConfig['authorization_method'] =
+        isGithubAppAvailable
+            ? (formAuthorizationMethod ?? savedAuthorizationMethod)
+            : 'personal_access_token';
 
     useEffect(() => {
         if (formAuthorizationMethod !== authorizationMethod) {
@@ -267,7 +275,9 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     }, [authorizationMethod, formAuthorizationMethod, form]);
 
     const isInstallationValid =
-        githubConfig?.enabled && authorizationMethod === 'installation_id';
+        isGithubAppAvailable &&
+        githubConfig?.enabled &&
+        authorizationMethod === 'installation_id';
 
     return (
         <>
@@ -312,7 +322,8 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         {...form.getInputProps('dbt.authorization_method')}
                         defaultValue={
                             // If installation is not valid, we still show personal_access_token on existing saved projects
-                            isInstallationValid || savedProject === undefined
+                            isInstallationValid ||
+                            (isGithubAppAvailable && savedProject === undefined)
                                 ? 'installation_id'
                                 : 'personal_access_token'
                         }
@@ -333,16 +344,20 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         w={isInstallationValid ? '90%' : '100%'}
                         label="Authorization method"
                         data={[
-                            {
-                                value: 'installation_id',
-                                label: 'OAuth (recommended)',
-                            },
+                            ...(isGithubAppAvailable
+                                ? [
+                                      {
+                                          value: 'installation_id',
+                                          label: 'OAuth (recommended)',
+                                      },
+                                  ]
+                                : []),
                             {
                                 value: 'personal_access_token',
                                 label: 'Personal Access Token',
                             },
                         ]}
-                        disabled={disabled}
+                        disabled={disabled || !isGithubAppAvailable}
                     />
 
                     {isInstallationValid && (

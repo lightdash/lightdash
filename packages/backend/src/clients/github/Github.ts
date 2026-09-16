@@ -35,6 +35,11 @@ export const githubApp =
           })
         : undefined;
 
+/** Whether this instance has its own GitHub App credentials. The install flow
+ * must not start without them: the user would install an app that this
+ * instance cannot mint tokens for. */
+export const isGithubAppConfigured = (): boolean => githubApp !== undefined;
+
 export const getGithubApp = () => {
     if (githubApp === undefined)
         throw new Error('Github integration not configured');

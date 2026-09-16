@@ -1,6 +1,10 @@
 {
     "$schema": "./scripts/release-safety-declarations.schema.json",
     "declarations": {
+        "github-app-name-default-removed": {
+            "reason": "GITHUB_APP_NAME no longer defaults to the Lightdash development GitHub App slug (lightdash-app-dev). A self-hosted instance that left it unset previously sent users to that unrelated app's GitHub install page; it now returns a configuration error from GET /api/v1/github/install and hides the GitHub App option when connecting a dbt project. Instances that want dbt-over-GitHub must set GITHUB_APP_NAME alongside their existing GitHub App credentials; personal access token connections are unaffected.",
+            "requiredStop": false
+        },
         "ai-agent-legacy-viz-tool-names-removed": {
             "reason": "The retired AI agent tool names generateBarVizConfig, generateTableVizConfig and generateTimeSeriesVizConfig are removed from the AgentToolName API enum. No agent has emitted them since November 2025, so this only affects AI threads created before then: their legacy chart tool calls stop rendering. Threads still load and every other message is unaffected.",
             "requiredStop": false
