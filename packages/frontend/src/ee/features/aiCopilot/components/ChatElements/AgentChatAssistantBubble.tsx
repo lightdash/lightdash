@@ -67,7 +67,10 @@ import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
-import { AiDataAppBuildCard } from './DataAppBuildCard/AiDataAppBuildCard';
+import {
+    AiDataAppBuildCard,
+    type DataAppBuildOrigin,
+} from './DataAppBuildCard/AiDataAppBuildCard';
 import { AiDataAppRestoreCard } from './DataAppBuildCard/AiDataAppRestoreCard';
 import { getDataAppRestoreItem } from './DataAppBuildCard/dataAppBuildCardState';
 import { isHiddenToolName } from './hiddenToolNames';
@@ -557,16 +560,20 @@ const AssistantBubbleContent: FC<{
         return liveOutput?.metadata ?? null;
     })();
 
-    const generateDataAppMetadata:
-        | ToolGenerateDataAppOutput['metadata']
-        | null = (() => {
+    const dataAppBuild: {
+        metadata: ToolGenerateDataAppOutput['metadata'];
+        origin: DataAppBuildOrigin;
+    } | null = (() => {
         const persisted = message.toolResults.find(isToolDataAppBuildResult);
-        if (persisted) return persisted.metadata;
+        if (persisted)
+            return { metadata: persisted.metadata, origin: 'persisted' };
         const liveOutput = findLiveToolPart(streamingState?.parts, [
             'generateDataApp',
             'iterateDataApp',
         ])?.toolResult as ToolGenerateDataAppOutput | undefined;
-        return liveOutput?.metadata ?? null;
+        return liveOutput?.metadata
+            ? { metadata: liveOutput.metadata, origin: 'stream' }
+            : null;
     })();
 
     return (
@@ -975,9 +982,10 @@ const AssistantBubbleContent: FC<{
                     projectUuid={projectUuid}
                 />
             )}
-            {generateDataAppMetadata && (
+            {dataAppBuild && (
                 <AiDataAppBuildCard
-                    metadata={generateDataAppMetadata}
+                    metadata={dataAppBuild.metadata}
+                    origin={dataAppBuild.origin}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}

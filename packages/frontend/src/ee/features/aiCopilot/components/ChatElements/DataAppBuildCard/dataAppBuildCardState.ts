@@ -15,6 +15,9 @@ import { type DataAppBuildCardState } from './DataAppBuildCard';
 
 type AppData = ApiGetAppResponse['results'];
 
+export const DATA_APP_BUILD_FAILED_TITLE = "The app couldn't be built";
+export const DATA_APP_BUILD_CANCELLED_TITLE = 'Build cancelled';
+
 /** What the thread knows about the app the build belongs to. */
 export type DataAppBuildCardAppSource =
     | { kind: 'loading' }
@@ -52,14 +55,12 @@ const getReadyState = ({
         (version === 1 ? 'Your app is ready!' : `Version ${version} is ready!`),
 });
 
-const getStateFromVersionRow = (
-    metadata: Extract<
-        ToolGenerateDataAppOutput['metadata'],
-        { status: 'pending' }
-    >,
+/** Card state read from one of the app's live version rows. */
+const getDataAppVersionState = (
     app: AppData,
+    version: number,
 ): DataAppBuildCardState => {
-    const row = app.versions.find((v) => v.version === metadata.version);
+    const row = app.versions.find((v) => v.version === version);
     if (!row || row.status === 'pending') {
         return { kind: 'queued' };
     }
@@ -72,9 +73,9 @@ const getStateFromVersionRow = (
     }
     if (row.status === 'ready') {
         return getReadyState({
-            appUuid: metadata.appUuid,
+            appUuid: app.appUuid,
             name: app.name,
-            version: metadata.version,
+            version,
             row,
         });
     }
@@ -82,6 +83,16 @@ const getStateFromVersionRow = (
         return { kind: 'cancelled' };
     }
     return { kind: 'failed', message: getAppVersionFailureMessage(row) };
+};
+
+/** The newest version's state; versions come newest first. */
+export const getDataAppLatestVersionState = (
+    app: AppData,
+): DataAppBuildCardState => {
+    const newest = app.versions[0];
+    return newest
+        ? getDataAppVersionState(app, newest.version)
+        : { kind: 'queued' };
 };
 
 /**
@@ -120,7 +131,7 @@ export const getDataAppBuildCardState = (
                 case 'unavailable':
                     return { kind: 'unavailable' };
                 case 'loaded':
-                    return getStateFromVersionRow(metadata, source.app);
+                    return getDataAppVersionState(source.app, metadata.version);
                 case 'loading':
                 case 'error':
                     return { kind: 'queued' };

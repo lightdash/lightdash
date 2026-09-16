@@ -22,6 +22,10 @@ import AppVersionNarration from '../../../../../../features/apps/components/AppV
 import { formatBuildDuration } from '../../../../../../features/apps/utils/formatBuildDuration';
 import { type AppVersionNarrationData } from '../../../../../../features/apps/utils/versionNarration';
 import styles from './DataAppBuildCard.module.css';
+import {
+    DATA_APP_BUILD_CANCELLED_TITLE,
+    DATA_APP_BUILD_FAILED_TITLE,
+} from './dataAppBuildCardState';
 
 export type DataAppBuildCardState =
     | { kind: 'queued' }
@@ -53,8 +57,6 @@ type Props = {
     isActive: boolean;
     onView: () => void;
 };
-
-const FAILED_TITLE = "The app couldn't be built";
 
 const readySubtitle = (
     state: Extract<DataAppBuildCardState, { kind: 'ready' }>,
@@ -274,7 +276,7 @@ const renderCells = (
                     <>
                         <Lead icon={<CardIcon tone="error" />}>
                             <Text size="xs" c="dimmed" lineClamp={2}>
-                                {`${FAILED_TITLE}. ${state.message}`}
+                                {`${DATA_APP_BUILD_FAILED_TITLE}. ${state.message}`}
                             </Text>
                         </Lead>
                     </>
@@ -283,7 +285,7 @@ const renderCells = (
             return (
                 <>
                     <Lead icon={<CardIcon tone="error" />}>
-                        <Title>{FAILED_TITLE}</Title>
+                        <Title>{DATA_APP_BUILD_FAILED_TITLE}</Title>
                     </Lead>
                     <Body>
                         <Muted>{state.message}</Muted>
@@ -300,7 +302,7 @@ const renderCells = (
                             </ThemeIcon>
                         }
                     >
-                        <Title>Build cancelled</Title>
+                        <Title>{DATA_APP_BUILD_CANCELLED_TITLE}</Title>
                     </Lead>
                 </>
             );

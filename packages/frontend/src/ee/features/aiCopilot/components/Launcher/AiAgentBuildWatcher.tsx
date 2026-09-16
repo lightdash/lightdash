@@ -1,6 +1,7 @@
 import { type ApiAppVersionSummary } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, type FC } from 'react';
+import { useStore } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { useAppBuildPoller } from '../../../../../features/apps/hooks/useAppBuildPoller';
 import {
@@ -13,7 +14,12 @@ import {
     isEmbedAiAgentRoute,
 } from '../../hooks/aiAgentRouting';
 import { getAiAgentThreadQueryKey } from '../../hooks/useProjectAiAgents';
-import { setPreview, type AiPreview } from '../../store/aiArtifactSlice';
+import { type AiAgentStoreState } from '../../store';
+import {
+    selectDataAppPreview,
+    setPreview,
+    type AiPreview,
+} from '../../store/aiArtifactSlice';
 import {
     getBuildWatchKey,
     removeBuildWatch,
@@ -54,14 +60,10 @@ type BuildWatchProps = { watch: BuildWatchEntry };
 const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
     const queryClient = useQueryClient();
     const dispatch = useAiAgentStoreDispatch();
+    const store = useStore<AiAgentStoreState>();
     const navigate = useNavigate();
     const { projectUuid, agentUuid, threadUuid, appUuid } = watch;
     const canNotify = !isEmbedAiAgentRoute();
-    const launcherThreadUuid = useAiAgentStoreSelector((state) =>
-        state.aiAgentLauncher.mode === 'panel-open'
-            ? state.aiAgentLauncher.activeThreadId
-            : null,
-    );
     const landedReadyVersionRef = useRef<number | null>(null);
 
     const openThread = useCallback(() => {
@@ -99,13 +101,12 @@ const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
             const isWatchedVersion = latest.version === watch.version;
             if (isWatchedVersion && latest.status === 'ready') {
                 landedReadyVersionRef.current = latest.version;
-                // Never open the preview over a different thread on screen.
-                const onScreenThreadUuid =
-                    getThreadUuidFromPathname(window.location.pathname) ??
-                    launcherThreadUuid;
+                // Only a panel still showing this app follows the build;
+                // a closed panel stays closed.
+                const preview = selectDataAppPreview(store.getState());
                 if (
-                    onScreenThreadUuid === null ||
-                    onScreenThreadUuid === threadUuid
+                    preview?.appUuid === appUuid &&
+                    preview.threadUuid === threadUuid
                 ) {
                     dispatch(
                         setPreview(getLandedPreview(watch, latest.version)),
@@ -117,10 +118,10 @@ const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
         },
         [
             queryClient,
+            store,
             dispatch,
             notify,
             canNotify,
-            launcherThreadUuid,
             projectUuid,
             agentUuid,
             threadUuid,

@@ -9,8 +9,13 @@ import {
 } from './dataAppBuildCardState';
 import { useDataAppCardPreview } from './useDataAppCardPreview';
 
+/** Where the card's metadata came from: the live tool call streamed in this
+ *  session, or a tool result persisted on the message (reload, later turns). */
+export type DataAppBuildOrigin = 'stream' | 'persisted';
+
 type Props = {
     metadata: ToolGenerateDataAppOutput['metadata'];
+    origin: DataAppBuildOrigin;
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
@@ -25,6 +30,7 @@ type Props = {
  */
 export const AiDataAppBuildCard: FC<Props> = ({
     metadata,
+    origin,
     projectUuid,
     agentUuid,
     threadUuid,
@@ -33,15 +39,16 @@ export const AiDataAppBuildCard: FC<Props> = ({
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const { appUuid } = metadata;
-    const { source, isActive, openPreview } = useDataAppCardPreview({
-        projectUuid,
-        agentUuid,
-        threadUuid,
-        messageUuid,
-        appUuid,
-        // A failed build names no version and can never be on show.
-        version: metadata.status === 'error' ? null : metadata.version,
-    });
+    const { source, isActive, openPreview, openLatestPreview } =
+        useDataAppCardPreview({
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            appUuid,
+            // A failed build names no version and can never be on show.
+            version: metadata.status === 'error' ? null : metadata.version,
+        });
     const state = getDataAppBuildCardState(metadata, source);
     const inProgress = state !== null && isDataAppBuildInProgress(state);
     const pendingVersion =
@@ -76,22 +83,17 @@ export const AiDataAppBuildCard: FC<Props> = ({
         appName,
     ]);
 
-    // Open the preview once when a build watched in this session lands.
+    // Open the preview once when a build started in this session first shows;
+    // the build watcher moves it to the new version when the build lands.
     // Never on reload, and never again after the user closes it.
-    const isReady = state?.kind === 'ready';
-    const watchingLiveBuild = source.kind === 'loaded' && inProgress;
-    const watchedBuildRef = useRef(false);
+    const startedThisSession = origin === 'stream' && inProgress;
     const autoOpenedRef = useRef(false);
     useEffect(() => {
-        if (watchingLiveBuild) {
-            watchedBuildRef.current = true;
-            return;
-        }
-        if (isReady && watchedBuildRef.current && !autoOpenedRef.current) {
+        if (startedThisSession && !autoOpenedRef.current) {
             autoOpenedRef.current = true;
-            openPreview();
+            openLatestPreview();
         }
-    }, [watchingLiveBuild, isReady, openPreview]);
+    }, [startedThisSession, openLatestPreview]);
 
     if (!state || !appUuid) return null;
 

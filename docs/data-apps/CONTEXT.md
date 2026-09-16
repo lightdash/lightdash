@@ -227,9 +227,10 @@ narration), ready, failed, cancelled, or unavailable. Each card names one
 version and, once ready, the theme that version was built with. View, the
 card's only action, opens that version in the thread's preview panel, and
 only the card for the version on show is active. It reads the version while the
-tool result is pending and the tool result once it is terminal; when a
-build watched in the thread lands, the app opens in the thread's preview
-panel.
+tool result is pending and the tool result once it is terminal; a build
+started in the current session opens the thread's preview panel as soon as
+its card shows, and the panel moves to the new version when the build lands
+if it is still open.
 _Avoid_: job card, progress card, status widget
 
 **External agent**:

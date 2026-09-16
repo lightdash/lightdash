@@ -64,7 +64,10 @@ _Avoid_: sidebar, widget, chat panel
 
 **Preview panel**:
 The in-thread panel that renders a data app the agent built or the user
-pinned, so it can be inspected without leaving the thread.
+pinned, so it can be inspected without leaving the thread. Opens on its own
+when a build starts in the current session and shows a building or failed
+state while the app has no ready version to render; closing it keeps it
+closed for that build.
 _Avoid_: iframe, side panel, viewer
 
 **Build watch**:

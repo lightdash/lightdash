@@ -60,31 +60,37 @@ export const useDataAppCardPreview = ({
         latestReadyVersion,
     });
 
-    const openPreview = useCallback(() => {
-        if (!appUuid) return;
-        dispatch(
-            setPreview({
-                type: 'dataApp',
-                appUuid,
-                messageUuid,
-                threadUuid,
-                projectUuid,
-                agentUuid,
-                version,
-                // The card's own version is the floor until the app resolves.
-                latestReadyVersionAtOpen: latestReadyVersion ?? version,
-            }),
-        );
-    }, [
-        dispatch,
-        appUuid,
-        messageUuid,
-        threadUuid,
-        projectUuid,
-        agentUuid,
-        version,
-        latestReadyVersion,
-    ]);
+    const open = useCallback(
+        (openVersion: number | null, floor: number | null) => {
+            if (!appUuid) return;
+            dispatch(
+                setPreview({
+                    type: 'dataApp',
+                    appUuid,
+                    messageUuid,
+                    threadUuid,
+                    projectUuid,
+                    agentUuid,
+                    version: openVersion,
+                    latestReadyVersionAtOpen: floor,
+                }),
+            );
+        },
+        [dispatch, appUuid, messageUuid, threadUuid, projectUuid, agentUuid],
+    );
 
-    return { source, isActive, openPreview };
+    // The card's own version is the floor until the app resolves.
+    const openPreview = useCallback(
+        () => open(version, latestReadyVersion ?? version),
+        [open, version, latestReadyVersion],
+    );
+
+    // The panel follows the app's latest ready version, so a build in
+    // progress shows as building until it lands.
+    const openLatestPreview = useCallback(
+        () => open(null, latestReadyVersion),
+        [open, latestReadyVersion],
+    );
+
+    return { source, isActive, openPreview, openLatestPreview };
 };
