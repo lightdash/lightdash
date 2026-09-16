@@ -48,6 +48,12 @@ export type DocumentCellV2 =
 
 export type DocumentContentV2 = { cells: DocumentCellV2[] };
 
+export type DocumentCellV3 =
+    | { id: string; type: 'markdown'; content: { markdown: string } }
+    | { id: string; type: 'chart'; content: DocumentChartContent };
+
+export type DocumentContentV3 = { cells: DocumentCellV3[] };
+
 export type DocumentSummary = {
     documentUuid: string;
     projectUuid: string;
@@ -64,8 +70,8 @@ export type DocumentSummary = {
 export type DocumentVersion = {
     versionUuid: string;
     versionNumber: number;
-    schemaVersion: 2;
-    content: DocumentContentV2;
+    schemaVersion: 3;
+    content: DocumentContentV3;
     createdByUserUuid: string | null;
     createdAt: Date;
 };

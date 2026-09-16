@@ -33,7 +33,7 @@ const document: Document = {
     version: {
         versionUuid: 'version-uuid',
         versionNumber: 1,
-        schemaVersion: 2,
+        schemaVersion: 3,
         content: {
             cells: [
                 {

@@ -2,7 +2,7 @@ import {
     ConflictError,
     Document,
     DOCUMENT_SCHEMA_VERSION,
-    DocumentContentV2,
+    DocumentContentV3,
     DocumentSummary,
     NotFoundError,
     parseDocumentContent,
@@ -27,7 +27,7 @@ export type CreateDocument = {
     name: string;
     slug?: string;
     description: string;
-    content: DocumentContentV2;
+    content: DocumentContentV3;
     createdByUserUuid: string | null;
 };
 

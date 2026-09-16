@@ -76,7 +76,6 @@ describe('DocumentModel PostgreSQL integration', () => {
                         id: 'introduction',
                         type: 'markdown',
                         content: {
-                            title: 'Introduction',
                             markdown: '# Report',
                         },
                     },
@@ -94,14 +93,14 @@ describe('DocumentModel PostgreSQL integration', () => {
         const document = await model.create(input);
         expect(document.version).toMatchObject({
             versionNumber: 1,
-            schemaVersion: 2,
+            schemaVersion: 3,
             content: input.content,
         });
         expect(
             await transaction(DocumentVersionsTableName)
                 .where('document_version_uuid', document.version.versionUuid)
                 .first(),
-        ).toMatchObject({ schema_version: 2, content: input.content });
+        ).toMatchObject({ schema_version: 3, content: input.content });
         expect(
             await model.get(input.projectUuid, document.documentUuid),
         ).toEqual(document);
@@ -143,7 +142,7 @@ describe('DocumentModel PostgreSQL integration', () => {
         expect(result.version).toMatchObject({
             versionUuid: document.version.versionUuid,
             versionNumber: 1,
-            schemaVersion: 2,
+            schemaVersion: 3,
             content: {
                 cells: [
                     {
@@ -159,6 +158,56 @@ describe('DocumentModel PostgreSQL integration', () => {
                 .where('document_version_uuid', document.version.versionUuid)
                 .first(),
         ).toMatchObject({ schema_version: 1, content: legacyContent });
+    });
+
+    test('reads titled V2 as V3 without changing the stored version or markdown', async () => {
+        const document = await model.create(input);
+        const legacyContent = {
+            cells: [
+                {
+                    id: 'legacy',
+                    type: 'markdown',
+                    content: {
+                        title: 'Retired heading',
+                        markdown: '# Original report',
+                    },
+                },
+            ],
+        };
+        await transaction.raw(
+            'UPDATE ?? SET schema_version = 2, content = ?::jsonb WHERE document_version_uuid = ?',
+            [
+                DocumentVersionsTableName,
+                JSON.stringify(legacyContent),
+                document.version.versionUuid,
+            ],
+        );
+        const before = await transaction(DocumentVersionsTableName)
+            .where('document_version_uuid', document.version.versionUuid)
+            .first();
+        const result = await model.get(
+            input.projectUuid,
+            document.documentUuid,
+        );
+        expect(result.version).toMatchObject({
+            versionUuid: document.version.versionUuid,
+            versionNumber: 1,
+            schemaVersion: 3,
+            content: {
+                cells: [
+                    {
+                        id: 'legacy',
+                        type: 'markdown',
+                        content: { markdown: '# Original report' },
+                    },
+                ],
+            },
+        });
+        expect(
+            await transaction(DocumentVersionsTableName)
+                .where('document_version_uuid', document.version.versionUuid)
+                .first(),
+        ).toEqual(before);
     });
 
     test('reads the greatest version number rather than creation time', async () => {

@@ -1,6 +1,10 @@
 import Ajv, { type ValidateFunction } from 'ajv';
 import chartAsCodeSchema from '../schemas/json/chart-as-code-1.0.json';
-import type { DocumentContentV1, DocumentContentV2 } from '../types/document';
+import type {
+    DocumentContentV1,
+    DocumentContentV2,
+    DocumentContentV3,
+} from '../types/document';
 import { ParameterError } from '../types/errors';
 import {
     parseSavedMergeQuery,
@@ -8,7 +12,7 @@ import {
 } from '../types/mergeQuery';
 import { ChartType } from '../types/savedCharts';
 
-export const DOCUMENT_SCHEMA_VERSION = 2;
+export const DOCUMENT_SCHEMA_VERSION = 3;
 
 const chartProperties = {
     name: chartAsCodeSchema.properties.name,
@@ -38,10 +42,11 @@ const chartSchema = (merge: boolean) => ({
 });
 
 let legacyValidator: ValidateFunction<DocumentContentV1> | undefined;
-let currentValidator: ValidateFunction<DocumentContentV2> | undefined;
+let titledValidator: ValidateFunction<DocumentContentV2> | undefined;
+let currentValidator: ValidateFunction<DocumentContentV3> | undefined;
 
 // Lazy compilation keeps importing common safe under browser CSP.
-const createValidator = <T>(schemaVersion: 1 | 2): ValidateFunction<T> =>
+const createValidator = <T>(schemaVersion: 1 | 2 | 3): ValidateFunction<T> =>
     new Ajv({
         strict: false,
         validateFormats: false,
@@ -79,10 +84,14 @@ const createValidator = <T>(schemaVersion: 1 | 2): ValidateFunction<T> =>
                                               required: ['markdown'],
                                               properties: {
                                                   markdown: { type: 'string' },
-                                                  title: {
-                                                      type: 'string',
-                                                      pattern: '\\S',
-                                                  },
+                                                  ...(schemaVersion === 2
+                                                      ? {
+                                                            title: {
+                                                                type: 'string',
+                                                                pattern: '\\S',
+                                                            },
+                                                        }
+                                                      : {}),
                                               },
                                           },
                             },
@@ -133,7 +142,7 @@ const validateContent = <T>(validate: ValidateFunction<T>, raw: unknown): T => {
 const readContent = (
     schemaVersion: number,
     raw: unknown,
-): DocumentContentV2 => {
+): DocumentContentV3 => {
     if (schemaVersion === 1) {
         legacyValidator ??= createValidator<DocumentContentV1>(1);
         const legacy = validateContent(legacyValidator, raw);
@@ -145,8 +154,31 @@ const readContent = (
             ),
         };
     }
+    if (schemaVersion === 2) {
+        titledValidator ??= createValidator<DocumentContentV2>(2);
+        const legacy = validateContent(titledValidator, raw);
+        return {
+            cells: legacy.cells.map((cell) =>
+                cell.type === 'markdown'
+                    ? { ...cell, content: { markdown: cell.content.markdown } }
+                    : {
+                          ...cell,
+                          content:
+                              cell.content.source === 'semantic'
+                                  ? {
+                                        source: 'semantic',
+                                        chart: cell.content.chart,
+                                    }
+                                  : {
+                                        source: 'merge',
+                                        chart: cell.content.chart,
+                                    },
+                      },
+            ),
+        };
+    }
     if (schemaVersion === DOCUMENT_SCHEMA_VERSION) {
-        currentValidator ??= createValidator<DocumentContentV2>(2);
+        currentValidator ??= createValidator<DocumentContentV3>(3);
         return validateContent(currentValidator, raw);
     }
     throw new ParameterError(
@@ -157,7 +189,7 @@ const readContent = (
 export const parseDocumentContent = (
     schemaVersion: number,
     raw: unknown,
-): DocumentContentV2 => {
+): DocumentContentV3 => {
     const content = readContent(schemaVersion, raw);
     const ids = content.cells.map((cell) => cell.id);
     if (new Set(ids).size !== ids.length) {

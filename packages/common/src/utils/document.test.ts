@@ -279,7 +279,7 @@ describe('Document schema version 1', () => {
         expect(() => parseDocumentContent(1, content)).toThrow();
     });
 
-    test.each([0, 3, -1])(
+    test.each([0, 4, -1])(
         'rejects unsupported schema version %s',
         (version) => {
             expect(() => parseDocumentContent(version, { cells: [] })).toThrow(
@@ -296,7 +296,7 @@ describe('Document schema version 2', () => {
     };
 
     test.each([currentMarkdown, semantic, merge])(
-        'preserves optional explicit cell titles',
+        'omits retired titles while preserving content and historical input',
         (cell) => {
             const untitled = { cells: [cell] };
             expect(
@@ -310,7 +310,9 @@ describe('Document schema version 2', () => {
                     },
                 ],
             };
-            expect(parseDocumentContent(2, titled)).toEqual(titled);
+            const before = structuredClone(titled);
+            expect(parseDocumentContent(2, titled)).toEqual(untitled);
+            expect(titled).toEqual(before);
         },
     );
 
@@ -368,6 +370,46 @@ describe('Document schema version 2', () => {
         { ...semantic, content: { ...semantic.content, title: 'New title' } },
     ])('rejects V2 fields at the strict legacy boundary', (cell) => {
         expect(() => parseDocumentContent(1, { cells: [cell] })).toThrow(
+            'Invalid Document content',
+        );
+    });
+});
+
+describe('Document schema version 3', () => {
+    const currentMarkdown = {
+        ...markdown,
+        content: { markdown: markdown.content },
+    };
+
+    test.each([currentMarkdown, semantic, merge])(
+        'preserves current content exactly',
+        (cell) => {
+            const content = { cells: [cell] };
+            expect(parseDocumentContent(3, content)).toEqual(content);
+        },
+    );
+
+    test.each([currentMarkdown, semantic, merge])(
+        'rejects retired and speculative content metadata',
+        (cell) => {
+            for (const extra of [
+                { title: 'Retired' },
+                { metadata: {} },
+                { futureField: true },
+            ]) {
+                expect(() =>
+                    parseDocumentContent(3, {
+                        cells: [
+                            { ...cell, content: { ...cell.content, ...extra } },
+                        ],
+                    }),
+                ).toThrow('Invalid Document content');
+            }
+        },
+    );
+
+    test('rejects string markdown on current writes', () => {
+        expect(() => parseDocumentContent(3, { cells: [markdown] })).toThrow(
             'Invalid Document content',
         );
     });
