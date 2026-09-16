@@ -106,12 +106,10 @@ function buildService(
         detectDataAppAnomalies: vi
             .fn()
             .mockResolvedValue({ detection, modelId: 'fast-model' }),
-        answerDataAppPrompt: vi
-            .fn()
-            .mockResolvedValue({
-                text: 'Returns rose to 12.',
-                modelId: 'fast-model',
-            }),
+        answerDataAppPrompt: vi.fn().mockResolvedValue({
+            text: 'Returns rose to 12.',
+            modelId: 'fast-model',
+        }),
     };
     const service = new DataAppAnalysisService({
         dataAppAnalysisModel,
