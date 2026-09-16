@@ -704,11 +704,16 @@ export class DataAppAnalysisService extends BaseService {
             .join('\n');
     }
 
-    /** Worker entrypoint: runs the agent and persists the result under the viewer. */
+    /**
+     * Worker entrypoint: runs the agent and persists the result under the
+     * viewer. Once `abortSignal` fires nothing is persisted or logged; the
+     * worker's timeout handler owns that job's final status.
+     */
     async runInvestigation(
         payload: DataAppInvestigateJobPayload,
         jobId: string,
         scheduledTime: Date,
+        abortSignal?: AbortSignal,
     ): Promise<void> {
         const baseLog = {
             task: EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE,
@@ -793,6 +798,7 @@ export class DataAppAnalysisService extends BaseService {
                         mode: 'standard',
                         maxSteps: INVESTIGATE_MAX_STEPS,
                         toolAllowlist: DATA_APP_INVESTIGATE_TOOL_NAMES,
+                        abortSignal,
                         onWarehouseQuery: () => {
                             queriesRun += 1;
                             if (
@@ -804,6 +810,7 @@ export class DataAppAnalysisService extends BaseService {
                         },
                     },
                 });
+            if (abortSignal?.aborted) return;
 
             const row = await this.dataAppAnalysisModel.create({
                 organizationUuid: payload.organizationUuid,
@@ -843,6 +850,7 @@ export class DataAppAnalysisService extends BaseService {
                 status: SchedulerJobStatus.COMPLETED,
             });
         } catch (e) {
+            if (abortSignal?.aborted) return;
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
