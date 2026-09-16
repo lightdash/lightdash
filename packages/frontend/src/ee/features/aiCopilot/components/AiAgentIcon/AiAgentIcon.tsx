@@ -23,21 +23,24 @@ export const AiAgentIcon: FC<Props> = ({
     return (
         <span
             aria-hidden="true"
-            className={[
-                styles.root,
-                muted && styles.muted,
-                animated && styles.animated,
-                calm && styles.calm,
-                className,
-            ]
-                .filter(Boolean)
-                .join(' ')}
+            className={[styles.wrap, className].filter(Boolean).join(' ')}
             style={
                 {
                     '--ai-agent-icon-size': resolvedSize,
                     ...style,
                 } as CSSProperties
             }
-        />
+        >
+            <span
+                className={[
+                    styles.root,
+                    muted && styles.muted,
+                    animated && styles.animated,
+                    calm && styles.calm,
+                ]
+                    .filter(Boolean)
+                    .join(' ')}
+            />
+        </span>
     );
 };

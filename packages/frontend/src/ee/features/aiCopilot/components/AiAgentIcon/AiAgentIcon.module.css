@@ -1,4 +1,6 @@
-.root {
+/* Outer shell owns size + outer shadows. Masking .root would clip those
+   shadows, so they stay here. */
+.wrap {
     --ai-agent-icon-size: 16px;
     --ai-agent-icon-shadow: color-mix(in oklch, #5e4cff 26%, transparent);
 
@@ -7,9 +9,25 @@
     width: var(--ai-agent-icon-size);
     height: var(--ai-agent-icon-size);
     flex-shrink: 0;
+    border-radius: 50%;
+    box-shadow:
+        0 1px 2px rgba(94, 76, 255, 0.16),
+        0 0 0 1px var(--ai-agent-icon-shadow);
+    transition: box-shadow 220ms ease;
+}
+
+.root {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
     border-radius: 50%;
     isolation: isolate;
+    /* Safari/WebKit: filter + mix-blend-mode layers ignore overflow+radius and
+       paint a rectangular bitmap. A circular mask clips that layer correctly. */
+    -webkit-mask-image: radial-gradient(closest-side, #000 99.5%, transparent);
+    mask-image: radial-gradient(closest-side, #000 99.5%, transparent);
     background:
         radial-gradient(
             120% 120% at 28% 24%,
@@ -31,9 +49,7 @@
     background-position: 50% 50%;
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.5),
-        inset 0 -4px 9px rgba(94, 76, 255, 0.18),
-        0 1px 2px rgba(94, 76, 255, 0.16),
-        0 0 0 1px var(--ai-agent-icon-shadow);
+        inset 0 -4px 9px rgba(94, 76, 255, 0.18);
     transform: translateZ(0);
     transition:
         background-position 500ms ease,
@@ -43,9 +59,10 @@
 
 .muted {
     filter: grayscale(1) brightness(0.98);
-    box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.4),
-        0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.wrap:has(.muted) {
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 .root::before,
@@ -94,10 +111,19 @@
     filter: none;
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.66),
-        inset 0 -4px 10px rgba(94, 76, 255, 0.24),
+        inset 0 -4px 10px rgba(94, 76, 255, 0.24);
+    animation: ai-agent-icon-morph 6s ease infinite;
+}
+
+.wrap:hover,
+:global(button:hover) .wrap,
+:global(a:hover) .wrap,
+:global(.mantine-Group-root:hover) .wrap,
+:global([role='menuitem']:hover) .wrap,
+:global([data-combobox-selected='true']) .wrap {
+    box-shadow:
         0 2px 6px rgba(152, 54, 255, 0.22),
         0 0 0 1px color-mix(in oklch, #9836ff 36%, transparent);
-    animation: ai-agent-icon-morph 6s ease infinite;
 }
 
 .root:hover::before,
@@ -131,10 +157,14 @@
     filter: none;
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.66),
-        inset 0 -4px 10px rgba(94, 76, 255, 0.24),
+        inset 0 -4px 10px rgba(94, 76, 255, 0.24);
+    animation: ai-agent-icon-morph 6s ease infinite;
+}
+
+.wrap:has(.animated) {
+    box-shadow:
         0 2px 6px rgba(152, 54, 255, 0.22),
         0 0 0 1px color-mix(in oklch, #9836ff 36%, transparent);
-    animation: ai-agent-icon-morph 6s ease infinite;
 }
 
 .animated::before,
@@ -154,7 +184,11 @@
     animation-duration: 8s;
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.62),
-        inset 0 -4px 10px rgba(94, 76, 255, 0.2),
+        inset 0 -4px 10px rgba(94, 76, 255, 0.2);
+}
+
+.wrap:has(.calm.animated) {
+    box-shadow:
         0 1px 4px rgba(152, 54, 255, 0.16),
         0 0 0 1px color-mix(in oklch, #9836ff 30%, transparent);
 }
