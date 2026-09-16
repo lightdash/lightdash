@@ -14,6 +14,7 @@ import {
     getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
     groupDirectAccessRows,
+    hasDirectAccessGrants,
     type DirectAccess,
     type DirectAccessRow,
 } from './directAccessModelUtils';
@@ -36,6 +37,17 @@ export class SavedSqlAccessModel {
     ): Promise<Record<string, SavedSqlDirectAccess>> {
         const uniqueUuids = [...new Set(savedSqlUuids)];
         if (uniqueUuids.length === 0) {
+            return {};
+        }
+        const hasGrants = await hasDirectAccessGrants({
+            trx,
+            userTable: SavedSqlUserAccessTableName,
+            groupTable: SavedSqlGroupAccessTableName,
+            resourceColumn: 'saved_sql_uuid',
+            resourceUuids: uniqueUuids,
+            userUuid,
+        });
+        if (!hasGrants) {
             return {};
         }
 

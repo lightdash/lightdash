@@ -14,6 +14,7 @@ import {
     getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
     groupDirectAccessRows,
+    hasDirectAccessGrants,
     type DirectAccess,
     type DirectAccessRow,
 } from './directAccessModelUtils';
@@ -42,6 +43,17 @@ export class SavedChartAccessModel {
     ): Promise<Record<string, SavedChartDirectAccess>> {
         const uniqueUuids = [...new Set(savedChartUuids)];
         if (uniqueUuids.length === 0) {
+            return {};
+        }
+        const hasGrants = await hasDirectAccessGrants({
+            trx,
+            userTable: SavedChartUserAccessTableName,
+            groupTable: SavedChartGroupAccessTableName,
+            resourceColumn: 'saved_chart_uuid',
+            resourceUuids: uniqueUuids,
+            userUuid,
+        });
+        if (!hasGrants) {
             return {};
         }
 

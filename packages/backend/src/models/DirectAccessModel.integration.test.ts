@@ -1,4 +1,5 @@
 import {
+    ChartKind,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
     ProjectMemberRole,
@@ -24,6 +25,7 @@ import { GroupTableName } from '../database/entities/groups';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import { ProjectTableName } from '../database/entities/projects';
+import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import {
     SavedSqlGroupAccessTableName,
@@ -34,6 +36,7 @@ import { UserTableName } from '../database/entities/users';
 import { getTestContext } from '../vitest.setup.integration';
 import { AppAccessModel } from './AppAccessModel';
 import { DirectAccessModel } from './DirectAccessModel';
+import { SavedChartAccessModel } from './SavedChartAccessModel';
 import { SavedSqlAccessModel } from './SavedSqlAccessModel';
 
 describe('DirectAccessModel generic store PostgreSQL integration', () => {
@@ -255,6 +258,65 @@ describe('DirectAccessModel generic store PostgreSQL integration', () => {
         type: DirectAccessPrincipalType.GROUP,
         uuid: groupUuid,
     });
+
+    it.each([DirectAccessPrincipalType.USER, DirectAccessPrincipalType.GROUP])(
+        'validates chart %s grants after candidate lookup',
+        async (principalType) => {
+            const [chart] = await transaction(SavedChartsTableName)
+                .insert({
+                    project_uuid: projectUuid,
+                    space_id: spaceId,
+                    dashboard_uuid: null,
+                    name: 'Direct access chart',
+                    slug: `direct-access-chart-${randomUUID()}`,
+                    description: undefined,
+                    last_version_chart_kind: ChartKind.TABLE,
+                    last_version_updated_by_user_uuid: userUuid,
+                    color_palette_uuid: null,
+                })
+                .returning('saved_query_uuid');
+            const chartUuid = chart.saved_query_uuid;
+            const readModel = new SavedChartAccessModel(database);
+            const read = (expectedOrganizationUuid = organizationUuid) =>
+                readModel.getUserAccess([chartUuid], userUuid, {
+                    organizationUuid: expectedOrganizationUuid,
+                    trx: transaction,
+                });
+
+            await expect(read()).resolves.toEqual({});
+            await store.upsertAccess({
+                resourceType: DirectAccessResourceType.CHART,
+                resourceUuid: chartUuid,
+                principal:
+                    principalType === DirectAccessPrincipalType.USER
+                        ? userPrincipal()
+                        : groupPrincipal(),
+                role: SpaceMemberRole.VIEWER,
+                organizationUuid,
+                grantedByUserUuid: userUuid,
+            });
+            await expect(read()).resolves.toEqual({
+                [chartUuid]: {
+                    organizationUuid,
+                    projectUuid,
+                    spaceUuid,
+                    userRole:
+                        principalType === DirectAccessPrincipalType.USER
+                            ? SpaceMemberRole.VIEWER
+                            : null,
+                    groupRoles:
+                        principalType === DirectAccessPrincipalType.GROUP
+                            ? [SpaceMemberRole.VIEWER]
+                            : [],
+                },
+            });
+            await expect(read(randomUUID())).resolves.toEqual({});
+            await transaction(SavedChartsTableName)
+                .where('saved_query_uuid', chartUuid)
+                .update({ deleted_at: new Date() });
+            await expect(read()).resolves.toEqual({});
+        },
+    );
 
     describe('sql chart administration', () => {
         it('grants, revokes, and resets space-saved sql charts', async () => {
