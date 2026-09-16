@@ -1,3 +1,10 @@
+# [2.235.0](https://github.com/lightdash/lightdash/compare/2.234.0...2.235.0) (2026-09-16)
+
+
+### Features
+
+* **documents:** add deletion and recovery ([#29282](https://github.com/lightdash/lightdash/issues/29282)) ([e636743](https://github.com/lightdash/lightdash/commit/e636743b2213a88c1a968c5f634c85c684090045)), closes [#29281](https://github.com/lightdash/lightdash/issues/29281)
+
 # [2.234.0](https://github.com/lightdash/lightdash/compare/2.233.0...2.234.0) (2026-09-16)
 
 

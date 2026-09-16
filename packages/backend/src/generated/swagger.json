@@ -45452,6 +45452,10 @@
             },
             "SpaceDeleteImpact": {
                 "properties": {
+                    "documentCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "appCount": {
                         "type": "number",
                         "format": "double"
@@ -45476,6 +45480,24 @@
                                 }
                             },
                             "required": ["spaceUuid", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "documents": {
+                        "items": {
+                            "properties": {
+                                "spaceUuid": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["spaceUuid", "name", "uuid"],
                             "type": "object"
                         },
                         "type": "array"
@@ -45519,6 +45541,10 @@
                     "spaces": {
                         "items": {
                             "properties": {
+                                "documentCount": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
                                 "appCount": {
                                     "type": "number",
                                     "format": "double"
@@ -45543,6 +45569,7 @@
                                 }
                             },
                             "required": [
+                                "documentCount",
                                 "appCount",
                                 "dashboardCount",
                                 "chartCount",
@@ -45556,10 +45583,12 @@
                     }
                 },
                 "required": [
+                    "documentCount",
                     "appCount",
                     "dashboardCount",
                     "chartCount",
                     "apps",
+                    "documents",
                     "dashboards",
                     "charts",
                     "spaces"
@@ -62774,7 +62803,7 @@
                 ],
                 "type": "object"
             },
-            "WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app_": {
+            "WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app-or-document_": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/DeletedSpaceContentSummary"
@@ -62786,6 +62815,10 @@
                                 "format": "double"
                             },
                             "schedulerCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "documentCount": {
                                 "type": "number",
                                 "format": "double"
                             },
@@ -62805,6 +62838,7 @@
                         "required": [
                             "nestedSpaceCount",
                             "schedulerCount",
+                            "documentCount",
                             "appCount",
                             "dashboardCount",
                             "chartCount"
@@ -62812,6 +62846,88 @@
                         "type": "object"
                     }
                 ]
+            },
+            "Pick_DeletedDashboardContentSummary.Exclude_keyofDeletedDashboardContentSummary.contentType__": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deletedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "description",
+                    "name",
+                    "uuid",
+                    "organizationUuid",
+                    "projectUuid",
+                    "spaceUuid",
+                    "spaceName",
+                    "deletedAt",
+                    "deletedBy"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DeletedDashboardContentSummary.contentType_": {
+                "$ref": "#/components/schemas/Pick_DeletedDashboardContentSummary.Exclude_keyofDeletedDashboardContentSummary.contentType__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DeletedDocumentContentSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_DeletedDashboardContentSummary.contentType_"
+                    },
+                    {
+                        "properties": {
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.DOCUMENT"
+                            }
+                        },
+                        "required": ["contentType"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "WithDescendantCounts_DeletedDocumentContentSummary.never_": {
+                "$ref": "#/components/schemas/DeletedDocumentContentSummary"
             },
             "DeletedDataAppContentSummary": {
                 "properties": {
@@ -62901,7 +63017,10 @@
                         "$ref": "#/components/schemas/WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_"
                     },
                     {
-                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app_"
+                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app-or-document_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedDocumentContentSummary.never_"
                     },
                     {
                         "$ref": "#/components/schemas/WithDescendantCounts_DeletedDataAppContentSummary.never_"
@@ -62957,6 +63076,18 @@
             },
             "DeletedContentItem": {
                 "anyOf": [
+                    {
+                        "properties": {
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.DOCUMENT"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["contentType", "uuid"],
+                        "type": "object"
+                    },
                     {
                         "properties": {
                             "source": {
@@ -63096,7 +63227,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.234.0",
+        "version": "2.235.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

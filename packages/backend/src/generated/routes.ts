@@ -45571,6 +45571,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                documentCount: { dataType: 'double', required: true },
                 appCount: { dataType: 'double', required: true },
                 dashboardCount: { dataType: 'double', required: true },
                 chartCount: { dataType: 'double', required: true },
@@ -45587,6 +45588,18 @@ const models: TsoaRoute.Models = {
                                 ],
                                 required: true,
                             },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                documents: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            spaceUuid: { dataType: 'string', required: true },
+                            name: { dataType: 'string', required: true },
                             uuid: { dataType: 'string', required: true },
                         },
                     },
@@ -45621,6 +45634,10 @@ const models: TsoaRoute.Models = {
                     array: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            documentCount: {
+                                dataType: 'double',
+                                required: true,
+                            },
                             appCount: { dataType: 'double', required: true },
                             dashboardCount: {
                                 dataType: 'double',
@@ -62647,7 +62664,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app_':
+    'WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app-or-document_':
         {
             dataType: 'refAlias',
             type: {
@@ -62665,6 +62682,10 @@ const models: TsoaRoute.Models = {
                                 dataType: 'double',
                                 required: true,
                             },
+                            documentCount: {
+                                dataType: 'double',
+                                required: true,
+                            },
                             appCount: { dataType: 'double', required: true },
                             dashboardCount: {
                                 dataType: 'double',
@@ -62677,6 +62698,89 @@ const models: TsoaRoute.Models = {
                 validators: {},
             },
         },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DeletedDashboardContentSummary.Exclude_keyofDeletedDashboardContentSummary.contentType__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
+                    projectUuid: { dataType: 'string', required: true },
+                    spaceUuid: { dataType: 'string', required: true },
+                    spaceName: { dataType: 'string', required: true },
+                    deletedAt: { dataType: 'datetime', required: true },
+                    deletedBy: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    lastName: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    firstName: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    userUuid: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DeletedDashboardContentSummary.contentType_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_DeletedDashboardContentSummary.Exclude_keyofDeletedDashboardContentSummary.contentType__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DeletedDocumentContentSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_DeletedDashboardContentSummary.contentType_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        contentType: {
+                            ref: 'ContentType.DOCUMENT',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WithDescendantCounts_DeletedDocumentContentSummary.never_': {
+        dataType: 'refAlias',
+        type: { ref: 'DeletedDocumentContentSummary', validators: {} },
+    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DeletedDataAppContentSummary: {
         dataType: 'refAlias',
@@ -62770,7 +62874,10 @@ const models: TsoaRoute.Models = {
                     ref: 'WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_',
                 },
                 {
-                    ref: 'WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app_',
+                    ref: 'WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app-or-document_',
+                },
+                {
+                    ref: 'WithDescendantCounts_DeletedDocumentContentSummary.never_',
                 },
                 {
                     ref: 'WithDescendantCounts_DeletedDataAppContentSummary.never_',
@@ -62837,6 +62944,16 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        contentType: {
+                            ref: 'ContentType.DOCUMENT',
+                            required: true,
+                        },
+                        uuid: { dataType: 'string', required: true },
+                    },
+                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
