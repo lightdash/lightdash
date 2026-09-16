@@ -440,6 +440,97 @@ describe('FilterStringAutoComplete', () => {
         });
     });
 
+    describe('suggestion errors', () => {
+        const apiError = (name: string, message: string) => ({
+            status: 'error' as const,
+            error: { name, statusCode: 400, message, data: {} },
+        });
+
+        const renderWithError = (error: unknown, refetch = vi.fn()) => {
+            vi.mocked(useFieldValues).mockReturnValue({
+                ...createFieldValuesMock(),
+                isError: true,
+                error,
+                refetch: refetch.mockResolvedValue(undefined),
+            } as unknown as ReturnType<typeof useFieldValues>);
+
+            return renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                />,
+            );
+        };
+
+        it('explains a configuration failure without offering a retry', async () => {
+            const refetch = vi.fn();
+            renderWithError(
+                apiError('NotFoundError', 'Explore orders does not exist'),
+                refetch,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const indicator = screen.getByRole('button', {
+                name: "Suggestions unavailable: this field's autocomplete isn't set up correctly.",
+            });
+            await user.click(indicator);
+            expect(refetch).not.toHaveBeenCalled();
+
+            fireEvent.mouseEnter(indicator);
+
+            expect(
+                await screen.findByText(
+                    "Suggestions unavailable: this field's autocomplete isn't set up correctly.",
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText('Explore orders does not exist'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    'Your filter still applies. Type a value and press Enter.',
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Try again',
+                    hidden: true,
+                }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('offers a retry for warehouse failures and refetches on click', async () => {
+            const refetch = vi.fn();
+            renderWithError(
+                apiError('WarehouseQueryError', 'permission denied'),
+                refetch,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const retryButton = screen.getByRole('button', {
+                name: 'Retry loading suggestions',
+            });
+            fireEvent.mouseEnter(retryButton);
+
+            expect(
+                await screen.findByText(
+                    'Suggestions unavailable: the warehouse query failed.',
+                ),
+            ).toBeInTheDocument();
+            await user.click(
+                await screen.findByRole('button', {
+                    name: 'Try again',
+                    hidden: true,
+                }),
+            );
+
+            expect(refetch).toHaveBeenCalledTimes(1);
+        });
+    });
+
     describe('commit on blur', () => {
         it('adds the typed value when the input loses focus without pressing Enter', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
