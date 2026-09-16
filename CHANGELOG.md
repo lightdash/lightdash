@@ -1,3 +1,15 @@
+# [2.229.0](https://github.com/lightdash/lightdash/compare/2.228.1...2.229.0) (2026-09-16)
+
+
+### Bug Fixes
+
+* **content-review:** drive similar content lookups from the space indexes ([#29286](https://github.com/lightdash/lightdash/issues/29286)) ([606cae6](https://github.com/lightdash/lightdash/commit/606cae6d49453b177f910250f463b76d5f4cbfad))
+
+
+### Features
+
+* **build:** exclude test sources from the backend, common, warehouses and cli builds ([#29290](https://github.com/lightdash/lightdash/issues/29290)) ([f4c574b](https://github.com/lightdash/lightdash/commit/f4c574bd9975c55313fe2ed9a438af9bdc9f6780))
+
 ## [2.228.1](https://github.com/lightdash/lightdash/compare/2.228.0...2.228.1) (2026-09-16)
 
 
