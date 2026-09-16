@@ -338,24 +338,36 @@ describe('MergeQueryBuilder', () => {
             );
         });
 
-        it('orders by a merged column', () => {
-            expect(sorted([{ column: 'c1_0', descending: true }])).toContain(
-                'ORDER BY "c1_0" DESC',
-            );
+        // Stated on every term: the compose engine's default is not the
+        // warehouse's, so a sorted merge under a limit must not drift.
+        it('orders by a merged column with its null placement', () => {
+            expect(
+                sorted([
+                    { column: 'c1_0', descending: true, nullsFirst: true },
+                ]),
+            ).toContain('ORDER BY "c1_0" DESC NULLS FIRST');
         });
 
         it('keeps sort order stable across several terms', () => {
             expect(
                 sorted([
-                    { column: 'date_day', descending: false },
-                    { column: 'c0_1', descending: true },
+                    {
+                        column: 'date_day',
+                        descending: false,
+                        nullsFirst: false,
+                    },
+                    { column: 'c0_1', descending: true, nullsFirst: true },
                 ]),
-            ).toContain('ORDER BY "date_day", "c0_1" DESC');
+            ).toContain(
+                'ORDER BY "date_day" NULLS LAST, "c0_1" DESC NULLS FIRST',
+            );
         });
 
         it('refuses a sort on a column the merged result does not have', () => {
             expect(() =>
-                sorted([{ column: 'nope', descending: false }]),
+                sorted([
+                    { column: 'nope', descending: false, nullsFirst: false },
+                ]),
             ).toThrow(/no column for/);
         });
 
@@ -376,10 +388,14 @@ describe('MergeQueryBuilder', () => {
                             sql: '${a.new_organic} / ${b.total_followers}',
                         },
                     ],
-                }).toSql(undefined, [{ column: 'ratio', descending: true }]),
+                }).toSql(undefined, [
+                    { column: 'ratio', descending: true, nullsFirst: false },
+                ]),
             );
 
-            expect(sql).toContain('AS merged_result ORDER BY "ratio" DESC');
+            expect(sql).toContain(
+                'AS merged_result ORDER BY "ratio" DESC NULLS LAST',
+            );
         });
     });
 

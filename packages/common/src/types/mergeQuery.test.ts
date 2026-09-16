@@ -1,11 +1,14 @@
+import { SupportedDbtAdapter } from './dbt';
 import { DimensionType } from './field';
 import {
     buildMergeQueryFromSaved,
     getMergeCompiledSqlText,
     getUnaccountedDimensions,
+    getWarehouseDefaultNullsFirst,
     MergeJoinType,
     MergeQueryErrorKind,
     parseSavedMergeQuery,
+    placeMergeSortNulls,
     resolveMergeSorts,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
     toMergedSorts,
@@ -639,6 +642,47 @@ describe('merge sorts', () => {
 
         expect(buildMergeQueryFromSaved(chart, saved).sorts).toEqual([
             { fieldId: 'orders_orders_total', descending: true },
+        ]);
+    });
+});
+
+describe('null placement of a merged sort', () => {
+    // Each warehouse's documented default when a sort says nothing.
+    it.each([
+        [SupportedDbtAdapter.POSTGRES, true, false],
+        [SupportedDbtAdapter.SNOWFLAKE, true, false],
+        [SupportedDbtAdapter.REDSHIFT, true, false],
+        [SupportedDbtAdapter.TRINO, true, false],
+        [SupportedDbtAdapter.ATHENA, true, false],
+        [SupportedDbtAdapter.BIGQUERY, false, true],
+        [SupportedDbtAdapter.DATABRICKS, false, true],
+        [SupportedDbtAdapter.SPARK, false, true],
+        [SupportedDbtAdapter.DUCKDB, false, false],
+        [SupportedDbtAdapter.CLICKHOUSE, false, false],
+    ])(
+        '%s puts nulls first on DESC: %s, on ASC: %s',
+        (adapter, descendingNullsFirst, ascendingNullsFirst) => {
+            expect(getWarehouseDefaultNullsFirst(adapter, true)).toBe(
+                descendingNullsFirst,
+            );
+            expect(getWarehouseDefaultNullsFirst(adapter, false)).toBe(
+                ascendingNullsFirst,
+            );
+        },
+    );
+
+    it('states the warehouse default only where the sort says nothing', () => {
+        expect(
+            placeMergeSortNulls(
+                [
+                    { fieldId: 'a_total', descending: true },
+                    { fieldId: 'b_count', descending: true, nullsFirst: false },
+                ],
+                SupportedDbtAdapter.POSTGRES,
+            ),
+        ).toEqual([
+            { fieldId: 'a_total', descending: true, nullsFirst: true },
+            { fieldId: 'b_count', descending: true, nullsFirst: false },
         ]);
     });
 });

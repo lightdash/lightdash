@@ -69,6 +69,8 @@ export type MergeSort = {
     /** Column in the merged result, as `getColumns()` reports it. */
     column: string;
     descending: boolean;
+    /** Stated on every sort: the engine's default is not the warehouse's. */
+    nullsFirst: boolean;
 };
 
 /**
@@ -482,7 +484,7 @@ export class MergeQueryBuilder {
             outputAliasByColumn?.[column] ?? column;
 
         if (sorts.length > 0) {
-            return sorts.map(({ column, descending }) => {
+            return sorts.map(({ column, descending, nullsFirst }) => {
                 if (!this.orderableColumns().has(column)) {
                     throw new Error(
                         `Cannot sort the merged result by "${column}", which it has no column for.`,
@@ -490,7 +492,7 @@ export class MergeQueryBuilder {
                 }
                 return `${this.quote(outputName(column))}${
                     descending ? ' DESC' : ''
-                }`;
+                }${nullsFirst ? ' NULLS FIRST' : ' NULLS LAST'}`;
             });
         }
         return this.joinKeyNames.map((keyName) =>

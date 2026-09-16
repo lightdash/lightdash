@@ -187,6 +187,11 @@ These exist because getting them wrong produces confident wrong numbers.
   and the remedy is re-running that query, not filtering it.
 - **Table calculations that depend on a source's own row set are refused**,
   because merging changes those rows.
+- **A sorted merge states its null placement.** The compose engine's default
+  (nulls last) is not every warehouse's, so under a limit the join would keep
+  different rows from the same query run on the warehouse. Each sort term
+  carries `NULLS FIRST` or `NULLS LAST`: the sort's own, else the project
+  warehouse's default (`getWarehouseDefaultNullsFirst`).
 
 ## Verification
 

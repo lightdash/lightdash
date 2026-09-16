@@ -1,4 +1,6 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
+import { SupportedDbtAdapter } from './dbt';
 import {
     DimensionType,
     type FieldId,
@@ -329,6 +331,49 @@ export const resolveMergeSorts = (
 };
 
 /**
+ * Where a warehouse puts nulls when a sort does not say. A merge joins on
+ * the compose engine, so a sorted merge under a limit would keep different
+ * rows from the same query run on the warehouse unless the placement is
+ * stated. Postgres, Redshift, Snowflake, Trino and Athena treat null as the
+ * largest value; BigQuery, Databricks and Spark as the smallest; DuckDB and
+ * ClickHouse put nulls last whichever way the sort runs.
+ */
+export const getWarehouseDefaultNullsFirst = (
+    adapter: SupportedDbtAdapter,
+    descending: boolean,
+): boolean => {
+    switch (adapter) {
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+            return descending;
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
+            return !descending;
+        case SupportedDbtAdapter.DUCKDB:
+        case SupportedDbtAdapter.CLICKHOUSE:
+            return false;
+        default:
+            return assertUnreachable(adapter, `Unknown warehouse ${adapter}`);
+    }
+};
+
+/** Every sort states its null placement: its own, else the warehouse's. */
+export const placeMergeSortNulls = (
+    sorts: SortField[],
+    adapter: SupportedDbtAdapter,
+): SortField[] =>
+    sorts.map((sort) => ({
+        ...sort,
+        nullsFirst:
+            sort.nullsFirst ??
+            getWarehouseDefaultNullsFirst(adapter, sort.descending),
+    }));
+
+/**
  * Sorts as the Explorer holds them, in merged-field space. The Explorer's
  * sort state belongs to the primary source's metric query, so a sort set
  * before merging names a primary field: it maps to that field's merged
@@ -656,6 +701,11 @@ export type ApiCompiledMergeQueryResults = {
     typedColumns: MergeTypedColumn[] | null;
     /** The terminal stage `sql` attaches over the core. */
     terminalWrapper: MergeTerminalWrapper | null;
+    /**
+     * The sorts the merged result honours, by merged field id, each with
+     * its null placement stated. Empty on an error or an unsorted merge.
+     */
+    sorts: SortField[];
     columns: MergeQueryColumns | null;
     /** Selectable description of every merged column. Empty when sql is null. */
     fields: MergeQueryField[];
