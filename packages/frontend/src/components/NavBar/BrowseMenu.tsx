@@ -44,7 +44,7 @@ import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import TruncatedText from '../common/TruncatedText';
 import { MetricsLink } from './MetricsLink';
-import { useNavBarPortalTarget } from './NavBarPortalContext';
+import { useNavBarMenuProps } from './NavBarPortalContext';
 
 interface Props {
     projectUuid: string;
@@ -89,7 +89,7 @@ const getFavoriteItemIcon = (item: ResourceViewItem) => {
 };
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
-    const portalTarget = useNavBarPortalTarget();
+    const menuProps = useNavBarMenuProps();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
@@ -129,12 +129,11 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
 
     return (
         <Menu
-            withArrow
             position="bottom-start"
             arrowOffset={16}
             offset={-2}
             zIndex={getDefaultZIndex('max')}
-            portalProps={{ target: portalTarget }}
+            {...menuProps}
             onChange={(opened) => {
                 if (opened && !hasBeenOpened) {
                     setHasBeenOpened(true);

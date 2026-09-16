@@ -41,6 +41,7 @@ import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import MantineIcon from '../common/MantineIcon';
 import AppColorSchemeScope from './AppColorSchemeScope';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
+import { getNavBarMenuProps } from './NavBarPortalContext';
 import classes from './ProjectSwitcher.module.css';
 import { isPlaygroundProject, splitSwitcherProjects } from './switcherProjects';
 
@@ -573,7 +574,6 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
         <>
             <Menu
                 position="bottom-end"
-                withArrow
                 shadow="lg"
                 arrowOffset={16}
                 offset={-2}
@@ -593,9 +593,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                 }}
                 classNames={{ dropdown: classes.dropdown }}
                 zIndex={getDefaultZIndex('max')}
-                portalProps={
-                    portalTarget ? { target: portalTarget } : undefined
-                }
+                {...getNavBarMenuProps(portalTarget)}
             >
                 <Menu.Target>
                     <Button
