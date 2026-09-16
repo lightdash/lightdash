@@ -13,6 +13,7 @@ export const makeMcpServerOptions = (
         runSqlEnabled: false,
         runMetricQueryEnabled: false,
         filterExpressionsEnabled: false,
+        documentsEnabled: false,
         ...featureAvailability,
     },
 });

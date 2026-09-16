@@ -1960,20 +1960,7 @@ export const mcpEditContentToolDefinition = defineTool({
 });
 
 export const mcpToolDefinitions: readonly ToolDefinitionInstance[] =
-    builtInToolDefinitions
-        .filter((tool) => tool.availability.includes('mcp'))
-        .map((tool) => {
-            switch (tool.name) {
-                case 'createContent':
-                    return mcpCreateContentToolDefinition;
-                case 'readContent':
-                    return mcpReadContentToolDefinition;
-                case 'editContent':
-                    return mcpEditContentToolDefinition;
-                default:
-                    return tool;
-            }
-        });
+    builtInToolDefinitions.filter((tool) => tool.availability.includes('mcp'));
 
 export type McpToolDefinition = (typeof mcpToolDefinitions)[number];
 

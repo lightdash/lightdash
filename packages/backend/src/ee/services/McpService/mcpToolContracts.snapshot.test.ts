@@ -182,6 +182,7 @@ const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
 );
 
 const defaultMcpAnalystPromptOptions = {
+    documentsEnabled: false,
     runSqlEnabled: true,
     runMetricQueryEnabled: true,
     filterExpressionsEnabled: false,
@@ -248,6 +249,75 @@ describe('MCP tool contracts', () => {
             user: defaultSessionUser,
             featureFlagId: FeatureFlags.AiFilterExpressions,
         });
+    });
+
+    it('resolves the Documents flag for the request user', async () => {
+        const get = vi.fn().mockResolvedValue({ enabled: true });
+        const service = makeMcpService(true, { get });
+        await expect(
+            service.isDocumentsEnabled(defaultSessionUser),
+        ).resolves.toBe(true);
+        expect(get).toHaveBeenCalledWith({
+            user: defaultSessionUser,
+            featureFlagId: FeatureFlags.Documents,
+        });
+    });
+
+    it('gates Document schemas per request without leaking between callers', async () => {
+        const service = makeMcpService();
+        for (const documentsEnabled of [false, true, false]) {
+            mockRegisteredMcpTools.length = 0;
+            // Sequential requests verify that registration does not retain the previous caller's flag.
+            // eslint-disable-next-line no-await-in-loop
+            await service.createServer(
+                makeMcpServerOptions({ documentsEnabled }),
+            );
+            for (const name of [
+                'create_content',
+                'read_content',
+                'edit_content',
+            ]) {
+                const tool = mockRegisteredMcpTools.find(
+                    (entry) => entry.name === name,
+                );
+                expect(tool).toBeDefined();
+                if (!tool) {
+                    throw new Error(`Missing tool ${name}`);
+                }
+                expect(tool.config.description.includes('Document')).toBe(
+                    documentsEnabled,
+                );
+                expect(
+                    z.safeParse(tool.config.inputSchema.type, 'document')
+                        .success,
+                ).toBe(documentsEnabled);
+                expect(
+                    z.safeParse(tool.config.inputSchema.type, 'chart').success,
+                ).toBe(true);
+                expect(
+                    z.safeParse(tool.config.inputSchema.type, 'dashboard')
+                        .success,
+                ).toBe(true);
+                if (name === 'read_content') {
+                    expect('documentUuid' in tool.config.inputSchema).toBe(
+                        documentsEnabled,
+                    );
+                    expect(
+                        z.safeParse(tool.config.inputSchema.slug, undefined)
+                            .success,
+                    ).toBe(documentsEnabled);
+                }
+                if (name === 'edit_content') {
+                    expect('documentEdit' in tool.config.inputSchema).toBe(
+                        documentsEnabled,
+                    );
+                    expect(
+                        z.safeParse(tool.config.inputSchema.patch, undefined)
+                            .success,
+                    ).toBe(documentsEnabled);
+                }
+            }
+        }
     });
 
     it('uses the grep-fields MCP analyst prompt', () => {

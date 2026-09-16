@@ -16,9 +16,11 @@ import {
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
+    createContentToolDefinition,
     createMcpCompatibleInputShape,
     createScheduledDeliveryToolDefinition,
     createToolRunSqlArgsSchema,
+    editContentToolDefinition,
     Explore,
     FeatureFlags,
     findContentToolDefinition,
@@ -65,6 +67,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    readContentToolDefinition,
     readSkillResourceToolDefinition,
     readSkillToolDefinition,
     renderChartToolDefinition,
@@ -466,6 +469,7 @@ export type McpServerToolOptions = {
         runSqlEnabled: boolean;
         runMetricQueryEnabled: boolean;
         filterExpressionsEnabled: boolean;
+        documentsEnabled: boolean;
     };
 };
 
@@ -1796,13 +1800,20 @@ export class McpService extends BaseService {
         };
     }
 
-    private registerContentWriteTools(): void {
+    private registerContentWriteTools(documentsEnabled: boolean): void {
+        const createTool = documentsEnabled
+            ? mcpCreateContentTool
+            : withProjectScopeInput(createContentToolDefinition.for('mcp'));
+        const editTool = documentsEnabled
+            ? mcpEditContentTool
+            : withProjectScopeInput(editContentToolDefinition.for('mcp'));
         this.registerTrackedTool(
             mcpCreateContentTool.name,
             {
                 title: mcpCreateContentTool.title,
-                description: mcpCreateContentTool.description,
-                inputSchema: mcpCreateContentTool.inputSchema.shape,
+                description: createTool.description,
+                inputSchema: createTool.inputSchema
+                    .shape as typeof mcpCreateContentTool.inputSchema.shape,
                 annotations: mcpCreateContentTool.annotations,
             },
             async (args, extra) => {
@@ -1858,8 +1869,9 @@ export class McpService extends BaseService {
             mcpEditContentTool.name,
             {
                 title: mcpEditContentTool.title,
-                description: mcpEditContentTool.description,
-                inputSchema: mcpEditContentTool.inputSchema.shape,
+                description: editTool.description,
+                inputSchema: editTool.inputSchema
+                    .shape as typeof mcpEditContentTool.inputSchema.shape,
                 annotations: mcpEditContentTool.annotations,
             },
             async (args, extra) => {
@@ -1981,6 +1993,7 @@ export class McpService extends BaseService {
                 runSqlEnabled: false,
                 runMetricQueryEnabled: true,
                 filterExpressionsEnabled: false,
+                documentsEnabled: false,
             },
         },
     ): void {
@@ -2309,12 +2322,16 @@ export class McpService extends BaseService {
             },
         );
 
+        const readTool = options.documentsEnabled
+            ? mcpReadContentTool
+            : withProjectScopeInput(readContentToolDefinition.for('mcp'));
         this.registerTrackedTool(
             mcpReadContentTool.name,
             {
                 title: mcpReadContentTool.title,
-                description: mcpReadContentTool.description,
-                inputSchema: mcpReadContentTool.inputSchema.shape,
+                description: readTool.description,
+                inputSchema: readTool.inputSchema
+                    .shape as typeof mcpReadContentTool.inputSchema.shape,
                 annotations: mcpReadContentTool.annotations,
             },
             async (args, extra) => {
@@ -2425,7 +2442,7 @@ export class McpService extends BaseService {
         // Content writes (create/edit) are gated by an org-level setting so
         // admins can prevent MCP clients from modifying managed content.
         if (options.mcpContentWritesEnabled) {
-            this.registerContentWriteTools();
+            this.registerContentWriteTools(options.documentsEnabled);
         }
 
         if (options.scheduledDeliveryEnabled) {
@@ -4355,6 +4372,16 @@ export class McpService extends BaseService {
             settingEnabled &&
             this.createAuditedAbility(user).can('create', 'ScheduledDeliveries')
         );
+    }
+
+    public async isDocumentsEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.Documents,
+        });
+        return enabled;
     }
 
     public async isFilterExpressionsEnabled(
