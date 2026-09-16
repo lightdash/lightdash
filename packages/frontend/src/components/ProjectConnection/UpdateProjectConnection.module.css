@@ -6,3 +6,20 @@
     justify-content: space-between;
     align-items: center;
 }
+
+.actions {
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+@media (max-width: $mantine-breakpoint-md) {
+    .stickyFooter {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--mantine-spacing-sm);
+    }
+
+    .actions {
+        flex-wrap: wrap;
+    }
+}

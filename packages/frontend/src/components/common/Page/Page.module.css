@@ -84,6 +84,12 @@
     flex-shrink: 1000;
 }
 
+@media (max-width: $mantine-breakpoint-md) {
+    .content[data-with-sidebar='true'] {
+        min-width: 0;
+    }
+}
+
 .content[data-with-footer='true'] {
     min-height: calc(
         100% - var(--footer-height) - var(--mantine-spacing-lg) - 1px

@@ -6,7 +6,10 @@
     font-weight: 500;
     font-size: 0.875rem;
     padding: 0.375rem 0.875rem;
-    transition: all 150ms ease;
+    transition:
+        background-color 150ms ease,
+        border-color 150ms ease,
+        color 150ms ease;
     border-radius: var(--mantine-radius-md);
     border: 1px solid var(--mantine-color-ldGray-3);
     color: var(--mantine-color-ldGray-7);
