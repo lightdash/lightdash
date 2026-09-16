@@ -81,6 +81,25 @@ describe('autoMapDataAppVizFields', () => {
         expect(mapping).toEqual({ breakdown: 'orders_status' });
     });
 
+    it('binds a column slot to a metric when one is available', () => {
+        const mapping = autoMapDataAppVizFields(
+            [field('value', 'column')],
+            itemsMap(dimension('status'), metric('count')),
+        );
+        expect(mapping).toEqual({ value: 'orders_count' });
+    });
+
+    it('binds a column slot to a dimension when no metric is free', () => {
+        const mapping = autoMapDataAppVizFields(
+            [field('value', 'metric'), field('anything', 'column')],
+            itemsMap(dimension('status'), metric('count')),
+        );
+        expect(mapping).toEqual({
+            value: 'orders_count',
+            anything: 'orders_status',
+        });
+    });
+
     it('never binds the same column to two slots', () => {
         const mapping = autoMapDataAppVizFields(
             [field('category', 'dimension'), field('breakdown', 'series')],

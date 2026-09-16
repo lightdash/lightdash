@@ -5,8 +5,9 @@ import { LD_FIELD_COLORS } from '../../../theme';
 
 // Match the field-type colors used everywhere else (field icons, sidebar tree,
 // AI-copilot field badges) via the canonical LD_FIELD_COLORS tokens. `series`
-// has no Lightdash field-type equivalent, so it falls back to the neutral
-// default. Keyed off the union type so a new field type breaks the build here.
+// and `column` have no Lightdash field-type equivalent, so they fall back to
+// the neutral default. Keyed off the union type so a new field type breaks
+// the build here.
 const FIELD_TYPE_COLORS: Record<
     DataAppVizField['type'],
     { bg: string; color: string }
@@ -14,6 +15,7 @@ const FIELD_TYPE_COLORS: Record<
     dimension: LD_FIELD_COLORS.dimension,
     metric: LD_FIELD_COLORS.metric,
     series: LD_FIELD_COLORS.DEFAULT,
+    column: LD_FIELD_COLORS.DEFAULT,
 };
 
 const DataAppVizFieldTypeBadge: FC<{ type: DataAppVizField['type'] }> = ({

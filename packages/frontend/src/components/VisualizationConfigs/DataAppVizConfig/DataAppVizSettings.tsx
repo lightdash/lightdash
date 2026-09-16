@@ -46,18 +46,21 @@ const DataAppVizSettings: FC<Props> = ({
         [itemsMap],
     );
     // The hook already drops hidden fields, mirroring the in-query pools.
-    const addPools = useMemo(
-        () => ({
-            dimension: addableItems.filter(
-                (item) => isDimension(item) || isCustomDimension(item),
-            ),
-            metric: addableItems.filter(
-                (item) => isMetric(item) || isTableCalculation(item),
-            ),
-        }),
-        [addableItems],
-    );
-    const itemPools = { dimension: dimensions, metric: metrics };
+    // `column` slots accept any field; metrics first, matching automap.
+    const addPools = useMemo(() => {
+        const dimension = addableItems.filter(
+            (item) => isDimension(item) || isCustomDimension(item),
+        );
+        const metric = addableItems.filter(
+            (item) => isMetric(item) || isTableCalculation(item),
+        );
+        return { dimension, metric, column: [...metric, ...dimension] };
+    }, [addableItems]);
+    const itemPools = {
+        dimension: dimensions,
+        metric: metrics,
+        column: [...metrics, ...dimensions],
+    };
     const fieldItems = (field: DataAppVizField): Item[] =>
         itemPools[poolKeyForSlot(field)];
 

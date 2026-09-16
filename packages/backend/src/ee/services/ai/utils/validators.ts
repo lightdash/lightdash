@@ -1710,6 +1710,9 @@ export function validateCustomChartTypeChartConfig(
                     );
                 }
                 break;
+            case 'column':
+                // Accepts any result column.
+                break;
             default:
                 assertUnreachable(
                     slotDeclaration.type,
