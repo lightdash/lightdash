@@ -14,8 +14,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTransport } from './LightdashProvider';
 import { useMountedQuery } from './insights';
+import { useTransport } from './LightdashProvider';
 import { QueryBuilder } from './query';
 import { savedChartQueryKey, type SavedChartQuery } from './savedChart';
 import type {
@@ -58,6 +58,8 @@ type UseLightdashResult = {
     refetch: () => void;
     /** Async query UUID for the source query, once loaded. */
     queryUuid: string | null;
+    /** Row key for each qualified Lightdash field id; see `QueryResult.rowKeys`. */
+    rowKeys: Record<string, string>;
     /** Spread onto the root element of this query's UI block to enable data lineage. */
     lineage: LineageProps;
     /** Fetch raw rows behind an aggregated metric value from this query result. */
@@ -86,6 +88,7 @@ export function useLightdash(
     const [error, setError] = useState<Error | null>(null);
     const [fetchCount, setFetchCount] = useState(0);
     const [queryUuid, setQueryUuid] = useState<string | null>(null);
+    const [rowKeys, setRowKeys] = useState<Record<string, string>>({});
     const [getUnderlyingData, setGetUnderlyingData] = useState<
         UseLightdashResult['getUnderlyingData']
     >(() => async () => {
@@ -161,6 +164,7 @@ export function useLightdash(
                 setFormat(() => res.format);
                 setTotalResults(res.totalResults ?? res.rows.length);
                 setQueryUuid(res.queryUuid ?? null);
+                setRowKeys(res.rowKeys ?? {});
                 setGetUnderlyingData(
                     () => async (options: UnderlyingDataOptions) => {
                         if (!res.getUnderlyingData) {
@@ -217,6 +221,7 @@ export function useLightdash(
         error,
         refetch,
         queryUuid,
+        rowKeys,
         lineage,
         getUnderlyingData,
         downloadUnderlyingData,
