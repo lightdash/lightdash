@@ -1,4 +1,9 @@
-import { ChartType, type DataAppViz, type ItemsMap } from '@lightdash/common';
+import {
+    ChartType,
+    FeatureFlags,
+    type DataAppViz,
+    type ItemsMap,
+} from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -48,15 +53,24 @@ const projectChartType = {
     registrySlug: null,
 } satisfies DataAppViz;
 
+const installedChartType = {
+    ...projectChartType,
+    dataAppVizUuid: 'installed-chart-type',
+    slug: 'official-pulse',
+    name: 'Official pulse',
+    description: 'Ranked bars from the library',
+    registrySlug: 'official-pulse',
+} satisfies DataAppViz;
+
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualizations');
-const { dataAppsEnabled } = vi.hoisted(() => ({
-    dataAppsEnabled: { current: true },
+const { featureFlags } = vi.hoisted(() => ({
+    featureFlags: { current: {} as Record<string, boolean> },
 }));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: dataAppsEnabled.current },
+    useServerFeatureFlag: (flag: string) => ({
+        data: { enabled: featureFlags.current[flag] === true },
     }),
 }));
 vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
@@ -110,6 +124,7 @@ const galleryItem = (
     rotatedIcon: false,
     selected: false,
     disabled: false,
+    installed: false,
     select: vi.fn(),
     onEdit: null,
     onConfigure: null,
@@ -649,6 +664,31 @@ const setProjectQuery = (error: Error | null = null) => {
     } as unknown as ReturnType<typeof useDataAppVisualizations>);
 };
 
+const setProjectItems = (items: DataAppViz[]) => {
+    mockedUseDataAppVisualizations.mockReturnValue({
+        data: {
+            pages: [
+                {
+                    data: items,
+                    pagination: {
+                        page: 1,
+                        pageSize: 25,
+                        totalPageCount: 1,
+                        totalResults: items.length,
+                    },
+                },
+            ],
+            pageParams: [1],
+        },
+        isInitialLoading: false,
+        error: null,
+        refetch: mocks.refetch,
+        hasNextPage: false,
+        fetchNextPage: mocks.fetchNextPage,
+        isFetchingNextPage: false,
+    } as unknown as ReturnType<typeof useDataAppVisualizations>);
+};
+
 const renderGallery = (onConfigure = vi.fn()) => {
     renderWithProviders(<ExplorerChartTypeGallery onConfigure={onConfigure} />);
     return onConfigure;
@@ -657,7 +697,10 @@ const renderGallery = (onConfigure = vi.fn()) => {
 describe('ExplorerChartTypeGallery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        dataAppsEnabled.current = true;
+        featureFlags.current = {
+            [FeatureFlags.EnableDataApps]: true,
+            [FeatureFlags.ChartTypeRegistry]: true,
+        };
         visualizationConfig.current = {
             chartType: ChartType.TABLE,
             chartConfig: {},
@@ -748,9 +791,7 @@ describe('ExplorerChartTypeGallery', () => {
         );
 
         expect(
-            await screen.findByText(
-                'No built-in chart types match your search',
-            ),
+            await screen.findByText('No chart types match your search'),
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Bar chart' }),
@@ -1025,8 +1066,8 @@ describe('ExplorerChartTypeGallery', () => {
         ).toBeInTheDocument();
     });
 
-    it('leaves the project shelf out entirely while data-apps is off', () => {
-        dataAppsEnabled.current = false;
+    it('leaves the project shelves out entirely while chart types are off', () => {
+        featureFlags.current = {};
         renderGallery();
 
         expect(screen.queryByText('Custom')).not.toBeInTheDocument();
@@ -1039,6 +1080,117 @@ describe('ExplorerChartTypeGallery', () => {
         expect(
             screen.queryByRole('button', { name: 'Create new chart type' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('appends installed chart types to the built-in shelf with a provenance badge', () => {
+        setProjectItems([projectChartType, installedChartType]);
+        renderGallery();
+
+        const custom = screen.getByRole('group', { name: 'Custom' });
+        const builtIn = screen.getByRole('group', { name: 'Built in' });
+        expect(
+            screen.queryByRole('group', { name: 'Installed' }),
+        ).not.toBeInTheDocument();
+        // The install sits after the last built-in, marked and badged.
+        const vega = within(builtIn).getByRole('button', {
+            name: 'Vega (JSON editor)',
+        });
+        const install = within(builtIn).getByRole('button', {
+            name: 'Official pulse',
+        });
+        expect(
+            vega.compareDocumentPosition(install) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(install).toHaveAttribute('data-installed', 'true');
+        expect(
+            within(builtIn).getByRole('img', {
+                name: 'Installed from the chart type library',
+            }),
+        ).toBeInTheDocument();
+        // Local types keep their own shelf, unmarked.
+        expect(
+            within(custom).getByRole('button', { name: 'Event pulse' }),
+        ).toHaveAttribute('data-installed', 'false');
+        // New types are always local, so the create tile stays with Custom.
+        expect(
+            within(custom).getByRole('button', {
+                name: 'Create new chart type',
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('leaves built-ins unbadged while the project has no installs', () => {
+        renderGallery();
+
+        expect(
+            screen.queryByRole('img', {
+                name: 'Installed from the chart type library',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('hides the empty custom shelf for library-only customers', () => {
+        featureFlags.current = { [FeatureFlags.ChartTypeRegistry]: true };
+        setProjectItems([installedChartType]);
+        renderGallery();
+
+        expect(
+            screen.queryByRole('group', { name: 'Custom' }),
+        ).not.toBeInTheDocument();
+        expect(
+            within(screen.getByRole('group', { name: 'Built in' })).getByRole(
+                'button',
+                { name: 'Official pulse' },
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Create new chart type' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('reports a load failure to library-only customers without hiding built-ins', () => {
+        featureFlags.current = { [FeatureFlags.ChartTypeRegistry]: true };
+        setProjectQuery(new Error('unavailable'));
+        renderGallery();
+
+        expect(
+            screen.getByText('Failed to load installed chart types'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Bar chart' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Custom')).not.toBeInTheDocument();
+    });
+
+    it('caps only the custom shelf, never the installed tail', () => {
+        const locals = Array.from({ length: 8 }, (_, i) => ({
+            ...projectChartType,
+            dataAppVizUuid: `project-chart-type-${i}`,
+            name: `Event pulse ${i}`,
+        }));
+        const installs = Array.from({ length: 3 }, (_, i) => ({
+            ...installedChartType,
+            dataAppVizUuid: `installed-chart-type-${i}`,
+            name: `Official pulse ${i}`,
+            registrySlug: `official-pulse-${i}`,
+        }));
+        setProjectItems([...locals, ...installs]);
+        renderGallery();
+
+        expect(
+            screen.getByRole('button', { name: 'Event pulse 4' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Event pulse 5' }),
+        ).not.toBeInTheDocument();
+        // The "+N more" count spans hidden customs only; installs all show.
+        expect(
+            screen.getByRole('button', { name: 'Show 3 more chart types' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Official pulse 2' }),
+        ).toBeInTheDocument();
     });
 
     it('keeps built-in choices usable when project types fail to load', async () => {

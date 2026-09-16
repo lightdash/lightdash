@@ -23,6 +23,7 @@ import {
     IconDots,
     IconFilePencil,
     IconPlus,
+    IconPuzzle,
     IconSearch,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
@@ -60,6 +61,8 @@ export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     disabled: boolean;
     /** Shown as the card's tooltip; null shows none. */
     description: string | null;
+    /** Installed from the chart type library; tints the card and shows the badge. */
+    installed: boolean;
     onConfigure: (() => void) | null;
     /** Opens the builder directly; null hides the action. */
     onEdit: (() => void) | null;
@@ -157,6 +160,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                 <UnstyledButton
                     className={classes.card}
                     data-selected={item.selected}
+                    data-installed={item.installed}
                     aria-pressed={item.selected}
                     disabled={item.disabled}
                     onClick={
@@ -183,6 +187,23 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     </Text>
                 </UnstyledButton>
             </Tooltip>
+            {/* Official types are read-only, so the edit menu's corner is
+                always free for the provenance badge. */}
+            {item.installed ? (
+                <Tooltip
+                    label="Installed from the chart type library"
+                    position="top"
+                    openDelay={500}
+                >
+                    <Box
+                        className={classes.installedBadge}
+                        role="img"
+                        aria-label="Installed from the chart type library"
+                    >
+                        <MantineIcon icon={IconPuzzle} size={12} stroke={1.5} />
+                    </Box>
+                </Tooltip>
+            ) : null}
             {item.selected && item.onConfigure !== null ? (
                 <Button
                     className={classes.cardConfigureAction}
@@ -269,7 +290,10 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
             [Math.min(index, itemCount - 1)]?.focus();
     }, [itemCount]);
 
-    if (section.loading) {
+    // Remote state must never hide types already on screen: the built-in
+    // shelf keeps its cards while installed types load or fail, so the
+    // loader replaces nothing and the failure renders after the grid.
+    if (section.loading && section.items.length === 0) {
         return (
             <Group gap="xs" role="status">
                 <Loader size="xs" />
@@ -279,9 +303,8 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
             </Group>
         );
     }
-    // A transient refetch failure must not hide types already on screen.
-    if (section.errorMessage !== null && section.items.length === 0) {
-        return (
+    const errorNotice =
+        section.errorMessage !== null ? (
             <Group justify="space-between" wrap="nowrap" role="alert">
                 <Text fz="xs" c="red">
                     {section.errorMessage}
@@ -296,7 +319,9 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                     </Button>
                 ) : null}
             </Group>
-        );
+        ) : null;
+    if (section.items.length === 0 && errorNotice !== null) {
+        return errorNotice;
     }
     if (section.items.length === 0 && section.onCreateNew === null) {
         return <SectionEmpty message={section.emptyMessage} />;
@@ -374,6 +399,7 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                     </UnstyledButton>
                 ) : null}
             </Box>
+            {errorNotice}
         </>
     );
 };
@@ -498,115 +524,148 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             key: id,
             disabled,
             description: null,
+            installed: false,
             onEdit: null,
             select: option.select,
             onConfigure: option.selected ? onConfigure : null,
         }));
-    const projectItems = projectTypes.map(
-        (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
-            const { label, icon, rotatedIcon } =
-                projectChartTypeItem(dataAppViz);
-            const select = () => {
-                // Re-selecting the active type must not overwrite the
-                // chart's local bindings with a fresh automap.
-                if (selectedProjectUuid !== dataAppViz.dataAppVizUuid) {
-                    selectProjectChartType(dataAppViz, itemsMap ?? {});
-                }
-            };
-            return {
-                key: dataAppViz.dataAppVizUuid,
-                label,
-                description:
-                    dataAppViz.description ||
-                    `${dataAppViz.schema?.fields.length ?? 0} fields`,
-                icon,
-                rotatedIcon,
-                selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,
-                disabled,
-                select,
-                onConfigure:
-                    selectedProjectUuid === dataAppViz.dataAppVizUuid
-                        ? onConfigure
-                        : null,
-                onEdit:
-                    dataAppsEnabled &&
-                    canEditChartType(dataAppViz) &&
-                    !isOfficialChartType(dataAppViz)
-                        ? () =>
-                              dispatch(
-                                  explorerActions.startChartTypeAuthoring({
-                                      dataAppVizUuid: dataAppViz.dataAppVizUuid,
-                                  }),
-                              )
-                        : null,
-            };
-        },
-    );
+    const toProjectItem = (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
+        const { label, icon, rotatedIcon } = projectChartTypeItem(dataAppViz);
+        const select = () => {
+            // Re-selecting the active type must not overwrite the
+            // chart's local bindings with a fresh automap.
+            if (selectedProjectUuid !== dataAppViz.dataAppVizUuid) {
+                selectProjectChartType(dataAppViz, itemsMap ?? {});
+            }
+        };
+        return {
+            key: dataAppViz.dataAppVizUuid,
+            label,
+            description:
+                dataAppViz.description ||
+                `${dataAppViz.schema?.fields.length ?? 0} fields`,
+            installed: isOfficialChartType(dataAppViz),
+            icon,
+            rotatedIcon,
+            selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,
+            disabled,
+            select,
+            onConfigure:
+                selectedProjectUuid === dataAppViz.dataAppVizUuid
+                    ? onConfigure
+                    : null,
+            onEdit:
+                dataAppsEnabled &&
+                canEditChartType(dataAppViz) &&
+                !isOfficialChartType(dataAppViz)
+                    ? () =>
+                          dispatch(
+                              explorerActions.startChartTypeAuthoring({
+                                  dataAppVizUuid: dataAppViz.dataAppVizUuid,
+                              }),
+                          )
+                    : null,
+        };
+    };
+    const customItems = projectTypes
+        .filter((viz) => !isOfficialChartType(viz))
+        .map(toProjectItem);
+    const installedItems = projectTypes
+        .filter(isOfficialChartType)
+        .map(toProjectItem);
 
-    // Cap the initial grid so built-ins stay in view; searching shows every
-    // match, and a selection deeper in the list is never hidden.
-    const selectedProjectIdx = projectItems.findIndex((item) => item.selected);
-    const collapseProjectTypes =
+    // Cap the initial custom grid so built-ins stay in view; searching shows
+    // every match, and a selection deeper in the list is never hidden.
+    // Installed types sit at the tail of the built-in shelf, so they never
+    // collapse.
+    const selectedCustomIdx = customItems.findIndex((item) => item.selected);
+    const collapseCustomTypes =
         !showAllProjectTypes &&
         debouncedSearch === '' &&
-        projectItems.length > MAX_UNCOLLAPSED_PROJECT_TYPES &&
-        selectedProjectIdx < COLLAPSED_PROJECT_TYPES_SHOWN;
-    const visibleProjectItems = collapseProjectTypes
-        ? projectItems.slice(0, COLLAPSED_PROJECT_TYPES_SHOWN)
-        : projectItems;
+        customItems.length > MAX_UNCOLLAPSED_PROJECT_TYPES &&
+        selectedCustomIdx < COLLAPSED_PROJECT_TYPES_SHOWN;
+    const visibleCustomItems = collapseCustomTypes
+        ? customItems.slice(0, COLLAPSED_PROJECT_TYPES_SHOWN)
+        : customItems;
     // Server total for the current search, so the tile counts pages that are
-    // not fetched yet.
+    // not fetched yet. The total spans both kinds, so the fetch tile lives on
+    // the last project section on screen rather than once per section.
     const totalProjectTypes =
-        data?.pages.at(-1)?.pagination?.totalResults ?? projectItems.length;
-    const hiddenProjectTypes = collapseProjectTypes
-        ? totalProjectTypes - visibleProjectItems.length
-        : hasNextPage
-          ? Math.max(totalProjectTypes - projectItems.length, 1)
-          : 0;
+        data?.pages.at(-1)?.pagination?.totalResults ?? projectTypes.length;
+    const unfetchedCount = hasNextPage
+        ? Math.max(totalProjectTypes - projectTypes.length, 1)
+        : 0;
+
+    const onCreateNew =
+        dataAppsEnabled && canCreateChartType
+            ? () =>
+                  dispatch(
+                      explorerActions.startChartTypeAuthoring({
+                          dataAppVizUuid: null,
+                      }),
+                  )
+            : null;
+    // One query feeds the Custom shelf and the built-in shelf's installed
+    // tail, so its loading/error notice renders once, on the shelf this
+    // customer's types live in: Custom for data-apps customers, Built in for
+    // library-only ones. An empty Custom shelf with nothing to offer stays
+    // hidden.
+    const remoteStateOnCustom = dataAppsEnabled;
+    const hasRemoteState = isInitialLoading || Boolean(error);
+    const showCustomSection =
+        customItems.length > 0 ||
+        onCreateNew !== null ||
+        (remoteStateOnCustom && hasRemoteState);
+    // Installed types render after the built-ins, so unfetched pages hang off
+    // the built-in shelf whenever that tail is on screen.
+    const showInstalledTail =
+        installedItems.length > 0 || (!remoteStateOnCustom && hasRemoteState);
+    const fetchMoreOnBuiltIn = showInstalledTail && hasNextPage === true;
+
+    const customSection: ChartTypeGallerySection = {
+        label: 'Custom',
+        items: visibleCustomItems,
+        loading: isInitialLoading && remoteStateOnCustom,
+        errorMessage:
+            error && remoteStateOnCustom
+                ? 'Failed to load custom chart types'
+                : null,
+        emptyMessage: debouncedSearch
+            ? 'No custom chart types match your search'
+            : 'No custom chart types yet',
+        onRetry: error && remoteStateOnCustom ? () => void refetch() : null,
+        onLoadMore: collapseCustomTypes
+            ? () => setShowAllProjectTypes(true)
+            : hasNextPage && !fetchMoreOnBuiltIn
+              ? () => void fetchNextPage()
+              : null,
+        moreCount: collapseCustomTypes
+            ? customItems.length -
+              visibleCustomItems.length +
+              (fetchMoreOnBuiltIn ? 0 : unfetchedCount)
+            : fetchMoreOnBuiltIn
+              ? 0
+              : unfetchedCount,
+        loadingMore: isFetchingNextPage && !fetchMoreOnBuiltIn,
+        onCreateNew,
+    };
 
     const sections: ChartTypeGallerySection[] = [
-        ...(chartTypesEnabled
-            ? [
-                  {
-                      label: 'Custom',
-                      items: visibleProjectItems,
-                      loading: isInitialLoading,
-                      errorMessage: error
-                          ? 'Failed to load custom chart types'
-                          : null,
-                      emptyMessage: debouncedSearch
-                          ? 'No custom chart types match your search'
-                          : 'No custom chart types yet',
-                      onRetry: error ? () => void refetch() : null,
-                      onLoadMore: collapseProjectTypes
-                          ? () => setShowAllProjectTypes(true)
-                          : hasNextPage
-                            ? () => void fetchNextPage()
-                            : null,
-                      moreCount: hiddenProjectTypes,
-                      loadingMore: isFetchingNextPage,
-                      onCreateNew:
-                          dataAppsEnabled && canCreateChartType
-                              ? () =>
-                                    dispatch(
-                                        explorerActions.startChartTypeAuthoring(
-                                            { dataAppVizUuid: null },
-                                        ),
-                                    )
-                              : null,
-                  },
-              ]
-            : []),
+        ...(chartTypesEnabled && showCustomSection ? [customSection] : []),
         {
             label: 'Built in',
-            items: builtInItems,
-            emptyMessage: 'No built-in chart types match your search',
-            loading: false,
-            errorMessage: null,
-            onRetry: null,
-            onLoadMore: null,
-            moreCount: 0,
-            loadingMore: false,
+            items: [...builtInItems, ...installedItems],
+            emptyMessage: 'No chart types match your search',
+            loading: isInitialLoading && !remoteStateOnCustom,
+            errorMessage:
+                error && !remoteStateOnCustom
+                    ? 'Failed to load installed chart types'
+                    : null,
+            onRetry:
+                error && !remoteStateOnCustom ? () => void refetch() : null,
+            onLoadMore: fetchMoreOnBuiltIn ? () => void fetchNextPage() : null,
+            moreCount: fetchMoreOnBuiltIn ? unfetchedCount : 0,
+            loadingMore: isFetchingNextPage && fetchMoreOnBuiltIn,
             onCreateNew: null,
         },
     ];
