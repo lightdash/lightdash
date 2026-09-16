@@ -29,8 +29,6 @@ jobs:
                   egress-policy: audit
             - uses: actions/checkout@v4
             - uses: ./.github/workflows/_setup_node_pnpm_cypress
-            # After the setup action: it cleans the workspace, which would remove
-            # a docs checkout made before it.
             - uses: actions/checkout@v4
               with:
                   repository: lightdash/mintlify-docs

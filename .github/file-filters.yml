@@ -2,6 +2,8 @@
 
 # Triggers preview environment deployment
 preview:
+  - ".github/workflows/pr.yml"
+  - ".github/workflows/_setup_node_pnpm_cypress/action.yml"
   - "packages/**/*"
   - "docker/**/*"
   - "okteto.preview.yaml"
@@ -20,6 +22,8 @@ cli:
   - "packages/common/**/*"
 
 frontend:
+  - ".github/workflows/pr.yml"
+  - ".github/workflows/_setup_node_pnpm_cypress/action.yml"
   - "packages/frontend/**/*"
   - "packages/e2e/cypress/e2e/app/**/*"
   - "packages/common/**/*"

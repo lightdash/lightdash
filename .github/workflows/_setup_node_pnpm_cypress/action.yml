@@ -1,6 +1,6 @@
 name: Setup Node, PNPM, and Cypress
 
-description: Sets up Node.js, PNPM, and Cypress.
+description: Sets up Node.js, PNPM, and Cypress in the caller's existing checkout.
 
 inputs:
     install-npm:
@@ -10,9 +10,6 @@ inputs:
 runs:
     using: 'composite'
     steps:
-        - name: Checkout
-          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
         - name: Setup PNPM
           uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
           with:
