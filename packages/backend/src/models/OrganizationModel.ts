@@ -24,6 +24,7 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import { OrganizationAllowedEmailDomainsTableName } from '../database/entities/organizationsAllowedEmailDomains';
+import { AiOrganizationSettingsTableName } from '../ee/database/entities/ai';
 
 export const PRESET_COLOR_PALETTES = [
     {
@@ -182,9 +183,9 @@ export const PRESET_COLOR_PALETTES = [
 export class OrganizationModel {
     private database: Knex;
 
-    private lightdashConfig: LightdashConfig | undefined;
+    private lightdashConfig: LightdashConfig;
 
-    constructor(database: Knex, lightdashConfig?: LightdashConfig) {
+    constructor(database: Knex, lightdashConfig: LightdashConfig) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
     }
@@ -252,7 +253,7 @@ export class OrganizationModel {
 
         // If override color palette is configured, always override the active palette
         if (
-            this.lightdashConfig?.appearance?.overrideColorPalette &&
+            this.lightdashConfig.appearance?.overrideColorPalette &&
             this.lightdashConfig.appearance.overrideColorPalette.length > 0
         ) {
             return OrganizationModel.mapDBObjectToOrganization(
@@ -276,26 +277,36 @@ export class OrganizationModel {
     }
 
     async create(data: CreateOrganization): Promise<Organization> {
-        const [org] = await this.database(OrganizationTableName)
-            .insert({
-                organization_name: data.name,
-            })
-            .returning('*');
-        // seed with default color palettes
-        await this.database.batchInsert(
-            OrganizationColorPaletteTableName,
-            PRESET_COLOR_PALETTES.map((palette) => ({
-                organization_uuid: org.organization_uuid,
-                name: palette.name,
-                colors: palette.colors,
-            })),
-        );
+        return this.database.transaction(async (trx) => {
+            const [org] = await trx(OrganizationTableName)
+                .insert({
+                    organization_name: data.name,
+                })
+                .returning('*');
+            // seed with default color palettes
+            await trx.batchInsert(
+                OrganizationColorPaletteTableName,
+                PRESET_COLOR_PALETTES.map((palette) => ({
+                    organization_uuid: org.organization_uuid,
+                    name: palette.name,
+                    colors: palette.colors,
+                })),
+            );
 
-        return OrganizationModel.mapDBObjectToOrganization(
-            org,
-            undefined,
-            undefined,
-        );
+            // AI settings tables only exist on enterprise installations.
+            if (this.lightdashConfig.license.licenseKey) {
+                await trx(AiOrganizationSettingsTableName).insert({
+                    organization_uuid: org.organization_uuid,
+                    ai_agent_reviews_enabled: true,
+                });
+            }
+
+            return OrganizationModel.mapDBObjectToOrganization(
+                org,
+                undefined,
+                undefined,
+            );
+        });
     }
 
     async update(
