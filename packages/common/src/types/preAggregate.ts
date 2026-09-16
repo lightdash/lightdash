@@ -325,6 +325,7 @@ export const computePreAggregateWarnings = (
     return warnings;
 };
 
+// Keep nullability on the named type so TSOA emits a nullable object component.
 export type PreAggregateMaterializationAttemptSummary = {
     materializationUuid: string;
     status: PreAggregateMaterializationStatus;
@@ -335,7 +336,7 @@ export type PreAggregateMaterializationAttemptSummary = {
     totalBytes: number | null;
     errorMessage: string | null;
     trigger: PreAggregateMaterializationTrigger;
-};
+} | null;
 
 export type PreAggregateMaterializationSummary = {
     preAggregateDefinitionUuid: string;
@@ -353,9 +354,9 @@ export type PreAggregateMaterializationSummary = {
     definitionError: string | null;
     resolvedMaxRows: number | null;
     warnings: PreAggregateMaterializationWarning[];
-    activeMaterialization: PreAggregateMaterializationAttemptSummary | null;
+    activeMaterialization: PreAggregateMaterializationAttemptSummary;
     preparationStatus: PreAggregatePreparationStatus;
-    materialization: PreAggregateMaterializationAttemptSummary | null;
+    materialization: PreAggregateMaterializationAttemptSummary;
 };
 
 export type ApiPreAggregateMaterializationsResults = {
