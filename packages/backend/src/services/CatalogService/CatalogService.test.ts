@@ -1,25 +1,38 @@
 import { Ability } from '@casl/ability';
 import {
+    CatalogType,
     ForbiddenError,
     LightdashMode,
     OrganizationMemberRole,
     PossibleAbilities,
     SessionUser,
+    type CatalogTable,
+    type UserAttributeValueMap,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { LightdashConfig } from '../../config/parseConfig';
-import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import {
+    CatalogModel,
+    CatalogSearchContext,
+} from '../../models/CatalogModel/CatalogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
+import {
+    tablesConfiguration,
+    validExplore,
+} from '../ProjectService/ProjectService.mock';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { CatalogService } from './CatalogService';
 
 const PROJECT_UUID = 'project-uuid';
 const ORG_UUID = 'org-uuid';
 const TREE_UUID = 'tree-uuid';
+const USER_ATTRIBUTES = {
+    region: ['emea'],
+} satisfies UserAttributeValueMap;
 
 const buildUser = (canManageMetricsTree: boolean): SessionUser => ({
     userUuid: 'user-uuid',
@@ -54,12 +67,37 @@ const buildUser = (canManageMetricsTree: boolean): SessionUser => ({
     updatedAt: new Date(),
 });
 
-const buildService = (overrides?: { catalogModel?: Partial<CatalogModel> }) => {
+const buildCatalogUser = (canViewProject: boolean): SessionUser => ({
+    ...buildUser(false),
+    ability: new Ability<PossibleAbilities>(
+        canViewProject
+            ? [
+                  {
+                      subject: 'Project',
+                      action: 'view',
+                      conditions: { projectUuid: PROJECT_UUID },
+                  },
+              ]
+            : [],
+    ),
+});
+
+const buildService = (overrides?: {
+    projectModel?: Partial<ProjectModel>;
+    catalogModel?: Partial<CatalogModel>;
+    userAttributesModel?: Partial<UserAttributesModel>;
+}) => {
     const projectModel = {
         getSummary: vi.fn(async () => ({
             organizationUuid: ORG_UUID,
             name: 'Test Project',
         })),
+        findExploresFromCache: vi.fn(async () => ({
+            [validExplore.name]: validExplore,
+        })),
+        getCachedExploreStorageBytes: vi.fn(async () => 1),
+        getTablesConfiguration: vi.fn(async () => tablesConfiguration),
+        ...overrides?.projectModel,
     } as unknown as ProjectModel;
 
     const catalogModel = {
@@ -73,23 +111,161 @@ const buildService = (overrides?: { catalogModel?: Partial<CatalogModel> }) => {
         getTreeLock: vi.fn(async () => null),
         updateMetricsTree: vi.fn(async () => ({})),
         deleteMetricsTree: vi.fn(async () => undefined),
+        search: vi.fn(async () => ({ data: [] })),
         ...overrides?.catalogModel,
     } as unknown as CatalogModel;
+
+    const userAttributesModel = {
+        getAttributeValuesForOrgMember: vi.fn(async () => USER_ATTRIBUTES),
+        ...overrides?.userAttributesModel,
+    } as unknown as UserAttributesModel;
 
     const service = new CatalogService({
         lightdashConfig: { mode: LightdashMode.DEFAULT } as LightdashConfig,
         analytics: analyticsMock,
         projectModel,
         catalogModel,
-        userAttributesModel: {} as UserAttributesModel,
+        userAttributesModel,
         savedChartModel: {} as SavedChartModel,
         spaceModel: {} as SpaceModel,
         tagsModel: {} as TagsModel,
         spacePermissionService: {} as SpacePermissionService,
     });
 
-    return { service, projectModel, catalogModel };
+    return { service, projectModel, catalogModel, userAttributesModel };
 };
+
+describe('CatalogService.getCatalog', () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('searches without reading all cached explores and preserves search inputs', async () => {
+        const catalogTable = {
+            name: 'orders',
+            label: 'Orders',
+            catalogSearchUuid: 'catalog-search-uuid',
+            type: CatalogType.Table,
+            categories: [],
+            chartUsage: undefined,
+            icon: null,
+            aiHints: null,
+            joinedTables: null,
+        } satisfies CatalogTable;
+        const searchResult = {
+            data: [catalogTable],
+            pagination: {
+                page: 1,
+                pageSize: 50,
+                totalPageCount: 1,
+                totalResults: 1,
+            },
+        };
+        const { service, projectModel, catalogModel, userAttributesModel } =
+            buildService({
+                catalogModel: {
+                    search: vi.fn(async () => searchResult),
+                },
+            });
+        const catalogSearch = {
+            searchQuery: 'orders',
+            type: CatalogType.Table,
+        };
+
+        const result = await service.getCatalog(
+            buildCatalogUser(true),
+            PROJECT_UUID,
+            catalogSearch,
+            CatalogSearchContext.CATALOG,
+        );
+
+        expect(result).toEqual(searchResult);
+        expect(
+            vi.mocked(projectModel.findExploresFromCache),
+        ).not.toHaveBeenCalled();
+        expect(
+            vi.mocked(projectModel.getCachedExploreStorageBytes),
+        ).not.toHaveBeenCalled();
+        expect(
+            vi.mocked(userAttributesModel.getAttributeValuesForOrgMember),
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            vi.mocked(userAttributesModel.getAttributeValuesForOrgMember),
+        ).toHaveBeenCalledWith({
+            organizationUuid: ORG_UUID,
+            userUuid: 'user-uuid',
+        });
+        expect(vi.mocked(catalogModel.search)).toHaveBeenCalledWith({
+            projectUuid: PROJECT_UUID,
+            catalogSearch,
+            paginateArgs: { page: 1, pageSize: 50 },
+            userAttributes: USER_ATTRIBUTES,
+            sortArgs: undefined,
+            context: CatalogSearchContext.CATALOG,
+            tablesConfiguration,
+            excludeUnmatched: undefined,
+            fullTextSearchOperator: undefined,
+            filteredExplores: undefined,
+        });
+    });
+
+    it.each([
+        { type: CatalogType.Table },
+        { searchQuery: '', type: CatalogType.Table },
+    ])('browses cached explores for %#', async (catalogSearch) => {
+        const { service, projectModel, catalogModel, userAttributesModel } =
+            buildService();
+
+        const result = await service.getCatalog(
+            buildCatalogUser(true),
+            PROJECT_UUID,
+            catalogSearch,
+            CatalogSearchContext.CATALOG,
+        );
+
+        expect(result.data.map(({ name }) => name)).toEqual([
+            validExplore.name,
+        ]);
+        expect(
+            vi.mocked(projectModel.findExploresFromCache),
+        ).toHaveBeenCalledWith(PROJECT_UUID, 'name');
+        expect(
+            vi.mocked(projectModel.getCachedExploreStorageBytes),
+        ).toHaveBeenCalledWith(PROJECT_UUID);
+        expect(
+            vi.mocked(userAttributesModel.getAttributeValuesForOrgMember),
+        ).toHaveBeenCalledTimes(2);
+        expect(vi.mocked(catalogModel.search)).not.toHaveBeenCalled();
+    });
+
+    it('denies access before reading user attributes or catalog data', async () => {
+        const { service, projectModel, catalogModel, userAttributesModel } =
+            buildService();
+
+        await expect(
+            service.getCatalog(
+                buildCatalogUser(false),
+                PROJECT_UUID,
+                { searchQuery: 'orders', type: CatalogType.Table },
+                CatalogSearchContext.CATALOG,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(vi.mocked(projectModel.getSummary)).toHaveBeenCalledWith(
+            PROJECT_UUID,
+        );
+        expect(
+            vi.mocked(userAttributesModel.getAttributeValuesForOrgMember),
+        ).not.toHaveBeenCalled();
+        expect(
+            vi.mocked(projectModel.findExploresFromCache),
+        ).not.toHaveBeenCalled();
+        expect(
+            vi.mocked(projectModel.getCachedExploreStorageBytes),
+        ).not.toHaveBeenCalled();
+        expect(vi.mocked(catalogModel.search)).not.toHaveBeenCalled();
+    });
+});
 
 describe('CatalogService tree-lock ability checks', () => {
     afterEach(() => {
