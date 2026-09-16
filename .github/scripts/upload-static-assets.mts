@@ -11,7 +11,7 @@ import {
     writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { extname, join } from 'node:path';
+import { basename, extname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -88,10 +88,14 @@ export function prepareAssets(directory: string): Asset[] {
 export function upload({
     image,
     buckets,
+    directory,
+    imageDigest,
     run = runCommand,
 }: {
     image: string;
     buckets: string[];
+    directory: string;
+    imageDigest: string;
     run?: RunCommand;
 }): void {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9._/:@-]+$/.test(image)) {
@@ -106,43 +110,24 @@ export function upload({
         throw new Error('Invalid bucket name');
     }
 
+    if (!/^sha256:[a-f0-9]{64}$/.test(imageDigest)) {
+        throw new Error('Invalid image digest');
+    }
+    if (basename(resolve(directory)) !== 'assets') {
+        throw new Error('Asset directory must be named assets');
+    }
+
     const root = mkdtempSync(join(tmpdir(), 'lightdash-static-assets-'));
     try {
-        console.log(`Extracting frontend assets from ${image}`);
-        run('docker', ['pull', '--platform', 'linux/amd64', image]);
-        const imageId = run('docker', [
-            'image',
-            'inspect',
-            '--format',
-            '{{.Id}}',
-            image,
-        ]);
-        const container = run('docker', [
-            'create',
-            '--platform',
-            'linux/amd64',
-            imageId,
-        ]);
-        const directory = join(root, 'assets');
-        try {
-            run('docker', [
-                'cp',
-                `${container}:/usr/app/packages/frontend/build/assets`,
-                directory,
-            ]);
-        } finally {
-            run('docker', ['rm', container]);
-        }
-
         const assets = prepareAssets(directory);
         const manifest = join(root, 'manifest.json');
-        writeFileSync(manifest, JSON.stringify({ image, imageId, assets }));
+        writeFileSync(manifest, JSON.stringify({ image, imageDigest, assets }));
         const publication = sha256(image);
         for (const bucket of new Set(buckets)) {
             console.log(
                 `Publishing ${assets.length} assets to gs://${bucket}/assets/`,
             );
-            // Rewrite unchanged assets to renew lifecycle age when a pinned version retires.
+            // Rewrite shared assets to renew their lifecycle age on each release.
             run('gsutil', [
                 '-m',
                 '-h',
@@ -169,15 +154,27 @@ function main(): void {
     const { values } = parseArgs({
         options: {
             image: { type: 'string' },
+            'image-digest': { type: 'string' },
+            directory: { type: 'string' },
             bucket: { type: 'string', multiple: true },
         },
     });
-    if (!values.image || !values.bucket) {
+    if (
+        !values.image ||
+        !values.bucket ||
+        !values.directory ||
+        !values['image-digest']
+    ) {
         throw new Error(
-            'Usage: node upload-static-assets.mts --image <image> --bucket <bucket> [--bucket <bucket>]',
+            'Usage: node upload-static-assets.mts --image <image> --image-digest <sha256:digest> --directory <assets> --bucket <bucket> [--bucket <bucket>]',
         );
     }
-    upload({ image: values.image, buckets: values.bucket });
+    upload({
+        image: values.image,
+        imageDigest: values['image-digest'],
+        directory: values.directory,
+        buckets: values.bucket,
+    });
 }
 
 if (
