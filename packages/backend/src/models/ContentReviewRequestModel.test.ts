@@ -36,12 +36,11 @@ describe('ContentReviewRequestModel similarity queries', () => {
         });
     };
 
-    it('bounds both chart candidate searches with a cancelling timeout', async () => {
+    it('bounds the chart candidate search with a cancelling timeout', async () => {
         tracker.on.select(/union all/i).response([]);
 
         await model.findChartSimilarityCandidates({
             ...scope,
-            name: 'Revenue by month',
             chart: {
                 metricQuery: {
                     exploreName: 'orders',
@@ -55,7 +54,7 @@ describe('ContentReviewRequestModel similarity queries', () => {
             },
         });
 
-        expectEveryQueryCancelsOnTimeout(2);
+        expectEveryQueryCancelsOnTimeout(1);
     });
 
     it('bounds the name lookup for every source with a cancelling timeout', async () => {

@@ -188,6 +188,9 @@ type SimilarContentScope = {
 
 const SIMILARITY_QUERY_TIMEOUT_MS = 5_000;
 
+// Shortlist size sent to the AI comparison.
+const CHART_CANDIDATE_LIMIT = 6;
+
 // Knex clone() drops timeout options, so bound the builder that actually runs.
 // cancel: true also stops the server-side statement, so slow lookups cannot pile up.
 const cancelAfterTimeout = <TRecord extends {}, TResult>(
@@ -663,21 +666,19 @@ export class ContentReviewRequestModel {
             .from(branches.as('content'));
     }
 
-    // Two bounded searches: exact query fields first, then name tokens.
-    // These retrieve candidates; the AI comparison judges their relevance.
+    // One bounded search on shared query fields. Name-only matches never
+    // survive the AI sanitizer, so names are not searched here.
     async findChartSimilarityCandidates({
-        name,
         chart,
         ...scope
     }: SimilarContentScope & {
-        name: string;
         chart: ChartSimilarityContext;
     }): Promise<
         Omit<ContentReviewSimilarCandidate, 'score' | 'matchReason'>[]
     > {
         if (scope.accessibleSpaceUuids.length === 0) return [];
         const latestVersion = this.database(SavedChartVersionsTableName)
-            .select('saved_queries_version_id')
+            .select(['saved_queries_version_id', 'explore_name'])
             .where(
                 'saved_query_id',
                 this.database.ref('content.saved_query_id'),
@@ -685,10 +686,6 @@ export class ContentReviewRequestModel {
             .orderBy('created_at', 'desc')
             .orderBy('saved_queries_version_id', 'desc')
             .limit(1);
-        const query = this.getSimilarityContentQuery(
-            SIMILAR_SOURCES.chart,
-            scope,
-        ).joinRaw('JOIN LATERAL (?) AS version ON true', [latestVersion]);
         const fieldMatches = this.database(
             'saved_queries_version_fields as fields',
         )
@@ -715,70 +712,33 @@ export class ContentReviewRequestModel {
                             );
                     });
             });
-        const words = [
-            ...new Set(
-                name
-                    .normalize('NFKC')
-                    .toLowerCase()
-                    .split(/[^\p{L}\p{N}]+/u)
-                    .filter(Boolean),
-            ),
-        ].slice(0, 20);
-        const [fieldCandidates, nameCandidates] = await Promise.all([
-            cancelAfterTimeout(
-                query
-                    .clone()
-                    .modify((candidates) => {
-                        void candidates.select({
-                            fieldHits: fieldMatches.clone().count('*'),
-                        });
-                    })
-                    .whereExists(fieldMatches.clone().select('fields.name'))
-                    .orderBy('fieldHits', 'desc')
-                    .orderBy('content.saved_query_uuid')
-                    .limit(12),
-            ),
-            words.length === 0
-                ? []
-                : cancelAfterTimeout(
-                      query
-                          .clone()
-                          .where((names) => {
-                              words.forEach((word) => {
-                                  void names.orWhereILike(
-                                      'content.name',
-                                      `%${escapeLikeWildcards(word)}%`,
-                                  );
-                              });
-                          })
-                          .orderBy('content.name')
-                          .orderBy('content.saved_query_uuid')
-                          .limit(12),
-                  ),
-        ]);
-        return [
-            ...new Map(
-                [...fieldCandidates, ...nameCandidates].map(
-                    ({
-                        uuid,
-                        name: candidateName,
-                        slug,
-                        spaceUuid,
-                        spaceName,
-                    }) => [
-                        uuid,
-                        {
-                            uuid,
-                            name: candidateName,
-                            slug,
-                            spaceUuid,
-                            spaceName,
-                            contentType: ContentReviewContentType.CHART,
-                        },
-                    ],
-                ),
-            ).values(),
-        ].slice(0, 12);
+        // modify() erases the row type, so restate it here.
+        const rows: SimilarContentRow[] = await cancelAfterTimeout(
+            this.getSimilarityContentQuery(SIMILAR_SOURCES.chart, scope)
+                .joinRaw('JOIN LATERAL (?) AS version ON true', [latestVersion])
+                .modify((candidates) => {
+                    void candidates.select({
+                        fieldHits: fieldMatches.clone().count('*'),
+                    });
+                })
+                .whereExists(fieldMatches.clone().select('fields.name'))
+                // Duplicates almost always share the explore; other explores
+                // only fill the slots left over.
+                .orderByRaw('version.explore_name = ? desc', [
+                    chart.metricQuery.exploreName,
+                ])
+                .orderBy('fieldHits', 'desc')
+                .orderBy('content.saved_query_uuid')
+                .limit(CHART_CANDIDATE_LIMIT),
+        );
+        return rows.map(({ uuid, name, slug, spaceUuid, spaceName }) => ({
+            uuid,
+            name,
+            slug,
+            spaceUuid,
+            spaceName,
+            contentType: ContentReviewContentType.CHART,
+        }));
     }
 
     /** @deprecated Retained only for GET /similar until its sunset. */

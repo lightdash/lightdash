@@ -4,6 +4,7 @@ import {
     BinType,
     ChartConfig,
     ChartKind,
+    ChartSimilarityContext,
     ChartSourceType,
     ChartSummary,
     ChartType,
@@ -36,6 +37,7 @@ import {
     LightdashUser,
     MetricFilterRule,
     MetricOverrides,
+    MetricQuery,
     NotFoundError,
     Organization,
     ParameterError,
@@ -85,9 +87,14 @@ import {
     DbSavedChart,
     DbSavedChartAdditionalMetric,
     DbSavedChartAdditionalMetricInsert,
+    DbSavedChartCustomDimension,
     DbSavedChartCustomDimensionInsert,
     DbSavedChartCustomSqlDimension,
+    DbSavedChartTableCalculation,
     DbSavedChartTableCalculationInsert,
+    DbSavedChartVersion,
+    DbSavedChartVersionField,
+    DbSavedChartVersionSort,
     InsertChart,
     SavedChartAdditionalMetricTableName,
     SavedChartCustomDimensionsTableName,
@@ -95,6 +102,7 @@ import {
     SavedChartsTableName,
     SavedChartTableCalculationTableName,
     SavedChartVersionFieldsTableName,
+    SavedChartVersionSortsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
 import { SavedChartSlugMappingsTableName } from '../database/entities/savedChartSlugMappings';
@@ -138,6 +146,73 @@ type DbSavedChartDetails = {
     dashboard_uuid: string | null;
     timezone: TimezoneSetting;
     color_palette_uuid: string | null;
+};
+
+const additionalMetricColumns = [
+    'table',
+    'name',
+    'type',
+    'label',
+    'description',
+    'sql',
+    'hidden',
+    'round',
+    'format',
+    'percentile',
+    'distinct_keys',
+    'filters',
+    'base_dimension_name',
+    'uuid',
+    'compact',
+    'format_options',
+    // PoP metadata (optional)
+    'generation_type',
+    'base_metric_id',
+    'time_dimension_id',
+    'granularity',
+    'period_offset',
+] as const;
+
+type SavedChartVersionQueryRow = Pick<
+    DbSavedChartVersion,
+    | 'explore_name'
+    | 'filters'
+    | 'row_limit'
+    | 'metric_overrides'
+    | 'dimension_overrides'
+    | 'timezone'
+>;
+
+type SavedChartVersionRows = {
+    fields: Pick<DbSavedChartVersionField, 'name' | 'field_type' | 'order'>[];
+    sorts: Pick<
+        DbSavedChartVersionSort,
+        'field_name' | 'descending' | 'nulls_first' | 'pivot_values'
+    >[];
+    tableCalculations: Pick<
+        DbSavedChartTableCalculation,
+        | 'name'
+        | 'display_name'
+        | 'calculation_raw_sql'
+        | 'order'
+        | 'format'
+        | 'type'
+        | 'template'
+        | 'formula'
+        | 'total_mode'
+    >[];
+    additionalMetricsRows: Pick<
+        DbSavedChartAdditionalMetric,
+        (typeof additionalMetricColumns)[number]
+    >[];
+    customBinDimensionsRows: DbSavedChartCustomDimension[];
+    customSqlDimensionsRows: DbSavedChartCustomSqlDimension[];
+};
+
+export type SavedChartSimilarityContext = ChartSimilarityContext & {
+    uuid: string;
+    name: string;
+    spaceUuid: string;
 };
 
 const getSavedChartPivotConfig = (
@@ -1931,6 +2006,133 @@ export class SavedChartModel {
         });
     }
 
+    // Shared by get() and the batched similarity loader.
+    private static buildMetricQuery(
+        version: SavedChartVersionQueryRow,
+        {
+            fields,
+            sorts,
+            tableCalculations,
+            additionalMetricsRows,
+            customBinDimensionsRows,
+            customSqlDimensionsRows,
+        }: SavedChartVersionRows,
+    ): MetricQuery {
+        // Filters out "null" fields
+        const additionalMetricsFiltered: DBFilteredAdditionalMetrics[] =
+            additionalMetricsRows.map(
+                (addMetric) =>
+                    Object.fromEntries(
+                        Object.entries(addMetric).filter(
+                            ([_, value]) => value !== null,
+                        ),
+                    ) as DBFilteredAdditionalMetrics,
+            );
+
+        const additionalMetrics: AdditionalMetric[] =
+            additionalMetricsFiltered.map(
+                SavedChartModel.convertDbSavedChartAdditionalMetricToAdditionalMetric,
+            );
+
+        const [dimensions, metrics]: [string[], string[]] = fields.reduce<
+            [string[], string[]]
+        >(
+            (result, field) => {
+                result[
+                    field.field_type === DBFieldTypes.DIMENSION ? 0 : 1
+                ].push(field.name);
+                return result;
+            },
+            [[], []],
+        );
+
+        return {
+            exploreName: version.explore_name,
+            dimensions,
+            metrics,
+            filters: version.filters,
+            sorts: sorts.map<SortField>((sort) => ({
+                fieldId: sort.field_name,
+                descending: sort.descending,
+                nullsFirst: sort.nulls_first ?? undefined,
+                ...(sort.pivot_values && {
+                    pivotValues: sort.pivot_values,
+                }),
+            })),
+            limit: version.row_limit,
+            metricOverrides: version.metric_overrides || undefined,
+            dimensionOverrides: version.dimension_overrides || undefined,
+            tableCalculations: tableCalculations.map(
+                (tableCalculation) =>
+                    ({
+                        name: tableCalculation.name,
+                        displayName: tableCalculation.display_name,
+                        sql: tableCalculation.calculation_raw_sql || undefined,
+                        format: tableCalculation.format || undefined,
+                        type: tableCalculation.type || undefined,
+                        template: tableCalculation.template || undefined,
+                        formula: tableCalculation.formula || undefined,
+                        totalMode: tableCalculation.total_mode || undefined,
+                    }) as TableCalculation,
+            ),
+            additionalMetrics,
+            customDimensions: [
+                ...(customBinDimensionsRows || []).map<CustomBinDimension>(
+                    (cd) => {
+                        const base = {
+                            id: cd.id,
+                            name: cd.name,
+                            type: CustomDimensionType.BIN as const,
+                            dimensionId: cd.dimension_id,
+                            table: cd.table,
+                        };
+                        switch (cd.bin_type) {
+                            case BinType.FIXED_NUMBER:
+                                return {
+                                    ...base,
+                                    binType: BinType.FIXED_NUMBER,
+                                    binNumber: cd.bin_number || 1,
+                                };
+                            case BinType.FIXED_WIDTH:
+                                return {
+                                    ...base,
+                                    binType: BinType.FIXED_WIDTH,
+                                    binWidth: cd.bin_width || 1,
+                                };
+                            case BinType.CUSTOM_RANGE:
+                                return {
+                                    ...base,
+                                    binType: BinType.CUSTOM_RANGE,
+                                    customRange: cd.custom_range || [],
+                                };
+                            case BinType.CUSTOM_GROUP:
+                                return {
+                                    ...base,
+                                    binType: BinType.CUSTOM_GROUP,
+                                    customGroups: cd.custom_groups || [],
+                                };
+                            default:
+                                throw new Error(
+                                    `Unknown bin type "${cd.bin_type}" for custom dimension "${cd.name}"`,
+                                );
+                        }
+                    },
+                ),
+                ...(customSqlDimensionsRows || []).map<CustomSqlDimension>(
+                    (cd) => ({
+                        id: cd.id,
+                        name: cd.name,
+                        type: CustomDimensionType.SQL,
+                        table: cd.table,
+                        sql: cd.sql,
+                        dimensionType: cd.dimension_type,
+                    }),
+                ),
+            ],
+            timezone: version.timezone || undefined,
+        };
+    }
+
     async get(
         savedChartUuidOrSlug: string,
         versionUuid?: string,
@@ -2137,30 +2339,7 @@ export class SavedChartModel {
                 const additionalMetricsQuery = this.database(
                     SavedChartAdditionalMetricTableName,
                 )
-                    .select([
-                        'table',
-                        'name',
-                        'type',
-                        'label',
-                        'description',
-                        'sql',
-                        'hidden',
-                        'round',
-                        'format',
-                        'percentile',
-                        'distinct_keys',
-                        'filters',
-                        'base_dimension_name',
-                        'uuid',
-                        'compact',
-                        'format_options',
-                        // PoP metadata (optional)
-                        'generation_type',
-                        'base_metric_id',
-                        'time_dimension_id',
-                        'granularity',
-                        'period_offset',
-                    ])
+                    .select([...additionalMetricColumns])
                     .where('saved_queries_version_id', savedQueriesVersionId);
 
                 const customBinDimensionsQuery = this.database(
@@ -2208,35 +2387,6 @@ export class SavedChartModel {
                       )
                     : null;
 
-                // Filters out "null" fields
-                const additionalMetricsFiltered: DBFilteredAdditionalMetrics[] =
-                    additionalMetricsRows.map(
-                        (addMetric) =>
-                            Object.fromEntries(
-                                Object.entries(addMetric).filter(
-                                    ([_, value]) => value !== null,
-                                ),
-                            ) as DBFilteredAdditionalMetrics,
-                    );
-
-                const additionalMetrics: AdditionalMetric[] =
-                    additionalMetricsFiltered.map(
-                        SavedChartModel.convertDbSavedChartAdditionalMetricToAdditionalMetric,
-                    );
-
-                const [dimensions, metrics]: [string[], string[]] =
-                    fields.reduce<[string[], string[]]>(
-                        (result, field) => {
-                            result[
-                                field.field_type === DBFieldTypes.DIMENSION
-                                    ? 0
-                                    : 1
-                            ].push(field.name);
-                            return result;
-                        },
-                        [[], []],
-                    );
-
                 const columnOrder: string[] = [
                     ...fields,
                     ...tableCalculations,
@@ -2269,101 +2419,14 @@ export class SavedChartModel {
                         firstName: savedQuery.first_name,
                         lastName: savedQuery.last_name,
                     },
-                    metricQuery: {
-                        exploreName: savedQuery.explore_name,
-                        dimensions,
-                        metrics,
-                        filters: savedQuery.filters,
-                        sorts: sorts.map<SortField>((sort) => ({
-                            fieldId: sort.field_name,
-                            descending: sort.descending,
-                            nullsFirst: sort.nulls_first ?? undefined,
-                            ...(sort.pivot_values && {
-                                pivotValues: sort.pivot_values,
-                            }),
-                        })),
-                        limit: savedQuery.row_limit,
-                        metricOverrides:
-                            savedQuery.metric_overrides || undefined,
-                        dimensionOverrides:
-                            savedQuery.dimension_overrides || undefined,
-                        tableCalculations: tableCalculations.map(
-                            (tableCalculation) =>
-                                ({
-                                    name: tableCalculation.name,
-                                    displayName: tableCalculation.display_name,
-                                    sql:
-                                        tableCalculation.calculation_raw_sql ||
-                                        undefined,
-                                    format:
-                                        tableCalculation.format || undefined,
-                                    type: tableCalculation.type || undefined,
-                                    template:
-                                        tableCalculation.template || undefined,
-                                    formula:
-                                        tableCalculation.formula || undefined,
-                                    totalMode:
-                                        tableCalculation.total_mode ||
-                                        undefined,
-                                }) as TableCalculation,
-                        ),
-                        additionalMetrics,
-                        customDimensions: [
-                            ...(
-                                customBinDimensionsRows || []
-                            ).map<CustomBinDimension>((cd) => {
-                                const base = {
-                                    id: cd.id,
-                                    name: cd.name,
-                                    type: CustomDimensionType.BIN as const,
-                                    dimensionId: cd.dimension_id,
-                                    table: cd.table,
-                                };
-                                switch (cd.bin_type) {
-                                    case BinType.FIXED_NUMBER:
-                                        return {
-                                            ...base,
-                                            binType: BinType.FIXED_NUMBER,
-                                            binNumber: cd.bin_number || 1,
-                                        };
-                                    case BinType.FIXED_WIDTH:
-                                        return {
-                                            ...base,
-                                            binType: BinType.FIXED_WIDTH,
-                                            binWidth: cd.bin_width || 1,
-                                        };
-                                    case BinType.CUSTOM_RANGE:
-                                        return {
-                                            ...base,
-                                            binType: BinType.CUSTOM_RANGE,
-                                            customRange: cd.custom_range || [],
-                                        };
-                                    case BinType.CUSTOM_GROUP:
-                                        return {
-                                            ...base,
-                                            binType: BinType.CUSTOM_GROUP,
-                                            customGroups:
-                                                cd.custom_groups || [],
-                                        };
-                                    default:
-                                        throw new Error(
-                                            `Unknown bin type "${cd.bin_type}" for custom dimension "${cd.name}"`,
-                                        );
-                                }
-                            }),
-                            ...(
-                                customSqlDimensionsRows || []
-                            ).map<CustomSqlDimension>((cd) => ({
-                                id: cd.id,
-                                name: cd.name,
-                                type: CustomDimensionType.SQL,
-                                table: cd.table,
-                                sql: cd.sql,
-                                dimensionType: cd.dimension_type,
-                            })),
-                        ],
-                        timezone: savedQuery.timezone || undefined,
-                    },
+                    metricQuery: SavedChartModel.buildMetricQuery(savedQuery, {
+                        fields,
+                        sorts,
+                        tableCalculations,
+                        additionalMetricsRows,
+                        customBinDimensionsRows,
+                        customSqlDimensionsRows,
+                    }),
                     parameters: savedQuery.parameters || undefined,
                     chartConfig,
                     tableConfig: {
@@ -2407,6 +2470,176 @@ export class SavedChartModel {
                 };
             },
         );
+    }
+
+    // One round trip per version table for a whole shortlist instead of a
+    // full get() per chart.
+    async getSimilarityContexts({
+        projectUuid,
+        uuids,
+    }: {
+        projectUuid: string;
+        uuids: string[];
+    }): Promise<SavedChartSimilarityContext[]> {
+        if (uuids.length === 0) return [];
+        const charts = await this.database
+            .from(SavedChartsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .joinRaw(
+                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+            )
+            .joinRaw(
+                `CROSS JOIN LATERAL (
+                    SELECT * FROM ${SavedChartVersionsTableName}
+                    WHERE ${SavedChartVersionsTableName}.saved_query_id = ${SavedChartsTableName}.saved_query_id
+                    ORDER BY ${SavedChartVersionsTableName}.created_at DESC, ${SavedChartVersionsTableName}.saved_queries_version_id DESC
+                    LIMIT 1
+                ) AS ${SavedChartVersionsTableName}`,
+            )
+            .select<
+                (SavedChartVersionQueryRow & {
+                    saved_query_uuid: string;
+                    name: string;
+                    space_uuid: string;
+                    saved_queries_version_id: number;
+                    parameters: DbSavedChartVersion['parameters'];
+                })[]
+            >([
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SavedChartsTableName}.name`,
+                `${SpaceTableName}.space_uuid`,
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                `${SavedChartVersionsTableName}.explore_name`,
+                `${SavedChartVersionsTableName}.filters`,
+                `${SavedChartVersionsTableName}.row_limit`,
+                `${SavedChartVersionsTableName}.metric_overrides`,
+                `${SavedChartVersionsTableName}.dimension_overrides`,
+                `${SavedChartVersionsTableName}.timezone`,
+                `${SavedChartVersionsTableName}.parameters`,
+            ])
+            .whereIn(`${SavedChartsTableName}.saved_query_uuid`, uuids)
+            .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
+        if (charts.length === 0) return [];
+        const versionIds = charts.map(
+            (chart) => chart.saved_queries_version_id,
+        );
+        const [
+            fields,
+            sorts,
+            tableCalculations,
+            additionalMetricsRows,
+            customBinDimensionsRows,
+            customSqlDimensionsRows,
+            mergeRows,
+        ] = await Promise.all([
+            this.database(SavedChartVersionFieldsTableName)
+                .select([
+                    'saved_queries_version_id',
+                    'name',
+                    'field_type',
+                    'order',
+                ])
+                .whereIn('saved_queries_version_id', versionIds)
+                .orderBy('order', 'asc'),
+            this.database(SavedChartVersionSortsTableName)
+                .select([
+                    'saved_queries_version_id',
+                    'field_name',
+                    'descending',
+                    'nulls_first',
+                    'pivot_values',
+                ])
+                .whereIn('saved_queries_version_id', versionIds)
+                .orderBy('order', 'asc'),
+            this.database(SavedChartTableCalculationTableName)
+                .select([
+                    'saved_queries_version_id',
+                    'name',
+                    'display_name',
+                    'calculation_raw_sql',
+                    'order',
+                    'format',
+                    'type',
+                    'template',
+                    'formula',
+                    'total_mode',
+                ])
+                .whereIn('saved_queries_version_id', versionIds),
+            this.database(SavedChartAdditionalMetricTableName)
+                .select([
+                    'saved_queries_version_id',
+                    ...additionalMetricColumns,
+                ])
+                .whereIn('saved_queries_version_id', versionIds),
+            this.database(SavedChartCustomDimensionsTableName).whereIn(
+                'saved_queries_version_id',
+                versionIds,
+            ),
+            this.database(SavedChartCustomSqlDimensionsTableName).whereIn(
+                'saved_queries_version_id',
+                versionIds,
+            ),
+            this.database('saved_queries_version_merges')
+                .select<
+                    {
+                        saved_queries_version_id: number;
+                        schema_version: number;
+                        merge: unknown;
+                    }[]
+                >(['saved_queries_version_id', 'schema_version', 'merge'])
+                .whereIn('saved_queries_version_id', versionIds),
+        ]);
+        const byVersion = <T extends { saved_queries_version_id: number }>(
+            rows: T[],
+        ): Map<number, T[]> =>
+            rows.reduce((grouped, row) => {
+                const group = grouped.get(row.saved_queries_version_id) ?? [];
+                group.push(row);
+                grouped.set(row.saved_queries_version_id, group);
+                return grouped;
+            }, new Map<number, T[]>());
+        const fieldsByVersion = byVersion(fields);
+        const sortsByVersion = byVersion(sorts);
+        const tableCalculationsByVersion = byVersion(tableCalculations);
+        const additionalMetricsByVersion = byVersion(additionalMetricsRows);
+        const customBinDimensionsByVersion = byVersion(customBinDimensionsRows);
+        const customSqlDimensionsByVersion = byVersion(customSqlDimensionsRows);
+        const mergeByVersion = byVersion(mergeRows);
+        return charts.map((chart) => {
+            const versionId = chart.saved_queries_version_id;
+            const mergeRow = mergeByVersion.get(versionId)?.[0];
+            return {
+                uuid: chart.saved_query_uuid,
+                name: chart.name,
+                spaceUuid: chart.space_uuid,
+                metricQuery: SavedChartModel.buildMetricQuery(chart, {
+                    fields: fieldsByVersion.get(versionId) ?? [],
+                    sorts: sortsByVersion.get(versionId) ?? [],
+                    tableCalculations:
+                        tableCalculationsByVersion.get(versionId) ?? [],
+                    additionalMetricsRows:
+                        additionalMetricsByVersion.get(versionId) ?? [],
+                    customBinDimensionsRows:
+                        customBinDimensionsByVersion.get(versionId) ?? [],
+                    customSqlDimensionsRows:
+                        customSqlDimensionsByVersion.get(versionId) ?? [],
+                }),
+                parameters: chart.parameters || undefined,
+                // An unknown future shape leaves the chart working without its
+                // merge rather than failing the whole chart.
+                merge: mergeRow
+                    ? parseSavedMergeQuery(
+                          mergeRow.schema_version,
+                          mergeRow.merge,
+                      )
+                    : null,
+            };
+        });
     }
 
     async getSummary(savedChartUuid: string): Promise<ChartSummary> {
