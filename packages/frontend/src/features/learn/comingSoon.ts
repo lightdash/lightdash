@@ -23,4 +23,6 @@ export const COMING_SOON_SCOPES = [
     'view:Analytics',
     'view:AiAgentDocument',
     'manage:AiAgentDocument',
+    // Withdrawn until Recently deleted has a product-agreed entry point (CS-311)
+    'manage:DeletedContent',
 ] as const;

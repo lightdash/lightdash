@@ -36,6 +36,12 @@ export const SCOPE_DISPOSITIONS: Readonly<Record<string, ScopeDisposition>> = {
             },
         ]),
     ),
+    'manage:DeletedContent': {
+        status: 'coming-soon',
+        reason: 'Walkthrough withdrawn: its only reachable path was a Browse menu entry added for Learn, which was removed pending a product decision on where Recently deleted lives.',
+        ticket: 'CS-311',
+        tour: null,
+    },
     'view:Project': excluded(
         'Baseline project access has no standalone lesson-sized surface.',
     ),
