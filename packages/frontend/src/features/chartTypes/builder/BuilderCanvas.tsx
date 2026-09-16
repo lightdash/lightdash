@@ -153,11 +153,11 @@ const BuilderCanvas: FC<Props> = ({
                 >
                     <Stack gap="xs" align="center">
                         <Text component="h1" size="md" fw={600} c="ldGray.8">
-                            Chart Studio
+                            Create with Chart Studio
                         </Text>
                         <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
-                            Describe the chart type you need. Iterate from
-                            there.
+                            Describe a chart type or choose an example to get
+                            started.
                         </Text>
                     </Stack>
                     {onPickExample && (

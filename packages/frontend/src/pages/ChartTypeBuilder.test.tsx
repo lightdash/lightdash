@@ -364,7 +364,10 @@ describe('ChartTypeBuilder', () => {
         renderBuilder('/projects/p1/chart-types/new');
 
         expect(
-            screen.getByRole('heading', { name: 'Chart Studio', level: 1 }),
+            screen.getByRole('heading', {
+                name: 'Create with Chart Studio',
+                level: 1,
+            }),
         ).toBeInTheDocument();
         expect(
             screen.queryByText('Start with a prompt'),
