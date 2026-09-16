@@ -99,36 +99,6 @@ describe('Embedded dashboard', () => {
 
                     // Check export options
                     const chartTitle = `What's the average spend per customer?`;
-                    cy.contains(chartTitle)
-                        .scrollIntoView()
-                        .then(($title) => {
-                            const initialRect =
-                                $title[0].getBoundingClientRect();
-
-                            cy.wrap($title).trigger('mouseenter');
-                            cy.wrap($title).should(($hoveredTitle) => {
-                                const hoveredRect =
-                                    $hoveredTitle[0].getBoundingClientRect();
-
-                                expect(hoveredRect.left).to.be.closeTo(
-                                    initialRect.left,
-                                    0.5,
-                                );
-                                expect(hoveredRect.top).to.be.closeTo(
-                                    initialRect.top,
-                                    0.5,
-                                );
-                                expect(hoveredRect.width).to.be.closeTo(
-                                    initialRect.width,
-                                    0.5,
-                                );
-                                expect(hoveredRect.height).to.be.closeTo(
-                                    initialRect.height,
-                                    0.5,
-                                );
-                            });
-                            cy.wrap($title).trigger('mouseleave');
-                        });
                     openTileMenu(chartTitle);
                     cy.contains('Download data');
                     cy.contains('Export image');

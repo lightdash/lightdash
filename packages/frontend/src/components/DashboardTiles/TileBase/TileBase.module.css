@@ -115,6 +115,11 @@
     position: relative;
     flex: 1;
     min-width: 0;
+    min-height: 1lh;
+}
+
+.headerContainer[data-is-empty='true'] .titleContainer {
+    min-height: 0;
 }
 
 .tileTooltip[data-visible='false'] {
