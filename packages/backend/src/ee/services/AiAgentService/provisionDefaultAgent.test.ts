@@ -98,6 +98,7 @@ describe('AiAgentService.provisionDefaultAgent', () => {
                 spaceAccess: [],
                 enableDataAccess: true,
                 enableSelfImprovement: false,
+                enableContentTools: true,
                 enableUserContext: true,
                 version: 2,
             },

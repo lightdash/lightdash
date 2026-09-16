@@ -4255,6 +4255,7 @@ export class AiAgentService extends BaseService {
                     spaceAccess: [],
                     enableDataAccess: true,
                     enableSelfImprovement: false,
+                    enableContentTools: true,
                     enableUserContext: true,
                     version: 2,
                 },
