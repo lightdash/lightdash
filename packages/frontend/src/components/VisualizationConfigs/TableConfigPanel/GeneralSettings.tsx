@@ -208,8 +208,12 @@ const GeneralSettings: FC = () => {
         isColumnVisible,
         canUseSubtotals,
         hideRowNumbers,
+        hideMetricNames,
+        hidePivotDimensionNames,
         metricsAsRows,
         setHideRowNumbers,
+        setHideMetricNames,
+        setHidePivotDimensionNames,
         setShowColumnCalculation,
         setShowResultsTotal,
         setShowRowCalculation,
@@ -341,6 +345,28 @@ const GeneralSettings: FC = () => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
+                {isPivotTableEnabled && (
+                    <>
+                        <Checkbox
+                            size="xs"
+                            label="Hide metric names"
+                            checked={hideMetricNames}
+                            onChange={() =>
+                                setHideMetricNames(!hideMetricNames)
+                            }
+                        />
+                        <Checkbox
+                            size="xs"
+                            label="Hide pivoted dimension names"
+                            checked={hidePivotDimensionNames}
+                            onChange={() =>
+                                setHidePivotDimensionNames(
+                                    !hidePivotDimensionNames,
+                                )
+                            }
+                        />
+                    </>
+                )}
             </Config.Section>
 
             {!isPivotTableEnabled && (

@@ -3719,6 +3719,14 @@
                     },
                     "type": "array"
                 },
+                "hideMetricNames": {
+                    "description": "Hide the metric-name header row in pivoted tables. Defaults to false.",
+                    "type": "boolean"
+                },
+                "hidePivotDimensionNames": {
+                    "description": "Hide pivoted dimension names, keeping their values. Defaults to false.",
+                    "type": "boolean"
+                },
                 "hideRowNumbers": {
                     "description": "Hide row number column",
                     "type": "boolean"

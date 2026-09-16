@@ -241,6 +241,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
         conditionalFormattings,
         minMaxMap,
         hideRowNumbers,
+        hideMetricNames,
+        hidePivotDimensionNames,
         pivotTableData,
         isPivotTableEnabled,
         isPivotResultStale,
@@ -346,6 +348,10 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 getFieldLabel={getFieldLabel}
                                 getField={getField}
                                 hideRowNumbers={hideRowNumbers}
+                                hideMetricNames={hideMetricNames}
+                                hidePivotDimensionNames={
+                                    hidePivotDimensionNames
+                                }
                                 showSubtotals={showSubtotals}
                                 showSubtotalsExpanded={showSubtotalsExpanded}
                                 showRowGrouping={showRowGrouping}
@@ -383,6 +389,10 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 getFieldLabel={getFieldLabel}
                                 getField={getField}
                                 hideRowNumbers={hideRowNumbers}
+                                hideMetricNames={hideMetricNames}
+                                hidePivotDimensionNames={
+                                    hidePivotDimensionNames
+                                }
                                 showSubtotals={showSubtotals}
                                 showSubtotalsExpanded={showSubtotalsExpanded}
                                 showRowGrouping={showRowGrouping}

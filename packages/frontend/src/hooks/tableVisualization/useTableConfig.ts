@@ -94,6 +94,12 @@ const useTableConfig = (
             : tableChartConfig.hideRowNumbers,
     );
 
+    const [hideMetricNames, setHideMetricNames] = useState<boolean>(
+        tableChartConfig?.hideMetricNames ?? false,
+    );
+    const [hidePivotDimensionNames, setHidePivotDimensionNames] =
+        useState<boolean>(tableChartConfig?.hidePivotDimensionNames ?? false);
+
     const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
         tableChartConfig?.metricsAsRows || false,
     );
@@ -741,6 +747,8 @@ const useTableConfig = (
             showRowGrouping,
             columns: columnProperties,
             hideRowNumbers,
+            hideMetricNames,
+            hidePivotDimensionNames,
             conditionalFormattings,
             metricsAsRows: effectiveMetricsAsRows,
             rowLimit,
@@ -749,6 +757,8 @@ const useTableConfig = (
             showColumnCalculation,
             showRowCalculation,
             hideRowNumbers,
+            hideMetricNames,
+            hidePivotDimensionNames,
             showTableNames,
             showResultsTotal,
             showSubtotals,
@@ -773,7 +783,11 @@ const useTableConfig = (
             showTableNames,
             setShowTableNames,
             hideRowNumbers,
+            hideMetricNames,
+            hidePivotDimensionNames,
             setHideRowNumbers,
+            setHideMetricNames,
+            setHidePivotDimensionNames,
             showResultsTotal,
             setShowResultsTotal,
             showSubtotals,
@@ -830,7 +844,11 @@ const useTableConfig = (
             showTableNames,
             setShowTableNames,
             hideRowNumbers,
+            hideMetricNames,
+            hidePivotDimensionNames,
             setHideRowNumbers,
+            setHideMetricNames,
+            setHidePivotDimensionNames,
             showResultsTotal,
             setShowResultsTotal,
             showSubtotals,
