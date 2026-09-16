@@ -30,6 +30,7 @@ describe('GCS analytics manifests', () => {
                 json: async () => ({
                     items: [
                         object('2026-09-07', 'ai_usage'),
+                        object('2026-09-07', 'data_app_events'),
                         object('2026-09-08'),
                         object('2026-09-07', 'unknown'),
                     ],
@@ -46,8 +47,9 @@ describe('GCS analytics manifests', () => {
         expect(result.tables.map(({ name }) => name)).toEqual([
             'query_events',
             'ai_usage',
+            'data_app_events',
         ]);
-        expect(result.tables.flatMap(({ urls }) => urls)).toHaveLength(2);
+        expect(result.tables.flatMap(({ urls }) => urls)).toHaveLength(3);
     });
 
     it('rejects cross-org list responses', async () => {

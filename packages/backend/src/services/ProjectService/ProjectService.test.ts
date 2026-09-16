@@ -750,6 +750,7 @@ describe('ProjectService', () => {
                 expect.arrayContaining([
                     expect.objectContaining({ name: 'query_events' }),
                     expect.objectContaining({ name: 'ai_usage' }),
+                    expect.objectContaining({ name: 'data_app_events' }),
                 ]),
                 true,
             );

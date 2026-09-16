@@ -78,7 +78,7 @@ export const createS3AnalyticsSourceResolver = ({
                         throw new Error('Unexpected analytics object scope');
                     }
                     const match =
-                        /^stream=(query_events|ai_usage)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
+                        /^stream=(query_events|ai_usage|data_app_events)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
                             key.slice(prefix.length),
                         );
                     // Expose all retained partitions. Date filters belong to

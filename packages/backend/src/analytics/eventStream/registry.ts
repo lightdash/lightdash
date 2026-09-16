@@ -9,6 +9,11 @@ import {
     agentStepsProjections,
 } from './agentStepsStream';
 import { aiUsageCompactedColumns, aiUsageProjections } from './aiUsageStream';
+import {
+    dataAppEventsCompactedColumns,
+    dataAppEventsProjections,
+    type DataAppStreamEvent,
+} from './dataAppEventsStream';
 import type { ProjectionResult, StreamName } from './projection';
 import {
     queryEventsCompactedColumns,
@@ -25,7 +30,8 @@ export type ProjectedEvent =
     | QueryCompletedEvent
     | AiUsageEvent
     | AiAgentStepCompletedEvent
-    | AiAgentToolCallCompletedEvent;
+    | AiAgentToolCallCompletedEvent
+    | DataAppStreamEvent;
 
 export type EventStreamRegistry = {
     [E in ProjectedEvent as E['event']]: (payload: E) => ProjectionResult;
@@ -39,6 +45,7 @@ export const eventStreamRegistry: EventStreamRegistry = {
     ...queryEventsProjections,
     ...aiUsageProjections,
     ...agentStepsProjections,
+    ...dataAppEventsProjections,
 };
 
 /**
@@ -53,6 +60,7 @@ export const compactedStreamSchemas: Record<
     query_events: queryEventsCompactedColumns,
     ai_usage: aiUsageCompactedColumns,
     agent_steps: agentStepsCompactedColumns,
+    data_app_events: dataAppEventsCompactedColumns,
 };
 
 export const getCompactedStreamColumns = (
