@@ -4,11 +4,11 @@ import {
     type DataAppInsightsPayload,
 } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
-import { useCallback, useMemo, useState } from 'react';
-import { useLauncherDock } from '../../../ee/features/aiCopilot/components/Launcher/useLauncherDock';
+import { useCallback, useContext, useMemo, useState } from 'react';
+import { LauncherDockContext } from '../../../ee/features/aiCopilot/components/Launcher/LauncherDockContext';
 import { useProjectAiAgents } from '../../../ee/features/aiCopilot/hooks/useProjectAiAgents';
+import { store as aiAgentStore } from '../../../ee/features/aiCopilot/store';
 import { openPanel } from '../../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
-import { useAiAgentStoreDispatch } from '../../../ee/features/aiCopilot/store/hooks';
 import { type QueryEvent } from '../hooks/useAppSdkBridge';
 import {
     useDataAppAnalysis,
@@ -79,8 +79,10 @@ export const useDataAppAnalysisController = ({
     /** Where "Continue in Ask AI" goes; defaults to the launcher panel. */
     openThread?: (thread: { threadUuid: string; agentUuid: string }) => void;
 }) => {
-    const dispatch = useAiAgentStoreDispatch();
-    const { addItem: addDockItem } = useLauncherDock(projectUuid);
+    // The page hosting this may render without the launcher providers (tests,
+    // headless renders), so reach the store directly and treat the dock as
+    // optional rather than requiring a Provider above.
+    const launcherDock = useContext(LauncherDockContext);
     const [mountedQueryUuids, setMountedQueryUuids] = useState<string[] | null>(
         null,
     );
@@ -149,15 +151,19 @@ export const useDataAppAnalysisController = ({
                 openThread({ threadUuid, agentUuid });
                 return;
             }
-            addDockItem({
-                threadId: threadUuid,
-                agentUuid,
-                title: anomaly.text,
-                createdAt: Date.now(),
-            });
-            dispatch(openPanel({ threadId: threadUuid, agentUuid }));
+            if (projectUuid) {
+                launcherDock?.addItem(projectUuid, {
+                    threadId: threadUuid,
+                    agentUuid,
+                    title: anomaly.text,
+                    createdAt: Date.now(),
+                });
+            }
+            aiAgentStore.dispatch(
+                openPanel({ threadId: threadUuid, agentUuid }),
+            );
         },
-        [addDockItem, dispatch, investigations, openThread],
+        [investigations, launcherDock, openThread, projectUuid],
     );
 
     const handleAction = useCallback(
