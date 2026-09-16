@@ -165,6 +165,11 @@ export type QueryResult = {
     /** Async query UUID for the source query. Useful for debugging and advanced flows. */
     queryUuid?: string;
     /**
+     * Row key for each qualified Lightdash field id (`orders_status` →
+     * `status`). Lets host features that speak field ids find the row.
+     */
+    rowKeys?: Record<string, string>;
+    /**
      * Fetch raw rows behind an aggregated metric value from this query result.
      * Available when the transport supports Lightdash underlying-data queries.
      */

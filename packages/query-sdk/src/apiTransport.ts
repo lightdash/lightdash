@@ -711,7 +711,7 @@ function mapApiRowsToQueryResult({
     fields: Record<string, FieldMeta>;
     fieldIds: string[];
     fieldNameForId: (fieldId: string) => string;
-}): Pick<QueryResult, 'rows' | 'columns' | 'format'> {
+}): Pick<QueryResult, 'rows' | 'columns' | 'format' | 'rowKeys'> {
     const idToName = new Map<string, string>();
     for (const fieldId of fieldIds) {
         idToName.set(fieldId, fieldNameForId(fieldId));
@@ -769,7 +769,12 @@ function mapApiRowsToQueryResult({
         return String(rawVal ?? '');
     };
 
-    return { rows, columns: resultColumns, format };
+    return {
+        rows,
+        columns: resultColumns,
+        format,
+        rowKeys: Object.fromEntries(idToName),
+    };
 }
 
 /**

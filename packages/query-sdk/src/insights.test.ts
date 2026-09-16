@@ -96,7 +96,11 @@ describe('insights channel', () => {
                 action: 'investigate',
                 anomalyId: 'a1',
             },
-            { type: INSIGHT_ACTION_MESSAGE, action: 'continue', anomalyId: 'a1' },
+            {
+                type: INSIGHT_ACTION_MESSAGE,
+                action: 'continue',
+                anomalyId: 'a1',
+            },
         ]);
     });
 
@@ -161,9 +165,39 @@ describe('insights channel', () => {
         );
     });
 
+    it('treats a missing row as no match instead of throwing', () => {
+        const dims = { orders_status: 'returned' };
+        expect(rowMatchesInsight(undefined, dims)).toBe(false);
+        expect(rowMatchesInsight(null, dims)).toBe(false);
+    });
+
+    it('never matches a whole-table finding to a row', () => {
+        expect(rowMatchesInsight({ orders_status: 'returned' }, {})).toBe(
+            false,
+        );
+    });
+
+    it('matches rows keyed by the app short names through rowKeys', () => {
+        const dims = { orders_order_date_month: '2025-01-01' };
+        const rowKeys = { orders_order_date_month: 'order_date_month' };
+        expect(
+            rowMatchesInsight({ order_date_month: '2025-01-01' }, dims),
+        ).toBe(false);
+        expect(
+            rowMatchesInsight(
+                { order_date_month: '2025-01-01' },
+                dims,
+                undefined,
+                rowKeys,
+            ),
+        ).toBe(true);
+    });
+
     it('parses a full payload and rejects the wrong shape', () => {
         expect(parseInsightsPayload(payload)).toEqual(payload);
         expect(parseInsightsPayload({ status: 'ready' })).toBeNull();
-        expect(parseInsightsPayload({ ...payload, status: 'weird' })).toBeNull();
+        expect(
+            parseInsightsPayload({ ...payload, status: 'weird' }),
+        ).toBeNull();
     });
 });

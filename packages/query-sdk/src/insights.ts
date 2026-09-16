@@ -185,7 +185,9 @@ const parseInsight = (value: unknown): Insight | null => {
  * Validate a payload from the host. postMessage crosses a trust boundary, so
  * anything malformed is dropped rather than rendered.
  */
-export const parseInsightsPayload = (value: unknown): InsightsPayload | null => {
+export const parseInsightsPayload = (
+    value: unknown,
+): InsightsPayload | null => {
     if (!isRecord(value)) return null;
     if (!STATUSES.includes(value.status as InsightsStatus)) return null;
     if (!Array.isArray(value.anomalies) || !Array.isArray(value.limitations)) {
@@ -329,6 +331,9 @@ type InsightSource = {
     queryUuid: string | null;
     /** `format` from useLightdash, so formatted values match too. */
     format?: (row: Row, fieldId: string) => string;
+    /** `rowKeys` from useLightdash: anomalies name qualified field ids,
+     *  rows use the app's short names. */
+    rowKeys?: Record<string, string>;
 };
 
 export type ViewInsights = InsightsPayload & {
@@ -343,8 +348,9 @@ export type QueryInsights = {
     status: InsightsStatus;
     /** Anomalies that refer to this query's rows. */
     anomalies: Insight[];
-    /** The anomalies whose dimension values match this row, if any. */
-    matches: (row: Row) => Insight[];
+    /** The anomalies whose dimension values match this row, if any. Safe to
+     *  call with the missing datum chart libraries pass between points. */
+    matches: (row: Row | null | undefined) => Insight[];
     canInvestigate: boolean;
     investigate: (anomalyId: string) => void;
     continueInAskAi: (anomalyId: string) => void;
@@ -352,22 +358,34 @@ export type QueryInsights = {
 
 /** Exported for tests; hooks wrap it. */
 export const rowMatchesInsight = (
-    row: Row,
+    row: Row | null | undefined,
     dimensionValues: Record<string, string>,
     format?: InsightSource['format'],
+    rowKeys?: InsightSource['rowKeys'],
 ): boolean =>
+    // Chart libraries call tooltip and dot renderers with no datum between
+    // points; a missing row is "no match", never a crash of the whole app.
+    // A finding with no dimension values is about the table as a whole and
+    // belongs in the summary, not on every point.
+    !!row &&
+    Object.keys(dimensionValues).length > 0 &&
     Object.entries(dimensionValues).every(([fieldId, value]) => {
-        if (!(fieldId in row)) return false;
-        const raw = row[fieldId];
+        const key = rowKeys?.[fieldId] ?? fieldId;
+        if (!(key in row)) return false;
+        const raw = row[key];
         if (raw !== null && raw !== undefined && String(raw) === value) {
             return true;
         }
-        return format ? format(row, fieldId) === value : false;
+        return format ? format(row, key) === value : false;
     });
 
 function useInsightsPayload(): InsightsPayload {
     const store = getStore();
-    return useSyncExternalStore(store.subscribe, store.get, () => EMPTY_INSIGHTS);
+    return useSyncExternalStore(
+        store.subscribe,
+        store.get,
+        () => EMPTY_INSIGHTS,
+    );
 }
 
 /**
@@ -403,6 +421,7 @@ export function useInsights(
 
     const queryUuid = source?.queryUuid ?? null;
     const format = source?.format;
+    const rowKeys = source?.rowKeys;
     const anomalies = useMemo(
         () =>
             source === undefined
@@ -411,11 +430,11 @@ export function useInsights(
         [payload.anomalies, queryUuid, source],
     );
     const matches = useCallback(
-        (row: Row) =>
+        (row: Row | null | undefined) =>
             anomalies.filter((a) =>
-                rowMatchesInsight(row, a.dimensionValues, format),
+                rowMatchesInsight(row, a.dimensionValues, format, rowKeys),
             ),
-        [anomalies, format],
+        [anomalies, format, rowKeys],
     );
 
     if (source === undefined) {
