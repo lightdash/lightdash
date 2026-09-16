@@ -149,10 +149,14 @@ Each anomaly:
 }
 ```
 
-Mark the flagged rows on the chart. `matches(row)` takes the raw result row, so call it per datum:
+Mark the flagged rows on the chart. `matches(row)` takes the raw result row, so call it per datum. Only `high`, `medium` and `positive` earn a marker; `info` is context for the summary (a gap, a partial period), so never paint it on the chart:
 
 ```tsx
 import { Bar, BarChart, Cell } from 'recharts';
+
+const MARKED = new Set(['high', 'medium', 'positive']);
+const marker = (insights, row) =>
+    insights.matches(row).find((a) => MARKED.has(a.severity)) ?? null;
 
 function OrdersByStatus() {
     const orders = useLightdash(ordersQuery);
@@ -162,7 +166,7 @@ function OrdersByStatus() {
         <BarChart data={orders.data}>
             <Bar dataKey="orders_count">
                 {orders.data.map((row) => {
-                    const flagged = insights.matches(row).length > 0;
+                    const flagged = marker(insights, row) !== null;
                     return (
                         <Cell
                             key={row.orders_status}
@@ -177,7 +181,32 @@ function OrdersByStatus() {
 }
 ```
 
-Keep the marker subtle (an outline, a dot, a badge in the tooltip), and show the anomaly `text` on hover so the viewer learns why the point is marked.
+Keep the marker subtle (an outline, a dot, a badge in the tooltip), and show the anomaly `text` on hover so the viewer learns why the point is marked. Tint by severity: `positive` is not a warning.
+
+### Markers on line and area charts must stay clickable on hover
+
+Recharts draws `activeDot` on top of `dot` while the cursor is over a point. With the default `activeDot={{ r: 5 }}` the hover dot covers the marker and takes the click, so the action menu only opens from a one-pixel rim. Render the same marker component for both, with the same click handler, or turn the hover dot off:
+
+```tsx
+const Marker = ({ cx, cy, payload }) => {
+    const anomaly = marker(insights, payload);
+    return (
+        <circle
+            cx={cx}
+            cy={cy}
+            r={anomaly ? 5 : 3}
+            fill={anomaly ? 'var(--destructive)' : 'var(--chart-1)'}
+            style={{ cursor: 'pointer' }}
+            onClick={(e) => openMenu(payload, e)}
+        />
+    );
+};
+
+<Line dataKey="orders_count" dot={<Marker />} activeDot={<Marker />} />
+// or: activeDot={false}
+```
+
+Whatever element carries the click handler must be the topmost one at that position: render markers after the series, never under a hover overlay or a tooltip cursor.
 
 ## Investigate from the action menu
 
