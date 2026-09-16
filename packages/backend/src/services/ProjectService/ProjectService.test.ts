@@ -6420,13 +6420,39 @@ describe('ProjectService', () => {
             });
 
             expect(result.errors).toEqual([]);
+            // The mocked project is Postgres, where nulls sort as the largest
+            // value: first on DESC, last on ASC. Stated on the compose engine.
+            expect(result.sorts).toEqual([
+                { fieldId: 'b_a_met1', descending: true, nullsFirst: true },
+                { fieldId: 'merge_dim1', descending: false, nullsFirst: false },
+            ]);
             expect(result.terminalWrapper?.orderBy).toEqual([
-                '"b_a_met1" DESC',
-                '"merge_dim1"',
+                '"b_a_met1" DESC NULLS FIRST',
+                '"merge_dim1" NULLS LAST',
             ]);
             expect(result.sql).toContain(
-                'ORDER BY "b_a_met1" DESC, "merge_dim1"',
+                'ORDER BY "b_a_met1" DESC NULLS FIRST, "merge_dim1" NULLS LAST',
             );
+        });
+
+        test('keeps a null placement the sort states over the warehouse default', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    sorts: [
+                        {
+                            fieldId: 'b_a_met1',
+                            descending: true,
+                            nullsFirst: false,
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.terminalWrapper?.orderBy).toEqual([
+                '"b_a_met1" DESC NULLS LAST',
+            ]);
         });
 
         test('orders by the join key when the merge carries no sort', async () => {

@@ -1250,6 +1250,7 @@ describe('AsyncQueryService', () => {
                 coreSql: null,
                 typedColumns: null,
                 terminalWrapper: null,
+                sorts: [],
                 errors: [
                     { kind: MergeQueryErrorKind.FAN_OUT, message: 'Fan-out' },
                 ],

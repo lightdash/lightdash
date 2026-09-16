@@ -3,11 +3,13 @@ import {
     ChartType,
     DashboardTileTypes,
     FilterOperator,
+    getWarehouseDefaultNullsFirst,
     isField,
     MergeJoinType,
     MergeQueryErrorKind,
     QueryExecutionContext,
     SEED_PROJECT,
+    SupportedDbtAdapter,
     type ApiCompiledMergeQueryResults,
     type ApiExecuteAsyncDashboardChartQueryResults,
     type ApiExecuteAsyncMergeQueryResults,
@@ -153,12 +155,28 @@ type MergeTestContext = {
     client: ApiClient;
     projectUuid: string;
     hasSubscriptionsModel: boolean;
+    /** The project warehouse, whose null placement a sorted merge follows. */
+    adapter: SupportedDbtAdapter;
 };
+
+const adapterByWarehouseName: Record<string, SupportedDbtAdapter> = {
+    postgres: SupportedDbtAdapter.POSTGRES,
+    snowflake: SupportedDbtAdapter.SNOWFLAKE,
+    bigquery: SupportedDbtAdapter.BIGQUERY,
+    databricks: SupportedDbtAdapter.DATABRICKS,
+    trino: SupportedDbtAdapter.TRINO,
+};
+
+const nullsClause = (adapter: SupportedDbtAdapter, descending: boolean) =>
+    getWarehouseDefaultNullsFirst(adapter, descending)
+        ? ' NULLS FIRST'
+        : ' NULLS LAST';
 
 function registerMergeQueryTests(getContext: () => MergeTestContext) {
     let admin: ApiClient;
     let projectUuid: string;
     let hasSubscriptionsModel: boolean;
+    let adapter: SupportedDbtAdapter;
 
     async function pollQueryResults(
         client: ApiClient,
@@ -187,7 +205,12 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // The merge-queries flag gates only the frontend entry point; the API
     // endpoints are always available.
     beforeAll(() => {
-        ({ client: admin, projectUuid, hasSubscriptionsModel } = getContext());
+        ({
+            client: admin,
+            projectUuid,
+            hasSubscriptionsModel,
+            adapter,
+        } = getContext());
     });
 
     it('compiles the merge for the project warehouse without errors', async () => {
@@ -310,6 +333,21 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // values are engine-independent and asserted elsewhere.
     const numeric = (raw: unknown) => (raw === null ? null : Number(raw));
 
+    // The order a sorted merge promises: values in sort order, nulls where
+    // the project warehouse's default puts them.
+    const orderedForWarehouse = (
+        values: (number | null)[],
+        { descending }: { descending: boolean },
+    ): (number | null)[] => {
+        const nulls = values.filter((value) => value === null);
+        const sorted = values
+            .filter((value): value is number => value !== null)
+            .sort((a, b) => (descending ? b - a : a - b));
+        return getWarehouseDefaultNullsFirst(adapter, descending)
+            ? [...nulls, ...sorted]
+            : [...sorted, ...nulls];
+    };
+
     // Month starts arrive spelled in different conventions depending on
     // which path truncated and serialised them — a DST month start can even
     // arrive as a date-only string of the *previous* day. Every spelling
@@ -401,7 +439,10 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         // the merge's, since a sorted leg under the row cap would join only
         // its top rows.
         expect(compiled.body.results.sql).toContain(
-            `ORDER BY "${PAYMENTS_FIELD_ID}" DESC, "${KEY_FIELD_ID}"`,
+            `ORDER BY "${PAYMENTS_FIELD_ID}" DESC${nullsClause(
+                adapter,
+                true,
+            )}, "${KEY_FIELD_ID}"${nullsClause(adapter, false)}`,
         );
         compiled.body.results.legs.forEach((leg) => {
             expect(leg.sql).not.toContain(
@@ -422,19 +463,97 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
             );
         }
         expect(runResp.body.results.query.metricQuery.sorts).toEqual(
-            sorted.sorts,
+            sorted.sorts.map((sort) => ({
+                ...sort,
+                nullsFirst: getWarehouseDefaultNullsFirst(
+                    adapter,
+                    sort.descending,
+                ),
+            })),
         );
 
         const results = await pollQueryResults(
             admin,
             runResp.body.results.query.queryUuid,
         );
-        const counts = results.rows.map(
-            (row) => numeric(cellOf(row, PAYMENTS_FIELD_ID).raw) as number,
+        const counts = results.rows.map((row) =>
+            numeric(cellOf(row, PAYMENTS_FIELD_ID).raw),
         );
         expect(new Set(counts).size).toBeGreaterThan(1);
-        expect(counts).toEqual([...counts].sort((a, b) => b - a));
+        expect(counts).toEqual(
+            orderedForWarehouse(counts, { descending: true }),
+        );
     }, 60_000);
+
+    // The join runs on the compose engine, whose default null order is not
+    // every warehouse's. Under a limit that decides which rows survive, so
+    // the merge states the project warehouse's placement on every sort. The
+    // expectation is read from the same merge run unlimited, because each
+    // warehouse's dataset carries its own share of null months.
+    it('places nulls under a limit the way the project warehouse does', async () => {
+        // Coupon payments cover only some months, so a FULL merge leaves
+        // the payments count null on the rest.
+        const couponPayments = {
+            ...paymentsByMonth,
+            filters: {
+                dimensions: {
+                    id: 'coupon-only-group',
+                    and: [
+                        {
+                            id: 'coupon-only',
+                            target: { fieldId: 'payments_payment_method' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['coupon'],
+                        },
+                    ],
+                },
+            },
+        };
+        const runSorted = async (limit: number) => {
+            const runResp = await admin.post<
+                Body<ApiExecuteAsyncMergeQueryResults>
+            >(`/api/v2/projects/${projectUuid}/query/merge-query`, {
+                mergeQuery: {
+                    ...mergeQuery,
+                    sources: [
+                        { id: 'orders', metricQuery: ordersByMonth },
+                        { id: 'payments', metricQuery: couponPayments },
+                    ],
+                    sorts: [{ fieldId: PAYMENTS_FIELD_ID, descending: true }],
+                    limit,
+                },
+                context: QueryExecutionContext.EXPLORE,
+            });
+            expect(runResp.status).toBe(200);
+            if (runResp.body.results.outcome !== 'started') {
+                throw new Error(
+                    `Merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+                );
+            }
+            const results = await pollQueryResults(
+                admin,
+                runResp.body.results.query.queryUuid,
+            );
+            return results.rows.map((row) =>
+                numeric(cellOf(row, PAYMENTS_FIELD_ID).raw),
+            );
+        };
+
+        const [everyRow, limitedRows] = await Promise.all([
+            runSorted(500),
+            runSorted(5),
+        ]);
+        expect(everyRow.some((count) => count === null)).toBe(true);
+        expect(limitedRows).toHaveLength(Math.min(5, everyRow.length));
+        // The limited run keeps the head of the unlimited run's order: the
+        // null rows first or last per the warehouse, values descending.
+        expect(limitedRows).toEqual(
+            orderedForWarehouse(everyRow, { descending: true }).slice(
+                0,
+                limitedRows.length,
+            ),
+        );
+    }, 90_000);
 
     it('applies each source filter before aggregation and merging', async () => {
         const filteredOrders = {
@@ -1043,18 +1162,24 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         });
         expect(started.status).toBe(200);
         expect(started.body.results.metricQuery.sorts).toEqual([
-            { fieldId: ORDERS_FIELD_ID, descending: true },
+            {
+                fieldId: ORDERS_FIELD_ID,
+                descending: true,
+                nullsFirst: getWarehouseDefaultNullsFirst(adapter, true),
+            },
         ]);
 
         const results = await pollQueryResults(
             admin,
             started.body.results.queryUuid,
         );
-        const amounts = results.rows.map(
-            (row) => numeric(cellOf(row, ORDERS_FIELD_ID).raw) as number,
+        const amounts = results.rows.map((row) =>
+            numeric(cellOf(row, ORDERS_FIELD_ID).raw),
         );
         expect(new Set(amounts).size).toBeGreaterThan(1);
-        expect(amounts).toEqual([...amounts].sort((a, b) => b - a));
+        expect(amounts).toEqual(
+            orderedForWarehouse(amounts, { descending: true }),
+        );
     }, 90_000);
 
     // On a dashboard the merged chart is an ordinary saved_chart tile, and a
@@ -1263,6 +1388,7 @@ describe('Merge queries on the project warehouse', () => {
             client: admin,
             projectUuid: SEED_PROJECT.project_uuid,
             hasSubscriptionsModel: true,
+            adapter: SupportedDbtAdapter.POSTGRES,
         }));
     });
 
@@ -1280,10 +1406,15 @@ describe('Merge queries on the project warehouse', () => {
                 projectUuid = await useSharedWarehouseProject(admin, name);
             }, 420_000);
 
+            const adapter = adapterByWarehouseName[name];
+            if (adapter === undefined) {
+                throw new Error(`No adapter known for warehouse "${name}"`);
+            }
             registerMergeQueryTests(() => ({
                 client: admin,
                 projectUuid,
                 hasSubscriptionsModel: WAREHOUSES_WITH_SUBSCRIPTIONS.has(name),
+                adapter,
             }));
         });
     }

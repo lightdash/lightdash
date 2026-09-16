@@ -176,6 +176,7 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
+    placeMergeSortNulls,
     PlaygroundProjectTrigger,
     PreAggregateCheckResult,
     PreAggregateMatchMiss,
@@ -218,6 +219,7 @@ import {
     SqlRunnerPivotQueryPayload,
     SshTunnelError,
     SummaryExplore,
+    SupportedDbtAdapter,
     supportsOptionalUserCredentials,
     TablesConfiguration,
     TableSelectionType,
@@ -6423,6 +6425,7 @@ export class ProjectService extends BaseService {
                 coreSql: null,
                 typedColumns: null,
                 terminalWrapper: null,
+                sorts: [],
                 columns: null,
                 fields: [],
                 itemsMap: {},
@@ -6490,6 +6493,7 @@ export class ProjectService extends BaseService {
                 coreSql: null,
                 typedColumns: null,
                 terminalWrapper: null,
+                sorts: [],
                 columns: null,
                 fields: [],
                 itemsMap: {},
@@ -6629,6 +6633,7 @@ export class ProjectService extends BaseService {
                 coreSql: null,
                 typedColumns: null,
                 terminalWrapper: null,
+                sorts: [],
                 columns: null,
                 fields: [],
                 itemsMap: {},
@@ -6704,6 +6709,7 @@ export class ProjectService extends BaseService {
                 coreSql: null,
                 typedColumns: null,
                 terminalWrapper: null,
+                sorts: [],
                 columns: null,
                 fields: [],
                 itemsMap: {},
@@ -7043,6 +7049,7 @@ export class ProjectService extends BaseService {
                 coreSql: null,
                 typedColumns: null,
                 terminalWrapper: null,
+                sorts: [],
                 columns: null,
                 fields: [],
                 itemsMap: {},
@@ -7065,16 +7072,21 @@ export class ProjectService extends BaseService {
                 column,
             ]),
         );
-        const sorts = resolveMergeSorts(
-            mergeQuery.sorts,
-            Object.values(fieldIdByColumn),
-        ).map(({ fieldId, descending }) => ({
-            column: columnByFieldId[fieldId],
-            descending,
-        }));
+        // Null placement is stated per sort so the compose engine keeps the
+        // rows the project warehouse would keep under a limit. A merge over
+        // result sources alone has no explore to read the warehouse from.
+        const sorts = placeMergeSortNulls(
+            resolveMergeSorts(mergeQuery.sorts, Object.values(fieldIdByColumn)),
+            resolvedSources.find((source) => source.explore !== null)?.explore
+                ?.targetDatabase ?? SupportedDbtAdapter.DUCKDB,
+        );
         const terminalWrapper = mergeQueryBuilder.buildTerminalWrapper(
             fieldIdByColumn,
-            sorts,
+            sorts.map(({ fieldId, descending, nullsFirst }) => ({
+                column: columnByFieldId[fieldId],
+                descending,
+                nullsFirst: nullsFirst ?? false,
+            })),
         );
 
         return {
@@ -7083,6 +7095,7 @@ export class ProjectService extends BaseService {
             coreSql,
             typedColumns,
             terminalWrapper,
+            sorts,
             columns,
             // The guard column is not data and is deliberately absent from
             // fields: callers act on it, they do not display it.
