@@ -22,14 +22,10 @@ export type ExploreCacheReadCodePath =
 
 export type ExploreCacheReadContext = {
     codePath: ExploreCacheReadCodePath;
-    /**
-     * Which implementation served the request. Today this is always
-     * 'full-explore-read' (the pre-PROD-10912 code path this branch
-     * instruments). Once PROD-10912 lands, its projection query should log
-     * the same field as e.g. 'table-summary-projection' so the two
-     * strategies are distinguishable in the same Cloud Logging field.
-     */
-    readStrategy: 'full-explore-read';
+    readStrategy:
+        | 'full-explore-read'
+        | 'catalog-search-count'
+        | 'catalog-search-distinct-explore-hydration';
     exploreCount: number;
     tableFanOut: number;
     /** Length of the explore-name filter passed to the cache read, if any. */
@@ -132,7 +128,8 @@ export const summarizeExploreCacheRead = (
 };
 
 export const summarizeCatalogSearchExploreRead = (
-    rows: ReadonlyArray<{ explore: Explore }>,
+    returnedSqlRowCount: number,
+    explores: Record<string, Explore>,
 ): Pick<
     CatalogSearchExploreCacheReadContext,
     | 'exploreCount'
@@ -140,28 +137,13 @@ export const summarizeCatalogSearchExploreRead = (
     | 'returnedSqlRowCount'
     | 'distinctExploreCount'
     | 'selectedExploreJsonBytes'
-> => {
-    const exploreOccurrences = rows.reduce((occurrences, { explore }) => {
-        const existing = occurrences.get(explore.name);
-        occurrences.set(explore.name, {
-            explore,
-            count: (existing?.count ?? 0) + 1,
-        });
-        return occurrences;
-    }, new Map<string, { explore: Explore; count: number }>());
-    const distinctExplores = Object.fromEntries(
-        [...exploreOccurrences].map(([name, { explore }]) => [name, explore]),
-    );
-
-    return {
-        ...summarizeExploreCacheRead(distinctExplores),
-        returnedSqlRowCount: rows.length,
-        distinctExploreCount: exploreOccurrences.size,
-        selectedExploreJsonBytes: [...exploreOccurrences.values()].reduce(
-            (totalBytes, { explore, count }) =>
-                totalBytes +
-                Buffer.byteLength(JSON.stringify(explore), 'utf8') * count,
-            0,
-        ),
-    };
-};
+> => ({
+    ...summarizeExploreCacheRead(explores),
+    returnedSqlRowCount,
+    distinctExploreCount: Object.keys(explores).length,
+    selectedExploreJsonBytes: Object.values(explores).reduce(
+        (totalBytes, explore) =>
+            totalBytes + Buffer.byteLength(JSON.stringify(explore), 'utf8'),
+        0,
+    ),
+});

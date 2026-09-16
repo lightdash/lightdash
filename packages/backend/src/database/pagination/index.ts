@@ -12,6 +12,8 @@ export type KnexPaginateQueryMeasurer = <T>(
     queryType: KnexPaginateQueryType,
 ) => Promise<T>;
 
+export type KnexPaginatePageExecutor<TResult> = () => PromiseLike<TResult>;
+
 type KnexPaginateCountResult = {
     rows?: Array<{ count?: unknown }>;
 };
@@ -23,12 +25,13 @@ export default class KnexPaginate {
      * data query carries expensive computed columns (e.g. window functions)
      * that don't affect the row count.
      */
-    static async paginate<TRecord extends {}, TResult>(
+    static async paginate<TRecord extends {}, TResult, TPageResult = TResult>(
         query: Knex.QueryBuilder<TRecord, TResult>,
         paginateArgs?: KnexPaginateArgs,
         countQuery?: Knex.QueryBuilder,
         measureQuery?: KnexPaginateQueryMeasurer,
-    ): Promise<KnexPaginatedData<TResult>> {
+        executePageQuery?: KnexPaginatePageExecutor<TPageResult>,
+    ): Promise<KnexPaginatedData<TPageResult>> {
         const runQuery = <T>(
             execute: () => PromiseLike<T>,
             queryType: KnexPaginateQueryType,
@@ -62,8 +65,16 @@ export default class KnexPaginate {
                     ) as unknown as PromiseLike<KnexPaginateCountResult>,
                 'count',
             );
-            const dataPromise = runQuery(
-                () => query.clone().offset(offset).limit(pageSize),
+            const dataPromise = runQuery<TPageResult>(
+                () =>
+                    executePageQuery
+                        ? executePageQuery()
+                        : (query
+                              .clone()
+                              .offset(offset)
+                              .limit(
+                                  pageSize,
+                              ) as unknown as PromiseLike<TPageResult>),
                 'page',
             );
             const [countData, data] = await Promise.all([
@@ -74,7 +85,7 @@ export default class KnexPaginate {
             const count = Number(countData?.rows?.[0]?.count) || 0;
 
             return {
-                data: data as TResult,
+                data,
                 pagination: {
                     page,
                     pageSize,
@@ -85,7 +96,13 @@ export default class KnexPaginate {
         }
 
         return {
-            data: (await runQuery(() => query, 'page')) as TResult,
+            data: await runQuery<TPageResult>(
+                () =>
+                    executePageQuery
+                        ? executePageQuery()
+                        : (query as unknown as PromiseLike<TPageResult>),
+                'page',
+            ),
         };
     }
 }
