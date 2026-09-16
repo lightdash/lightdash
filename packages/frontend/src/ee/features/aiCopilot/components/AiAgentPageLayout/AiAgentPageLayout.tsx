@@ -13,16 +13,17 @@ import {
     useCallback,
     useEffect,
     useLayoutEffect,
+    useMemo,
     useRef,
     type PropsWithChildren,
 } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import {
     clearPreview,
-    selectPreview,
+    selectPreviewForThreads,
     type AiPreview,
 } from '../../store/aiArtifactSlice';
 import {
@@ -69,7 +70,18 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     const dispatch = useAiAgentStoreDispatch();
     const splitterRef = useRef<UseSplitterReturnValue>(null);
 
-    const preview = useAiAgentStoreSelector(selectPreview);
+    // Thread routes and the battle route name the threads on screen.
+    const { threadUuid, threadUuidA, threadUuidB } = useParams();
+    const selectOnScreenPreview = useMemo(
+        () =>
+            selectPreviewForThreads(
+                [threadUuid, threadUuidA, threadUuidB].filter(
+                    (uuid): uuid is string => uuid !== undefined,
+                ),
+            ),
+        [threadUuid, threadUuidA, threadUuidB],
+    );
+    const preview = useAiAgentStoreSelector(selectOnScreenPreview);
     // Resolved on first render so the sidebar never flashes open on mobile
     const isMobile = useMediaQuery('(max-width: 768px)', undefined, {
         getInitialValueInEffect: false,

@@ -96,6 +96,16 @@ type StateWithAiArtifact = { aiArtifact: AiArtifactState };
 export const selectPreview = (state: StateWithAiArtifact) =>
     state.aiArtifact.preview;
 
+// A preview belongs to one thread; pages that show none pass [].
+export const selectPreviewForThreads =
+    (threadUuids: readonly string[]) =>
+    (state: StateWithAiArtifact): AiPreview | null => {
+        const { preview } = state.aiArtifact;
+        return preview !== null && threadUuids.includes(preview.threadUuid)
+            ? preview
+            : null;
+    };
+
 export const selectArtifactPreview = (state: StateWithAiArtifact) =>
     state.aiArtifact.preview?.type === 'artifact'
         ? state.aiArtifact.preview
