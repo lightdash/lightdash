@@ -57,8 +57,6 @@ import {
     type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
-import { isEqual } from 'lodash';
-import { randomUUID } from 'node:crypto';
 import { type DbApp } from '../../../database/entities/apps';
 import Logger from '../../../logging/logger';
 import { AppModel } from '../../../models/AppModel';
@@ -4175,11 +4173,7 @@ export class AiAgentToolsService extends BaseService {
                 description: document.description,
                 spaceSlug: getContentAsCodePathFromLtreePath(space.path),
                 schemaVersion: document.version.schemaVersion,
-                content: {
-                    cells: document.version.content.cells.map(
-                        ({ id: _id, ...cell }) => cell,
-                    ),
-                },
+                content: document.version.content,
             },
         };
     }
@@ -4237,12 +4231,10 @@ export class AiAgentToolsService extends BaseService {
                 description: input.description,
                 spaceUuid: space.uuid,
                 schemaVersion: input.schemaVersion,
-                content: parseDocumentContent(input.schemaVersion, {
-                    cells: input.content.cells.map((cell) => ({
-                        ...cell,
-                        id: randomUUID(),
-                    })),
-                }),
+                content: parseDocumentContent(
+                    input.schemaVersion,
+                    input.content,
+                ),
             },
         );
         return this.documentContentResult(context, document);
@@ -4272,22 +4264,10 @@ export class AiAgentToolsService extends BaseService {
             );
             return this.documentContentResult(context, document);
         }
-        const unmatchedCells = [...existing.version.content.cells];
-        const content = parseDocumentContent(3, {
-            cells: edit.content.cells.map((cell) => {
-                const index = unmatchedCells.findIndex(
-                    (previous) =>
-                        previous.type === cell.type &&
-                        isEqual(previous.content, cell.content),
-                );
-                // Retain unchanged chart IDs so narrative edits do not require chart-authoring permissions.
-                const id =
-                    index < 0
-                        ? randomUUID()
-                        : unmatchedCells.splice(index, 1)[0].id;
-                return { ...cell, id };
-            }),
-        });
+        const content = parseDocumentContent(
+            existing.version.schemaVersion,
+            edit.content,
+        );
         const document = await this.documentService.updateContent(
             context.account,
             context.projectUuid,

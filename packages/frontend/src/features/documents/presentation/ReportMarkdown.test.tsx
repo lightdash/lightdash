@@ -10,7 +10,7 @@ const renderMarkdown = (markdown: string) =>
         <MantineProvider env="test">
             <ReportMarkdown
                 markdown={markdown}
-                headingId={(offset) => getDocumentHeadingId('cell', offset)}
+                headingId={(offset) => getDocumentHeadingId(0, offset)}
             />
         </MantineProvider>,
     );
@@ -76,16 +76,14 @@ describe('shared report markdown', () => {
         const markdown =
             'Intro\n\nResults\n===\n\n# Results\n\n> # Nested\n\n## Detail\n\n# Final';
         const headings = getDocumentHeadings([
-            { id: 'cell', type: 'markdown', content: { markdown } },
+            { type: 'markdown', content: { markdown } },
         ]);
         const { container } = render(
             <MantineProvider env="test">
                 <DocumentReportLayout title="Report" headings={headings}>
                     <ReportMarkdown
                         markdown={markdown}
-                        headingId={(offset) =>
-                            getDocumentHeadingId('cell', offset)
-                        }
+                        headingId={(offset) => getDocumentHeadingId(0, offset)}
                     />
                 </DocumentReportLayout>
             </MantineProvider>,

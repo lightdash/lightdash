@@ -1,4 +1,4 @@
-import { ContentType, DocumentContent } from '@lightdash/common';
+import { ContentType, DocumentContentItem } from '@lightdash/common';
 import {
     ContentConfiguration,
     ContentTypePriority,
@@ -152,7 +152,7 @@ export const documentContentConfiguration: ContentConfiguration = {
             }),
     shouldRowBeConverted: (value): value is typeof value =>
         value.content_type === ContentType.DOCUMENT,
-    convertSummaryRow: (value): DocumentContent => ({
+    convertSummaryRow: (value): DocumentContentItem => ({
         contentType: ContentType.DOCUMENT,
         directAccessRoles: [],
         uuid: value.uuid,

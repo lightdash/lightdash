@@ -23,13 +23,9 @@ describe('Document chart query boundary', () => {
             versionUuid: 'version',
         });
         await expect(
-            controller.executeCellQuery(
-                request,
-                'project',
-                'document',
-                'cell',
-                { versionUuid: 'version' },
-            ),
+            controller.executeCellQuery(request, 'project', 'document', 0, {
+                versionUuid: 'version',
+            }),
         ).resolves.toMatchObject({
             status: 'ok',
             results: { queryUuid: 'query' },
@@ -39,7 +35,7 @@ describe('Document chart query boundary', () => {
             projectUuid: 'project',
             reference: {
                 documentUuid: 'document',
-                cellId: 'cell',
+                cellIndex: 0,
                 versionUuid: 'version',
             },
         });
@@ -57,13 +53,9 @@ describe('Document chart query boundary', () => {
             const { controller, request, executeAsyncDocumentCellQuery } =
                 setup({ versionUuid: 'version', [key]: {} });
             await expect(
-                controller.executeCellQuery(
-                    request,
-                    'project',
-                    'document',
-                    'cell',
-                    { versionUuid: 'version' },
-                ),
+                controller.executeCellQuery(request, 'project', 'document', 0, {
+                    versionUuid: 'version',
+                }),
             ).rejects.toThrow(ParameterError);
             expect(executeAsyncDocumentCellQuery).not.toHaveBeenCalled();
         },

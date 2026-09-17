@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ContentType, type DocumentContent } from './content';
+import { ContentType, type DocumentContentItem } from './content';
 import {
     contentToResourceViewItem,
     isResourceViewDocumentItem,
@@ -7,7 +7,7 @@ import {
 import { SpaceMemberRole } from './space';
 
 describe('Document content presentation', () => {
-    const content: DocumentContent = {
+    const content: DocumentContentItem = {
         contentType: ContentType.DOCUMENT,
         uuid: 'document',
         slug: 'weekly-report',

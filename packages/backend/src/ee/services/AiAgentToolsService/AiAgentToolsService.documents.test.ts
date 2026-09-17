@@ -19,7 +19,6 @@ const projectUuid = 'project';
 const spaceUuid = 'space';
 const versionUuid = '0dc37ee3-264a-488b-a485-4379125afbf1';
 const cell = {
-    id: 'intro',
     type: 'markdown' as const,
     content: { markdown: '## Findings' },
 };
@@ -37,7 +36,7 @@ const document: Document = {
     version: {
         versionUuid,
         versionNumber: 1,
-        schemaVersion: 3,
+        schemaVersion: 1,
         content: { cells: [cell] },
         createdByUserUuid: 'user',
         createdAt: new Date('2026-09-16'),
@@ -48,7 +47,7 @@ const content = {
     slug: document.slug,
     description: document.description,
     spaceSlug: 'reports',
-    schemaVersion: 3,
+    schemaVersion: 1,
     content: { cells: [{ type: cell.type, content: cell.content }] },
 };
 const account = {
@@ -128,7 +127,7 @@ describe('MCP Document runtime', () => {
         });
         const created = await runtime.createContent({
             type: 'document',
-            content: { ...content, schemaVersion: 3 },
+            content: { ...content, schemaVersion: 1 },
         });
         expect(created).toMatchObject({
             type: 'document',
@@ -194,7 +193,7 @@ describe('MCP Document runtime', () => {
         await expect(
             runtime.createContent({
                 type: 'document',
-                content: { ...content, schemaVersion: 3 },
+                content: { ...content, schemaVersion: 1 },
             }),
         ).rejects.toThrow(NotFoundError);
         await expect(
@@ -432,8 +431,8 @@ describe('MCP Document runtime', () => {
                 slug: document.slug,
                 description: document.description,
                 spaceUuid,
-                schemaVersion: 3,
-                content: { cells: [{ ...cell, id: expect.any(String) }] },
+                schemaVersion: 1,
+                content: { cells: [cell] },
             },
         );
     });
@@ -480,7 +479,7 @@ describe('MCP Document runtime', () => {
         expect(documentService.create).not.toHaveBeenCalled();
     });
 
-    test('content edits assign server IDs and forward the complete content, version and Space scope', async () => {
+    test('content edits forward ID-free content, version and Space scope', async () => {
         const { runtime, documentService } = setup([spaceUuid]);
         const replacement = {
             cells: [content.content.cells[0], content.content.cells[0]],
@@ -496,19 +495,15 @@ describe('MCP Document runtime', () => {
             document.documentUuid,
             {
                 baseVersionUuid: versionUuid,
-                content: {
-                    cells: replacement.cells.map((item) => ({
-                        ...item,
-                        id: expect.any(String),
-                    })),
-                },
+                content: replacement,
             },
             { allowedSpaceUuids: [spaceUuid] },
         );
         expect(documentService.updateMetadata).not.toHaveBeenCalled();
         const savedCells =
             documentService.updateContent.mock.calls[0][3].content.cells;
-        expect(savedCells[0].id).not.toBe(savedCells[1].id);
+        expect(savedCells).toEqual(replacement.cells);
+        expect(savedCells[0]).not.toHaveProperty('id');
     });
 
     test('metadata edits remain separate from version writes and forward Space scope', async () => {
@@ -527,10 +522,9 @@ describe('MCP Document runtime', () => {
         expect(documentService.updateContent).not.toHaveBeenCalled();
     });
 
-    test('reuses retained chart IDs across reordering without exposing IDs to the author', async () => {
+    test('preserves chart content and cell order without assigning IDs', async () => {
         const { runtime, documentService } = setup();
         const chartCell = {
-            id: 'existing-chart',
             type: 'chart' as const,
             content: {
                 source: 'semantic' as const,
@@ -573,7 +567,10 @@ describe('MCP Document runtime', () => {
         const saved =
             documentService.updateContent.mock.calls[0][3].content.cells;
         expect(saved[0]).toEqual(chartCell);
-        expect(saved[1].id).not.toBe(cell.id);
+        expect(saved[1]).toEqual({
+            type: 'markdown',
+            content: { markdown: '# Changed narrative' },
+        });
     });
 
     test('stale version conflicts are forwarded without retrying the write', async () => {

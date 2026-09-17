@@ -28,7 +28,7 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
                 {cells.map((cell, index) =>
                     cell.type === 'chart' ? (
                         <ReportSection
-                            key={`${document.version.versionUuid}:${cell.id}`}
+                            key={`${document.version.versionUuid}:${index}`}
                             title={cell.content.chart.name}
                         >
                             <ErrorBoundary>
@@ -37,18 +37,19 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
                                     spaceUuid={document.spaceUuid}
                                     documentUuid={document.documentUuid}
                                     versionUuid={document.version.versionUuid}
+                                    cellIndex={index}
                                     cell={cell}
                                 />
                             </ErrorBoundary>
                         </ReportSection>
                     ) : cell.type === 'markdown' ? (
                         <ErrorBoundary
-                            key={`${document.version.versionUuid}:${cell.id}`}
+                            key={`${document.version.versionUuid}:${index}`}
                         >
                             <ReportMarkdown
                                 markdown={cell.content.markdown}
                                 headingId={(offset) =>
-                                    getDocumentHeadingId(cell.id, offset)
+                                    getDocumentHeadingId(index, offset)
                                 }
                             />
                         </ErrorBoundary>

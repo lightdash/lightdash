@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     MergeJoinType,
     NotFoundError,
+    ParameterError,
     type Document,
     type MetricQuery,
     type RegisteredAccount,
@@ -17,7 +18,7 @@ const projectUuid = 'project';
 const reference = {
     documentUuid: 'document',
     versionUuid: 'version',
-    cellId: 'chart',
+    cellIndex: 0,
 };
 const query: MetricQuery = {
     exploreName: 'orders',
@@ -42,7 +43,6 @@ const document = {
         content: {
             cells: [
                 {
-                    id: reference.cellId,
                     type: 'chart',
                     content: {
                         source: 'semantic',
@@ -54,20 +54,56 @@ const document = {
     },
 } as Document;
 
-const setup = (savedDocument = document) => {
+const setup = (savedDocument = document, cellIndex = reference.cellIndex) => {
     const get = vi.fn().mockResolvedValue(savedDocument);
     const authorize = () =>
         DocumentQueryContext.authorize({
             documentService: { get } as unknown as DocumentService,
             account,
             projectUuid,
-            reference,
+            reference: { ...reference, cellIndex },
             sourceRowCap: 1000,
         });
     return { get, authorize };
 };
 
 describe('DocumentQueryContext', () => {
+    test.each([-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY])(
+        'rejects invalid cell index %s',
+        async (cellIndex) => {
+            await expect(
+                setup(document, cellIndex).authorize(),
+            ).rejects.toThrow(ParameterError);
+        },
+    );
+
+    test('rejects an out-of-bounds index', async () => {
+        await expect(setup(document, 1).authorize()).rejects.toThrow(
+            NotFoundError,
+        );
+    });
+
+    test('addresses cells by their zero-based array position', async () => {
+        const saved: Document = {
+            ...document,
+            version: {
+                ...document.version,
+                content: {
+                    cells: [
+                        { type: 'markdown', content: { markdown: '# Intro' } },
+                        ...document.version.content.cells,
+                    ],
+                },
+            },
+        };
+        await expect(setup(saved, 0).authorize()).rejects.toThrow(
+            NotFoundError,
+        );
+        const context = await setup(saved, 1).authorize();
+        expect(context.reference.cellIndex).toBe(1);
+        expect(context.metricQuery).toMatchObject(query);
+    });
+
     test('loads the persisted cell through Document authorization and binds query identity', async () => {
         const { get, authorize } = setup();
         const context = await authorize();
@@ -149,7 +185,6 @@ describe('DocumentQueryContext', () => {
                     content: {
                         cells: [
                             {
-                                id: 'chart',
                                 type: 'markdown',
                                 content: { markdown: 'text' },
                             },
@@ -182,7 +217,6 @@ describe('DocumentQueryContext', () => {
                 content: {
                     cells: [
                         {
-                            id: 'chart',
                             type: 'chart',
                             content: {
                                 source: 'merge',
