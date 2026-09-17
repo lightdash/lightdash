@@ -72,6 +72,41 @@ describe('useDataAppAnalysis', () => {
         vi.useRealTimers();
     });
 
+    it('drops a lookup response that arrives after the view changed', async () => {
+        const resolvers: ((v: unknown) => void)[] = [];
+        vi.mocked(lookupDataAppAnalysis).mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolvers.push(resolve as (v: unknown) => void);
+                }),
+        );
+        const { result, rerender } = renderHook(
+            ({ queries }: { queries: QueryEvent[] }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries,
+                    mountedQueryUuids: null,
+                }),
+            { initialProps: { queries: [readyQuery] } },
+        );
+        await settle();
+        rerender({
+            queries: [{ ...readyQuery, id: 'req-2', queryUuid: 'q-2' }],
+        });
+        await settle();
+        expect(resolvers).toHaveLength(2);
+        // View A's lookup resolves after view B replaced it.
+        await act(async () => {
+            resolvers[0]({ analysis: analysis('app-a'), investigations: [] });
+        });
+        expect(result.current.state.status).toBe('idle');
+        await act(async () => {
+            resolvers[1]({ analysis: analysis('app-a'), investigations: [] });
+        });
+        expect(result.current.state.status).toBe('ready');
+    });
+
     it('looks up once after the view goes quiet', async () => {
         const { rerender } = renderHook(
             ({ queries }: { queries: QueryEvent[] }) =>

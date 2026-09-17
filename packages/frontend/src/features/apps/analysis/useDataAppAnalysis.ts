@@ -162,6 +162,8 @@ export const useDataAppAnalysis = ({
         (state.status === 'idle' || (state.status === 'ready' && stale));
     // Queries settle one by one on open; wait for a quiet view so a single
     // lookup covers the final set.
+    const signatureRef = useRef(signature);
+    signatureRef.current = signature;
     useEffect(() => {
         if (!shouldLookUp) return undefined;
         const run = runRef.current;
@@ -169,7 +171,15 @@ export const useDataAppAnalysis = ({
             patch(scope, (prev) => ({ ...prev, lookedUpSignature: signature }));
             lookupDataAppAnalysis({ projectUuid, appUuid, sources })
                 .then((found) => {
-                    if (!found || run !== runRef.current) return;
+                    // Drop a response for a view that is no longer current:
+                    // a newer analyse run, or a later lookup for other rows.
+                    if (
+                        !found ||
+                        run !== runRef.current ||
+                        signature !== signatureRef.current
+                    ) {
+                        return;
+                    }
                     patch(scope, (prev) => ({
                         ...prev,
                         analysedSignature: signature,
