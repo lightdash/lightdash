@@ -42,10 +42,15 @@ import { ProjectGroupAccessTableName } from '../../database/entities/projectGrou
 import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
 import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
 import { ProjectMembershipsTableName } from '../../database/entities/projectMemberships';
-import { ProjectMergedManifestsTableName } from '../../database/entities/projectMergedManifests';
+import {
+    ProjectConnectionManifestsTableName,
+    ProjectMergedManifestsTableName,
+} from '../../database/entities/projectMergedManifests';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
+    CachedWarehouseTableName,
+    ProjectConnectionCatalogCacheTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
@@ -81,6 +86,31 @@ const { chunkAsyncRowsByBytesMock } = vi.hoisted(() => ({
     chunkAsyncRowsByBytesMock: vi.fn(),
 }));
 
+const compileConnectionUuid = '11111111-1111-4111-8111-111111111111';
+const secondCompileConnectionUuid = '22222222-2222-4222-8222-222222222222';
+const compileConnectionRow = {
+    warehouse_credentials_uuid: compileConnectionUuid,
+    name: 'Primary warehouse',
+    warehouse_type: WarehouseTypes.POSTGRES,
+    organization_warehouse_credentials_uuid: null,
+    list_all_databases: false,
+    additional_databases: [],
+    created_at: new Date('2026-09-17T12:00:00Z'),
+    encrypted_credentials: Buffer.from(
+        JSON.stringify({
+            type: WarehouseTypes.POSTGRES,
+            host: 'localhost',
+            user: 'postgres',
+            password: 'password',
+            port: 5432,
+            dbname: 'analytics',
+            schema: 'public',
+        }),
+    ),
+    project_id: 1,
+    organization_uuid: 'organization-uuid',
+};
+
 vi.mock('../../utils/chunkRowsByBytes', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../../utils/chunkRowsByBytes')>()),
     chunkAsyncRowsByBytes: chunkAsyncRowsByBytesMock,
@@ -108,20 +138,26 @@ describe('ProjectModel', () => {
         encryptionUtil: encryptionUtilMock,
     });
     const [projectConnection] = expectedProject.connections;
-    const mockProjectConnection = () => {
-        const { connectionModel } = model as unknown as {
-            connectionModel: {
-                listByProject: ReturnType<typeof vi.fn>;
-                resolveSole: ReturnType<typeof vi.fn>;
-                getCredentials: ReturnType<typeof vi.fn>;
-            };
-        };
+    type ProjectConnectionModel = {
+        listByProject: (
+            targetProjectUuid: string,
+        ) => Promise<typeof expectedProject.connections>;
+        getCredentials: (
+            targetProjectUuid: string,
+            connectionUuid: string,
+        ) => Promise<CreateWarehouseCredentials>;
+    };
+    const getConnectionModel = () =>
+        (
+            model as unknown as {
+                connectionModel: ProjectConnectionModel;
+            }
+        ).connectionModel;
+    const mockSoleProjectConnection = () => {
+        const connectionModel = getConnectionModel();
         vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
             projectConnection,
         ]);
-        vi.spyOn(connectionModel, 'resolveSole').mockResolvedValue(
-            projectConnection,
-        );
         vi.spyOn(connectionModel, 'getCredentials').mockResolvedValue({
             ...(JSON.parse(
                 projectMock.encrypted_credentials.toString(),
@@ -129,6 +165,7 @@ describe('ProjectModel', () => {
             listAllDatabases: false,
             additionalDatabases: [],
         });
+        return connectionModel;
     };
     let tracker: Tracker;
     beforeAll(() => {
@@ -136,10 +173,11 @@ describe('ProjectModel', () => {
     });
     afterEach(() => {
         tracker.reset();
+        vi.clearAllMocks();
         vi.restoreAllMocks();
     });
     test('should get project with no sensitive properties', async () => {
-        mockProjectConnection();
+        mockSoleProjectConnection();
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
             .response([projectMock]);
@@ -149,16 +187,9 @@ describe('ProjectModel', () => {
         expect(tracker.history.select).toHaveLength(1);
     });
     test('falls back to the sole connection requirement for an unmigrated project', async () => {
-        mockProjectConnection();
-        const { connectionModel } = model as unknown as {
-            connectionModel: {
-                getCredentials: ReturnType<typeof vi.fn>;
-            };
-        };
+        const connectionModel = mockSoleProjectConnection();
         vi.mocked(connectionModel.getCredentials).mockResolvedValue({
-            ...(JSON.parse(
-                projectMock.encrypted_credentials.toString(),
-            ) as CreateWarehouseCredentials),
+            ...CompletePostgresCredentials,
             requireUserCredentials: true,
         });
         tracker.on
@@ -184,16 +215,11 @@ describe('ProjectModel', () => {
         );
         expect(tracker.history.update[0].bindings).toContain(true);
     });
-    test('should get a project with several connections without resolving credentials', async () => {
-        const { connectionModel } = model as unknown as {
-            connectionModel: {
-                listByProject: ReturnType<typeof vi.fn>;
-                getCredentials: ReturnType<typeof vi.fn>;
-            };
-        };
+    test('gets a project with several connections without resolving credentials', async () => {
+        const connectionModel = getConnectionModel();
         const secondConnection = {
             ...projectConnection,
-            connectionUuid: 'second-connection-uuid',
+            connectionUuid: secondCompileConnectionUuid,
             name: 'Second',
         };
         vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
@@ -212,26 +238,206 @@ describe('ProjectModel', () => {
             secondConnection,
         ]);
         expect(project.warehouseConnection).toBeUndefined();
+        expect(project.requireUserCredentials).toBe(false);
         expect(getCredentials).not.toHaveBeenCalled();
     });
-    test('should omit scrubbed warehouse credentials when several connections are returned', async () => {
-        vi.spyOn(model, 'getWithSensitiveFields').mockResolvedValue({
-            ...expectedProject,
-            warehouseConnection: CompletePostgresCredentials,
-            connections: [
-                projectConnection,
-                {
-                    ...projectConnection,
-                    connectionUuid: 'second-connection-uuid',
-                    name: 'Second',
-                },
-            ],
-        });
+    test('gets a project without connections or legacy credentials', async () => {
+        const connectionModel = getConnectionModel();
+        vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([]);
+        const getCredentials = vi.spyOn(connectionModel, 'getCredentials');
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([projectMock]);
 
         const project = await model.get(projectUuid);
 
-        expect(project.connections).toHaveLength(2);
+        expect(project.connections).toEqual([]);
         expect(project.warehouseConnection).toBeUndefined();
+        expect(project.requireUserCredentials).toBe(false);
+        expect(getCredentials).not.toHaveBeenCalled();
+    });
+    test('gets compile project metadata without resolving warehouse credentials', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
+            .response([
+                {
+                    name: projectMock.name,
+                    dbt_connection: projectMock.dbt_connection,
+                    dbt_version: projectMock.dbt_version,
+                    organization_uuid: projectMock.organization_uuid,
+                    copied_from_project_uuid: null,
+                    project_defaults: null,
+                },
+            ]);
+
+        await expect(model.getCompileProject(projectUuid)).resolves.toEqual({
+            name: projectMock.name,
+            dbtConnection: JSON.parse(projectMock.dbt_connection.toString()),
+            dbtVersion: projectMock.dbt_version,
+            organizationUuid: projectMock.organization_uuid,
+            upstreamProjectUuid: undefined,
+            projectDefaults: undefined,
+        });
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].sql).not.toContain(
+            'warehouse_credentials',
+        );
+    });
+    test('lists compile connections without decrypting credentials', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([compileConnectionRow]);
+
+        await expect(model.getCompileConnections(projectUuid)).resolves.toEqual(
+            [
+                expect.objectContaining({
+                    connectionUuid: compileConnectionUuid,
+                    name: 'Primary warehouse',
+                }),
+            ],
+        );
+        expect(encryptionUtilMock.decrypt).not.toHaveBeenCalled();
+    });
+    test('reads the per-project warehouse credential policy', async () => {
+        tracker.on.select(ProjectTableName).response([
+            {
+                organization_warehouse_credentials_uuid: null,
+                query_timezone: 'Europe/London',
+                require_user_credentials: true,
+            },
+        ]);
+
+        await expect(
+            model.getProjectWarehouseConfig(projectUuid),
+        ).resolves.toEqual({
+            organizationWarehouseCredentialsUuid: null,
+            queryTimezone: 'Europe/London',
+            requireUserCredentials: true,
+        });
+    });
+    test('selects one live connection in getWithSensitiveFields', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
+            .response([
+                {
+                    ...projectMock,
+                    connection_uuid: compileConnectionUuid,
+                    connection_organization_warehouse_credentials_uuid: null,
+                    list_all_databases: false,
+                    additional_databases: [],
+                    copied_from_project_uuid: null,
+                    created_by_user_uuid: null,
+                    organization_warehouse_credentials_uuid: null,
+                    project_defaults: null,
+                    color_palette_uuid: null,
+                    expires_at: null,
+                    provisioning_source: null,
+                    agent_sql_scope: null,
+                },
+            ]);
+        tracker.on
+            .select(({ sql }) => sql.includes('from "warehouse_credentials"'))
+            .response([compileConnectionRow]);
+
+        await expect(
+            model.getWithSensitiveFields(projectUuid, compileConnectionUuid),
+        ).resolves.toMatchObject({
+            projectUuid,
+            warehouseConnection: expect.objectContaining({
+                type: WarehouseTypes.POSTGRES,
+                dbname: 'analytics',
+            }),
+        });
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([projectUuid]),
+        );
+        expect(tracker.history.select).toHaveLength(3);
+        expect(tracker.history.select[1].bindings).toEqual(
+            expect.arrayContaining([projectUuid]),
+        );
+        expect(tracker.history.select[2].bindings).toEqual(
+            expect.arrayContaining([projectUuid, compileConnectionUuid]),
+        );
+        expect(encryptionUtilMock.decrypt).toHaveBeenCalledTimes(2);
+    });
+    test('does not infer project policy from one selected connection in a multi-connection project', async () => {
+        const connectionModel = getConnectionModel();
+        vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
+            projectConnection,
+            {
+                ...projectConnection,
+                connectionUuid: secondCompileConnectionUuid,
+                name: 'Second',
+            },
+        ]);
+        vi.spyOn(connectionModel, 'getCredentials').mockResolvedValue({
+            ...CompletePostgresCredentials,
+            requireUserCredentials: true,
+        });
+        tracker.on
+            .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
+            .response([{ ...projectMock, require_user_credentials: null }]);
+
+        const project = await model.getWithSensitiveFields(
+            projectUuid,
+            compileConnectionUuid,
+        );
+
+        expect(project.warehouseConnection).toBeDefined();
+        expect(project.requireUserCredentials).toBe(false);
+        expect(connectionModel.getCredentials).toHaveBeenCalledWith(
+            projectUuid,
+            compileConnectionUuid,
+        );
+    });
+    test('keeps unscoped getWithSensitiveFields on its legacy credential path', async () => {
+        mockSoleProjectConnection();
+        tracker.on
+            .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
+            .response([
+                {
+                    ...projectMock,
+                    connection_uuid: compileConnectionUuid,
+                    connection_organization_warehouse_credentials_uuid: null,
+                    list_all_databases: false,
+                    additional_databases: [],
+                    copied_from_project_uuid: null,
+                    created_by_user_uuid: null,
+                    organization_warehouse_credentials_uuid: null,
+                    project_defaults: null,
+                    color_palette_uuid: null,
+                    expires_at: null,
+                    provisioning_source: null,
+                    agent_sql_scope: null,
+                },
+            ]);
+        await expect(
+            model.getWithSensitiveFields(projectUuid),
+        ).resolves.toMatchObject({
+            projectUuid,
+            warehouseConnection: expect.objectContaining({
+                type: WarehouseTypes.BIGQUERY,
+            }),
+        });
+        expect(tracker.history.select).toHaveLength(1);
+    });
+    test('rejects a connection outside the selected project', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
+            .response([
+                {
+                    ...projectMock,
+                    connection_uuid: null,
+                    dbt_connection: projectMock.dbt_connection,
+                },
+            ]);
+        tracker.on
+            .select(({ sql }) => sql.includes('from "warehouse_credentials"'))
+            .response([]);
+
+        await expect(
+            model.getWithSensitiveFields(projectUuid, compileConnectionUuid),
+        ).rejects.toEqual(new NotFoundError('Connection not found'));
     });
     test('should get the primary dbt source identity', async () => {
         tracker.on
@@ -829,32 +1035,123 @@ describe('ProjectModel', () => {
     });
 
     describe('merged manifest', () => {
-        test('inserts and atomically replaces the project artifact', async () => {
+        test('inserts and atomically replaces one connection artifact', async () => {
             const firstManifest = Buffer.from('first');
             const secondManifest = Buffer.from('second');
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([compileConnectionRow]);
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectConnectionManifestsTableName),
+                )
+                .response([]);
             tracker.on
                 .insert(({ sql }) =>
                     sql.includes(ProjectMergedManifestsTableName),
                 )
                 .response([]);
 
-            await model.upsertMergedManifest(projectUuid, firstManifest);
-            await model.upsertMergedManifest(projectUuid, secondManifest);
+            await model.upsertMergedManifest(
+                projectUuid,
+                firstManifest,
+                compileConnectionUuid,
+            );
+            await model.upsertMergedManifest(
+                projectUuid,
+                secondManifest,
+                compileConnectionUuid,
+            );
 
-            expect(tracker.history.insert).toHaveLength(2);
-            expect(tracker.history.insert[0].sql).toContain(
+            const scopedInserts = tracker.history.insert.filter(({ sql }) =>
+                sql.includes(ProjectConnectionManifestsTableName),
+            );
+            const legacyInserts = tracker.history.insert.filter(({ sql }) =>
+                sql.includes(ProjectMergedManifestsTableName),
+            );
+            expect(scopedInserts).toHaveLength(2);
+            expect(legacyInserts).toHaveLength(2);
+            expect(scopedInserts[0].sql).toContain(
+                'on conflict ("project_uuid", "connection_uuid") do update',
+            );
+            expect(legacyInserts[0].sql).toContain(
                 'on conflict ("project_uuid") do update',
             );
-            expect(tracker.history.insert[0].bindings).toEqual(
-                expect.arrayContaining([projectUuid, firstManifest]),
+            expect(scopedInserts[0].bindings).toEqual(
+                expect.arrayContaining([
+                    projectUuid,
+                    compileConnectionUuid,
+                    firstManifest,
+                ]),
             );
-            expect(tracker.history.insert[1].bindings).toEqual(
-                expect.arrayContaining([projectUuid, secondManifest]),
+            expect(scopedInserts[1].bindings).toEqual(
+                expect.arrayContaining([
+                    projectUuid,
+                    compileConnectionUuid,
+                    secondManifest,
+                ]),
             );
         });
 
-        test('returns the stored gzip bytes', async () => {
+        test('does not write the legacy artifact for several connections', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([
+                    compileConnectionRow,
+                    {
+                        ...compileConnectionRow,
+                        warehouse_credentials_uuid: secondCompileConnectionUuid,
+                    },
+                ]);
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectConnectionManifestsTableName),
+                )
+                .response([]);
+
+            await model.upsertMergedManifest(
+                projectUuid,
+                Buffer.from('scoped'),
+                compileConnectionUuid,
+            );
+
+            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.insert[0].sql).toContain(
+                ProjectConnectionManifestsTableName,
+            );
+        });
+
+        test('returns the selected connection gzip bytes', async () => {
             const storedManifest = Buffer.from('stored');
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([compileConnectionRow]);
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(ProjectConnectionManifestsTableName),
+                )
+                .response([{ manifest: storedManifest }]);
+
+            await expect(
+                model.getMergedManifest(projectUuid, compileConnectionUuid),
+            ).resolves.toEqual(storedManifest);
+            expect(tracker.history.select[1].bindings).toEqual(
+                expect.arrayContaining([projectUuid, compileConnectionUuid]),
+            );
+        });
+
+        test('returns a legacy artifact only for the sole live connection', async () => {
+            const storedManifest = Buffer.from('legacy');
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([compileConnectionRow]);
+            tracker.on
+                .select(
+                    ({ sql, bindings }) =>
+                        sql.includes(ProjectConnectionManifestsTableName) &&
+                        bindings.includes(compileConnectionUuid),
+                )
+                .response([]);
             tracker.on
                 .select(({ sql }) =>
                     sql.includes(ProjectMergedManifestsTableName),
@@ -866,19 +1163,147 @@ describe('ProjectModel', () => {
             );
         });
 
+        test('refuses an omitted selector for several live connections', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([
+                    compileConnectionRow,
+                    {
+                        ...compileConnectionRow,
+                        warehouse_credentials_uuid: secondCompileConnectionUuid,
+                    },
+                ]);
+
+            await expect(
+                model.getMergedManifest(projectUuid),
+            ).rejects.toBeInstanceOf(MultipleConnectionsError);
+        });
+
         test('reports when the project has no stored manifest', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([compileConnectionRow]);
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(ProjectConnectionManifestsTableName),
+                )
+                .response([]);
             tracker.on
                 .select(({ sql }) =>
                     sql.includes(ProjectMergedManifestsTableName),
                 )
                 .response([]);
 
-            await expect(model.getMergedManifest(projectUuid)).rejects.toThrow(
+            await expect(
+                model.getMergedManifest(projectUuid, compileConnectionUuid),
+            ).rejects.toThrow(
                 'No merged dbt manifest has been persisted for this project',
             );
         });
 
+        test('replaces every project artifact in one transaction', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([
+                    compileConnectionRow,
+                    {
+                        ...compileConnectionRow,
+                        warehouse_credentials_uuid: secondCompileConnectionUuid,
+                    },
+                ]);
+            tracker.on
+                .delete(({ sql }) =>
+                    sql.includes(ProjectConnectionManifestsTableName),
+                )
+                .response(2);
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectConnectionManifestsTableName),
+                )
+                .response([]);
+
+            await model.replaceMergedManifests(projectUuid, [
+                {
+                    connectionUuid: compileConnectionUuid,
+                    manifest: Buffer.from('first'),
+                },
+                {
+                    connectionUuid: secondCompileConnectionUuid,
+                    manifest: Buffer.from('second'),
+                },
+            ]);
+
+            expect(tracker.history.delete[0].bindings).toEqual([projectUuid]);
+            expect(tracker.history.insert[0].bindings).toEqual(
+                expect.arrayContaining([
+                    projectUuid,
+                    compileConnectionUuid,
+                    secondCompileConnectionUuid,
+                ]),
+            );
+        });
+
+        test('dual-writes a sole replacement artifact', async () => {
+            const manifest = Buffer.from('sole');
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([compileConnectionRow]);
+            tracker.on
+                .delete(({ sql }) =>
+                    sql.includes(ProjectConnectionManifestsTableName),
+                )
+                .response(1);
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectConnectionManifestsTableName),
+                )
+                .response([]);
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([]);
+
+            await model.replaceMergedManifests(projectUuid, [
+                { connectionUuid: compileConnectionUuid, manifest },
+            ]);
+
+            expect(tracker.history.insert).toHaveLength(2);
+            expect(tracker.history.insert[0].bindings).toEqual(
+                expect.arrayContaining([
+                    projectUuid,
+                    compileConnectionUuid,
+                    manifest,
+                ]),
+            );
+            expect(tracker.history.insert[1].sql).toContain(
+                'on conflict ("project_uuid") do update',
+            );
+        });
+
+        test('rejects replacement artifacts from another project', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([compileConnectionRow]);
+
+            await expect(
+                model.replaceMergedManifests(projectUuid, [
+                    {
+                        connectionUuid: secondCompileConnectionUuid,
+                        manifest: Buffer.from('foreign'),
+                    },
+                ]),
+            ).rejects.toEqual(new NotFoundError('Connection not found'));
+            expect(tracker.history.delete).toHaveLength(0);
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
         test('deletes the stored manifest for a project', async () => {
+            tracker.on
+                .delete(({ sql }) =>
+                    sql.includes(ProjectConnectionManifestsTableName),
+                )
+                .response(2);
             tracker.on
                 .delete(({ sql }) =>
                     sql.includes(ProjectMergedManifestsTableName),
@@ -887,8 +1312,185 @@ describe('ProjectModel', () => {
 
             await model.deleteMergedManifest(projectUuid);
 
-            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete).toHaveLength(2);
             expect(tracker.history.delete[0].bindings).toEqual([projectUuid]);
+            expect(tracker.history.delete[1].bindings).toEqual([projectUuid]);
+        });
+    });
+
+    describe('warehouse catalog cache', () => {
+        test('isolates catalogs by connection', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([
+                    compileConnectionRow,
+                    {
+                        ...compileConnectionRow,
+                        warehouse_credentials_uuid: secondCompileConnectionUuid,
+                    },
+                ]);
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(ProjectConnectionCatalogCacheTableName),
+                )
+                .response(({ bindings }) => [
+                    {
+                        warehouse: bindings.includes(
+                            secondCompileConnectionUuid,
+                        )
+                            ? { tables: ['second'] }
+                            : { tables: ['first'] },
+                    },
+                ]);
+
+            await expect(
+                model.getWarehouseFromCache(projectUuid, compileConnectionUuid),
+            ).resolves.toEqual({ tables: ['first'] });
+            await expect(
+                model.getWarehouseFromCache(
+                    projectUuid,
+                    secondCompileConnectionUuid,
+                ),
+            ).resolves.toEqual({ tables: ['second'] });
+        });
+
+        test('falls back to a legacy catalog for the sole live connection', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([compileConnectionRow]);
+            tracker.on
+                .select(
+                    ({ sql, bindings }) =>
+                        sql.includes(ProjectConnectionCatalogCacheTableName) &&
+                        bindings.includes(compileConnectionUuid),
+                )
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes(CachedWarehouseTableName))
+                .response([{ warehouse: { tables: ['legacy'] } }]);
+
+            await expect(
+                model.getWarehouseFromCache(projectUuid),
+            ).resolves.toEqual({ tables: ['legacy'] });
+        });
+
+        test('does not use a legacy catalog when several connections are live', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([
+                    compileConnectionRow,
+                    {
+                        ...compileConnectionRow,
+                        warehouse_credentials_uuid: secondCompileConnectionUuid,
+                    },
+                ]);
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(ProjectConnectionCatalogCacheTableName),
+                )
+                .response([]);
+
+            await expect(
+                model.getWarehouseFromCache(projectUuid, compileConnectionUuid),
+            ).resolves.toBeUndefined();
+            expect(
+                tracker.history.select.filter(({ sql }) =>
+                    sql.includes(ProjectConnectionCatalogCacheTableName),
+                ),
+            ).toHaveLength(1);
+        });
+
+        test('refuses an omitted selector when several connections are live', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([
+                    compileConnectionRow,
+                    {
+                        ...compileConnectionRow,
+                        warehouse_credentials_uuid: secondCompileConnectionUuid,
+                    },
+                ]);
+
+            await expect(
+                model.getWarehouseFromCache(projectUuid),
+            ).rejects.toBeInstanceOf(MultipleConnectionsError);
+        });
+
+        test('writes scoped and legacy catalogs for the sole connection', async () => {
+            const warehouse = { tables: [] } as unknown as Parameters<
+                ProjectModel['saveWarehouseToCache']
+            >[1];
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([compileConnectionRow]);
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectConnectionCatalogCacheTableName),
+                )
+                .response([
+                    {
+                        project_uuid: projectUuid,
+                        connection_uuid: compileConnectionUuid,
+                        warehouse,
+                    },
+                ]);
+            tracker.on
+                .insert(({ sql }) => sql.includes(CachedWarehouseTableName))
+                .response([{ project_uuid: projectUuid, warehouse }]);
+
+            await model.saveWarehouseToCache(
+                projectUuid,
+                warehouse,
+                compileConnectionUuid,
+            );
+
+            expect(tracker.history.insert).toHaveLength(2);
+            expect(tracker.history.insert[0].sql).toContain(
+                'on conflict ("project_uuid", "connection_uuid") do update',
+            );
+            expect(tracker.history.insert[0].bindings).toEqual(
+                expect.arrayContaining([projectUuid, compileConnectionUuid]),
+            );
+            expect(tracker.history.insert[1].sql).toContain(
+                'on conflict ("project_uuid") do update',
+            );
+        });
+
+        test('does not write the legacy catalog for several connections', async () => {
+            const warehouse = { tables: [] } as unknown as Parameters<
+                ProjectModel['saveWarehouseToCache']
+            >[1];
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([
+                    compileConnectionRow,
+                    {
+                        ...compileConnectionRow,
+                        warehouse_credentials_uuid: secondCompileConnectionUuid,
+                    },
+                ]);
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectConnectionCatalogCacheTableName),
+                )
+                .response([
+                    {
+                        project_uuid: projectUuid,
+                        connection_uuid: compileConnectionUuid,
+                        warehouse,
+                    },
+                ]);
+
+            await model.saveWarehouseToCache(
+                projectUuid,
+                warehouse,
+                compileConnectionUuid,
+            );
+
+            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.insert[0].sql).toContain(
+                ProjectConnectionCatalogCacheTableName,
+            );
         });
     });
 
@@ -910,12 +1512,6 @@ describe('ProjectModel', () => {
         const invalidate = vi
             .spyOn(MotherduckInstanceCache, 'invalidateByConnectionString')
             .mockImplementation(() => undefined);
-        vi.spyOn(
-            model as unknown as {
-                upsertWarehouseConnection: () => Promise<void>;
-            },
-            'upsertWarehouseConnection',
-        ).mockResolvedValue();
         tracker.on
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
@@ -943,14 +1539,6 @@ describe('ProjectModel', () => {
         const invalidate = vi
             .spyOn(MotherduckInstanceCache, 'invalidateByConnectionString')
             .mockImplementation(() => undefined);
-        const upsert = vi
-            .spyOn(
-                model as unknown as {
-                    upsertWarehouseConnection: () => Promise<void>;
-                },
-                'upsertWarehouseConnection',
-            )
-            .mockResolvedValue();
         tracker.on
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
@@ -967,11 +1555,15 @@ describe('ProjectModel', () => {
             } as CreateWarehouseCredentials,
         });
 
-        expect(upsert).toHaveBeenCalled();
+        expect(
+            tracker.history.insert.some(({ sql }) =>
+                sql.includes('warehouse_credentials'),
+            ),
+        ).toBe(true);
         expect(invalidate).not.toHaveBeenCalled();
     });
 
-    test('updates project settings without updating a warehouse connection', async () => {
+    test('updates project settings and policy without updating warehouse credentials', async () => {
         const getWarehouseCredentials = vi.spyOn(
             model,
             'getWarehouseCredentialsForProject',
@@ -990,71 +1582,139 @@ describe('ProjectModel', () => {
             name: expectedProject.name,
             dbtConnection: expectedProject.dbtConnection,
             dbtVersion: expectedProject.dbtVersion,
+            requireUserCredentials: true,
         });
 
         expect(tracker.history.update).toHaveLength(1);
+        expect(tracker.history.update[0].sql).toContain(
+            '"require_user_credentials"',
+        );
+        expect(tracker.history.update[0].bindings).toContain(true);
         expect(getWarehouseCredentials).not.toHaveBeenCalled();
         expect(upsertWarehouseConnection).not.toHaveBeenCalled();
     });
 
-    test('updates the sole connection by uuid', async () => {
-        const soleConnection = {
-            connectionUuid: 'connection-uuid',
-            name: 'Athena',
-            warehouseType: WarehouseTypes.ATHENA,
-            organizationWarehouseCredentialsUuid: null,
-            listAllDatabases: false,
-            additionalDatabases: [],
-            createdAt: new Date(),
-        };
-        const modelWithConnectionModel = model as unknown as {
-            connectionModel: {
-                listByProject: ReturnType<typeof vi.fn>;
-                resolveSole: ReturnType<typeof vi.fn>;
-                update: ReturnType<typeof vi.fn>;
-            };
-        };
-        const { connectionModel } = modelWithConnectionModel;
-        vi.spyOn(
-            model as unknown as {
-                createConnectionModel: () => typeof connectionModel;
-            },
-            'createConnectionModel',
-        ).mockReturnValue(connectionModel);
-        vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
-            soleConnection,
-        ]);
-        vi.spyOn(connectionModel, 'resolveSole').mockResolvedValue(
-            soleConnection,
-        );
-        const update = vi
-            .spyOn(connectionModel, 'update')
-            .mockResolvedValue(soleConnection);
-        const warehouseConnection: CreateWarehouseCredentials = {
-            type: WarehouseTypes.ATHENA,
-            region: 'eu-west-1',
-            database: 'AwsDataCatalog',
-            schema: 'analytics',
-            s3StagingDir: 's3://query-results',
-        };
+    test('stores listing fields in columns and omits them from ciphertext', async () => {
+        const encrypt = vi
+            .spyOn(encryptionUtilMock, 'encrypt')
+            .mockReturnValue(Buffer.from('encrypted'));
+        tracker.on
+            .insert(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
 
         await (
             model as unknown as {
                 upsertWarehouseConnection: (
                     trx: typeof database,
-                    targetProjectUuid: string,
+                    projectId: number,
                     data: CreateWarehouseCredentials,
                 ) => Promise<void>;
             }
-        ).upsertWarehouseConnection(database, projectUuid, warehouseConnection);
+        ).upsertWarehouseConnection(database, 7, {
+            type: WarehouseTypes.ATHENA,
+            region: 'eu-west-1',
+            database: 'AwsDataCatalog',
+            schema: 'analytics',
+            s3StagingDir: 's3://query-results',
+            accessKeyId: 'key',
+            secretAccessKey: 'secret',
+            listAllDatabases: false,
+            additionalDatabases: [' sales ', '', 'finance', 'sales'],
+        });
 
-        expect(update).toHaveBeenCalledWith(
-            projectUuid,
-            soleConnection.connectionUuid,
+        const encrypted = JSON.parse(encrypt.mock.calls[0][0] as string);
+        expect(encrypted).not.toHaveProperty('listAllDatabases');
+        expect(encrypted).not.toHaveProperty('additionalDatabases');
+        expect(tracker.history.insert[0].sql).toContain('"list_all_databases"');
+        expect(tracker.history.insert[0].sql).toContain(
+            '"additional_databases"',
+        );
+        expect(tracker.history.insert[0].bindings).toEqual(
+            expect.arrayContaining([false, ['sales', 'finance']]),
+        );
+    });
+
+    test('keeps dormant ciphertext when attaching an organization connection', async () => {
+        tracker.on
+            .insert(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+
+        await (
+            model as unknown as {
+                upsertWarehouseConnection: (
+                    trx: typeof database,
+                    projectId: number,
+                    data: CreateWarehouseCredentials,
+                    organizationWarehouseCredentialsUuid?: string,
+                ) => Promise<void>;
+            }
+        ).upsertWarehouseConnection(
+            database,
+            7,
             {
-                warehouseConnection,
-                organizationWarehouseCredentialsUuid: undefined,
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'user',
+                password: 'password',
+                database: 'database',
+                warehouse: 'warehouse',
+                schema: 'schema',
             },
+            'organization-credential-uuid',
+        );
+
+        const updateClause =
+            tracker.history.insert[0].sql.split('do update set')[1];
+        expect(updateClause).not.toContain('encrypted_credentials');
+        expect(tracker.history.insert[0].bindings).toContain(
+            'organization-credential-uuid',
+        );
+    });
+
+    test('merges row listing fields into organization credentials', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([
+                {
+                    encrypted_credentials: null,
+                    organization_warehouse_credentials_uuid:
+                        'organization-credential-uuid',
+                    organization_uuid: 'organization-uuid',
+                    list_all_databases: true,
+                    additional_databases: ['finance'],
+                },
+            ]);
+        vi.spyOn(
+            model as unknown as {
+                getOrganizationWarehouseCredentials: () => Promise<CreateWarehouseCredentials>;
+            },
+            'getOrganizationWarehouseCredentials',
+        ).mockResolvedValue({
+            type: WarehouseTypes.ATHENA,
+            region: 'eu-west-1',
+            database: 'AwsDataCatalog',
+            schema: 'analytics',
+            s3StagingDir: 's3://query-results',
+        });
+
+        await expect(
+            model.getWarehouseCredentialsForProject(projectUuid),
+        ).resolves.toMatchObject({
+            listAllDatabases: true,
+            additionalDatabases: ['finance'],
+        });
+    });
+
+    test('skips superseded warehouse credential rows', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+
+        await expect(
+            model.getWarehouseCredentialsForProject(projectUuid),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(tracker.history.select[0].sql).toContain(
+            '"warehouse_credentials"."superseded_at" is null',
         );
     });
 
@@ -1162,18 +1822,12 @@ describe('ProjectModel', () => {
     });
 
     test('rotates a refresh token by warehouse credential row id', async () => {
-        vi.spyOn(model, 'getConnectionForProject').mockResolvedValue({
-            connectionUuid: 'connection-uuid',
-            name: 'Snowflake',
-            warehouseType: WarehouseTypes.SNOWFLAKE,
-            organizationWarehouseCredentialsUuid: null,
-            listAllDatabases: false,
-            additionalDatabases: [],
-            createdAt: new Date(),
-        });
         tracker.on
             .select(({ sql }) => sql.includes('warehouse_credentials'))
-            .response([
+            .responseOnce([compileConnectionRow]);
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .responseOnce([
                 {
                     warehouse_credentials_id: 42,
                     encrypted_credentials: Buffer.from(
@@ -1198,6 +1852,40 @@ describe('ProjectModel', () => {
             '"warehouse_credentials_id" =',
         );
         expect(tracker.history.update[0].bindings).toContain(42);
+    });
+
+    test('constrains refresh token rotation to the selected connection', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .responseOnce([compileConnectionRow]);
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .responseOnce([
+                {
+                    warehouse_credentials_id: 42,
+                    encrypted_credentials: Buffer.from(
+                        JSON.stringify({
+                            type: WarehouseTypes.SNOWFLAKE,
+                            refreshToken: 'shared-token',
+                        }),
+                    ),
+                },
+            ]);
+        tracker.on
+            .update(({ sql }) => sql.includes('warehouse_credentials'))
+            .response(1);
+
+        await expect(
+            model.rotateRefreshToken(
+                projectUuid,
+                'shared-token',
+                'new-token',
+                compileConnectionUuid,
+            ),
+        ).resolves.toBe(true);
+        expect(tracker.history.select[1].bindings).toEqual(
+            expect.arrayContaining([projectUuid, compileConnectionUuid]),
+        );
     });
 
     test('checks project membership without requiring an email row', async () => {
@@ -2158,6 +2846,29 @@ describe('ProjectModel', () => {
             expect(consumed).toBe(true);
         });
 
+        test('stamps streamed staging rows with their connection uuid', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+            const scopedExplore = structuredClone(exploreWithMetricFilters);
+            scopedExplore.tables[scopedExplore.baseTable] = {
+                ...scopedExplore.tables[scopedExplore.baseTable],
+                connectionUuid: compileConnectionUuid,
+            };
+
+            await model.saveExploreStreamToCache(
+                projectUuid,
+                stream([scopedExplore]),
+            );
+
+            const stagingInsert = tracker.history.insert.find(
+                ({ sql }) =>
+                    sql.includes('insert into "cached_explore_staging"') &&
+                    sql.includes('values'),
+            );
+            expect(stagingInsert?.sql).toContain('"connection_uuid"');
+            expect(stagingInsert?.bindings).toContain(compileConnectionUuid);
+        });
+
         test('locks the project before the exact staged name set and promotion', async () => {
             oneRowChunks();
             mockStagedCacheQueries();
@@ -2391,6 +3102,24 @@ describe('ProjectModel', () => {
                 ),
             ).toHaveLength(0);
         });
+    });
+
+    test('keeps warehouse credentials absent while merging project secrets', () => {
+        const result = ProjectModel.mergeMissingProjectConfigSecrets(
+            {
+                name: expectedProject.name,
+                dbtConnection: expectedProject.dbtConnection,
+                dbtVersion: expectedProject.dbtVersion,
+                requireUserCredentials: true,
+            },
+            {
+                ...expectedProject,
+                warehouseConnection: CompletePostgresCredentials,
+            },
+        );
+
+        expect(result).not.toHaveProperty('warehouseConnection');
+        expect(result.requireUserCredentials).toBe(true);
     });
 
     describe('mergeMissingWarehouseSecrets', () => {
@@ -2716,7 +3445,7 @@ describe('ProjectModel', () => {
 
     describe('removing sensitive credentials from API', () => {
         test('should remove sensitive credentials like token and refreshToken', async () => {
-            mockProjectConnection();
+            mockSoleProjectConnection();
             tracker.on
                 .select(queryMatcher(ProjectTableName, [projectUuid]))
                 .response([projectMock]);
