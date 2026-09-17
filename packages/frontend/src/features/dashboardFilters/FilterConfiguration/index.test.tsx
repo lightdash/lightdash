@@ -104,6 +104,64 @@ describe('FilterConfiguration', () => {
         };
     });
 
+    it.each(['hover', 'focus', 'touch'])(
+        'shows the selected field description on %s, even with a custom filter label',
+        async (interaction) => {
+            const user = userEvent.setup();
+            const description = 'The first name supplied by the customer.';
+            renderWithProviders(
+                <FilterConfiguration
+                    isEditMode={false}
+                    tiles={[]}
+                    tabs={[]}
+                    availableTileFilters={{}}
+                    field={{ ...mockField, description }}
+                    defaultFilterRule={anyValueRule}
+                    originalFilterRule={{
+                        ...anyValueRule,
+                        label: 'Customer name',
+                    }}
+                    onSave={vi.fn()}
+                />,
+            );
+
+            expect(screen.getByText('Customer name')).toBeVisible();
+            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+            const info = screen.getByRole('button', { name: description });
+            if (interaction === 'hover') {
+                await user.hover(info);
+            } else if (interaction === 'focus') {
+                info.focus();
+            } else {
+                await user.pointer({ keys: '[TouchA]', target: info });
+            }
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(
+                description,
+            );
+        },
+    );
+
+    it.each([undefined, '', '   '])(
+        'hides the info icon when the field description is %j',
+        (description) => {
+            const { container } = renderWithProviders(
+                <FilterConfiguration
+                    isEditMode={false}
+                    tiles={[]}
+                    tabs={[]}
+                    availableTileFilters={{}}
+                    field={{ ...mockField, description }}
+                    defaultFilterRule={anyValueRule}
+                    onSave={vi.fn()}
+                />,
+            );
+
+            expect(
+                container.querySelector('.tabler-icon-info-circle'),
+            ).not.toBeInTheDocument();
+        },
+    );
+
     it.each(['pointer', 'keyboard'])(
         'saves a typed value once when Apply is activated with %s',
         async (activation) => {
