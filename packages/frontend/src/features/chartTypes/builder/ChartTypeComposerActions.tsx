@@ -8,7 +8,6 @@ import {
 } from '@mantine/core';
 import {
     IconArrowLeft,
-    IconBrush,
     IconChevronRight,
     IconPaperclip,
     IconPlugConnected,
@@ -27,9 +26,6 @@ type Props = {
     panel: ComposerPanel;
     onPanelChange: (panel: ComposerPanel) => void;
     disabled: boolean;
-    themeDisabled: boolean;
-    themeName: string;
-    isNewChart: boolean;
     onAttach: () => void;
     selectedConnections: SelectedConnection[];
     onSelectConnection: (connection: SelectedConnection) => void;
@@ -41,9 +37,6 @@ const ChartTypeComposerActions: FC<Props> = ({
     panel,
     onPanelChange,
     disabled,
-    themeDisabled,
-    themeName,
-    isNewChart,
     onAttach,
     selectedConnections,
     onSelectConnection,
@@ -100,18 +93,6 @@ const ChartTypeComposerActions: FC<Props> = ({
                                 <MantineIcon icon={IconChevronRight} />
                             }
                             onClick={() => onPanelChange('connections')}
-                        />
-                        <NavLink
-                            component="button"
-                            label={isNewChart ? 'Choose theme' : 'Apply theme'}
-                            description={themeName}
-                            leftSection={<MantineIcon icon={IconBrush} />}
-                            rightSection={
-                                <MantineIcon icon={IconChevronRight} />
-                            }
-                            disabled={themeDisabled}
-                            attributes={{ root: { disabled: themeDisabled } }}
-                            onClick={() => onPanelChange('theme')}
                         />
                     </Stack>
                 ) : (

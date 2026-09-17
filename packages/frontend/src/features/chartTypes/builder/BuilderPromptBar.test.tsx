@@ -430,13 +430,23 @@ describe('BuilderPromptBar', () => {
         expect(remove).toHaveBeenCalledWith(elementPicker.refs[0]);
     });
 
-    it('chooses a theme from composer options and shows it in the context tray', async () => {
+    it('keeps theme selection in the context tray, outside composer options', async () => {
         renderWithProviders(promptBar({ hasVersions: false }));
         await userEvent.click(
             screen.getByRole('button', { name: 'Composer options' }),
         );
+        expect(
+            screen.queryByRole('button', { name: /Choose theme|Apply theme/ }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Attach an image or file' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Add external connections' }),
+        ).toBeInTheDocument();
+        await userEvent.keyboard('{Escape}');
         await userEvent.click(
-            screen.getByRole('button', { name: /Choose theme/ }),
+            screen.getByRole('button', { name: 'Theme: Brand' }),
         );
         expect(
             screen.queryByRole('button', { name: 'Back to composer options' }),

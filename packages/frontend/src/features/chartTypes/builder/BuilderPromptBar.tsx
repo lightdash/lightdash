@@ -747,9 +747,6 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 panel={composerPanel}
                                 onPanelChange={setComposerPanel}
                                 disabled={isComposerLocked}
-                                themeDisabled={themePickerDisabled}
-                                themeName={themeName}
-                                isNewChart={isNewChart}
                                 onAttach={() => fileInputRef.current?.click()}
                                 selectedConnections={selectedConnections}
                                 onSelectConnection={(connection) =>
