@@ -74,6 +74,7 @@ const redshiftValues = (
         ...warehouse,
     },
     dbtVersion: 'v1.10' as ProjectConnectionForm['dbtVersion'],
+    requireUserCredentials: false,
 });
 
 const { user, password, region, clusterIdentifier, workgroupName } =

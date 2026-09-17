@@ -12,5 +12,6 @@ export type ProjectConnectionForm = {
     connectionUuid?: string;
     namespacePrefix?: string;
     dbtVersion: DbtVersionOption;
+    requireUserCredentials: boolean;
     warehouseLocation?: { database: string; schema: string };
 };

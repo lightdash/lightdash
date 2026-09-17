@@ -39,4 +39,5 @@ export const pickEmbedProject = (project: Project): Project => ({
     expiresAt: project.expiresAt,
     provisioningSource: null,
     agentSqlScope: null,
+    requireUserCredentials: project.requireUserCredentials,
 });

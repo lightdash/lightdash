@@ -62,6 +62,7 @@ const buildProject = (overrides: Partial<Project>): Project => ({
     colorPaletteUuid: null,
     expiresAt: null,
     agentSqlScope: null,
+    requireUserCredentials: false,
     ...overrides,
 });
 
@@ -91,6 +92,7 @@ const Harness: FC = () => {
                 schema: '',
             } as CreateWarehouseCredentials,
             dbtVersion: DefaultSupportedDbtVersion,
+            requireUserCredentials: false,
             warehouseLocation: { database: '', schema: '' },
         },
     });

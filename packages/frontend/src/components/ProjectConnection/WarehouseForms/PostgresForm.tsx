@@ -132,20 +132,6 @@ const PostgresForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
-                        <BooleanSwitch
-                            name="warehouse.requireUserCredentials"
-                            {...form.getInputProps(
-                                'warehouse.requireUserCredentials',
-                                {
-                                    type: 'checkbox',
-                                },
-                            )}
-                            label="Require users to provide their own credentials"
-                            disabled={disabled}
-                            defaultChecked={
-                                PostgresDefaultValues.requireUserCredentials
-                            }
-                        />
                         <NumberInput
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}

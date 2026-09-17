@@ -390,6 +390,7 @@ export const projectWithSensitiveFields: Project = {
     colorPaletteUuid: null,
     expiresAt: null,
     agentSqlScope: null,
+    requireUserCredentials: false,
 };
 
 export const projectSummary: ProjectSummary = {

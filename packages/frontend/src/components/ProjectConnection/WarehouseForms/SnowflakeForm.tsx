@@ -465,20 +465,6 @@ const SnowflakeForm: FC<{
                                             used. Users must provide their own
                                             credentials to connect.
                                         </Text>
-                                        <BooleanSwitch
-                                            name="warehouse.requireUserCredentials"
-                                            label="Require users to provide their own credentials"
-                                            defaultChecked={
-                                                SnowflakeDefaultValues.requireUserCredentials
-                                            }
-                                            disabled={disabled}
-                                            {...form.getInputProps(
-                                                'warehouse.requireUserCredentials',
-                                                {
-                                                    type: 'checkbox',
-                                                },
-                                            )}
-                                        />
                                     </>
                                 ) : authenticationType ===
                                   SnowflakeAuthenticationType.PRIVATE_KEY ? (
@@ -647,23 +633,6 @@ const SnowflakeForm: FC<{
 
                                 <FormSection isOpen={isOpen} name="advanced">
                                     <Stack mt="xs">
-                                        {!isNoneAuth && (
-                                            <BooleanSwitch
-                                                name="warehouse.requireUserCredentials"
-                                                label="Require users to provide their own credentials"
-                                                defaultChecked={
-                                                    SnowflakeDefaultValues.requireUserCredentials
-                                                }
-                                                disabled={disabled}
-                                                {...form.getInputProps(
-                                                    'warehouse.requireUserCredentials',
-                                                    {
-                                                        type: 'checkbox',
-                                                    },
-                                                )}
-                                            />
-                                        )}
-
                                         <BooleanSwitch
                                             name="warehouse.clientSessionKeepAlive"
                                             label="Keep client session alive"
