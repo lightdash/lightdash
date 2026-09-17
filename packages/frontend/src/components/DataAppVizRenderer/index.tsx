@@ -29,6 +29,7 @@ import {
 } from '../../features/chartTypes/hooks/useDataAppVizRender';
 import { useDataAppVizResolvedColors } from '../../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import { reconcileDataAppVizFieldMapping } from '../../features/chartTypes/utils/autoMapDataAppVizFields';
+import { captureChartTypeError } from '../../features/chartTypes/utils/captureChartTypeError';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
@@ -462,6 +463,24 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         renderMetadataError,
         getVisiblePreviewTokenError(previewTokenError, !!token),
     ];
+    // 404 is the designed "chart type removed" state with its own recovery UX.
+    const reportableRenderError =
+        terminalRequestErrors.find(
+            (error) => error && error.error.statusCode !== 404,
+        ) ?? null;
+    useEffect(() => {
+        if (!reportableRenderError) return;
+        captureChartTypeError('chartTypeRender', reportableRenderError, {
+            dataAppVizUuid,
+            savedChartUuid,
+            pinnedVersion: config?.dataAppVizVersion,
+        });
+    }, [
+        reportableRenderError,
+        dataAppVizUuid,
+        savedChartUuid,
+        config?.dataAppVizVersion,
+    ]);
     const terminalRequestErrorMessage = getTerminalRequestErrorMessage(
         terminalRequestErrors,
     );

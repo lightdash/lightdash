@@ -5,6 +5,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { captureChartTypeError } from '../utils/captureChartTypeError';
 
 type InstallRegistryChartTypeParams = {
     projectUuid: string;
@@ -58,10 +59,14 @@ export const useInstallRegistryChartType = () => {
                         : undefined,
             });
         },
-        onError: ({ error }) => {
+        onError: (apiError, { projectUuid, chartSlug }) => {
+            captureChartTypeError('chartTypeInstall', apiError, {
+                projectUuid,
+                chartSlug,
+            });
             showToastApiError({
                 title: 'Failed to install chart type',
-                apiError: error,
+                apiError: apiError.error,
             });
         },
     });
