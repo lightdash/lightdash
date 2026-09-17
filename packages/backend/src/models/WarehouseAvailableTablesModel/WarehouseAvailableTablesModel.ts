@@ -11,6 +11,23 @@ import {
     WarehouseAvailableTablesTableName,
 } from '../../database/entities/warehouseAvailableTables';
 
+type ListedDatabaseCacheScope = {
+    listedDatabase: string;
+    includeLegacyRows: boolean;
+    clearAll?: boolean;
+};
+
+const applyListedDatabaseScope = (
+    query: Knex.QueryBuilder,
+    scope: ListedDatabaseCacheScope,
+) =>
+    query.where((builder) => {
+        builder.where('listed_database', scope.listedDatabase);
+        if (scope.includeLegacyRows) {
+            builder.orWhereNull('listed_database');
+        }
+    });
+
 export class WarehouseAvailableTablesModel {
     database: Knex;
 
@@ -47,8 +64,9 @@ export class WarehouseAvailableTablesModel {
 
     async getTablesForUserWarehouseCredentials(
         userWarehouseCredentialsId: string,
+        scope?: ListedDatabaseCacheScope,
     ) {
-        const rows = await this.database(WarehouseAvailableTablesTableName)
+        const query = this.database(WarehouseAvailableTablesTableName)
             .where(
                 'user_warehouse_credentials_uuid',
                 userWarehouseCredentialsId,
@@ -60,11 +78,18 @@ export class WarehouseAvailableTablesModel {
                 'partition_column',
                 'table_type',
             ]);
+        if (scope) {
+            applyListedDatabaseScope(query, scope);
+        }
+        const rows = await query;
         return WarehouseAvailableTablesModel.toWarehouseCatalog(rows);
     }
 
-    async getTablesForProjectWarehouseCredentials(projectUuid: string) {
-        const rows = await this.database('projects')
+    async getTablesForProjectWarehouseCredentials(
+        projectUuid: string,
+        scope?: ListedDatabaseCacheScope,
+    ) {
+        const query = this.database('projects')
             .join(
                 'warehouse_credentials',
                 'projects.project_id',
@@ -84,12 +109,17 @@ export class WarehouseAvailableTablesModel {
                 'partition_column',
                 'table_type',
             ]);
+        if (scope) {
+            applyListedDatabaseScope(query, scope);
+        }
+        const rows = await query;
         return WarehouseAvailableTablesModel.toWarehouseCatalog(rows);
     }
 
     async createAvailableTablesForProjectWarehouseCredentials(
         projectUuid: string,
         tables: WarehouseTables,
+        scope?: ListedDatabaseCacheScope,
     ) {
         const warehouseCredentialsId = await this.database(
             'warehouse_credentials',
@@ -115,18 +145,21 @@ export class WarehouseAvailableTablesModel {
                 project_warehouse_credentials_id:
                     warehouseCredentialsId.warehouse_credentials_id,
                 user_warehouse_credentials_uuid: null,
+                listed_database: scope?.listedDatabase ?? null,
                 partition_column: partitionColumn || null,
                 table_type: tableType,
             }),
         );
 
         await this.database.transaction(async (trx) => {
-            await trx(WarehouseAvailableTablesTableName)
-                .where(
-                    'project_warehouse_credentials_id',
-                    warehouseCredentialsId.warehouse_credentials_id,
-                )
-                .del();
+            const deleteQuery = trx(WarehouseAvailableTablesTableName).where(
+                'project_warehouse_credentials_id',
+                warehouseCredentialsId.warehouse_credentials_id,
+            );
+            if (scope && !scope.clearAll) {
+                applyListedDatabaseScope(deleteQuery, scope);
+            }
+            await deleteQuery.del();
 
             if (rows.length !== 0) {
                 await trx.batchInsert(WarehouseAvailableTablesTableName, rows);
@@ -137,6 +170,7 @@ export class WarehouseAvailableTablesModel {
     async createAvailableTablesForUserWarehouseCredentials(
         userWarehouseCredentialsUuid: string,
         tables: WarehouseTables,
+        scope?: ListedDatabaseCacheScope,
     ) {
         const rows = tables.map(
             ({ database, schema, table, partitionColumn, tableType }) => ({
@@ -147,15 +181,18 @@ export class WarehouseAvailableTablesModel {
                 table_type: tableType,
                 project_warehouse_credentials_id: null,
                 user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
+                listed_database: scope?.listedDatabase ?? null,
             }),
         );
         await this.database.transaction(async (trx) => {
-            await trx(WarehouseAvailableTablesTableName)
-                .where(
-                    'user_warehouse_credentials_uuid',
-                    userWarehouseCredentialsUuid,
-                )
-                .del();
+            const deleteQuery = trx(WarehouseAvailableTablesTableName).where(
+                'user_warehouse_credentials_uuid',
+                userWarehouseCredentialsUuid,
+            );
+            if (scope && !scope.clearAll) {
+                applyListedDatabaseScope(deleteQuery, scope);
+            }
+            await deleteQuery.del();
             if (rows.length !== 0) {
                 await trx.batchInsert(WarehouseAvailableTablesTableName, rows);
             }
