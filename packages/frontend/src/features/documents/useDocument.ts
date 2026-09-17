@@ -23,7 +23,7 @@ export const useDocumentCellQuery = (
     projectUuid: string,
     documentUuid: string,
     versionUuid: string,
-    cellId: string,
+    cellIndex: number,
 ) =>
     useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
         queryKey: [
@@ -31,11 +31,11 @@ export const useDocumentCellQuery = (
             projectUuid,
             documentUuid,
             versionUuid,
-            cellId,
+            cellIndex,
         ],
         queryFn: ({ signal }) =>
             lightdashApi<ApiExecuteAsyncMetricQueryResults>({
-                url: `/projects/${projectUuid}/documents/${documentUuid}/cells/${encodeURIComponent(cellId)}/query`,
+                url: `/projects/${projectUuid}/documents/${documentUuid}/cells/${cellIndex}/query`,
                 method: 'POST',
                 body: JSON.stringify({ versionUuid }),
                 signal,

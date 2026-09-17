@@ -6562,7 +6562,7 @@ describe('saved Document chart queries', () => {
     const reference: DocumentQueryReference = {
         documentUuid: 'document-uuid',
         versionUuid: 'version-uuid',
-        cellId: 'chart-cell',
+        cellIndex: 0,
     };
     const document = {
         documentUuid: reference.documentUuid,
@@ -6572,7 +6572,6 @@ describe('saved Document chart queries', () => {
             content: {
                 cells: [
                     {
-                        id: reference.cellId,
                         type: 'chart',
                         content: {
                             source: 'semantic',
@@ -8477,7 +8476,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         const reference = {
             documentUuid: 'saved-doc',
             versionUuid: 'saved-version',
-            cellId: 'merged-cell',
+            cellIndex: 0,
         };
         const { sources } = attributeScopedMergeQuery;
         if (!('metricQuery' in sources[0]) || !('metricQuery' in sources[1])) {
@@ -8491,7 +8490,6 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 content: {
                     cells: [
                         {
-                            id: reference.cellId,
                             type: 'chart',
                             content: {
                                 source: 'merge',

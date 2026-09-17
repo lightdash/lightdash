@@ -5,12 +5,10 @@ describe('document contents', () => {
     test('indexes Markdown H1s but not chart names', () => {
         const headings = getDocumentHeadings([
             {
-                id: 'intro',
                 type: 'markdown',
                 content: { markdown: '# Overview' },
             },
             {
-                id: 'intro-0',
                 type: 'chart',
                 content: {
                     source: 'semantic',
@@ -32,22 +30,15 @@ describe('document contents', () => {
             },
         ]);
         expect(headings).toEqual([
-            { id: 'document-heading-intro-0', label: 'Overview' },
+            { id: 'document-heading-0-0', label: 'Overview' },
         ]);
-        expect(getDocumentHeadingId('intro-0')).not.toBe(
-            getDocumentHeadingId('intro', 0),
-        );
-        expect(getDocumentHeadingId('intro', 0)).toBe(
-            'document-heading-intro-0',
-        );
-        expect(getDocumentHeadingId('intro-0')).toBe('document-chart-intro-0');
+        expect(getDocumentHeadingId(0, 0)).toBe('document-heading-0-0');
     });
 
     test('omits empty headings from navigation', () => {
         expect(
             getDocumentHeadings([
                 {
-                    id: 'empty',
                     type: 'markdown',
                     content: { markdown: '#\n\n##' },
                 },
@@ -58,12 +49,10 @@ describe('document contents', () => {
         const markdown =
             'Intro\n\n# **Overview** :smile:\n\n## ~~Old~~ Results\n\n### Detail\n\n```md\n## Not a heading\n```';
         expect(
-            getDocumentHeadings([
-                { id: 'first', type: 'markdown', content: { markdown } },
-            ]),
+            getDocumentHeadings([{ type: 'markdown', content: { markdown } }]),
         ).toEqual([
             {
-                id: getDocumentHeadingId('first', markdown.indexOf('# **')),
+                id: getDocumentHeadingId(0, markdown.indexOf('# **')),
                 label: 'Overview 😄',
             },
         ]);
@@ -71,12 +60,10 @@ describe('document contents', () => {
     test('keeps repeated and setext headings distinct across cells', () => {
         const cells = [
             {
-                id: 'first',
                 type: 'markdown' as const,
                 content: { markdown: 'Results\n===\n\n# Results' },
             },
             {
-                id: 'second',
                 type: 'markdown' as const,
                 content: { markdown: '# Results' },
             },
@@ -88,14 +75,13 @@ describe('document contents', () => {
             'Results',
         ]);
         expect(new Set(headings.map(({ id }) => id)).size).toBe(3);
-        expect(headings[2].id).toBe('document-heading-second-0');
+        expect(headings[2].id).toBe('document-heading-1-0');
     });
     test('returns no contents for untitled prose or an empty document', () => {
         expect(getDocumentHeadings([])).toEqual([]);
         expect(
             getDocumentHeadings([
                 {
-                    id: 'intro',
                     type: 'markdown',
                     content: { markdown: 'Plain text' },
                 },

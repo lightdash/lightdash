@@ -24,37 +24,11 @@ type DocumentChartContent =
     | { source: 'semantic'; chart: SemanticChartAsCode }
     | { source: 'merge'; chart: MergeChartAsCode };
 
-export type DocumentCellV1 =
-    | { id: string; type: 'markdown'; content: string }
-    | {
-          id: string;
-          type: 'chart';
-          content: DocumentChartContent;
-      };
+export type DocumentCell =
+    | { type: 'markdown'; content: { markdown: string } }
+    | { type: 'chart'; content: DocumentChartContent };
 
-export type DocumentContentV1 = { cells: DocumentCellV1[] };
-
-export type DocumentCellV2 =
-    | {
-          id: string;
-          type: 'markdown';
-          content: { title?: string; markdown: string };
-      }
-    | {
-          id: string;
-          type: 'chart';
-          content: DocumentChartContent & {
-              title?: string;
-          };
-      };
-
-export type DocumentContentV2 = { cells: DocumentCellV2[] };
-
-export type DocumentCellV3 =
-    | { id: string; type: 'markdown'; content: { markdown: string } }
-    | { id: string; type: 'chart'; content: DocumentChartContent };
-
-export type DocumentContentV3 = { cells: DocumentCellV3[] };
+export type DocumentContent = { cells: DocumentCell[] };
 
 export type DocumentSummary = {
     access?: SpaceAccess[];
@@ -74,8 +48,8 @@ export type DocumentSummary = {
 export type DocumentVersion = {
     versionUuid: string;
     versionNumber: number;
-    schemaVersion: 3;
-    content: DocumentContentV3;
+    schemaVersion: 1;
+    content: DocumentContent;
     createdByUserUuid: string | null;
     createdAt: Date;
 };
@@ -87,8 +61,8 @@ export type DocumentAsCode = Pick<
     'name' | 'slug' | 'description'
 > & {
     spaceSlug: string;
-    schemaVersion: 3;
-    content: DocumentContentV3;
+    schemaVersion: 1;
+    content: DocumentContent;
 };
 
 export type ApiDocumentResponse = ApiSuccess<Document>;
@@ -103,8 +77,8 @@ export type CreateDocumentRequest = {
     slug?: string;
     description: string;
     spaceUuid: string;
-    schemaVersion: 3;
-    content: DocumentContentV3;
+    schemaVersion: 1;
+    content: DocumentContent;
 };
 
 export type UpdateDocumentMetadataRequest = {
@@ -113,24 +87,9 @@ export type UpdateDocumentMetadataRequest = {
     description?: string;
 };
 
-export type DocumentCellOperation =
-    | { type: 'append'; cell: DocumentCellV3 }
-    | {
-          type: 'insert_before' | 'insert_after';
-          targetCellId: string;
-          cell: DocumentCellV3;
-      }
-    | { type: 'replace'; cellId: string; cell: DocumentCellV3 }
-    | { type: 'remove'; cellId: string }
-    | {
-          type: 'move_before' | 'move_after';
-          cellId: string;
-          targetCellId: string;
-      };
-
 export type UpdateDocumentContentRequest = {
     baseVersionUuid: string;
-    operations: DocumentCellOperation[];
+    content: DocumentContent;
 };
 
 export type ExecuteDocumentCellQueryRequest = { versionUuid: string };
@@ -138,7 +97,7 @@ export type ExecuteDocumentCellQueryRequest = { versionUuid: string };
 export type DocumentQueryReference = {
     documentUuid: string;
     versionUuid: string;
-    cellId: string;
+    cellIndex: number;
 };
 
 export type ApiDocumentCellQueryResponse =

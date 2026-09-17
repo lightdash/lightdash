@@ -1,4 +1,4 @@
-import { ChartType, type DocumentCellV3 } from '@lightdash/common';
+import { ChartType, type DocumentCell } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
@@ -6,10 +6,14 @@ import DocumentChart from './DocumentChart';
 
 const mocks = vi.hoisted(() => ({
     query: { error: undefined as unknown, data: {} as unknown },
+    cellQuery: vi.fn(),
 }));
 
 vi.mock('./useDocument', () => ({
-    useDocumentCellQuery: () => mocks.query,
+    useDocumentCellQuery: (...args: unknown[]) => {
+        mocks.cellQuery(...args);
+        return mocks.query;
+    },
 }));
 vi.mock('../../hooks/useQueryResults', () => ({
     useInfiniteQueryResults: () => ({}),
@@ -34,8 +38,7 @@ vi.mock('../../components/LightdashVisualization', () => ({
 }));
 
 const renderChart = () => {
-    const cell: Extract<DocumentCellV3, { type: 'chart' }> = {
-        id: 'orders',
+    const cell: Extract<DocumentCell, { type: 'chart' }> = {
         type: 'chart',
         content: {
             source: 'semantic',
@@ -63,6 +66,7 @@ const renderChart = () => {
                 spaceUuid="space"
                 documentUuid="document"
                 versionUuid="version"
+                cellIndex={2}
                 cell={cell}
             />
         </MantineProvider>,
@@ -73,6 +77,7 @@ describe('Document chart titles', () => {
     beforeEach(() => {
         mocks.query.error = undefined;
         mocks.query.data = {};
+        mocks.cellQuery.mockClear();
     });
 
     test('omits a duplicate frame name while preserving the accessible figure name', () => {
@@ -82,6 +87,16 @@ describe('Document chart titles', () => {
             screen.getByRole('figure', { name: 'Orders' }),
         ).toBeInTheDocument();
         expect(screen.getByText('Visualization')).toBeInTheDocument();
+    });
+
+    test('queries the chart position within its immutable document version', () => {
+        renderChart();
+        expect(mocks.cellQuery).toHaveBeenCalledWith(
+            'project',
+            'document',
+            'version',
+            2,
+        );
     });
 
     test('retains framed query errors', () => {

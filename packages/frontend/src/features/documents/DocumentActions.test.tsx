@@ -52,7 +52,7 @@ const document: Document = {
     version: {
         versionUuid: 'version',
         versionNumber: 1,
-        schemaVersion: 3,
+        schemaVersion: 1,
         content: { cells: [] },
         createdByUserUuid: null,
         createdAt: new Date('2026-09-15'),

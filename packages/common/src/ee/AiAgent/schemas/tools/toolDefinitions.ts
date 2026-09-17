@@ -1933,7 +1933,7 @@ export const mcpCreateContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
     description:
-        'Create a dashboard, chart, or Document. Documents use schema version 3 with Markdown and semantic/merge chart-as-code cells. Returns the persisted content and canonical reference.',
+        'Create a dashboard, chart, or Document. Documents use schema version 1 with Markdown and semantic/merge chart-as-code cells. Returns the persisted content and canonical reference.',
     availability: ['agent', 'mcp'],
     inputSchema: mcpCreateContentArgsSchema,
     mcp: { name: 'create_content', annotations: writeAnnotations },

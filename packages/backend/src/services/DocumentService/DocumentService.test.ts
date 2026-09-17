@@ -33,11 +33,10 @@ const document: Document = {
     version: {
         versionUuid: 'version-uuid',
         versionNumber: 1,
-        schemaVersion: 3,
+        schemaVersion: 1,
         content: {
             cells: [
                 {
-                    id: 'intro',
                     type: 'markdown',
                     content: { markdown: '# Findings' },
                 },

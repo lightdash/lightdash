@@ -3,8 +3,9 @@ import {
     ConflictError,
     ForbiddenError,
     NotFoundError,
+    ParameterError,
     type Account,
-    type DocumentCellV3,
+    type DocumentCell,
     type DocumentQueryReference,
     type MergeQuery,
     type MetricQuery,
@@ -15,7 +16,7 @@ import { isEqual } from 'lodash';
 import { normalizeFilterIds } from '../CoderService/filterIds';
 import type { DocumentService } from './DocumentService';
 
-type ChartCell = Extract<DocumentCellV3, { type: 'chart' }>;
+type ChartCell = Extract<DocumentCell, { type: 'chart' }>;
 
 const comparable = (value: unknown): unknown =>
     JSON.parse(JSON.stringify(value));
@@ -55,9 +56,15 @@ export class DocumentQueryContext {
                 'Document has changed. Reload it before running its charts.',
             );
         }
-        const cell = document.version.content.cells.find(
-            ({ id }) => id === reference.cellId,
-        );
+        if (
+            !Number.isSafeInteger(reference.cellIndex) ||
+            reference.cellIndex < 0
+        ) {
+            throw new ParameterError(
+                'Document cell index must be a non-negative integer',
+            );
+        }
+        const cell = document.version.content.cells[reference.cellIndex];
         if (!cell || cell.type !== 'chart') {
             throw new NotFoundError('Document chart cell not found');
         }

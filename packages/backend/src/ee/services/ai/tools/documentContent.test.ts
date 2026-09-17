@@ -14,7 +14,7 @@ const document: DocumentContentResult = {
     href: `/projects/project/documents/${documentUuid}`,
     versionUuid,
     content: {
-        schemaVersion: 3,
+        schemaVersion: 1,
         name: 'Findings',
         slug: 'findings',
         description: 'Order analysis',

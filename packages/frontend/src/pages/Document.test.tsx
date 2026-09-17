@@ -1,8 +1,4 @@
-import {
-    ChartType,
-    type Document,
-    type DocumentCellV3,
-} from '@lightdash/common';
+import { ChartType, type Document, type DocumentCell } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -43,11 +39,7 @@ vi.mock('../components/common/Page/Page', () => ({
     ),
 }));
 vi.mock('../features/documents/DocumentChart', () => ({
-    default: ({
-        cell,
-    }: {
-        cell: Extract<DocumentCellV3, { type: 'chart' }>;
-    }) => {
+    default: ({ cell }: { cell: Extract<DocumentCell, { type: 'chart' }> }) => {
         if (mocks.chartFails) {
             throw new Error('Chart rendering failed');
         }
@@ -57,8 +49,7 @@ vi.mock('../features/documents/DocumentChart', () => ({
     },
 }));
 
-const chart: DocumentCellV3 = {
-    id: 'chart',
+const chart: DocumentCell = {
     type: 'chart',
     content: {
         source: 'semantic',
@@ -92,11 +83,10 @@ const document: Document = {
     version: {
         versionUuid: 'version-uuid',
         versionNumber: 1,
-        schemaVersion: 3,
+        schemaVersion: 1,
         content: {
             cells: [
                 {
-                    id: 'intro',
                     type: 'markdown',
                     content: {
                         markdown: '# Findings\n\nSupporting findings',
@@ -104,7 +94,6 @@ const document: Document = {
                 },
                 chart,
                 {
-                    id: 'end',
                     type: 'markdown',
                     content: {
                         markdown: '# Recommendations\n\nNext steps',
@@ -255,14 +244,14 @@ describe('Document page', () => {
         expect(
             screen.getByRole('button', { name: 'Findings' }),
         ).toBeInTheDocument();
-        expect(heading).toHaveAttribute('id', 'document-heading-intro-0');
+        expect(heading).toHaveAttribute('id', 'document-heading-0-0');
         expect(heading.tagName).toBe('H1');
         expect(heading.closest('section')).toHaveClass(
             reportStyles.reportFinding,
         );
         expect(
             screen.getByRole('heading', { name: 'Recommendations' }),
-        ).toHaveAttribute('id', 'document-heading-end-0');
+        ).toHaveAttribute('id', 'document-heading-2-0');
     });
 
     test('omits chart names and Markdown H2s from the contents', async () => {
@@ -273,7 +262,6 @@ describe('Document page', () => {
                 content: {
                     cells: [
                         {
-                            id: 'untitled',
                             type: 'markdown',
                             content: { markdown: '## Embedded heading' },
                         },
@@ -374,7 +362,6 @@ describe('Document page', () => {
                 content: {
                     cells: [
                         {
-                            id: 'safe-title',
                             type: 'chart',
                             content: {
                                 ...chart.content,
@@ -414,7 +401,7 @@ describe('Document page', () => {
                 content: {
                     cells: [
                         document.version.content.cells[0],
-                        { id: 'widget', type: 'widget', content: {} },
+                        { type: 'widget', content: {} },
                     ],
                 },
             },
@@ -483,7 +470,6 @@ describe('Document page', () => {
                 content: {
                     cells: [
                         {
-                            id: 'unsafe',
                             type: 'markdown',
                             content: {
                                 markdown: [

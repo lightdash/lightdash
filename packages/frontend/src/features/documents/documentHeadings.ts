@@ -1,4 +1,4 @@
-import { type DocumentCellV3 } from '@lightdash/common';
+import { type DocumentCell } from '@lightdash/common';
 import remarkEmoji from 'remark-emoji';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
@@ -26,13 +26,11 @@ const getNodeText = (node: unknown): string => {
         : '';
 };
 
-export const getDocumentHeadingId = (cellId: string, offset?: number) =>
-    offset === undefined
-        ? `document-chart-${encodeURIComponent(cellId)}`
-        : `document-heading-${encodeURIComponent(cellId)}-${offset}`;
+export const getDocumentHeadingId = (cellIndex: number, offset: number) =>
+    `document-heading-${cellIndex}-${offset}`;
 
-export const getDocumentHeadings = (cells: DocumentCellV3[]): ReportHeading[] =>
-    cells.flatMap((cell) => {
+export const getDocumentHeadings = (cells: DocumentCell[]): ReportHeading[] =>
+    cells.flatMap((cell, cellIndex) => {
         if (cell.type === 'chart') {
             return [];
         }
@@ -51,7 +49,7 @@ export const getDocumentHeadings = (cells: DocumentCellV3[]): ReportHeading[] =>
                     }
                     headings.push({
                         id: getDocumentHeadingId(
-                            cell.id,
+                            cellIndex,
                             heading.position.start.offset,
                         ),
                         label,

@@ -37,14 +37,14 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Documents')
 export class DocumentController extends BaseController {
-    @Post('{documentUuid}/cells/{cellId}/query')
+    @Post('{documentUuid}/cells/{cellIndex}/query')
     @OperationId('ExecuteDocumentCellQuery')
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     async executeCellQuery(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() documentUuid: UUID,
-        @Path() cellId: string,
+        @Path() cellIndex: number,
         @Body() body: ExecuteDocumentCellQueryRequest,
     ): Promise<ApiDocumentCellQueryResponse> {
         assertRegisteredAccount(req.account);
@@ -62,7 +62,7 @@ export class DocumentController extends BaseController {
                     projectUuid,
                     reference: {
                         documentUuid,
-                        cellId,
+                        cellIndex,
                         versionUuid: body.versionUuid,
                     },
                 }),

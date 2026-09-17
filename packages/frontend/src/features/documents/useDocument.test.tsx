@@ -24,36 +24,42 @@ describe('saved Document cell query', () => {
             </QueryClientProvider>
         );
         const { result, rerender } = renderHook(
-            ({ versionUuid, cellId }) =>
+            ({ versionUuid, cellIndex }) =>
                 useDocumentCellQuery(
                     'project',
                     'document',
                     versionUuid,
-                    cellId,
+                    cellIndex,
                 ),
             {
                 wrapper,
-                initialProps: { versionUuid: 'v1', cellId: 'chart / one' },
+                initialProps: { versionUuid: 'v1', cellIndex: 0 },
             },
         );
         await waitFor(() => expect(result.current.data?.queryUuid).toBe('v1'));
         expect(api).toHaveBeenCalledWith({
             method: 'POST',
-            url: '/projects/project/documents/document/cells/chart%20%2F%20one/query',
+            url: '/projects/project/documents/document/cells/0/query',
             body: JSON.stringify({ versionUuid: 'v1' }),
             signal: expect.any(AbortSignal),
         });
-        rerender({ versionUuid: 'v2', cellId: 'chart / one' });
+        rerender({ versionUuid: 'v2', cellIndex: 0 });
         await waitFor(() => expect(result.current.data?.queryUuid).toBe('v2'));
-        rerender({ versionUuid: 'v2', cellId: 'another-cell' });
+        rerender({ versionUuid: 'v2', cellIndex: 1 });
         await waitFor(() => expect(api).toHaveBeenCalledTimes(3));
+        expect(api).toHaveBeenLastCalledWith({
+            method: 'POST',
+            url: '/projects/project/documents/document/cells/1/query',
+            body: JSON.stringify({ versionUuid: 'v2' }),
+            signal: expect.any(AbortSignal),
+        });
         expect(
             client.getQueryData([
                 'document-cell-query',
                 'project',
                 'document',
                 'v1',
-                'chart / one',
+                0,
             ]),
         ).toEqual({ queryUuid: 'v1' });
         client.clear();
@@ -72,13 +78,7 @@ describe('saved Document cell query', () => {
             </QueryClientProvider>
         );
         const { result } = renderHook(
-            () =>
-                useDocumentCellQuery(
-                    'project',
-                    'document',
-                    'old-version',
-                    'cell',
-                ),
+            () => useDocumentCellQuery('project', 'document', 'old-version', 0),
             { wrapper },
         );
         await waitFor(() => expect(result.current.isError).toBe(true));
