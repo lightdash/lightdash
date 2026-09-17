@@ -1,3 +1,10 @@
+# [2.253.0](https://github.com/lightdash/lightdash/compare/2.252.0...2.253.0) (2026-09-17)
+
+
+### Features
+
+* allow verifying data apps ([#29405](https://github.com/lightdash/lightdash/issues/29405)) ([bc23d96](https://github.com/lightdash/lightdash/commit/bc23d966da21f5017a7e43c1a6377587c95df46c))
+
 # [2.252.0](https://github.com/lightdash/lightdash/compare/2.251.0...2.252.0) (2026-09-17)
 
 

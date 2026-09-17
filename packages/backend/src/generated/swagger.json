@@ -21434,10 +21434,18 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "verification": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "icon": {
                                 "allOf": [
                                     {
@@ -21510,6 +21518,7 @@
                             }
                         },
                         "required": [
+                            "verification",
                             "icon",
                             "registrySlug",
                             "latestReadyVersion",
@@ -21539,7 +21548,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__"
             },
             "UuidOrSlug": {
                 "type": "string",
@@ -21730,6 +21739,32 @@
             },
             "ApiPromoteAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--projectUuid-string--version-number--action-PromoteAppAction__"
+            },
+            "ApiContentVerificationResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiContentVerificationDeleteResponse": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
             },
             "ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__": {
                 "properties": {
@@ -47233,32 +47268,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiContentVerificationResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ContentVerificationInfo"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiContentVerificationDeleteResponse": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
             "RenameType": {
                 "enum": ["model", "field"],
                 "type": "string"
@@ -50842,6 +50851,29 @@
                     }
                 ]
             },
+            "ContentType.DATA_APP": {
+                "enum": ["data_app"],
+                "type": "string"
+            },
+            "VerifiedDataAppListItem": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VerifiedContentListItemBase"
+                    },
+                    {
+                        "properties": {
+                            "slug": {
+                                "type": "string"
+                            },
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.DATA_APP"
+                            }
+                        },
+                        "required": ["slug", "contentType"],
+                        "type": "object"
+                    }
+                ]
+            },
             "VerifiedContentListItem": {
                 "anyOf": [
                     {
@@ -50849,6 +50881,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/VerifiedDashboardListItem"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VerifiedDataAppListItem"
                     }
                 ]
             },
@@ -51601,6 +51636,14 @@
                     },
                     "data": {
                         "properties": {
+                            "verification": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "pinnedListOrder": {
                                 "type": "number",
                                 "format": "double",
@@ -51680,6 +51723,7 @@
                             }
                         },
                         "required": [
+                            "verification",
                             "pinnedListOrder",
                             "pinnedListUuid",
                             "latestReadyVersionNumber",
@@ -62234,10 +62278,6 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "ContentType.DATA_APP": {
-                "enum": ["data_app"],
-                "type": "string"
-            },
             "Pick_Content.Exclude_keyofContent.space-or-pinnedList__": {
                 "properties": {
                     "contentType": {
@@ -63509,7 +63549,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.252.0",
+        "version": "2.253.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
