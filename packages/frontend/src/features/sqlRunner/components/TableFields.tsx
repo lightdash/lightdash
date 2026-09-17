@@ -80,6 +80,9 @@ export const TableFields: FC = () => {
     const activeSchema = useAppSelector(
         (state) => state.sqlRunner.activeSchema,
     );
+    const activeDatabase = useAppSelector(
+        (state) => state.sqlRunner.activeDatabase,
+    );
 
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -96,6 +99,7 @@ export const TableFields: FC = () => {
         projectUuid,
         tableName: activeTable,
         schema: activeSchema,
+        database: activeDatabase,
         search: isValidSearch ? debouncedSearch : undefined,
     });
 

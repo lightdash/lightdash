@@ -8,21 +8,41 @@ import Fuse from 'fuse.js';
 import isEmpty from 'lodash/isEmpty';
 import { lightdashApi } from '../../../api';
 
-export type GetTableFieldsParams = {
+export type TableFieldsTarget = {
     projectUuid: string;
     tableName: string | undefined;
     schema: string | undefined;
+    database: string | undefined;
+};
+
+export type GetTableFieldsParams = TableFieldsTarget & {
     search: string | undefined;
 };
+
+export const tableFieldsQueryKey = ({
+    projectUuid,
+    tableName,
+    schema,
+    database,
+}: TableFieldsTarget) => [
+    'sqlRunner',
+    'fields',
+    projectUuid,
+    database ?? '',
+    schema ?? '',
+    tableName ?? '',
+];
 
 export const fetchTableFields = async ({
     projectUuid,
     tableName,
     schema,
-}: Pick<GetTableFieldsParams, 'projectUuid' | 'tableName' | 'schema'>) => {
+    database,
+}: TableFieldsTarget) => {
     const params = {
         ...(tableName ? { tableName } : {}),
         ...(schema ? { schemaName: schema } : {}),
+        ...(database ? { databaseName: database } : {}),
     };
     const query = new URLSearchParams(params).toString();
     return lightdashApi<WarehouseTableSchema>({
@@ -40,6 +60,7 @@ export type WarehouseTableField = {
 export type WarehouseTableFieldWithContext = WarehouseTableField & {
     table: string;
     schema: string;
+    database: string;
 };
 
 export const useTableFields = ({
@@ -47,18 +68,25 @@ export const useTableFields = ({
     tableName,
     search,
     schema,
+    database,
 }: GetTableFieldsParams) => {
     return useQuery<
         WarehouseTableSchema,
         ApiError,
         Array<WarehouseTableField> | undefined
     >({
-        queryKey: ['sqlRunner', 'tables', tableName, projectUuid, schema],
+        queryKey: tableFieldsQueryKey({
+            projectUuid,
+            tableName,
+            schema,
+            database,
+        }),
         queryFn: () =>
             fetchTableFields({
                 projectUuid,
                 tableName,
                 schema,
+                database,
             }),
         retry: false,
         enabled: !!tableName,
