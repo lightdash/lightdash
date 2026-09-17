@@ -250,11 +250,15 @@ import {
     validateMergeQuery,
     VizAggregationOptions,
     VizColumn,
+    WAREHOUSE_LISTED_DATABASES_LIMIT,
     WarehouseClient,
     WarehouseConnectionError,
     WarehouseConnectionTestResults,
     WarehouseCredentials,
     WarehouseDatabaseListingNotSupportedError,
+    WarehouseDatabaseListing,
+    WarehouseListedDatabase,
+    WarehouseTables,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -403,6 +407,81 @@ import {
     tunnelHopsAllOk,
     tunnelHopsFailedAt,
 } from './warehouseConnectionHops';
+
+const getWarehouseDatabase = (
+    credentials: CreateWarehouseCredentials | WarehouseCredentials,
+): string | undefined => {
+    switch (credentials.type) {
+        case WarehouseTypes.BIGQUERY:
+            return credentials.project;
+        case WarehouseTypes.REDSHIFT:
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.TRINO:
+            return credentials.dbname;
+        case WarehouseTypes.CLICKHOUSE:
+            return '';
+        case WarehouseTypes.SNOWFLAKE:
+            return credentials.database.toLowerCase();
+        case WarehouseTypes.DATABRICKS:
+            return credentials.catalog;
+        case WarehouseTypes.ATHENA:
+            return credentials.database;
+        case WarehouseTypes.DUCKDB:
+            if (credentials.connectionType === DuckdbConnectionType.ANALYTICS) {
+                return 'memory';
+            }
+            if (credentials.connectionType === DuckdbConnectionType.DUCKLAKE) {
+                return credentials.catalogAlias ?? 'ducklake';
+            }
+            if (credentials.connectionType === DuckdbConnectionType.EMBEDDED) {
+                return credentials.dataset;
+            }
+            return credentials.database;
+        default:
+            return assertUnreachable(credentials, 'Unknown warehouse type');
+    }
+};
+
+export const getDefaultListedDatabase = (
+    credentials: CreateWarehouseCredentials | WarehouseCredentials,
+): WarehouseListedDatabase => {
+    const database = getWarehouseDatabase(credentials);
+    if (database === undefined) {
+        throw new NotFoundError('Database not found in warehouse credentials');
+    }
+
+    switch (credentials.type) {
+        case WarehouseTypes.ATHENA:
+            return {
+                name: credentials.schema,
+                database,
+                schema: credentials.schema,
+                isDefault: true,
+            };
+        case WarehouseTypes.CLICKHOUSE:
+            return {
+                name: credentials.schema,
+                database,
+                schema: credentials.schema,
+                isDefault: true,
+            };
+        case WarehouseTypes.BIGQUERY:
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.REDSHIFT:
+        case WarehouseTypes.SNOWFLAKE:
+        case WarehouseTypes.DATABRICKS:
+        case WarehouseTypes.TRINO:
+        case WarehouseTypes.DUCKDB:
+            return {
+                name: database,
+                database,
+                schema: null,
+                isDefault: true,
+            };
+        default:
+            return assertUnreachable(credentials, 'Unknown warehouse type');
+    }
+};
 
 const manifestWithCompilationSelection = (
     manifest: DbtManifest,
@@ -10198,50 +10277,10 @@ export class ProjectService extends BaseService {
         }
     }
 
-    private static getWarehouseDatabase(
-        credentials: WarehouseCredentials,
-    ): string | undefined {
-        switch (credentials.type) {
-            case WarehouseTypes.BIGQUERY:
-                return credentials.project;
-            case WarehouseTypes.REDSHIFT:
-            case WarehouseTypes.POSTGRES:
-            case WarehouseTypes.TRINO:
-                return credentials.dbname;
-            case WarehouseTypes.CLICKHOUSE:
-                return ''; // Clickhouse doesn't have a database
-            case WarehouseTypes.SNOWFLAKE:
-                return credentials.database.toLowerCase();
-            case WarehouseTypes.DATABRICKS:
-                return credentials.catalog;
-            case WarehouseTypes.ATHENA:
-                return credentials.database; // Athena uses database as catalog name
-            case WarehouseTypes.DUCKDB:
-                if (
-                    credentials.connectionType ===
-                    DuckdbConnectionType.ANALYTICS
-                ) {
-                    return 'memory';
-                }
-                if (
-                    credentials.connectionType === DuckdbConnectionType.DUCKLAKE
-                ) {
-                    return credentials.catalogAlias ?? 'ducklake';
-                }
-                if (
-                    credentials.connectionType === DuckdbConnectionType.EMBEDDED
-                ) {
-                    return credentials.dataset;
-                }
-                return credentials.database;
-            default:
-                return assertUnreachable(credentials, 'Unknown warehouse type');
-        }
-    }
-
     async populateWarehouseTablesCache(
         user: SessionUser,
         projectUuid: string,
+        listedDatabaseName?: string,
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -10261,12 +10300,37 @@ export class ProjectService extends BaseService {
             isRegisteredUser: true,
         });
 
+        let listedDatabase: WarehouseListedDatabase | undefined;
+        if (listedDatabaseName !== undefined) {
+            const databaseListing = await this.getWarehouseDatabases(
+                user,
+                projectUuid,
+            );
+            listedDatabase = databaseListing.databases.find(
+                ({ name }) => name === listedDatabaseName,
+            );
+            if (!listedDatabase) {
+                throw new NotFoundError(
+                    `Warehouse database "${listedDatabaseName}" not found`,
+                );
+            }
+        } else if (hasConnectionListingFields(credentials)) {
+            listedDatabase = getDefaultListedDatabase(credentials);
+        }
+
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             credentials,
         );
 
-        const warehouseTables = await warehouseClient.getAllTables();
+        let warehouseTables: WarehouseTables;
+        try {
+            warehouseTables = listedDatabase
+                ? await warehouseClient.getTablesForDatabase(listedDatabase)
+                : await warehouseClient.getAllTables();
+        } finally {
+            await sshTunnel.disconnect();
+        }
 
         const catalog = WarehouseAvailableTablesModel.toWarehouseCatalog(
             warehouseTables.map((t) => ({
@@ -10276,26 +10340,75 @@ export class ProjectService extends BaseService {
             })),
         );
 
+        const scope = listedDatabase
+            ? {
+                  listedDatabase: listedDatabase.name,
+                  includeLegacyRows: listedDatabase.isDefault,
+                  clearAll: listedDatabaseName === undefined,
+              }
+            : undefined;
+
         if (credentials.userWarehouseCredentialsUuid) {
             await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
                 credentials.userWarehouseCredentialsUuid,
                 warehouseTables,
+                scope,
             );
         } else {
             await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
                 projectUuid,
                 warehouseTables,
+                scope,
             );
         }
 
-        await sshTunnel.disconnect();
-
         return catalog;
+    }
+
+    async getWarehouseDatabases(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<WarehouseDatabaseListing> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const credentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: user.userUuid,
+            isRegisteredUser: true,
+        });
+        if (!hasConnectionListingFields(credentials)) {
+            return {
+                databases: [getDefaultListedDatabase(credentials)],
+                truncated: false,
+                limit: WAREHOUSE_LISTED_DATABASES_LIMIT,
+            };
+        }
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            credentials,
+        );
+        try {
+            return await warehouseClient.listDatabases();
+        } finally {
+            await sshTunnel.disconnect();
+        }
     }
 
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
+        listedDatabaseName?: string,
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -10315,25 +10428,49 @@ export class ProjectService extends BaseService {
             isRegisteredUser: true,
         });
 
+        let listedDatabase: WarehouseListedDatabase | undefined;
+        if (listedDatabaseName !== undefined) {
+            const databaseListing = await this.getWarehouseDatabases(
+                user,
+                projectUuid,
+            );
+            listedDatabase = databaseListing.databases.find(
+                ({ name }) => name === listedDatabaseName,
+            );
+            if (!listedDatabase) {
+                throw new NotFoundError(
+                    `Warehouse database "${listedDatabaseName}" not found`,
+                );
+            }
+        }
+
+        const scope = listedDatabase
+            ? {
+                  listedDatabase: listedDatabase.name,
+                  includeLegacyRows: listedDatabase.isDefault,
+              }
+            : undefined;
+
         let catalog: WarehouseTablesCatalog | null = null;
-        // Check the cache for catalog
         if (credentials.userWarehouseCredentialsUuid) {
             catalog =
                 await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
                     credentials.userWarehouseCredentialsUuid,
+                    scope,
                 );
         } else {
             catalog =
                 await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
                     projectUuid,
+                    scope,
                 );
         }
 
-        // If there was no cached catalog, generate it
         if (!catalog || Object.keys(catalog).length === 0) {
             catalog = await this.populateWarehouseTablesCache(
                 user,
                 projectUuid,
+                listedDatabaseName,
             );
         }
 
@@ -10389,8 +10526,7 @@ export class ProjectService extends BaseService {
             query_context: queryContext,
         };
 
-        let database =
-            databaseName ?? ProjectService.getWarehouseDatabase(credentials);
+        let database = databaseName ?? getWarehouseDatabase(credentials);
         if (database === undefined) {
             throw new NotFoundError(
                 'Database not found in warehouse credentials',

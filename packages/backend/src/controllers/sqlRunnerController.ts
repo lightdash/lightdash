@@ -10,6 +10,7 @@ import {
     ApiSqlChart,
     ApiSuccessEmpty,
     ApiUpdateSqlChart,
+    ApiWarehouseDatabaseListing,
     ApiWarehouseTableFields,
     ApiWarehouseTablesCatalog,
     assertRegisteredAccount,
@@ -68,6 +69,7 @@ export class SqlRunnerController extends BaseController {
     async getTables(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() database?: string,
     ): Promise<ApiWarehouseTablesCatalog> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -75,7 +77,33 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getWarehouseTables(toSessionUser(req.account), projectUuid),
+                .getWarehouseTables(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    database,
+                ),
+        };
+    }
+
+    /**
+     * Get warehouse databases for a project
+     * @summary List warehouse databases
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/databases')
+    @OperationId('getSqlRunnerDatabases')
+    async getDatabases(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiWarehouseDatabaseListing> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getWarehouseDatabases(toSessionUser(req.account), projectUuid),
         };
     }
 
@@ -564,6 +592,7 @@ export class SqlRunnerController extends BaseController {
     async refreshSqlRunnerCatalog(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() database?: string,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -572,6 +601,7 @@ export class SqlRunnerController extends BaseController {
             .populateWarehouseTablesCache(
                 toSessionUser(req.account),
                 projectUuid,
+                database,
             );
         return {
             status: 'ok',
