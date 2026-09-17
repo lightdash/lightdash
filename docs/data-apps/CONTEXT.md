@@ -32,10 +32,15 @@ _Avoid_: private app, draft, unshared app
 
 **Custom chart type**:
 A data app that declares a viz schema and is used as a reusable chart type
-in the explorer rather than opened as an app. Excluded from data app
-listings. Named "data app viz" in code.
+in the explorer rather than opened as an app. Created and edited in Chart
+Studio, and excluded from data app listings. Named "data app viz" in code.
 _Avoid_: project chart type (the old name), custom chart (that is the Vega
 chart type), chart-type app, viz app
+
+**Chart Studio**:
+The builder for creating and editing custom chart types, available as a
+standalone page and within the explorer.
+_Avoid_: chart builder, custom chart type builder, chart type editor
 
 **Template**:
 The starter flavor a data app is generated from: Dashboard, Slide show, PDF
