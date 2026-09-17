@@ -1,3 +1,10 @@
+# [2.247.0](https://github.com/lightdash/lightdash/compare/2.246.0...2.247.0) (2026-09-17)
+
+
+### Features
+
+* display linked Slack threads throughout the roadmap ([#29392](https://github.com/lightdash/lightdash/issues/29392)) ([db8755e](https://github.com/lightdash/lightdash/commit/db8755ebc0694d2c69e6e7398e6031e742d0ed20))
+
 # [2.246.0](https://github.com/lightdash/lightdash/compare/2.245.2...2.246.0) (2026-09-17)
 
 

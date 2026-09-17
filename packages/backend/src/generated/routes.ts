@@ -34030,6 +34030,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                slackThreadUrls: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 pullRequestUrl: {
                     dataType: 'union',
                     subSchemas: [
@@ -34216,6 +34221,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                slackThreadUrls: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 hasDirectNeed: { dataType: 'boolean', required: true },
                 ownRequestCount: { dataType: 'double', required: true },
                 project: { ref: 'RoadmapProject', required: true },
