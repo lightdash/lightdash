@@ -25,21 +25,22 @@ export enum MergeJoinType {
 }
 
 /**
- * Opt in to an intentional one-to-many join: this source's value columns
- * repeat on every row the other sources produce for the same key, so the
- * others may carry dimensions that are not join keys. Off by default,
- * because a repeated metric is counted more than once by any sum over the
- * merged rows.
+ * One side of a merge: a metric query compiled and run as part of the merge.
+ * A plain object, not an intersection: TSOA emits an intersection as `allOf`,
+ * which reads as a changed response contract to the API compatibility check.
  */
-export type MergeQuerySourceRepeatValues = {
-    repeatValues?: boolean;
-};
-
-/** One side of a merge: a metric query compiled and run as part of the merge. */
-export type MergeQueryMetricSource = MergeQuerySourceRepeatValues & {
+export type MergeQueryMetricSource = {
     /** Stable id. Names the CTE, and the table its merged fields belong to. */
     id: string;
     metricQuery: MetricQuery;
+    /**
+     * Opt in to an intentional one-to-many join: this source's value columns
+     * repeat on every row the other sources produce for the same key, so the
+     * others may carry dimensions that are not join keys. Off by default,
+     * because a repeated metric is counted more than once by any sum over
+     * the merged rows.
+     */
+    repeatValues?: boolean;
 };
 
 /**
@@ -49,10 +50,12 @@ export type MergeQueryMetricSource = MergeQuerySourceRepeatValues & {
  * creator-scoped and expire; an expired reference is re-submitted as a
  * query, not refreshed by handle.
  */
-export type MergeQueryResultSource = MergeQuerySourceRepeatValues & {
+export type MergeQueryResultSource = {
     /** Stable id. Names the CTE, and the table its merged fields belong to. */
     id: string;
     queryUuid: string;
+    /** See MergeQueryMetricSource.repeatValues. */
+    repeatValues?: boolean;
 };
 
 export type MergeQuerySource = MergeQueryMetricSource | MergeQueryResultSource;
@@ -850,15 +853,15 @@ export const SAVED_MERGE_QUERY_SCHEMA_VERSION = 2;
  * and so on.
  */
 export type SavedMergeQuerySource =
-    | (MergeQuerySourceRepeatValues & {
+    | {
           id: string;
           kind: 'chart';
-      })
-    | (MergeQuerySourceRepeatValues & {
+      }
+    | {
           id: string;
           kind: 'query';
           metricQuery: MetricQuery;
-      });
+      };
 
 /** Canonical, scalable representation of a merge stored on a chart version. */
 export type SavedMergeQuery = {
@@ -868,6 +871,13 @@ export type SavedMergeQuery = {
     joinKey: MergeJoinKeyPart[];
     joinType: MergeJoinType;
     tableCalculations: MergeTableCalculation[];
+    /**
+     * Sources that repeat their values across the other sources' extra
+     * dimensions (MergeQueryMetricSource.repeatValues). Kept on the merge,
+     * not the source, so the source shapes stay as they were saved.
+     * Omitted when none repeat.
+     */
+    repeatValuesSourceIds?: string[];
 };
 
 /**
@@ -877,9 +887,9 @@ export const buildMergeQueryFromSaved = (
     chartMetricQuery: MetricQuery,
     saved: SavedMergeQuery,
 ): MergeQuery => {
+    const repeating = new Set(saved.repeatValuesSourceIds ?? []);
     const sources = saved.sources.map((source): MergeQuerySource => {
-        const repeat =
-            source.repeatValues === true ? { repeatValues: true } : {};
+        const repeat = repeating.has(source.id) ? { repeatValues: true } : {};
         if (source.kind === 'chart') {
             return { ...repeat, id: source.id, metricQuery: chartMetricQuery };
         }
@@ -981,6 +991,12 @@ export const parseSavedMergeQuery = (
         );
     });
     if (!hasCompleteJoinKeys) return null;
+    const repeatValuesSourceIds = Array.isArray(candidate.repeatValuesSourceIds)
+        ? candidate.repeatValuesSourceIds.filter(
+              (id): id is string =>
+                  typeof id === 'string' && sourceIds.includes(id),
+          )
+        : [];
 
     return {
         primarySourceId: candidate.primarySourceId,
@@ -990,5 +1006,6 @@ export const parseSavedMergeQuery = (
         tableCalculations: Array.isArray(candidate.tableCalculations)
             ? candidate.tableCalculations
             : [],
+        ...(repeatValuesSourceIds.length > 0 ? { repeatValuesSourceIds } : {}),
     };
 };

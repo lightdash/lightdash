@@ -16,14 +16,14 @@ export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
     ) {
         throw new Error('A saved merge requires the chart query.');
     }
+    const repeatValuesSourceIds = mergeQuery.sources.flatMap((source) =>
+        source.repeatValues === true ? [source.id] : [],
+    );
     return {
         primarySourceId: MERGE_PRIMARY_SOURCE_ID,
         sources: mergeQuery.sources.map((source) => {
-            const repeat =
-                source.repeatValues === true ? { repeatValues: true } : {};
             if (source.id === MERGE_PRIMARY_SOURCE_ID) {
                 return {
-                    ...repeat,
                     id: source.id,
                     kind: 'chart' as const,
                 };
@@ -36,7 +36,6 @@ export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
                 );
             }
             return {
-                ...repeat,
                 id: source.id,
                 kind: 'query' as const,
                 metricQuery: source.metricQuery,
@@ -48,5 +47,6 @@ export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
         })),
         joinType: mergeQuery.joinType,
         tableCalculations: mergeQuery.tableCalculations,
+        ...(repeatValuesSourceIds.length > 0 ? { repeatValuesSourceIds } : {}),
     };
 };
