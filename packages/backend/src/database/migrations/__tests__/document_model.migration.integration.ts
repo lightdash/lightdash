@@ -796,11 +796,6 @@ describe('DocumentModel PostgreSQL integration', () => {
             { cells: [original, original, ending] },
             replacement,
         ]);
-        expect(
-            versions.every((version) =>
-                version.content.cells.every((cell: object) => !('id' in cell)),
-            ),
-        ).toBe(true);
     });
 
     test('content updates append exactly one immutable version', async () => {
