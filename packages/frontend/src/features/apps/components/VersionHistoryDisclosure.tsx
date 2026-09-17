@@ -39,7 +39,7 @@ const VersionHistoryDisclosure: FC<Props> = ({
                     {label}
                 </Text>
                 {summary && (
-                    <Text fz="xs" c="dimmed" truncate="end" ml="xxs" miw={0}>
+                    <Text className={classes.disclosureSummary} truncate="end">
                         {summary}
                     </Text>
                 )}

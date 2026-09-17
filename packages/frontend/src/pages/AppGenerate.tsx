@@ -3252,6 +3252,10 @@ const AppGenerate: FC = () => {
                                     hasEarlier={hasUnloadedEarlierVersions}
                                     isFetchingEarlier={isFetchingNextPage}
                                     fetchEarlier={loadEarlierMessages}
+                                    currentThreadNumber={
+                                        appData?.pages?.[0]?.currentThread
+                                            .number ?? null
+                                    }
                                 />
                             )}
                             {restoreTargetVersion !== null && activeAppUuid && (

@@ -225,6 +225,13 @@
     transform: rotate(90deg);
 }
 
+.disclosureSummary {
+    min-width: 0;
+    margin-left: var(--mantine-spacing-xxs);
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
 .disclosureContent {
     padding-top: var(--mantine-spacing-xs);
 }

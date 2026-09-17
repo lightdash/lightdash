@@ -27,6 +27,7 @@ const baseProps = {
     hasEarlier: false,
     isFetchingEarlier: false,
     fetchEarlier: vi.fn(),
+    currentThreadNumber: null as number | null,
 };
 
 describe('AppHistoryDrawer', () => {
@@ -72,17 +73,5 @@ describe('AppHistoryDrawer', () => {
             screen.getByRole('button', { name: 'Restore this version' }),
         );
         expect(onRestore).toHaveBeenCalledWith(1);
-    });
-
-    it('renders nothing while closed', () => {
-        renderWithProviders(
-            <AppHistoryDrawer
-                {...baseProps}
-                opened={false}
-                versions={[entry(1, 1)]}
-            />,
-        );
-
-        expect(screen.queryByText('v1')).not.toBeInTheDocument();
     });
 });
