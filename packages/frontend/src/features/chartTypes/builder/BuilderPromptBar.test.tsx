@@ -324,6 +324,64 @@ describe('BuilderPromptBar', () => {
         expect(attachmentAdd).not.toHaveBeenCalled();
     });
 
+    it.each([
+        { label: 'missing', sampleRows: undefined },
+        { label: 'empty', sampleRows: [] },
+    ])(
+        'hides sample sharing when real query rows are $label',
+        ({ sampleRows }) => {
+            renderWithProviders(
+                promptBar({
+                    buildContext: {
+                        schema: {
+                            fields: [],
+                            configOptions: [],
+                            colorPalette: null,
+                        },
+                        sampleRows,
+                    },
+                }),
+            );
+            expect(
+                screen.queryByRole('button', { name: 'Include sample data' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+
+    it('omits sample consent when query rows disappear before sending', async () => {
+        const send = vi.fn();
+        const view = renderWithProviders(
+            promptBar({
+                build: buildState({ send }),
+                buildContext: { sampleRows: [{ orders_status: 'paid' }] },
+            }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Include sample data' }),
+        );
+        view.rerender(
+            promptBar({
+                build: buildState({ send }),
+                buildContext: {
+                    schema: {
+                        fields: [],
+                        configOptions: [],
+                        colorPalette: null,
+                    },
+                },
+            }),
+        );
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'Make the labels larger',
+        );
+        await userEvent.keyboard('{Enter}');
+        expect(send.mock.lastCall?.[0].includeSampleData).not.toBe(true);
+        expect(send.mock.lastCall?.[0].context).not.toHaveProperty(
+            'sampleRows',
+        );
+    });
+
     it('keeps current sample rows out of a prompt until explicitly selected', async () => {
         const send = vi.fn();
         const sampleRows = Array.from({ length: 12 }, (_, i) => ({
