@@ -1,17 +1,22 @@
 import {
+    getDocumentUrl,
     type ApiError,
     type Document,
     type ApiExecuteAsyncMetricQueryResults,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 
-export const useDocument = (projectUuid: string, documentUuid: string) =>
+export const useDocument = (
+    projectUuid: string,
+    documentUuidOrSlug: UuidOrSlug,
+) =>
     useQuery<Document, ApiError>({
-        queryKey: ['document', projectUuid, documentUuid],
+        queryKey: ['document', projectUuid, documentUuidOrSlug],
         queryFn: ({ signal }) =>
             lightdashApi<Document>({
-                url: `/projects/${projectUuid}/documents/${documentUuid}`,
+                url: getDocumentUrl(projectUuid, documentUuidOrSlug),
                 method: 'GET',
                 body: undefined,
                 signal,

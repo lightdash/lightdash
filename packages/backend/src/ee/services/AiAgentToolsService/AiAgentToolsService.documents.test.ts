@@ -16,6 +16,8 @@ import {
 } from './AiAgentToolsService';
 
 const projectUuid = 'project';
+const projectSlug = 'jaffle-shop';
+const documentUrl = `/projects/${projectSlug}/documents/weekly-review`;
 const spaceUuid = 'space';
 const versionUuid = '0dc37ee3-264a-488b-a485-4379125afbf1';
 const cell = {
@@ -86,7 +88,13 @@ const setup = (spaceAccess: string[] | null = null) => {
             },
         }),
     };
+    const projectModel = {
+        getSummary: vi
+            .fn()
+            .mockResolvedValue({ projectUuid, slug: projectSlug }),
+    };
     const service = new AiAgentToolsService({
+        projectModel,
         documentService,
         spaceModel,
         contentService,
@@ -114,10 +122,157 @@ const setup = (spaceAccess: string[] | null = null) => {
         documentService,
         spaceModel,
         contentService,
+        projectModel,
     };
 };
 
 describe('MCP Document runtime', () => {
+    test.each(['read', 'list', 'find'] as const)(
+        '%s uses the canonical UUID when a document slug looks like another UUID',
+        async (operation) => {
+            const { runtime, documentService, contentService } = setup();
+            const documentUuid = '36d4516a-3af0-48f6-9b47-d50956301501';
+            const slug = '7b923cd0-371b-4d99-94ef-515267bfae57';
+            documentService.getBySlug.mockResolvedValue({
+                ...document,
+                documentUuid,
+                slug,
+            });
+            contentService.find.mockResolvedValue({
+                data: [
+                    {
+                        contentType: ContentType.DOCUMENT,
+                        uuid: documentUuid,
+                        slug,
+                        name: document.name,
+                        description: document.description,
+                        space: {
+                            uuid: spaceUuid,
+                            name: 'Reports',
+                            path: 'reports',
+                        },
+                    },
+                ],
+                pagination: {
+                    page: 1,
+                    pageSize: 25,
+                    totalResults: 1,
+                    totalPageCount: 1,
+                },
+            });
+            const expected = {
+                uuid: documentUuid,
+                href: `/projects/${projectSlug}/documents/${documentUuid}`,
+            };
+            if (operation === 'read') {
+                await expect(
+                    runtime.readDocumentContent({ slug }),
+                ).resolves.toMatchObject(expected);
+            } else if (operation === 'list') {
+                await expect(
+                    runtime.listContent({ spaceSlug: 'reports', page: 1 }),
+                ).resolves.toMatchObject({
+                    items: [expect.objectContaining(expected)],
+                });
+            } else {
+                await expect(
+                    runtime.findContent({
+                        searchQuery: { label: 'weekly' },
+                        spaceSlug: null,
+                        verifiedOnly: false,
+                    }),
+                ).resolves.toMatchObject({
+                    content: [expect.objectContaining(expected)],
+                });
+            }
+        },
+    );
+
+    test.each(['read', 'list', 'find'] as const)(
+        '%s keeps a working project UUID URL when project metadata has no slug',
+        async (operation) => {
+            const { runtime, projectModel } = setup();
+            projectModel.getSummary.mockResolvedValue({ projectUuid });
+            const href = `/projects/${projectUuid}/documents/${document.slug}`;
+            if (operation === 'read') {
+                await expect(
+                    runtime.readDocumentContent({ slug: document.slug }),
+                ).resolves.toMatchObject({ href });
+            } else if (operation === 'list') {
+                await expect(
+                    runtime.listContent({ spaceSlug: 'reports', page: 1 }),
+                ).resolves.toMatchObject({
+                    items: [expect.objectContaining({ href })],
+                });
+            } else {
+                await expect(
+                    runtime.findContent({
+                        searchQuery: { label: 'weekly' },
+                        spaceSlug: null,
+                        verifiedOnly: false,
+                    }),
+                ).resolves.toMatchObject({
+                    content: [expect.objectContaining({ href })],
+                });
+            }
+        },
+    );
+
+    test.each(['list', 'find'] as const)(
+        '%s builds slug URLs with one project lookup for multiple Documents',
+        async (operation) => {
+            const { runtime, contentService, projectModel } = setup();
+            const documents = ['first-report', 'second-report'].map((slug) => ({
+                contentType: ContentType.DOCUMENT,
+                uuid: `${slug}-uuid`,
+                slug,
+                name: slug,
+                description: null,
+                space: { uuid: spaceUuid, path: 'reports', name: 'Reports' },
+            }));
+            contentService.find.mockResolvedValue({
+                data: documents,
+                pagination: {
+                    page: 1,
+                    pageSize: 25,
+                    totalResults: 2,
+                    totalPageCount: 1,
+                },
+            });
+            const items =
+                operation === 'list'
+                    ? (
+                          await runtime.listContent({
+                              spaceSlug: 'reports',
+                              page: 1,
+                          })
+                      ).items
+                    : (
+                          await runtime.findContent({
+                              searchQuery: { label: 'report' },
+                              spaceSlug: null,
+                              verifiedOnly: false,
+                          })
+                      ).content;
+            expect(
+                items.filter(
+                    (item) => item.contentType === ContentType.DOCUMENT,
+                ),
+            ).toEqual(
+                documents.map(({ uuid, slug }) =>
+                    expect.objectContaining({
+                        uuid,
+                        slug,
+                        href: `/projects/${projectSlug}/documents/${slug}`,
+                    }),
+                ),
+            );
+            expect(projectModel.getSummary).toHaveBeenCalledExactlyOnceWith(
+                projectUuid,
+            );
+        },
+    );
+
     test('AI Agent generic tools reuse Document persistence without artifact methods', async () => {
         const { service, context, documentService } = setup([spaceUuid]);
         const runtime = service.createRuntime({
@@ -133,14 +288,19 @@ describe('MCP Document runtime', () => {
             type: 'document',
             uuid: document.documentUuid,
             versionUuid,
+            href: documentUrl,
         });
         expect(documentService.create).toHaveBeenCalledOnce();
         const read = await runtime.readContent({
             type: 'document',
             documentUuid: document.documentUuid,
         });
-        expect(read).toMatchObject({ type: 'document', content });
-        await runtime.editContent({
+        expect(read).toMatchObject({
+            type: 'document',
+            content,
+            href: documentUrl,
+        });
+        const edited = await runtime.editContent({
             type: 'document',
             slug: document.slug,
             documentEdit: {
@@ -148,6 +308,10 @@ describe('MCP Document runtime', () => {
                 baseVersionUuid: versionUuid,
                 content: content.content,
             },
+        });
+        expect(edited).toMatchObject({
+            uuid: document.documentUuid,
+            href: documentUrl,
         });
         expect(documentService.updateContent).toHaveBeenCalledWith(
             account,
@@ -221,7 +385,7 @@ describe('MCP Document runtime', () => {
                 uuid: document.documentUuid,
                 name: document.name,
                 slug: document.slug,
-                href: `/projects/${projectUuid}/documents/${document.documentUuid}`,
+                href: documentUrl,
             },
         ]);
         expect(contentService.find).toHaveBeenCalledWith(
@@ -279,7 +443,7 @@ describe('MCP Document runtime', () => {
                 uuid: document.documentUuid,
                 slug: document.slug,
                 verification: null,
-                href: `/projects/${projectUuid}/documents/${document.documentUuid}`,
+                href: documentUrl,
             }),
         ]);
         expect(contentService.find).toHaveBeenCalledWith(
@@ -335,7 +499,7 @@ describe('MCP Document runtime', () => {
         ).resolves.toEqual({
             type: 'document',
             uuid: document.documentUuid,
-            href: `/projects/${projectUuid}/documents/${document.documentUuid}`,
+            href: documentUrl,
             versionUuid,
             content,
         });
@@ -508,9 +672,18 @@ describe('MCP Document runtime', () => {
 
     test('metadata edits remain separate from version writes and forward Space scope', async () => {
         const { runtime, documentService } = setup([spaceUuid]);
-        await runtime.editDocumentContent(document.slug, {
+        documentService.updateMetadata.mockResolvedValue({
+            ...document,
+            name: 'Updated',
+            slug: 'updated-report',
+        });
+        const result = await runtime.editDocumentContent(document.slug, {
             type: 'metadata',
             name: 'Updated',
+        });
+        expect(result).toMatchObject({
+            uuid: document.documentUuid,
+            href: `/projects/${projectSlug}/documents/updated-report`,
         });
         expect(documentService.updateMetadata).toHaveBeenCalledWith(
             account,

@@ -3,6 +3,7 @@ import {
     ChartKind,
     ChartSourceType,
     ResourceViewItemType,
+    getDocumentUrl,
     type ResourceViewChartItem,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -108,7 +109,11 @@ export const getResourceUrl = (
         case ResourceViewItemType.DATA_APP:
             return `/projects/${projectUuid}/apps/${item.data.uuid}/view`;
         case ResourceViewItemType.DOCUMENT:
-            return `/projects/${projectUuid}/documents/${item.data.uuid}`;
+            return getDocumentUrl(
+                projectUrlIdentifier,
+                item.data.uuid,
+                item.data.slug,
+            );
         default:
             return assertUnreachable(item, `Can't get URL for ${itemType}`);
     }

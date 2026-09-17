@@ -1,9 +1,14 @@
-import { type AiAgentMessageAssistant } from '@lightdash/common';
+import {
+    getDocumentUrl,
+    type AiAgentMessageAssistant,
+} from '@lightdash/common';
 import { Box, Stack, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronRight, IconFileText } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useOptionalProjectRoute } from '../../../../../hooks/useProjectRoute';
+import { useProjects } from '../../../../../hooks/useProjects';
 import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
 import styles from './ArtifactButton/AiArtifactButton.module.css';
 
@@ -18,6 +23,7 @@ type DocumentCard = { uuid: string; name: string; href: string };
 const getDocumentCard = (
     metadata: unknown,
     projectUuid: string,
+    projectUrlIdentifier: string,
 ): DocumentCard | null => {
     if (
         !metadata ||
@@ -30,12 +36,27 @@ const getDocumentCard = (
         !('name' in metadata) ||
         typeof metadata.name !== 'string' ||
         !metadata.name.trim() ||
+        !('slug' in metadata) ||
+        typeof metadata.slug !== 'string' ||
+        !/^[a-zA-Z0-9_-]+$/.test(metadata.slug) ||
         !('href' in metadata) ||
-        metadata.href !== `/projects/${projectUuid}/documents/${metadata.uuid}`
+        typeof metadata.href !== 'string' ||
+        ![
+            getDocumentUrl(projectUuid, metadata.uuid),
+            getDocumentUrl(projectUrlIdentifier, metadata.uuid, metadata.slug),
+        ].includes(metadata.href)
     ) {
         return null;
     }
-    return { uuid: metadata.uuid, name: metadata.name, href: metadata.href };
+    return {
+        uuid: metadata.uuid,
+        name: metadata.name,
+        href: getDocumentUrl(
+            projectUrlIdentifier,
+            metadata.uuid,
+            metadata.slug,
+        ),
+    };
 };
 
 const AiDocumentCards: FC<Props> = ({
@@ -43,6 +64,15 @@ const AiDocumentCards: FC<Props> = ({
     toolResults,
     streamParts,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const currentProjectRoute =
+        projectRoute?.projectUuid === projectUuid ? projectRoute : null;
+    const { data: projects } = useProjects({ enabled: !currentProjectRoute });
+    const projectUrlIdentifier =
+        currentProjectRoute?.projectUrlIdentifier ??
+        projects?.find((project) => project.projectUuid === projectUuid)
+            ?.slug ??
+        projectUuid;
     const results = [
         ...toolResults.filter((result) => result.toolType === 'built-in'),
         ...(streamParts ?? []).flatMap((part) => {
@@ -68,7 +98,11 @@ const AiDocumentCards: FC<Props> = ({
             ) {
                 return [];
             }
-            const document = getDocumentCard(result.metadata, projectUuid);
+            const document = getDocumentCard(
+                result.metadata,
+                projectUuid,
+                projectUrlIdentifier,
+            );
             return document ? [[document.uuid, document] as const] : [];
         }),
     );
