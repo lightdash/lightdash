@@ -7,6 +7,7 @@ import {
     type PossibleAbilities,
     type SessionUser,
     type VerifiedContentListItem,
+    type VerifiedDataAppListItem,
 } from '@lightdash/common';
 import { ContentVerificationModel } from '../models/ContentVerificationModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -161,7 +162,7 @@ describe('ContentVerificationService', () => {
         });
 
         it('should include personal verified data apps only for their creator', async () => {
-            const personalApp = {
+            const personalApp: VerifiedDataAppListItem = {
                 uuid: 'cv-uuid-app',
                 contentType: ContentType.DATA_APP,
                 contentUuid: 'app-uuid',

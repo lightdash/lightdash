@@ -3926,13 +3926,12 @@ export class McpService extends BaseService {
 
     private static hasAgentSpaceAccess(
         agentSpaceAccess: string[] | null | undefined,
-        spaceUuid: string,
+        spaceUuid: string | null,
     ): boolean {
-        return (
-            !agentSpaceAccess ||
-            agentSpaceAccess.length === 0 ||
-            agentSpaceAccess.includes(spaceUuid)
-        );
+        if (!agentSpaceAccess || agentSpaceAccess.length === 0) {
+            return true;
+        }
+        return spaceUuid !== null && agentSpaceAccess.includes(spaceUuid);
     }
 
     async getAgentUuidFromContext(context: McpProtocolContext) {

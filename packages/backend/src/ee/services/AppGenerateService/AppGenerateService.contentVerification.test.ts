@@ -4,7 +4,6 @@ import {
     ForbiddenError,
     OrganizationMemberRole,
     ProjectType,
-    type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common'; // pragma: allowlist secret
 import { AppGenerateService } from './AppGenerateService';
@@ -15,6 +14,21 @@ vi.mock('e2b', () => ({
     ALL_TRAFFIC: '*',
 }));
 vi.mock('ai', () => ({ generateObject: vi.fn() }));
+vi.mock('@aws-sdk/client-s3', () => ({
+    CopyObjectCommand: class {},
+    DeleteObjectCommand: class {},
+    DeleteObjectsCommand: class {},
+    GetObjectCommand: class {},
+    HeadObjectCommand: class {},
+    ListObjectsV2Command: class {},
+    PutObjectCommand: class {},
+    S3Client: class {},
+    S3ServiceException: class extends Error {},
+}));
+vi.mock('../../../clients/Aws/S3BaseClient', () => ({
+    S3BaseClient: class {},
+    createS3ClientFromConfig: vi.fn(),
+}));
 
 const USER_UUID = 'user-uuid';
 const EDITOR_UUID = 'editor-uuid';
@@ -46,9 +60,9 @@ const verificationInfo = {
 
 const buildUser = (
     userUuid: string,
-    rules: PossibleAbilities[],
+    rules: Array<{ action: string; subject: string }>,
 ): SessionUser => {
-    const ability = new Ability<PossibleAbilities>(rules);
+    const ability = new Ability(rules);
     return {
         userUuid,
         email: `${userUuid}@test.com`,

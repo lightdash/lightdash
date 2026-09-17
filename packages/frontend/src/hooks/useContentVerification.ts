@@ -141,7 +141,7 @@ const verifyDataApp = async ({
     projectUuid: string;
     appUuid: string;
 }): Promise<ContentVerificationInfo> =>
-    [REDACTED]Api<ApiContentVerificationResponse['results']>({
+    lightdashApi<ApiContentVerificationResponse['results']>({ // pragma: allowlist secret
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/verification`,
         method: 'POST',
         body: undefined,
@@ -154,7 +154,7 @@ const unverifyDataApp = async ({
     projectUuid: string;
     appUuid: string;
 }): Promise<void> => {
-    await [REDACTED]Api<null>({
+    await lightdashApi<null>({ // pragma: allowlist secret
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/verification`,
         method: 'DELETE',
         body: undefined,
