@@ -107,6 +107,10 @@ export const MergeProvider: FC<
         unpivotedError: ApiError | null;
         parameterReferences: string[];
         fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
+        /** Internal: the merge behind `started`; gates `mergeResults`. Null until a run succeeds. */
+        ranMergeQuery: MergeQuery | null;
+        /** Public: the merge last submitted, whether it ran or was refused. */
+        lastRunMergeQuery: MergeQuery | null;
     }>({
         isRunning: false,
         errors: [],
@@ -117,6 +121,8 @@ export const MergeProvider: FC<
         unpivotedError: null,
         parameterReferences: [],
         fieldOrigins: {},
+        ranMergeQuery: null,
+        lastRunMergeQuery: null,
     });
 
     const addSource = useCallback(
@@ -171,6 +177,8 @@ export const MergeProvider: FC<
             unpivotedError: null,
             parameterReferences: [],
             fieldOrigins: {},
+            ranMergeQuery: null,
+            lastRunMergeQuery: null,
         });
     }, []);
 
@@ -338,6 +346,8 @@ export const MergeProvider: FC<
                 unpivotedError: null,
                 parameterReferences: current.parameterReferences,
                 fieldOrigins: current.fieldOrigins,
+                ranMergeQuery: null,
+                lastRunMergeQuery: mergeQuery,
             }));
             executeMergeQuery(projectUuid, mergeQuery, parameters, savedChart)
                 .then(async (result) => {
@@ -353,6 +363,8 @@ export const MergeProvider: FC<
                             unpivotedError: null,
                             parameterReferences: result.parameterReferences,
                             fieldOrigins: result.fieldOrigins,
+                            ranMergeQuery: null,
+                            lastRunMergeQuery: mergeQuery,
                         });
                     } else {
                         const pivotConfiguration = savedChart
@@ -383,6 +395,8 @@ export const MergeProvider: FC<
                                     parameterReferences:
                                         result.parameterReferences,
                                     fieldOrigins: result.fieldOrigins,
+                                    ranMergeQuery: mergeQuery,
+                                    lastRunMergeQuery: mergeQuery,
                                 });
                                 return;
                             }
@@ -399,6 +413,8 @@ export const MergeProvider: FC<
                                 unpivotedError: null,
                                 parameterReferences: result.parameterReferences,
                                 fieldOrigins: result.fieldOrigins,
+                                ranMergeQuery: mergeQuery,
+                                lastRunMergeQuery: mergeQuery,
                             });
                             return;
                         }
@@ -412,6 +428,8 @@ export const MergeProvider: FC<
                             unpivotedError: null,
                             parameterReferences: result.parameterReferences,
                             fieldOrigins: result.fieldOrigins,
+                            ranMergeQuery: mergeQuery,
+                            lastRunMergeQuery: mergeQuery,
                         });
                     }
                 })
@@ -427,6 +445,8 @@ export const MergeProvider: FC<
                         unpivotedError: null,
                         parameterReferences: current.parameterReferences,
                         fieldOrigins: current.fieldOrigins,
+                        ranMergeQuery: null,
+                        lastRunMergeQuery: mergeQuery,
                     }));
                 });
         },
@@ -465,9 +485,10 @@ export const MergeProvider: FC<
 
     const mergeResults = useMemo(
         () =>
-            started
+            started && runState.ranMergeQuery
                 ? {
                       queryUuid: started.queryUuid,
+                      mergeQuery: runState.ranMergeQuery,
                       fields: started.fields,
                       metricQuery: started.metricQuery,
                       // The metric query lists dimensions before metrics; the
@@ -491,6 +512,7 @@ export const MergeProvider: FC<
             results,
             unpivotedResults,
             runState.fieldOrigins,
+            runState.ranMergeQuery,
         ],
     );
 
@@ -515,6 +537,7 @@ export const MergeProvider: FC<
                 runState.started !== null ||
                 runState.error !== null ||
                 runState.errors.length > 0,
+            lastRunMergeQuery: runState.lastRunMergeQuery,
             focus,
             additionalSources,
             joinParts,
@@ -546,6 +569,7 @@ export const MergeProvider: FC<
             runState.unpivotedError,
             runState.parameterReferences,
             mergeResults,
+            runState.lastRunMergeQuery,
             focus,
             additionalSources,
             joinParts,
