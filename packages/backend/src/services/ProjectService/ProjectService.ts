@@ -6588,6 +6588,7 @@ export class ProjectService extends BaseService {
                     return {
                         id: source.id,
                         sql: null,
+                        metricQuery: null,
                         valueColumns,
                         missingParameters: [],
                         parameterReferences: [],
@@ -6625,6 +6626,7 @@ export class ProjectService extends BaseService {
                 return {
                     id: source.id,
                     sql: compiled.query,
+                    metricQuery: resolvedMetricQuery,
                     valueColumns,
                     missingParameters: Array.from(
                         compiled.missingParameterReferences,
@@ -6662,6 +6664,7 @@ export class ProjectService extends BaseService {
         const legs: MergeCompiledLeg[] = sources.map((source) => ({
             sourceId: source.id,
             sql: source.sql,
+            metricQuery: source.metricQuery,
         }));
         if (parameterErrors.length > 0) {
             return {

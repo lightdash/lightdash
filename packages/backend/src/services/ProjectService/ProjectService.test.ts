@@ -6945,6 +6945,9 @@ describe('ProjectService', () => {
             expect(result.errors).toEqual([]);
             expect(result.legs[1].sql).toContain('AS `a_dim1`');
             expect(result.legs[1].sql).toContain('GROUP BY');
+            // The leg the run submits is the widened query, not the request
+            expect(result.legs[1].metricQuery?.dimensions).toEqual(['a_dim1']);
+            expect(result.legs[0].metricQuery?.dimensions).toEqual(['a_dim1']);
             expect(result.fields.map((field) => field.sourceFieldId)).toEqual([
                 null,
                 'a_met1',

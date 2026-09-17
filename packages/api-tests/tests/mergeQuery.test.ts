@@ -480,11 +480,13 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // A join key need not be a selected field: the leg groups by it, so a
     // source that selects only metrics still merges at the key's grain and
     // returns the values its query returns grouped by that key.
+    // Runs through the v2 route the Explorer uses: the leg the DAG submits
+    // must be the widened query, or the join finds no key column in it.
     it('groups a leg by a join key its query does not select', async () => {
         const [paymentsRows, runResp] = await Promise.all([
             runSourceQuery(paymentsByMonth),
-            admin.post<Body<{ queryUuid: string }>>(
-                `/api/v1/projects/${projectUuid}/mergeQuery/run`,
+            admin.post<Body<ApiExecuteAsyncMergeQueryResults>>(
+                `/api/v2/projects/${projectUuid}/query/merge-query`,
                 {
                     mergeQuery: {
                         ...mergeQuery,
@@ -499,9 +501,17 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
                             },
                         ],
                     },
+                    context: QueryExecutionContext.EXPLORE,
+                    mode: { type: 'interactive' },
                 },
             ),
         ]);
+        expect(runResp.body.results.outcome).toBe('started');
+        if (runResp.body.results.outcome !== 'started') {
+            throw new Error(
+                `Merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+            );
+        }
         const paymentsByKey = new Map(
             paymentsRows.map((row) => [
                 monthOf(row.orders_order_date_month),
@@ -511,7 +521,7 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
 
         const results = await pollQueryResults(
             admin,
-            runResp.body.results.queryUuid,
+            runResp.body.results.query.queryUuid,
         );
 
         expect(results.rows.length).toBeGreaterThan(1);

@@ -677,6 +677,11 @@ export type MergeTerminalWrapper = {
 export type MergeCompiledLeg = {
     sourceId: string;
     sql: string | null;
+    /**
+     * The query the leg runs: the source's query widened by any join key it
+     * did not select. Null for a result source, which runs nothing.
+     */
+    metricQuery: MetricQuery | null;
 };
 
 /**

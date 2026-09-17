@@ -16,6 +16,7 @@ import {
     FilterOperator,
     ForbiddenError,
     getFilterRulesFromGroup,
+    isMergeMetricSource,
     MergeJoinType,
     MergeQueryErrorKind,
     MetricType,
@@ -8842,6 +8843,55 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         }
         await drainMergeEvents(trackAccount, 2);
     });
+
+    it('runs a leg as the query the compile widened, not the query submitted', async () => {
+        const { service, compiledLegs, trackAccount } =
+            buildServiceWithCompiledLegs();
+        // The second source selects nothing the join can use; the compile
+        // widens it by the join key and the leg must run that query
+        const unselectedKey: MergeQuery = {
+            ...attributeScopedMergeQuery,
+            sources: [
+                attributeScopedMergeQuery.sources[0],
+                {
+                    id: 'b',
+                    metricQuery: {
+                        ...metricQueryMock,
+                        exploreName: 'payments',
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                },
+            ],
+        };
+        vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
+            ...compiledMerge,
+            legs: unselectedKey.sources.map((source) => ({
+                sourceId: source.id,
+                sql: null,
+                metricQuery: isMergeMetricSource(source)
+                    ? { ...source.metricQuery, dimensions: ['a_dim1'] }
+                    : null,
+            })),
+        } as never);
+
+        const outcome = await service.executeAsyncMergeQuery({
+            account: sessionAccount,
+            projectUuid,
+            mergeQuery: unselectedKey,
+            context: QueryExecutionContext.EXPLORE,
+            mode: { type: 'interactive' },
+        });
+
+        expect(outcome.outcome).toBe('started');
+        const payments = compiledLegs().find(
+            (leg) => leg.exploreName === 'payments',
+        );
+        expect(payments?.sql).toContain('a_dim1');
+        expect(payments?.sql).toContain('GROUP BY');
+        await drainMergeEvents(trackAccount, 1);
+    });
 });
 
 /**
@@ -9306,8 +9356,8 @@ describe('executeAsyncMergeQuery over a result source', () => {
         expect(compiled.errors).toEqual([]);
         // A result source contributes rows, never a leg statement
         expect(compiled.legs).toEqual([
-            { sourceId: 'a', sql: null },
-            { sourceId: 'b', sql: null },
+            { sourceId: 'a', sql: null, metricQuery: null },
+            { sourceId: 'b', sql: null, metricQuery: null },
         ]);
         expect(compiled.coreSql).toContain('"merge_source_0"');
         expect(compiled.coreSql).toContain('"merge_source_1"');
