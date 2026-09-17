@@ -21,7 +21,7 @@ const DataAppVizInputGuidance: FC<{ guidance?: string }> = ({ guidance }) => {
             >
                 <Group gap="xxs">
                     <Text size="xs" fw={500}>
-                        How to use this chart
+                        How to use this chart type
                     </Text>
                     <MantineIcon
                         icon={opened ? IconChevronDown : IconChevronRight}
