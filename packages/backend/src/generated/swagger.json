@@ -19465,6 +19465,29 @@
             },
             "DataAppVizField": {
                 "properties": {
+                    "examples": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                {
+                                    "type": "boolean"
+                                }
+                            ],
+                            "nullable": true
+                        },
+                        "type": "array",
+                        "description": "Scalar display examples for this slot, independent of any one query."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Explain what belongs in this slot for a reusable visualization."
+                    },
                     "required": {
                         "type": "boolean"
                     },
@@ -19642,6 +19665,10 @@
             },
             "DataAppVizSchema": {
                 "properties": {
+                    "inputGuidance": {
+                        "type": "string",
+                        "description": "Explains the row shape, ordering, and recovery needed to use this viz."
+                    },
                     "colorPalette": {
                         "allOf": [
                             {
@@ -63473,7 +63500,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.249.0",
+        "version": "2.250.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

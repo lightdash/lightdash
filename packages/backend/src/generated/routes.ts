@@ -18289,6 +18289,19 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                examples: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'double' },
+                            { dataType: 'boolean' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                    },
+                },
+                description: { dataType: 'string' },
                 required: { dataType: 'boolean', required: true },
                 type: { ref: 'DataAppVizFieldType', required: true },
                 label: { dataType: 'string', required: true },
@@ -18411,6 +18424,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                inputGuidance: { dataType: 'string' },
                 colorPalette: {
                     dataType: 'union',
                     subSchemas: [

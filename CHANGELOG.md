@@ -1,3 +1,11 @@
+# [2.250.0](https://github.com/lightdash/lightdash/compare/2.249.0...2.250.0) (2026-09-17)
+
+
+### Features
+
+* **chart-types:** report chart library failures to Sentry ([#29409](https://github.com/lightdash/lightdash/issues/29409)) ([c3f2b04](https://github.com/lightdash/lightdash/commit/c3f2b0410eb77c809e65ca704f4364b1df7ebd5a))
+* explain reusable custom chart input requirements ([#29334](https://github.com/lightdash/lightdash/issues/29334)) ([dc731e8](https://github.com/lightdash/lightdash/commit/dc731e8174c1d9dbde89446d544256fa92056dfa))
+
 # [2.249.0](https://github.com/lightdash/lightdash/compare/2.248.0...2.249.0) (2026-09-17)
 
 
