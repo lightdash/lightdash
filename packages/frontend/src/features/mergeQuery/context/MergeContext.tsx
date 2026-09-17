@@ -107,8 +107,9 @@ export const MergeProvider: FC<
         unpivotedError: ApiError | null;
         parameterReferences: string[];
         fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
-        /** The merge behind `started`; null until a run succeeds. */
+        /** Internal: the merge behind `started`; gates `mergeResults`. Null until a run succeeds. */
         ranMergeQuery: MergeQuery | null;
+        /** Public: the merge last submitted, whether it ran or was refused. */
         lastRunMergeQuery: MergeQuery | null;
     }>({
         isRunning: false,
