@@ -4,6 +4,7 @@ import {
     ExploreCompiler,
     FieldType,
     friendlyName,
+    JoinRelationship,
     WarehouseTypes,
     type Explore,
     type Metric,
@@ -31,8 +32,8 @@ export const createAnalyticsExplores = (): Explore[] => {
         'data_app_events',
         'export_events',
     ] as const;
-    return streams.map((name) => {
-        const columns = compactedStreamSchemas[name];
+
+    const buildTable = (name: (typeof streams)[number]) => {
         const label = friendlyName(name);
         const base = {
             table: name,
@@ -41,45 +42,64 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const metrics: Record<string, Metric> = Object.fromEntries(
-            systemStreamMetrics[name as keyof typeof systemStreamMetrics].map(
-                ({ column, ...definition }) => [
-                    definition.name,
-                    {
-                        ...base,
-                        ...definition,
-                        label: friendlyName(definition.name),
-                        sql: `\${${column}}`,
-                    },
-                ],
-            ),
+            systemStreamMetrics[name].map(({ column, ...definition }) => [
+                definition.name,
+                {
+                    ...base,
+                    ...definition,
+                    label: friendlyName(definition.name),
+                    sql: `\${${column}}`,
+                },
+            ]),
         );
+
+        return {
+            name,
+            label,
+            sqlTable: `"${name}"`,
+            database: 'memory',
+            schema: 'main',
+            lineageGraph: { nodes: [], edges: [] },
+            dimensions: buildDimensionsFromColumns({
+                tableName: name,
+                tableLabel: label,
+                columns: compactedStreamSchemas[name].map(
+                    ({ name: reference, type }) => ({
+                        reference,
+                        type: dimensionTypes[type],
+                    }),
+                ),
+                warehouseSqlBuilder: sqlBuilder,
+            }),
+            metrics,
+        };
+    };
+
+    return streams.map((name) => {
+        const label = friendlyName(name);
+        const includeQueryMetadata = name === 'export_events';
         return compiler.compileExplore({
             name,
             label,
             tags: [],
             baseTable: name,
-            joinedTables: [],
+            joinedTables: includeQueryMetadata
+                ? [
+                      {
+                          table: 'query_events',
+                          sqlOn: '${export_events.query_id} = ${query_events.query_id}',
+                          relationship: JoinRelationship.MANY_TO_ONE,
+                          fields: ['chart_id', 'dashboard_id', 'explore_name'],
+                      },
+                  ]
+                : [],
             meta: {},
             targetDatabase: sqlBuilder.getAdapterType(),
             tables: {
-                [name]: {
-                    name,
-                    label,
-                    sqlTable: `"${name}"`,
-                    database: 'memory',
-                    schema: 'main',
-                    lineageGraph: { nodes: [], edges: [] },
-                    dimensions: buildDimensionsFromColumns({
-                        tableName: name,
-                        tableLabel: label,
-                        columns: columns.map(({ name: reference, type }) => ({
-                            reference,
-                            type: dimensionTypes[type],
-                        })),
-                        warehouseSqlBuilder: sqlBuilder,
-                    }),
-                    metrics,
-                },
+                [name]: buildTable(name),
+                ...(includeQueryMetadata
+                    ? { query_events: buildTable('query_events') }
+                    : {}),
             },
         });
     });

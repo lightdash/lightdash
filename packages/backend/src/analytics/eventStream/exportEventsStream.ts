@@ -9,6 +9,7 @@ export const exportEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'event_ts', type: 'TIMESTAMP' },
     { name: 'schema_version', type: 'INTEGER' },
     { name: 'project_id', type: 'VARCHAR' },
+    { name: 'query_id', type: 'VARCHAR' },
     { name: 'format', type: 'VARCHAR' },
     { name: 'context', type: 'VARCHAR' },
     { name: 'job_id', type: 'VARCHAR' },
@@ -24,6 +25,7 @@ const projectExportEvent = (payload: DownloadCsv): ProjectionResult => {
         row: {
             ...buildEnvelope(payload, properties.organizationId),
             project_id: properties.projectId,
+            query_id: properties.queryId ?? null,
             format: properties.fileType,
             context: properties.context ?? null,
             job_id: properties.jobId ?? null,
