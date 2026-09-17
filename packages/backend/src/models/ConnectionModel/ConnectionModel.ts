@@ -1,10 +1,10 @@
 import {
-    ConflictError,
     Connection,
     CreateWarehouseCredentials,
     MultipleConnectionsError,
     normalizeWarehouseCredentials,
     NotFoundError,
+    QueryHistoryStatus,
     UnexpectedServerError,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -32,6 +32,13 @@ export type ConnectionWriteInput = {
     warehouseConnection: CreateWarehouseCredentials;
     organizationWarehouseCredentialsUuid?: string | null;
     name?: string;
+};
+
+export type ConnectionBoundContent = {
+    cached_explore: number;
+    saved_sql_versions: number;
+    project_dbt_sources: number;
+    query_history: number;
 };
 
 type ConnectionModelArguments = {
@@ -64,12 +71,17 @@ export class ConnectionModel {
         this.encryptionUtil = encryptionUtil;
     }
 
-    async contractApplied(): Promise<boolean> {
-        const constraint = await this.database('pg_constraint')
-            .where('conname', 'warehouse_credentials_project_id_unique')
-            .whereRaw(`conrelid = '${WarehouseCredentialTableName}'::regclass`)
-            .first('conname');
-        return constraint === undefined;
+    async transaction<T>(
+        callback: (transactionModel: ConnectionModel) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction((trx) =>
+            callback(
+                new ConnectionModel({
+                    database: trx,
+                    encryptionUtil: this.encryptionUtil,
+                }),
+            ),
+        );
     }
 
     private baseQuery() {
@@ -167,6 +179,24 @@ export class ConnectionModel {
             );
         }
         return project;
+    }
+
+    async lockProject(projectUuid: string): Promise<{
+        organizationUuid: string;
+    }> {
+        const project = await this.getProject(projectUuid);
+        await this.database.raw('SELECT pg_advisory_xact_lock(?)', [
+            project.project_id,
+        ]);
+        return { organizationUuid: project.organization_uuid };
+    }
+
+    async contractApplied(): Promise<boolean> {
+        const constraint = await this.database('pg_constraint')
+            .where('conname', 'warehouse_credentials_project_id_unique')
+            .whereRaw(`conrelid = '${WarehouseCredentialTableName}'::regclass`)
+            .first('conname');
+        return constraint === undefined;
     }
 
     private encryptCredentials(credentials: CreateWarehouseCredentials) {
@@ -333,24 +363,62 @@ export class ConnectionModel {
         return this.getByUuid(projectUuid, connectionUuid);
     }
 
-    private async hasBoundContent(connectionUuid: string): Promise<boolean> {
-        const cachedExplore = await this.database('cached_explore')
-            .where('connection_uuid', connectionUuid)
-            .first('cached_explore_uuid');
-        if (cachedExplore) return true;
-        const savedSqlVersion = await this.database('saved_sql_versions')
-            .where('connection_uuid', connectionUuid)
-            .first('saved_sql_version_uuid');
-        return savedSqlVersion !== undefined;
+    private async countBoundRows(
+        table: string,
+        connectionUuid: string,
+        configureQuery?: (query: Knex.QueryBuilder) => void,
+    ): Promise<number> {
+        const query = this.database(table).where(
+            'connection_uuid',
+            connectionUuid,
+        );
+        configureQuery?.(query);
+        const result = await query
+            .count<{ count: string }[]>('* as count')
+            .first();
+        return Number(result?.count ?? 0);
+    }
+
+    async hasBoundContent(
+        connectionUuid: string,
+    ): Promise<ConnectionBoundContent> {
+        const projectDbtSourcesHaveConnection =
+            await this.database.schema.hasColumn(
+                'project_dbt_sources',
+                'connection_uuid',
+            );
+        const [
+            cachedExplore,
+            savedSqlVersions,
+            projectDbtSources,
+            queryHistory,
+        ] = await Promise.all([
+            this.countBoundRows('cached_explore', connectionUuid),
+            this.countBoundRows('saved_sql_versions', connectionUuid),
+            projectDbtSourcesHaveConnection
+                ? this.countBoundRows('project_dbt_sources', connectionUuid)
+                : Promise.resolve(0),
+            this.countBoundRows(
+                'query_history',
+                connectionUuid,
+                (query) =>
+                    void query.whereIn('status', [
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.QUEUED,
+                        QueryHistoryStatus.EXECUTING,
+                    ]),
+            ),
+        ]);
+        return {
+            cached_explore: cachedExplore,
+            saved_sql_versions: savedSqlVersions,
+            project_dbt_sources: projectDbtSources,
+            query_history: queryHistory,
+        };
     }
 
     async delete(projectUuid: string, connectionUuid: string): Promise<void> {
         const row = await this.getRow(projectUuid, connectionUuid);
-        if (await this.hasBoundContent(connectionUuid)) {
-            throw new ConflictError(
-                'Connection is used by project content and cannot be deleted.',
-            );
-        }
         await this.database(WarehouseCredentialTableName)
             .where('project_id', row.project_id)
             .where('warehouse_credentials_uuid', connectionUuid)

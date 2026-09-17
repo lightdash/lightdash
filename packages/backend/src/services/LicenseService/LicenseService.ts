@@ -21,4 +21,8 @@ export class LicenseService extends BaseService {
             valid: this.valid,
         };
     }
+
+    canHoldMultipleConnections(_organizationUuid: string): boolean {
+        return false;
+    }
 }

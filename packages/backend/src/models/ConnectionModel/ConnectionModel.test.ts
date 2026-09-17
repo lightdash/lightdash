@@ -165,4 +165,74 @@ describe('ConnectionModel', () => {
             MultipleConnectionsError,
         );
     });
+
+    test('takes the project advisory lock on the internal project id', async () => {
+        tracker.on
+            .select(/from "projects"/)
+            .response([
+                { project_id: 42, organization_uuid: 'organization-uuid' },
+            ]);
+        tracker.on.any(/pg_advisory_xact_lock/).response([]);
+
+        await expect(model.lockProject(projectUuid)).resolves.toEqual({
+            organizationUuid: 'organization-uuid',
+        });
+
+        const lock = tracker.history.all.find(({ sql }) =>
+            sql.includes('pg_advisory_xact_lock'),
+        );
+        expect(lock?.bindings).toEqual([42]);
+    });
+
+    test('detects when the multi-connection contract is applied', async () => {
+        tracker.on.select('pg_constraint').response([]);
+
+        await expect(model.contractApplied()).resolves.toBe(true);
+    });
+
+    test('counts bound content and only includes in-flight queries', async () => {
+        tracker.on.any(/information_schema/).response(undefined);
+        tracker.on.select('cached_explore').response([{ count: '2' }]);
+        tracker.on.select('saved_sql_versions').response([{ count: '1' }]);
+        tracker.on.select('query_history').response([{ count: '4' }]);
+
+        await expect(model.hasBoundContent(connectionUuid)).resolves.toEqual({
+            cached_explore: 2,
+            saved_sql_versions: 1,
+            project_dbt_sources: 0,
+            query_history: 4,
+        });
+
+        expect(
+            tracker.history.all.some(({ sql }) =>
+                sql.includes('from "project_dbt_sources"'),
+            ),
+        ).toBe(false);
+        const queryHistory = tracker.history.all.find(({ sql }) =>
+            sql.includes('from "query_history"'),
+        );
+        expect(queryHistory?.bindings).toEqual([
+            connectionUuid,
+            'pending',
+            'queued',
+            'executing',
+            1,
+        ]);
+    });
+
+    test('counts dbt sources when their connection column exists', async () => {
+        tracker.on
+            .any(/information_schema/)
+            .response([{ column_name: 'connection_uuid' }]);
+        tracker.on.select('cached_explore').response([{ count: '0' }]);
+        tracker.on.select('saved_sql_versions').response([{ count: '0' }]);
+        tracker.on.select('project_dbt_sources').response([{ count: '3' }]);
+        tracker.on.select('query_history').response([{ count: '0' }]);
+
+        await expect(
+            model.hasBoundContent(connectionUuid),
+        ).resolves.toMatchObject({
+            project_dbt_sources: 3,
+        });
+    });
 });
