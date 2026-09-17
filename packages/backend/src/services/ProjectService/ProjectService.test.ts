@@ -42,6 +42,7 @@ import {
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     WarehouseDatabaseListingNotSupportedError,
+    WarehouseTableType,
     WarehouseTypes,
     WeekDay,
     type ChartSummary,
@@ -63,7 +64,10 @@ import {
     type RegisteredAccount,
     type UpdateProject,
     type UserWarehouseCredentialsWithSecrets,
+    type WarehouseClient,
     type WarehouseLocation,
+    type WarehouseTables,
+    type WarehouseTablesCatalog,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { Readable } from 'stream';
@@ -463,6 +467,7 @@ const getMockedProjectService = (
             | 'getDataAppCustomSqlProvenance'
             | 'featureFlagModel'
             | 'projectDbtSourcesModel'
+            | 'warehouseAvailableTablesModel'
         >
     > = {},
 ) =>
@@ -492,7 +497,9 @@ const getMockedProjectService = (
         userWarehouseCredentialsModel: {
             findForProjectWithSecrets: vi.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
-        warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
+        warehouseAvailableTablesModel:
+            overrides.warehouseAvailableTablesModel ??
+            ({} as WarehouseAvailableTablesModel),
         emailModel: emailModel as unknown as EmailModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
         downloadFileModel:
@@ -615,6 +622,250 @@ type RefreshForTest = <T>(
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
+
+    describe('warehouse database listing and table cache', () => {
+        const defaultDatabase = {
+            name: 'default',
+            database: 'AwsDataCatalog',
+            schema: 'default',
+            isDefault: true,
+        };
+        const additionalDatabase = {
+            name: 'finance',
+            database: 'AwsDataCatalog',
+            schema: 'finance',
+            isDefault: false,
+        };
+        const fetchedTables: WarehouseTables = [
+            {
+                database: 'AwsDataCatalog',
+                schema: 'finance',
+                table: 'orders',
+                tableType: WarehouseTableType.TABLE,
+            },
+        ];
+        const fetchedCatalog: WarehouseTablesCatalog = {
+            AwsDataCatalog: {
+                finance: {
+                    orders: { tableType: WarehouseTableType.TABLE },
+                },
+            },
+        };
+
+        const createHarness = ({
+            credentials,
+            cachedCatalog = {},
+            userWarehouseCredentialsUuid,
+        }: {
+            credentials: CreateWarehouseCredentials;
+            cachedCatalog?: WarehouseTablesCatalog;
+            userWarehouseCredentialsUuid?: string;
+        }) => {
+            const getProjectTables = vi.fn(async () => cachedCatalog);
+            const getUserTables = vi.fn(async () => cachedCatalog);
+            const createProjectTables = vi.fn(async () => undefined);
+            const createUserTables = vi.fn(async () => undefined);
+            const availableTablesModel = {
+                getTablesForProjectWarehouseCredentials: getProjectTables,
+                getTablesForUserWarehouseCredentials: getUserTables,
+                createAvailableTablesForProjectWarehouseCredentials:
+                    createProjectTables,
+                createAvailableTablesForUserWarehouseCredentials:
+                    createUserTables,
+            } as unknown as WarehouseAvailableTablesModel;
+            const listing = {
+                databases: [defaultDatabase, additionalDatabase],
+                truncated: false,
+                limit: 100,
+            };
+            const listDatabases = vi.fn(async () => listing);
+            const getTablesForDatabase = vi.fn(async () => fetchedTables);
+            const getAllTables = vi.fn(async () => fetchedTables);
+            const warehouseClient = {
+                ...warehouseClientMock,
+                listDatabases,
+                getTablesForDatabase,
+                getAllTables,
+            } as WarehouseClient;
+            const disconnect = vi.fn(async () => undefined);
+            const testService = getMockedProjectService(lightdashConfigMock, {
+                warehouseAvailableTablesModel: availableTablesModel,
+            });
+            const getWarehouseCredentials = vi
+                .spyOn(
+                    testService as unknown as {
+                        getWarehouseCredentials: () => Promise<
+                            CreateWarehouseCredentials & {
+                                userWarehouseCredentialsUuid?: string;
+                            }
+                        >;
+                    },
+                    'getWarehouseCredentials',
+                )
+                .mockResolvedValue({
+                    ...credentials,
+                    userWarehouseCredentialsUuid,
+                });
+            const getWarehouseClient = vi
+                .spyOn(testService, '_getWarehouseClient')
+                .mockResolvedValue({
+                    warehouseClient,
+                    sshTunnel: { disconnect } as never,
+                    tunnelConnectMs: null,
+                });
+
+            return {
+                testService,
+                getWarehouseCredentials,
+                getWarehouseClient,
+                getProjectTables,
+                getUserTables,
+                createProjectTables,
+                createUserTables,
+                listDatabases,
+                getTablesForDatabase,
+                getAllTables,
+                disconnect,
+            };
+        };
+
+        const athenaCredentials = {
+            type: WarehouseTypes.ATHENA,
+            database: 'AwsDataCatalog',
+            schema: 'default',
+            listAllDatabases: true,
+        } as CreateWarehouseCredentials;
+
+        test('returns one default database without opening a client when listing fields are absent', async () => {
+            const harness = createHarness({
+                credentials: {
+                    type: WarehouseTypes.POSTGRES,
+                    dbname: 'analytics',
+                } as CreateWarehouseCredentials,
+            });
+
+            await expect(
+                harness.testService.getWarehouseDatabases(user, projectUuid),
+            ).resolves.toEqual({
+                databases: [
+                    {
+                        name: 'analytics',
+                        database: 'analytics',
+                        schema: null,
+                        isDefault: true,
+                    },
+                ],
+                truncated: false,
+                limit: 100,
+            });
+            expect(harness.getWarehouseClient).not.toHaveBeenCalled();
+        });
+
+        test('lists databases through the client and disconnects the tunnel', async () => {
+            const harness = createHarness({ credentials: athenaCredentials });
+
+            await expect(
+                harness.testService.getWarehouseDatabases(user, projectUuid),
+            ).resolves.toEqual({
+                databases: [defaultDatabase, additionalDatabase],
+                truncated: false,
+                limit: 100,
+            });
+            expect(harness.listDatabases).toHaveBeenCalledOnce();
+            expect(harness.disconnect).toHaveBeenCalledOnce();
+        });
+
+        test('rejects a database that is not listed before reading the cache', async () => {
+            const harness = createHarness({ credentials: athenaCredentials });
+
+            await expect(
+                harness.testService.getWarehouseTables(
+                    user,
+                    projectUuid,
+                    'missing',
+                ),
+            ).rejects.toThrowError(NotFoundError);
+            expect(harness.getProjectTables).not.toHaveBeenCalled();
+            expect(harness.getTablesForDatabase).not.toHaveBeenCalled();
+        });
+
+        test('returns a personal credential cache hit for one listed database', async () => {
+            const harness = createHarness({
+                credentials: athenaCredentials,
+                cachedCatalog: fetchedCatalog,
+                userWarehouseCredentialsUuid: 'user-credentials-uuid',
+            });
+
+            await expect(
+                harness.testService.getWarehouseTables(
+                    user,
+                    projectUuid,
+                    'finance',
+                ),
+            ).resolves.toEqual(fetchedCatalog);
+            expect(harness.getUserTables).toHaveBeenCalledWith(
+                'user-credentials-uuid',
+                {
+                    listedDatabase: 'finance',
+                    includeLegacyRows: false,
+                },
+            );
+            expect(harness.getProjectTables).not.toHaveBeenCalled();
+            expect(harness.getTablesForDatabase).not.toHaveBeenCalled();
+        });
+
+        test('populates a project credential cache miss for one listed database', async () => {
+            const harness = createHarness({ credentials: athenaCredentials });
+
+            await expect(
+                harness.testService.getWarehouseTables(
+                    user,
+                    projectUuid,
+                    'finance',
+                ),
+            ).resolves.toEqual(fetchedCatalog);
+            expect(harness.getProjectTables).toHaveBeenCalledWith(projectUuid, {
+                listedDatabase: 'finance',
+                includeLegacyRows: false,
+            });
+            expect(harness.getTablesForDatabase).toHaveBeenCalledWith(
+                additionalDatabase,
+            );
+            expect(harness.createProjectTables).toHaveBeenCalledWith(
+                projectUuid,
+                fetchedTables,
+                {
+                    listedDatabase: 'finance',
+                    includeLegacyRows: false,
+                    clearAll: false,
+                },
+            );
+        });
+
+        test('clears all listed databases and repopulates only the default on whole refresh', async () => {
+            const harness = createHarness({ credentials: athenaCredentials });
+
+            await harness.testService.populateWarehouseTablesCache(
+                user,
+                projectUuid,
+            );
+
+            expect(harness.listDatabases).not.toHaveBeenCalled();
+            expect(harness.getAllTables).not.toHaveBeenCalled();
+            expect(harness.getTablesForDatabase).toHaveBeenCalledWith(
+                defaultDatabase,
+            );
+            expect(harness.createProjectTables).toHaveBeenCalledWith(
+                projectUuid,
+                fetchedTables,
+                {
+                    listedDatabase: 'default',
+                    includeLegacyRows: true,
+                    clearAll: true,
+                },
+            );
+        });
+    });
 
     describe('Document counts in legacy Space listing', () => {
         it.each([
