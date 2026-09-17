@@ -377,6 +377,10 @@ export const AiChartQuickOptions = ({
                         }),
                     ),
                     joinType: canonicalMerge.mergeQuery.joinType,
+                    repeatValuesSourceIds:
+                        canonicalMerge.mergeQuery.sources.flatMap((source) =>
+                            source.repeatValues === true ? [source.id] : [],
+                        ),
                 }),
             );
             return { pathname: url.pathname, search: search.toString() };

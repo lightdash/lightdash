@@ -477,6 +477,70 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         });
     }, 60_000);
 
+    // The lookup the fan-out refusal otherwise blocks: orders split by
+    // status keep their split, and each status row carries the month's
+    // payment count, which the source returns for that month alone.
+    it("repeats a source's values across the other source's extra dimension when asked", async () => {
+        const ordersByMonthAndStatus = {
+            ...ordersByMonth,
+            dimensions: ['orders_order_date_month', 'orders_status'],
+        };
+        const repeating = {
+            ...mergeQuery,
+            sources: [
+                { id: 'orders', metricQuery: ordersByMonthAndStatus },
+                {
+                    id: 'payments',
+                    metricQuery: paymentsByMonth,
+                    repeatValues: true,
+                },
+            ],
+            joinType: MergeJoinType.LEFT,
+        };
+        const refusedResp = await admin.post<
+            Body<ApiExecuteAsyncMergeQueryResults>
+        >(`/api/v2/projects/${projectUuid}/query/merge-query`, {
+            mergeQuery: {
+                ...repeating,
+                sources: [
+                    { id: 'orders', metricQuery: ordersByMonthAndStatus },
+                    { id: 'payments', metricQuery: paymentsByMonth },
+                ],
+            },
+            context: QueryExecutionContext.EXPLORE,
+            mode: { type: 'interactive' },
+        });
+        expect(refusedResp.body.results.outcome).toBe('refused');
+
+        const [ordersRows, paymentsRows, runResp] = await Promise.all([
+            runSourceQuery(ordersByMonthAndStatus),
+            runSourceQuery(paymentsByMonth),
+            admin.post<Body<{ queryUuid: string }>>(
+                `/api/v1/projects/${projectUuid}/mergeQuery/run`,
+                { mergeQuery: repeating },
+            ),
+        ]);
+        const paymentsByKey = new Map(
+            paymentsRows.map((row) => [
+                monthOf(row.orders_order_date_month),
+                row.payments_unique_payment_count,
+            ]),
+        );
+
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.queryUuid,
+        );
+
+        expect(results.totalResults).toBe(ordersRows.length);
+        results.rows.forEach((row) => {
+            const key = monthOf(cellOf(row, KEY_FIELD_ID).raw);
+            expect(numeric(cellOf(row, PAYMENTS_FIELD_ID).raw)).toEqual(
+                numeric(paymentsByKey.get(key) ?? null),
+            );
+        });
+    }, 60_000);
+
     // A join key need not be a selected field: the leg groups by it, so a
     // source that selects only metrics still merges at the key's grain and
     // returns the values its query returns grouped by that key.

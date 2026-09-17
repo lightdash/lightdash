@@ -24,8 +24,19 @@ export enum MergeJoinType {
     INNER = 'inner',
 }
 
+/**
+ * Opt in to an intentional one-to-many join: this source's value columns
+ * repeat on every row the other sources produce for the same key, so the
+ * others may carry dimensions that are not join keys. Off by default,
+ * because a repeated metric is counted more than once by any sum over the
+ * merged rows.
+ */
+export type MergeQuerySourceRepeatValues = {
+    repeatValues?: boolean;
+};
+
 /** One side of a merge: a metric query compiled and run as part of the merge. */
-export type MergeQueryMetricSource = {
+export type MergeQueryMetricSource = MergeQuerySourceRepeatValues & {
     /** Stable id. Names the CTE, and the table its merged fields belong to. */
     id: string;
     metricQuery: MetricQuery;
@@ -38,7 +49,7 @@ export type MergeQueryMetricSource = {
  * creator-scoped and expire; an expired reference is re-submitted as a
  * query, not refreshed by handle.
  */
-export type MergeQueryResultSource = {
+export type MergeQueryResultSource = MergeQuerySourceRepeatValues & {
     /** Stable id. Names the CTE, and the table its merged fields belong to. */
     id: string;
     queryUuid: string;
@@ -305,6 +316,40 @@ export const getUnaccountedDimensions = (
         (dimension) => !accounted.has(dimension),
     );
 };
+
+/**
+ * Whether a source may carry dimensions that are not join keys: only when
+ * every other source has opted to repeat its values across them. The fan-out
+ * that would otherwise be refused is then the lookup the user asked for.
+ */
+export const isFanOutAccepted = (
+    sources: Pick<MergeQuerySource, 'id' | 'repeatValues'>[],
+    sourceId: string,
+): boolean =>
+    sources.length > 1 &&
+    sources.every(
+        (source) => source.id === sourceId || source.repeatValues === true,
+    );
+
+/**
+ * The merged field ids of every value column a repeating source
+ * contributes. Each appears once per matching row of the other sources, so
+ * a sum over the merged rows would count it more than once. A result
+ * source's columns are not known here and are left out.
+ */
+export const getRepeatedMergeFieldIds = (
+    sources: MergeQuerySource[],
+): FieldId[] =>
+    sources.flatMap((source) =>
+        source.repeatValues === true && isMergeMetricSource(source)
+            ? [
+                  ...source.metricQuery.metrics,
+                  ...source.metricQuery.tableCalculations.map(
+                      ({ name }) => name,
+                  ),
+              ].map((name) => getItemId({ table: source.id, name }))
+            : [],
+    );
 
 /**
  * Every reason this merge would produce a wrong or unbuildable result. Empty
@@ -581,14 +626,14 @@ export const validateMergeQuery = (
 
     sources.forEach((source) => {
         const unaccounted = getUnaccountedDimensions(source, joinKey);
-        if (unaccounted.length > 0) {
+        if (unaccounted.length > 0 && !isFanOutAccepted(sources, source.id)) {
             errors.push({
                 kind: MergeQueryErrorKind.FAN_OUT,
                 sourceId: source.id,
                 fieldIds: unaccounted,
                 message: `Query "${source.id}" carries ${unaccounted.join(
                     ', ',
-                )}, which is not joined on. Merging would repeat the other queries' rows once per value.`,
+                )}, which is not joined on. Merging would repeat the other queries' rows once per value. Join on it, or set repeatValues on the other queries to repeat their values on purpose.`,
             });
         }
     });
@@ -805,15 +850,15 @@ export const SAVED_MERGE_QUERY_SCHEMA_VERSION = 2;
  * and so on.
  */
 export type SavedMergeQuerySource =
-    | {
+    | (MergeQuerySourceRepeatValues & {
           id: string;
           kind: 'chart';
-      }
-    | {
+      })
+    | (MergeQuerySourceRepeatValues & {
           id: string;
           kind: 'query';
           metricQuery: MetricQuery;
-      };
+      });
 
 /** Canonical, scalable representation of a merge stored on a chart version. */
 export type SavedMergeQuery = {
@@ -833,10 +878,12 @@ export const buildMergeQueryFromSaved = (
     saved: SavedMergeQuery,
 ): MergeQuery => {
     const sources = saved.sources.map((source): MergeQuerySource => {
+        const repeat =
+            source.repeatValues === true ? { repeatValues: true } : {};
         if (source.kind === 'chart') {
-            return { id: source.id, metricQuery: chartMetricQuery };
+            return { ...repeat, id: source.id, metricQuery: chartMetricQuery };
         }
-        return { id: source.id, metricQuery: source.metricQuery };
+        return { ...repeat, id: source.id, metricQuery: source.metricQuery };
     });
     const primaryIndex = sources.findIndex(
         (source) => source.id === saved.primarySourceId,

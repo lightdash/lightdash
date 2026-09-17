@@ -18,6 +18,7 @@ export type MergeUrlState = {
     additionalSources: MergeEditorSource[];
     joinParts: MergeJoinPart[];
     joinType: MergeJoinType;
+    repeatValuesSourceIds: string[];
 };
 
 type SerializedSource = {
@@ -36,6 +37,8 @@ type SerializedMerge = {
     k: Array<Record<string, string | null>>;
     j: MergeJoinType;
     f: string;
+    /** Sources repeating their values; omitted when none do. */
+    r?: string[];
 };
 
 /** URL shape emitted before editor state became source-addressed. */
@@ -87,6 +90,9 @@ export const serializeMergeState = (state: MergeUrlState): string =>
         k: state.joinParts.map((part) => part.fieldIdBySourceId),
         j: state.joinType,
         f: state.focus.kind === 'join' ? 'join' : state.focus.sourceId,
+        ...(state.repeatValuesSourceIds.length > 0
+            ? { r: state.repeatValuesSourceIds }
+            : {}),
     } satisfies SerializedMerge);
 
 const parseSource = (value: unknown): MergeEditorSource | null => {
@@ -159,6 +165,9 @@ const parseCurrent = (value: Record<string, unknown>): MergeUrlState | null => {
                       },
                   ],
         joinType: isJoinType(value.j) ? value.j : MergeJoinType.FULL,
+        repeatValuesSourceIds: asStringArray(value.r).filter((id) =>
+            sourceIds.includes(id),
+        ),
     };
 };
 
@@ -202,6 +211,7 @@ const parseLegacy = (value: LegacySerializedMerge): MergeUrlState => {
                       },
                   ],
         joinType: isJoinType(value.j) ? value.j : MergeJoinType.FULL,
+        repeatValuesSourceIds: [],
     };
 };
 

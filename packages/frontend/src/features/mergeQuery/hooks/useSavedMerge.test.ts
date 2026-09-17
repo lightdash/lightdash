@@ -75,7 +75,11 @@ describe('toSavedMerge', () => {
         const mergeQuery: MergeQuery = {
             sources: [
                 { id: 'a', metricQuery: metricQuery('orders') },
-                { id: 'payments', metricQuery: metricQuery('payments') },
+                {
+                    id: 'payments',
+                    metricQuery: metricQuery('payments'),
+                    repeatValues: true,
+                },
                 {
                     id: 'subscriptions',
                     metricQuery: metricQuery('subscriptions'),
@@ -100,7 +104,7 @@ describe('toSavedMerge', () => {
             primarySourceId: 'a',
             sources: [
                 { id: 'a', kind: 'chart' },
-                { id: 'payments', kind: 'query' },
+                { id: 'payments', kind: 'query', repeatValues: true },
                 { id: 'subscriptions', kind: 'query' },
             ],
             joinKey: [

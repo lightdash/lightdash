@@ -3,6 +3,7 @@ import { DimensionType } from './field';
 import {
     buildMergeQueryFromSaved,
     getMergeCompiledSqlText,
+    getRepeatedMergeFieldIds,
     getUnaccountedDimensions,
     getWarehouseDefaultNullsFirst,
     MergeJoinType,
@@ -94,6 +95,42 @@ describe('validateMergeQuery', () => {
 
         it('accepts the same merge once the extra dimension is dropped', () => {
             expect(validateMergeQuery(mergeQuery())).toEqual([]);
+        });
+
+        // The lookup the user asked for: B's total repeats on every A row
+        // that shares the date, and A keeps its split.
+        it('accepts the extra dimension when the other source repeats its values', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    sources: [
+                        queryA(['followers_created_date', 'followers_source']),
+                        { ...queryB(), repeatValues: true },
+                    ],
+                }),
+            );
+
+            expect(errors).toEqual([]);
+        });
+
+        it('still refuses the extra dimension when only the split source repeats', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    sources: [
+                        {
+                            ...queryA([
+                                'followers_created_date',
+                                'followers_source',
+                            ]),
+                            repeatValues: true,
+                        },
+                        queryB(),
+                    ],
+                }),
+            );
+
+            expect(errors.map((error) => error.kind)).toEqual([
+                MergeQueryErrorKind.FAN_OUT,
+            ]);
         });
 
         it('accepts the extra dimension when both sources have it and it joins', () => {
@@ -429,6 +466,18 @@ describe('result sources', () => {
     });
 });
 
+describe('getRepeatedMergeFieldIds', () => {
+    it('names the merged value columns of every repeating source', () => {
+        expect(
+            getRepeatedMergeFieldIds([
+                queryA(),
+                { ...queryB(), repeatValues: true },
+            ]),
+        ).toEqual(['b_follower_snapshots_total_followers']);
+        expect(getRepeatedMergeFieldIds([queryA(), queryB()])).toEqual([]);
+    });
+});
+
 describe('getUnaccountedDimensions', () => {
     it('reports the dimension that would fan the merge out', () => {
         expect(
@@ -494,6 +543,62 @@ describe('saved merge query schemas', () => {
                 parsed!,
             ).sources.map(({ id }) => id),
         ).toEqual(['payments', 'orders', 'subscriptions']);
+    });
+
+    it("carries a source's repeat-values opt-in through save and restore", () => {
+        const saved: SavedMergeQuery = {
+            primarySourceId: 'orders',
+            sources: [
+                { id: 'orders', kind: 'chart' },
+                {
+                    id: 'payments',
+                    kind: 'query',
+                    metricQuery: metricQuery(
+                        'payments',
+                        ['payments_month'],
+                        ['payments_total'],
+                    ),
+                    repeatValues: true,
+                },
+            ],
+            joinKey: [
+                {
+                    name: 'month',
+                    fieldIdBySourceId: {
+                        orders: 'orders_month',
+                        payments: 'payments_month',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.LEFT,
+            tableCalculations: [],
+        };
+
+        const parsed = parseSavedMergeQuery(
+            SAVED_MERGE_QUERY_SCHEMA_VERSION,
+            saved,
+        );
+        expect(parsed).toEqual(saved);
+        expect(
+            buildMergeQueryFromSaved(
+                metricQuery(
+                    'orders',
+                    ['orders_month', 'orders_status'],
+                    ['orders_total'],
+                ),
+                parsed!,
+            ).sources,
+        ).toEqual([
+            expect.objectContaining({ id: 'orders' }),
+            expect.objectContaining({ id: 'payments', repeatValues: true }),
+        ]);
+        expect(
+            'repeatValues' in
+                buildMergeQueryFromSaved(
+                    metricQuery('orders', ['orders_month'], ['orders_total']),
+                    parsed!,
+                ).sources[0],
+        ).toBe(false);
     });
 
     it('rejects unknown schemas and incomplete source mappings', () => {

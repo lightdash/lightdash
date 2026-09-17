@@ -147,6 +147,7 @@ describe('MergeProvider', () => {
                     },
                 ],
                 joinType: MergeJoinType.FULL,
+                repeatValuesSourceIds: [],
             }),
         );
         const { result } = renderHook(() => useMerge(), { wrapper });
