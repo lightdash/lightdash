@@ -301,6 +301,8 @@ export const expectedAllExploreSummary: SummaryExplore[] = [
         tags: validExplore.tags,
         databaseName: validExplore.tables[validExplore.baseTable].database,
         schemaName: validExplore.tables[validExplore.baseTable].schema,
+        connectionUuid:
+            validExplore.tables[validExplore.baseTable].connectionUuid ?? null,
         description: validExplore.tables[validExplore.baseTable].description,
         type: ExploreType.DEFAULT,
     },
@@ -656,6 +658,7 @@ export const exploreToSummaryWithAttributes = (
         tags: explore.tags,
         databaseName: baseTable.database,
         schemaName: baseTable.schema,
+        connectionUuid: baseTable.connectionUuid ?? null,
         description: baseTable.description,
         type: explore.type,
         preAggregateSource: explore.preAggregateSource,

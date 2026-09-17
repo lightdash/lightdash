@@ -27,6 +27,7 @@ import {
     IconHash,
     IconHistory,
     IconInfoCircle,
+    IconPlugConnected,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
@@ -60,6 +61,7 @@ export type ResourceInfoPopupProps = {
     viewStatsResourceType?: 'chart' | 'dashboard';
     firstViewedAt?: Date | string | null;
     latestVersion?: { number: number; status: AppVersionStatus } | null;
+    connectionName?: string | null;
 };
 
 const hasResourceInfoContent = ({
@@ -72,6 +74,7 @@ const hasResourceInfoContent = ({
     spaceName,
     spaceUuid,
     latestVersion,
+    connectionName,
 }: ResourceInfoPopupProps) =>
     !!title ||
     !!description ||
@@ -80,7 +83,8 @@ const hasResourceInfoContent = ({
     !!updatedAt ||
     viewStats !== undefined ||
     !!(spaceName && spaceUuid) ||
-    !!latestVersion;
+    !!latestVersion ||
+    !!connectionName;
 
 export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
     resourceUuid,
@@ -96,6 +100,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
     firstViewedAt,
     withChartData = false,
     latestVersion,
+    connectionName,
 }) => {
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -111,7 +116,8 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
         !!updatedAt ||
         viewStats !== undefined ||
         !!(spaceName && spaceUuid) ||
-        !!latestVersion;
+        !!latestVersion ||
+        !!connectionName;
     const shouldShowDivider =
         !!slug && (hasMetadataRows || !!description || withChartData);
     if (
@@ -128,6 +134,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
             firstViewedAt,
             withChartData,
             latestVersion,
+            connectionName,
         })
     )
         return null;
@@ -195,6 +202,12 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                             {versionStatusLabel(latestVersion.status)})
                         </Text>
                     </Group>
+                )}
+
+                {connectionName && (
+                    <InfoRow icon={IconPlugConnected} label="Connection">
+                        {connectionName}
+                    </InfoRow>
                 )}
 
                 {withChartData && (

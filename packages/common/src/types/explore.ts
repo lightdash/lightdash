@@ -232,6 +232,7 @@ type SummaryExploreErrorFields =
     | 'customMeta'
     | 'errors';
 type SummaryExtraFields = {
+    connectionUuid: string | null;
     description?: string;
     schemaName: string;
     databaseName: string;

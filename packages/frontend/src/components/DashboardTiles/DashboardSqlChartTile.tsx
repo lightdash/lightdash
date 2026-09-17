@@ -24,11 +24,13 @@ import {
 } from 'react';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
+import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { getConnectionName } from '../common/connectionName';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -94,6 +96,9 @@ const SqlChartTile: FC<Props> = ({
     const effectiveDashboardUuid = dashboardUuidOverride ?? dashboardUuid;
     const context = useSearchParams('context') || undefined;
     const savedSqlUuid = tile.properties.savedSqlUuid || undefined;
+    const { data: project } = useProject(effectiveProjectUuid, {
+        enabled: !isEmbed && !!effectiveProjectUuid,
+    });
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
     const canManageSqlRunner = user.data?.ability?.can(
         'manage',
@@ -248,6 +253,10 @@ const SqlChartTile: FC<Props> = ({
             projectUuid: chartData?.project.projectUuid,
         }),
     );
+    const connectionName =
+        project && project.connections.length > 1 && chartData
+            ? getConnectionName(project.connections, chartData.connectionUuid)
+            : null;
 
     // No chart available or savedSqlUuid is undefined - which means that the chart was deleted
     if (chartData === undefined || !savedSqlUuid) {
@@ -293,6 +302,7 @@ const SqlChartTile: FC<Props> = ({
                 isLoading={isChartResultsLoading}
                 hasError={!!chartResultsError}
                 chartKind={chartData.config.type}
+                connectionName={connectionName}
                 {...rest}
                 titleHref={`/projects/${effectiveProjectUuid}/sql-runner/${chartData.slug}`}
                 extraMenuItems={
@@ -334,6 +344,7 @@ const SqlChartTile: FC<Props> = ({
             tile={tile}
             title={tile.properties.title || tile.properties.chartName || ''}
             chartKind={chartData.config.type}
+            connectionName={connectionName}
             fullWidth={chartData.config.type === ChartKind.TABLE}
             {...rest}
             extraMenuItems={

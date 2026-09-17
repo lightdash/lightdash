@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Card,
     Flex,
@@ -13,6 +14,7 @@ import {
     Menu,
     Paper,
     rem,
+    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -55,6 +57,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     verification = null,
     chartName,
     description = null,
+    connectionName = null,
     tile,
     isLoading = false,
     hasError = false,
@@ -116,6 +119,21 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     // The title is the only link to the chart page and hidden titles have
     // none, so the pill carries one in view mode.
     const canViewChart = !minimal && !isEditMode && !!titleHref;
+    const titleTooltipContent =
+        description || connectionName ? (
+            <Stack gap="xs">
+                {description && (
+                    <Text style={{ whiteSpace: 'pre-line' }} fz="sm">
+                        {description}
+                    </Text>
+                )}
+                {connectionName && (
+                    <Badge size="xs" variant="light" color="gray">
+                        {connectionName}
+                    </Badge>
+                )}
+            </Stack>
+        ) : null;
 
     const hasMenuContent = isEditMode || !!extraMenuItems || canCopyTileLink;
     const isVerified = verification !== null && verification !== undefined;
@@ -372,15 +390,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         {minimal ? (
                             !hideTitle ? (
                                 <Tooltip
-                                    disabled={!description}
-                                    label={
-                                        <Text
-                                            style={{ whiteSpace: 'pre-line' }}
-                                            fz="sm"
-                                        >
-                                            {description}
-                                        </Text>
-                                    }
+                                    disabled={!titleTooltipContent}
+                                    label={titleTooltipContent}
                                     position="top-start"
                                     maw={400}
                                 >
@@ -393,15 +404,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             )
                         ) : (
                             <Tooltip
-                                disabled={!description}
-                                label={
-                                    <Text
-                                        style={{ whiteSpace: 'pre-line' }}
-                                        fz="sm"
-                                    >
-                                        {description}
-                                    </Text>
-                                }
+                                disabled={!titleTooltipContent}
+                                label={titleTooltipContent}
                                 position="top-start"
                                 maw={400}
                             >

@@ -17,7 +17,10 @@ import {
 } from '../../../features/explorer/store';
 import { useMergeChangeSinceRun } from '../../../features/mergeQuery/hooks/useMergeChangeSinceRun';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import { useExplore } from '../../../hooks/useExplore';
+import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
+import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
@@ -25,6 +28,7 @@ import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { useIsModalHosted } from '../../../providers/Explorer/useIsModalHosted';
+import ConnectionBadge from '../../common/ConnectionBadge';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import { RefreshButton } from '../../RefreshButton';
@@ -35,8 +39,11 @@ import QueryWarnings from './QueryWarnings';
 
 const ExplorerHeader: FC = memo(() => {
     const projectUuid = useProjectUuid();
+    const { content, embedToken, onBackToDashboard } = useEmbed();
+    const { data: project } = useProject(projectUuid, {
+        enabled: embedToken === undefined && !!projectUuid,
+    });
     const { user } = useApp();
-    const { content, onBackToDashboard } = useEmbed();
     const ability = useAbilityContext();
 
     // Get state from Redux and new hook
@@ -68,6 +75,7 @@ const ExplorerHeader: FC = memo(() => {
     );
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
     const { getHasDashboardChanges } = useDashboardStorage();
 
@@ -174,6 +182,10 @@ const ExplorerHeader: FC = memo(() => {
             </Box>
 
             <Group gap="xs">
+                <ConnectionBadge
+                    connections={project?.connections ?? []}
+                    connectionUuid={explore?.connectionUuid}
+                />
                 {showMergeOutOfDate && (
                     <Tooltip
                         w={400}

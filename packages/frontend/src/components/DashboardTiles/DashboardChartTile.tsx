@@ -75,6 +75,7 @@ import React, {
     type RefObject,
 } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { type EChartsReact } from '../EChartsReactWrapper';
@@ -147,6 +148,7 @@ import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions
 import { useExplore } from '../../hooks/useExplore';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useRefreshPreAggregateByDefinitionName } from '../../hooks/usePreAggregateRefresh';
+import { useProject } from '../../hooks/useProject';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
@@ -168,6 +170,7 @@ import {
     CHART_TYPES_WITHOUT_IMAGE_EXPORT,
     isSavedDataAppVizDashboardImageExportAvailable,
 } from '../common/ChartDownload/chartDownloadUtils';
+import { getConnectionName } from '../common/connectionName';
 import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
@@ -603,7 +606,7 @@ const ValidDashboardChartTileMinimal: FC<{
 
 interface DashboardChartTileMainProps extends Pick<
     React.ComponentProps<typeof TileBase>,
-    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+    'tile' | 'onEdit' | 'onDelete' | 'isEditMode' | 'connectionName'
 > {
     tile: IDashboardChartTile;
     dashboardChartReadyQuery: DashboardChartReadyQuery;
@@ -2450,6 +2453,10 @@ export const GenericDashboardChartTile: FC<
     ...rest
 }) => {
     const projectUuid = useProjectUuid();
+    const { embedToken } = useEmbed();
+    const { data: project } = useProject(projectUuid, {
+        enabled: embedToken === undefined && !!projectUuid,
+    });
     const { user } = useApp();
 
     // Resolve the dashboard-aware palette via the shared resolver endpoint.
@@ -2521,6 +2528,13 @@ export const GenericDashboardChartTile: FC<
             'manage',
             subject('SavedChart', { ...dashboardChartReadyQuery.chart }),
         );
+    const connectionName =
+        project && project.connections.length > 1 && dashboardChartReadyQuery
+            ? getConnectionName(
+                  project.connections,
+                  dashboardChartReadyQuery.explore.connectionUuid,
+              )
+            : null;
 
     if (error !== null) {
         // Show custom title if set, otherwise show chart name or fallback to "Deleted Chart"
@@ -2622,6 +2636,7 @@ export const GenericDashboardChartTile: FC<
                     }
                     colorPaletteOverride={effectiveColorPaletteOverride}
                     darkColorPaletteOverride={effectiveDarkColorPaletteOverride}
+                    connectionName={connectionName}
                 />
             ) : (
                 <DashboardChartTileMain
@@ -2636,6 +2651,7 @@ export const GenericDashboardChartTile: FC<
                     hasDashboardColorPalette={
                         resolvedPalette?.source.type === 'dashboard'
                     }
+                    connectionName={connectionName}
                 />
             )}
             <UnderlyingDataModal />
