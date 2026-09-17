@@ -8815,6 +8815,11 @@ export class AppGenerateService extends BaseService {
             this.appModel.listRegistryInstalledApps(projectUuid),
         ]);
         const bySlug = new Map(installed.map((a) => [a.registry_slug, a]));
+        // An untagged entry is stable on the stable index, but unpointed
+        // (pre-release) on index-next — only this side knows which is read.
+        const untaggedStage = this.chartRegistryClient.readsNextChannelIndex()
+            ? 'prerelease'
+            : 'stable';
         const charts: RegistryChartTypeListItem[] = index.charts.map(
             (entry) => {
                 const inst = bySlug.get(entry.slug);
@@ -8836,6 +8841,7 @@ export class AppGenerateService extends BaseService {
                 return {
                     ...entry,
                     state,
+                    releaseStage: entry.channel ?? untaggedStage,
                     installedAppUuid: inst?.app_id ?? null,
                     installedRegistryVersion:
                         inst?.latest_ready_registry_version ?? null,

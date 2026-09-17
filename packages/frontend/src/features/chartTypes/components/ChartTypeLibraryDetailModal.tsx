@@ -17,8 +17,8 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { registryThumbnailPath } from '../utils/registryAssetUrl';
-import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import classes from './ChartTypeLibraryDetailModal.module.css';
+import ChartTypeReleaseStageBadge from './ChartTypeReleaseStageBadge';
 import DataAppVizFieldsList from './DataAppVizFieldsList';
 import RegistryAssetImage from './RegistryAssetImage';
 
@@ -205,7 +205,9 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                             <Text fz="sm" fw={500} c="ldGray.8">
                                 v{item.version}
                             </Text>
-                            {item.channel === 'beta' && <ChartTypeBetaBadge />}
+                            <ChartTypeReleaseStageBadge
+                                stage={item.releaseStage}
+                            />
                         </Group>
                     </Box>
                     <Box>

@@ -230,6 +230,7 @@ function buildService(overrides: {
             .mockResolvedValue(makeIndex([SANKEY_ENTRY, RADAR_ENTRY])),
         getEntry: vi.fn().mockResolvedValue(SANKEY_ENTRY),
         downloadArtifact: vi.fn(),
+        readsNextChannelIndex: () => false,
         ...chartRegistryClient,
     };
 
@@ -334,6 +335,39 @@ describe('AppGenerateService.listRegistryChartTypes', () => {
         expect(radar?.installedAppUuid).toBeNull();
         expect(radar?.installedRegistryVersion).toBeNull();
         expect(radar?.installedCreatedByUserUuid).toBeNull();
+    });
+
+    it('derives releaseStage from the channel tag and the index the instance reads', async () => {
+        const entries = [
+            makeEntry({ slug: 'untagged' }),
+            makeEntry({ slug: 'beta-chart', channel: 'beta' }),
+        ];
+        const stages = async (readsNext: boolean) => {
+            const svc = buildService({
+                chartRegistryClient: {
+                    getIndex: vi.fn().mockResolvedValue(makeIndex(entries)),
+                    readsNextChannelIndex: () => readsNext,
+                },
+            });
+            const result = await svc.listRegistryChartTypes(
+                fakeUser,
+                PROJECT_UUID,
+            );
+            return Object.fromEntries(
+                result.charts.map((c) => [c.slug, c.releaseStage]),
+            );
+        };
+
+        // Stable index omits the channel field for stable entries.
+        expect(await stages(false)).toEqual({
+            untagged: 'stable',
+            'beta-chart': 'beta',
+        });
+        // On index-next an untagged entry is unpointed, i.e. pre-release.
+        expect(await stages(true)).toEqual({
+            untagged: 'prerelease',
+            'beta-chart': 'beta',
+        });
     });
 
     it('shows no update badge when the index entry is older than the install (registry downgrade)', async () => {
