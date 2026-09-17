@@ -384,6 +384,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 mcpContentWritesEnabled: true,
                 mcpAgentsEnabled: true,
                 dataAppRuntimeAiEnabled: false,
+                dataAppContinueInAskAiEnabled: true,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
@@ -467,6 +468,7 @@ export class AiOrganizationSettingsService extends BaseService {
                     dataAppModelVisibility,
                 ),
                 dataAppRuntimeAiEnabled: false,
+                dataAppContinueInAskAiEnabled: true,
                 threadRetentionHours: null,
             };
         }
@@ -488,6 +490,8 @@ export class AiOrganizationSettingsService extends BaseService {
                 settings.dataAppModelVisibility,
             ),
             dataAppRuntimeAiEnabled: settings.dataAppRuntimeAiEnabled ?? false,
+            dataAppContinueInAskAiEnabled:
+                settings.dataAppContinueInAskAiEnabled ?? true,
             threadRetentionHours: settings.threadRetentionHours ?? null,
         };
     }
@@ -509,6 +513,17 @@ export class AiOrganizationSettingsService extends BaseService {
                 organizationUuid,
             );
         return settings?.dataAppRuntimeAiEnabled ?? false;
+    }
+
+    /** Whether viewers may carry a data-app investigation on in Ask AI. */
+    async isDataAppContinueInAskAiEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.dataAppContinueInAskAiEnabled ?? true;
     }
 
     async isDeepResearchRawSqlEnabled({

@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import {
     IconApps,
+    IconMessageChatbot,
     IconBrandSlack,
     IconLayoutDashboard,
     IconPlugConnected,
@@ -52,6 +53,7 @@ type AiSurfacesCardProps = {
     // Rolled out per org by feature flag; hidden until then.
     showDataAppRuntimeAi: boolean;
     dataAppRuntimeAiEnabled: boolean;
+    dataAppContinueInAskAiEnabled: boolean;
     slackInstallation: SlackSettings | undefined;
     slackAgentsEnabled: boolean;
     isTrial: boolean;
@@ -60,6 +62,7 @@ type AiSurfacesCardProps = {
     onUpdateAiAgentsVisible: (checked: boolean) => void;
     onUpdateMcpAgentsEnabled: (checked: boolean) => void;
     onUpdateDataAppRuntimeAiEnabled: (checked: boolean) => void;
+    onUpdateDataAppContinueInAskAiEnabled: (checked: boolean) => void;
     onUpdateSlackAgentsEnabled: (checked: boolean) => void;
 };
 
@@ -68,6 +71,7 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     mcpAgentsEnabled,
     showDataAppRuntimeAi,
     dataAppRuntimeAiEnabled,
+    dataAppContinueInAskAiEnabled,
     slackInstallation,
     slackAgentsEnabled,
     isTrial,
@@ -76,6 +80,7 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     onUpdateAiAgentsVisible,
     onUpdateMcpAgentsEnabled,
     onUpdateDataAppRuntimeAiEnabled,
+    onUpdateDataAppContinueInAskAiEnabled,
     onUpdateSlackAgentsEnabled,
 }) => {
     const hasSlack = !!slackInstallation?.organizationUuid;
@@ -132,6 +137,15 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                             checked={dataAppRuntimeAiEnabled}
                             disabled={disabled}
                             onChange={onUpdateDataAppRuntimeAiEnabled}
+                        />
+                        <Divider />
+                        <SurfaceRow
+                            icon={IconMessageChatbot}
+                            name="Continue investigations in Ask AI"
+                            description="Lets viewers carry a data-app investigation on as an Ask AI thread. The thread stays read-only. Off keeps viewers at the explanation."
+                            checked={dataAppContinueInAskAiEnabled}
+                            disabled={disabled || !dataAppRuntimeAiEnabled}
+                            onChange={onUpdateDataAppContinueInAskAiEnabled}
                         />
                     </>
                 )}

@@ -64,6 +64,9 @@ export type InsightsPayload = {
     stale: boolean;
     /** False when no agent is available for investigations. */
     canInvestigate: boolean;
+    /** False when the organisation keeps viewers at the explanation; hide
+     *  Continue in Ask AI and `continueInAskAi` is a no-op. */
+    canContinue: boolean;
     error: string | null;
     anomalies: Insight[];
 };
@@ -109,6 +112,7 @@ export const EMPTY_INSIGHTS: InsightsPayload = {
     generatedAt: null,
     stale: false,
     canInvestigate: false,
+    canContinue: false,
     error: null,
     anomalies: [],
 };
@@ -209,6 +213,7 @@ export const parseInsightsPayload = (
             typeof value.generatedAt === 'string' ? value.generatedAt : null,
         stale: value.stale === true,
         canInvestigate: value.canInvestigate === true,
+        canContinue: value.canContinue === true,
         error: typeof value.error === 'string' ? value.error : null,
         anomalies: anomalies as Insight[],
     };
@@ -352,6 +357,7 @@ export type QueryInsights = {
      *  call with the missing datum chart libraries pass between points. */
     matches: (row: Row | null | undefined) => Insight[];
     canInvestigate: boolean;
+    canContinue: boolean;
     investigate: (anomalyId: string) => void;
     continueInAskAi: (anomalyId: string) => void;
 };
@@ -422,10 +428,13 @@ export function useInsights(
             postInsightAction({ action: 'investigate', anomalyId }),
         [],
     );
+    const canContinue = payload.canContinue;
     const continueInAskAi = useCallback(
-        (anomalyId: string) =>
-            postInsightAction({ action: 'continue', anomalyId }),
-        [],
+        (anomalyId: string) => {
+            if (!canContinue) return;
+            postInsightAction({ action: 'continue', anomalyId });
+        },
+        [canContinue],
     );
     const analyse = useCallback(
         () => postInsightAction({ action: 'analyse' }),
@@ -458,6 +467,7 @@ export function useInsights(
         anomalies,
         matches,
         canInvestigate: payload.canInvestigate,
+        canContinue,
         investigate,
         continueInAskAi,
     };

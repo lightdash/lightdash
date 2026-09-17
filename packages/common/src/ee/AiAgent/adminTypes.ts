@@ -409,6 +409,8 @@ export type AiOrganizationSettings = {
     // Customer consent for data apps to call AI at runtime (analysis, insights).
     // Optional to keep the response schema backwards-compatible for old clients.
     dataAppRuntimeAiEnabled?: boolean;
+    // Whether viewers may carry a data-app investigation on in Ask AI.
+    dataAppContinueInAskAiEnabled?: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
@@ -436,6 +438,7 @@ export type UpdateAiOrganizationSettings = {
     mcpContentWritesEnabled?: boolean;
     mcpAgentsEnabled?: boolean;
     dataAppRuntimeAiEnabled?: boolean;
+    dataAppContinueInAskAiEnabled?: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;
@@ -461,6 +464,8 @@ export type AiOrganizationRuntimeSettings = {
     visibleDataAppModels: DataAppClaudeModel[];
     // Whether data apps may call AI at runtime; optional for old clients.
     dataAppRuntimeAiEnabled?: boolean;
+    // Whether viewers may continue a data-app investigation in Ask AI.
+    dataAppContinueInAskAiEnabled?: boolean;
     // Org retention ceiling, surfaced so agent editors can see what caps
     // their agent-level window. Optional for backwards compatibility.
     threadRetentionHours?: number | null;

@@ -3952,6 +3952,16 @@ export class AiAgentService extends BaseService {
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
+        if (
+            thread.createdFrom === 'data_app' &&
+            !(await this.aiOrganizationSettingsService.isDataAppContinueInAskAiEnabled(
+                organizationUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                'Continuing a data-app investigation in Ask AI is turned off for this organization',
+            );
+        }
 
         // Check if user has access to create messages for this agent's thread
         const hasAccess = await this.checkAgentThreadAccess(

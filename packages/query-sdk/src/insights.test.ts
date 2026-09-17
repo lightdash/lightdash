@@ -41,6 +41,7 @@ const payload: InsightsPayload = {
     headline: 'Returns doubled',
     summary: 'Returned orders rose to 12.',
     canInvestigate: true,
+    canContinue: true,
     anomalies: [anomaly, { ...anomaly, id: 'a2', queryUuid: 'q2' }],
 };
 

@@ -174,6 +174,7 @@ const UNAVAILABLE_INSIGHTS: DataAppInsightsPayload = {
     generatedAt: null,
     stale: false,
     canInvestigate: false,
+    canContinue: false,
     error: null,
     anomalies: [],
 };

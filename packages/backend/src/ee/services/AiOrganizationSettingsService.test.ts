@@ -615,6 +615,28 @@ describe('isExplicitSlackChannelLinkingRequired', () => {
     });
 });
 
+describe('isDataAppContinueInAskAiEnabled', () => {
+    const buildService = (
+        stored: { dataAppContinueInAskAiEnabled?: boolean } | null,
+    ) =>
+        new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {
+                findByOrganizationUuid: vi.fn().mockResolvedValue(stored),
+            },
+        } as never);
+
+    it.each([
+        [null, true],
+        [{}, true],
+        [{ dataAppContinueInAskAiEnabled: true }, true],
+        [{ dataAppContinueInAskAiEnabled: false }, false],
+    ])('resolves stored=%j as %s (on by default)', async (stored, expected) => {
+        await expect(
+            buildService(stored).isDataAppContinueInAskAiEnabled('org-uuid'),
+        ).resolves.toBe(expected);
+    });
+});
+
 describe('isDataAppRuntimeAiEnabled', () => {
     const buildService = (
         stored: { dataAppRuntimeAiEnabled?: boolean } | null,
