@@ -4170,13 +4170,21 @@ export class ProjectService extends BaseService {
                     : [{ stepType: JobStepType.COMPILING }]),
             ],
         };
-        const createProject = await this._resolveWarehouseClientCredentials(
-            this.mergeMissingDatabricksM2MSecrets(data, savedProject),
-            account.user.id,
-            savedProject.organizationUuid,
-        );
+        const projectWithResolvedCredentials = data.warehouseConnection
+            ? await this._resolveWarehouseClientCredentials(
+                  this.mergeMissingDatabricksM2MSecrets(
+                      {
+                          ...data,
+                          warehouseConnection: data.warehouseConnection,
+                      },
+                      savedProject,
+                  ),
+                  account.user.id,
+                  savedProject.organizationUuid,
+              )
+            : data;
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
-            createProject,
+            projectWithResolvedCredentials,
             savedProject,
         );
 
@@ -4195,7 +4203,9 @@ export class ProjectService extends BaseService {
                     dbtConnection: savedProject.dbtConnection,
                 },
                 {
-                    warehouseConnection: updatedProject.warehouseConnection,
+                    warehouseConnection:
+                        updatedProject.warehouseConnection ??
+                        savedProject.warehouseConnection,
                     dbtConnection: updatedProject.dbtConnection,
                 },
             )
@@ -4316,12 +4326,12 @@ export class ProjectService extends BaseService {
             data,
         );
 
-        const updatedProjectData: UpdateProject = {
+        const updatedProjectData = {
             name: savedProject.name,
             dbtConnection: savedProject.dbtConnection,
             dbtVersion: savedProject.dbtVersion,
             warehouseConnection: data.warehouseConnection,
-        };
+        } satisfies UpdateProject;
 
         const resolvedData = await this._resolveWarehouseClientCredentials(
             this.mergeMissingDatabricksM2MSecrets(
@@ -4438,6 +4448,10 @@ export class ProjectService extends BaseService {
                     `Missing warehouseConnection details on project ${projectUuid}'}`,
                 );
             }
+            const projectWithWarehouseConnection = {
+                ...updatedProject,
+                warehouseConnection: updatedProject.warehouseConnection,
+            };
 
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
@@ -4454,7 +4468,7 @@ export class ProjectService extends BaseService {
                 JobStepType.TESTING_ADAPTOR,
                 async () =>
                     this.testProjectAdapter(
-                        updatedProject as UpdateProject,
+                        projectWithWarehouseConnection,
                         user,
                         'project_update',
                         method,
@@ -4693,7 +4707,9 @@ export class ProjectService extends BaseService {
     }
 
     private async testProjectAdapter(
-        data: UpdateProject,
+        data: UpdateProject & {
+            warehouseConnection: CreateWarehouseCredentials;
+        },
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         context: 'project_create' | 'project_update',
         method: RequestMethod,

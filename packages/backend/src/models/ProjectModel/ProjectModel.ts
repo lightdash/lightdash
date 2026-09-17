@@ -619,6 +619,20 @@ export class ProjectModel {
     }
 
     static mergeMissingProjectConfigSecrets(
+        incompleteProjectConfig: UpdateProject & {
+            warehouseConnection: CreateWarehouseCredentials;
+        },
+        completeProjectConfig: Project & {
+            warehouseConnection?: CreateWarehouseCredentials;
+        },
+    ): UpdateProject & { warehouseConnection: CreateWarehouseCredentials };
+    static mergeMissingProjectConfigSecrets(
+        incompleteProjectConfig: UpdateProject,
+        completeProjectConfig: Project & {
+            warehouseConnection?: CreateWarehouseCredentials;
+        },
+    ): UpdateProject;
+    static mergeMissingProjectConfigSecrets(
         incompleteProjectConfig: UpdateProject,
         completeProjectConfig: Project & {
             warehouseConnection?: CreateWarehouseCredentials;
@@ -626,6 +640,16 @@ export class ProjectModel {
     ): UpdateProject {
         const incomingWarehouse = incompleteProjectConfig.warehouseConnection;
         const savedWarehouse = completeProjectConfig.warehouseConnection;
+        if (!incomingWarehouse) {
+            return {
+                ...incompleteProjectConfig,
+                dbtConnection: ProjectModel.mergeMissingDbtConfigSecrets(
+                    incompleteProjectConfig.dbtConnection,
+                    completeProjectConfig.dbtConnection,
+                ),
+            };
+        }
+
         // CLI credential refreshes omit project-only settings. Preserve the
         // opt-in unless the update explicitly enables or disables it.
         const warehouseConnection =
@@ -1171,19 +1195,19 @@ export class ProjectModel {
 
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
         let previousConnectionString: string | undefined;
-        try {
-            previousConnectionString = getMotherduckConnectionString(
-                await this.getWarehouseCredentialsForProject(projectUuid),
-            );
-        } catch (e) {
-            // Projects created without warehouse credentials have none to invalidate
-            if (!(e instanceof NotFoundError)) throw e;
+        if (data.warehouseConnection) {
+            try {
+                previousConnectionString = getMotherduckConnectionString(
+                    await this.getWarehouseCredentialsForProject(projectUuid),
+                );
+            } catch (e) {
+                if (!(e instanceof NotFoundError)) throw e;
+            }
+            await this.clearWarehouseCredentialsCache(projectUuid);
         }
-        const nextConnectionString = getMotherduckConnectionString(
-            data.warehouseConnection,
-        );
-
-        await this.clearWarehouseCredentialsCache(projectUuid);
+        const nextConnectionString = data.warehouseConnection
+            ? getMotherduckConnectionString(data.warehouseConnection)
+            : undefined;
 
         await this.database.transaction(async (trx) => {
             let encryptedCredentials: Buffer;
@@ -1201,8 +1225,12 @@ export class ProjectModel {
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
                     dbt_version: data.dbtVersion,
-                    organization_warehouse_credentials_uuid:
-                        data.organizationWarehouseCredentialsUuid,
+                    ...(data.warehouseConnection
+                        ? {
+                              organization_warehouse_credentials_uuid:
+                                  data.organizationWarehouseCredentialsUuid,
+                          }
+                        : {}),
                     project_defaults: data.projectDefaults ?? null,
                 })
                 .where('project_uuid', projectUuid)
@@ -1210,14 +1238,14 @@ export class ProjectModel {
             if (projects.length === 0) {
                 throw new UnexpectedServerError('Could not update project.');
             }
-            const [project] = projects;
-
-            await this.upsertWarehouseConnection(
-                trx,
-                projectUuid,
-                data.warehouseConnection,
-                data.organizationWarehouseCredentialsUuid,
-            );
+            if (data.warehouseConnection) {
+                await this.upsertWarehouseConnection(
+                    trx,
+                    projectUuid,
+                    data.warehouseConnection,
+                    data.organizationWarehouseCredentialsUuid,
+                );
+            }
         });
 
         if (
@@ -1904,7 +1932,10 @@ export class ProjectModel {
 
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
-        const sensitiveCredentials = project.warehouseConnection;
+        const sensitiveCredentials =
+            project.connections.length === 1
+                ? project.warehouseConnection
+                : undefined;
 
         const nonSensitiveDbtCredentials = Object.fromEntries(
             Object.entries(project.dbtConnection).filter(
