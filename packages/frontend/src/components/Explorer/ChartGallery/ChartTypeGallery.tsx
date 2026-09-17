@@ -120,7 +120,10 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
         const label = labelRef.current;
         if (!label) return;
         const measure = () =>
-            setIsLabelClamped(label.scrollHeight > label.clientHeight + 1);
+            setIsLabelClamped(
+                label.scrollHeight > label.clientHeight + 1 ||
+                    label.scrollWidth > label.clientWidth + 1,
+            );
         measure();
         const observer = new ResizeObserver(measure);
         observer.observe(label);
@@ -128,15 +131,10 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
     }, [item.label]);
 
     const tooltipLabel = isLabelClamped ? item.label : null;
+    const showsConfigure = item.selected && item.onConfigure !== null;
 
     return (
-        <Box
-            className={classes.cardWrapper}
-            data-menu-open={isMenuOpened}
-            data-configurable={
-                item.selected && item.onConfigure !== null && !item.disabled
-            }
-        >
+        <Box className={classes.cardWrapper} data-menu-open={isMenuOpened}>
             <Tooltip
                 label={
                     <>
@@ -164,7 +162,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     aria-pressed={item.selected}
                     disabled={item.disabled}
                     onClick={
-                        item.selected && item.onConfigure !== null
+                        showsConfigure && item.onConfigure !== null
                             ? item.onConfigure
                             : item.select
                     }
@@ -175,16 +173,20 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                             rotatedIcon={item.rotatedIcon}
                         />
                     </Box>
-                    <Text
-                        ref={labelRef}
-                        className={classes.cardLabel}
-                        fz="xs"
-                        fw={500}
-                        lh={1.2}
-                        lineClamp={2}
-                    >
-                        {item.label}
-                    </Text>
+                    {/* The slot always holds two lines; a selected card gives
+                        its second one to the Configure action. */}
+                    <Box className={classes.cardLabelSlot}>
+                        <Text
+                            ref={labelRef}
+                            fz="xs"
+                            fw={500}
+                            lh={1.2}
+                            lineClamp={showsConfigure ? undefined : 2}
+                            truncate={showsConfigure ? 'end' : undefined}
+                        >
+                            {item.label}
+                        </Text>
+                    </Box>
                 </UnstyledButton>
             </Tooltip>
             {/* Official types are read-only, so the edit menu's corner is
@@ -204,16 +206,13 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     </Box>
                 </Tooltip>
             ) : null}
-            {item.selected && item.onConfigure !== null ? (
+            {showsConfigure && item.onConfigure !== null ? (
                 <Button
                     className={classes.cardConfigureAction}
-                    variant="subtle"
-                    color="blue"
+                    variant="default"
                     size="compact-xs"
-                    h={28}
-                    px={4}
                     rightSection={
-                        <MantineIcon icon={IconArrowRight} size={12} />
+                        <MantineIcon icon={IconArrowRight} size={14} />
                     }
                     aria-label={`Configure ${item.label}`}
                     disabled={item.disabled}
