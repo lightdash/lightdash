@@ -80,6 +80,7 @@ import { SpacePermissionModel } from './SpacePermissionModel';
 import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
+import { UsageDimensionsModel } from './UsageDimensionsModel';
 import { UserAttributesModel } from './UserAttributesModel';
 import { UserAvatarModel } from './UserAvatarModel';
 import { UserFavoritesModel } from './UserFavoritesModel';
@@ -137,6 +138,7 @@ export type ModelManifest = {
     userOnboardingModel: UserOnboardingModel;
     userLearnProgressModel: UserLearnProgressModel;
     organizationModel: OrganizationModel;
+    usageDimensionsModel: UsageDimensionsModel;
     organizationDomainVerificationModel: OrganizationDomainVerificationModel;
     organizationEmailDomainModel: OrganizationEmailDomainModel;
     organizationSettingsModel: OrganizationSettingsModel;
@@ -321,6 +323,13 @@ export class ModelRepository
         return this.getModel(
             'analyticsModel',
             () => new AnalyticsModel({ database: this.database }),
+        );
+    }
+
+    public getUsageDimensionsModel(): UsageDimensionsModel {
+        return this.getModel(
+            'usageDimensionsModel',
+            () => new UsageDimensionsModel(this.database),
         );
     }
 

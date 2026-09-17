@@ -4,11 +4,16 @@ import { createHash } from 'crypto';
 import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
 import { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { quoteDuckdbIdentifier } from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { getCompactedStreamColumns } from './registry';
 import { CompactedStreamColumn } from './types';
+import {
+    UsageDimensionsRefresher,
+    type DimensionRefreshSummary,
+} from './UsageDimensionsRefresher';
 
 const RAW_KEY_PREFIX = 'events/raw/';
 const COMPACTED_KEY_PREFIX = 'events/compacted';
@@ -137,6 +142,10 @@ export type CompactionRunSummary = {
 export type UsageEventsCompactorArgs = {
     s3Config: Omit<S3Config, 'expirationTime'>;
     prometheusMetrics: PrometheusMetrics | null;
+    usageDimensionsModel: Pick<
+        UsageDimensionsModel,
+        'getOrganizations' | 'getJsonLines'
+    >;
 };
 
 /**
@@ -152,14 +161,41 @@ export class UsageEventsCompactor extends S3BaseClient {
 
     private readonly prometheusMetrics: PrometheusMetrics | null;
 
+    private readonly usageDimensionsModel: Pick<
+        UsageDimensionsModel,
+        'getOrganizations' | 'getJsonLines'
+    >;
+
     constructor(args: UsageEventsCompactorArgs) {
         super(args.s3Config);
         this.bucket = args.s3Config.bucket;
         this.s3Config = args.s3Config;
         this.prometheusMetrics = args.prometheusMetrics;
+        this.usageDimensionsModel = args.usageDimensionsModel;
     }
 
-    async run(now: Date = new Date()): Promise<CompactionRunSummary> {
+    async run(
+        now: Date = new Date(),
+    ): Promise<CompactionRunSummary & { dimensions: DimensionRefreshSummary }> {
+        try {
+            const summary = await this.compactEvents(now);
+            const dimensions = await new UsageDimensionsRefresher(
+                this.s3Config,
+                this.usageDimensionsModel,
+                this.createDuckdbClient(),
+            ).run();
+            if (dimensions.failed > 0) {
+                throw new Error(
+                    `Usage dimensions: ${dimensions.failed} refreshes failed; previous snapshots retained`,
+                );
+            }
+            return { ...summary, dimensions };
+        } finally {
+            this.s3?.destroy();
+        }
+    }
+
+    private async compactEvents(now: Date): Promise<CompactionRunSummary> {
         const runStart = Date.now();
         const todayUtc = now.toISOString().slice(0, 10);
         const { keys: rawKeys, bytesByKey } = await this.listRawKeys();

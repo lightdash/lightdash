@@ -12,10 +12,15 @@ describe('createAnalyticsExplores', () => {
         expect(exports.tables.export_events.dimensions.query_id).toBeDefined();
         expect(exports.joinedTables).toEqual([
             expect.objectContaining({
+                table: 'lightdash_users',
+                relationship: 'many-to-one',
+            }),
+            expect.objectContaining({
                 table: 'query_events',
                 relationship: 'many-to-one',
             }),
         ]);
+        expect(exports.tables.lightdash_users.dimensions.name).toBeDefined();
         expect(exports.tables.query_events.dimensions.chart_id).toBeDefined();
         expect(
             exports.tables.query_events.dimensions.dashboard_id,

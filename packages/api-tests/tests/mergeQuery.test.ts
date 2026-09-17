@@ -491,19 +491,39 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // expectation is read from the same merge run unlimited, because each
     // warehouse's dataset carries its own share of null months.
     it('places nulls under a limit the way the project warehouse does', async () => {
-        // Coupon payments cover only some months, so a FULL merge leaves
-        // the payments count null on the rest.
-        const couponPayments = {
+        // Restrict payments to one existing order so other months are unmatched,
+        // regardless of the payment-method distribution in each warehouse.
+        const paymentOrders = await runSourceQuery({
+            ...paymentsByMonth,
+            dimensions: ['orders_order_id'],
+            filters: {
+                dimensions: {
+                    id: 'existing-order-group',
+                    and: [
+                        {
+                            id: 'existing-order',
+                            target: { fieldId: 'orders_order_id' },
+                            operator: FilterOperator.NOT_NULL,
+                            values: [],
+                        },
+                    ],
+                },
+            },
+            limit: 1,
+        });
+        expect(paymentOrders).toHaveLength(1);
+        expect(paymentOrders[0].orders_order_id).not.toBeNull();
+        const oneOrderPayments = {
             ...paymentsByMonth,
             filters: {
                 dimensions: {
-                    id: 'coupon-only-group',
+                    id: 'one-order-group',
                     and: [
                         {
-                            id: 'coupon-only',
-                            target: { fieldId: 'payments_payment_method' },
+                            id: 'one-order',
+                            target: { fieldId: 'orders_order_id' },
                             operator: FilterOperator.EQUALS,
-                            values: ['coupon'],
+                            values: [paymentOrders[0].orders_order_id],
                         },
                     ],
                 },
@@ -517,7 +537,7 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
                     ...mergeQuery,
                     sources: [
                         { id: 'orders', metricQuery: ordersByMonth },
-                        { id: 'payments', metricQuery: couponPayments },
+                        { id: 'payments', metricQuery: oneOrderPayments },
                     ],
                     sorts: [{ fieldId: PAYMENTS_FIELD_ID, descending: true }],
                     limit,
@@ -541,10 +561,11 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
 
         const [everyRow, limitedRows] = await Promise.all([
             runSorted(500),
-            runSorted(5),
+            runSorted(1),
         ]);
         expect(everyRow.some((count) => count === null)).toBe(true);
-        expect(limitedRows).toHaveLength(Math.min(5, everyRow.length));
+        expect(everyRow.some((count) => count !== null)).toBe(true);
+        expect(limitedRows).toHaveLength(1);
         // The limited run keeps the head of the unlimited run's order: the
         // null rows first or last per the warehouse, values descending.
         expect(limitedRows).toEqual(

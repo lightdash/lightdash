@@ -27,6 +27,8 @@ const s3Mocks = vi.hoisted(() => {
         listObjectsV2 = listObjectsV2;
 
         deleteObjects = deleteObjects;
+
+        destroy = vi.fn();
     }
     return { listObjectsV2, deleteObjects, FakeS3 };
 });
@@ -79,6 +81,10 @@ type MetricsMock = ReturnType<typeof createMetricsMock>;
 const createCompactor = (metrics: MetricsMock) =>
     new UsageEventsCompactor({
         s3Config,
+        usageDimensionsModel: {
+            async *getOrganizations() {},
+            async *getJsonLines() {},
+        },
         prometheusMetrics: metrics as unknown as PrometheusMetrics,
     });
 
