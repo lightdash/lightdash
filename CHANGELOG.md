@@ -1,3 +1,10 @@
+# [2.244.0](https://github.com/lightdash/lightdash/compare/2.243.5...2.244.0) (2026-09-17)
+
+
+### Features
+
+* capture existing export events in usage analytics ([#29344](https://github.com/lightdash/lightdash/issues/29344)) ([4f21b4b](https://github.com/lightdash/lightdash/commit/4f21b4b331599ea4bb1d54d092aba24a142319ee))
+
 ## [2.243.5](https://github.com/lightdash/lightdash/compare/2.243.4...2.243.5) (2026-09-16)
 
 
