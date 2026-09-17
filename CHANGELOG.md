@@ -1,3 +1,10 @@
+## [2.250.2](https://github.com/lightdash/lightdash/compare/2.250.1...2.250.2) (2026-09-17)
+
+
+### Bug Fixes
+
+* require AI Agent permission to access unrestricted agents ([#29421](https://github.com/lightdash/lightdash/issues/29421)) ([c661dca](https://github.com/lightdash/lightdash/commit/c661dcaf174a8511c641caf19e8abea344ac7c71))
+
 ## [2.250.1](https://github.com/lightdash/lightdash/compare/2.250.0...2.250.1) (2026-09-17)
 
 
