@@ -109,6 +109,7 @@ const baseProps = {
     onRefresh: vi.fn(),
     refreshDisabled: false,
     onViewNetwork: vi.fn(),
+    onShowHistory: null,
     onDeleted: vi.fn(),
     onEdit: null,
     shareUrl: null,
@@ -199,6 +200,33 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
         expect(screen.queryByText('Schedule delivery')).not.toBeInTheDocument();
         expect(
             screen.queryByText('Google Sheets Sync'),
+        ).not.toBeInTheDocument();
+    });
+});
+
+describe('AppHeaderActions — project history entry point', () => {
+    beforeEach(() => {
+        mockedCanEdit.mockReturnValue(true);
+    });
+
+    it('opens the history when the builder provides a handler', async () => {
+        const onShowHistory = vi.fn();
+        renderWithProviders(
+            <AppHeaderActions {...baseProps} onShowHistory={onShowHistory} />,
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Show project history' }),
+        );
+
+        expect(onShowHistory).toHaveBeenCalledTimes(1);
+    });
+
+    it('has no history button on surfaces without a drawer', () => {
+        renderWithProviders(<AppHeaderActions {...baseProps} />);
+
+        expect(
+            screen.queryByRole('button', { name: 'Show project history' }),
         ).not.toBeInTheDocument();
     });
 });

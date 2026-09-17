@@ -1,0 +1,15 @@
+/* Sit below the fixed navbar instead of behind it. */
+.inner {
+    top: var(--navbar-height);
+}
+
+.content {
+    height: calc(100dvh - var(--navbar-height));
+}
+
+.body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+}

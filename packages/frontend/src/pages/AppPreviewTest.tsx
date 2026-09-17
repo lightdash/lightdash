@@ -339,6 +339,7 @@ export default function AppPreviewTest() {
                     rightSection={
                         <AppHeaderActions
                             capturedQueryCount={inspector.readyQueryCount}
+                            onShowHistory={null}
                             analysisToggle={
                                 showAnalysis ? (
                                     <Tooltip

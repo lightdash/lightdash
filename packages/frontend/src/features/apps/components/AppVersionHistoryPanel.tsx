@@ -27,6 +27,7 @@ import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { groupVersionsByThread } from '../utils/groupVersionsByThread';
+import { type AppVersionHistoryLiveBuild } from '../utils/historyLiveBuild';
 import {
     getVersionNarration,
     hasVersionNarration,
@@ -34,12 +35,6 @@ import {
 import classes from './AppVersionHistoryPanel.module.css';
 import AppVersionNarration from './AppVersionNarration';
 import VersionHistoryDisclosure from './VersionHistoryDisclosure';
-
-/** A build whose version has not reached history yet. */
-export type AppVersionHistoryLiveBuild = {
-    claimedVersion: number | null;
-    pendingPrompt: string | null;
-};
 
 export type AppVersionHistoryPanelProps = {
     /** Any order; rendered grouped by thread, newest first. */
