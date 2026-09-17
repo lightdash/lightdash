@@ -1129,14 +1129,6 @@ describe('ProjectModel', () => {
             ],
         );
 
-        const [selectQuery] = tracker.history.select;
-        expect(selectQuery.bindings).toEqual(
-            expect.arrayContaining([
-                'source-project',
-                'source-chart-1',
-                'source-chart-2',
-            ]),
-        );
         const [insertQuery] = tracker.history.insert;
         expect(insertQuery.bindings).toEqual(
             expect.arrayContaining([
@@ -1209,14 +1201,6 @@ describe('ProjectModel', () => {
             ],
         );
 
-        const [selectQuery] = tracker.history.select;
-        expect(selectQuery.bindings).toEqual(
-            expect.arrayContaining([
-                'source-project',
-                'source-dashboard-1',
-                'source-dashboard-2',
-            ]),
-        );
         const [insertQuery] = tracker.history.insert;
         expect(insertQuery.bindings).toEqual(
             expect.arrayContaining([

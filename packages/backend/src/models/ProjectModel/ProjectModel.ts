@@ -4188,10 +4188,10 @@ export class ProjectModel {
 
         const aliases = await trx(SavedChartSlugMappingsTableName)
             .where('project_uuid', sourceProjectUuid)
-            .whereIn(
+            .whereRaw('?? = ANY(?::uuid[])', [
                 'saved_query_uuid',
                 chartUuidMapping.map(({ sourceChartUuid }) => sourceChartUuid),
-            )
+            ])
             .select('saved_query_uuid', 'slug');
         if (aliases.length === 0) return;
 
@@ -4237,12 +4237,12 @@ export class ProjectModel {
 
         const aliases = await trx(DashboardSlugMappingsTableName)
             .where('project_uuid', sourceProjectUuid)
-            .whereIn(
+            .whereRaw('?? = ANY(?::uuid[])', [
                 'dashboard_uuid',
                 dashboardUuidMapping.map(
                     ({ sourceDashboardUuid }) => sourceDashboardUuid,
                 ),
-            )
+            ])
             .select('dashboard_uuid', 'slug');
         if (aliases.length === 0) return;
 
@@ -4413,9 +4413,10 @@ export class ProjectModel {
                 .select('project_id');
             const projectId = project.project_id;
 
-            const dbSpaces = await trx(SpaceTableName).whereIn(
-                'space_uuid',
-                spaces.map((s) => s.uuid),
+            // Bind ID lists as arrays so large copies stay below Postgres's parameter limit.
+            const dbSpaces = await trx(SpaceTableName).whereRaw(
+                '?? = ANY(?::uuid[])',
+                ['space_uuid', spaces.map((s) => s.uuid)],
             );
 
             Logger.info(
@@ -4485,9 +4486,9 @@ export class ProjectModel {
             const getNewSpaceUuid = (oldSpaceUuid: string): string =>
                 spaceMapping.find((s) => s.uuid === oldSpaceUuid)?.newUuid!;
 
-            const spaceUserAccesses = await trx('space_user_access').whereIn(
-                'space_uuid',
-                spaceUuids,
+            const spaceUserAccesses = await trx('space_user_access').whereRaw(
+                '?? = ANY(?::uuid[])',
+                ['space_uuid', spaceUuids],
             );
 
             const newSpaceUserAccess =
@@ -4502,9 +4503,9 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const spaceGroupAccesses = await trx('space_group_access').whereIn(
-                'space_uuid',
-                spaceUuids,
+            const spaceGroupAccesses = await trx('space_group_access').whereRaw(
+                '?? = ANY(?::uuid[])',
+                ['space_uuid', spaceUuids],
             );
 
             Logger.info(
@@ -4568,10 +4569,10 @@ export class ProjectModel {
                     .andWhere('scope', ExternalSourceScope.CATALOG);
                 const sourceTables = await trx(
                     ExternalSourceTablesTableName,
-                ).whereIn(
+                ).whereRaw('?? = ANY(?::uuid[])', [
                     'external_source_uuid',
                     sources.map((source) => source.external_source_uuid),
-                );
+                ]);
                 const sourceUuidMap = new Map(
                     sources.map((s) => [s.external_source_uuid, uuidv4()]),
                 );
@@ -4647,7 +4648,10 @@ export class ProjectModel {
                     `${DashboardsTableName}.space_id`,
                     `${SpaceTableName}.space_id`,
                 )
-                .whereIn(`${DashboardsTableName}.space_id`, spaceIds)
+                .whereRaw('?? = ANY(?::int[])', [
+                    `${DashboardsTableName}.space_id`,
+                    spaceIds,
+                ])
                 .andWhere(`${SpaceTableName}.project_id`, projectId)
                 .whereNull(`${DashboardsTableName}.deleted_at`)
                 .whereNull(`${SpaceTableName}.deleted_at`)
@@ -4736,7 +4740,10 @@ export class ProjectModel {
                     `${SavedSqlTableName}.space_uuid`,
                     `${SpaceTableName}.space_uuid`,
                 )
-                .whereIn(`${SavedSqlTableName}.space_uuid`, spaceUuids)
+                .whereRaw('?? = ANY(?::uuid[])', [
+                    `${SavedSqlTableName}.space_uuid`,
+                    spaceUuids,
+                ])
                 .andWhere(`${SpaceTableName}.project_id`, projectId)
                 .whereNull(`${SavedSqlTableName}.deleted_at`)
                 .select<DbSavedSql[]>(`${SavedSqlTableName}.*`);
@@ -4864,17 +4871,20 @@ export class ProjectModel {
 
             // Get the last saved SQL version by uuid and created_at
             const lastSavedSQLVersionEntries = await trx('saved_sql_versions')
-                .whereIn('saved_sql_uuid', savedSQLUuids)
+                .whereRaw('?? = ANY(?::uuid[])', [
+                    'saved_sql_uuid',
+                    savedSQLUuids,
+                ])
                 .select('saved_sql_uuid')
                 .max('created_at as latest_created_at')
                 .groupBy('saved_sql_uuid');
 
             // Now query the full records for each saved_sql_uuid where created_at is the latest
             const savedSQLVersions = await trx('saved_sql_versions')
-                .whereIn(
+                .whereRaw('?? = ANY(?::uuid[])', [
                     'saved_sql_uuid',
                     lastSavedSQLVersionEntries.map((d) => d.saved_sql_uuid),
-                )
+                ])
                 .select('*');
 
             const newSavedSQLVersions =
@@ -4916,7 +4926,10 @@ export class ProjectModel {
                     `${SavedChartsTableName}.space_id`,
                     `${SpaceTableName}.space_id`,
                 )
-                .whereIn(`${SpaceTableName}.space_id`, spaceIds)
+                .whereRaw('?? = ANY(?::int[])', [
+                    `${SpaceTableName}.space_id`,
+                    spaceIds,
+                ])
                 .andWhere(`${SpaceTableName}.project_id`, projectId)
                 .whereNull(`${SpaceTableName}.deleted_at`)
                 .whereNull(`${SavedChartsTableName}.deleted_at`)
@@ -5049,15 +5062,15 @@ export class ProjectModel {
 
             // only get last chart version
             const lastVersionIds = await trx('saved_queries_versions')
-                .whereIn('saved_query_id', chartIds)
+                .whereRaw('?? = ANY(?::int[])', ['saved_query_id', chartIds])
                 .groupBy('saved_query_id')
                 .max('saved_queries_version_id');
 
             const chartVersions = await trx('saved_queries_versions')
-                .whereIn(
+                .whereRaw('?? = ANY(?::int[])', [
                     'saved_queries_version_id',
                     lastVersionIds.map((d) => d.max),
-                )
+                ])
                 .select('*');
 
             const chartVersionIds = chartVersions.map(
@@ -5107,7 +5120,10 @@ export class ProjectModel {
                 } = {},
             ) => {
                 const content = await trx(table)
-                    .whereIn('saved_queries_version_id', chartVersionIds)
+                    .whereRaw('?? = ANY(?::int[])', [
+                        'saved_queries_version_id',
+                        chartVersionIds,
+                    ])
                     .select(`*`);
 
                 if (content.length === 0) return undefined;
@@ -5183,7 +5199,7 @@ export class ProjectModel {
 
             // Get last version of a dashboard
             const lastDashboardVersionsIds = await trx('dashboard_versions')
-                .whereIn('dashboard_id', dashboardIds)
+                .whereRaw('?? = ANY(?::int[])', ['dashboard_id', dashboardIds])
                 .groupBy('dashboard_id')
                 .max('dashboard_version_id');
 
@@ -5192,7 +5208,10 @@ export class ProjectModel {
             );
 
             const dashboardVersions = await trx('dashboard_versions')
-                .whereIn('dashboard_version_id', dashboardVersionIds)
+                .whereRaw('?? = ANY(?::int[])', [
+                    'dashboard_version_id',
+                    dashboardVersionIds,
+                ])
                 .select('*');
 
             const newDashboardVersions =
@@ -5223,9 +5242,9 @@ export class ProjectModel {
                 newId: newDashboardVersions[i].dashboard_version_id,
             }));
 
-            const dashboardTabs = await trx(DashboardTabsTableName).whereIn(
-                'dashboard_version_id',
-                dashboardVersionIds,
+            const dashboardTabs = await trx(DashboardTabsTableName).whereRaw(
+                '?? = ANY(?::int[])',
+                ['dashboard_version_id', dashboardVersionIds],
             );
 
             Logger.info(
@@ -5255,9 +5274,9 @@ export class ProjectModel {
                 dashboardVersionId: dashboardTabs[i].dashboard_version_id,
             }));
 
-            const dashboardViews = await trx(DashboardViewsTableName).whereIn(
-                'dashboard_version_id',
-                dashboardVersionIds,
+            const dashboardViews = await trx(DashboardViewsTableName).whereRaw(
+                '?? = ANY(?::int[])',
+                ['dashboard_version_id', dashboardVersionIds],
             );
 
             Logger.info(
@@ -5278,9 +5297,9 @@ export class ProjectModel {
                 );
             }
 
-            const dashboardTiles = await trx('dashboard_tiles').whereIn(
-                'dashboard_version_id',
-                dashboardVersionIds,
+            const dashboardTiles = await trx('dashboard_tiles').whereRaw(
+                '?? = ANY(?::int[])',
+                ['dashboard_version_id', dashboardVersionIds],
             );
 
             Logger.info(
@@ -5322,8 +5341,14 @@ export class ProjectModel {
 
             const copyDashboardTileContent = async (table: string) => {
                 const content = await trx(table)
-                    .whereIn('dashboard_tile_uuid', dashboardTileUuids)
-                    .and.whereIn('dashboard_version_id', dashboardVersionIds);
+                    .whereRaw('?? = ANY(?::uuid[])', [
+                        'dashboard_tile_uuid',
+                        dashboardTileUuids,
+                    ])
+                    .and.whereRaw('?? = ANY(?::int[])', [
+                        'dashboard_version_id',
+                        dashboardVersionIds,
+                    ]);
 
                 if (content.length === 0) return undefined;
 
@@ -5433,7 +5458,10 @@ export class ProjectModel {
                     const aiAgentInstructionVersions = await trx(
                         AiAgentInstructionVersionsTableName,
                     )
-                        .whereIn('ai_agent_uuid', aiAgentUuids)
+                        .whereRaw('?? = ANY(?::uuid[])', [
+                            'ai_agent_uuid',
+                            aiAgentUuids,
+                        ])
                         .select('*');
 
                     Logger.debug(
@@ -5475,7 +5503,10 @@ export class ProjectModel {
                     const aiAgentGroupAccesses = await trx(
                         AiAgentGroupAccessTableName,
                     )
-                        .whereIn('ai_agent_uuid', aiAgentUuids)
+                        .whereRaw('?? = ANY(?::uuid[])', [
+                            'ai_agent_uuid',
+                            aiAgentUuids,
+                        ])
                         .select('*');
 
                     Logger.debug(
@@ -5508,7 +5539,10 @@ export class ProjectModel {
                     const aiAgentUserAccesses = await trx(
                         AiAgentUserAccessTableName,
                     )
-                        .whereIn('ai_agent_uuid', aiAgentUuids)
+                        .whereRaw('?? = ANY(?::uuid[])', [
+                            'ai_agent_uuid',
+                            aiAgentUuids,
+                        ])
                         .select('*');
 
                     Logger.debug(
