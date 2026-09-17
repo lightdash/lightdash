@@ -418,7 +418,10 @@ describe('DataAppVizTestPanel', () => {
         ).toHaveAccessibleDescription('The label for each funnel stage');
         expect(
             screen.getByRole('button', { name: 'Value' }),
-        ).toHaveAccessibleDescription('Choose the numeric value for each row.');
+        ).not.toHaveAttribute('aria-describedby');
+        expect(
+            screen.queryByRole('img', { name: 'About Value' }),
+        ).not.toBeInTheDocument();
     });
 
     it('requests the same filtered Explore list as Explorer', () => {

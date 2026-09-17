@@ -42,7 +42,9 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
 
             <Stack gap="xs">
                 {schema.fields.map((field) => {
-                    const guidanceId = `${guidanceIdPrefix}-${field.name}`;
+                    const guidanceId = field.description?.trim()
+                        ? `${guidanceIdPrefix}-${field.name}`
+                        : undefined;
                     const items =
                         field.type === 'metric' ? metrics : dimensions;
                     const selectedId = fieldMapping[field.name];

@@ -17,12 +17,16 @@ const field: DataAppVizField = {
 describe('DataAppVizFieldGuidance', () => {
     it('shows help on hover and dismisses it when the pointer leaves', async () => {
         const user = userEvent.setup();
-        renderWithProviders(<DataAppVizFieldHelp field={field} />);
+        renderWithProviders(
+            <DataAppVizFieldHelp
+                field={{ ...field, description: 'Choose a category.' }}
+            />,
+        );
         const icon = screen.getByRole('img', { name: 'About Category' });
         expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
         await user.hover(icon);
         expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'Choose the category or label that identifies each row.',
+            'Choose a category.',
         );
         await user.unhover(icon);
         await waitFor(() =>
@@ -50,27 +54,27 @@ describe('DataAppVizFieldGuidance', () => {
         ).toHaveAccessibleDescription('Groups rows into separate bars.');
     });
 
-    it.each(['', '   '])(
-        'provides fallback help for blank descriptions (%j)',
-        async (description) => {
-            const user = userEvent.setup();
-            renderWithProviders(
-                <DataAppVizFieldHelp field={{ ...field, description }} />,
+    it.each([undefined, null, '', '   '])(
+        'renders no help for absent or blank descriptions (%j)',
+        (description) => {
+            const fieldWithoutHelp = {
+                ...field,
+                description,
+            } as DataAppVizField;
+            const { container } = renderWithProviders(
+                <>
+                    <DataAppVizFieldHelp field={fieldWithoutHelp} />
+                    <DataAppVizFieldGuidance
+                        id="help"
+                        field={fieldWithoutHelp}
+                    />
+                </>,
             );
             expect(
-                screen.queryByText(
-                    'Choose the category or label that identifies each row.',
-                ),
+                screen.queryByRole('img', { name: 'About Category' }),
             ).not.toBeInTheDocument();
-            await user.hover(
-                screen.getByRole('img', { name: 'About Category' }),
-            );
-            await screen.findByRole('tooltip');
-            expect(
-                screen.getByText(
-                    'Choose the category or label that identifies each row.',
-                ),
-            ).toBeVisible();
+            expect(container.querySelector('#help')).not.toBeInTheDocument();
+            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
         },
     );
 

@@ -77,7 +77,9 @@ const DataAppVizSettings: FC<Props> = ({
             )}
 
             {fields.map((field) => {
-                const guidanceId = `${guidanceIdPrefix}-${field.name}`;
+                const guidanceId = field.description?.trim()
+                    ? `${guidanceIdPrefix}-${field.name}`
+                    : undefined;
                 const items = fieldItems(field);
                 const addItems = addPools[poolKeyForSlot(field)];
                 const selectedId = fieldMapping[field.name];

@@ -876,7 +876,10 @@ describe('DataAppVizConfigTabs', () => {
         ).toHaveAccessibleDescription('The label for each funnel stage');
         expect(
             screen.getByRole('textbox', { name: 'Value' }),
-        ).toHaveAccessibleDescription('Choose the numeric value for each row.');
+        ).not.toHaveAttribute('aria-describedby');
+        expect(
+            screen.queryByRole('img', { name: 'About Value' }),
+        ).not.toBeInTheDocument();
 
         const setupHelp = screen.getByRole('button', {
             name: 'How to use this chart',
@@ -921,11 +924,12 @@ describe('DataAppVizConfigTabs', () => {
 
         renderWithProviders(<ConfigTabs />);
 
-        expect(
-            screen.getByRole('textbox', { name: 'To' }),
-        ).toHaveAccessibleDescription(
-            'Choose the category or label that identifies each row.',
+        expect(screen.getByRole('textbox', { name: 'To' })).not.toHaveAttribute(
+            'aria-describedby',
         );
+        expect(
+            screen.queryByRole('img', { name: 'About To' }),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByText(
                 'Select a field for “To” to display your chart.',
