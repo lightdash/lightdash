@@ -1,6 +1,7 @@
 import { ContentType, type VerifiedContentListItem } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Button,
     Group,
     Menu,
@@ -107,16 +108,20 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                                     className={classes.typeIcon}
                                 />
                             </Tooltip>
-                            <TruncatedText
+                            <Anchor
                                 component={Link}
                                 to={href}
-                                maxWidth="100%"
-                                fw={500}
-                                c="blue"
                                 className={classes.nameLink}
+                                underline="hover"
                             >
-                                {item.name}
-                            </TruncatedText>
+                                <TruncatedText
+                                    maxWidth="100%"
+                                    fw={500}
+                                    display="block"
+                                >
+                                    {item.name}
+                                </TruncatedText>
+                            </Anchor>
                         </Group>
                     );
                 },
