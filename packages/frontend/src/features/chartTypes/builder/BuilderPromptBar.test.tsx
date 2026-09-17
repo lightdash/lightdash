@@ -332,7 +332,14 @@ describe('BuilderPromptBar', () => {
         ({ sampleRows }) => {
             renderWithProviders(
                 promptBar({
-                    buildContext: { schema: { fields: [] }, sampleRows },
+                    buildContext: {
+                        schema: {
+                            fields: [],
+                            configOptions: [],
+                            colorPalette: null,
+                        },
+                        sampleRows,
+                    },
                 }),
             );
             expect(
@@ -355,7 +362,13 @@ describe('BuilderPromptBar', () => {
         view.rerender(
             promptBar({
                 build: buildState({ send }),
-                buildContext: { schema: { fields: [] } },
+                buildContext: {
+                    schema: {
+                        fields: [],
+                        configOptions: [],
+                        colorPalette: null,
+                    },
+                },
             }),
         );
         await userEvent.type(
