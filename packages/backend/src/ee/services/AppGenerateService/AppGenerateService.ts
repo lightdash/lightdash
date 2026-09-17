@@ -9492,7 +9492,10 @@ export class AppGenerateService extends BaseService {
                     undefined,
                     undefined,
                     vizSchema,
-                    { registryVersion: entry.version },
+                    {
+                        registryVersion: entry.version,
+                        thread: { origin: 'import', aiThreadUuid: null },
+                    },
                 );
             }
         } catch (e) {
@@ -12800,7 +12803,10 @@ export class AppGenerateService extends BaseService {
                     : undefined,
                 // Verbatim slug + loud conflict, so re-uploads stay
                 // idempotent (never silently minting suffixed duplicates).
-                { forceSlug: true },
+                {
+                    forceSlug: true,
+                    thread: { origin: 'import', aiThreadUuid: null },
+                },
             );
             newAppUuid = app.app_id;
             newAppSlug = app.slug;
