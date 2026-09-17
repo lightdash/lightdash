@@ -576,11 +576,7 @@ export default class App {
                     ],
                     'img-src': ["'self'", 'data:', 'blob:', 'https://*'],
                     'frame-src': ["'self'", 'https://*'],
-                    'frame-ancestors': [
-                        "'self'",
-                        ...this.lightdashConfig.security.contentSecurityPolicy
-                            .frameAncestors,
-                    ],
+                    'frame-ancestors': ["'self'"] as string[],
                     'worker-src': [
                         "'self'",
                         'blob:',
@@ -640,13 +636,13 @@ export default class App {
             helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }),
         );
 
+        const { frameAncestors } =
+            this.lightdashConfig.security.contentSecurityPolicy;
         const helmetConfigForEmbeds = produce(helmetConfig, (draft) => {
             // eslint-disable-next-line no-param-reassign
             draft.contentSecurityPolicy.directives['frame-ancestors'] = [
                 "'self'",
-                'https://*',
-                ...this.lightdashConfig.security.contentSecurityPolicy
-                    .frameAncestors,
+                ...(frameAncestors.length > 0 ? frameAncestors : ['https://*']),
             ];
         });
 
@@ -677,8 +673,8 @@ export default class App {
         // APPS_RUNTIME_ENABLED env var or the enable-data-apps feature flag.
         if (this.lightdashConfig.appRuntime.s3) {
             const analyticsModel = this.models.getAnalyticsModel();
-            // Frame-ancestors for the data-app preview iframe. Mirrors the
-            // `/embed/*` policy ('self' https://*) plus any explicit
+            // Frame-ancestors for the data-app preview iframe: 'self',
+            // https://*, plus any explicit
             // domains from `LIGHTDASH_IFRAME_EMBEDDING_DOMAINS` so SDK-
             // hosted dashboards can render data-app tiles from customer
             // origins (and local dev http origins like localhost:5173).
