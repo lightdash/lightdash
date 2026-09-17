@@ -873,6 +873,16 @@ export class ProjectService extends BaseService {
         this.provisionTrainingProject = provisionTrainingProject;
     }
 
+    async stampProjectContent(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await this.projectModel.stampProjectContent(
+            projectUuid,
+            connectionUuid,
+        );
+    }
+
     /**
      * Enable Learn for the user's organization (CS-257): create the training
      * project, seeded, with the caller as its assigned admin. Idempotent.
@@ -5601,6 +5611,13 @@ export class ProjectService extends BaseService {
         sources: ProjectDbtSource[];
         manifestFetchAdapters: ProjectAdapter[];
     }): Promise<ResolvedCompileAdapter> {
+        const primarySource = sources.find((source) => source.isPrimary);
+        if (!primarySource) {
+            throw new ParameterError(
+                'The project does not have a materialised primary dbt source',
+            );
+        }
+        const additionalSources = sources.filter((source) => !source.isPrimary);
         const shared = {
             warehouseCredentials: primary.warehouseCredentials,
             cachedWarehouse: primary.cachedWarehouse,
@@ -5610,44 +5627,69 @@ export class ProjectService extends BaseService {
         // The primary git adapter is only read for its manifest here; the merged
         // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
         manifestFetchAdapters.push(primary.adapter);
-        const [
-            {
-                manifest: rawPrimaryManifest,
-                selectedModelIds: primarySelectedModelIds,
-            },
-            identity,
-        ] = await Promise.all([
-            primary.adapter.getDbtManifest(),
-            this.projectModel.getDbtSourceIdentity(projectUuid),
-        ]);
+        const {
+            manifest: rawPrimaryManifest,
+            selectedModelIds: primarySelectedModelIds,
+        } = await primary.adapter.getDbtManifest();
         const selectedPrimaryManifest = manifestWithCompilationSelection(
             rawPrimaryManifest,
             primarySelectedModelIds,
         );
-        const primaryManifest = {
-            ...selectedPrimaryManifest,
-            nodes: Object.fromEntries(
-                Object.entries(selectedPrimaryManifest.nodes).map(
-                    ([uniqueId, node]) => [
+        const annotateManifest = (
+            manifest: DbtManifest,
+            source: ProjectDbtSource,
+        ): DbtManifest => ({
+            ...manifest,
+            metrics: Object.fromEntries(
+                Object.entries(manifest.metrics ?? {}).map(
+                    ([uniqueId, metric]) => [
                         uniqueId,
-                        node.resource_type === 'model' ||
-                        node.resource_type === 'seed'
-                            ? {
-                                  ...node,
-                                  lightdash_source_uuid: identity.dbtSourceUuid,
-                              }
-                            : node,
+                        {
+                            ...metric,
+                            lightdash_namespace_prefix: source.namespacePrefix,
+                        },
                     ],
                 ),
             ),
-        };
+            semantic_models: Object.fromEntries(
+                Object.entries(manifest.semantic_models ?? {}).map(
+                    ([uniqueId, semanticModel]) => [
+                        uniqueId,
+                        {
+                            ...semanticModel,
+                            lightdash_namespace_prefix: source.namespacePrefix,
+                        },
+                    ],
+                ),
+            ),
+            nodes: Object.fromEntries(
+                Object.entries(manifest.nodes).map(([uniqueId, node]) => [
+                    uniqueId,
+                    node.resource_type === 'model' ||
+                    node.resource_type === 'seed'
+                        ? {
+                              ...node,
+                              lightdash_source_uuid:
+                                  source.projectDbtSourceUuid,
+                              lightdash_connection_uuid: source.connectionUuid,
+                              lightdash_namespace_prefix:
+                                  source.namespacePrefix,
+                          }
+                        : node,
+                ]),
+            ),
+        });
+        const primaryManifest = annotateManifest(
+            selectedPrimaryManifest,
+            primarySource,
+        );
 
         // A credential error fails the whole deploy by name, matching every
         // other per-source failure below (broken clone, broken manifest) — a
         // silently-skipped source would otherwise produce a green deploy that
         // is quietly missing one sibling's models, the exact failure mode the
         // recompile-all-sources design exists to prevent.
-        const brokenCredentialSource = sources.find(
+        const brokenCredentialSource = additionalSources.find(
             (source) => source.hasCredentialError,
         );
         if (brokenCredentialSource) {
@@ -5656,14 +5698,14 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const compilableSources = sources.filter(
+        const compilableSources = additionalSources.filter(
             (
                 source,
             ): source is ProjectDbtSource & {
                 dbtConnection: DbtProjectConfig;
             } => source.dbtConnection !== null,
         );
-        sources
+        additionalSources
             .filter((source) => source.dbtConnection === null)
             .forEach((source) => {
                 this.logger.warn(
@@ -5739,24 +5781,10 @@ export class ProjectService extends BaseService {
                         manifest,
                         sourceSelectedModelIds,
                     );
-                    const sourceManifest = {
-                        ...selectedManifest,
-                        nodes: Object.fromEntries(
-                            Object.entries(selectedManifest.nodes).map(
-                                ([uniqueId, node]) => [
-                                    uniqueId,
-                                    node.resource_type === 'model' ||
-                                    node.resource_type === 'seed'
-                                        ? {
-                                              ...node,
-                                              lightdash_source_uuid:
-                                                  source.projectDbtSourceUuid,
-                                          }
-                                        : node,
-                                ],
-                            ),
-                        ),
-                    };
+                    const sourceManifest = annotateManifest(
+                        selectedManifest,
+                        source,
+                    );
                     const sourceDurationMs = Date.now() - sourceStartedAt;
                     const sourceModelCount = Object.values(
                         manifest.nodes,
@@ -5813,8 +5841,8 @@ export class ProjectService extends BaseService {
 
         const manifestSources: ManifestSource[] = [
             {
-                name: identity.dbtSourceName,
-                precedence: 0,
+                name: primarySource.name,
+                precedence: primarySource.precedence,
                 manifest: primaryManifest,
             },
             ...built.map((b) => ({
@@ -5949,15 +5977,6 @@ export class ProjectService extends BaseService {
         };
     }
 
-    /**
-     * Resolve the adapter to compile a project with. When the MultiDbtSources
-     * flag is on and the project has additional sources, returns a merged
-     * manifest adapter (the union of every source); otherwise returns the
-     * primary adapter unchanged (N=0 short-circuit / regression firewall).
-     * Source git clones are pushed onto `manifestFetchAdapters` for the caller
-     * to destroy. Shared by both compile entry points (compileProject /
-     * testAndCompileProject) so "Refresh dbt" and "Test & deploy" merge alike.
-     */
     private async resolveCompileAdapter({
         projectUuid,
         organizationUuid,
@@ -5993,11 +6012,11 @@ export class ProjectService extends BaseService {
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {
-            await this.deleteMergedManifestBestEffort(projectUuid);
-            onDbtSourceCount?.(1);
-            return { adapter: primary.adapter };
+            throw new ParameterError(
+                'The project does not have a materialised primary dbt source',
+            );
         }
-        onDbtSourceCount?.(sources.length + 1);
+        onDbtSourceCount?.(sources.length);
         return this.buildMergedManifestAdapter({
             projectUuid,
             organizationUuid,

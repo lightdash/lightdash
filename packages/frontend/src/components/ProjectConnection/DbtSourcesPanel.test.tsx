@@ -1,4 +1,4 @@
-import { DbtProjectType } from '@lightdash/common';
+import { DbtProjectType, WarehouseTypes } from '@lightdash/common';
 import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -27,6 +27,8 @@ const mockApi = lightdashApi as unknown as Mock;
 
 const source = {
     projectDbtSourceUuid: 'source-uuid',
+    connectionUuid: 'connection-uuid',
+    namespacePrefix: 'analytics',
     name: 'my source!',
     isPrimary: false,
     precedence: 1,
@@ -40,6 +42,8 @@ const source = {
 
 const primarySource = {
     projectDbtSourceUuid: 'primary-source-uuid',
+    connectionUuid: 'connection-uuid',
+    namespacePrefix: '',
     name: 'dbt_project',
     isPrimary: true,
     precedence: 0,
@@ -65,7 +69,17 @@ const connection = {
     host_domain: 'github.com',
 };
 
-const routeApi = (sourceName?: string) => {
+const projectConnection = {
+    connectionUuid: 'connection-uuid',
+    name: 'Analytics warehouse',
+    warehouseType: WarehouseTypes.POSTGRES,
+    organizationWarehouseCredentialsUuid: null,
+    listAllDatabases: false,
+    additionalDatabases: [],
+    createdAt: new Date('2026-09-17T00:00:00.000Z'),
+};
+
+const routeApi = (sourceName?: string, connections = [projectConnection]) => {
     mockApi.mockImplementation(
         ({ url, method }: { url: string; method: string }) => {
             if (url === '/projects/project-uuid/dbt-sources') {
@@ -87,6 +101,9 @@ const routeApi = (sourceName?: string) => {
                         ? [primarySource]
                         : [primarySource, { ...source, name: sourceName }],
                 );
+            }
+            if (url === '/projects/project-uuid') {
+                return Promise.resolve({ connections });
             }
             if (
                 url === '/projects/project-uuid/dbt-sources/source-uuid' &&
@@ -168,6 +185,31 @@ describe('DbtSourcesPanel', () => {
         ).toBeInTheDocument();
     });
 
+    it('hides the connection selector for a project with one connection', async () => {
+        const { dialog } = await openAddSourceModal();
+
+        expect(
+            within(dialog).queryByRole('combobox', { name: 'Connection' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows the connection selector for a project with multiple connections', async () => {
+        routeApi(undefined, [
+            projectConnection,
+            {
+                ...projectConnection,
+                connectionUuid: 'finance-connection-uuid',
+                name: 'Finance warehouse',
+            },
+        ]);
+
+        const { dialog } = await openAddSourceModal();
+
+        expect(
+            within(dialog).getByRole('combobox', { name: 'Connection' }),
+        ).toBeInTheDocument();
+    });
+
     it('closes after a source is created without waiting for list invalidation', async () => {
         vi.spyOn(QueryClient.prototype, 'invalidateQueries').mockReturnValue(
             new Promise(() => {}),
@@ -175,7 +217,7 @@ describe('DbtSourcesPanel', () => {
         const { dialog, user } = await openAddSourceModal();
 
         await user.type(
-            within(dialog).getByRole('textbox', { name: /Name/ }),
+            within(dialog).getByRole('textbox', { name: 'Name' }),
             'marketing',
         );
         await waitFor(() =>
@@ -195,6 +237,16 @@ describe('DbtSourcesPanel', () => {
                 }),
             ),
         );
+        const createCall = mockApi.mock.calls.find(
+            ([request]) =>
+                request.url === '/projects/project-uuid/dbt-sources' &&
+                request.method === 'POST',
+        );
+        expect(JSON.parse(createCall?.[0].body)).toMatchObject({
+            name: 'marketing',
+            connectionUuid: 'connection-uuid',
+            namespacePrefix: 'marketing',
+        });
         await waitFor(() =>
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
         );
@@ -222,6 +274,17 @@ describe('DbtSourcesPanel', () => {
                 }),
             ),
         );
+    });
+
+    it('keeps the namespace prefix read-only after creation', async () => {
+        routeApi('analytics');
+        const { dialog } = await openEditSourceModal('analytics');
+
+        expect(
+            within(dialog).getByRole('textbox', {
+                name: /Namespace prefix/,
+            }),
+        ).toHaveAttribute('readonly');
     });
 
     it('rejects the same legacy value when it is an actual rename', async () => {
@@ -320,7 +383,7 @@ describe('DbtSourcesPanel', () => {
         ).toBeInTheDocument();
         expect(
             within(dialog).getByText(
-                'Renaming this source changes qualified explore names on the next deploy.',
+                'Renaming this source does not change its explore names.',
             ),
         ).toBeInTheDocument();
 

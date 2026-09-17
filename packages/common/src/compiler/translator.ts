@@ -1149,6 +1149,9 @@ export const convertTable = (
         ...(model.lightdash_source_uuid
             ? { dbtSourceUuid: model.lightdash_source_uuid }
             : {}),
+        ...(model.lightdash_connection_uuid
+            ? { connectionUuid: model.lightdash_connection_uuid }
+            : {}),
         ...(model.patch_path
             ? { ymlPath: patchPathParts(model.patch_path).path }
             : {}),
@@ -1491,6 +1494,7 @@ export async function* iterateExplores(
             uniqueId: model.unique_id,
             name: model.name,
             lightdash_source_name: model.lightdash_source_name,
+            lightdash_namespace_prefix: model.lightdash_namespace_prefix,
             package_name: model.package_name,
         })),
         'model',

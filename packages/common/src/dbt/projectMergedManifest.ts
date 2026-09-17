@@ -27,6 +27,8 @@ const MODEL_FIELDS = [
     'depends_on',
     'lightdash_source_name',
     'lightdash_source_uuid',
+    'lightdash_connection_uuid',
+    'lightdash_namespace_prefix',
 ] as const;
 
 const COLUMN_FIELDS = [
